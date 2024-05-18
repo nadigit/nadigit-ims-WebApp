@@ -1,0 +1,516 @@
+<div class="grid">
+	<div class="col-12">
+		<div class="card px-6 py-6">
+			<p-toast></p-toast>
+			<p-toolbar styleClass="mb-4">
+				<ng-template pTemplate="left">
+					<div class="my-2">
+						<button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+							class="p-button-success mr-2" (click)="openNew()"></button>
+						<button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-trash"
+							class="p-button-danger" (click)="deleteSelectedOrders()"
+							[disabled]="!selectedOrders || !selectedOrders.length"></button>
+					</div>
+				</ng-template>
+
+				<ng-template pTemplate="right">
+					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+						tooltipPosition="bottom" (click)="exportPdf()"></button>
+					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+						class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+				</ng-template>
+			</p-toolbar>
+
+			<p-table #dt [value]="orders" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+				[globalFilterFields]="['quantity','product.name','customer.firstName','customer.lastName']"
+				[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+				[(selection)]="selectedOrders" selectionMode="multiple" [rowHover]="true" dataKey="orderId"
+				[expandedRowKeys]="expandedRows">
+				<ng-template pTemplate="caption">
+					<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+						<h5 class="m-0">{{ 'orders_page_title' | translate }}</h5>
+						<span class="block mt-2 md:mt-0 p-input-icon-left">
+							<i class="pi pi-search"></i>
+							<input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+								placeholder="{{ 'new_button' | translate }}" class="w-full sm:w-auto" />
+						</span>
+					</div>
+				</ng-template>
+				<ng-template pTemplate="header">
+					<tr>
+						<th style="width: 3rem">
+							<p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+						</th>
+						<th style="width: 3rem"></th>
+						<th pSortableColumn="orderId">{{ 'order_id' | translate }} <p-sortIcon
+								field="orderId"></p-sortIcon></th>
+						<th pSortableColumn="orderDate">{{ 'order_date' | translate }} <p-sortIcon
+								field="orderDate"></p-sortIcon></th>
+						<th style="min-width: 12rem">
+							<div class="flex justify-content-between align-items-center">
+								{{ 'order_status' | translate }}
+								<p-columnFilter field="status" matchMode="equals" display="menu">
+									<ng-template pTemplate="filter" let-value let-filter="filterCallback">
+										<p-dropdown [ngModel]="value" [options]="statuses"
+											(onChange)="filter($event.value)"
+											placeholder="{{ 'any_label' | translate }}"
+											[style]="{'min-width': '12rem'}">
+											<ng-template let-option pTemplate="item">
+												<span
+													[class]="'customer-badge status-' + option.value">{{option.label}}</span>
+											</ng-template>
+										</p-dropdown>
+									</ng-template>
+								</p-columnFilter>
+							</div>
+						</th>
+						<th pSortableColumn="totalAmount">{{ 'order_total_amount' | translate }} <p-sortIcon
+								field="totalAmount"></p-sortIcon>
+						</th>
+						<th pSortableColumn="customer">{{ 'order_customer' | translate }} <p-sortIcon
+								field="customer"></p-sortIcon></th>
+						<th></th>
+					</tr>
+				</ng-template>
+				<ng-template pTemplate="body" let-order let-expanded="expanded">
+					<tr>
+						<td>
+							<p-tableCheckbox [value]="order"></p-tableCheckbox>
+						</td>
+
+						<td>
+							<button type="button" pButton pRipple class="p-button-text p-button-rounded p-button-plain"
+								[icon]="isRowExpanded(order.orderId) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+								(click)="toggleRow(order.orderId)"></button>
+						</td>
+						<td style="min-width:10rem;">
+							<span class="p-column-title">{{ 'order_id' | translate }}</span>
+							{{ order.orderId ? order.orderId : 'N/A'}}
+						</td>
+						<td style="min-width:10rem;">
+							<span class="p-column-title">{{ 'order_date' | translate }}</span>
+							{{ order.orderDate | date: 'shortDate' }} {{ order.orderDate | date: 'shortTime' }}
+						</td>
+						<td style="min-width:10rem;">
+							<span [class]="'order-badge order-' + order.orderStatus.toLowerCase()">{{order.orderStatus ?
+								order.orderStatus : 'N/A'}}</span>
+						</td>
+						<td style="min-width:10rem;" class="font-bold">
+							<span class="p-column-title">{{ 'order_total_amount' | translate }}</span>
+							{{order.totalAmount | currency:'Dh':'symbol':'1.2-2'}}
+						</td>
+						<td style="min-width:10rem;">
+							<span class="p-column-title">{{ 'order_customer' | translate }}</span>
+							{{ order.customer ? (order.customer.firstName + ' ' + order.customer.lastName) : 'N/A' }}
+						</td>
+						<td>
+							<div class="flex">
+								<button pButton pRipple *ngIf="order.orderStatus ==='Ordered'" icon="pi pi-pencil"
+									class="p-button-rounded p-button-success mr-2" (click)="editOrder(order)"></button>
+								<button pButton pRipple *ngIf="order.orderStatus ==='Ordered'" icon="pi pi-trash"
+									class="p-button-rounded p-button-warning mr-2"
+									(click)="deleteOrder(order)"></button>
+								<!-- <button pButton pRipple icon="pi pi-print" class="p-button-rounded p-button-danger"
+									(click)="downloadInvoice(order.orderId)"></button> -->
+								<button pButton pRipple icon="pi pi-list" class="p-button-rounded p-button"
+									(click)="showOrderStatus(order)"></button>
+							</div>
+						</td>
+					</tr>
+				</ng-template>
+
+				<ng-template pTemplate="rowexpansion" let-order>
+					<tr>
+						<td colspan="10">
+							<div class="p-3">
+								<p-table [value]="order.orderItems" dataKey="orderItemId" responsiveLayout="scroll">
+									<ng-template pTemplate="header">
+					<tr>
+						<th>{{ 'product_image' | translate }}</th>
+						<th>{{ 'product_name' | translate }}</th>
+						<th>{{ 'order_items_quantity' | translate }}</th>
+						<th>{{ 'order_items_price' | translate }}</th>
+						<!-- <th style="width: 4rem"></th> -->
+					</tr>
+				</ng-template>
+				<ng-template pTemplate="body" let-orderItem>
+					<tr>
+						<td><img [src]="orderItem.product.productImage" [alt]="orderItem.product.name" width="60"
+								class="shadow-4" /></td>
+						<td>{{orderItem.product.name ? orderItem.product.name : 'N/A'}}</td>
+						<td>{{orderItem.quantity ? orderItem.quantity : 'N/A'}}</td>
+						<td>{{orderItem.subTotal ? orderItem.subTotal : 'N/A'}}</td>
+						<!-- <td><p-button type="button" icon="pi pi-search"></p-button></td> -->
+					</tr>
+
+				</ng-template>
+
+				<ng-template pTemplate="emptymessage">
+					<tr>
+						<td colspan="6">{{ 'no_products_msg' | translate }}</td>
+					</tr>
+				</ng-template>
+
+			</p-table>
+		</div>
+		</td>
+		</tr>
+		</ng-template>
+		</p-table>
+
+	</div>
+
+	<p-dialog [(visible)]="orderDialog" [style]="{width: '80%', height: '100%'}"
+		header="{{ 'order_details' | translate }}" [modal]="true" class="p-fluid ">
+		<ng-template pTemplate="content">
+
+			<div class="field" style="position: relative;">
+				<label for="customer">{{ 'order_customer' | translate }}</label>
+				<div class="add-wrapper">
+					<a (click)="openCustomerDialog()">{{ 'add_new_customer' | translate }}</a>
+				</div>
+
+				<p-dropdown [(ngModel)]="order.customer" name="customer" inputId="customer" id="customer"
+					ngDefaultControl optionLabel="firstName" [options]="customers" required autofocus
+					placeholder="{{ 'select_customer_option' | translate }}" [filter]="true" filterBy="firstName,lastName"
+					[ngClass]="{'ng-invalid ng-dirty' : submitted && !order.customer}">
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !order.customer">{{'order_customer' |
+						translate}}
+						{{'is_required_label' | translate}}</small>
+					<ng-template pTemplate="selectedItem">
+						<span *ngIf="order && order.customer" [class]="'product-badge'">{{order.customer.firstName + '
+							'+
+							order.customer.lastName}}</span>
+					</ng-template>
+					<ng-template let-option pTemplate="item">
+						<span [class]="'product-badge'">{{option.firstName + ' ' + option.lastName}}</span>
+					</ng-template>
+				</p-dropdown>
+			</div>
+
+			<div class="field">
+				<label for="orderItems">{{ 'order_products' | translate }}</label>
+				<div class="card">
+					<p-pickList name="orderItems" [(ngModel)]="orderItems" ngDefaultControl [source]="sourceProducts"
+						[target]="targetProducts" sourceHeader="{{ 'order_available_products' | translate }}" required
+						targetHeader="{{ 'order_selected_products' | translate }}" [dragdrop]="true" [responsive]="true"
+						[sourceStyle]="{ height: '25rem' }" [targetStyle]="{ height: '25rem' }" filterBy="name"
+						sourceFilterPlaceholder="{{ 'search_label' | translate }}"
+						targetFilterPlaceholder="{{ 'search_label' | translate }}" breakpoint="1300px"
+						(onMoveToTarget)="onMoveToTarget($event)">
+						<ng-template let-product pTemplate="item">
+							<div class="flex flex-wrap p-2 align-items-center gap-3">
+								<img class="w-4rem shadow-2 flex-shrink-0 border-round" [src]="product.productImage"
+									[alt]="product.name" />
+								<div class="flex-1 flex flex-column gap-2">
+									<span class="font-bold">{{ product.name }}</span>
+									<div class="flex align-products-center gap-2">
+										<i class="pi pi-tag text-sm"></i>
+										<span>{{ product.category.categoryName }}</span>
+									</div>
+								</div>
+								<span class="font-bold text-900">{{ 'Dh' + product.sellingPrice }}</span>
+
+								<!-- Check if product is in targetProducts (selected) to show quantity and subTotal inputs -->
+								<ng-container *ngIf="targetProducts.includes(product)">
+									<div class="field">
+										<label for="orderItemQuantity">{{ 'order_items_quantity' | translate }}</label>
+										<p-inputNumber name="orderItemQuantity" id="orderItemQuantity"
+											[(ngModel)]="product.orderItemQuantity" ngDefaultControl mode="decimal"
+											size="6" [showButtons]="true" [min]="1" placeholder="1"
+											[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.orderItemQuantity}"
+											required autofocus></p-inputNumber>
+										<small class="ng-dirty ng-invalid"
+											*ngIf="submitted && !product.orderItemQuantity">{{ 'order_items_quantity' |
+											translate }} {{'is_required_label' | translate}}</small>
+									</div>
+									<div class="field">
+										<label for="orderItemPricePerUnit">{{ 'order_items_price_per_unit' | translate
+											}}</label>
+										<p-inputNumber name="orderItemPricePerUnit" id="orderItemPricePerUnit"
+											[(ngModel)]="product.orderItemPricePerUnit" ngDefaultControl mode="decimal"
+											size="10" [showButtons]="true" placeholder="0"
+											[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.orderItemPricePerUnit}"
+											required autofocus disabled></p-inputNumber>
+										<small class="ng-dirty ng-invalid"
+											*ngIf="submitted && !product.orderItemPricePerUnit">{{
+											'order_items_price_per_unit' | translate }} {{'is_required_label' |
+											translate}}</small>
+									</div>
+								</ng-container>
+							</div>
+						</ng-template>
+					</p-pickList>
+				</div>
+
+				<div class="flex flex-column gap-2 mx-auto" >
+					<div class="text-center mt-3 mb-3 text-xl font-semibold">Total: <span class="text-900 font-medium">{{ calculateTotalAmount() }}</span> Dh</div>
+				</div>
+
+			</div>
+
+			<div class="field">
+				<label for="paymentMethod">{{'payment_method' | translate}}</label>
+					<div class="flex flex-wrap gap-3">
+						<div class="flex align-items-center">
+							<p-radioButton name="paymentMethod" value="Cash" [(ngModel)]="order.paymentMethod" ngDefaultControl inputId="paymentMethod1"></p-radioButton>
+							<label for="paymentMethod1" class="ml-2">{{'payment_method_cash' | translate}}</label>
+						</div>
+						
+						<div class="flex align-items-center">
+							<p-radioButton name="paymentMethod" value="Card" [(ngModel)]="order.paymentMethod" ngDefaultControl inputId="paymentMethod2"></p-radioButton>
+							<label for="paymentMethod2" class="ml-2">{{'payment_method_card' | translate}}</label>
+						</div>
+
+						<div class="flex align-items-center">
+							<p-radioButton name="paymentMethod" value="Check" [(ngModel)]="order.paymentMethod" ngDefaultControl inputId="paymentMethod3"></p-radioButton>
+							<label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
+						</div>
+					</div>
+			</div>   
+
+
+		</ng-template>
+
+		<ng-template pTemplate="footer">
+			<button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text"
+				(click)="hideDialog()"></button>
+			<button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
+				(click)="saveOrder()"></button>
+		</ng-template>
+	</p-dialog>
+
+	<p-dialog [(visible)]="customerDialog" [style]="{width: '450px', height: '100%'}"
+		header="{{'customer_details' | translate}}" [modal]="true" class="p-fluid ">
+		<ng-template pTemplate="content">
+			<div class="field">
+				<label for="firstName">{{'customer_first_name' | translate}}</label>
+				<input type="text" pInputText name="firstName" ngDefaultControl [(ngModel)]="customer.firstName"
+					required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.firstName}" />
+				<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.firstName">{{'customer_first_name' |
+					translate}} {{'is_required_label' | translate}}</small>
+			</div>
+			<div class="field">
+				<label for="lastName">{{'customer_last_name' | translate}}</label>
+				<input type="text" pInputText name="lastName" ngDefaultControl [(ngModel)]="customer.lastName" required
+					autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.lastName}" />
+				<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.lastName">{{'customer_last_name' |
+					translate}} {{'is_required_label' | translate}}</small>
+			</div>
+			<div class="field">
+				<label for="email">{{'customer_email' | translate}}</label>
+				<input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="customer.email" autofocus />
+			</div>
+
+			<div class="field">
+				<label for="country">{{ 'customer_country' | translate }}</label>
+				<p-dropdown [(ngModel)]="customer.country" (onChange)="onSelectedCountry(customer.country)"
+					name="country" inputId="country" ngDefaultControl [options]="countries" optionValue="name"
+					optionLabel="name" [filter]="true" filterBy="name"
+					placeholder="{{ 'select_country_option' | translate }}" autofocus>
+					<ng-template pTemplate="selectedItem">
+						<span *ngIf="customer && customer.country" [class]="'product-badge'">{{customer.country}}</span>
+					</ng-template>
+					<ng-template let-option pTemplate="item">
+						<span [class]="'product-badge'">{{option.name}}</span>
+					</ng-template>
+				</p-dropdown>
+			</div>
+
+			<div class="field" *ngIf="customer.country">
+				<label for="city">{{ 'customer_city' | translate }}</label>
+				<p-dropdown [(ngModel)]="customer.city" name="city" inputId="city" ngDefaultControl optionValue="name"
+					optionLabel="name" [filter]="true" filterBy="name" [options]="this.states"
+					placeholder="{{ 'select_city_option' | translate }}" autofocus>
+					<ng-template pTemplate="selectedItem">
+						<span *ngIf="customer && customer.city" [class]="'product-badge'">{{customer.city}}</span>
+					</ng-template>
+					<ng-template let-option pTemplate="item">
+						<span [class]="'product-badge'">{{option.name}}</span>
+					</ng-template>
+				</p-dropdown>
+			</div>
+
+			<div class="field">
+				<label for="lastName">{{'customer_address' | translate}}</label>
+				<textarea rows="3" cols="20" [(ngModel)]="customer.address" name="address" placeholder="Your Address"
+					ngDefaultControl pInputTextarea autofocus></textarea>
+			</div>
+			<div class="field">
+				<label for="zip">{{'customer_zip' | translate}}</label>
+				<input type="number" pInputText name="zip" ngDefaultControl [(ngModel)]="customer.zip" autofocus />
+
+			</div>
+			<div class="field">
+				<label for="phoneNumber">{{'customer_phone_number' | translate}}</label>
+				<input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="customer.phoneNumber"
+					autofocus />
+			</div>
+
+			<div class="field">
+				<label for="customerType">{{'customer_type' | translate}}</label>
+				<div class="flex flex-wrap gap-3">
+					<div class="flex align-items-center">
+						<p-radioButton name="customerType" value="Particular" [(ngModel)]="customer.customerType"
+							ngDefaultControl inputId="customerType1"></p-radioButton>
+						<label for="customerType1" class="ml-2">{{'customer_type_particular' | translate}}</label>
+					</div>
+
+					<div class="flex align-items-center">
+						<p-radioButton name="customerType" value="Company" [(ngModel)]="customer.customerType"
+							ngDefaultControl inputId="customerType2"></p-radioButton>
+						<label for="customerType2" class="ml-2">{{'customer_type_company' | translate}}</label>
+					</div>
+				</div>
+			</div>
+
+		</ng-template>
+
+		<ng-template pTemplate="footer">
+			<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
+				(click)="hideCustomerDialog()"></button>
+			<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
+				(click)="saveCustomer()"></button>
+		</ng-template>
+	</p-dialog>
+
+
+
+	<p-dialog [(visible)]="deleteOrderDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+		[style]="{width:'450px'}">
+		<div class="flex align-items-center justify-content-center">
+			<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+			<span *ngIf="order">{{ 'delete_confirmation_msg_with_param' | translate }}
+				<b>{{order.orderId}}</b>?</span>
+		</div>
+		<ng-template pTemplate="footer">
+			<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+				(click)="deleteOrderDialog = false"></button>
+			<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+				(click)="confirmDelete()"></button>
+		</ng-template>
+	</p-dialog>
+
+	<p-dialog [(visible)]="deleteOrdersDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+		[style]="{width:'450px'}">
+		<div class="flex align-items-center justify-content-center">
+			<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+			<span>{{ 'delete_selected_confirmation_msg' | translate }}</span>
+		</div>
+		<ng-template pTemplate="footer">
+			<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+				(click)="deleteOrdersDialog = false"></button>
+			<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+				(click)="confirmDeleteSelected()"></button>
+		</ng-template>
+	</p-dialog>
+
+
+
+
+
+	<p-dialog [(visible)]="detailsDialog" [style]="{width: '80%', height: '100%'}"
+		header="{{'order_processing' | translate}} {{order.orderId}}" [modal]="true" class="p-fluid ">
+		<ng-template pTemplate="content">
+
+			<div class="card">
+				<p-timeline [value]="events" align="alternate" styleClass="customized-timeline">
+					<ng-template pTemplate="marker" let-event>
+						<p-button [icon]="event.icon" [raised]="true" [rounded]="true" [text]="true"
+							(click)="downloadInvoice(order.orderId, event.status)" [disabled]="order.orderStatus == 'Canceled'"></p-button>
+						<!-- <span class="custom-marker shadow-2" style="display: flex; justify-content: center; align-items: center; height: 2.5rem; width: 2.5rem; border-radius: 30px;">
+							<i [ngClass]="event.icon" style="font-size: 1.5rem;"></i>
+						</span> -->
+					</ng-template>
+					<ng-template pTemplate="content" let-event>
+						<div *ngIf="!loading">
+							<p-card [header]="event.status" [subheader]="event.date | date:'dd/MM/yy, hh:mm'">
+								<div style="display: flex; justify-content: center; align-items: center;"
+									*ngIf="event.status == 'Ordered'">
+									<p-galleria *ngIf="images" [(value)]="images" [showIndicators]="true"
+										[showThumbnails]="false" [changeItemOnIndicatorHover]="true"
+										[responsiveOptions]="responsiveOptions"
+										[containerStyle]="{ 'max-width': '100px' }">
+										<ng-template pTemplate="item" let-item>
+											<img *ngIf="item && event.status == 'Ordered'" [src]="item"
+												[alt]="event.name" style="width: 100%; display: block;" />
+										</ng-template>
+									</p-galleria>
+								</div>
+								<!-- <img *ngIf="event.image" [src]="'https://primefaces.org/cdn/primeng/images/demo/product/' + event.image" [alt]="event.name" width="200" class="shadow-2" /> -->
+								<p-accordion class="w-full" *ngIf="event.status == 'Ordered'">
+									<p-accordionTab>
+										<ng-template pTemplate="header">
+											<span class="flex align-items-center gap-2 w-full">
+												<span class="font-bold white-space-nowrap">{{ 'ordered_products' |
+													translate }}</span>
+												<p-badge [value]="order.orderItems.length" class="ml-auto" />
+											</span>
+										</ng-template>
+										<p-table [value]="order.orderItems" responsiveLayout="scroll">
+											<ng-template pTemplate="header">
+												<tr>
+													<th>{{ 'product_name' | translate }}</th>
+													<th>{{ 'product_reference' | translate }}</th>
+													<th>{{ 'order_items_quantity' | translate }}</th>
+													<th>{{ 'order_items_price_per_unit' | translate }}</th>
+												</tr>
+											</ng-template>
+											<ng-template pTemplate="body" let-orderItem>
+												<tr>
+													<td>{{ orderItem.product.name ? orderItem.product.name : 'N/A' }}</td>
+													<td>{{ orderItem.product.reference ? orderItem.product.reference : 'N/A' }}</td>
+													<td>{{ orderItem.quantity ? orderItem.quantity : 'N/A' }}</td>
+													<td>{{ orderItem.pricePerUnit ? orderItem.pricePerUnit : 'N/A' }}</td>
+												</tr>
+											</ng-template>
+										</p-table>
+									</p-accordionTab>
+								</p-accordion>
+								<div *ngIf="event.status == 'Processing'">
+									<p style="text-align: left;">
+										{{ 'order_under_processing' | translate }}</p>
+									<br>
+									<p *ngIf="order.orderStatus == 'Processing'">{{ 'order_processing_tocancel_text' |
+										translate }}</p>
+									<!-- <button pButton label="{{ 'cancel_order_button' | translate }}" icon="pi pi-times" class="p-button-text"
+									(click)="cancelOrder(order.orderId)"></button> -->
+									<p-button *ngIf="canCancelOrder(order)" label="{{ 'cancel_button' | translate }}" icon="pi pi-times" 
+									class="p-button-text" [outlined]="true" severity="danger" (click)="cancelOrder(order)"/>
+								</div>
+								<div *ngIf="event.status == 'Delivered'">
+									<p style="text-align: left;">
+										{{ 'order_delivered' | translate }} {{order.customer ? (order.customer.firstName + ' ' +
+										order.customer.lastName) : 'N/A'}}.</p>
+									<!-- <br> -->
+									<!-- <p *ngIf="order.orderStatus == 'Delivered'">
+											{{ 'order_delivered_tocomplete_text' | translate }} {{order.expiryDate | date:'dd/MM/yy, hh:mm'}}.
+									</p> -->
+								</div>
+								<div *ngIf="event.status == 'Canceled'">
+									<p style="text-align: left;">
+										{{ 'order_canceled_text' | translate }}
+									</p>
+								</div>
+								<button *ngIf="event.button" pButton [label]="event.button" class="p-button-text" icon="pi pi-check"
+									(click)="updateOrderStatus()"></button>
+							</p-card>
+						</div>
+						<div class="card flex justify-content-center" *ngIf="loading">
+							<p-progressSpinner ariaLabel="loading" />
+						</div>
+					</ng-template>
+				</p-timeline>
+			</div>
+
+		</ng-template>
+		<ng-template pTemplate="footer">
+			<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
+				(click)="hideDetailsDialog()"></button>
+		</ng-template>
+	</p-dialog>
+
+
+</div>
+</div>

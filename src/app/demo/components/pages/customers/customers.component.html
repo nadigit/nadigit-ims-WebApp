@@ -1,0 +1,214 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button pButton pRipple label="{{'new_button' | translate}}" icon="pi pi-plus" class="p-button-success mr-2"
+                            (click)="openNew()"></button>
+                        <button pButton pRipple label="{{'delete_button' | translate}}" icon="pi pi-trash" class="p-button-danger"
+                            (click)="deleteSelectedCustomers()"
+                            [disabled]="!selectedCustomers || !selectedCustomers.length"></button>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="right">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" 
+                        pTooltip="PDF" tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" 
+                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+                </ng-template>
+            </p-toolbar>
+
+            <p-table #dt [value]="customers" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['firstName','lastName','email','country','city','phoneNumber','customerType']" [paginator]="true"
+                [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedCustomers" selectionMode="multiple" [rowHover]="true" dataKey="customerId">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{'customers_page_title' | translate}}</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="{{'search_label' | translate}}"
+                                class="w-full sm:w-auto" />
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="firstName">{{'customer_name' | translate}} <p-sortIcon field="userName"></p-sortIcon></th>
+                        <th pSortableColumn="email">{{'customer_email' | translate}} <p-sortIcon field="email"></p-sortIcon></th>
+                        <th pSortableColumn="country">{{'customer_address' | translate}} <p-sortIcon field="country"></p-sortIcon></th>
+                        <th pSortableColumn="customerType">{{'customer_type' | translate}} <p-sortIcon field="customerType"></p-sortIcon></th>
+                        <th></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-customer>
+                    <tr>
+                        <td>
+                            <p-tableCheckbox [value]="customer"></p-tableCheckbox>
+                        </td>
+
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{'customer_name' | translate}}</span>
+                            {{customer.firstName ? (customer.firstName + ' ' + customer.lastName) : 'N/A'}}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{'customer_email' | translate}}</span>
+                            {{customer.email ? customer.email : 'N/A'}}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{'customer_address' | translate}}</span>
+                            {{customer.country ? (customer.city + ', ' + customer.country) : 'N/A'}}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{'customer_type' | translate}}</span>
+                            {{customer.customerType ? customer.customerType : 'N/A'}}
+                        </td>
+                        <td>
+                            <div class="flex">
+                                <button pButton pRipple icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-success mr-2"
+                                    (click)="editCustomer(customer)"></button>
+                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                    (click)="deleteCustomer(customer)"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="customerDialog" [style]="{width: '450px', height: '100%'}" header="{{'customer_details' | translate}}" [modal]="true"
+            class="p-fluid ">
+            <ng-template pTemplate="content">
+                <div class="field">
+                    <label for="firstName">{{'customer_first_name' | translate}}</label>
+                    <input type="text" pInputText name="firstName" ngDefaultControl [(ngModel)]="customer.firstName" required autofocus
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.firstName}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.firstName">{{'customer_first_name' | translate}}  {{'is_required_label' | translate}}</small>
+                </div>
+                <div class="field">
+                    <label for="lastName">{{'customer_last_name' | translate}}</label>
+                    <input type="text" pInputText name="lastName" ngDefaultControl [(ngModel)]="customer.lastName" required autofocus
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.lastName}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.lastName">{{'customer_last_name' | translate}} {{'is_required_label' | translate}}</small>
+                </div>
+                <div class="field">
+                    <label for="email">{{'customer_email' | translate}}</label>
+                    <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="customer.email" autofocus/>
+                </div>
+                
+                <div class="field" >
+                    <label for="country">{{ 'customer_country' | translate }}</label>
+                    <p-dropdown [(ngModel)]="customer.country" (onChange)="onSelectedCountry(customer.country)" name="country" inputId="country" 
+                    ngDefaultControl [options]="countries" optionValue="name" optionLabel="name" [filter]="true" filterBy="name" 
+                    placeholder="{{ 'select_country_option' | translate }}" autofocus>
+                        <ng-template pTemplate="selectedItem">
+                            <span *ngIf="customer && customer.country" [class]="'product-badge'">{{customer.country}}</span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'product-badge'">{{option.name}}</span>
+                        </ng-template>
+                    </p-dropdown>
+                </div>
+
+                <div class="field" *ngIf="customer.country">
+                    <label for="city">{{ 'customer_city' | translate }}</label>
+                    <p-dropdown [(ngModel)]="customer.city" name="city" inputId="city" ngDefaultControl 
+                    optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="this.states" 
+                    placeholder="{{ 'select_city_option' | translate }}" autofocus>
+                        <ng-template pTemplate="selectedItem">
+                            <span *ngIf="customer && customer.city" [class]="'product-badge'">{{customer.city}}</span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'product-badge'">{{option.name}}</span>
+                        </ng-template>
+                    </p-dropdown>
+                </div>
+
+                <div class="field">
+                    <label for="lastName">{{'customer_address' | translate}}</label>
+                    <textarea rows="3" cols="20" [(ngModel)]="customer.address" name="address" placeholder="Your Address" ngDefaultControl pInputTextarea autofocus
+                    ></textarea>
+                </div>
+                <div class="field">
+                    <label for="zip">{{'customer_zip' | translate}}</label>
+                    <input type="number" pInputText name="zip" ngDefaultControl [(ngModel)]="customer.zip" autofocus/>
+                </div>
+                <div class="field">
+                    <label for="phoneNumber">{{'customer_phone_number' | translate}}</label>
+                    <input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="customer.phoneNumber" autofocus/>
+                </div>
+
+                <div class="field">
+                    <label for="customerType">{{'customer_type' | translate}}</label>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="flex align-items-center">
+                                <p-radioButton name="customerType" value="Particular" [(ngModel)]="customer.customerType" ngDefaultControl inputId="customerType1"></p-radioButton>
+                                <label for="customerType1" class="ml-2">{{'customer_type_particular' | translate}}</label>
+                            </div>
+                            
+                            <div class="flex align-items-center">
+                                <p-radioButton name="customerType" value="Company" [(ngModel)]="customer.customerType" ngDefaultControl inputId="customerType2"></p-radioButton>
+                                <label for="customerType2" class="ml-2">{{'customer_type_company' | translate}}</label>
+                            </div>
+                        </div>
+                </div>                
+                <!-- <div class="field">
+                    <label for="customerType">{{'customer_type' | translate}}</label>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="flex align-items-center">
+                                <p-radioButton name="customerType" value="Particular" [(ngModel)]="customer.customerType" ngDefaultControl inputId="customerType1" [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.customerType}"></p-radioButton>
+                                <label for="customerType1" class="ml-2">{{'customer_type_particular' | translate}}</label>
+                            </div>
+                            
+                            <div class="flex align-items-center">
+                                <p-radioButton name="customerType" value="Company" [(ngModel)]="customer.customerType" ngDefaultControl inputId="customerType2" [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.customerType}"></p-radioButton>
+                                <label for="customerType2" class="ml-2">{{'customer_type_company' | translate}}</label>
+                            </div>
+                        </div>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.customerType">{{'customer_type' | translate}} {{'is_required_label' | translate}}</small>
+                </div>    -->
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
+                    (click)="hideDialog()"></button>
+                <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
+                    (click)="saveCustomer()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteCustomerDialog" header="Confirm" [modal]="true" [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="customer">{{'delete_confirmation_msg_with_param' | translate}} <b>{{customer.userName}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteCustomerDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteCustomersDialog" header="Confirm" [modal]="true" [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteCustomersDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+    </div>
+</div>

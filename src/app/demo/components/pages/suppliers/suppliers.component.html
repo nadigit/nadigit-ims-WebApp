@@ -1,0 +1,187 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+                            class="p-button-success mr-2" (click)="openNew()"></button>
+                        <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+                            class="p-button-danger" (click)="deleteSelectedSuppliers()"
+                            [disabled]="!selectedSuppliers || !selectedSuppliers.length"></button>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="right">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+                </ng-template>
+            </p-toolbar>
+
+            <p-table #dt [value]="suppliers" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['firstName','lastName','email','country','city','phoneNumber','supplierType']"
+                [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedSuppliers" selectionMode="multiple" [rowHover]="true" dataKey="supplierId">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{ 'suppliers_page_title' | translate }}</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="name">{{ 'supplier_name' | translate }} <p-sortIcon
+                                field="name"></p-sortIcon></th>
+                        <th pSortableColumn="email">{{ 'supplier_email' | translate }} <p-sortIcon
+                                field="email"></p-sortIcon></th>
+                        <th pSortableColumn="phoneNumber">{{ 'supplier_phone_number' | translate }} <p-sortIcon
+                                field="phoneNumber"></p-sortIcon></th>
+                        <th pSortableColumn="address">{{ 'supplier_address' | translate }}<p-sortIcon
+                                field="address"></p-sortIcon></th>
+                        <th></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-supplier>
+                    <tr>
+                        <td>
+                            <p-tableCheckbox [value]="supplier"></p-tableCheckbox>
+                        </td>
+
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'supplier_name' | translate }}</span>
+                            {{supplier.name ? supplier.name : 'N/A'}}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'supplier_email' | translate }}</span>
+                            {{ supplier.email ? supplier.email : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'supplier_phone_number' | translate }}</span>
+                            {{ supplier.phoneNumber ? supplier.phoneNumber : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'supplier_address' | translate }}</span>
+                            {{ supplier.country ? (supplier.city + ', ' + supplier.country) : 'N/A' }}
+                        </td>
+                        <td>
+                            <div class="flex">
+                                <button pButton pRipple icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-success mr-2"
+                                    (click)="editSupplier(supplier)"></button>
+                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                    (click)="deleteSupplier(supplier)"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="supplierDialog" [style]="{width: '450px', height: '100%'}"
+            header="{{ 'supplier_details' | translate }}" [modal]="true" class="p-fluid ">
+            <ng-template pTemplate="content">
+                <div class="field">
+                    <label for="name">{{ 'supplier_name' | translate }}</label>
+                    <input type="text" pInputText name="name" ngDefaultControl [(ngModel)]="supplier.name" required
+                        autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !supplier.name}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !supplier.name">{{ 'supplier_name' |
+                        translate }} {{'is_required_label' | translate}}</small>
+                </div>
+                <div class="field">
+                    <label for="email">{{ 'supplier_email' | translate }}</label>
+                    <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="supplier.email"
+                        autofocus />
+                </div>
+
+                <div class="field">
+                    <label for="country">{{ 'supplier_country' | translate }}</label>
+                    <p-dropdown [(ngModel)]="supplier.country" (onChange)="onSelectedCountry(supplier.country)"
+                        name="country" inputId="country" ngDefaultControl [options]="countries" optionValue="name"
+                        optionLabel="name" [filter]="true" filterBy="name"
+                        placeholder="{{ 'select_country_option' | translate }}" autofocus>
+                        <ng-template pTemplate="selectedItem">
+                            <span *ngIf="supplier && supplier.country"
+                                [class]="'product-badge'">{{supplier.country}}</span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'product-badge'">{{option.name}}</span>
+                        </ng-template>
+                    </p-dropdown>
+                </div>
+
+                <div class="field" *ngIf="supplier.country">
+                    <label for="city">{{ 'supplier_city' | translate }}</label>
+                    <p-dropdown [(ngModel)]="supplier.city" name="city" inputId="city" ngDefaultControl
+                        optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="this.states"
+                        placeholder="{{ 'select_city_option' | translate }}" autofocus>
+                        <ng-template pTemplate="selectedItem">
+                            <span *ngIf="supplier && supplier.city" [class]="'product-badge'">{{supplier.city}}</span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'product-badge'">{{option.name}}</span>
+                        </ng-template>
+                    </p-dropdown>
+                </div>
+
+                <div class="field">
+                    <label for="Address">{{ 'supplier_address' | translate }}</label>
+                    <textarea rows="3" cols="20" [(ngModel)]="supplier.address" name="address"
+                        placeholder="Your Address" ngDefaultControl pInputTextarea autofocus></textarea>
+                </div>
+                <div class="field">
+                    <label for="phoneNumber">{{ 'supplier_phone_number' | translate }}</label>
+                    <input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="supplier.phoneNumber"
+                         autofocus/>
+                </div>
+
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                    class="p-button-text" (click)="hideDialog()"></button>
+                <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
+                    (click)="saveSupplier()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteSupplierDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="supplier">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>{{supplier.name}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteSupplierDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteSuppliersDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteSuppliersDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+    </div>
+</div>

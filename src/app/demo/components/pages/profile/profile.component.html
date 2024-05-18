@@ -1,0 +1,125 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <div class="block-section">
+                <div class="block-content">
+                    <div class="surface-section px-4 py-8 md:px-6 lg:px-8">
+                        <div class="surface-section">
+                            <div class="font-medium text-3xl text-900 mb-3">{{'profile_page_title' | translate}}</div>
+                            <p-toast />
+                            <!-- <div class="text-500 mb-5">Description</div> -->
+                            <ul class="list-none p-0 m-0">
+                                <li *ngFor="let field of fields"
+                                    class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
+                                    <div class="text-500 w-6 md:w-2 font-medium">{{field.label | translate}}</div>
+                                    <div class="text-900 w-full md:w-8 md:flex-order-0 flex-order-1">
+                                        <ng-container *ngIf="!field.isEditing; else editModeTemplate">
+                                            {{ user[field.property] }}
+                                        </ng-container>
+                                        <ng-template #editModeTemplate>
+                                            <input [(ngModel)]="user[field.property]" type="text" pInputText
+                                                class="form-control" />
+                                        </ng-template>
+                                    </div>
+                                    <div class="w-6 md:w-2 flex justify-content-end">
+                                        <p-button (click)="toggleEditMode(field)"
+                                            icon="pi pi-{{field.isEditing ? 'check' : 'pencil'}}" [rounded]="true"
+                                            [outlined]="true"></p-button>
+                                    </div>
+                                </li>
+                                <li class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
+                                    <div class="text-500 w-6 md:w-2 font-medium"
+                                        style="padding-top: 20px;padding-bottom: 20px">{{'user_username' | translate}}</div>
+                                    <div class="text-900 w-full md:w-8 md:flex-order-0 flex-order-1"
+                                        *ngIf="user">{{user.username}}
+                                    </div>
+                                </li>
+                                <li class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
+                                    <div class="text-500 w-6 md:w-2 font-medium">{{'user_pwd' | translate}}</div>
+                                    <div class="text-900 w-full md:w-8 md:flex-order-0 flex-order-1">********
+                                    </div>
+                                    <div class="w-6 md:w-2 flex justify-content-end">
+                                        <p-button label="{{'user_change_password' | translate}}" [outlined]="true"
+                                            (click)="openChangePassword()"></p-button>
+                                    </div>
+
+                                    <div class="card flex justify-content-center" *ngIf="changePasswordForm">
+                                        <p-dialog header="Header" [(visible)]="changePasswordForm" [modal]="true"
+                                            [style]="{ width: '35rem' }"
+                                            [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }">
+                                            <ng-template pTemplate="header">
+                                                <div
+                                                    class="inline-flex align-items-center justify-content-center gap-2">
+                                                    <h5>Change Password</h5>
+                                                </div>
+                                            </ng-template>
+                                            <form [formGroup]="passwordForm">
+                                                <div class="p-fluid">
+                                                    <div class="field">
+                                                        <label for="currentPassword">{{'user_current_password' | translate}}</label>
+                                                        <input pInputText name="currentPassword"
+                                                            formControlName="currentPassword" type="password"
+                                                            required />
+
+                                                    </div>
+                                                    <div class="field">
+                                                        <label for="newPassword">{{'user_new_password' | translate}}</label>
+                                                        <input pInputText name="newPassword"
+                                                            formControlName="newPassword" type="password" required />
+                                                        <!-- <app-password-strength [password]="newPassword.value"></app-password-strength> -->
+                                                    </div>
+                                                    <div class="field">
+                                                        <label for="confirmPassword">{{'user_confirm_password' | translate}}</label>
+                                                        <input pInputText name="confirmPassword"
+                                                            formControlName="confirmPassword" type="password"
+                                                            required />
+
+                                                    </div>
+                                                </div>
+                                            </form>
+                                            <ng-template pTemplate="footer">
+                                                <p-button icon="pi pi-check" type="submit" label="{{'submit_button' | translate}}"
+                                                    (click)="onSubmit()"
+                                                    [disabled]="!passwordForm.get('currentPassword').valid ||
+                                                !passwordForm.get('newPassword').valid || !passwordForm.get('confirmPassword').valid">
+
+                                                </p-button>
+                                            </ng-template>
+                                        </p-dialog>
+                                    </div>
+                                </li>
+                                <li class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap"
+                                    *ngIf="user">
+                                    <div class="text-500 w-6 md:w-2 font-medium">{{'user_role' | translate}}</div>
+                                    <div class="text-900 w-full md:w-8 md:flex-order-0 flex-order-1" >
+                                        <p-chip *ngFor="let role of userRoles" label="{{role.name | titlecase}}" class="mr-2"></p-chip>
+                                    </div>
+                                </li>
+
+                                <li class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap"
+                                    *ngIf="user">
+                                    <div class="text-500 w-6 md:w-2 font-medium">{{'user_language' | translate}}</div>
+                                    <div class="text-900 w-full md:w-8 md:flex-order-0 flex-order-1">
+                                        <ng-container *ngIf="!languageEdit; else languageEditTemplate">
+                                            {{ preferredLanguage }}
+                                        </ng-container>
+                                        <ng-template #languageEditTemplate>
+                                            <p-dropdown [options]="languages" [(ngModel)]="preferredLanguage"
+                                            optionValue="value" optionLabel="label" 
+                                            placeholder="Select a language"></p-dropdown>
+                                        </ng-template>
+                                    </div>
+                                    <div class="w-6 md:w-2 flex justify-content-end">
+                                        <p-button (click)="changeLanguage()"
+                                            icon="pi pi-{{languageEdit ? 'check' : 'pencil'}}" [rounded]="true"
+                                            [outlined]="true"></p-button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

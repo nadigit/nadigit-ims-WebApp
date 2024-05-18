@@ -1,0 +1,104 @@
+<div class="layout-topbar">
+    <a class="layout-topbar-logo" routerLink="">
+        <img src="assets/app-logo/Nadigit_logo.png" alt="logo">
+        <span>Nadigit IMS</span>
+    </a>
+
+    <button #menubutton class="p-link layout-menu-button layout-topbar-button" (click)="layoutService.onMenuToggle()">
+        <i class="pi pi-bars"></i>
+    </button>
+
+    <button #topbarmenubutton class="p-link layout-topbar-menu-button layout-topbar-button"
+        (click)="layoutService.showProfileSidebar()">
+        <i class="pi pi-ellipsis-v"></i>
+    </button>
+
+    <div #topbarmenu class="layout-topbar-menu"
+        [ngClass]="{'layout-topbar-menu-mobile-active': layoutService.state.profileSidebarVisible}">
+        <!-- <button class="p-link layout-topbar-button">
+            <i class="pi pi-calendar"></i>
+            <span>Calendar</span>
+        </button> -->
+        <button class="p-link" *ngIf="recentNotifications || olderNotifications; else elseBlock" (click)="showNotifications()">
+            <i pBadge class="pi pi-bell mr-4 p-text-secondary" style="font-size: 1.5rem" [value]="recentNotifications.length"></i>
+        </button>
+        <ng-template #elseBlock>
+            <button class="p-link layout-topbar-button" (click)="showNotifications()" *ngIf="profile">
+                <i class="pi pi-bell"></i>
+                <span>Notifications</span>
+            </button>
+
+        </ng-template>
+
+        <button #btn class="p-link layout-topbar-button" (click)="menu.toggle($event)">
+            <i class="pi pi-cog"></i>
+            <span>Settings</span>
+        </button>
+        <p-tieredMenu #menu [model]="items" [popup]="true"></p-tieredMenu>
+    </div>
+</div>
+
+<div class="card flex flex-wrap justify-content-center gap-2">
+    <p-sidebar [(visible)]="notificationVisible" position="right" styleClass="w-30rem">
+
+        <div class="card">
+            <div class="flex align-items-center justify-content-between mb-4">
+                <h5>Notifications</h5>
+            </div>
+
+            <span *ngIf="recentNotifications.length" class="block text-600 font-medium mb-3">TODAY</span>
+            <ul class="p-0 mx-0 mt-0 mb-4 list-none">
+                <li *ngFor="let notification of recentNotifications" class="flex align-items-center py-2 border-bottom-1 surface-border">
+                    <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
+                    [class.bg-orange-100]="notification.severity === 'Warning'"
+                    [class.bg-pink-100]="notification.severity === 'Error'"
+                    [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
+                        <i [ngSwitch]="notification.entity">
+                            <i *ngSwitchCase="'Products'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
+                            <i *ngSwitchCase="'Orders'" class="pi pi-dollar text-xl text-blue-500"></i>
+                            <i *ngSwitchCase="'Customers'" class="pi pi-user text-xl text-blue-500"></i>
+                            <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
+                          </i >
+                    </div>
+                    
+                    <span class="text-900 line-height-3">
+                        {{notification.message}}
+                    </span>
+                    <div>
+                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                    </div>
+                </li>
+                <!-- <li class="flex align-items-center py-2">
+                    <div
+                        class="w-3rem h-3rem flex align-items-center justify-content-center bg-orange-100 border-circle mr-3 flex-shrink-0">
+                        <i class="pi pi-download text-xl text-orange-500"></i>
+                    </div>
+                    <span class="text-700 line-height-3">Your request for withdrawal of <span
+                            class="text-blue-500 font-medium">2500$</span> has been initiated.</span>
+                </li> -->
+            </ul>
+
+            <span *ngIf="olderNotifications.length" class="block text-600 font-medium mb-3">OLDER</span>
+            <ul class="p-0 m-0 list-none">
+                <li *ngFor="let notification of olderNotifications" class="flex align-items-center py-2 border-bottom-1 surface-border">
+                    <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
+                    [class.bg-orange-100]="notification.severity === 'Warning'"
+                    [class.bg-pink-100]="notification.severity === 'Error'"
+                    [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
+                        <i [ngSwitch]="notification.entity">
+                            <i *ngSwitchCase="'Products'" class="pi pi-shopping-cart text-xl text-blue-500"></i>
+                            <i *ngSwitchCase="'Orders'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
+                            <i *ngSwitchCase="'Customers'" class="pi pi-dollar text-xl text-blue-500"></i>
+                            <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
+                          </i >
+                    </div>
+                    <span class="text-900 line-height-3">{{notification.message}} {{notification.creationDate | date:'short'}}</span>
+                </li>
+            </ul>
+            <div style="display: flex; justify-content: center; align-items: center; margin: 20px;">
+                <button pButton class="p-button-text" (click)="loadMoreNotifications()" ><span class="text-900 line-height-3">Load More Notifications</span></button>
+            </div>
+        </div>
+    </p-sidebar>
+
+</div> 
