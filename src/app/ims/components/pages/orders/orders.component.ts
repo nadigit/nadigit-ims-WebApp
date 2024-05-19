@@ -157,18 +157,26 @@ export class OrdersComponent implements OnInit, OnChanges {
     private translate: TranslateService,
     private translateService: TranslationService,
   ) {
-    this.events = [
-      { status: 'Ordered', date: 'test', icon: 'pi pi-print', color: '#9C27B0', image: 'game-controller.jpg', button: 'Process the Order' },
-      { status: 'Processing', date: 'test', icon: 'pi pi-print', color: '#673AB7', button: 'Deliver the Order' },
-      { status: 'Delivered', date: 'test', icon: 'pi pi-print', color: '#607D8B' },
-      { status: 'Canceled', date: 'test', icon: 'pi pi-times-circle', color: '#FF9800'},
-    ];
+    // this.events = [
+    //   { status: 'Ordered', date: 'test', icon: 'pi pi-print', color: '#9C27B0', image: 'game-controller.jpg', button: 'process_order_button' },
+    //   { status: 'Processing', date: 'test', icon: 'pi pi-print', color: '#673AB7', button: 'deliver_order_button' },
+    //   { status: 'Delivered', date: 'test', icon: 'pi pi-print', color: '#607D8B' },
+    //   { status: 'Canceled', date: 'test', icon: 'pi pi-times-circle', color: '#FF9800' },
+    // ];
 
   }
 
   ngOnInit() {
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
+    });
+    this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => {
+      this.events = [
+        { status: 'Ordered', date: 'test', icon: 'pi pi-print', color: '#9C27B0', image: 'game-controller.jpg', button: translations['process_order_button'] },
+        { status: 'Processing', date: 'test', icon: 'pi pi-print', color: '#673AB7', button: translations['deliver_order_button'] },
+        { status: 'Delivered', date: 'test', icon: 'pi pi-print', color: '#607D8B' },
+        { status: 'Canceled', date: 'test', icon: 'pi pi-times-circle', color: '#FF9800' },
+      ];
     });
     this.onGetAllProducts();
     this.onGetAllCustomers();
@@ -287,14 +295,14 @@ export class OrdersComponent implements OnInit, OnChanges {
   async confirmDeleteSelected() {
     this.deleteOrdersDialog = false;
     await this.selectedOrders.forEach(selectedOrder => this.onDeleteOrder(selectedOrder.orderId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Users Deleted', life: 3000 });
+    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Orders Deleted', life: 3000 });
     this.selectedOrders = [];
   }
 
   async confirmDelete() {
     this.deleteOrderDialog = false;
     await this.onDeleteOrder(this.order.orderId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
+    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Deleted', life: 3000 });
     this.order = {};
   }
 
@@ -352,6 +360,7 @@ export class OrdersComponent implements OnInit, OnChanges {
         await this.updateOrder(newOrder.orderId, newOrder);
         this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Updated', life: 3000 });
       } else {
+
         await this.addOrder(newOrder);
         this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Added', life: 3000 });
       }
@@ -550,7 +559,8 @@ export class OrdersComponent implements OnInit, OnChanges {
     const modifiedOrders = this.orders.map(order => {
       // Create a copy of the supplier object to modify
       const modifiedOrder = { ...order };
-      modifiedOrder['Customer'] = order.customer.firstName + ' ' + order.customer.lastName;
+      if (order.customer)
+        modifiedOrder['Customer'] = order.customer.firstName + ' ' + order.customer.lastName;
 
       // Remove the column you want to exclude
       delete modifiedOrder.creationDate;
@@ -571,7 +581,8 @@ export class OrdersComponent implements OnInit, OnChanges {
     const modifiedOrders = this.orders.map(order => {
       // Create a copy of the supplier object to modify
       const modifiedOrder = { ...order };
-      modifiedOrder['Customer'] = order.customer.firstName + ' ' + order.customer.lastName;
+      if (order.customer)
+        modifiedOrder['Customer'] = order.customer.firstName + ' ' + order.customer.lastName;
 
       // Remove the column you want to exclude
       delete modifiedOrder.creationDate;
@@ -602,7 +613,7 @@ export class OrdersComponent implements OnInit, OnChanges {
 
   }
 
-showOrderStatus(order) {
+  showOrderStatus(order) {
     this.order = { ...order };
     this.images = [];
 
@@ -632,7 +643,7 @@ showOrderStatus(order) {
     this.syncEventDates(this.events);
 
     this.detailsDialog = true;
-}
+  }
 
   async editOrderStatus(id: any, order: any): Promise<boolean> {
     try {
@@ -652,63 +663,63 @@ showOrderStatus(order) {
     console.log(this.targetProducts);
     // Move the selected product from the source to the target
     this.targetProducts.forEach((product: any) => {
-        console.log(product);
-        // Iterate over each item in the event
-        event.items.forEach((item: any) => {
-            // Check if the productId matches
-            if (product.productId === item.productId) {
-                // Add the orderItemPricePerUnit field and assign the value of sellingPrice from the item
-                product.orderItemPricePerUnit = item.sellingPrice;
-                product.orderItemQuantity = 1;
-            }
-        });
+      console.log(product);
+      // Iterate over each item in the event
+      event.items.forEach((item: any) => {
+        // Check if the productId matches
+        if (product.productId === item.productId) {
+          // Add the orderItemPricePerUnit field and assign the value of sellingPrice from the item
+          product.orderItemPricePerUnit = item.sellingPrice;
+          product.orderItemQuantity = 1;
+        }
+      });
     });
     // Force change detection
     this.cdr.detectChanges();
-}
+  }
 
   async updateOrderStatus() {
     if (this.order.orderStatus != 'Canceled')
-    try {
-      this.loading = true; // Set loading flag to true
+      try {
+        this.loading = true; // Set loading flag to true
 
-      // Get the current status of the order
-      const currentStatus = this.order.orderStatus;
+        // Get the current status of the order
+        const currentStatus = this.order.orderStatus;
 
-      // Find the sequence for the current status
-      const sequence = this.statusSequences[currentStatus];
+        // Find the sequence for the current status
+        const sequence = this.statusSequences[currentStatus];
 
-      // If there are no next statuses in the sequence, exit the method
-      if (!sequence || sequence.length === 0) {
-        return;
+        // If there are no next statuses in the sequence, exit the method
+        if (!sequence || sequence.length === 0) {
+          return;
+        }
+
+        // Progress to the next status in the sequence (assuming only one next status)
+        const nextStatus = sequence[0]; // Assuming only one next status
+
+        // Update the order status
+        this.order.orderStatus = nextStatus;
+
+        // Update the existing events with the corresponding date from the order
+        await this.editOrderStatus(this.order.orderId, this.order);
+
+        // Find the index of the current status in the original events array
+        const currentStatusIndex = this.originalEvents.findIndex(event => event.status === nextStatus);
+
+        // Filter the original events array to include all events up to the current status
+        const filteredEvents = this.originalEvents.slice(0, currentStatusIndex + 1);
+
+        // Assign the filtered events to the events array
+        this.events = filteredEvents;
+        this.cdr.detectChanges(); // Detect changes to update the UI
+
+        this.syncEventDates(this.events);
+
+        // window.location.reload();
+
+      } finally {
+        this.loading = false; // Set loading flag to false when the operation is completed
       }
-
-      // Progress to the next status in the sequence (assuming only one next status)
-      const nextStatus = sequence[0]; // Assuming only one next status
-
-      // Update the order status
-      this.order.orderStatus = nextStatus;
-
-      // Update the existing events with the corresponding date from the order
-      await this.editOrderStatus(this.order.orderId, this.order);
-
-      // Find the index of the current status in the original events array
-      const currentStatusIndex = this.originalEvents.findIndex(event => event.status === nextStatus);
-
-      // Filter the original events array to include all events up to the current status
-      const filteredEvents = this.originalEvents.slice(0, currentStatusIndex + 1);
-
-      // Assign the filtered events to the events array
-      this.events = filteredEvents;
-      this.cdr.detectChanges(); // Detect changes to update the UI
-
-      this.syncEventDates(this.events);
-
-      // window.location.reload();
-
-    } finally {
-      this.loading = false; // Set loading flag to false when the operation is completed
-    }
   }
 
 
@@ -727,56 +738,56 @@ showOrderStatus(order) {
         case 'Canceled':
           event.date = this.order.cancelDate.toString();
           break;
-        case 'Returned':
-          event.date = this.order.returnDate.toString();
-          break;
-        case 'Completed':
-          event.date = this.order.processingDate.toString();
-          break;
+        // case 'Returned':
+        //   event.date = this.order.returnDate.toString();
+        //   break;
+        // case 'Completed':
+        //   event.date = this.order.processingDate.toString();
+        //   break;
         // Add cases for other statuses if needed
       }
     });
   }
 
-canCancelOrder(order: Order): boolean {
+  canCancelOrder(order: Order): boolean {
     return order.orderStatus === 'Processing'; // Adjust the condition based on your status criteria
-}
+  }
 
-async cancelOrder(order: Order){
-  try {
-    this.order.orderStatus = "Canceled";
-    // Update the existing events with the corresponding date from the order
-    await this.editOrderStatus(this.order.orderId, this.order);
-        // Find the index of the 'Canceled' status in the original events array
-        const cancelStatusIndex = this.originalEvents.findIndex(event => event.status === 'Canceled');
+  async cancelOrder(order: Order) {
+    try {
+      this.order.orderStatus = "Canceled";
+      // Update the existing events with the corresponding date from the order
+      await this.editOrderStatus(this.order.orderId, this.order);
+      // Find the index of the 'Canceled' status in the original events array
+      const cancelStatusIndex = this.originalEvents.findIndex(event => event.status === 'Canceled');
 
-        // Filter the original events array to include all events up to the 'Canceled' status
-        const filteredEvents = this.originalEvents.slice(0, cancelStatusIndex + 1);
-    
+      // Filter the original events array to include all events up to the 'Canceled' status
+      const filteredEvents = this.originalEvents.slice(0, cancelStatusIndex + 1);
+
+      // Assign the filtered events to the events array
+      if (this.order.orderStatus === 'Canceled') {
+        this.events = filteredEvents.filter(event => event.status !== 'Delivered');
+      } else {
         // Assign the filtered events to the events array
-        if (this.order.orderStatus === 'Canceled') {
-          this.events = filteredEvents.filter(event => event.status !== 'Delivered');
-        } else {
-          // Assign the filtered events to the events array
-          this.events = filteredEvents;
-        }
-        this.cdr.detectChanges(); // Detect changes to update the UI
-    
-        this.syncEventDates(this.events);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Canceled', life: 3000 });
-  } catch (error) {
-    this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while canceling order', life: 3000 });
+        this.events = filteredEvents;
+      }
+      this.syncEventDates(this.events);
+      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Canceled', life: 3000 });
+      this.cdr.detectChanges(); // Detect changes to update the UI
+
+    } catch (error) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while canceling order', life: 3000 });
+    }
+
   }
-       
-}
 
 
-calculateTotalAmount(): number {
-  let total = 0;
-  for (const product of this.targetProducts) {
+  calculateTotalAmount(): number {
+    let total = 0;
+    for (const product of this.targetProducts) {
       total += product.orderItemQuantity * product.orderItemPricePerUnit;
+    }
+    return total;
   }
-  return total;
-}
 
 }

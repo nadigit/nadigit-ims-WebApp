@@ -1,104 +1,98 @@
-import { EventEmitter, Input, OnInit, Output } from '@angular/core';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { LayoutService } from './service/app.layout.service';
 import { KeycloakService } from 'keycloak-angular';
-import { KeycloakProfile } from 'keycloak-js';
+import { TranslateService } from '@ngx-translate/core';
+import { TranslationService } from 'src/app/services/translation.service';
 
 @Component({
-    selector: 'app-menu',
-    templateUrl: './app.menu.component.html'
+  selector: 'app-menu',
+  templateUrl: './app.menu.component.html'
 })
 export class AppMenuComponent implements OnInit {
 
-    model: any[] = [];
+  model: any[] = [];
 
-    userRoles: KeycloakProfile;
+  constructor(
+    public layoutService: LayoutService,
+    public keycloakService: KeycloakService,
+    private translate: TranslateService,
+    private translateService: TranslationService,
+  ) { }
 
+  async ngOnInit() {
+    const userRoles = await this.keycloakService.getUserRoles();
+    this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => {
+      this.setupMenu(translations, userRoles);
+    });
+  }
 
-    constructor(public layoutService: LayoutService, public keycloakService: KeycloakService) { }
+  setupMenu(translations: any, userRoles: string[]) {
+    const isAdmin = userRoles.includes('ADMIN');
 
-    async ngOnInit() {
-        const userRoles = await this.keycloakService.getUserRoles();
+    const commonItems = [
+      { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/pages/suppliers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/pages/customers'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/pages/warehouses'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/pages/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['products_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pages/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/pages/orders'], roles: ['VENDOR', 'ADMIN'] },
+    ];
 
-        const isAdmin = userRoles.includes('ADMIN');
+    this.model = isAdmin ? [
+      {
+        label: translations['home'],
+        items: [
+          { label: translations['dashboard'], icon: 'pi pi-fw pi-home', routerLink: ['/'], roles: ['ADMIN'] }
+        ]
+      },
+      {
+        label: translations['inventory'],
+        icon: 'pi pi-fw pi-briefcase',
+        items: commonItems
+      },
+      {
+        label: translations['system_settings'],
+        items: [
+          { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/pages/users'], roles: ['ADMIN'] },
+          { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
+        ]
+      },
+    ] : [
+      {
+        label: translations['inventory'],
+        icon: 'pi pi-fw pi-briefcase',
+        items: commonItems
+      },
+      {
+        items: [
+          { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
+        ]
+      },
+    ];
 
-        if (isAdmin) {
-            this.model = [
-                {
-                    label: 'Home',
-                    items: [
-                        { label: 'Dashboard', icon: 'pi pi-fw pi-home', routerLink: ['/'], roles: ['ADMIN'] }
-                    ]
-                },
+    // Filter the model based on user roles
+    this.model = this.filterMenuItems(this.model, userRoles);
+  }
 
-                {
-                    label: 'Inventory',
-                    icon: 'pi pi-fw pi-briefcase',
-                    items: [
-                        { label: 'Suppliers', icon: 'pi pi-fw pi-truck', routerLink: ['/pages/suppliers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Customers', icon: 'pi pi-fw pi-users', routerLink: ['/pages/customers'], roles: ['VENDOR', 'ADMIN'] },
-                        { label: 'Warehouses', icon: 'pi pi-fw pi-sitemap', routerLink: ['/pages/warehouses'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Categories', icon: 'pi pi-fw pi-tag', routerLink: ['/pages/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Products', icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pages/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Orders', icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/pages/orders'], roles: ['VENDOR', 'ADMIN'] },
-                    ]
-                },
-                {
-                    label: 'System Settings',
-                    items: [
-                        { label: 'Users & Permissions', icon: 'pi pi-fw pi-user', routerLink: ['/pages/users'], roles: ['ADMIN'] },
-                        { label: 'Logout', icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
-                    ]
-                },
-            ];
-        } else {
-            this.model = [
-                {
-                    label: 'Inventory',
-                    icon: 'pi pi-fw pi-briefcase',
-                    items: [
-                        { label: 'Suppliers', icon: 'pi pi-fw pi-truck', routerLink: ['/pages/suppliers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Customers', icon: 'pi pi-fw pi-users', routerLink: ['/pages/customers'], roles: ['VENDOR', 'ADMIN'] },
-                        { label: 'Warehouses', icon: 'pi pi-fw pi-sitemap', routerLink: ['/pages/warehouses'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Categories', icon: 'pi pi-fw pi-tag', routerLink: ['/pages/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Products', icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pages/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-                        { label: 'Orders', icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/pages/orders'], roles: ['VENDOR', 'ADMIN'] },
-                    ]
-                },
-                {
-                    label: 'System Settings',
-                    items: [
-                        { label: 'Users & Permissions', icon: 'pi pi-fw pi-user', routerLink: ['/pages/users'], roles: ['ADMIN'] },
-                        { label: 'Logout', icon: 'pi pi-fw pi-sign-out', command: () => this.logOut(), },
-                    ]
-                },
-            ];
-        }
+  filterMenuItems(model: any[], userRoles: string[]): any[] {
+    return model.map(menuItem => {
+      if (menuItem.items) {
+        menuItem.items = menuItem.items.filter(item => {
+          // Check if item.roles is defined and not empty
+          if (item.roles && item.roles.length > 0) {
+            return item.roles.some(role => userRoles.includes(role));
+          } else {
+            // If roles are not defined or empty, allow the item
+            return true;
+          }
+        });
+      }
+      return menuItem;
+    }).filter(menuItem => !menuItem.items || menuItem.items.length > 0);
+  }
 
-        // Filter the model based on user roles
-        this.model = this.filterMenuItems(this.model, userRoles);
-    }
-
-    filterMenuItems(model: any[], userRoles: string[]): any[] {
-        return model.map(menuItem => {
-            if (menuItem.items) {
-                menuItem.items = menuItem.items.filter(item => {
-                    // Check if item.roles is defined and not empty
-                    if (item.roles && item.roles.length > 0) {
-                        return item.roles.some(role => userRoles.includes(role));
-                    } else {
-                        // If roles are not defined or empty, allow the item
-                        return true;
-                    }
-                });
-            }
-            return menuItem;
-        }).filter(menuItem => !menuItem.items || menuItem.items.length > 0);
-    }
-
-    logOut() {
-        console.log("logged out");
-        this.keycloakService.logout(window.location.origin);
-    }
-
+  logOut() {
+    console.log("logged out");
+    this.keycloakService.logout(window.location.origin);
+  }
 }

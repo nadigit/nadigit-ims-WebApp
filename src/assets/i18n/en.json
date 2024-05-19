@@ -21,6 +21,10 @@
     
     "user_role_mapping_title":"Role assignment",
 
+    "user_role_admin": "Administrator",
+    "user_role_vendor": "Vendor",
+    "user_role_warehouseman": "Warehouseman",
+
     "tab_roles": "Roles",
     "tab_users": "Users",
 
@@ -126,8 +130,6 @@
     "order_products": "Products",
     "order_available_products": "Available Products",
     "order_selected_products": "Selected Products",
-    "order_status_ordered": "Ordered",
-    "order_status_delivered": "Delivered",
     "order_status_cancelled": "Cancelled",
     "order_status_returned": "Returned",
     "order_details": "Order details",
@@ -162,6 +164,11 @@
     "customers_menu_title": "Customers",
     "products_menu_title": "Products",
     "login_page_title" : "Sign in to continue",
+    "logout": "Logout",
+    "home":"Home",
+    "dashboard":"Dashboard",
+    "inventory":"Inventory",
+    "system_settings":"System Settings",
 
     "access_denied_page" : "Access Denied",
     "access_denied_text" : "You do not have the necessary permisions to access this page.",
@@ -173,6 +180,13 @@
     "payment_method": "Payment method",
     "payment_method_cash": "Cash",
     "payment_method_card": "Card",
-    "payment_method_check": "Check"
+    "payment_method_check": "Check",
+
+    "order_status_ordered": "Ordered",
+    "order_status_processing": "Processing",
+    "order_status_delivered": "Delivered",
+    "order_status_canceled": "Canceled",
     
+    "process_order_button": "Process the order",
+    "deliver_order_button": "Deliver the order"
   }

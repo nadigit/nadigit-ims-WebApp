@@ -7,7 +7,7 @@
 					<div class="my-2">
 						<button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
 							class="p-button-success mr-2" (click)="openNew()"></button>
-						<button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-trash"
+						<button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
 							class="p-button-danger" (click)="deleteSelectedOrders()"
 							[disabled]="!selectedOrders || !selectedOrders.length"></button>
 					</div>
@@ -94,7 +94,7 @@
 						</td>
 						<td style="min-width:10rem;">
 							<span [class]="'order-badge order-' + order.orderStatus.toLowerCase()">{{order.orderStatus ?
-								order.orderStatus : 'N/A'}}</span>
+								('order_status_'+order.orderStatus.toLowerCase() | translate) : 'N/A'}}</span>
 						</td>
 						<td style="min-width:10rem;" class="font-bold">
 							<span class="p-column-title">{{ 'order_total_amount' | translate }}</span>
@@ -425,7 +425,7 @@
 					</ng-template>
 					<ng-template pTemplate="content" let-event>
 						<div *ngIf="!loading">
-							<p-card [header]="event.status" [subheader]="event.date | date:'dd/MM/yy, hh:mm'">
+							<p-card [header]="event.status ? ('order_status_'+event.status.toLowerCase() | translate) :'N/A'" [subheader]="event.date | date:'dd/MM/yy, hh:mm'">
 								<div style="display: flex; justify-content: center; align-items: center;"
 									*ngIf="event.status == 'Ordered'">
 									<p-galleria *ngIf="images" [(value)]="images" [showIndicators]="true"
@@ -438,7 +438,6 @@
 										</ng-template>
 									</p-galleria>
 								</div>
-								<!-- <img *ngIf="event.image" [src]="'https://primefaces.org/cdn/primeng/images/demo/product/' + event.image" [alt]="event.name" width="200" class="shadow-2" /> -->
 								<p-accordion class="w-full" *ngIf="event.status == 'Ordered'">
 									<p-accordionTab>
 										<ng-template pTemplate="header">

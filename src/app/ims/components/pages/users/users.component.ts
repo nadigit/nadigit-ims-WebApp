@@ -38,7 +38,9 @@ export class UsersComponent implements OnInit {
 
   submitted: boolean = false;
 
-  cols: any[] = [];
+  usersCols: any[] = [];
+  rolesCols: any[] = [];
+
 
   rowsPerPageOptions = [20, 50, 100];
 
@@ -58,7 +60,9 @@ export class UsersComponent implements OnInit {
 
   valSwitch: boolean = false;
 
-  exportColumns!: ExportColumn[];
+  usersExportColumns!: ExportColumn[];
+  rolesExportColumns!: ExportColumn[];
+
 
   items: MenuItem[];
 
@@ -106,7 +110,7 @@ export class UsersComponent implements OnInit {
     this.onGetAllRoles();
     this.initializePickList();
 
-    this.cols = [
+    this.usersCols = [
       { field: 'id', header: 'ID' },
       { field: 'firstName', header: 'First Name' },
       { field: 'lastName', header: 'Last Name' },
@@ -114,8 +118,14 @@ export class UsersComponent implements OnInit {
       { field: 'email', header: 'Email' },
       { field: 'enabled', header: 'Enabled' },
     ];
+    this.rolesCols = [
+      { field: 'id', header: 'ID' },
+      { field: 'name', header: 'Name' },
+      { field: 'description', header: 'Description' },
+    ];
 
-    this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+    this.usersExportColumns = this.usersCols.map((col) => ({ title: col.header, dataKey: col.field }));
+    this.rolesExportColumns = this.rolesCols.map((col) => ({ title: col.header, dataKey: col.field }));
 
     this.menuItems = [
       {
@@ -159,13 +169,20 @@ async combineUserRolesData() {
     console.log(this.activeItem)
   }
 
-  deleteSelectedUsers() {
-    this.deleteUsersDialog = true;
+  deleteSelected() {
+    if (this.activeItem.label == 'Users') {
+      this.deleteUsersDialog = true;
+      console.log("1")
+    } else {
+      this.deleteRolesDialog = true;
+      console.log("2")
+    }
+    //this.deleteUsersDialog = true;
   }
 
-  deleteSelectedRoles() {
-    this.deleteRolesDialog = true;
-  }
+  // deleteSelectedRoles() {
+  //   this.deleteRolesDialog = true;
+  // }
 
   editUser(user: User) {
     this.user = { ...user };
@@ -198,7 +215,7 @@ async combineUserRolesData() {
       this.selectedUsers = [];
     } else {
       this.deleteRolesDialog = false;
-      await this.selectedRoles.forEach(selectedRole => this.onDeleteUser(selectedRole.name));
+      await this.selectedRoles.forEach(selectedRole => this.onDeleteRole(selectedRole.name));
       this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Roles Deleted', life: 3000 });
       this.selectedRoles = [];
     }
@@ -449,14 +466,14 @@ async combineUserRolesData() {
     this.authService.getRoles()
       .subscribe({
         next: (response: any) => {
-          this.appRoles = response;
+          // Filter out roles with composite set to true
+          this.appRoles = response.filter((role: any) => !role.composite);
           console.log(this.appRoles);
         },
         error: (err: any) => {
           console.log(err);
         }
-      }
-      );
+      });
   }
 
 
@@ -478,7 +495,9 @@ async combineUserRolesData() {
     try {
       const rolesResponse = await this.authService.getUserRoles(userId).toPromise();
       if (Array.isArray(rolesResponse)) {
-        const roles: string[] = rolesResponse.map((role: any) => role.name);
+        // Filter out roles with composite set to true
+        const roles: string[] = rolesResponse.filter((role: any) => !role.composite)
+                                               .map((role: any) => role.name);
         return roles;
       } else {
         console.error(`Invalid roles response for user with ID ${userId}:`, rolesResponse);
@@ -754,13 +773,18 @@ async combineUserRolesData() {
   //   }
 
   exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.users, 'users')
+    if(this.activeItem.label =='Users')
+    this.reportingService.exportPdf(this.usersExportColumns, this.users, 'users')
+    else
+    this.reportingService.exportPdf(this.rolesExportColumns, this.appRoles, 'roles')
+
   }
 
   exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
+    if(this.activeItem.label =='Users'){
+    // Clone the users array to avoid modifying the original array
     const modifiedUsers = this.users.map(user => {
-      // Create a copy of the supplier object to modify
+      // Create a copy of the user object to modify
       const modifiedUser = { ...user };
 
       // Remove the column you want to exclude
@@ -774,6 +798,9 @@ async combineUserRolesData() {
 
     // Now, export the modified array to Excel
     this.reportingService.exportExcel(modifiedUsers, 'users');
+  } else {
+    this.reportingService.exportExcel(this.appRoles, 'roles');
+  }
   }
 
 

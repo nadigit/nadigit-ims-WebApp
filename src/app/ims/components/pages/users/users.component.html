@@ -7,13 +7,23 @@
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
-                        <button pButton pRipple label="{{'new_button' | translate}}" icon="pi pi-plus"
-                            class="p-button-success mr-2" (click)="openNew()"></button>
-                        <button pButton pRipple label="{{'delete_button' | translate}}" icon="pi pi-trash"
-                            class="p-button-danger" (click)="deleteSelectedUsers()"
-                            [disabled]="!selectedUsers || !selectedUsers.length"></button>
+                      <!-- Conditionally render buttons based on the active tab -->
+                      <ng-container *ngIf="activeItem.label == 'Users'; else rolesTab">
+                        <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+                                class="p-button-success mr-2" (click)="openNew()"></button>
+                        <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+                                class="p-button-danger" (click)="deleteSelected()"
+                                [disabled]="!selectedUsers || !selectedUsers.length"></button>
+                      </ng-container>
+                      <ng-template #rolesTab>
+                        <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+                                class="p-button-success mr-2" (click)="openNew()"></button>
+                        <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+                                class="p-button-danger" (click)="deleteSelected()"
+                                [disabled]="!selectedRoles || !selectedRoles.length"></button>
+                      </ng-template>
                     </div>
-                </ng-template>
+                  </ng-template>
 
                 <ng-template pTemplate="right">
                     <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
@@ -23,12 +33,12 @@
                 </ng-template>
             </p-toolbar>
 
-            <p-table #dt *ngIf="activeItem.label == 'Users'" [value]="users" [columns]="cols" responsiveLayout="scroll"
+            <p-table #dt *ngIf="activeItem.label == 'Users'" [value]="users" [columns]="usersCols" responsiveLayout="scroll"
                 [rows]="20"
                 [globalFilterFields]="['username','email','firstName','lastName','enabled','attributes.roles']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                [(selection)]="selectedUsers" selectionMode="multiple" [rowHover]="true" dataKey="username">
+                [(selection)]="selectedUsers" selectionMode="multiple" [rowHover]="true" dataKey="id">
                 <ng-template pTemplate="caption">
                     <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
                         <h5 class="m-0">{{'users_page_title' | translate}}</h5>
@@ -103,11 +113,11 @@
             </p-table>
 
 
-            <p-table #dt *ngIf="activeItem.label == 'Roles'" [value]="appRoles" [columns]="cols"
+            <p-table #dt *ngIf="activeItem.label == 'Roles'" [value]="appRoles" [columns]="rolesCols"
                 responsiveLayout="scroll" [rows]="20" [globalFilterFields]="['name','description']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                [(selection)]="selectedRoles" selectionMode="multiple" [rowHover]="true" dataKey="name">
+                [(selection)]="selectedRoles" selectionMode="multiple" [rowHover]="true" dataKey="id">
                 <ng-template pTemplate="caption">
                     <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
                         <h5 class="m-0">{{'roles_page_title' | translate}}</h5>

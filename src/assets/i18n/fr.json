@@ -22,6 +22,10 @@
   
   "user_role_mapping_title":"Affectation des rôles",
 
+  "user_role_admin": "Administrateur",
+  "user_role_vendor": "Vendeur",
+  "user_role_warehouseman": "Magasinier",
+
   "tab_roles": "Rôles",
   "tab_users": "Utilisateurs",
 
@@ -120,8 +124,6 @@
   "order_products": "Produits",
   "order_available_products": "Produits disponibles",
   "order_selected_products": "Produits sélectionnés",
-  "order_status_ordered": "Commandé",
-  "order_status_delivered": "Livré",
   "order_status_cancelled": "Annulé",
   "order_status_returned": "Retourné",
   "order_details": "Détails de la commande",
@@ -155,6 +157,11 @@
   "products_menu_title": "Produits",
   "customers_menu_title": "Clients",
   "login_page_title" : "S'identifier pour continuer",
+  "logout": "Se déconnecter",
+  "home":"Accueil",
+  "dashboard":"Tableau de bord",
+  "inventory":"Inventaire",
+  "system_settings":"Paramètres du système",
 
 
   "access_denied_page" : "Accès refusé",
@@ -167,5 +174,14 @@
   "payment_method": "Methode de paiement",
   "payment_method_cash": "Cash",
   "payment_method_card": "Carte",
-  "payment_method_check": "Chèque"
+  "payment_method_check": "Chèque",
+
+  "order_status_ordered": "Commandé",
+  "order_status_processing": "En cours de traitement",
+  "order_status_delivered": "Livré",
+  "order_status_canceled": "Annulé",
+
+  "process_order_button": "Traiter la commande",
+  "deliver_order_button": "Livrer la commande"
+
 }
