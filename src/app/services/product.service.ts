@@ -34,5 +34,9 @@ export class ProductService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.host2 + this.schema,{headers:headers});
   }
+  getProductsOfLastWeek() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.host2 + this.schema + 'lastWeek',{headers:headers});
+  }
 
 }

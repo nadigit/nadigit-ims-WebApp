@@ -21,6 +21,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     orders?: any;
 
+    todayOrders?: any;
+
     chartData: any;
 
     chartOptions: any;
@@ -29,11 +31,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     products?: any;
 
+    lastWeekProducts?: any;
+
     customers?: any;
+    
+    todayCustomers?: any;
 
     totalOrders: any;
 
     revenue: any = 0;
+
+    todayRevenue: any = 0;
 
     constructor(private orderService: OrderService,
         private productService: ProductService,
@@ -61,19 +69,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
         
         forkJoin([
             this.getOrders(),
+            this.getTodayOrders(),
             this.getProducts(),
-            this.getCustomers()
-        ]).subscribe(([orders, products, customers]) => {
+            this.getProductsOfLastWeek(),
+            this.getCustomers(),
+            this.getTodayCustomers(),
+        ]).subscribe(([orders, todayOrders, products, lastWeekProducts, customers, todayCustomers]) => {
             this.orders = orders;
+            this.todayOrders = todayOrders;
             this.totalOrders = this.orders.length;
-    
             // Calculate revenue after orders are loaded
             this.revenue = this.orders.reduce((sum, element) => sum + element.totalAmount, 0);
+            this.todayRevenue = this.todayOrders.reduce((sum, element) => sum + element.totalAmount, 0);
+
             console.log(this.revenue);
     
             this.products = products;
+            this.lastWeekProducts = lastWeekProducts;
             this.customers = customers;
+            this.todayCustomers = todayCustomers;
+            console.log(this.lastWeekProducts)
+
         });
+
     }
 
 
@@ -146,13 +164,23 @@ ngOnDestroy() {
 getOrders() {
     return this.orderService.getOrders();
 }
+getTodayOrders() {
+    return this.orderService.getTodayOrders();
+}
 
 getProducts() {
     return this.productService.getProducts();
 }
 
+getProductsOfLastWeek() {
+    return this.productService.getProductsOfLastWeek();
+}
+
 getCustomers() {
     return this.customerService.getCustomers();
+}
+getTodayCustomers() {
+    return this.customerService.getTodayCustomers();
 }
 
 }

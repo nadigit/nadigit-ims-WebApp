@@ -36,4 +36,9 @@ export class CustomerService {
     return this.http.get(this.host2 + this.schema,{headers:headers});
   }
 
+  getTodayCustomers() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.host2 + this.schema + 'today',{headers:headers});
+  }
+
 }

@@ -33,6 +33,10 @@ export class OrderService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.host2 + this.schema,{headers:headers});
   }
+  getTodayOrders() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.host2 + this.schema + 'today',{headers:headers});
+  }
   updateOrderStatus(id: any, order: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.put(this.host2+this.schema+id+"/order_status" , order, {headers:headers});
