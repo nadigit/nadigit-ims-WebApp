@@ -51,6 +51,8 @@
     "upload_file_button": "Browse",
     "add_to_card_button": "Add to card",
 
+    "view_label": "View",
+
     "add_new_customer": "Add new customer",
     "add_new_product": "Add new product",
     "add_new_warehouse": "Add new warehouse",
@@ -130,12 +132,13 @@
     "order_products": "Products",
     "order_available_products": "Available Products",
     "order_selected_products": "Selected Products",
-    "order_status_cancelled": "Cancelled",
     "order_status_returned": "Returned",
     "order_details": "Order details",
     "order_items_price": "Price",
     "order_items_price_per_unit": "Price per Unit",
     "order_items_quantity": "Quantity",
+
+    "order_product_available_quantity": "Available Quantity in the stock",
     
 
     "select_category_option": "Select a category",
@@ -169,6 +172,7 @@
     "dashboard":"Dashboard",
     "inventory":"Inventory",
     "system_settings":"System Settings",
+    "settings":"Settings",
 
     "access_denied_page" : "Access Denied",
     "access_denied_text" : "You do not have the necessary permisions to access this page.",
@@ -188,5 +192,25 @@
     "order_status_canceled": "Canceled",
     
     "process_order_button": "Process the order",
-    "deliver_order_button": "Deliver the order"
+    "deliver_order_button": "Deliver the order",
+
+    "dashboard_new_orders_today_txt": "new orders today",
+    "dashboard_today_revenue_header": "Today Revenue",
+    "dashboard_since_yesterday_txt": "Since yesterday",
+    "dashboard_revenue_percentage_difference_txt": "of difference",
+    "dashboard_customers_newly_registered_txt": "Newly registered today",
+    "dashboard_products_added_last_week_txt": "Added last week",
+    "dashboard_products_lowstock_header": "Products in low stock",
+    "dashboard_products_outofstock_header": "Products out of stock",
+    "dashboard_orders_delivered_today_header": "Orders Delivered Today",
+    "dashboard_orders_canceled_today_header": "Orders Canceled Today",
+
+    "dashboard_recent_products_header": "Recent Products Ordered",
+    "dashboard_sales_overview_header": "Sales Overview",
+    "dashboard_products_best_selling_header": "Best Selling Products",
+    "dashboard_notifications_header": "Notifications",
+    "dashboard_notifications_today_txt": "Today",
+    "dashboard_notifications_older_txt": "Older"
+
+
   }

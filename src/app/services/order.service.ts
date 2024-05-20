@@ -37,6 +37,22 @@ export class OrderService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.host2 + this.schema + 'today',{headers:headers});
   }
+  get5TopProducts() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.host2 + this.schema + 'recent-top-products',{headers:headers});
+  }
+  getRecentOrders(){
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.host2 + this.schema + 'recent-products-sold',{headers:headers});
+  }
+
+  getTotalOrderedProducts() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.host2 + this.schema + 'total-ordered-products',{headers:headers});
+  }
+
+  
+
   updateOrderStatus(id: any, order: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.put(this.host2+this.schema+id+"/order_status" , order, {headers:headers});

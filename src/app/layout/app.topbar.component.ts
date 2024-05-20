@@ -6,6 +6,8 @@ import { NotificationService } from '../services/notification.service';
 import { Notification } from '../models/notification';
 import * as moment from 'moment';
 import { KeycloakProfile } from 'keycloak-js';
+import { TranslateService } from '@ngx-translate/core';
+import { TranslationService } from '../services/translation.service';
 
 
 @Component({
@@ -38,10 +40,18 @@ export class AppTopBarComponent implements OnInit {
     constructor(public layoutService: LayoutService, 
                 public keycloakService: KeycloakService,
                 private notificationService: NotificationService,
-                private cdRef: ChangeDetectorRef) {
+                private cdRef: ChangeDetectorRef,
+                private translate: TranslateService,
+                private translateService: TranslationService,) {
 
     }
     async ngOnInit(): Promise<void> {
+      this.translateService.currentLanguage$.subscribe(lang => {
+        this.translate.use(lang); // Use the translate service to update language
+    });
+    this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => {
+      this.setupMenu(translations);
+    });
       this.profile = await this.keycloakService.loadUserProfile();
       console.log(this.profile)
         this.items = [
@@ -57,6 +67,21 @@ export class AppTopBarComponent implements OnInit {
             },
         ];
         this.loadRecentNotifications();
+    }
+
+    setupMenu(translations: any) {    
+      this.items = [
+        {
+            label: translations['settings'],
+            icon: 'pi pi-fw pi-wrench',
+            routerLink: '/pages/profile'
+        },
+        {
+            label: translations['logout'],
+            icon: 'pi pi-fw pi-power-off',
+            command: () => this.logOut()
+        },
+    ];
     }
 
     showNotifications() {

@@ -19,7 +19,7 @@
             <i class="pi pi-calendar"></i>
             <span>Calendar</span>
         </button> -->
-        <button class="p-link" *ngIf="recentNotifications || olderNotifications; else elseBlock" (click)="showNotifications()">
+        <button class="p-link" *ngIf="recentNotifications.length>0; else elseBlock" (click)="showNotifications()">
             <i pBadge class="pi pi-bell mr-4 p-text-secondary" style="font-size: 1.5rem" [value]="recentNotifications.length"></i>
         </button>
         <ng-template #elseBlock>
@@ -43,10 +43,10 @@
 
         <div class="card">
             <div class="flex align-items-center justify-content-between mb-4">
-                <h5>Notifications</h5>
+                <h5>{{'dashboard_notifications_header' | translate}}</h5>
             </div>
 
-            <span *ngIf="recentNotifications.length" class="block text-600 font-medium mb-3">TODAY</span>
+            <span *ngIf="recentNotifications.length" class="block text-600 font-medium mb-3">{{'dashboard_notifications_today_txt' | translate}}</span>
             <ul class="p-0 mx-0 mt-0 mb-4 list-none">
                 <li *ngFor="let notification of recentNotifications" class="flex align-items-center py-2 border-bottom-1 surface-border">
                     <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
@@ -78,7 +78,7 @@
                 </li> -->
             </ul>
 
-            <span *ngIf="olderNotifications.length" class="block text-600 font-medium mb-3">OLDER</span>
+            <span *ngIf="olderNotifications.length" class="block text-600 font-medium mb-3">{{'dashboard_notifications_older_txt' | translate}}</span>
             <ul class="p-0 m-0 list-none">
                 <li *ngFor="let notification of olderNotifications" class="flex align-items-center py-2 border-bottom-1 surface-border">
                     <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
@@ -92,7 +92,10 @@
                             <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
                           </i >
                     </div>
-                    <span class="text-900 line-height-3">{{notification.message}} {{notification.creationDate | date:'short'}}</span>
+                    <span class="text-900 line-height-3">{{notification.message}}</span>
+                    <div>
+                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                    </div>
                 </li>
             </ul>
             <div style="display: flex; justify-content: center; align-items: center; margin: 20px;">

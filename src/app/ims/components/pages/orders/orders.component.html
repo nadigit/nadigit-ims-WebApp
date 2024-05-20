@@ -218,25 +218,30 @@
 										<label for="orderItemQuantity">{{ 'order_items_quantity' | translate }}</label>
 										<p-inputNumber name="orderItemQuantity" id="orderItemQuantity"
 											[(ngModel)]="product.orderItemQuantity" ngDefaultControl mode="decimal"
-											size="6" [showButtons]="true" [min]="1" placeholder="1"
+											[showButtons]="true" [min]="1" [max]="product.quantityAvailable"
 											[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.orderItemQuantity}"
 											required autofocus></p-inputNumber>
 										<small class="ng-dirty ng-invalid"
 											*ngIf="submitted && !product.orderItemQuantity">{{ 'order_items_quantity' |
 											translate }} {{'is_required_label' | translate}}</small>
 									</div>
-									<div class="field">
+									<!-- <div class="field">
 										<label for="orderItemPricePerUnit">{{ 'order_items_price_per_unit' | translate
 											}}</label>
 										<p-inputNumber name="orderItemPricePerUnit" id="orderItemPricePerUnit"
 											[(ngModel)]="product.orderItemPricePerUnit" ngDefaultControl mode="decimal"
 											size="10" [showButtons]="true" placeholder="0"
 											[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.orderItemPricePerUnit}"
-											required autofocus disabled></p-inputNumber>
+											required autofocus></p-inputNumber>
 										<small class="ng-dirty ng-invalid"
 											*ngIf="submitted && !product.orderItemPricePerUnit">{{
 											'order_items_price_per_unit' | translate }} {{'is_required_label' |
 											translate}}</small>
+									</div> -->
+									<div>
+										<label>{{'order_product_available_quantity' | translate}}</label>
+										
+										<p-inputNumber [ngModel]="product.quantityAvailable - product.orderItemQuantity" disabled> </p-inputNumber>
 									</div>
 								</ng-container>
 							</div>

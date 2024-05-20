@@ -790,4 +790,5 @@ export class OrdersComponent implements OnInit, OnChanges {
     return total;
   }
 
+
 }

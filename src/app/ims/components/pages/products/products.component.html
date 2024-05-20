@@ -86,7 +86,7 @@
 										<span class="font-semibold">{{product.category.categoryName}}</span>
 									</div>
 									<span
-										[class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{product.inventoryStatus}}</span>
+										[class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{'product_'+product.inventoryStatus.toLowerCase() | translate}}</span>
 								</div>
 								<div class="flex flex-column align-items-center text-center mb-3"
 									(click)="editProduct(product)">

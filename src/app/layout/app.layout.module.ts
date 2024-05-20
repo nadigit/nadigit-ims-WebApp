@@ -22,6 +22,7 @@ import { AppLayoutComponent } from "./app.layout.component";
 import { TieredMenuModule } from 'primeng/tieredmenu';
 import { MenuModule } from 'primeng/menu';
 import { ButtonModule } from 'primeng/button';
+import { TranslateModule } from '@ngx-translate/core';
 
 
 
@@ -50,7 +51,8 @@ import { ButtonModule } from 'primeng/button';
         DividerModule,
         TieredMenuModule,
         MenuModule,
-        ButtonModule
+        ButtonModule,
+        TranslateModule
     ],
     exports: [AppLayoutComponent]
 })
