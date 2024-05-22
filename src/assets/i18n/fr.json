@@ -203,11 +203,15 @@
   "dashboard_orders_canceled_today_header": "Commandes annulées aujourd'hui",
 
   "dashboard_recent_products_header": "Produits récemment commandés",
-  "dashboard_sales_overview_header": "Aperçu des ventes",
+  "dashboard_sales_overview_header": "Aperçu des ventes des produits les plus vendus",
   "dashboard_products_best_selling_header": "Produits les plus vendus",
   "dashboard_notifications_header": "Notifications",
   "dashboard_notifications_today_txt": "Aujourd'hui",
-  "dashboard_notifications_older_txt": "Plus anciennes"
+  "dashboard_notifications_older_txt": "Plus anciennes",
 
+  "dashboard_inventory_overview_header": "Aperçu des entrepôts",
+  "load_notifications_button" :"Plus de notifications",
 
+  "notif_product_out_of_stock": "est en rupture de stock",
+  "notif_product_low_stock": "en faible stock"
 }

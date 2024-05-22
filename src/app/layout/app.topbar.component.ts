@@ -162,4 +162,15 @@ export class AppTopBarComponent implements OnInit {
         );
       }
 
+      getCustomMessage(notification: Notification): string {
+        let notificationTitles = ["product in low stock", "product is out of stock"]
+
+        if (notificationTitles.includes(notification.title)){
+        // Extract product name
+        const productNameMatch = notification.message.match(/\(([^)]+)\)/);
+        return productNameMatch ? productNameMatch[1] : null;        
+      }
+      return notification.message;
+    }
+
 }

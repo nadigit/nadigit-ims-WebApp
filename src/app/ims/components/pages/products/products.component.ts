@@ -575,4 +575,25 @@ export class ProductsComponent implements OnInit {
   }
 
 
+  handleScanSuccess(scanResult: string) {
+    console.log('Scan success:', scanResult);
+    // Add your logic to handle the scanned barcode result
+  }
+
+  handleScanError(error: any) {
+    console.log('Scan error:', error);
+    // Add your logic to handle scan error
+  }
+
+  handleScanFailure(failure: any) {
+    console.log('Scan failure:', failure);
+    // Add your logic to handle scan failure
+  }
+
+  handleScanComplete(complete: any) {
+    console.log('Scan complete:', complete);
+    // Add your logic to handle scan completion
+  }
+
+
 }

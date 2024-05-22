@@ -9,6 +9,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { KeycloakProfile } from 'keycloak-js';
 import { KeycloakService } from 'keycloak-angular';
 import { Role } from 'src/app/models/role';
+import { Credential } from 'src/app/models/credential';
 
 @Component({
   templateUrl: './profile.component.html',
@@ -37,6 +38,16 @@ export class ProfileComponent implements OnInit {
 
   submitted: boolean = false;
 
+  initialPreferredLanguage: string;
+
+  languageMap: { [key: string]: string } = {
+    'en': 'English',
+    'fr': 'Français',
+    // Add more languages as needed
+  };
+
+  userCredential: Credential = {};
+
 
   public profile?: KeycloakProfile;
 
@@ -56,6 +67,8 @@ export class ProfileComponent implements OnInit {
       this.translate.use(lang); // Use the translate service to update language
     });
     this.preferredLanguage = this.translationService.getPreferredLanguage();
+    this.initialPreferredLanguage = this.preferredLanguage;
+
 
     await this.getUser();
 
@@ -77,6 +90,53 @@ export class ProfileComponent implements OnInit {
     });
     console.log(this.user)
     this.getUserRoles(this.user.id);
+    this.initForm();
+
+  }
+
+  initForm() {
+    this.passwordForm = this.formBuilder.group({
+      currentPassword: ['', Validators.required],
+      newPassword: ['', Validators.required],
+      confirmPassword: ['', Validators.required]
+    }, { validator: this.passwordMatchValidator });
+  }
+
+  async onSubmitPassword() {
+    this.submitted = true;
+    this.userCredential = {}
+    if (this.passwordForm.valid) {
+      // Submit password change
+      let values = this.passwordForm.value;
+      let body = {
+        userId: this.user?.id,
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        confirmPassword: values.confirmPassword,
+      };
+      this.userCredential.temporary = false;
+      this.userCredential.type = "password";
+      this.userCredential.value = body.newPassword;
+
+      try {
+        const response = await this.authService.changePassword(body.userId, this.userCredential).toPromise();
+        console.log(response);
+        this.getUser();
+        this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Password Updated', life: 3000 });
+      } catch (error) {
+        console.log(error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating password', life: 3000 })
+      }
+      this.changePasswordForm = false;
+      this.initForm();
+
+    }
+  }
+
+  passwordMatchValidator(form: FormGroup) {
+    const newPassword = form.get('newPassword')!.value;
+    const confirmPassword = form.get('confirmPassword')!.value;
+    return newPassword === confirmPassword ? null : { passwordMismatch: true };
   }
 
   toggleEditMode(field: any) {
@@ -99,7 +159,7 @@ export class ProfileComponent implements OnInit {
     this.authService.getUserRoles(userId)
       .subscribe({
         next: (response: any) => {
-          this.userRoles = response;
+          this.userRoles = response.filter((role: any) => !role.composite);
           // return response;
         },
         error: (err: any) => {
@@ -136,25 +196,26 @@ export class ProfileComponent implements OnInit {
   }
 
   openChangePassword() {
+    this.initForm()
     this.changePasswordForm = true;
   }
 
-  onSubmit() {
-    console.log('Form validity:', this.passwordForm.valid);
-    if (this.passwordForm.valid) {
-      let values = this.passwordForm.value;
-      let user = this.user; // Assuming this.user is properly populated
-      console.log(user)
-      let body = {
-        userName: user.username,
-        currentPassword: values.currentPassword,
-        newPassword: values.newPassword,
-        confirmPassword: values.confirmPassword,
-      };
-      //this.updatePassword(body) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Password changed with success', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating passsword', life: 3000 });
-      this.cdr.markForCheck();
-    }
-  }
+  // onSubmit() {
+  //   console.log('Form validity:', this.passwordForm.valid);
+  //   if (this.passwordForm.valid) {
+  //     let values = this.passwordForm.value;
+  //     let user = this.user; // Assuming this.user is properly populated
+  //     console.log(user)
+  //     let body = {
+  //       userName: user.username,
+  //       currentPassword: values.currentPassword,
+  //       newPassword: values.newPassword,
+  //       confirmPassword: values.confirmPassword,
+  //     };
+  //     //this.updatePassword(body) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Password changed with success', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating passsword', life: 3000 });
+  //     this.cdr.markForCheck();
+  //   }
+  // }
 
   updatePassword(values: any) {
     console.log(values)
@@ -162,25 +223,28 @@ export class ProfileComponent implements OnInit {
 
   }
 
-  mustMatch(controlName: string, matchingControlName: string) {
-    return (formGroup: FormGroup) => {
-      const control = formGroup.controls[controlName];
-      const matchingControl = formGroup.controls[matchingControlName];
+  // mustMatch(controlName: string, matchingControlName: string) {
+  //   return (formGroup: FormGroup) => {
+  //     const control = formGroup.controls[controlName];
+  //     const matchingControl = formGroup.controls[matchingControlName];
 
-      if (control.value !== matchingControl.value) {
-        matchingControl.setErrors({ mustMatch: true });
-      } else {
-        matchingControl.setErrors(null);
-      }
-    };
-  }
+  //     if (control.value !== matchingControl.value) {
+  //       matchingControl.setErrors({ mustMatch: true });
+  //     } else {
+  //       matchingControl.setErrors(null);
+  //     }
+  //   };
+  // }
 
   changeLanguage() {
     if (this.languageEdit) {
-      this.translationService.setLanguage(this.preferredLanguage);
+      if (this.preferredLanguage !== this.initialPreferredLanguage) {
+        this.translationService.setLanguage(this.preferredLanguage);
+        window.location.reload();
+      }
+    } else {
+      this.languageEdit = !this.languageEdit;
     }
-    console.log(this.preferredLanguage);
-    this.languageEdit = !this.languageEdit;
   }
 
   getSeverity(status: any) {

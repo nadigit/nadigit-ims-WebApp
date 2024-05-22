@@ -29,6 +29,7 @@
         "@fullcalendar/timegrid": "^6.0.3",
         "@ngx-translate/core": "^15.0.0",
         "@ngx-translate/http-loader": "^8.0.0",
+        "@zxing/ngx-scanner": "^17.0.3",
         "chart.js": "^3.3.2",
         "country-state-city": "^3.2.1",
         "file-saver": "^2.0.5",

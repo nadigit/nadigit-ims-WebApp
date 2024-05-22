@@ -12,6 +12,7 @@ import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
 import {KeycloakAngularModule, KeycloakService} from "keycloak-angular";
+import { ZXingScannerModule } from '@zxing/ngx-scanner';
 
 
 // AoT requires an exported function for factories
@@ -48,6 +49,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
         AngularFireModule.initializeApp(environment.firebaseConfig),
         AngularFireStorageModule,
         HttpClientModule,
+        ZXingScannerModule,
         TranslateModule.forRoot({
             loader: {
                 provide: TranslateLoader,

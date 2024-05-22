@@ -41,7 +41,6 @@
 <div class="card flex flex-wrap justify-content-center gap-2">
     <p-sidebar [(visible)]="notificationVisible" position="right" styleClass="w-30rem">
 
-        <div class="card">
             <div class="flex align-items-center justify-content-between mb-4">
                 <h5>{{'dashboard_notifications_header' | translate}}</h5>
             </div>
@@ -60,13 +59,18 @@
                             <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
                           </i >
                     </div>
-                    
-                    <span class="text-900 line-height-3">
-                        {{notification.message}}
-                    </span>
                     <div>
-                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        <span class="text-900 line-height-3">{{ getCustomMessage(notification) }} 
+                            <span *ngIf="notification.title == 'product is out of stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+
+                            <br> 
+                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        </span>
                     </div>
+                    <!-- <div> 
+                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                    </div> -->
                 </li>
                 <!-- <li class="flex align-items-center py-2">
                     <div
@@ -92,16 +96,20 @@
                             <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
                           </i >
                     </div>
-                    <span class="text-900 line-height-3">{{notification.message}}</span>
                     <div>
-                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        <span class="text-900 line-height-3">{{ getCustomMessage(notification) }} 
+                            <span *ngIf="notification.title == 'product is out of stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+
+                            <br> 
+                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        </span>
                     </div>
                 </li>
             </ul>
             <div style="display: flex; justify-content: center; align-items: center; margin: 20px;">
-                <button pButton class="p-button-text" (click)="loadMoreNotifications()" ><span class="text-900 line-height-3">Load More Notifications</span></button>
+                <button pButton class="p-button-text" (click)="loadMoreNotifications()" ><span class="text-900 line-height-3">{{'load_notifications_button' | translate}}</span></button>
             </div>
-        </div>
     </p-sidebar>
 
 </div> 

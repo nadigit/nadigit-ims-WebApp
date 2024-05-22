@@ -182,13 +182,20 @@
                 </li>
             </ul>
         </div>
+
+            <div class="card" *ngIf="products">
+                <h5>{{'dashboard_inventory_overview_header' | translate}}</h5>
+                <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
+            </div>
+
     </div>
 
     <div class="col-12 xl:col-6">
-        <div class="card">
+        <div class="card" *ngIf="orders">
             <h5>{{'dashboard_sales_overview_header' | translate}}</h5>
             <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
         </div>
+
 
         <div class="card">
             <div class="flex align-items-center justify-content-between mb-4">
@@ -209,13 +216,18 @@
                             <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
                           </i >
                     </div>
-                    
-                    <span class="text-900 line-height-3">
-                        {{notification.message}}
-                    </span>
                     <div>
-                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        <span class="text-900 line-height-3">{{ getCustomMessage(notification) }} 
+                            <span *ngIf="notification.title == 'product is out of stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+
+                            <br> 
+                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        </span>
                     </div>
+                    <!-- <div> 
+                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                    </div> -->
                 </li>
                 <!-- <li class="flex align-items-center py-2">
                     <div
@@ -241,9 +253,14 @@
                             <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
                           </i >
                     </div>
-                    <span class="text-900 line-height-3">{{notification.message}}</span>
                     <div>
-                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        <span class="text-900 line-height-3">{{ getCustomMessage(notification) }} 
+                            <span *ngIf="notification.title == 'product is out of stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+
+                            <br> 
+                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                        </span>
                     </div>
                 </li>
             </ul>

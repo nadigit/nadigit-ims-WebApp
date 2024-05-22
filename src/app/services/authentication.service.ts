@@ -162,12 +162,18 @@ export class AuthenticationService {
     return this.http.put(this.host1+"/roles/"+id , role, {headers:headers});
   }
 
-  changePassword(values: any) {
+  // changePassword(values: any) {
+  //   if(this.jwt==null) this.loadToken();
+  //   const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+  //   return this.http.post(this.host1 + "/change-password/", values, { headers: headers });
+  // }
+  ///admin/realms/{realm}/users/{id}/reset-password
+
+  changePassword(id: any, credentials: any) {
     if(this.jwt==null) this.loadToken();
     const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
-    return this.http.post(this.host1 + "/change-password/", values, { headers: headers });
+    return this.http.put(this.host1 + "/users/"+id+"/reset-password", credentials, { headers: headers });
   }
-
 
   forgotPassword(data: any): Observable<any> {
     console.log('request forgot pwd sent');
@@ -191,16 +197,50 @@ export class AuthenticationService {
     return this.http.get(this.host1+"/profile/",{headers:headers});
   }
 
+  // async checkRolesAndRedirect(): Promise<void> {
+  //   const userRoles = await this.keycloakService.getUserRoles();
+  //   if (userRoles.includes('ADMIN')) {
+  //     this.router.navigate(['/']);
+  //   } else if (userRoles.includes('VENDOR')) {
+  //     this.router.navigate(['/pages/orders']);
+  //   } else if (userRoles.includes('WAREHOUSEMAN')) {
+  //     this.router.navigate(['/pages/products']);
+  //   } else {
+  //     this.router.navigate(['/auth/access']);
+  //   }
+  // }
+
   async checkRolesAndRedirect(): Promise<void> {
     const userRoles = await this.keycloakService.getUserRoles();
-    if (userRoles.includes('ADMIN')) {
-      this.router.navigate(['/']);
-    } else if (userRoles.includes('VENDOR')) {
-      this.router.navigate(['/pages/orders']);
-    } else if (userRoles.includes('WAREHOUSEMAN')) {
-      this.router.navigate(['/pages/products']);
-    } else {
-      this.router.navigate(['/auth/access']);
+    const currentUrl = this.router.url;
+  
+    // Define the allowed routes for each role
+    const roleRouteMap: { [key: string]: string } = {
+      'ADMIN': '/',
+      'VENDOR': '/pages/orders',
+      'WAREHOUSEMAN': '/pages/products'
+    };
+  
+    // Determine if the current route is accessible for the user roles
+    let hasAccess = false;
+    for (const role of userRoles) {
+      if (roleRouteMap[role] && currentUrl.startsWith(roleRouteMap[role])) {
+        hasAccess = true;
+        break;
+      }
+    }
+  
+    // If the user does not have access, redirect based on their roles
+    if (!hasAccess) {
+      if (userRoles.includes('ADMIN')) {
+        this.router.navigate(['/']);
+      } else if (userRoles.includes('VENDOR')) {
+        this.router.navigate(['/pages/orders']);
+      } else if (userRoles.includes('WAREHOUSEMAN')) {
+        this.router.navigate(['/pages/products']);
+      } else {
+        this.router.navigate(['/auth/access']);
+      }
     }
   }
 
