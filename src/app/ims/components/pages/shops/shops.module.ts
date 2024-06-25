@@ -1,8 +1,8 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ProductsRoutingModule } from './products-routing.module';
-import { ProductsComponent } from './products.component';
+import { ShopsRoutingModule } from './shops-routing.module';
+import { ShopsComponent } from './shops.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -16,26 +16,14 @@ import { DropdownModule } from 'primeng/dropdown';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DialogModule } from 'primeng/dialog';
-import { DataViewModule } from 'primeng/dataview';
-import { MenuModule } from 'primeng/menu';
-import { ContextMenuModule } from 'primeng/contextmenu';
-import { MenubarModule } from 'primeng/menubar';
 import { TranslateModule } from '@ngx-translate/core';
 import { ReportingService } from 'src/app/utils/reporting.service';
-import { TieredMenuModule } from 'primeng/tieredmenu';
-import { TooltipModule } from 'primeng/tooltip';
-import { ImageModule } from 'primeng/image';
-import { ZXingScannerModule } from '@zxing/ngx-scanner';
-import { TreeSelectModule } from 'primeng/treeselect';
-
-
 
 
 @NgModule({
     imports: [
         CommonModule,
-        DataViewModule,
-        ProductsRoutingModule,
+        ShopsRoutingModule,
         TableModule,
         FileUploadModule,
         FormsModule,
@@ -50,17 +38,9 @@ import { TreeSelectModule } from 'primeng/treeselect';
         RadioButtonModule,
         InputNumberModule,
         DialogModule,
-        MenuModule,
-        ContextMenuModule,
-        MenubarModule,
-        TranslateModule,
-        TieredMenuModule,
-        TooltipModule,
-        ImageModule,
-        ZXingScannerModule,
-        TreeSelectModule
+        TranslateModule
     ],
-    declarations: [ProductsComponent],
-    providers: [ReportingService]
+    declarations: [ShopsComponent],
+    providers: [ReportingService],
 })
-export class ProductsModule { }
+export class ShopsModule { }

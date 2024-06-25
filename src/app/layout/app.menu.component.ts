@@ -32,7 +32,8 @@ export class AppMenuComponent implements OnInit {
     const commonItems = [
       { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/pages/suppliers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/pages/customers'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/pages/warehouses'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/pages/warehouses'], roles: ['ADMIN'] },
+      { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/pages/shops'], roles: ['ADMIN'] },
       { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/pages/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['products_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pages/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/pages/orders'], roles: ['VENDOR', 'ADMIN'] },
@@ -54,6 +55,7 @@ export class AppMenuComponent implements OnInit {
         label: translations['system_settings'],
         items: [
           { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/pages/users'], roles: ['ADMIN'] },
+          { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/pages/settings'], roles: ['ADMIN'] },
           { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
         ]
       },
@@ -92,7 +94,6 @@ export class AppMenuComponent implements OnInit {
   }
 
   logOut() {
-    console.log("logged out");
     this.keycloakService.logout(window.location.origin);
   }
 }

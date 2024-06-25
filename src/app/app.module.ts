@@ -13,6 +13,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
 import {KeycloakAngularModule, KeycloakService} from "keycloak-angular";
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
+import { OrganizationChartModule } from 'primeng/organizationchart';
 
 
 // AoT requires an exported function for factories
@@ -49,6 +50,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
         AngularFireModule.initializeApp(environment.firebaseConfig),
         AngularFireStorageModule,
         HttpClientModule,
+        OrganizationChartModule,
         ZXingScannerModule,
         TranslateModule.forRoot({
             loader: {

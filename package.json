@@ -32,6 +32,7 @@
         "@zxing/ngx-scanner": "^17.0.3",
         "chart.js": "^3.3.2",
         "country-state-city": "^3.2.1",
+        "currencies.json": "^1.0.2",
         "file-saver": "^2.0.5",
         "firebase": "^10.8.0",
         "jspdf": "^2.5.1",

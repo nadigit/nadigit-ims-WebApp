@@ -89,6 +89,7 @@
   "customer_type_company": "Société",
   "customer_type_particular": "Particulier",
   "customer_details": "Détails du client",
+
   "warehouses_page_title": "Gestion des entrepôts",
   "warehouse_name": "Nom",
   "warehouse_description": "Description",
@@ -97,6 +98,16 @@
   "warehouse_country": "Pays",
   "warehouse_city": "Ville",
   "warehouse_details": "Détails de l'entrepôt",
+
+  "shops_page_title": "Gestion des magasins",
+  "shop_name": "Nom",
+  "shop_description": "Description",
+  "shop_address": "Adresse",
+  "shop_location": "Localisation",
+  "shop_country": "Pays",
+  "shop_city": "Ville",
+  "shop_details": "Détails du magasin",
+
   "categories_page_title": "Gestion des catégories",
   "category_name": "Nom",
   "category_description": "Description",
@@ -154,9 +165,11 @@
   "back_to_login" : "Retour à la page d'identification",
 
   "users_menu_title": "Utilisateurs et autorisations",
+  "settings_menu_title": "Paramètres globaux",
   "orders_menu_title": "Commandes",
   "categories_menu_title": "Catégories",
   "warehouses_menu_title": "Entrepôts",
+  "shops_menu_title": "Magasins",
   "suppliers_menu_title": "Fournisseurs",
   "products_menu_title": "Produits",
   "customers_menu_title": "Clients",
@@ -207,11 +220,28 @@
   "dashboard_products_best_selling_header": "Produits les plus vendus",
   "dashboard_notifications_header": "Notifications",
   "dashboard_notifications_today_txt": "Aujourd'hui",
-  "dashboard_notifications_older_txt": "Plus anciennes",
+  "dashboard_notifications_older_txt": "Plus",
 
   "dashboard_inventory_overview_header": "Aperçu des entrepôts",
   "load_notifications_button" :"Plus de notifications",
 
   "notif_product_out_of_stock": "est en rupture de stock",
-  "notif_product_low_stock": "en faible stock"
+  "notif_product_low_stock": "en faible stock",
+  "no_notifications_available_txt": "Aucune notification n'est disponible.",
+
+  "select_currency_option":"Sélectionnez votre devise",
+  "lowStockThreshold":"Seuil de stock faible",
+  "currency":"Devise",
+  "administration_title":"Administration",
+  "organization_title":"Organisation",
+  "organization_info_lbl":"Information d'organisation",
+  "organization_description_txt":"Cette page affiche la structure organisationnelle actuelle de votre système de gestion des stocks. Cliquez sur la case de l'organisation pour mettre à jour vos informations.",
+  "administration_description_txt":"Cette page permet aux administrateurs de visualiser et de mettre à jour les valeurs des paramètres du système. Cliquez sur l'icône de crayon pour modifier sa valeur.",
+
+
+  "product_not_found_warning":"Produit non trouvé",
+  "product_not_found_txt":"Le produit scanné n'existe pas en stock. Veuillez cliquer sur nouveau pour l'ajouter au stock.",
+
+  "no_results_found":"Aucun résultat trouvé."
+
 }

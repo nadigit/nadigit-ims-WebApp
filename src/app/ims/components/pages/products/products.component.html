@@ -23,10 +23,8 @@
 				</ng-template>
 			</p-toolbar>
 
-
-			<p-dataView #dv [value]="products" [paginator]="true" [rows]="9"
-				filterBy="name,reference,description,category.categoryName,warehouse.name" [sortField]="sortField"
-				[sortOrder]="sortOrder" layout="grid">
+			<p-dataView #dv [value]="filteredProducts" [paginator]="true" [rows]="9" [sortField]="sortField"
+				[sortOrder]="sortOrder" layout="grid" emptyMessage="{{ 'no_results_found' | translate }}">
 				<ng-template pTemplate="header">
 					<div class="flex flex-column md:flex-row md:justify-content-between gap-2">
 						<p-dropdown [options]="sortOptions" placeholder="{{ 'sort_by_price' | translate }}"
@@ -35,11 +33,20 @@
 								<span>{{ option.label | translate }}</span>
 							</ng-template>
 						</p-dropdown>
+
+						<p-treeSelect class="w-full md:w-20rem" containerStyleClass="w-full" [(ngModel)]="selectedNodes"
+							[options]="nodes" display="chip" [metaKeySelection]="false" selectionMode="checkbox"
+							placeholder="Select Items" (onNodeSelect)="applyFilters()"
+							(onNodeUnselect)="applyFilters()">
+						</p-treeSelect>
+
 						<span class="p-input-icon-left">
 							<i class="pi pi-search"></i>
 							<input type="search" pInputText placeholder="{{ 'search_label' | translate }}"
-								(input)="onFilter(dv, $event)">
+								[(ngModel)]="searchInput" (input)="applyFilters()" (focus)="deactivateScanning()"
+								(blur)="activateScanning()">
 						</span>
+
 						<p-dataViewLayoutOptions></p-dataViewLayoutOptions>
 					</div>
 				</ng-template>
@@ -50,7 +57,7 @@
 							<!-- <p-image [src]="product.productImage" [alt]="product.name" [preview]="true"
 								class="my-4 md:my-0 w-9 md:w-10rem shadow-2 mr-5"></p-image> -->
 							<img [src]="product.productImage" [alt]="product.name"
-								class="my-4 md:my-0 w-9 md:w-10rem shadow-2 mr-5" />
+								class="my-4 md:my-0 w-9 md:w-10rem shadow-2 mr-5" (click)="editProduct(product)"/>
 							<div class="flex-1 flex flex-column align-items-center text-center md:text-left"
 								(click)="editProduct(product)">
 								<div class="font-bold text-2xl">{{product.name}}</div>
@@ -63,7 +70,7 @@
 							<div
 								class="flex flex-row md:flex-column justify-content-between w-full md:w-auto align-items-center md:align-items-end mt-5 md:mt-0">
 								<span
-									class="text-2xl font-semibold mb-2 align-self-center md:align-self-end">${{product.buyingPrice}}</span>
+									class="text-2xl font-semibold mb-2 align-self-center md:align-self-end">{{currency}} {{product.buyingPrice}}</span>
 								<p-button icon="pi pi-pencil" label="{{'edit_button' | translate }}"
 									[disabled]="product.inventoryStatus === 'OUTOFSTOCK'" styleClass="mb-2 p-button-sm"
 									(click)="editProduct(product)"></p-button>
@@ -98,7 +105,7 @@
 									<div class="mb-3">{{product.reference}}</div>
 								</div>
 								<div class="flex align-items-center justify-content-between">
-									<span class="text-2xl font-semibold">${{ product.sellingPrice }}</span>
+									<span class="text-2xl font-semibold">{{currency}} {{ product.sellingPrice }}</span>
 									<div>
 										<button #btn type="button" pButton icon="pi pi-ellipsis-v"
 											(click)="menu.toggle($event); this.selectedProduct=product"></button>
@@ -115,10 +122,7 @@
 		<p-dialog [(visible)]="productDialog" [style]="{width: '80%', height: '100%'}"
 			header="{{'product_details' | translate}}" [modal]="true" class="p-fluid ">
 			<ng-template pTemplate="content">
-				<zxing-scanner [formats]="['QR_CODE', 'EAN_13']" (scanSuccess)="handleScanSuccess($event)"
-					(scanError)="handleScanError($event)" (scanFailure)="handleScanFailure($event)"
-					(scanComplete)="handleScanComplete($event)">
-				</zxing-scanner>
+
 				<div *ngIf="product.productImage; else upload_image">
 					<label for="productImage">{{'product_image' | translate}}</label>
 					<div class="flex justify-content-center">
@@ -129,14 +133,14 @@
 				<ng-template #upload_image>
 					<div class="field">
 						<label for="productImage">{{'product_image' | translate}}</label>
-					<!-- Display the file upload component -->
-					<div class="card flex justify-content-center">
-						<p-toast></p-toast>
-						<p-fileUpload mode="basic" name="demo[]" url="https://www.primefaces.org/cdn/api/upload.php"
-							accept="image/*" maxFileSize="1000000" (onSelect)="onFileUpload($event)"
-							chooseLabel="{{'upload_file_button' | translate}}"></p-fileUpload>
+						<!-- Display the file upload component -->
+						<div class="card flex justify-content-center">
+							<p-toast></p-toast>
+							<p-fileUpload mode="basic" name="demo[]" url="https://www.primefaces.org/cdn/api/upload.php"
+								accept="image/*" maxFileSize="1000000" (onSelect)="onFileUpload($event)"
+								chooseLabel="{{'upload_file_button' | translate}}"></p-fileUpload>
+						</div>
 					</div>
-				</div>
 				</ng-template>
 
 				<div class="field">
@@ -149,7 +153,8 @@
 				<div class="field">
 					<label for="reference">{{'product_reference' | translate}}</label>
 					<input type="text" pInputText name="reference" ngDefaultControl [(ngModel)]="product.reference"
-						required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.reference}" />
+						required autofocus [disabled]="product.reference && product.productId"
+						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.reference}" />
 					<small class="ng-dirty ng-invalid" *ngIf="submitted && !product.reference">{{'product_reference' |
 						translate}} {{'is_required_label' | translate}}</small>
 				</div>
@@ -171,7 +176,7 @@
 				<div class="field">
 					<label for="buyingPrice">{{'product_buying_price' | translate}}</label>
 					<p-inputNumber name="buyingPrice" [(ngModel)]="product.buyingPrice" ngDefaultControl mode="currency"
-						currency="USD" [showButtons]="true"
+					[currency]="currency" [showButtons]="true"
 						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.buyingPrice}" [max]="9999999999"
 						placeholder="MAD 00.00" required autofocus></p-inputNumber>
 					<small class="ng-dirty ng-invalid"
@@ -181,9 +186,9 @@
 				<div class="field">
 					<label for="sellingPrice">{{'product_selling_price' | translate}}</label>
 					<p-inputNumber name="sellingPrice" [(ngModel)]="product.sellingPrice" ngDefaultControl
-						mode="currency" currency="USD" [showButtons]="true"
+						mode="currency" [currency]="currency" [showButtons]="true"
 						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.sellingPrice}" [max]="9999999999"
-						placeholder="$ 00.00" required autofocus></p-inputNumber>
+						placeholder="MAD 00.00" required autofocus></p-inputNumber>
 					<small class="ng-dirty ng-invalid"
 						*ngIf="submitted && !product.sellingPrice">{{'product_selling_price' | translate}}
 						{{'is_required_label' | translate}}</small>
@@ -433,6 +438,20 @@
 					(click)="deleteProductDialog = false"></button>
 				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
 					(click)="confirmDelete()"></button>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="notFoundProductDialog" header="{{'product_not_found_warning' | translate}}"
+			[modal]="true" [style]="{width:'450px'}">
+			<div class="flex align-items-center justify-content-center">
+				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+				<span *ngIf="product">{{'product_not_found_txt' | translate}}</span>
+			</div>
+			<ng-template pTemplate="footer">
+				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'cancel_button' | translate}}"
+					(click)="notFoundProductDialog = false"></button>
+				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'new_button' | translate}}"
+					(click)="openNew()"></button>
 			</ng-template>
 		</p-dialog>
 	</div>

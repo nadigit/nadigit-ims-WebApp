@@ -97,7 +97,7 @@ export class WarehousesComponent implements OnInit {
   async confirmDeleteSelected() {
     this.deleteWarehousesDialog = false;
     await this.selectedWarehouses.forEach(selectedWarehouse => this.onDeleteWarehouse(selectedWarehouse.warehouseId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Users Deleted', life: 3000 });
+    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouses Deleted', life: 3000 });
     this.selectedWarehouses = [];
   }
 
@@ -105,7 +105,7 @@ export class WarehousesComponent implements OnInit {
     this.deleteWarehouseDialog = false;
     await this.onDeleteWarehouse(this.warehouse.warehouseId);
     //this.users = this.users.filter(val => val.id !== this.user.id);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
+    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouse Deleted', life: 3000 });
     this.warehouse = {};
   }
 
@@ -126,9 +126,9 @@ export class WarehousesComponent implements OnInit {
     this.submitted = true;
     if (this.warehouse.name) {
       if (this.warehouse.warehouseId) {
-        this.updateWarehouse(this.warehouse.warehouseId, this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating user', life: 3000 })
+        this.updateWarehouse(this.warehouse.warehouseId, this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouse Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating warehouse', life: 3000 })
       } else {
-        this.addWarehouse(this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding user', life: 3000 }))
+        this.addWarehouse(this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouse Updated', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding warehouse', life: 3000 }))
       }
       this.warehouses = [...this.warehouses];
       this.warehouseDialog = false;

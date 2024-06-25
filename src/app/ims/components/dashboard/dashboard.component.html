@@ -19,16 +19,18 @@
         <div class="card mb-0" *ngIf="revenue">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_today_revenue_header' | translate}} </span>
-                    <div class="text-900 font-medium text-xl">{{todayRevenue}}</div>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_today_revenue_header' | translate}}
+                    </span>
+                    <div class="text-900 font-medium text-xl">{{currency}} {{todayRevenue}}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
                     <i class="pi pi-dollar text-orange-500 text-xl"></i>
                 </div>
             </div>
-            <span class="text-green-500 font-medium">{{yesterdayRevenue}} </span>
-            <span class="text-500">{{'dashboard_since_yesterday_txt' | translate}} (%{{revenueDifferencePercentage | number : '1.2-2'}} {{'dashboard_revenue_percentage_difference_txt' | translate}})</span>
+            <span class="text-green-500 font-medium">{{currency}} {{yesterdayRevenue}} </span>
+            <span class="text-500">{{'dashboard_since_yesterday_txt' | translate}} (%{{revenueDifferencePercentage |
+                number : '1.2-2'}} {{'dashboard_revenue_percentage_difference_txt' | translate}})</span>
         </div>
     </div>
     <div class="col-12 lg:col-6 xl:col-3">
@@ -69,7 +71,8 @@
         <div class="card mb-0" *ngIf="lowStockProducts">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_lowstock_header' | translate}}</span>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_lowstock_header' |
+                        translate}}</span>
                     <div class="text-900 font-medium text-xl">{{ lowStockProducts.length }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
@@ -83,7 +86,8 @@
         <div class="card mb-0" *ngIf="outOfStockProducts">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_outofstock_header' | translate}}</span>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_outofstock_header' |
+                        translate}}</span>
                     <div class="text-900 font-medium text-xl">{{ outOfStockProducts.length }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-pink-100 border-round"
@@ -97,7 +101,8 @@
         <div class="card mb-0" *ngIf="deliveredOrders">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_delivered_today_header' | translate}}</span>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_delivered_today_header' |
+                        translate}}</span>
                     <div class="text-900 font-medium text-xl">{{ deliveredOrders.length }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-green-100 border-round"
@@ -111,7 +116,8 @@
         <div class="card mb-0" *ngIf="canceledOrders">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_canceled_today_header' | translate}}</span>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_canceled_today_header' |
+                        translate}}</span>
                     <div class="text-900 font-medium text-xl">{{ canceledOrders.length }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-pink-100 border-round"
@@ -129,8 +135,10 @@
                 <ng-template pTemplate="header">
                     <tr>
                         <th>{{'product_image' | translate}}</th>
-                        <th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon field="name"></p-sortIcon></th>
-                        <th pSortableColumn="reference">{{'product_reference' | translate}} <p-sortIcon field="reference"></p-sortIcon></th>
+                        <th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon field="name"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="reference">{{'product_reference' | translate}} <p-sortIcon
+                                field="reference"></p-sortIcon></th>
                         <th>{{'view_label' | translate}}</th>
                     </tr>
                 </ng-template>
@@ -156,7 +164,8 @@
                 <h5>{{'dashboard_products_best_selling_header' | translate}}</h5>
             </div>
             <ul class="list-none p-0 m-0">
-                <li class="flex flex-column md:flex-row md:align-items-center md:justify-content-between mb-4" *ngFor="let productPercentage of productPercentages">
+                <li class="flex flex-column md:flex-row md:align-items-center md:justify-content-between mb-4"
+                    *ngFor="let productPercentage of productPercentages">
                     <div>
                         <span class="text-900 font-medium mr-2 mb-1 md:mb-0">{{productPercentage.product.name}}</span>
                         <div class="mt-1 text-600">{{productPercentage.product.category.categoryName}}</div>
@@ -165,14 +174,13 @@
                         <div class="surface-300 border-round overflow-hidden w-10rem lg:w-6rem"
                             [ngStyle]="{height: '8px'}">
                             <div class="h-full" [style.width.%]="productPercentage.percentage"
-                            [class.bg-purple-500]="productPercentage.percentage >= 70"
-                            [class.bg-pink-500]="productPercentage.percentage < 70 && productPercentage.percentage >50"
-                            [class.bg-green-500]="productPercentage.percentage <= 50 && productPercentage.percentage >30"
-                            [class.bg-cyan-500]="productPercentage.percentage <= 30">
+                                [class.bg-purple-500]="productPercentage.percentage >= 70"
+                                [class.bg-pink-500]="productPercentage.percentage < 70 && productPercentage.percentage >50"
+                                [class.bg-green-500]="productPercentage.percentage <= 50 && productPercentage.percentage >30"
+                                [class.bg-cyan-500]="productPercentage.percentage <= 30">
                             </div>
                         </div>
-                        <span class="ml-3 font-medium"
-                        [class.text-purple-500]="productPercentage.percentage >= 70"
+                        <span class="ml-3 font-medium" [class.text-purple-500]="productPercentage.percentage >= 70"
                             [class.text-pink-500]="productPercentage.percentage < 70 && productPercentage.percentage >50"
                             [class.text-green-500]="productPercentage.percentage <= 50 && productPercentage.percentage >30"
                             [class.text-cyan-500]="productPercentage.percentage <= 30">
@@ -183,10 +191,10 @@
             </ul>
         </div>
 
-            <div class="card" *ngIf="products">
-                <h5>{{'dashboard_inventory_overview_header' | translate}}</h5>
-                <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
-            </div>
+        <div class="card" *ngIf="products">
+            <h5>{{'dashboard_inventory_overview_header' | translate}}</h5>
+            <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
+        </div>
 
     </div>
 
@@ -201,35 +209,42 @@
             <div class="flex align-items-center justify-content-between mb-4">
                 <h5>{{'dashboard_notifications_header' | translate}}</h5>
             </div>
+            <div>
 
-            <span *ngIf="recentNotifications.length" class="block text-600 font-medium mb-3">{{'dashboard_notifications_today_txt' | translate}}</span>
-            <ul class="p-0 mx-0 mt-0 mb-4 list-none">
-                <li *ngFor="let notification of recentNotifications" class="flex align-items-center py-2 border-bottom-1 surface-border">
-                    <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
-                    [class.bg-orange-100]="notification.severity === 'Warning'"
-                    [class.bg-pink-100]="notification.severity === 'Error'"
-                    [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
-                        <i [ngSwitch]="notification.entity">
-                            <i *ngSwitchCase="'Products'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
-                            <i *ngSwitchCase="'Orders'" class="pi pi-dollar text-xl text-blue-500"></i>
-                            <i *ngSwitchCase="'Customers'" class="pi pi-user text-xl text-blue-500"></i>
-                            <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
-                          </i >
-                    </div>
-                    <div>
-                        <span class="text-900 line-height-3">{{ getCustomMessage(notification) }} 
-                            <span *ngIf="notification.title == 'product is out of stock'"> {{'notif_product_out_of_stock' | translate}} </span>
-                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_out_of_stock' | translate}} </span>
 
-                            <br> 
-                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
-                        </span>
-                    </div>
-                    <!-- <div> 
+                <span *ngIf="recentNotifications.length"
+                    class="block text-600 font-medium mb-3">{{'dashboard_notifications_today_txt' | translate}}</span>
+                <ul class="p-0 mx-0 mt-0 mb-4 list-none">
+                    <li *ngFor="let notification of recentNotifications"
+                        class="flex align-items-center py-2 border-bottom-1 surface-border">
+                        <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
+                            [class.bg-orange-100]="notification.severity === 'Warning'"
+                            [class.bg-pink-100]="notification.severity === 'Error'"
+                            [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
+                            <i [ngSwitch]="notification.entity">
+                                <i *ngSwitchCase="'Products'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
+                                <i *ngSwitchCase="'Orders'" class="pi pi-dollar text-xl text-blue-500"></i>
+                                <i *ngSwitchCase="'Customers'" class="pi pi-user text-xl text-blue-500"></i>
+                                <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
+                            </i>
+                        </div>
+                        <div>
+                            <span class="text-900 line-height-3">{{ getCustomMessage(notification) }}
+                                <span *ngIf="notification.title == 'product is out of stock'">
+                                    {{'notif_product_out_of_stock' | translate}} </span>
+                                <span *ngIf="notification.title == 'product in low stock'">
+                                    {{'notif_product_out_of_stock' | translate}} </span>
+
+                                <br>
+                                <span class="text-400" style="font-size: smaller;">{{notification.creationDate |
+                                    date:'short'}}</span>
+                            </span>
+                        </div>
+                        <!-- <div> 
                         <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
                     </div> -->
-                </li>
-                <!-- <li class="flex align-items-center py-2">
+                    </li>
+                    <!-- <li class="flex align-items-center py-2">
                     <div
                         class="w-3rem h-3rem flex align-items-center justify-content-center bg-orange-100 border-circle mr-3 flex-shrink-0">
                         <i class="pi pi-download text-xl text-orange-500"></i>
@@ -237,35 +252,49 @@
                     <span class="text-700 line-height-3">Your request for withdrawal of <span
                             class="text-blue-500 font-medium">2500$</span> has been initiated.</span>
                 </li> -->
-            </ul>
+                </ul>
 
-            <span *ngIf="olderNotifications.length" class="block text-600 font-medium mb-3">{{'dashboard_notifications_older_txt' | translate}}</span>
-            <ul class="p-0 m-0 list-none">
-                <li *ngFor="let notification of olderNotifications" class="flex align-items-center py-2 border-bottom-1 surface-border">
-                    <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
-                    [class.bg-orange-100]="notification.severity === 'Warning'"
-                    [class.bg-pink-100]="notification.severity === 'Error'"
-                    [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
-                        <i [ngSwitch]="notification.entity">
-                            <i *ngSwitchCase="'Products'" class="pi pi-shopping-cart text-xl text-blue-500"></i>
-                            <i *ngSwitchCase="'Orders'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
-                            <i *ngSwitchCase="'Customers'" class="pi pi-dollar text-xl text-blue-500"></i>
-                            <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
-                          </i >
-                    </div>
-                    <div>
-                        <span class="text-900 line-height-3">{{ getCustomMessage(notification) }} 
-                            <span *ngIf="notification.title == 'product is out of stock'"> {{'notif_product_out_of_stock' | translate}} </span>
-                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+                <span *ngIf="olderNotifications.length"
+                    class="block text-600 font-medium mb-3">{{'dashboard_notifications_older_txt' | translate}}</span>
+                <ul class="p-0 m-0 list-none">
+                    <li *ngFor="let notification of olderNotifications"
+                        class="flex align-items-center py-2 border-bottom-1 surface-border">
+                        <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
+                            [class.bg-orange-100]="notification.severity === 'Warning'"
+                            [class.bg-pink-100]="notification.severity === 'Error'"
+                            [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
+                            <i [ngSwitch]="notification.entity">
+                                <i *ngSwitchCase="'Products'" class="pi pi-shopping-cart text-xl text-blue-500"></i>
+                                <i *ngSwitchCase="'Orders'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
+                                <i *ngSwitchCase="'Customers'" class="pi pi-dollar text-xl text-blue-500"></i>
+                                <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
+                            </i>
+                        </div>
+                        <div>
+                            <span class="text-900 line-height-3">{{ getCustomMessage(notification) }}
+                                <span *ngIf="notification.title == 'product is out of stock'">
+                                    {{'notif_product_out_of_stock' | translate}} </span>
+                                <span *ngIf="notification.title == 'product in low stock'">
+                                    {{'notif_product_low_stock' | translate}} </span>
 
-                            <br> 
-                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
-                        </span>
-                    </div>
-                </li>
-            </ul>
+                                <br>
+                                <span class="text-400" style="font-size: smaller;">{{notification.creationDate |
+                                    date:'short'}}</span>
+                            </span>
+                        </div>
+                    </li>
+                </ul>
+                <!-- No Notifications Message -->
+                <div *ngIf="!recentNotifications.length && !olderNotifications.length" class="text-600 font-medium">
+                    <span>{{'no_notifications_available_txt' | translate}}</span>
+                </div>
+            </div>
 
         </div>
+
+    </div>
+
+    <div>
 
     </div>
 </div>

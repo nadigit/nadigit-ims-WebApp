@@ -1,0 +1,138 @@
+<div class="grid">
+    <div class="col-12">
+      <div class="card px-6 py-6">
+        <p-tabMenu [model]="menuItems" [activeItem]="activeItem" (activeItemChange)="onActiveItemChange($event)"></p-tabMenu>
+        <br>
+        <p-toast></p-toast>
+  
+        <div *ngIf="activeItem.label == 'Organization'" class="card justify-content-center overflow-x-auto overflow-y-auto" style="height: 100%;">
+          <span class="text-500">{{ 'organization_description_txt' | translate }}</span>
+          <div style="margin-top: 2rem;">
+            <p-organizationChart [value]="organizationStructure" selectionMode="multiple" [(selection)]="selectedNodes" [collapsible]="true" (onNodeSelect)="openOrganizationDialog($event)">
+              <ng-template let-node pTemplate="organization">
+                <div class="p-2 text-center">
+                  <img *ngIf="organization.logo" [src]="organization.logo" class="mb-3 w-3rem h-3rem" />
+                  <div class="font-bold">{{ node.data.name }}</div>
+                </div>
+              </ng-template>
+              <ng-template let-node pTemplate="shops">
+                <div class="p-2 text-center">
+                  <div class="font-bold">
+                    <a routerLink="/pages/shops">{{ node.data.name }}</a>
+                  </div>
+                </div>
+              </ng-template>
+              <ng-template let-node pTemplate="warehouses">
+                <div class="p-2 text-center">
+                  <div class="font-bold">
+                    <a routerLink="/pages/warehouses">{{ node.data.name }}</a>
+                  </div>
+                </div>
+              </ng-template>
+            </p-organizationChart>
+          </div>
+        </div>
+  
+        <div class="grid" *ngIf="activeItem.label == 'Customization'">
+          <div class="col-12">
+            <div class="card">
+              <!-- <div class="block-section"> -->
+                <!-- <div class="block-content"> -->
+                  <!-- <div class="surface-section"> -->
+                    <div class="surface-section">
+                      <div class="text-500 mb-5">{{ 'administration_description_txt' | translate }}</div>
+                      <ul class="list-none p-0 m-0">
+                        <li *ngFor="let config of configs; trackBy: trackByConfig" class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
+                          <div class="text-500 w-6 md:w-4 font-medium">{{ config.key | translate }}</div>
+                          <div class="text-900 w-full md:w-6 md:flex-order-0 flex-order-1">
+                            <ng-container *ngIf="!config.isEditing; else editModeTemplate">
+                              {{ config.value }}
+                            </ng-container>
+                            <ng-template #editModeTemplate>
+                              <div *ngIf="config.key == 'lowStockThreshold'">
+                                <input [(ngModel)]="config.value" type="number" pInputText class="form-control" />
+                              </div>
+                              <div *ngIf="config.key == 'currency'">
+                                <p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol" optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}"></p-dropdown>
+                              </div>
+                            </ng-template>
+                          </div>
+                          <div class="w-6 md:w-2 flex justify-content-end">
+                            <p-button (click)="toggleEditMode(config)" icon="pi pi-{{ config.isEditing ? 'check' : 'pencil' }}" [rounded]="true" [outlined]="true"></p-button>
+                          </div>
+                        </li>
+                      </ul>
+                    <!-- </div> -->
+                  <!-- </div> -->
+                <!-- </div> -->
+              </div>
+            </div>
+          </div>
+        </div>
+  
+        <p-dialog [(visible)]="organizationDialog" [style]="{ width: '450px', height: '100%' }" header="{{ 'organization_info_lbl' | translate }}" [modal]="true" class="p-fluid">
+          <ng-template pTemplate="content">
+            <div *ngIf="organization.logo; else upload_image">
+              <label for="logo">{{ 'product_image' | translate }}</label>
+              <div class="flex justify-content-center">
+                <p-image [src]="organization.logo" [alt]="organization.organizationName" width="150" [preview]="true" class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
+              </div>
+            </div>
+            <ng-template #upload_image>
+              <div class="field">
+                <label for="logo">{{ 'product_image' | translate }}</label>
+                <div class="card flex justify-content-center">
+                  <p-toast></p-toast>
+                  <p-fileUpload mode="basic" name="demo[]" url="https://www.primefaces.org/cdn/api/upload.php" accept="image/*" maxFileSize="1000000" (onSelect)="onFileUpload($event)" chooseLabel="{{ 'upload_file_button' | translate }}"></p-fileUpload>
+                </div>
+              </div>
+            </ng-template>
+            <div class="field">
+              <label for="organizationName">{{ 'shop_name' | translate }}</label>
+              <input type="text" pInputText name="organizationName" ngDefaultControl [(ngModel)]="organization.organizationName" required autofocus [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.organizationName }" />
+              <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.organizationName">{{ 'shop_name' | translate }} {{ 'is_required_label' | translate }}</small>
+            </div>
+            <div class="field">
+              <label for="email">{{ 'customer_email' | translate }}</label>
+              <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="organization.email" autofocus />
+            </div>
+            <div class="field">
+              <label for="phoneNumber">{{ 'customer_phone_number' | translate }}</label>
+              <input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="organization.phoneNumber" autofocus />
+            </div>
+            <div class="field">
+              <label for="country">{{ 'shop_country' | translate }}</label>
+              <p-dropdown [(ngModel)]="organization.country" (onChange)="onSelectedCountry(organization.country)" name="country" inputId="country" ngDefaultControl [options]="countries" optionValue="name" optionLabel="name" [filter]="true" filterBy="name" placeholder="{{ 'select_country_option' | translate }}" autofocus>
+                <ng-template pTemplate="selectedItem">
+                  <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country }}</span>
+                </ng-template>
+                <ng-template let-option pTemplate="item">
+                  <span class="product-badge">{{ option.name }}</span>
+                </ng-template>
+              </p-dropdown>
+            </div>
+            <div class="field" *ngIf="organization.country">
+              <label for="city">{{ 'shop_city' | translate }}</label>
+              <p-dropdown [(ngModel)]="organization.city" name="city" inputId="city" ngDefaultControl optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="states" placeholder="{{ 'select_city_option' | translate }}" autofocus>
+                <ng-template pTemplate="selectedItem">
+                  <span *ngIf="organization && organization.city" class="product-badge">{{ organization.city }}</span>
+                </ng-template>
+                <ng-template let-option pTemplate="item">
+                  <span class="product-badge">{{ option.name }}</span>
+                </ng-template>
+              </p-dropdown>
+            </div>
+            <div class="field">
+              <label for="address">{{ 'shop_address' | translate }}</label>
+              <textarea rows="3" cols="20" [(ngModel)]="organization.address" name="address" placeholder="{{ 'shop_address' | translate }}" ngDefaultControl pInputTextarea autofocus></textarea>
+            </div>
+          </ng-template>
+          <ng-template pTemplate="footer">
+            <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+            <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text" (click)="saveOrganization()"></button>
+          </ng-template>
+        </p-dialog>
+      </div>
+    </div>
+  </div>
+  

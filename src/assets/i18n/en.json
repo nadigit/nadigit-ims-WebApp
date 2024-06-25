@@ -102,6 +102,15 @@
     "warehouse_city": "City",
     "warehouse_details": "Warehouse Details",
 
+    "shops_page_title": "Manage Shops",
+    "shop_name": "Name",
+    "shop_description": "Description",
+    "shop_address": "Address",
+    "shop_location": "Location",
+    "shop_country": "Country",
+    "shop_city": "City",
+    "shop_details": "Shop Details",
+
     "categories_page_title": "Manage Categories",
     "category_name": "Name",
     "category_description": "Description",
@@ -160,9 +169,11 @@
     "back_to_login" : "Back to Sign in page",
 
     "users_menu_title": "Users and permissions",
+    "settings_menu_title": "Global settings",
     "orders_menu_title": "Orders",
     "categories_menu_title": "Categories",
     "warehouses_menu_title": "Warehouses",
+    "shops_menu_title": "Shops",
     "suppliers_menu_title": "Suppliers",
     "customers_menu_title": "Customers",
     "products_menu_title": "Products",
@@ -210,12 +221,27 @@
     "dashboard_products_best_selling_header": "Best Selling Products",
     "dashboard_notifications_header": "Notifications",
     "dashboard_notifications_today_txt": "Today",
-    "dashboard_notifications_older_txt": "Older",
+    "dashboard_notifications_older_txt": "More",
 
     "dashboard_inventory_overview_header": "Inventory Overview",
     "load_notifications_button" :"More notifications",
 
     "notif_product_out_of_stock": "is out of stock",
-    "notif_product_low_stock": "in low stock"
+    "notif_product_low_stock": "in low stock",
+    "no_notifications_available_txt": "No notifications are available.",
+
+    "select_currency_option":"Select your currency",
+    "lowStockThreshold":"Low Stock Threshold",
+    "currency":"Currency",
+    "administration_title":"Administration",
+    "organization_title":"Organization",
+    "organization_info_lbl":"Organization Information",
+    "organization_description_txt":"This page displays the current organizational structure of your inventory management system. Click on the organization box to update your information.",
+    "administration_description_txt":"This page allows administrators to view and update parameter values for the system. Click on the pencil icon to modify its value.",
+
+    "product_not_found_warning":"Product Not Found",
+    "product_not_found_txt":"The scanned product does not exist in the stock. Please click on new to add it to the stock",
+
+    "no_results_found":"No results found"
 
   }

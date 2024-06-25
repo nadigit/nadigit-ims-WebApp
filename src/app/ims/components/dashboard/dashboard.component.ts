@@ -14,6 +14,7 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { Notification } from 'src/app/models/notification';
 import * as moment from 'moment';
 import { NotificationService } from 'src/app/services/notification.service';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 @Component({
     templateUrl: './dashboard.component.html',
@@ -79,6 +80,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     pieData: any;
     pieOptions: any;
 
+    currency: any;
+    
     constructor(private orderService: OrderService,
         private productService: ProductService,
         private customerService: CustomerService,
@@ -86,6 +89,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         private translate: TranslateService,
         private translateService: TranslationService,
         private notificationService: NotificationService,
+        private configService: AppConfigurationService,
     ) {
         this.subscription = this.layoutService.configUpdate$
             .pipe(debounceTime(25))
@@ -149,6 +153,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.loadRecentNotifications();
 
+        this.onGetCurrecy();
 
     }
 
@@ -450,4 +455,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return notification.message;
     }
 
+    async onGetCurrecy() {
+        await this.configService.getConfigurationValue('currency')
+          .subscribe({
+            next: (response: any) => {
+              this.currency = response;
+              console.log(this.currency)
+            },
+            error: (err: any) => {
+              console.log(err)
+            }
+          })
+      }
 }

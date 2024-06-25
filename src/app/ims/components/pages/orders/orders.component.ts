@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, ElementRef, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
 import { MessageService, SelectItem, MenuItem } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
@@ -14,6 +14,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { Country, State } from 'country-state-city';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 interface EventItem {
   status?: string;
@@ -40,6 +41,7 @@ export class FilterProductsPipe implements PipeTransform {
   providers: [MessageService]
 })
 export class OrdersComponent implements OnInit, OnChanges {
+  currency: any;
 
   events: EventItem[];
 
@@ -144,6 +146,11 @@ export class OrdersComponent implements OnInit, OnChanges {
 
   loading: boolean = false;
 
+  barcode: string = '';
+
+  scanTimeout: any;
+
+  scanning: boolean = true;
 
   @ViewChild('filter') filter!: ElementRef;
 
@@ -156,14 +163,9 @@ export class OrdersComponent implements OnInit, OnChanges {
     private reportingService: ReportingService,
     private translate: TranslateService,
     private translateService: TranslationService,
+    private configService: AppConfigurationService,
   ) {
-    // this.events = [
-    //   { status: 'Ordered', date: 'test', icon: 'pi pi-print', color: '#9C27B0', image: 'game-controller.jpg', button: 'process_order_button' },
-    //   { status: 'Processing', date: 'test', icon: 'pi pi-print', color: '#673AB7', button: 'deliver_order_button' },
-    //   { status: 'Delivered', date: 'test', icon: 'pi pi-print', color: '#607D8B' },
-    //   { status: 'Canceled', date: 'test', icon: 'pi pi-times-circle', color: '#FF9800' },
-    // ];
-
+    
   }
 
   ngOnInit() {
@@ -184,6 +186,7 @@ export class OrdersComponent implements OnInit, OnChanges {
     this.getSourceProducts();
     this.getTargetProducts();
     this.initializePickList();
+    this.onGetCurrecy();
 
     this.cols = [
       { field: 'orderId', header: 'ID' },
@@ -227,30 +230,31 @@ export class OrdersComponent implements OnInit, OnChanges {
   initializePickList(): void {
     this.sourceProducts = this.getSourceProducts();
     this.targetProducts = this.getTargetProducts();
-  }
+}
 
-
-  getSourceProducts(): Product[] {
+getSourceProducts(): Product[] {
     if (this.order && this.order.orderItems && this.order.orderItems.length > 0) {
-      return this.products.filter(product =>
-        !this.order.orderItems.some(targetProduct => targetProduct.product.productId === product.productId)
-      );
+        return this.products.filter(product =>
+            product.quantityAvailable > 0 &&
+            !this.order.orderItems.some(targetProduct => targetProduct.product.productId === product.productId)
+        );
     } else {
-      return this.products;
+        return this.products.filter(product => product.quantityAvailable > 0);
     }
-  }
+}
 
-  getTargetProducts(): Product[] {
+getTargetProducts(): Product[] {
     let targetProducts: Product[] = [];
     if (this.order && this.order.orderItems && this.order.orderItems.length > 0) {
-      this.order.orderItems.forEach(element => {
-        targetProducts.push(element.product);
-      });
-      return targetProducts;
+        this.order.orderItems.forEach(element => {
+            targetProducts.push(element.product);
+        });
+        return targetProducts;
     } else {
-      return [];
+        return [];
     }
-  }
+}
+
 
   openCustomerDialog() {
     this.customer = {};
@@ -490,6 +494,7 @@ export class OrdersComponent implements OnInit, OnChanges {
         next: (response: any) => {
           console.log(response);
           this.onGetAllOrders();
+          this.onGetAllProducts();
           return true;
         },
         error(err: any) {
@@ -506,6 +511,7 @@ export class OrdersComponent implements OnInit, OnChanges {
       next: (response: any) => {
         console.log(response);
         this.onGetAllOrders();
+        this.onGetAllProducts();
         return true;
       },
       error(err: any) {
@@ -664,6 +670,7 @@ export class OrdersComponent implements OnInit, OnChanges {
     // Move the selected product from the source to the target
     this.targetProducts.forEach((product: any) => {
       console.log(product);
+
       // Iterate over each item in the event
       event.items.forEach((item: any) => {
         // Check if the productId matches
@@ -673,10 +680,32 @@ export class OrdersComponent implements OnInit, OnChanges {
           product.orderItemQuantity = 1;
         }
       });
-    });
+    });    
     // Force change detection
     this.cdr.detectChanges();
   }
+
+  //function to move scanned products to target
+  moveProductToTarget(product: any): void {
+    if (product.quantityAvailable <= 0) {
+      console.log('Product quantity is not sufficient to move to target.');
+      return;
+    }
+
+    const existingProduct = this.targetProducts.find(targetProduct => targetProduct.productId === product.productId);
+    if (!existingProduct) {
+      const newProduct = { ...product, orderItemPricePerUnit: product.sellingPrice, orderItemQuantity: 1 };
+      this.targetProducts.push(newProduct);
+      this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
+      this.orderItems.push(newProduct); // Update orderItems for ngModel binding
+      this.cdr.detectChanges(); // Trigger change detection
+    } else {
+      existingProduct.orderItemQuantity += 1;
+      this.cdr.detectChanges();
+    }
+  }
+
+
 
   async updateOrderStatus() {
     if (this.order.orderStatus != 'Canceled')
@@ -738,13 +767,6 @@ export class OrdersComponent implements OnInit, OnChanges {
         case 'Canceled':
           event.date = this.order.cancelDate.toString();
           break;
-        // case 'Returned':
-        //   event.date = this.order.returnDate.toString();
-        //   break;
-        // case 'Completed':
-        //   event.date = this.order.processingDate.toString();
-        //   break;
-        // Add cases for other statuses if needed
       }
     });
   }
@@ -790,5 +812,70 @@ export class OrdersComponent implements OnInit, OnChanges {
     return total;
   }
 
+
+  searchProductByBarcode(barcode: string): Product | undefined {
+    return this.sourceProducts.find((p: Product) => p.reference === barcode);
+  }
+
+  // Check if a key is a valid alphanumeric character
+  isAlphanumeric(key: string): boolean {
+    const isAlphaNum = /^[a-zA-Z0-9]$/.test(key);
+    return isAlphaNum;
+  }
+
+  processBarcode(): void {
+    console.log("in process barcode");
+    if (this.barcode) {
+        const product = this.searchProductByBarcode(this.barcode);
+        if (product) {
+            console.log("Product found: ", product);
+            // Move the product to target using the new method
+            this.moveProductToTarget(product);
+        } else {
+            console.log(`Product does not exist in stock for barcode: ${this.barcode}`);
+        }
+        this.barcode = ''; // Clear the barcode buffer after processing
+    }
+}
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    if (this.scanning) {
+      const key = event.key;
+
+      // If the key is a valid alphanumeric character, add it to the barcode buffer
+      if (this.isAlphanumeric(key)) {
+        this.barcode += key;
+      }
+
+      // If the Enter key is pressed, process the barcode
+      if (key === 'Enter') {
+        this.processBarcode();
+      }
+
+      // Clear any existing timeout
+      if (this.scanTimeout) {
+        clearTimeout(this.scanTimeout);
+      }
+
+      // Set a timeout to process the barcode after 300ms of inactivity
+      this.scanTimeout = setTimeout(() => {
+        this.processBarcode();
+      }, 300);
+    }
+  }
+
+  async onGetCurrecy() {
+    await this.configService.getConfigurationValue('currency')
+      .subscribe({
+        next: (response: any) => {
+          this.currency = response;
+          console.log(this.currency)
+        },
+        error: (err: any) => {
+          console.log(err)
+        }
+      })
+  }
 
 }

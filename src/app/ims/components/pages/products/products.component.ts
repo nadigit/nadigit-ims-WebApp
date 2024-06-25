@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { MessageService, SelectItem, MenuItem } from 'primeng/api';
+import { Component, HostListener, OnInit } from '@angular/core';
+import { MessageService, SelectItem, MenuItem, TreeNode } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
 import { Product } from 'src/app/models/product';
@@ -11,11 +11,13 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
-import { finalize, lastValueFrom } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { Country, State } from 'country-state-city';
+import { Children } from 'preact/compat';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 
 interface UploadEvent {
@@ -30,6 +32,25 @@ interface UploadEvent {
 })
 
 export class ProductsComponent implements OnInit {
+  currency: any;
+
+  scanning: boolean = true;
+
+  filteredProducts: any[] = []; // This will hold filtered products
+
+  searchInput: string = ''; // Search input from user
+
+  nodes: TreeNode[] = [];
+
+  filteredNodes: TreeNode[] = [];
+
+  selectedNodes: TreeNode[] = [];
+
+  barcode: string = '';
+
+  scanTimeout: any;
+
+  notFoundProductDialog: boolean = false;
 
   productDialog: boolean = false;
 
@@ -108,6 +129,7 @@ export class ProductsComponent implements OnInit {
     private supplierService: SupplierService,
     private storage: AngularFireStorage,
     private reportingService: ReportingService,
+    private configService: AppConfigurationService,
     private translate: TranslateService,
     private translateService: TranslationService) { }
 
@@ -125,6 +147,7 @@ export class ProductsComponent implements OnInit {
     this.onGetAllCategories();
     this.onGetAllWarehouses();
     this.onGetAllSuppliers();
+    this.onGetCurrecy();
 
     this.targetCities = [];
 
@@ -174,22 +197,195 @@ export class ProductsComponent implements OnInit {
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
   }
 
+  nodeSelect(event: { node: TreeNode }) {
+    console.log(event.node);
+    // Handle node selection as needed
+  }
+  nodeUnselect(event: { node: TreeNode }) {
+    console.log(event.node);
+    // Handle node unselection as needed
+  }
 
+  deactivateScanning() {
+    this.scanning = false;
+    console.log('Scanning deactivated');
+  }
+
+  activateScanning() {
+    this.scanning = true;
+    console.log('Scanning activated');
+  }
+
+  applyFilters() {
+    let tempProducts = [...this.products];
+  
+    console.log(this.selectedNodes);
+  
+    // Apply selected node filter
+    if (this.selectedNodes.length > 0) {
+      tempProducts = tempProducts.filter(product =>
+        this.selectedNodes.every(node => this.nodeMatchesProduct(node, product))
+      );
+    }
+  
+    // Apply search input filter
+    if (this.searchInput) {
+      tempProducts = tempProducts.filter(product =>
+        product.name.toLowerCase().includes(this.searchInput.toLowerCase()) ||
+        product.reference.toLowerCase().includes(this.searchInput.toLowerCase()) ||
+        product.description.toLowerCase().includes(this.searchInput.toLowerCase()) ||
+        product.category.categoryName.toLowerCase().includes(this.searchInput.toLowerCase()) ||
+        product.supplier.name.toLowerCase().includes(this.searchInput.toLowerCase()) ||
+        product.warehouse.name.toLowerCase().includes(this.searchInput.toLowerCase())
+      );
+    }
+  
+    console.log(tempProducts);
+    this.filteredProducts = tempProducts;
+  }
+  
+  nodeMatchesProduct(node: TreeNode, product: any): boolean {
+    if (node.children && node.children.length > 0) {
+      // Recursively check child nodes
+      return node.children.some(child => this.nodeMatchesProduct(child, product));
+    } else {
+      // Leaf node: check if product matches the node criteria
+      console.log("Leaf node:", node);
+      switch (node.parent.label) {
+        case 'Categories':
+          return product.category.categoryName === node.label;
+        case 'Warehouses':
+          return product.warehouse.name === node.label;
+        case 'Suppliers':
+          return product.supplier.name === node.label;
+        default:
+          console.log("No matching case for node label:", node.label);
+          return false; // Default case
+      }
+    }
+  }
+  
+
+  // Method to get filter fields dynamically based on selected nodes
+  // getFilterFields(): string[] {
+  //   const filterFields: string[] = [];
+
+  //   this.selectedNodes.forEach(selectedNode => {
+  //     if (selectedNode.label === 'Categories') {
+  //       filterFields.push('category.categoryName');
+  //     } else if (selectedNode.label === 'Warehouses') {
+  //       filterFields.push('warehouse.name');
+  //     } else if (selectedNode.label === 'Suppliers') {
+  //       filterFields.push('supplier.name');
+  //     }
+  //   });
+
+  //   return filterFields;
+  // }
+
+
+  filterNodes() {
+    this.filteredNodes = [];
+    console.log(this.nodes)
+    if (this.selectedNodes.length === 0) {
+      this.filteredNodes = [...this.nodes];
+      console.log(this.filteredNodes)
+    } else {
+      console.log(this.selectedNodes)
+      this.selectedNodes.forEach(selectedNode => {
+        const node = this.nodes.find(n => n.label === selectedNode.label);
+        if (node) {
+          this.filteredNodes.push({
+            ...node,
+            children: node.children.filter(child => {
+              const filteredProducts = this.products.filter(product => {
+                if (selectedNode.label === 'Categories' && product.category) {
+                  return product.category.categoryName === child.label;
+                } else if (selectedNode.label === 'Warehouses' && product.warehouse) {
+                  return product.warehouse.name === child.label;
+                } else if (selectedNode.label === 'Suppliers' && product.supplier) {
+                  return product.supplier.name === child.label;
+                }
+                return false;
+              });
+              return filteredProducts.length > 0;
+            })
+          });
+        }
+      });
+    }
+  }
+
+  searchProductByBarcode(barcode: string) {
+    return this.products.find(product => product.reference === barcode);
+  }
+
+  // Check if a key is a valid alphanumeric character
+  isAlphanumeric(key: string): boolean {
+    const isAlphaNum = /^[a-zA-Z0-9]$/.test(key);
+    return isAlphaNum;
+  }
+
+  processBarcode(): void {
+    if (this.barcode) {
+      const product = this.searchProductByBarcode(this.barcode);
+      if (product) {
+        console.log("Product found");
+        this.editProduct(product);
+      } else {
+        console.log(`Product does not exist in stock for barcode: ${this.barcode}`);
+        this.openProductNotFound();
+      }
+      this.barcode = ''; // Clear the barcode buffer after processing
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    if (this.scanning) {
+      const key = event.key;
+
+      // If the key is a valid alphanumeric character, add it to the barcode buffer
+      if (this.isAlphanumeric(key)) {
+        this.barcode += key;
+      }
+
+      // If the Enter key is pressed, process the barcode
+      if (key === 'Enter') {
+        this.processBarcode();
+      }
+
+      // Clear any existing timeout
+      if (this.scanTimeout) {
+        clearTimeout(this.scanTimeout);
+      }
+
+      // Set a timeout to process the barcode after 300ms of inactivity
+      this.scanTimeout = setTimeout(() => {
+        this.processBarcode();
+      }, 300);
+    }
+
+  }
+
+  openProductNotFound() {
+    this.notFoundProductDialog = true;
+  }
   // deleteSelectedProducts() {
   //   this.deleteProductsDialog = true;
   // }
 
-  openCategoryDialog(){
+  openCategoryDialog() {
     this.category = {};
     this.categoryDialog = true;
   }
 
-  openWarehouseDialog(){
+  openWarehouseDialog() {
     this.warehouse = {};
     this.warehouseDialog = true;
   }
 
-  openSupplierDialog(){
+  openSupplierDialog() {
     this.supplier = {};
     this.supplierDialog = true;
   }
@@ -198,6 +394,7 @@ export class ProductsComponent implements OnInit {
     this.selectedProduct = product;
     this.product = { ...product };
     this.productDialog = true;
+    this.scanning = false;
   }
 
   deleteProduct(product: Product) {
@@ -221,6 +418,7 @@ export class ProductsComponent implements OnInit {
 
   hideProductDialog() {
     this.productDialog = false;
+    this.scanning = true;
     this.submitted = false;
   }
 
@@ -240,6 +438,7 @@ export class ProductsComponent implements OnInit {
     this.product = {};
     this.submitted = false;
     this.productDialog = true;
+    this.scanning = false;
   }
 
   async saveProduct() {
@@ -276,30 +475,31 @@ export class ProductsComponent implements OnInit {
       }
       this.products = [...this.products];
       this.productDialog = false;
+      this.scanning = true;
       this.product = {};
     }
   }
 
   saveCategory() {
-      this.addCategory(this.category) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Category created', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new category', life: 3000 }))
-      this.categories = [...this.categories];
-      this.categoryDialog = false;
-      this.category = {};
+    this.addCategory(this.category) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Category created', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new category', life: 3000 }))
+    this.categories = [...this.categories];
+    this.categoryDialog = false;
+    this.category = {};
   }
 
   saveWarehouse() {
-      this.addWarehouse(this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding user', life: 3000 }))
-      this.warehouses = [...this.warehouses];
-      this.warehouseDialog = false;
-      this.warehouse = {};
-    }
+    this.addWarehouse(this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding user', life: 3000 }))
+    this.warehouses = [...this.warehouses];
+    this.warehouseDialog = false;
+    this.warehouse = {};
+  }
 
-    saveSupplier() {
-        this.addSupplier(this.supplier) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Supplier created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding supplier', life: 3000 }))
-        this.suppliers = [...this.suppliers];
-        this.supplierDialog = false;
-        this.supplier = {};
-      }
+  saveSupplier() {
+    this.addSupplier(this.supplier) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Supplier created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding supplier', life: 3000 }))
+    this.suppliers = [...this.suppliers];
+    this.supplierDialog = false;
+    this.supplier = {};
+  }
 
 
   onGlobalFilter(table: Table, event: Event) {
@@ -341,6 +541,16 @@ export class ProductsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.categories = response;
+          console.log(this.categories)
+          this.nodes.push({
+            label: 'Categories',
+            icon: 'pi pi-fw pi-tag',
+            children: this.categories.map(category => ({
+              label: category.categoryName,
+              data: category
+            }))
+          });
+          this.filterNodes();
           //this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
           console.log(this.categories);
         },
@@ -349,12 +559,20 @@ export class ProductsComponent implements OnInit {
         }
       })
   }
-
   async onGetAllWarehouses() {
     await this.warehouseService.getWarehouses()
       .subscribe({
         next: (response: any) => {
           this.warehouses = response;
+          this.nodes.push({
+            label: 'Warehouses',
+            icon: 'pi pi-fw pi-database',
+            children: this.warehouses.map(warehouse => ({
+              label: warehouse.name,
+              data: warehouse
+            }))
+          });
+          this.filterNodes(); // Ensure nodes are filtered initially
           //this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
           console.log(this.warehouses);
         },
@@ -369,6 +587,15 @@ export class ProductsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.suppliers = response;
+          this.nodes.push({
+            label: 'Suppliers',
+            icon: 'pi pi-fw pi-truck',
+            children: this.suppliers.map(supplier => ({
+              label: supplier.name,
+              data: supplier
+            }))
+          });
+          this.filterNodes(); // Ensure nodes are filtered initially
           //this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
           console.log(this.warehouses);
         },
@@ -384,7 +611,22 @@ export class ProductsComponent implements OnInit {
         next: (response: any) => {
           this.products = response;
           this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
+          this.filteredProducts = [...this.products];
+          this.filterNodes();
           console.log(this.products);
+        },
+        error: (err: any) => {
+          console.log(err)
+        }
+      })
+  }
+
+  async onGetCurrecy() {
+    await this.configService.getConfigurationValue('currency')
+      .subscribe({
+        next: (response: any) => {
+          this.currency = response;
+          console.log(this.currency)
         },
         error: (err: any) => {
           console.log(err)
@@ -512,21 +754,21 @@ export class ProductsComponent implements OnInit {
     const modifiedProducts = this.products.map(product => {
       // Create a copy of the product object to modify
       let modifiedProduct = { ...product };
-  
+
       console.log(modifiedProduct.supplier.name)
       // Replace supplierName with the 'name' field if 'supplier' is an object
-        modifiedProduct['Supplier'] = modifiedProduct.supplier.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
-        modifiedProduct['Warehouse'] = modifiedProduct.warehouse.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
-        modifiedProduct['Category'] = modifiedProduct.category.categoryName || ''; // Use the 'name' field or an empty string if 'name' is undefined
+      modifiedProduct['Supplier'] = modifiedProduct.supplier.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
+      modifiedProduct['Warehouse'] = modifiedProduct.warehouse.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
+      modifiedProduct['Category'] = modifiedProduct.category.categoryName || ''; // Use the 'name' field or an empty string if 'name' is undefined
 
-  
+
       return modifiedProduct;
     });
-  
+
     // Now, export the modified array to PDF
     this.reportingService.exportPdf(this.exportColumns, modifiedProducts, 'products');
   }
-  
+
   exportExcel() {
     // Clone the suppliers array to avoid modifying the original array
     const modifiedProducts = this.products.map(product => {
@@ -536,27 +778,27 @@ export class ProductsComponent implements OnInit {
       modifiedProduct['Supplier'] = product.supplier.name;
       modifiedProduct['Category'] = product.category.categoryName;
       modifiedProduct['Warehouse'] = product.warehouse.name;
-  
+
       // Remove the column you want to exclude
       delete modifiedProduct.creationDate;
       delete modifiedProduct.productImage;
       delete modifiedProduct.supplier;
       delete modifiedProduct.warehouse;
       delete modifiedProduct.category;
-  
+
       // Alternatively, if the columnToRemove is a property with a known name, you can use:
       // delete modifiedSupplier['columnToRemove'];
-  
+
       return modifiedProduct;
     });
-  
+
     // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedProducts,'products');
+    this.reportingService.exportExcel(modifiedProducts, 'products');
   }
 
-    // Add a method to toggle the editable state
-    toggleEditMode() {
-      this.isEditMode = !this.isEditMode;
+  // Add a method to toggle the editable state
+  toggleEditMode() {
+    this.isEditMode = !this.isEditMode;
   }
 
   onChangeCountry() {
@@ -575,25 +817,6 @@ export class ProductsComponent implements OnInit {
   }
 
 
-  handleScanSuccess(scanResult: string) {
-    console.log('Scan success:', scanResult);
-    // Add your logic to handle the scanned barcode result
-  }
-
-  handleScanError(error: any) {
-    console.log('Scan error:', error);
-    // Add your logic to handle scan error
-  }
-
-  handleScanFailure(failure: any) {
-    console.log('Scan failure:', failure);
-    // Add your logic to handle scan failure
-  }
-
-  handleScanComplete(complete: any) {
-    console.log('Scan complete:', complete);
-    // Add your logic to handle scan completion
-  }
 
 
 }
