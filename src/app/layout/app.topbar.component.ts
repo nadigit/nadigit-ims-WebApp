@@ -4,7 +4,7 @@ import { LayoutService } from "./service/app.layout.service";
 import { KeycloakService } from 'keycloak-angular';
 import { NotificationService } from '../services/notification.service';
 import { Notification } from '../models/notification';
-import * as moment from 'moment';
+import moment from 'moment';
 import { KeycloakProfile } from 'keycloak-js';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from '../services/translation.service';
@@ -54,18 +54,18 @@ export class AppTopBarComponent implements OnInit {
     });
       this.profile = await this.keycloakService.loadUserProfile();
       console.log(this.profile)
-        this.items = [
-            {
-                label: 'Settings',
-                icon: 'pi pi-fw pi-wrench',
-                routerLink: '/pages/profile'
-            },
-            {
-                label: 'Logout',
-                icon: 'pi pi-fw pi-power-off',
-                command: () => this.logOut()
-            },
-        ];
+        // this.items = [
+        //     {
+        //         label: 'Settings',
+        //         icon: 'pi pi-fw pi-wrench',
+        //         routerLink: '/pages/profile'
+        //     },
+        //     {
+        //         label: 'Logout',
+        //         icon: 'pi pi-fw pi-power-off',
+        //         command: () => this.logOut()
+        //     },
+        // ];
         this.loadRecentNotifications();
     }
 

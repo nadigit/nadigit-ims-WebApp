@@ -7,12 +7,17 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { PermissionService } from 'src/app/services/permission.service';
+import { KeycloakService } from 'keycloak-angular';
 
 @Component({
   templateUrl: './warehouses.component.html',
+  styleUrls: ['../pages.component.css'],
   providers: [MessageService]
 })
 export class WarehousesComponent implements OnInit {
+
+  Ressource : string = 'WAREHOUSES';
 
   warehouseDialog: boolean = false;
 
@@ -44,26 +49,35 @@ export class WarehousesComponent implements OnInit {
 
   exportColumns!: ExportColumn[];
 
+  canAddWarehouse: boolean = false;
+  canEditWarehouse: boolean = false;
+  canDeleteWarehouse: boolean = false;
+
+  isLoading: boolean = true;
+
   constructor(private messageService: MessageService,
      private warehouseService: WarehouseService,
      private reportingService: ReportingService,
      private translate: TranslateService,
-     private translateService: TranslationService) { }
+     private translateService: TranslationService,
+     private permissionService: PermissionService,
+     public keycloakService: KeycloakService,) { }
 
-  ngOnInit() {
+  async ngOnInit() {
+    this.isLoading = true;
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
-    
+    await this.checkPermissions();
     this.onGetAllWarehouses();
 
     this.cols = [
-      { field: 'warehouseId', header: 'ID' },
-      { field: 'name', header: 'Name' },
-      { field: 'description', header: 'Description' },
-      { field: 'city', header: 'City' },
-      { field: 'country', header: 'Country' },
-      { field: 'address', header: 'Address' }
+      { field: 'warehouseId', header: this.translateService.instant('ID') },
+      { field: 'name', header: this.translateService.instant('warehouse_name') },
+      { field: 'description', header: this.translateService.instant('warehouse_description') },
+      { field: 'city', header: this.translateService.instant('warehouse_city') },
+      { field: 'country', header: this.translateService.instant('warehouse_country') },
+      { field: 'address', header: this.translateService.instant('warehouse_address') }
     ];
 
     this.statuses = [
@@ -76,12 +90,24 @@ export class WarehousesComponent implements OnInit {
 
   }
 
+  async checkPermissions() {
+    const profile = await this.keycloakService.loadUserProfile();
+    const userId = profile.id; // Fetch user ID
+
+    await this.permissionService.init(userId).toPromise(); // Initialize permissions
+    this.canAddWarehouse = this.permissionService.canCreate(this.Ressource);
+    this.canEditWarehouse = this.permissionService.canUpdate(this.Ressource);
+    this.canDeleteWarehouse = this.permissionService.canDelete(this.Ressource);
+
+  }
 
   deleteSelectedWarehouses() {
+    if (!this.canDeleteWarehouse) return;
     this.deleteWarehousesDialog = true;
   }
 
   editWarehouse(warehouse: Warehouse) {
+    if (!this.canEditWarehouse) return;
     this.selectedCountry = {};
     this.warehouse = { ...warehouse };
     this.warehouseDialog = true;
@@ -90,6 +116,7 @@ export class WarehousesComponent implements OnInit {
   }
 
   deleteWarehouse(warehouse: Warehouse) {
+    if (!this.canDeleteWarehouse) return;
     this.deleteWarehouseDialog = true;
     this.warehouse = { ...warehouse };
   }
@@ -116,6 +143,7 @@ export class WarehousesComponent implements OnInit {
   }
 
   openNew() {
+    if (!this.canAddWarehouse) return;
     this.selectedCountry = {};
     this.warehouse = {};
     this.submitted = false;
@@ -133,6 +161,9 @@ export class WarehousesComponent implements OnInit {
       this.warehouses = [...this.warehouses];
       this.warehouseDialog = false;
       this.warehouse = {};
+    } else{
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      return;
     }
   }
 
@@ -177,6 +208,9 @@ export class WarehousesComponent implements OnInit {
         },
         error: (err: any) => {
           console.log(err)
+        },
+        complete: () =>{
+          this.isLoading=false;
         }
       })
   }

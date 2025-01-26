@@ -1,0 +1,378 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button pButton pRipple *ngIf="canAddPurchase" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+                            class="p-button-success mr-2" (click)="openNew()" pTooltip="{{'add_new_purchase'|translate}}"></button>
+                        <button pButton pRipple *ngIf="canDeletePurchase" label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+                            class="p-button-danger" (click)="deleteSelectedPurchases()" pTooltip="{{'delete_purchase'|translate}}"
+                            [disabled]="!selectedPurchases || !selectedPurchases.length"></button>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="right">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+                </ng-template>
+            </p-toolbar>
+
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+              </div>
+
+            <p-table #dt [value]="purchases" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['purpose','dateOfPurchase','totalAmount','supplier.name','shop.shopName']"
+                [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedPurchases" selectionMode="multiple" [rowHover]="true" dataKey="id">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{ 'purchases_page_title' | translate }}</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="id">{{ 'ID' | translate }} <p-sortIcon
+                                field="id"></p-sortIcon></th>
+                        <th pSortableColumn="dateOfPurchase">{{ 'purchase_date' | translate }} 
+                            <p-sortIcon field="dateOfPurchase"></p-sortIcon>
+                            <p-columnFilter type="date" field="dateOfPurchase" display="menu" />
+                        </th>
+                        <th pSortableColumn="purpose">{{ 'purchase_purpose' | translate }} <p-sortIcon
+                                field="purpose"></p-sortIcon></th>
+                        <th pSortableColumn="totalAmount">{{ 'purchase_total_amount' | translate }}<p-sortIcon
+                                field="totalAmount"></p-sortIcon></th>
+                        <th pSortableColumn="supplier">{{ 'purchase_supplier' | translate }}
+                            <p-sortIcon field="supplier"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="shop">{{ 'purchase_shop' | translate }}<p-sortIcon
+                                field="shop"></p-sortIcon></th>
+                        <th></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-purchase>
+                    <tr>
+                        <td>
+                            <p-tableCheckbox [value]="purchase"></p-tableCheckbox>
+                        </td>
+
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'ID' | translate }}</span>
+                            {{purchase.id ? purchase.id : 'N/A'}}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_date' | translate }}</span>
+                            {{ purchase.dateOfPurchase ? (purchase.dateOfPurchase | date: 'dd/MM/yyyy') : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_purpose' | translate }}</span>
+                            {{ purchase.purpose ? purchase.purpose : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_total_amount' | translate }}</span>
+                            {{ purchase.totalAmount ? purchase.totalAmount : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_supplier' | translate }}</span>
+                            {{ purchase.supplier ? purchase.supplier.name : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_shop' | translate }}</span>
+                            {{ purchase.shop ? purchase.shop.shopName : 'N/A' }}
+                        </td>
+                        <td>
+                            <div class="flex">
+                                <button pButton pRipple *ngIf="canEditPurchase" icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-success mr-2" pTooltip="{{'update_purchase'|translate}}"
+                                    (click)="editPurchase(purchase)"></button>
+                                <button pButton pRipple *ngIf="canDeletePurchase" icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                    (click)="deletePurchase(purchase)" pTooltip="{{'delete_purchase'|translate}}"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_purchases' | translate}} {{purchases ? purchases.length : 0 }}.
+                    </div>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="purchaseDialog" [style]="{width: '80%', height: '100%'}"
+            header="{{ 'purchase_details' | translate }}" [modal]="true" class="p-fluid ">
+            <ng-template pTemplate="content">
+                
+                <div class="field">
+                    <label for="purpose">{{ 'purchase_purpose' | translate }} <span class="required-asterisk">*</span></label>
+                    <input type="text" pInputText name="purpose" ngDefaultControl [(ngModel)]="purchase.purpose" required
+                        autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.purpose}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.purpose">{{ 'purchase_purpose' |
+                        translate }} {{'is_required_label' | translate}}</small>
+                </div>
+
+                <div class="field">
+                    <label for="dateOfPurchase">{{ 'purchase_date' | translate }} <span class="required-asterisk">*</span></label>
+                    <p-calendar [(ngModel)]="purchase.dateOfPurchase" ngDefaultControl name="dateOfPurchase" inputId="dateOfPurchase"
+                        dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
+                        placeholder="{{ 'purchase_date' | translate }}" required autofocus 
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.dateOfPurchase}"/>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.purpose">{{ 'purchase_date' |
+                        translate }} {{'is_required_label' | translate}}</small>
+                </div>
+
+                <div class="field" style="position: relative;" *ngIf="isAdmin">
+					<label for="shop">{{'purchase_shop' | translate}} <span
+							class="required-asterisk">*</span></label>
+					<p-dropdown appendTo="body" [(ngModel)]="purchase.shop" name="shop" inputId="shop"
+						ngDefaultControl optionLabel="shopName" [options]="shops" [filter]="true"
+						filterBy="shopName"
+						placeholder="{{'select_shop_option' | translate}}" required autofocus
+						[ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.shop}">
+						<ng-template pTemplate="selectedItem">
+							<span *ngIf="purchase && purchase.shop"
+								[class]="'product-badge'">{{purchase.shop.shopName}}</span>
+						</ng-template>
+						<ng-template let-option pTemplate="item">
+							<span [class]="'product-badge'">{{option.shopName}}</span>
+						</ng-template>
+					</p-dropdown>
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.shop">{{'purchase_shop' |
+						translate}} {{'is_required_label' | translate}}</small>
+				</div>
+
+                <div class="field" style="position: relative;">
+					<label for="supplier">{{'purchase_supplier' | translate}} <span
+							class="required-asterisk">*</span></label>
+					<p-dropdown appendTo="body" [(ngModel)]="purchase.supplier" name="supplier" inputId="supplier"
+						ngDefaultControl optionLabel="name" [options]="suppliers" [filter]="true"
+						filterBy="name"
+						placeholder="{{'select_supplier_option' | translate}}" required autofocus
+						[ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.supplier}">
+						<ng-template pTemplate="selectedItem">
+							<span *ngIf="purchase && purchase.supplier"
+								[class]="'product-badge'">{{purchase.supplier.name}}</span>
+						</ng-template>
+						<ng-template let-option pTemplate="item">
+							<span [class]="'product-badge'">{{option.name}}</span>
+						</ng-template>
+					</p-dropdown>
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.supplier">{{'purchase_supplier' |
+						translate}} {{'is_required_label' | translate}}</small>
+				</div>
+
+                <div class="field">
+                    <label for="purchaseItems">
+                        {{ 'order_products' | translate }} <span class="required-asterisk">* </span>
+                    </label>
+                    <div class="card">
+                        <!-- <div class="flex flex-column gap-2 mx-auto" *ngIf="targetProducts.length>0">
+                            <div class="text-center mt-3 mb-3 text-xl font-semibold">
+                                {{ 'selected_products_number' | translate }} :
+                                <p-badge value="{{targetProducts.length}}" badgeSize="xlarge" severity="success" />
+                            </div>
+                        </div> -->
+                        <p-pickList name="purchaseItems" [(ngModel)]="purchaseItems" ngDefaultControl [source]="sourceProducts"
+                            [target]="targetProducts" sourceHeader="{{ 'order_available_products' | translate }}" required
+                            targetHeader="{{ 'order_selected_products' | translate }}" [dragdrop]="true" [responsive]="true"
+                            [sourceStyle]="{ height: '40rem' }" [targetStyle]="{ height: '40rem' }" filterBy="name"
+                            sourceFilterPlaceholder="{{ 'search_label' | translate }}"
+                            targetFilterPlaceholder="{{ 'search_label' | translate }}" breakpoint="1300px"
+                            (onMoveToTarget)="onMoveToTarget($event)" disableDblClick>
+                            <ng-template let-product pTemplate="item">
+                                <div class="flex flex-wrap p-2 align-items-center gap-3">
+                                    <img class="w-4rem shadow-2 flex-shrink-0 border-round" [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+                                        [alt]="product.name" />
+                                    <div class="flex-1 flex flex-column gap-2">
+                                        <span class="font-bold">{{ product.name }}</span>
+                                        <div class="flex align-products-center gap-2">
+                                            <i class="pi pi-tag text-sm"></i>
+                                            <span>{{ product.category.categoryName }}</span>
+                                        </div>
+                                    </div>
+                                    <span class="font-bold text-900">{{currency}} {{product.buyingPrice }}</span>
+    
+                                    <!-- Check if product is in targetProducts (selected) to show quantity and subTotal inputs -->
+                                    <ng-container *ngIf="targetProducts.includes(product)">
+                                        <div class="field">
+                                            <label for="purchaseItemPricePerUnit">{{ 'order_items_price_per_unit' | translate }}</label>
+                                            <p-inputNumber name="purchaseItemPricePerUnit" id="purchaseItemPricePerUnit"
+                                                [(ngModel)]="product.purchaseItemPricePerUnit" ngDefaultControl mode="decimal"
+                                                [showButtons]="true" [min]="1"
+                                                [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemPricePerUnit}"
+                                                required autofocus></p-inputNumber>
+                                            <small class="ng-dirty ng-invalid"
+                                                *ngIf="submitted && !product.purchaseItemPricePerUnit">{{ 'order_items_price_per_unit' |
+                                                translate }} {{'is_required_label' | translate}}</small>
+                                        </div>
+                                        <div class="field">
+                                            <label for="purchaseItemQuantity">{{ 'order_items_quantity' | translate }}</label>
+                                            <p-inputNumber name="purchaseItemQuantity" id="purchaseItemQuantity"
+                                                [(ngModel)]="product.purchaseItemQuantity" ngDefaultControl mode="decimal"
+                                                [showButtons]="true" [min]="1"
+                                                [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemQuantity}"
+                                                required autofocus></p-inputNumber>
+                                            <small class="ng-dirty ng-invalid"
+                                                *ngIf="submitted && !product.purchaseItemQuantity">{{ 'order_items_quantity' |
+                                                translate }} {{'is_required_label' | translate}}</small>
+                                        </div>
+                                        <!-- <div>
+                                            <label>{{'order_product_available_quantity' | translate}}</label>
+    
+                                            <p-inputNumber [ngModel]="product.quantityAvailable - product.purchaseItemQuantity"
+                                                disabled> </p-inputNumber>
+                                        </div> -->
+                                    </ng-container>
+                                </div>
+    
+                            </ng-template>
+                        </p-pickList>
+                    </div>
+
+                    <div class="field">
+                        <label for="discount">{{'discount' | translate}}</label>
+                        <input type="number" pInputText name="discount" [(ngModel)]="purchase.discount"
+                            placeholder="{{'enter_discount' | translate}}" />
+                    </div>
+    
+                    <div class="field">
+                        <label for="taxEnabled">{{ 'tax' | translate }}</label>
+                        <div class="flex flex-wrap gap-3">
+                            <p-selectButton [options]="TaxEnabledOptions" [(ngModel)]="taxEnabled" optionLabel="label"
+                                optionValue="value">
+                            </p-selectButton>
+                        </div>
+                    </div>
+    
+                    <!-- Conditional tax calculation field -->
+                    <div *ngIf="taxEnabled" class="field">
+                        <label for="taxAmount">{{ 'tax_to_pay' | translate }} : </label>
+                        <span> {{ calculateTax() | number: '1.2-2' }} </span> {{currency}}
+                    </div>
+    
+                    <div class="flex flex-column gap-2 mx-auto">
+                        <div class="text-center mt-3 mb-3 text-xl font-semibold">
+                            Total: <span class="text-900 font-medium">{{ calculateTotalAmount() }}</span> {{currency}}
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="paymentMethod">
+                            {{'payment_method' | translate}} <span class="required-asterisk">*</span>
+                        </label>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="flex align-items-center">
+                                <p-radioButton name="paymentMethod" value="Cash" [(ngModel)]="purchase.paymentMethod"
+                                    ngDefaultControl inputId="paymentMethod1"></p-radioButton>
+                                <label for="paymentMethod1" class="ml-2">{{'payment_method_cash' | translate}}</label>
+                            </div>
+        
+                            <div class="flex align-items-center">
+                                <p-radioButton name="paymentMethod" value="Transfer" [(ngModel)]="purchase.paymentMethod"
+                                    ngDefaultControl inputId="paymentMethod4"></p-radioButton>
+                                <label for="paymentMethod4" class="ml-2">{{'payment_method_transfer' | translate}}</label>
+                            </div>
+        
+                            <div class="flex align-items-center">
+                                <p-radioButton name="paymentMethod" value="Card" [(ngModel)]="purchase.paymentMethod"
+                                    ngDefaultControl inputId="paymentMethod2"></p-radioButton>
+                                <label for="paymentMethod2" class="ml-2">{{'payment_method_card' | translate}}</label>
+                            </div>
+        
+                            <div class="flex align-items-center">
+                                <p-radioButton name="paymentMethod" value="Check" [(ngModel)]="purchase.paymentMethod"
+                                    ngDefaultControl inputId="paymentMethod3"></p-radioButton>
+                                <label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
+                            </div>
+                            <div class="flex align-items-center">
+                                <p-radioButton name="paymentMethod" value="BOE" [(ngModel)]="purchase.paymentMethod"
+                                    ngDefaultControl inputId="paymentMethod5"></p-radioButton>
+                                <label for="paymentMethod5" class="ml-2">{{'payment_method_boe' | translate}}</label>
+                            </div>
+                        </div>
+        
+                        <!-- Input for cheque number, displayed only if "Check" is selected -->
+                        <div *ngIf="purchase.paymentMethod === 'Check'" class="mt-3">
+                            <label for="checkNumber">{{ 'check_number' | translate }}</label>
+                            <input type="text" id="checkNumber" [(ngModel)]="purchase.checkNumber"
+                                placeholder="{{ 'enter_check_number' | translate }}" class="p-inputtext" />
+                        </div>
+                        <div *ngIf="purchase.paymentMethod === 'Check'" class="mt-3">
+                            <label for="checkDateExpiration">{{ 'expiration_date' | translate }}</label>
+                            <p-calendar [(ngModel)]="purchase.checkExpirationDate" [showIcon]="true" inputId="checkExpirationDate"
+                                dateFormat="dd/mm/yy" [showOnFocus]="false"
+                                [style]="{flex: 1, minWidth: '250px', height: '40px'}"
+                                placeholder="{{ 'expiration_date' | translate }}" />
+                        </div>
+                        <div *ngIf="purchase.paymentMethod === 'BOE'" class="mt-3">
+                            <label for="boeNumber">{{ 'boe_number' | translate }}</label>
+                            <input type="text" id="boeNumber" [(ngModel)]="purchase.boeNumber"
+                                placeholder="{{ 'enter_boe_number' | translate }}" class="p-inputtext" />
+                        </div>
+                        <div *ngIf="purchase.paymentMethod === 'BOE'" class="mt-3">
+                            <label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
+                            <p-calendar [(ngModel)]="purchase.boeExpirationDate" [showIcon]="true" inputId="boeExpirationDate"
+                                dateFormat="dd/mm/yy" [showOnFocus]="false"
+                                [style]="{flex: 1, minWidth: '250px', height: '40px'}"
+                                placeholder="{{ 'expiration_date' | translate }}" />
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' | translate}}</small>
+                </div> 
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                    class="p-button-text" (click)="hideDialog()"></button>
+                <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
+                    (click)="savePurchase()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deletePurchaseDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="purchase">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>{{purchase.name}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deletePurchaseDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deletePurchasesDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deletePurchasesDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+    </div>
+</div>

@@ -14,6 +14,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import {KeycloakAngularModule, KeycloakService} from "keycloak-angular";
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { OrganizationChartModule } from 'primeng/organizationchart';
+import { MessageService } from 'primeng/api';
 
 
 // AoT requires an exported function for factories
@@ -27,14 +28,22 @@ function initializeKeycloak(keycloak: KeycloakService) {
         config: {
           url: environment.keycloak.authority,
           realm: environment.keycloak.realm,
-          clientId: environment.keycloak.clientId
+          clientId: environment.keycloak.clientId,
         },
         initOptions: {
-          onLoad: 'check-sso',
-          checkLoginIframe : true,
-          silentCheckSsoRedirectUri:
-            window.location.origin + '/assets/keycloak/silent-check-sso.html'
+            onLoad: 'login-required',  // automatically checks login state
+            checkLoginIframe: false,  // iframe to monitor login session
+            silentCheckSsoRedirectUri:
+                window.location.origin + '/assets/keycloak/silent-check-sso.html',
+            // You can enable token refresh handling
         }
+        // initOptions: {
+        //     onLoad: 'check-sso',  // automatically checks login state
+        //     checkLoginIframe: true,  // iframe to monitor login session
+        //     silentCheckSsoRedirectUri:
+        //         window.location.origin + '/assets/keycloak/silent-check-sso.html',
+        //     // You can enable token refresh handling
+        // }
       });
   }
 
@@ -64,6 +73,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
         KeycloakAngularModule,
     ],
     providers: [
+        MessageService,
         TranslateService,
         { provide: LocationStrategy, useClass: HashLocationStrategy },
         {provide : APP_INITIALIZER, deps : [KeycloakService],useFactory : initializeKeycloak, multi : true}

@@ -16,12 +16,12 @@ import { DropdownModule } from 'primeng/dropdown';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DialogModule } from 'primeng/dialog';
-
 import { TooltipModule } from 'primeng/tooltip';
 import { PasswordModule } from 'primeng/password';
 import { ChipModule } from 'primeng/chip';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TranslateModule } from '@ngx-translate/core';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 
 
@@ -48,7 +48,8 @@ import { TranslateModule } from '@ngx-translate/core';
         ChipModule,
         CheckboxModule,
         ReactiveFormsModule,
-        TranslateModule
+        TranslateModule,
+        ProgressSpinnerModule
     ],
     declarations: [ProfileComponent]
 })

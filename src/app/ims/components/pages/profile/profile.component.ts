@@ -43,6 +43,7 @@ export class ProfileComponent implements OnInit {
   languageMap: { [key: string]: string } = {
     'en': 'English',
     'fr': 'Français',
+    'sp': 'Español',
     // Add more languages as needed
   };
 
@@ -50,18 +51,20 @@ export class ProfileComponent implements OnInit {
 
 
   public profile?: KeycloakProfile;
+  isLoading: boolean = true;
 
 
   constructor(private messageService: MessageService,
     private translate: TranslateService,
     private translationService: TranslationService,
-    private cdr: ChangeDetectorRef,
     private formBuilder: FormBuilder,
     public keycloakService: KeycloakService,
-    private authService: AuthenticationService,) {
+    private authService: AuthenticationService,
+    ) {
   }
 
   async ngOnInit() {
+    this.isLoading=true;
     this.translationService.currentLanguage$.subscribe(lang => {
       console.log(lang);
       this.translate.use(lang); // Use the translate service to update language
@@ -186,8 +189,7 @@ export class ProfileComponent implements OnInit {
       try {
         const profile = await this.keycloakService.loadUserProfile();
         this.user = profile;
-        console.log(this.user);
-        // Proceed to the next line of code here
+        this.isLoading=false;
       } catch (error) {
         console.error("Error loading user profile:", error);
         // Handle error if necessary

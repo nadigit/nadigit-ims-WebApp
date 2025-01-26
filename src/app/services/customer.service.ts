@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
+import { environment } from 'src/environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -8,9 +9,11 @@ import { KeycloakService } from 'keycloak-angular';
 export class CustomerService {
 
   jwt: any;
-  host2:string= "http://localhost:8090";
+  // host2:string= environment.apiUrl;
   schema: string = "/customers/";
-  
+  apiProtocol: string = (window as any).__env.apiProtocol || 'http';
+  apiHost: string = (window as any).__env.apiHost || 'localhost';
+  apiPort: string = (window as any).__env.apiPort || '8090';
   
 
   constructor(private http: HttpClient, public keycloakService: KeycloakService) { }
@@ -21,24 +24,29 @@ export class CustomerService {
 
   saveCustomer(data: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.host2+this.schema, data, {headers:headers})
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
   }
   updateCustomer(id: any, customer: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.host2+this.schema+id , customer, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , customer, {headers:headers});
   }
   deleteCustomer(id: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.host2+this.schema+id,{headers:headers});
+    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers});
   }
   getCustomers() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema,{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
   }
 
   getTodayCustomers() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema + 'today',{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'today',{headers:headers});
+  }
+
+  getCustomerOrders(id:any){
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + id + '/orders',{headers:headers});
   }
 
 }

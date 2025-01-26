@@ -5,10 +5,10 @@
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
-                        <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
-                            class="p-button-success mr-2" (click)="openNew()"></button>
-                        <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
-                            class="p-button-danger" (click)="deleteSelectedSuppliers()"
+                        <button pButton pRipple *ngIf="canAddSupplier" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+                            class="p-button-success mr-2" (click)="openNew()" pTooltip="{{'add_new_supplier'|translate}}"></button>
+                        <button pButton pRipple *ngIf="canDeleteSupplier" label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+                            class="p-button-danger" (click)="deleteSelectedSuppliers()" pTooltip="{{'delete_supplier'|translate}}"
                             [disabled]="!selectedSuppliers || !selectedSuppliers.length"></button>
                     </div>
                 </ng-template>
@@ -21,7 +21,11 @@
                 </ng-template>
             </p-toolbar>
 
-            <p-table #dt [value]="suppliers" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+              </div>
+
+            <p-table #dt [value]="suppliers" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
                 [globalFilterFields]="['firstName','lastName','email','country','city','phoneNumber','supplierType']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
@@ -76,14 +80,19 @@
                         </td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2"
+                                <button pButton pRipple *ngIf="canEditSupplier" icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-success mr-2" pTooltip="{{'update_supplier'|translate}}"
                                     (click)="editSupplier(supplier)"></button>
-                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="deleteSupplier(supplier)"></button>
+                                <button pButton pRipple *ngIf="canDeleteSupplier" icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                    (click)="deleteSupplier(supplier)" pTooltip="{{'delete_supplier'|translate}}"></button>
                             </div>
                         </td>
                     </tr>
+                </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_suppliers' | translate}} {{suppliers ? suppliers.length : 0 }}.
+                    </div>
                 </ng-template>
             </p-table>
         </div>
@@ -92,7 +101,7 @@
             header="{{ 'supplier_details' | translate }}" [modal]="true" class="p-fluid ">
             <ng-template pTemplate="content">
                 <div class="field">
-                    <label for="name">{{ 'supplier_name' | translate }}</label>
+                    <label for="name">{{ 'supplier_name' | translate }} <span class="required-asterisk">*</span></label>
                     <input type="text" pInputText name="name" ngDefaultControl [(ngModel)]="supplier.name" required
                         autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !supplier.name}" />
                     <small class="ng-dirty ng-invalid" *ngIf="submitted && !supplier.name">{{ 'supplier_name' |
@@ -144,7 +153,9 @@
                     <input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="supplier.phoneNumber"
                          autofocus/>
                 </div>
-
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' | translate}}</small>
+                </div> 
             </ng-template>
 
             <ng-template pTemplate="footer">

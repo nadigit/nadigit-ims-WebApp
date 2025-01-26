@@ -6,6 +6,7 @@ export class OrderItem {
   product?: Product; // Reference to the Product object
   order?: Order;
   quantity?: number;
+  returnedQuantity?: number;
   subTotal?: number;
   pricePerUnit?: number;
 }

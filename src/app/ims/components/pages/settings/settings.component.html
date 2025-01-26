@@ -1,78 +1,142 @@
 <div class="grid">
-    <div class="col-12">
-      <div class="card px-6 py-6">
-        <p-tabMenu [model]="menuItems" [activeItem]="activeItem" (activeItemChange)="onActiveItemChange($event)"></p-tabMenu>
-        <br>
-        <p-toast></p-toast>
-  
-        <div *ngIf="activeItem.label == 'Organization'" class="card justify-content-center overflow-x-auto overflow-y-auto" style="height: 100%;">
-          <span class="text-500">{{ 'organization_description_txt' | translate }}</span>
-          <div style="margin-top: 2rem;">
-            <p-organizationChart [value]="organizationStructure" selectionMode="multiple" [(selection)]="selectedNodes" [collapsible]="true" (onNodeSelect)="openOrganizationDialog($event)">
-              <ng-template let-node pTemplate="organization">
-                <div class="p-2 text-center">
-                  <img *ngIf="organization.logo" [src]="organization.logo" class="mb-3 w-3rem h-3rem" />
-                  <div class="font-bold">{{ node.data.name }}</div>
+  <div class="col-12">
+    <div class="card px-6 py-6">
+      <p-tabMenu [model]="menuItems" [activeItem]="activeItem"
+        (activeItemChange)="onActiveItemChange($event)"></p-tabMenu>
+      <br>
+      <p-toast></p-toast>
+
+      <div class="card flex justify-content-center" *ngIf="isLoading">
+        <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+      </div>
+
+      <div *ngIf="activeItem?.icon === 'pi pi-fw pi-sitemap' && !isLoading"
+        class="card justify-content-center overflow-x-auto overflow-y-auto" style="height: 100%;">
+        <span class="text-500">{{ 'organization_description_txt' | translate }}</span>
+        <div style="margin-top: 2rem;">
+          <p-organizationChart [value]="organizationStructure" selectionMode="multiple" [(selection)]="selectedNodes"
+            [collapsible]="true" (onNodeSelect)="openOrganizationDialog($event)">
+            <ng-template let-node pTemplate="organization">
+
+              <div class="p-2 text-center">
+                <div class="card flex justify-content-center" *ngIf="imageLoading">
+                  <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
                 </div>
-              </ng-template>
-              <ng-template let-node pTemplate="shops">
-                <div class="p-2 text-center">
-                  <div class="font-bold">
-                    <a routerLink="/pages/shops">{{ node.data.name }}</a>
-                  </div>
-                </div>
-              </ng-template>
-              <ng-template let-node pTemplate="warehouses">
-                <div class="p-2 text-center">
-                  <div class="font-bold">
-                    <a routerLink="/pages/warehouses">{{ node.data.name }}</a>
-                  </div>
-                </div>
-              </ng-template>
-            </p-organizationChart>
-          </div>
-        </div>
-  
-        <div class="grid" *ngIf="activeItem.label == 'Customization'">
-          <div class="col-12">
-            <div class="card">
-              <!-- <div class="block-section"> -->
-                <!-- <div class="block-content"> -->
-                  <!-- <div class="surface-section"> -->
-                    <div class="surface-section">
-                      <div class="text-500 mb-5">{{ 'administration_description_txt' | translate }}</div>
-                      <ul class="list-none p-0 m-0">
-                        <li *ngFor="let config of configs; trackBy: trackByConfig" class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
-                          <div class="text-500 w-6 md:w-4 font-medium">{{ config.key | translate }}</div>
-                          <div class="text-900 w-full md:w-6 md:flex-order-0 flex-order-1">
-                            <ng-container *ngIf="!config.isEditing; else editModeTemplate">
-                              {{ config.value }}
-                            </ng-container>
-                            <ng-template #editModeTemplate>
-                              <div *ngIf="config.key == 'lowStockThreshold'">
-                                <input [(ngModel)]="config.value" type="number" pInputText class="form-control" />
-                              </div>
-                              <div *ngIf="config.key == 'currency'">
-                                <p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol" optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}"></p-dropdown>
-                              </div>
-                            </ng-template>
-                          </div>
-                          <div class="w-6 md:w-2 flex justify-content-end">
-                            <p-button (click)="toggleEditMode(config)" icon="pi pi-{{ config.isEditing ? 'check' : 'pencil' }}" [rounded]="true" [outlined]="true"></p-button>
-                          </div>
-                        </li>
-                      </ul>
-                    <!-- </div> -->
-                  <!-- </div> -->
-                <!-- </div> -->
+                <p-image *ngIf="!imageLoading && logoImageUrl; else placeholderImage" [src]="logoImageUrl"
+                  [alt]="organization.organizationName" width="150" class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
+
+                <ng-template #placeholderImage>
+                  <img *ngIf="!imageLoading && !logoImageUrl" src="assets/app-logo/placeholder-image.jpg"
+                    alt="Placeholder" width="150" class="mt-0 mx-auto mb-5 block shadow-2">
+                </ng-template>
+                <div class="font-bold">{{ node.data.name }}</div>
               </div>
+            </ng-template>
+            <ng-template let-node pTemplate="shops">
+              <div class="p-2 text-center">
+                <div class="font-bold">
+                  <a routerLink="/pages/shops">{{ node.data.name }}</a>
+                </div>
+              </div>
+            </ng-template>
+            <ng-template let-node pTemplate="warehouses">
+              <div class="p-2 text-center">
+                <div class="font-bold">
+                  <a routerLink="/pages/warehouses">{{ node.data.name }}</a>
+                </div>
+              </div>
+            </ng-template>
+          </p-organizationChart>
+        </div>
+      </div>
+
+      <div class="grid" *ngIf="activeItem?.icon == 'pi pi-fw pi-sliders-h' && !isLoading">
+        <div class="col-12">
+          <div class="card">
+            <!-- <div class="block-section"> -->
+            <!-- <div class="block-content"> -->
+            <!-- <div class="surface-section"> -->
+            <div class="surface-section">
+              <div class="text-500 mb-5">{{ 'administration_description_txt' | translate }}</div>
+              <ul class="list-none p-0 m-0">
+                <li *ngFor="let config of configs; trackBy: trackByConfig"
+                  class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
+                  <div class="text-500 w-6 md:w-4 font-medium">{{ config.key | translate }}</div>
+                  <div class="text-900 w-full md:w-6 md:flex-order-0 flex-order-1">
+                    <ng-container *ngIf="!config.isEditing; else editModeTemplate">
+                      <!-- Display the value and units for lowStockThreshold -->
+                      <span *ngIf="config.key === 'lowStockThreshold'">
+                        {{ config.value }} {{ 'units' | translate }}
+                      </span>
+
+                      <!-- Display the value as a percentage if the key is 'tax' -->
+                      <span *ngIf="config.key === 'tax'">{{ (config.value * 100) | number: '1.0-2' }}%</span>
+
+                      <span *ngIf="config.key === 'cashRegDefaultOpeningBalance'">
+                        {{ config.value }} {{ appConfigCurrency.value }}
+                      </span>
+
+                      <!-- Display the value for other keys -->
+                      <span
+                        *ngIf="config.key !== 'lowStockThreshold' && config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance'">
+                        {{ config.value }}
+                      </span>
+
+                    </ng-container>
+
+                    <ng-template #editModeTemplate>
+                      <!-- For low stock threshold -->
+                      <div *ngIf="config.key == 'lowStockThreshold'">
+                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{ 'units' |
+                        translate }}
+                      </div>
+
+                      <!-- For currency selection -->
+                      <div *ngIf="config.key == 'currency'">
+                        <p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol"
+                          optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}"></p-dropdown>
+                      </div>
+
+                      <!-- For tax as percentage -->
+                      <div *ngIf="config.key == 'tax'">
+                        <input [(ngModel)]="taxPercentage" type="number" pInputText class="form-control"
+                          (ngModelChange)="onTaxChange($event)" /> %
+                      </div>
+
+                      <div *ngIf="config.key == 'cashRegDefaultOpeningBalance'">
+                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{
+                        appConfigCurrency.value }}
+                      </div>
+
+                      <div *ngIf="config.key == 'cashRegDefaultOpeningBalance'">
+                        <p-inputSwitch [(ngModel)]="checked" [disabled]="true" />
+
+                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{
+                        appConfigCurrency.value }}
+                      </div>
+
+                    </ng-template>
+                  </div>
+
+                  <div class="w-6 md:w-2 flex justify-content-end">
+                    <p-button (click)="toggleEditMode(config)" icon="pi pi-{{ config.isEditing ? 'check' : 'pencil' }}"
+                      [rounded]="true" [outlined]="true"></p-button>
+                  </div>
+                </li>
+              </ul>
+
+              <!-- </div> -->
+              <!-- </div> -->
+              <!-- </div> -->
             </div>
           </div>
         </div>
-  
-        <p-dialog [(visible)]="organizationDialog" [style]="{ width: '450px', height: '100%' }" header="{{ 'organization_info_lbl' | translate }}" [modal]="true" class="p-fluid">
-          <ng-template pTemplate="content">
-            <div *ngIf="organization.logo; else upload_image">
+      </div>
+
+      <p-dialog [(visible)]="organizationDialog" [style]="{ width: '450px', height: '100%' }"
+        header="{{ 'organization_info_lbl' | translate }}" [modal]="true" class="p-fluid">
+        <ng-template pTemplate="content">
+          <!-- <div *ngIf="organization.logo; else upload_image">
               <label for="logo">{{ 'product_image' | translate }}</label>
               <div class="flex justify-content-center">
                 <p-image [src]="organization.logo" [alt]="organization.organizationName" width="150" [preview]="true" class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
@@ -86,53 +150,134 @@
                   <p-fileUpload mode="basic" name="demo[]" url="https://www.primefaces.org/cdn/api/upload.php" accept="image/*" maxFileSize="1000000" (onSelect)="onFileUpload($event)" chooseLabel="{{ 'upload_file_button' | translate }}"></p-fileUpload>
                 </div>
               </div>
-            </ng-template>
-            <div class="field">
-              <label for="organizationName">{{ 'shop_name' | translate }}</label>
-              <input type="text" pInputText name="organizationName" ngDefaultControl [(ngModel)]="organization.organizationName" required autofocus [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.organizationName }" />
-              <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.organizationName">{{ 'shop_name' | translate }} {{ 'is_required_label' | translate }}</small>
+            </ng-template> -->
+          <div *ngIf="organization.logo; else upload_image">
+            <label for="logo">{{ 'organization_logo' | translate }}</label>
+            <div class="flex justify-content-center">
+              <!-- <p-image [src]="logoImageUrl" [alt]="organization.organizationName" width="150" [preview]="true"
+                class="mt-0 mx-auto mb-5 block shadow-2"></p-image> -->
+              <p-image *ngIf="logoImageUrl; else placeholderImage" [src]="logoImageUrl"
+                [alt]="organization.organizationName" width="150" [preview]="true"
+                class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
+              <ng-template #placeholderImage>
+                <img src="assets/app-logo/placeholder-image.jpg" alt="Placeholder" width="150"
+                  class="mt-0 mx-auto mb-5 block shadow-2">
+              </ng-template>
             </div>
-            <div class="field">
-              <label for="email">{{ 'customer_email' | translate }}</label>
-              <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="organization.email" autofocus />
+            <!-- Add button to replace image -->
+            <div class="flex justify-content-center">
+              <div class="edit-icon" (click)="editImage()" style="cursor: pointer;">
+                <i class="pi pi-pencil" style="font-size: 24px; color: #007ad9;"></i>
+              </div>
             </div>
+          </div>
+          <ng-template #upload_image>
             <div class="field">
-              <label for="phoneNumber">{{ 'customer_phone_number' | translate }}</label>
-              <input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="organization.phoneNumber" autofocus />
-            </div>
-            <div class="field">
-              <label for="country">{{ 'shop_country' | translate }}</label>
-              <p-dropdown [(ngModel)]="organization.country" (onChange)="onSelectedCountry(organization.country)" name="country" inputId="country" ngDefaultControl [options]="countries" optionValue="name" optionLabel="name" [filter]="true" filterBy="name" placeholder="{{ 'select_country_option' | translate }}" autofocus>
-                <ng-template pTemplate="selectedItem">
-                  <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country }}</span>
-                </ng-template>
-                <ng-template let-option pTemplate="item">
-                  <span class="product-badge">{{ option.name }}</span>
-                </ng-template>
-              </p-dropdown>
-            </div>
-            <div class="field" *ngIf="organization.country">
-              <label for="city">{{ 'shop_city' | translate }}</label>
-              <p-dropdown [(ngModel)]="organization.city" name="city" inputId="city" ngDefaultControl optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="states" placeholder="{{ 'select_city_option' | translate }}" autofocus>
-                <ng-template pTemplate="selectedItem">
-                  <span *ngIf="organization && organization.city" class="product-badge">{{ organization.city }}</span>
-                </ng-template>
-                <ng-template let-option pTemplate="item">
-                  <span class="product-badge">{{ option.name }}</span>
-                </ng-template>
-              </p-dropdown>
-            </div>
-            <div class="field">
-              <label for="address">{{ 'shop_address' | translate }}</label>
-              <textarea rows="3" cols="20" [(ngModel)]="organization.address" name="address" placeholder="{{ 'shop_address' | translate }}" ngDefaultControl pInputTextarea autofocus></textarea>
+              <label for="logo">{{ 'product_image' | translate }}</label>
+              <div class="card flex justify-content-center">
+                <p-toast></p-toast>
+                <p-fileUpload mode="basic" name="logo" accept="image/*" (onSelect)="onFileUpload($event)"
+                  chooseLabel="{{ 'upload_file_button' | translate }}">
+                </p-fileUpload>
+              </div>
             </div>
           </ng-template>
-          <ng-template pTemplate="footer">
-            <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
-            <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text" (click)="saveOrganization()"></button>
-          </ng-template>
-        </p-dialog>
-      </div>
+
+
+          <div class="field">
+            <label for="organizationName">{{ 'shop_name' | translate }}</label>
+            <input type="text" pInputText name="organizationName" ngDefaultControl
+              [(ngModel)]="organization.organizationName" required autofocus
+              [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.organizationName }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.organizationName">{{ 'shop_name' |
+              translate }} {{ 'is_required_label' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="email">{{ 'customer_email' | translate }}</label>
+            <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="organization.email" autofocus />
+          </div>
+          <div class="field">
+            <label for="phoneNumber">{{ 'customer_phone_number' | translate }}</label>
+            <input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="organization.phoneNumber"
+              autofocus />
+          </div>
+          <div class="field">
+            <label for="country">{{ 'shop_country' | translate }}</label>
+            <p-dropdown [(ngModel)]="organization.country" (onChange)="onSelectedCountry(organization.country)"
+              name="country" inputId="country" ngDefaultControl [options]="countries" optionValue="name"
+              optionLabel="name" [filter]="true" filterBy="name" placeholder="{{ 'select_country_option' | translate }}"
+              autofocus>
+              <ng-template pTemplate="selectedItem">
+                <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country
+                  }}</span>
+              </ng-template>
+              <ng-template let-option pTemplate="item">
+                <span class="product-badge">{{ option.name }}</span>
+              </ng-template>
+            </p-dropdown>
+          </div>
+          <div class="field" *ngIf="organization.country">
+            <label for="city">{{ 'shop_city' | translate }}</label>
+            <p-dropdown [(ngModel)]="organization.city" name="city" inputId="city" ngDefaultControl optionValue="name"
+              optionLabel="name" [filter]="true" filterBy="name" [options]="states"
+              placeholder="{{ 'select_city_option' | translate }}" autofocus>
+              <ng-template pTemplate="selectedItem">
+                <span *ngIf="organization && organization.city" class="product-badge">{{ organization.city }}</span>
+              </ng-template>
+              <ng-template let-option pTemplate="item">
+                <span class="product-badge">{{ option.name }}</span>
+              </ng-template>
+            </p-dropdown>
+          </div>
+          <div class="field">
+            <label for="address">{{ 'shop_address' | translate }}</label>
+            <textarea rows="3" cols="20" [(ngModel)]="organization.address" name="address"
+              placeholder="{{ 'shop_address' | translate }}" ngDefaultControl pInputTextarea autofocus></textarea>
+          </div>
+          <div class="field">
+            <label for="website">{{ 'website' | translate }}</label>
+            <input type="text" pInputText name="website" ngDefaultControl [(ngModel)]="organization.website" required
+              autofocus [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.website }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.website">{{ 'website' | translate }} {{
+              'is_required_label' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="taxId">{{ 'tax_id' | translate }}</label>
+            <input type="text" pInputText name="taxId" ngDefaultControl [(ngModel)]="organization.taxId" required
+              autofocus [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.taxId }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.taxId">{{ 'tax_id' | translate }} {{
+              'is_required_label' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="commercialRegister">{{ 'commercial_register' | translate }}</label>
+            <input type="text" pInputText name="commercialRegister" ngDefaultControl
+              [(ngModel)]="organization.commercialRegister" required autofocus
+              [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.commercialRegister }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.commercialRegister">{{
+              'commercial_register' | translate }} {{ 'is_required_label' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="license">{{ 'business_license' | translate }}</label>
+            <input type="text" pInputText name="license" ngDefaultControl [(ngModel)]="organization.license" required
+              autofocus [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.license }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.license">{{ 'business_license' |
+              translate }} {{ 'is_required_label' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="ice">{{ 'ice' | translate }}</label>
+            <input type="text" pInputText name="ice" ngDefaultControl [(ngModel)]="organization.ice" required autofocus
+              [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.ice }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.ice">{{ 'ice' | translate }} {{
+              'is_required_label' | translate }}</small>
+          </div>
+        </ng-template>
+        <ng-template pTemplate="footer">
+          <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text"
+            (click)="hideDialog()"></button>
+          <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
+            (click)="saveOrganization()"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   </div>
-  
+</div>

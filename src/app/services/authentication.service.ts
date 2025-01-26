@@ -1,125 +1,83 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import{ JwtHelperService } from '@auth0/angular-jwt'
-import { Observable } from 'rxjs';
-import { throwError } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { KeycloakService } from 'keycloak-angular';
 import { Router } from '@angular/router';
+import { KeycloakProfile } from 'keycloak-js';
+import { environment } from 'src/environments/environment';
 
 @Injectable({providedIn: 'root'})
 export class AuthenticationService {
 
-  host1:string= "http://localhost:8080/admin/realms/nadigit-ims";
+  // host1:string= environment.KcUrl+"/admin/realms/Nadigit_ims";
+  kcRealm:string = "/admin/realms/Nadigit_ims"
   jwt?:any;
   username?:string= '';
   roles?:Array<any>=[];
   auth?:boolean= false;
+  private userProfile: KeycloakProfile | undefined;
+
+  apiProtocol: string = (window as any).__env.apiProtocol || 'http';
+  kcHost: string = (window as any).__env.kcHost || 'localhost';
+  kcPort: string = (window as any).__env.kcPort || '8080';
 
   constructor(private http:HttpClient, 
               public keycloakService: KeycloakService,
               private router: Router) { }
 
-
-  // login(data: any): Observable<any> {
-  //   console.log('request login sent');
-  //   console.log(data);
-  //   return this.http.post(this.host1 + "/login", data, { observe: 'response' })
-  //     .pipe(
-  //       catchError((error: any) => {
-  //         console.error('Login failed:', error);
-  //         // Handle the error, e.g., show an error message to the user
-  //         return throwError(error);
-  //       })
-  //     );
-  // }
-
   registerUser(user: any){
-    return this.http.post(this.host1+"/register",user,{observe:'response'})
+    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/register",user,{observe:'response'})
   }
 
-  // saveToken(jwt: any){
-  //   localStorage.setItem('token',jwt);
-  //   this.jwt=jwt;
-  //   this.parseJWT();
-  // }
-
-  // parseJWT() {
-  //   let jwtHelper = new JwtHelperService();
-  //   let objJWT = jwtHelper.decodeToken(this.jwt);
-  //   console.log(objJWT)
-  //   // Check token expiration
-  //   if (jwtHelper.isTokenExpired(this.jwt)) {
-  //     console.error('Token has expired');
-  //     // Handle token expiration, e.g., log out the user
-  //     this.logout();
-  //     return;
-  //   }
-  //   this.username = objJWT.sub;
-  //   this.roles = objJWT.roles;
-  //   console.log(this.roles);
-  // }
-
-  // isAdmin(){
-  //   return this.roles.indexOf('ADMIN')>=0;
-  // }
-
-  // isUser(){
-  //   return this.roles.indexOf('USER')>=0;
-  // }
-  // isAuthenticated(){
-  //   return this.roles && (this.isAdmin()||this.isUser());   
-  // }
-
-  // isNotAuthenticated(): boolean {
-  //   const notAuthenticated = !(this.jwt && this.username && this.roles);
-  //   console.log('isNotAuthenticated:', notAuthenticated, 'jwt:', this.jwt, 'username:', this.username, 'roles:', this.roles);
-  //   return notAuthenticated;
-  // }
-
-  loadToken(){
-    this.jwt = this.keycloakService.getToken();
-    // this.jwt=localStorage.getItem('token');
-    // console.log(this.jwt);
-    // this.parseJWT();
+  async loadToken() {
+    this.jwt = await this.keycloakService.getToken();
   }
-
-  // logout(){
-  //   localStorage.removeItem('token');
-  //   this.jwt=undefined;
-  //   this.username=undefined;
-  //   this.roles=undefined;
-  //   this.auth=false;
-  // }
 
   getUsers(){
-    if(this.jwt==null) this.loadToken();
+    if (!this.jwt) {
+      this.loadToken();
+    }
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host1+"/users/",{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/",{headers:headers});
   }
+
+  // async getUsers() {
+  //   if (!this.jwt) {
+  //     await this.loadToken();
+  //   }
+  //   const headers = new HttpHeaders({ 'authorization': `Bearer ${this.jwt}` });
+    
+  //   return this.http.get(`${this.host1}/users/`, { headers: headers }).pipe(
+  //     catchError((error) => {
+  //       console.error('Error fetching users:', error);
+  //       return throwError(error);
+  //     })
+  //   );
+  // }
 
   getRoles(){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host1+"/roles/",{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/",{headers:headers});
   }
 
   getUserRoles(userId){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host1+"/users/"+userId+"/role-mappings/realm",{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+userId+"/role-mappings/realm",{headers:headers});
   }
 
   saveUser(user: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.host1+"/users/", user, {headers:headers})
+    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/", user, {headers:headers})
   }
 
   saveUserRolesMapping(userId, role){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.host1+"/users/"+userId+"/role-mappings/realm", role, {headers:headers});
+    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+userId+"/role-mappings/realm", role, {headers:headers});
   }
 
   deleteUserRolesMapping(userId: any, role: any): Observable<any> {
@@ -128,56 +86,49 @@ export class AuthenticationService {
     }
     const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
     // Append role data as a query parameter in the URL
-    const url = `${this.host1}/users/${userId}/role-mappings/realm?role=${role}`;
+    const url = this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +'/users/'+userId+'/role-mappings/realm?role='+role;
     return this.http.delete(url, { headers: headers });
   }
 
   saveRole(role: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.host1+"/roles/", role, {headers:headers})
+    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/", role, {headers:headers})
   }
 
   deleteUser(id: string){ 
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.host1+"/users/"+id,{headers:headers});
+    return this.http.delete(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+id,{headers:headers});
   }
 
   deleteRole(id: string){ 
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.host1+"/roles/"+id,{headers:headers});
+    return this.http.delete(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/"+id,{headers:headers});
   }
 
   updateUser(id: any, user: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.host1+"/users/"+id , user, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+id , user, {headers:headers});
   }
 
   updateRole(id: any, role: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.host1+"/roles/"+id , role, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/"+id , role, {headers:headers});
   }
-
-  // changePassword(values: any) {
-  //   if(this.jwt==null) this.loadToken();
-  //   const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
-  //   return this.http.post(this.host1 + "/change-password/", values, { headers: headers });
-  // }
-  ///admin/realms/{realm}/users/{id}/reset-password
 
   changePassword(id: any, credentials: any) {
     if(this.jwt==null) this.loadToken();
     const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
-    return this.http.put(this.host1 + "/users/"+id+"/reset-password", credentials, { headers: headers });
+    return this.http.put(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm  + "/users/"+id+"/reset-password", credentials, { headers: headers });
   }
 
   forgotPassword(data: any): Observable<any> {
     console.log('request forgot pwd sent');
-    return this.http.post(this.host1 + "/forgot-password", data, { observe: 'response' })
+    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm  + "/forgot-password", data, { observe: 'response' })
       .pipe(
         catchError((error: any) => {
           console.error('failed :', error);
@@ -194,21 +145,26 @@ export class AuthenticationService {
 
   getProfile(){
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host1+"/profile/",{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/profile/",{headers:headers});
   }
 
-  // async checkRolesAndRedirect(): Promise<void> {
-  //   const userRoles = await this.keycloakService.getUserRoles();
-  //   if (userRoles.includes('ADMIN')) {
-  //     this.router.navigate(['/']);
-  //   } else if (userRoles.includes('VENDOR')) {
-  //     this.router.navigate(['/pages/orders']);
-  //   } else if (userRoles.includes('WAREHOUSEMAN')) {
-  //     this.router.navigate(['/pages/products']);
-  //   } else {
-  //     this.router.navigate(['/auth/access']);
-  //   }
+  // async getUserProfile(): Promise<KeycloakProfile> {
+  //   return await this.userProfile; // Return user profile data
   // }
+
+  async getUserProfile() {
+    if (this.keycloakService.isLoggedIn()) {
+      try {
+        const profile = await this.keycloakService.loadUserProfile();
+        this.userProfile = profile;
+        console.log(this.userProfile);
+        // Proceed to the next line of code here
+      } catch (error) {
+        console.error("Error loading user profile:", error);
+        // Handle error if necessary
+      }
+    }
+  }
 
   async checkRolesAndRedirect(): Promise<void> {
     const userRoles = await this.keycloakService.getUserRoles();
@@ -217,8 +173,8 @@ export class AuthenticationService {
     // Define the allowed routes for each role
     const roleRouteMap: { [key: string]: string } = {
       'ADMIN': '/',
-      'VENDOR': '/pages/orders',
-      'WAREHOUSEMAN': '/pages/products'
+      'VENDOR': '/',
+      'WAREHOUSEMAN': '/'
     };
   
     // Determine if the current route is accessible for the user roles
@@ -235,41 +191,21 @@ export class AuthenticationService {
       if (userRoles.includes('ADMIN')) {
         this.router.navigate(['/']);
       } else if (userRoles.includes('VENDOR')) {
-        this.router.navigate(['/pages/orders']);
+        this.router.navigate(['/']);
       } else if (userRoles.includes('WAREHOUSEMAN')) {
-        this.router.navigate(['/pages/products']);
+        this.router.navigate(['/']);
       } else {
         this.router.navigate(['/auth/access']);
       }
     }
   }
 
-  getRessource(url: any){
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(url,{headers:headers});
+  async loadUserProfile() {
+    if (!this.jwt) {
+      await this.loadToken();
+    }
+    this.userProfile = await this.keycloakService.loadUserProfile(); // Load user profile from Keycloak
   }
 
-
-  deleteRessource(url: any){
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(url,{headers:headers});
-  }
-
-
-  postRessource(url: any,data: any){
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(url,data,{headers:headers});
-  }
-
-
-  putRessource(url: any,data: any){
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(url,data,{headers:headers});
-  }
-
-  patchRessource(url: any,data: any){
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.patch(url,data,{headers:headers});
-  }
 
 }

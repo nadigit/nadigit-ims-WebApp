@@ -18,6 +18,9 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { DialogModule } from 'primeng/dialog';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateModule } from '@ngx-translate/core';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TooltipModule } from 'primeng/tooltip';
+
 
 
 
@@ -40,6 +43,8 @@ import { TranslateModule } from '@ngx-translate/core';
         InputNumberModule,
         DialogModule,
         TranslateModule,
+        ProgressSpinnerModule,
+        TooltipModule
     ],
     declarations: [SuppliersComponent],
     providers: [ReportingService],

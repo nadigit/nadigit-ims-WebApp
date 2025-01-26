@@ -23,4 +23,12 @@ export class Product {
 
   orderItemQuantity?: number;
   orderItemPricePerUnit?: number;
+
+  purchaseItemQuantity?: number;
+  purchaseItemPricePerUnit?: number;
+
+  returnItemQuantity?: number;
+  returnItemPricePerUnit?: number;
+
+
 }

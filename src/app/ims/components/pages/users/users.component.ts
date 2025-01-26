@@ -8,10 +8,17 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { Role } from 'src/app/models/role';
 import { Credential } from 'src/app/models/credential';
-import { Observable } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
+import { ShopService } from 'src/app/services/shop.service';
+import { WarehouseService } from 'src/app/services/warehouse.service';
+import { Warehouse } from 'src/app/models/warehouse';
+import { Shop } from 'src/app/models/shop';
+import { PermissionService } from 'src/app/services/permission.service';
+
 
 @Component({
   templateUrl: './users.component.html',
+  styleUrls: ['../pages.component.css'],
   providers: [MessageService]
 })
 export class UsersComponent implements OnInit {
@@ -63,6 +70,7 @@ export class UsersComponent implements OnInit {
   usersExportColumns!: ExportColumn[];
   rolesExportColumns!: ExportColumn[];
 
+  roles: any;
 
   items: MenuItem[];
 
@@ -82,83 +90,142 @@ export class UsersComponent implements OnInit {
 
   loading: boolean = false; // Flag to indicate loading state
 
+  warehouses: Warehouse[] = [];
+
+  shops: Shop[] = [];
+
+  selectedShop: Shop = {}; // To hold selected shop IDs
+
+  selectedWarehouse: Warehouse = {}; // To hold selected warehouse IDs
+  isLoading: boolean = true;
+
+
   constructor(
     private messageService: MessageService,
     private authService: AuthenticationService,
     private reportingService: ReportingService,
+    private warehouseService: WarehouseService,
+    private shopService: ShopService,
     private translate: TranslateService,
     private translateService: TranslationService,
-    private cdr: ChangeDetectorRef,) {
-    this.items = [
-      {
-        label: 'New User',
-        icon: 'pi pi-fw pi-user',
-      },
-      {
-        label: 'New Role',
-        icon: 'pi pi-fw pi-shield',
-      },
-    ];
+    private cdr: ChangeDetectorRef,
+    private permissionService: PermissionService,) {  
 
+    }
+
+    async ngOnInit() {
+      this.isLoading = true;
+  
+      // Subscribe to language changes
+      this.translateService.currentLanguage$.subscribe(lang => {
+          this.translate.use(lang); // Update the language
+      });
+  
+      // Fetch translations asynchronously
+      const translations = await this.translate.get([
+          'ID', 
+          'user_first_name', 
+          'user_last_name', 
+          'user_username', 
+          'user_email',
+          'role_name', 
+          'role_description',
+          'tab_users',
+          'tab_roles',
+          'user_information',
+          'user_role'
+      ]).toPromise();
+  
+      // Initialize usersCols and rolesCols with translations
+      this.usersCols = [
+          { field: 'id', header: translations['ID'] },
+          { field: 'firstName', header: translations['user_first_name'] },
+          { field: 'lastName', header: translations['user_last_name'] },
+          { field: 'username', header: translations['user_username'] },
+          { field: 'email', header: translations['user_email'] },
+      ];
+  
+      this.rolesCols = [
+          { field: 'id', header: translations['ID'] },
+          { field: 'name', header: translations['role_name'] },
+          { field: 'description', header: translations['role_description'] },
+      ];
+  
+      // Initialize export columns
+      this.usersExportColumns = this.usersCols.map((col) => ({ title: col.header, dataKey: col.field }));
+      this.rolesExportColumns = this.rolesCols.map((col) => ({ title: col.header, dataKey: col.field }));
+  
+      // Initialize menuItems
+      this.menuItems = [
+          {
+              label: translations['tab_users'],
+              icon: 'pi pi-fw pi-user',
+          },
+          {
+              label: translations['tab_roles'],
+              icon: 'pi pi-fw pi-shield',
+          },
+      ];
+  
+      // Set the active menu item
+      this.activeItem = this.menuItems[0];
+  
+      // Initialize user creation steps
+      this.userCreationSteps = [
+          {
+              label: translations['user_information'],
+              // command: () => showUserRoleMapping()
+          },
+          {
+              label: translations['user_role'],
+              command: (event: any) => console.log(event.item.label)
+          },
+      ];
+  
+      // Fetch data and initialize other components
+      this.onGetAllUsers();
+      this.onGetAllRoles();
+      this.onGetAllWarehouses();
+      this.onGetAllShops();
+      this.initializePickList();
+  
+      this.isLoading = false;
+  }
+  
+  
+  async combineUserRolesData() {
+    for (let user of this.users) {
+      this.roles = await this.getUserRoles(user.id);
+      const userRoles = this.roles.filter(role => role.userId === user.id).map(role => role.name);
+      user.roles = userRoles;
+    }
   }
 
-  ngOnInit() {
-    this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang); // Use the translate service to update language
-    });
-    this.onGetAllUsers();
-    this.onGetAllRoles();
-    this.initializePickList();
-
-    this.usersCols = [
-      { field: 'id', header: 'ID' },
-      { field: 'firstName', header: 'First Name' },
-      { field: 'lastName', header: 'Last Name' },
-      { field: 'username', header: 'Username' },
-      { field: 'email', header: 'Email' },
-      { field: 'enabled', header: 'Enabled' },
-    ];
-    this.rolesCols = [
-      { field: 'id', header: 'ID' },
-      { field: 'name', header: 'Name' },
-      { field: 'description', header: 'Description' },
-    ];
-
-    this.usersExportColumns = this.usersCols.map((col) => ({ title: col.header, dataKey: col.field }));
-    this.rolesExportColumns = this.rolesCols.map((col) => ({ title: col.header, dataKey: col.field }));
-
-    this.menuItems = [
-      {
-        label: 'Users',
-        icon: 'pi pi-fw pi-user',
-      },
-      {
-        label: 'Roles',
-        icon: 'pi pi-fw pi-shield',
-      },
-    ];
-
-    this.activeItem = this.menuItems[0];
-
-    this.userCreationSteps = [
-      {
-        label: 'User Information',
-        //command: () => showUserRoleMapping()
-      },
-      {
-        label: 'User Role',
-        command: (event: any) => console.log(event.item.label)
-      },
-    ];
+  async onGetAllWarehouses() {
+    await this.warehouseService.getWarehouses()
+      .subscribe({
+        next: (response: any) => {
+          this.warehouses = response;
+          console.log(this.warehouses);
+        },
+        error: (err: any) => {
+          console.log(err)
+        }
+      })
   }
-roles:any;
-async combineUserRolesData() {
-  for (let user of this.users) {
-    this.roles = await this.getUserRoles(user.id);
-    const userRoles = this.roles.filter(role => role.userId === user.id).map(role => role.name);
-    user.roles = userRoles;
+
+  async onGetAllShops() {
+    await this.shopService.getShops()
+      .subscribe({
+        next: (response: any) => {
+          this.shops = response;
+          console.log(this.shops);
+        },
+        error: (err: any) => {
+          console.log(err)
+        }
+      })
   }
-}
 
   onActiveIndexChange(event: number) {
     this.activeIndex = event;
@@ -170,12 +237,10 @@ async combineUserRolesData() {
   }
 
   deleteSelected() {
-    if (this.activeItem.label == 'Users') {
+    if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.deleteUsersDialog = true;
-      console.log("1")
     } else {
       this.deleteRolesDialog = true;
-      console.log("2")
     }
     //this.deleteUsersDialog = true;
   }
@@ -184,12 +249,28 @@ async combineUserRolesData() {
   //   this.deleteRolesDialog = true;
   // }
 
-  editUser(user: User) {
+  async editUser(user: User) {
     this.user = { ...user };
-    this.onGetAllRoles()
-    this.initializePickList()
+    const warehouseId = Number(user.attributes.warehouse);
+    const shopId = Number(user.attributes.shop);
+    try {
+        // Use forkJoin to combine both observables
+        const result = await forkJoin({
+            warehouse: this.warehouseService.getWarehouse(warehouseId),
+            shop: this.shopService.getShop(shopId)
+        }).toPromise();
+
+        this.selectedWarehouse = result.warehouse;
+        this.selectedShop = result.shop;
+
+    } catch (error) {
+        console.error(error);
+    }
+
+    this.onGetAllRoles();
+    this.initializePickList();
     this.userDialog = true;
-  }
+}
 
   deleteUser(user: User) {
     this.deleteUserDialog = true;
@@ -208,7 +289,7 @@ async combineUserRolesData() {
 
 
   async confirmDeleteSelected() {
-    if (this.activeItem.label == 'Users') {
+    if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.deleteUsersDialog = false;
       await this.selectedUsers.forEach(selectedUser => this.onDeleteUser(selectedUser.id));
       this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Users Deleted', life: 3000 });
@@ -222,7 +303,7 @@ async combineUserRolesData() {
   }
 
   async confirmDelete() {
-    if (this.activeItem.label == 'Users') {
+    if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.deleteUserDialog = false;
       await this.onDeleteUser(this.user.id);
       this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
@@ -238,7 +319,7 @@ async combineUserRolesData() {
   }
 
   hideDialog() {
-    if (this.activeItem.label == 'Users') {
+    if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.userDialog = false;
     } else {
       this.roleDialog = false;
@@ -253,9 +334,11 @@ async combineUserRolesData() {
     this.user.enabled = true;
     this.user.credentials = [];
     this.userCredential = {};
+    this.selectedShop = {};
+    this.selectedWarehouse = {};
     this.initializePickList()
     this.submitted = false;
-    if (this.activeItem.label == 'Users') {
+    if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.userDialog = true;
     } else {
       this.roleDialog = true;
@@ -267,7 +350,7 @@ async combineUserRolesData() {
   initializePickList(): Observable<void> {
     return new Observable<void>((observer) => {
       this.loading = true; // Set loading flag to true
-  
+
       if (this.user.id) {
         this.authService.getUserRoles(this.user.id).subscribe(userRoles => {
           console.log("User Roles:", userRoles); // Log userRoles to inspect its contents
@@ -279,12 +362,12 @@ async combineUserRolesData() {
             // Filter appRoles to include only roles specified by userRoleIds
             this.targetRoles = this.appRoles.filter(role => userRoleIds.includes(role.id));
             console.log("Target Roles:", this.targetRoles); // Log targetRoles to inspect its contents
-  
+
             // Filter sourceRoles to remove roles that exist in targetRoles
             this.sourceRoles = this.appRoles.filter(role => !this.targetRoles.some(targetRole => targetRole.id === role.id));
-            
+
             console.log("Source Roles:", this.sourceRoles); // Log sourceRoles to inspect its contents
-  
+
             this.loading = false; // Set loading flag to false after initialization is complete
             observer.next();
           } else {
@@ -322,26 +405,27 @@ async combineUserRolesData() {
   onMoveToSource(event: any): void {
     // Move the selected roles from the target to the source
     event.items.forEach((role: any) => {
-        // Assuming role.id is a unique identifier for roles
-        const roleIdToRemove = role.id;
+      // Assuming role.id is a unique identifier for roles
+      const roleIdToRemove = role.id;
 
-        // Filter out the role with the matching ID from targetRoles
-        this.targetRoles = this.targetRoles.filter(r => r.id !== roleIdToRemove);
+      // Filter out the role with the matching ID from targetRoles
+      this.targetRoles = this.targetRoles.filter(r => r.id !== roleIdToRemove);
 
-        // Check if the role already exists in sourceRoles
-        const roleExistsInSource = this.sourceRoles.some(r => r.id === roleIdToRemove);
+      // Check if the role already exists in sourceRoles
+      const roleExistsInSource = this.sourceRoles.some(r => r.id === roleIdToRemove);
 
-        // Add the role back to sourceRoles only if it doesn't already exist
-        if (!roleExistsInSource) {
-            const roleToAdd = this.appRoles.find(r => r.id === roleIdToRemove);
-            if (roleToAdd) {
-                this.sourceRoles.push(roleToAdd);
-            }
+      // Add the role back to sourceRoles only if it doesn't already exist
+      if (!roleExistsInSource) {
+        const roleToAdd = this.appRoles.find(r => r.id === roleIdToRemove);
+        if (roleToAdd) {
+          this.sourceRoles.push(roleToAdd);
         }
+      }
     });
-}
+  }
 
   async NextRoleDialog() {
+    this.submitted=true;
     if (this.user && this.user.username && this.user.email && this.user.lastName && this.user.firstName && this.userCredential) {
       try {
         this.onGetAllRoles()
@@ -355,7 +439,8 @@ async combineUserRolesData() {
       }
     } else {
       this.isUserInfoValid = false;
-      alert("Please fill up all the required user data.");
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill up all the required user data.', life: 3000 });
+      return;
     }
   }
 
@@ -363,6 +448,12 @@ async combineUserRolesData() {
   async saveUser() {
     this.submitted = true;
     console.log(this.targetRoles)
+    // Ensure shops and warehouses attributes are set as arrays of strings
+    this.user.attributes = this.user.attributes || {}; // Ensure attributes object exists
+
+    this.user.attributes.shop = this.selectedShop ? this.selectedShop.shopId?.toString() : ''; // Set single shop as string
+    this.user.attributes.warehouse = this.selectedWarehouse ? this.selectedWarehouse.warehouseId?.toString() : ''; // Set single warehouse as string
+
     if (this.user.username.trim()) {
       delete this.user.creationDate;
       delete this.user.roles;
@@ -481,11 +572,12 @@ async combineUserRolesData() {
     try {
       const response = await this.authService.getUsers().toPromise();
       this.users = response as User[];
+      console.log(this.users)
       this.users.forEach(async (user: any) => {
         user.creationDate = new Date(<Date>user.creationDate);
         user.roles = await this.getUserRoles(user.id);
       });
-      console.log(this.users);
+      this.isLoading=false;
     } catch (error) {
       console.log(error);
     }
@@ -497,7 +589,7 @@ async combineUserRolesData() {
       if (Array.isArray(rolesResponse)) {
         // Filter out roles with composite set to true
         const roles: string[] = rolesResponse.filter((role: any) => !role.composite)
-                                               .map((role: any) => role.name);
+          .map((role: any) => role.name);
         return roles;
       } else {
         console.error(`Invalid roles response for user with ID ${userId}:`, rolesResponse);
@@ -540,14 +632,14 @@ async combineUserRolesData() {
     try {
       // Set loading flag to true to display the loading spinner
       this.loading = true;
-  
+
       // Step 1: Update user info
       if (user.id) {
         const updateUserResult = await this.updateUser(user.id, user);
         if (!updateUserResult) {
           throw new Error("Failed to update user information");
         }
-  
+
         // Step 2: Delete existing user role mapping
         console.log("Update user role mapping");
         const deleteRoleMappingResult = await this.deleteUserRoleMapping(user.id, roles);
@@ -555,28 +647,28 @@ async combineUserRolesData() {
           throw new Error("Failed to update user role mapping");
         }
       } else {
-          this.userCredential.temporary = false;
-          this.userCredential.type = "password";
-          this.user.credentials.push(this.userCredential);
-          console.log(this.userCredential)
+        this.userCredential.temporary = false;
+        this.userCredential.type = "password";
+        this.user.credentials.push(this.userCredential);
+        console.log(this.userCredential)
         // Add the user
         console.log(user)
         const addedUser = await this.addUser(user);
         if (!addedUser) {
           throw new Error("Failed to create user information");
         }
-      
+
         // Find the newly added user in the updated list using their unique identifier
         const newlyAddedUser = this.users.find(element => element.username === user.username);
-        if (newlyAddedUser) {          
+        if (newlyAddedUser) {
           user.id = newlyAddedUser.id;
           console.log(user.id)
         } else {
           throw new Error("Failed to retrieve the ID of the newly added user");
         }
-        
+
       }
-  
+
       // Step 3: Update user role mapping
       console.log("Update user role mapping");
       const updateRoleMappingResult = await this.updateUserRoleMapping(user.id, roles);
@@ -584,7 +676,7 @@ async combineUserRolesData() {
         throw new Error("Failed to update user role mapping");
       }
       await this.onGetAllUsers();
-  
+
       // All transactions are done, set loading flag to false
       this.loading = false;
     } catch (error) {
@@ -596,7 +688,7 @@ async combineUserRolesData() {
     }
   }
 
-  
+
   async updateUser(id: any, user: any): Promise<boolean> {
     try {
       const response = await this.authService.updateUser(id, user).toPromise();
@@ -613,17 +705,17 @@ async combineUserRolesData() {
       // Wait for the response from saveUser
       const response = await this.authService.saveUser(user).toPromise();
       console.log(response);
-      
+
       // Wait for the list of users to be updated
       await this.onGetAllUsers();
-      
+
       return true;
     } catch (error) {
       console.log(error);
       return false;
     }
   }
-  
+
   async updateUserRoleMapping(id: any, role: any): Promise<boolean> {
     try {
       const response = await this.authService.saveUserRolesMapping(id, role).toPromise();
@@ -773,34 +865,34 @@ async combineUserRolesData() {
   //   }
 
   exportPdf() {
-    if(this.activeItem.label =='Users')
-    this.reportingService.exportPdf(this.usersExportColumns, this.users, 'users')
+    if (this.activeItem.icon == 'pi pi-fw pi-user')
+      this.reportingService.exportPdf(this.usersExportColumns, this.users, 'users')
     else
-    this.reportingService.exportPdf(this.rolesExportColumns, this.appRoles, 'roles')
+      this.reportingService.exportPdf(this.rolesExportColumns, this.appRoles, 'roles')
 
   }
 
   exportExcel() {
-    if(this.activeItem.label =='Users'){
-    // Clone the users array to avoid modifying the original array
-    const modifiedUsers = this.users.map(user => {
-      // Create a copy of the user object to modify
-      const modifiedUser = { ...user };
+    if (this.activeItem.icon == 'pi pi-fw pi-user') {
+      // Clone the users array to avoid modifying the original array
+      const modifiedUsers = this.users.map(user => {
+        // Create a copy of the user object to modify
+        const modifiedUser = { ...user };
 
-      // Remove the column you want to exclude
-      delete modifiedUser.creationDate;
+        // Remove the column you want to exclude
+        delete modifiedUser.creationDate;
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+        // Alternatively, if the columnToRemove is a property with a known name, you can use:
+        // delete modifiedSupplier['columnToRemove'];
 
-      return modifiedUser;
-    });
+        return modifiedUser;
+      });
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedUsers, 'users');
-  } else {
-    this.reportingService.exportExcel(this.appRoles, 'roles');
-  }
+      // Now, export the modified array to Excel
+      this.reportingService.exportExcel(modifiedUsers, 'users');
+    } else {
+      this.reportingService.exportExcel(this.appRoles, 'roles');
+    }
   }
 
 

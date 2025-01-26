@@ -1,0 +1,14 @@
+.calendar-container {
+    width: 100%; /* Full width */
+    display: flex;
+    flex-direction: column; /* Align items vertically */
+    align-items: center; /* Center contents */
+}
+
+.flex-row {
+    display: flex;
+    gap: 10px; /* Space between calendars */
+    margin-bottom: 20px; /* Space below the calendars */
+    justify-content: center; /* Center the calendars horizontally */
+    width: 100%; /* Ensure it takes the full width */
+}

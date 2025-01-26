@@ -27,6 +27,9 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { OrganizationChartModule } from 'primeng/organizationchart';
 import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ImageModule } from 'primeng/image';
+import { InputSwitchModule } from 'primeng/inputswitch';
+import { TooltipModule } from 'primeng/tooltip';
+
 
 
 @NgModule({
@@ -55,7 +58,9 @@ import { ImageModule } from 'primeng/image';
         ChipModule,
         ProgressSpinnerModule,
         OrganizationChartModule,
-        ImageModule
+        ImageModule,
+        InputSwitchModule,
+        TooltipModule
     ],
     schemas: [
         CUSTOM_ELEMENTS_SCHEMA, // or NO_ERRORS_SCHEMA

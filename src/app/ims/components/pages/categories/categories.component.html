@@ -5,23 +5,29 @@
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
-                        <button pButton pRipple label="{{'new_button' | translate}}" icon="pi pi-plus" class="p-button-success mr-2"
-                            (click)="openNew()"></button>
-                        <button pButton pRipple label="{{'delete_button' | translate}}" icon="pi pi-trash" class="p-button-danger"
-                            (click)="deleteSelectedCategories()"
+                        <button *ngIf="canAddCategory" pButton pRipple label="{{'new_button' | translate}}"
+                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+                            pTooltip="{{'add_new_category'|translate}}"></button>
+                        <button *ngIf="canDeleteCategory" pButton pRipple label="{{'delete_button' | translate}}"
+                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedCategories()"
+                            pTooltip="{{'delete_category'|translate}}"
                             [disabled]="!selectedCategories || !selectedCategories.length"></button>
                     </div>
                 </ng-template>
 
                 <ng-template pTemplate="right">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" 
-                        pTooltip="PDF" tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" 
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
                         class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
                 </ng-template>
             </p-toolbar>
 
-            <p-table #dt [value]="categories" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="categories" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
                 [globalFilterFields]="['categoryName','description']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
@@ -31,8 +37,8 @@
                         <h5 class="m-0">{{'categories_page_title' | translate}}</h5>
                         <span class="block mt-2 md:mt-0 p-input-icon-left">
                             <i class="pi pi-search"></i>
-                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="{{'search_label' | translate}}"
-                                class="w-full sm:w-auto" />
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
                         </span>
                     </div>
                 </ng-template>
@@ -41,8 +47,10 @@
                         <th style="width: 3rem">
                             <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
                         </th>
-                        <th pSortableColumn="categoryName">{{'category_name' | translate}} <p-sortIcon field="categoryName"></p-sortIcon></th>
-                        <th pSortableColumn="description">{{'category_description' | translate}} <p-sortIcon field="description"></p-sortIcon></th>
+                        <th pSortableColumn="categoryName">{{'category_name' | translate}} <p-sortIcon
+                                field="categoryName"></p-sortIcon></th>
+                        <th pSortableColumn="description">{{'category_description' | translate}} <p-sortIcon
+                                field="description"></p-sortIcon></th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -62,33 +70,52 @@
                         </td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple icon="pi pi-pencil"
+                                <button pButton pRipple *ngIf="canEditCategory" icon="pi pi-pencil"
                                     class="p-button-rounded p-button-success mr-2"
+                                    pTooltip="{{'update_category'|translate}}"
                                     (click)="editCategory(category)"></button>
-                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                <button pButton pRipple *ngIf="canDeleteCategory" icon="pi pi-trash"
+                                    class="p-button-rounded p-button-warning mr-2"
+                                    pTooltip="{{'delete_category'|translate}}"
                                     (click)="deleteCategory(category)"></button>
+                                <button pButton pRipple *ngIf="canListProducts" icon="pi pi-list"
+                                    class="p-button-rounded p-button-primary" pTooltip="{{'products_list'|translate}}"
+                                    (click)="openCategoryProductsDialog(category)"></button>
                             </div>
                         </td>
                     </tr>
                 </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_categories' | translate}} {{categories ? categories.length : 0 }}.
+                    </div>
+                </ng-template>
             </p-table>
         </div>
 
-        <p-dialog [(visible)]="categoryDialog" [style]="{width: '450px', height: '100%'}" header="{{'category_details' | translate}}" [modal]="true"
-            class="p-fluid ">
+        <p-dialog [(visible)]="categoryDialog" [style]="{width: '450px', height: '100%'}"
+            header="{{'category_details' | translate}}" [modal]="true" class="p-fluid ">
             <ng-template pTemplate="content">
                 <div class="field">
-                    <label for="categoryName">{{'category_name' | translate}}</label>
-                    <input type="text" pInputText name="categoryName" ngDefaultControl [(ngModel)]="category.categoryName" required autofocus
+                    <label for="categoryName">
+                        {{'category_name' | translate}} <span class="required-asterisk">*</span>
+                    </label>
+                    <input type="text" pInputText name="categoryName" ngDefaultControl
+                        [(ngModel)]="category.categoryName" required autofocus
                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !category.categoryName}" />
-                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !category.categoryName">{{'category_name' | translate}} {{'is_required_label' | translate}}</small>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !category.categoryName">{{'category_name' |
+                        translate}} {{'is_required_label' | translate}}</small>
                 </div>
                 <div class="field">
                     <label for="description">{{'category_description' | translate}}</label>
-                    <textarea rows="3" cols="20" [(ngModel)]="category.description" name="description" placeholder="{{'category_description' | translate}}" ngDefaultControl pInputTextarea autofocus
-                    ></textarea>
-                </div>     
-
+                    <textarea rows="3" cols="20" [(ngModel)]="category.description" name="description"
+                        placeholder="{{'category_description' | translate}}" ngDefaultControl pInputTextarea
+                        autofocus></textarea>
+                </div>
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                        translate}}</small>
+                </div>
             </ng-template>
 
             <ng-template pTemplate="footer">
@@ -99,7 +126,8 @@
             </ng-template>
         </p-dialog>
 
-        <p-dialog [(visible)]="deleteCategoryDialog" header="{{ 'confirm_label' | translate }}" [modal]="true" [style]="{width:'450px'}">
+        <p-dialog [(visible)]="deleteCategoryDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span *ngIf="category">{{ 'delete_confirmation_msg_with_param' | translate }}
@@ -112,8 +140,9 @@
                     (click)="confirmDelete()"></button>
             </ng-template>
         </p-dialog>
-    
-        <p-dialog [(visible)]="deleteCategoriesDialog" header="{{ 'confirm_label' | translate }}" [modal]="true" [style]="{width:'450px'}">
+
+        <p-dialog [(visible)]="deleteCategoriesDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span>{{ 'delete_selected_confirmation_msg' | translate }}</span>
@@ -126,5 +155,81 @@
             </ng-template>
         </p-dialog>
 
+        <p-dialog [(visible)]="categoryProductsDialog" [style]="{width: '90%', height: '100%'}"
+            header="{{'category_products_list' | translate}} {{category.categoryName}}" [modal]="true" class="p-fluid ">
+            <ng-template pTemplate="content">
+                <p-table #dt [value]="products" responsiveLayout="scroll" [rows]="20"
+                    [globalFilterFields]="['name','reference','quantityAvailable']" [paginator]="true"
+                    [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                    [rowHover]="true" dataKey="id">
+                    <ng-template pTemplate="caption">
+                        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                            <h5 class="m-0">{{'products_list' | translate}}</h5>
+                            <span class="block mt-2 md:mt-0 p-input-icon-left">
+                                <i class="pi pi-search"></i>
+                                <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                    placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
+                            </span>
+                        </div>
+                    </ng-template>
+
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th>{{ 'product_image' | translate }}</th>
+                            <th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon
+                                    field="name"></p-sortIcon></th>
+                            <th pSortableColumn="reference">{{'product_reference' | translate}} <p-sortIcon
+                                    field="reference"></p-sortIcon></th>
+                            <th pSortableColumn="quantityAvailable">{{'product_quantity' | translate}} <p-sortIcon
+                                    field="quantityAvailable"></p-sortIcon></th>
+                            <th pSortableColumn="buyingPrice">{{'product_buying_price' | translate}} <p-sortIcon
+                                    field="buyingPrice"></p-sortIcon></th>
+                            <th pSortableColumn="sellingPrice">{{'product_selling_price' | translate}} <p-sortIcon
+                                    field="sellingPrice"></p-sortIcon></th>
+                            <th></th>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-product>
+                        <tr>
+                            <td style="min-width:10rem;">
+                                <img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'" [alt]="product.name"
+                                    class="my-4 md:my-0 w-6 md:w-6rem shadow-2 mr-5" />
+                            </td>
+
+                            <td style="min-width:10rem;">
+                                <span class="p-column-title">{{'product_name' | translate}}</span>
+                                {{product.name ? product.name : 'N/A'}}
+                            </td>
+                            <td style="min-width:10rem;">
+                                <span class="p-column-title">{{'product_reference' | translate}}</span>
+                                {{product.reference ? product.reference : 'N/A'}}
+                            </td>
+                            <td style="min-width:10rem;">
+                                <span class="p-column-title">{{'product_quantity' | translate}}</span>
+                                {{ product.quantityAvailable }}
+                            </td>
+                            <td style="min-width:10rem;">
+                                <span class="p-column-title">{{'product_quantity' | translate}}</span>
+                                {{product.buyingPrice ? product.buyingPrice : 'N/A'}}
+                            </td>
+                            <td style="min-width:10rem;">
+                                <span class="p-column-title">{{'product_quantity' | translate}}</span>
+                                {{product.sellingPrice ? product.sellingPrice : 'N/A'}}
+                            </td>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="summary">
+                        <div class="flex align-items-center justify-content-between">
+                            {{'total_products' | translate}} {{products ? products.length : 0 }}.
+                        </div>
+                    </ng-template>
+                </p-table>
+            </ng-template>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
+                    (click)="hideCategoryProductsDialog()"></button>
+            </ng-template>
+        </p-dialog>
     </div>
 </div>

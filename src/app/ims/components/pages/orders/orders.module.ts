@@ -28,14 +28,13 @@ import { GalleriaModule } from 'primeng/galleria';
 import { AccordionModule } from 'primeng/accordion';
 import { BadgeModule } from 'primeng/badge';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-
-
-
-
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { CalendarModule } from 'primeng/calendar';
 import { ReportingService } from 'src/app/utils/reporting.service';
-
-
-
+import { DisableDblClickDirective } from 'src/app/utils/disable_dblclick.directive';
+import { TooltipModule } from 'primeng/tooltip';
+import { DynamicDialogModule } from 'primeng/dynamicdialog';
+import { ChipModule } from 'primeng/chip';
 
 
 @NgModule({
@@ -67,9 +66,14 @@ import { ReportingService } from 'src/app/utils/reporting.service';
         GalleriaModule,
         AccordionModule,
         BadgeModule,
-        ProgressSpinnerModule
+        ProgressSpinnerModule,
+        SelectButtonModule,
+        CalendarModule,
+        TooltipModule,
+        DynamicDialogModule,
+        ChipModule
     ],
-    declarations: [OrdersComponent, FilterProductsPipe],
+    declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective],
     providers: [ReportingService]
 })
 export class OrdersModule { }

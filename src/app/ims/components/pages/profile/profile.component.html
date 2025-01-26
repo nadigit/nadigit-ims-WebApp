@@ -1,5 +1,8 @@
 <div class="grid">
-    <div class="col-12">
+    <div class="card flex justify-content-center" *ngIf="isLoading">
+        <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+    </div>
+    <div class="col-12" *ngIf="!isLoading">
         <div class="card px-6 py-6">
             <div class="block-section">
                 <div class="block-content">

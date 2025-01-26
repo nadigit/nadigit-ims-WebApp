@@ -12,9 +12,12 @@ import { Customer } from 'src/app/models/customer';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { Notification } from 'src/app/models/notification';
-import * as moment from 'moment';
+import moment from 'moment';
 import { NotificationService } from 'src/app/services/notification.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { PurchaseService } from 'src/app/services/purchase.service';
+import { ExpenseService } from 'src/app/services/expense.service';
+import { KeycloakService } from 'keycloak-angular';
 
 @Component({
     templateUrl: './dashboard.component.html',
@@ -55,6 +58,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     totalOrders: any;
 
+    ordersStatistics: any;
+
+    expensesStatistics: any;
+
+    purchasesStatistics: any;
+
     revenue: any = 0;
 
     todayRevenue: any = 0;
@@ -77,19 +86,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
     loadMoreVisible: boolean = true;
     displayedNotificationIds: Set<number> = new Set<number>();
 
+    userRoles: any;
+    isAdmin: boolean = false;
+
     pieData: any;
     pieOptions: any;
 
+    barData: any;
+    barOptions: any;
+
     currency: any;
-    
+    isLoading = true;
+
     constructor(private orderService: OrderService,
         private productService: ProductService,
+        private purchaseService: PurchaseService,
+        private expenseService: ExpenseService,
         private customerService: CustomerService,
         public layoutService: LayoutService,
         private translate: TranslateService,
         private translateService: TranslationService,
         private notificationService: NotificationService,
         private configService: AppConfigurationService,
+        public keycloakService: KeycloakService,
     ) {
         this.subscription = this.layoutService.configUpdate$
             .pipe(debounceTime(25))
@@ -98,13 +117,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
             });
     }
 
-    ngOnInit() {
+    async ngOnInit() {
+
+        this.isLoading = true;
 
         this.translateService.currentLanguage$.subscribe(lang => {
             this.translate.use(lang); // Use the translate service to update language
         });
 
-
+        await this.setUserRoles();
+        
         forkJoin([
             this.getOrders(),
             this.getTodayOrders(),
@@ -115,40 +137,44 @@ export class DashboardComponent implements OnInit, OnDestroy {
             this.getProductsOfLastWeek(),
             this.getCustomers(),
             this.getTodayCustomers(),
-        ]).subscribe(([orders, todayOrders, totalOrderedProducts, recentOrderedProducts, top5Products, products, lastWeekProducts, customers, todayCustomers]) => {
-            this.orders = orders;
-            this.todayOrders = todayOrders;
-            this.totalOrderedProducts = totalOrderedProducts;
-            this.totalOrders = this.orders.length;
-            this.recentOrderedProducts = recentOrderedProducts;
-            this.top5Products = top5Products;
-            console.log(top5Products)
-            console.log(recentOrderedProducts)
-            this.categorizeOrdersByStatus()
-            // Calculate revenue after orders are loaded
-            this.revenue = this.orders.reduce((sum, element) => sum + element.totalAmount, 0);
-            this.todayRevenue = this.todayOrders.reduce((sum, element) => sum + element.totalAmount, 0);
-            // Calculate yesterday's revenue
-            this.calculateYesterdayRevenue();
-            console.log(this.revenue);
-            console.log(this.totalOrderedProducts);
+            this.loadOrdersMonthlyStatistics(),
+            this.loadExpensesMonthlyStatistics(),
+            this.loadPurchasesMonthlyStatistics()
+        ]).subscribe({
+            next: ([orders, todayOrders, totalOrderedProducts, recentOrderedProducts, top5Products, products, lastWeekProducts, customers, todayCustomers, ordersStatistics, expensesStatistics, purchasesStatistics]) => {
+                this.orders = orders;
+                this.todayOrders = todayOrders;
+                this.totalOrderedProducts = totalOrderedProducts;
+                this.ordersStatistics = ordersStatistics;
+                console.log(ordersStatistics)
+                this.expensesStatistics = expensesStatistics;
+                this.purchasesStatistics = purchasesStatistics;
+                this.totalOrders = this.orders.length;
+                this.recentOrderedProducts = recentOrderedProducts;
+                this.top5Products = top5Products;
+                this.categorizeOrdersByStatus()
+                this.revenue = this.orders.reduce((sum, element) => sum + element.totalAmount, 0);
+                this.todayRevenue = this.todayOrders.reduce((sum, element) => sum + element.totalAmount, 0);
+                this.calculateYesterdayRevenue();
+                this.calculateRevenueDifferencePercentage();
+                this.loadOrders()
+                this.products = products;
+                this.updateWarehouseProductCounts();
+                this.lastWeekProducts = lastWeekProducts;
+                this.categorizeProductsByStockStatus();
+                this.customers = customers;
+                this.todayCustomers = todayCustomers;
+                this.initChart();
 
-            // Calculate revenue difference percentage
-            this.calculateRevenueDifferencePercentage();
-            this.loadOrders()
-            // Categorize products by stock status
-
-
-            this.products = products;
-            this.updateWarehouseProductCounts();
-            this.lastWeekProducts = lastWeekProducts;
-            this.categorizeProductsByStockStatus();
-            this.customers = customers;
-            this.todayCustomers = todayCustomers;
-            console.log(this.lastWeekProducts);
-
-            this.initChart();
-
+            },
+            error: (error) => {
+                console.error("Error loading data: ", error);
+                // Optionally handle the error here, e.g., by displaying an error message
+            },
+            complete: () => {
+                // Set loading to false after data is fully loaded
+                this.isLoading = false;
+            }
         });
 
         this.loadRecentNotifications();
@@ -159,7 +185,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
 
 
-    initChart() {
+    async initChart() {
+        const translations = await this.translate.get(['orders_menu_title', 'purchases_menu_title', 'expenses_menu_title']).toPromise();
         const documentStyle = getComputedStyle(document.documentElement);
         const textColor = documentStyle.getPropertyValue('--text-color');
         const textColorSecondary = documentStyle.getPropertyValue('--text-color-secondary');
@@ -181,6 +208,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
             const monthName = date.toLocaleString('default', { month: 'short' });
             months.push(monthName);
         }
+
+        // Map orders, purchases, and expenses statistics to the last 12 months
+        const mapDataToLast12Months = (statistics) => {
+            const monthlyData = new Array(12).fill(0); // Initialize array with 12 zeros
+
+            statistics.forEach(item => {
+                const year = item[0]; // Year from the data
+                const month = item[1] - 1; // Month from the data (convert to 0-based index)
+                const totalAmount = item[2]; // Total amount for the month
+
+                // Calculate how far back this month is from the current month
+                const diffMonths = (now.getFullYear() - year) * 12 + (now.getMonth() - month);
+
+                // Ensure the month is within the last 12 months
+                if (diffMonths >= 0 && diffMonths < 12) {
+                    monthlyData[11 - diffMonths] = totalAmount; // Reverse the order
+                }
+            });
+
+            return monthlyData;
+        };
+
+        // Ensure data arrays are filled for the last 12 months
+        const ordersData = mapDataToLast12Months(this.ordersStatistics);
+        const purchasesData = mapDataToLast12Months(this.purchasesStatistics);
+        const expensesData = mapDataToLast12Months(this.expensesStatistics);
 
         // Prepare datasets for the top 5 products
         const datasets = this.top5Products.map((product: any, index: number) => {
@@ -272,6 +325,65 @@ export class DashboardComponent implements OnInit, OnDestroy {
                 }
             }
         };
+
+        // Ensure data arrays are filled for the last 12 months
+
+        console.log(ordersData);
+        console.log(purchasesData);
+        console.log(expensesData);
+
+        this.barData = {
+            labels: months,
+            datasets: [
+                {
+                    label: translations['purchases_menu_title'],
+                    backgroundColor: '#42A5F5',
+                    borderColor: '#1E88E5',
+                    data: purchasesData,
+                },
+                {
+                    label: translations['expenses_menu_title'],
+                    backgroundColor: '#9CCC65',
+                    borderColor: '#7CB342',
+                    data: expensesData,
+                },
+                {
+                    label: translations['orders_menu_title'],
+                    backgroundColor: '#FFA726',
+                    borderColor: '#FB8C00',
+                    data: ordersData,
+                }
+            ]
+        };
+
+        this.barOptions = {
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#495057'
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#495057'
+                    },
+                    grid: {
+                        color: '#ebedef'
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: '#495057'
+                    },
+                    grid: {
+                        color: '#ebedef'
+                    }
+                }
+            }
+        };
+
     }
 
     ngOnDestroy() {
@@ -279,6 +391,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
             this.subscription.unsubscribe();
         }
     }
+
+    private async setUserRoles() {
+        this.userRoles = await this.keycloakService.getUserRoles();
+        this.isAdmin = this.userRoles.includes('ADMIN');
+      }
 
     getOrders() {
         return this.orderService.getOrders();
@@ -297,6 +414,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     getRecentOrderedProducts() {
         return this.orderService.getRecentOrders();
+    }
+
+    loadOrdersMonthlyStatistics() {
+        return this.orderService.getMonthlyOrders();
+    }
+
+    loadPurchasesMonthlyStatistics() {
+        return this.purchaseService.getMonthlyOrders();
+    }
+
+    loadExpensesMonthlyStatistics() {
+        return this.expenseService.getMonthlyOrders();
     }
 
     getProducts() {
@@ -447,24 +576,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
     getCustomMessage(notification: Notification): string {
         let notificationTitles = ["product in low stock", "product is out of stock"]
 
-        if (notificationTitles.includes(notification.title)){
-        // Extract product name
-        const productNameMatch = notification.message.match(/\(([^)]+)\)/);
-        return productNameMatch ? productNameMatch[1] : null;        
-      }
-      return notification.message;
+        if (notificationTitles.includes(notification.title)) {
+            // Extract product name
+            const productNameMatch = notification.message.match(/\(([^)]+)\)/);
+            return productNameMatch ? productNameMatch[1] : null;
+        }
+        return notification.message;
     }
 
     async onGetCurrecy() {
-        await this.configService.getConfigurationValue('currency')
-          .subscribe({
-            next: (response: any) => {
-              this.currency = response;
-              console.log(this.currency)
-            },
-            error: (err: any) => {
-              console.log(err)
-            }
-          })
-      }
+        await (await this.configService.getConfigurationValue('currency'))
+            .subscribe({
+                next: (response: any) => {
+                    this.currency = response;
+                    console.log(this.currency)
+                },
+                error: (err: any) => {
+                    console.log(err)
+                }
+            })
+    }
 }

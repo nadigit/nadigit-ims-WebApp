@@ -24,6 +24,8 @@ import { StepsModule } from 'primeng/steps';
 import { PickListModule } from 'primeng/picklist';
 import { ChipModule } from 'primeng/chip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { MultiSelectModule } from 'primeng/multiselect';
+import { TooltipModule } from 'primeng/tooltip';
 
 
 @NgModule({
@@ -50,7 +52,9 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
         StepsModule,
         PickListModule,
         ChipModule,
-        ProgressSpinnerModule
+        ProgressSpinnerModule,
+        MultiSelectModule,
+        TooltipModule
     ],
     declarations: [UsersComponent],
     providers: [ReportingService],

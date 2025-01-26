@@ -5,7 +5,7 @@ import { AuthGuard } from 'src/app/guards/auth.guard';
 
 @NgModule({
     imports: [RouterModule.forChild([
-        { path: '', component: DashboardComponent, canActivate:[AuthGuard], data : { roles:['ADMIN', 'USER']} }
+        { path: '', component: DashboardComponent, canActivate:[AuthGuard], data : { roles:['ADMIN', 'VENDOR','WAREHOUSEMAN']} }
     ])],
     exports: [RouterModule]
 })

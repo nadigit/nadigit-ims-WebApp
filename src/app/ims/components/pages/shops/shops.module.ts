@@ -18,6 +18,9 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { DialogModule } from 'primeng/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { ReportingService } from 'src/app/utils/reporting.service';
+import { CalendarModule } from 'primeng/calendar';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TooltipModule } from 'primeng/tooltip';
 
 
 @NgModule({
@@ -38,7 +41,10 @@ import { ReportingService } from 'src/app/utils/reporting.service';
         RadioButtonModule,
         InputNumberModule,
         DialogModule,
-        TranslateModule
+        TranslateModule,
+        CalendarModule,
+        ProgressSpinnerModule,
+        TooltipModule
     ],
     declarations: [ShopsComponent],
     providers: [ReportingService],

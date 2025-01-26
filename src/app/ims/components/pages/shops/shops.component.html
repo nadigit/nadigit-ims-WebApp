@@ -5,23 +5,27 @@
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
-                        <button pButton pRipple label="{{'new_button' | translate}}" icon="pi pi-plus" class="p-button-success mr-2"
-                            (click)="openNew()"></button>
-                        <button pButton pRipple label="{{'delete_button' | translate}}" icon="pi pi-trash" class="p-button-danger"
-                            (click)="deleteSelectedShops()"
+                        <button pButton pRipple *ngIf="canAddShop" label="{{'new_button' | translate}}"
+                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()" pTooltip="{{'add_new_shop'|translate}}"></button>
+                        <button pButton pRipple *ngIf="canDeleteShop" label="{{'delete_button' | translate}}"
+                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedShops()" pTooltip="{{'delete_shop'|translate}}"
                             [disabled]="!selectedShops || !selectedShops.length"></button>
                     </div>
                 </ng-template>
 
                 <ng-template pTemplate="right">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" 
-                        pTooltip="PDF" tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" 
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
                         class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
                 </ng-template>
             </p-toolbar>
 
-            <p-table #dt [value]="shops" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="shops" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
                 [globalFilterFields]="['shopName','description','address','country','city']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
@@ -31,8 +35,8 @@
                         <h5 class="m-0">{{'shops_page_title' | translate}}</h5>
                         <span class="block mt-2 md:mt-0 p-input-icon-left">
                             <i class="pi pi-search"></i>
-                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="{{ 'search_label' | translate }}"
-                                class="w-full sm:w-auto" />
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
                         </span>
                     </div>
                 </ng-template>
@@ -41,10 +45,14 @@
                         <th style="width: 3rem">
                             <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
                         </th>
-                        <th pSortableColumn="shopName">{{ 'shop_name' | translate }}<p-sortIcon field="shopName"></p-sortIcon></th>
-                        <th pSortableColumn="description">{{ 'shop_description' | translate }}<p-sortIcon field="description"></p-sortIcon></th>
-                        <th pSortableColumn="address">{{ 'shop_address' | translate }}<p-sortIcon field="address"></p-sortIcon></th>
-                        <th pSortableColumn="location">{{ 'shop_location' | translate }}<p-sortIcon field="location"></p-sortIcon></th>
+                        <th pSortableColumn="shopName">{{ 'shop_name' | translate }}<p-sortIcon
+                                field="shopName"></p-sortIcon></th>
+                        <th pSortableColumn="description">{{ 'shop_description' | translate }}<p-sortIcon
+                                field="description"></p-sortIcon></th>
+                        <th pSortableColumn="address">{{ 'shop_address' | translate }}<p-sortIcon
+                                field="address"></p-sortIcon></th>
+                        <th pSortableColumn="location">{{ 'shop_location' | translate }}<p-sortIcon
+                                field="location"></p-sortIcon></th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -54,7 +62,7 @@
                             <p-tableCheckbox [value]="shop"></p-tableCheckbox>
                         </td>
 
-                        <td >
+                        <td>
                             <span class="p-column-title">{{ 'shop_name' | translate }}</span>
                             {{shop.shopName ? shop.shopName : 'N/A'}}
                         </td>
@@ -72,37 +80,47 @@
                         </td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2"
-                                    (click)="editShop(shop)"></button>
-                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="deleteShop(shop)"></button>
+                                <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditShop" pTooltip="{{'update_shop'|translate}}"
+                                    class="p-button-rounded p-button-success mr-2" (click)="editShop(shop)"></button>
+                                <button pButton pRipple *ngIf="canDeleteShop" icon="pi pi-trash" pTooltip="{{'delete_shop'|translate}}"
+                                    class="p-button-rounded p-button-warning mr-2" (click)="deleteShop(shop)"></button>
+                                <button pButton pRipple *ngIf="canReadCash" icon="pi pi-dollar"
+                                    class="p-button-rounded p-button-primary" pTooltip="{{'cash_register_history'|translate}}"
+                                    (click)="openCashRegisterDialog(shop)"></button>
                             </div>
                         </td>
                     </tr>
                 </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_shops' | translate}} {{shops ? shops.length : 0 }}.
+                    </div>
+                </ng-template>
             </p-table>
         </div>
 
-        <p-dialog [(visible)]="shopDialog" [style]="{width: '450px', height: '100%'}" header="{{ 'shop_details' | translate }}" [modal]="true"
-            class="p-fluid ">
+        <p-dialog [(visible)]="shopDialog" [style]="{width: '450px', height: '100%'}"
+            header="{{ 'shop_details' | translate }}" [modal]="true" class="p-fluid ">
             <ng-template pTemplate="content">
                 <div class="field">
-                    <label for="name">{{ 'shop_name' | translate }}</label>
-                    <input type="text" pInputText name="name" ngDefaultControl [(ngModel)]="shop.shopName" required autofocus
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !shop.name}" />
-                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !shop.name">{{ 'shop_name' | translate }} {{ 'is_required_label' | translate }}</small>
+                    <label for="name">{{ 'shop_name' | translate }} <span class="required-asterisk">*</span></label>
+                    <input type="text" pInputText name="name" ngDefaultControl [(ngModel)]="shop.shopName" required
+                        autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !shop.name}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !shop.name">{{ 'shop_name' | translate }} {{
+                        'is_required_label' | translate }}</small>
                 </div>
                 <div class="field">
                     <label for="description">{{ 'shop_description' | translate }}</label>
-                    <input type="description" pInputText name="description" ngDefaultControl [(ngModel)]="shop.description" autofocus/>
+                    <input type="description" pInputText name="description" ngDefaultControl
+                        [(ngModel)]="shop.description" autofocus />
                 </div>
 
-                <div class="field" >
+                <div class="field">
                     <label for="country">{{ 'shop_country' | translate }}</label>
-                    <p-dropdown [(ngModel)]="shop.country" (onChange)="onSelectedCountry(shop.country)" name="country" inputId="country" 
-                    ngDefaultControl [options]="countries" optionValue="name" optionLabel="name" [filter]="true" filterBy="name" 
-                    placeholder="{{ 'select_country_option' | translate }}" autofocus >
+                    <p-dropdown [(ngModel)]="shop.country" (onChange)="onSelectedCountry(shop.country)" name="country"
+                        inputId="country" ngDefaultControl [options]="countries" optionValue="name" optionLabel="name"
+                        [filter]="true" filterBy="name" placeholder="{{ 'select_country_option' | translate }}"
+                        autofocus>
                         <ng-template pTemplate="selectedItem">
                             <span *ngIf="shop && shop.country" [class]="'product-badge'">{{shop.country}}</span>
                         </ng-template>
@@ -114,9 +132,9 @@
 
                 <div class="field" *ngIf="shop.country">
                     <label for="city">{{ 'shop_city' | translate }}</label>
-                    <p-dropdown [(ngModel)]="shop.city" name="city" inputId="city" ngDefaultControl 
-                    optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="this.states" 
-                    placeholder="{{ 'select_city_option' | translate }}" autofocus>
+                    <p-dropdown [(ngModel)]="shop.city" name="city" inputId="city" ngDefaultControl optionValue="name"
+                        optionLabel="name" [filter]="true" filterBy="name" [options]="this.states"
+                        placeholder="{{ 'select_city_option' | translate }}" autofocus>
                         <ng-template pTemplate="selectedItem">
                             <span *ngIf="shop && shop.city" [class]="'product-badge'">{{shop.city}}</span>
                         </ng-template>
@@ -128,21 +146,26 @@
 
                 <div class="field">
                     <label for="Address">{{ 'shop_address' | translate }}</label>
-                    <textarea rows="3" cols="20" [(ngModel)]="shop.address" name="address" placeholder="{{ 'shop_address' | translate }}" ngDefaultControl pInputTextarea autofocus
-                    ></textarea>
-                </div>       
-
+                    <textarea rows="3" cols="20" [(ngModel)]="shop.address" name="address"
+                        placeholder="{{ 'shop_address' | translate }}" ngDefaultControl pInputTextarea
+                        autofocus></textarea>
+                </div>
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                        translate}}</small>
+                </div>
             </ng-template>
 
             <ng-template pTemplate="footer">
-                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text"
-                    (click)="hideDialog()"></button>
+                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                    class="p-button-text" (click)="hideDialog()"></button>
                 <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
                     (click)="saveShop()"></button>
             </ng-template>
         </p-dialog>
 
-        <p-dialog [(visible)]="deleteShopDialog" header="{{ 'confirm_label' | translate }}" [modal]="true" [style]="{width:'450px'}">
+        <p-dialog [(visible)]="deleteShopDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span *ngIf="shop">{{'delete_confirmation_msg_with_param' | translate}} <b>{{shop.shopName}}</b>?</span>
@@ -155,7 +178,8 @@
             </ng-template>
         </p-dialog>
 
-        <p-dialog [(visible)]="deleteShopsDialog" header="{{ 'confirm_label' | translate }}" [modal]="true" [style]="{width:'450px'}">
+        <p-dialog [(visible)]="deleteShopsDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span>{{'delete_selected_confirmation_msg' | translate}}</span>
@@ -167,5 +191,130 @@
                     (click)="confirmDeleteSelected()"></button>
             </ng-template>
         </p-dialog>
+
+        <p-dialog [(visible)]="cashRegisterDialog" header="{{ 'cash_register' | translate }}: {{ shop.shopName }}"
+            [modal]="true" [style]="{width: '80%', height: '100%'}">
+
+            <!-- Custom Header with Settings Button -->
+            <ng-template pTemplate="header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h5 style="margin: 0;">{{ 'cash_register' | translate }}: {{ shop.shopName }}</h5>
+                    <button 
+                        pButton 
+                        pRipple 
+                        icon="pi pi-cog" 
+                        class="p-button-rounded p-button-info p-button-text" 
+                        (click)="openSettingsDialog()" 
+                        style="margin-left: auto; size: 4rem;">
+                    </button>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="content">
+                <div class="flex flex-column gap-2 mx-auto">
+					<div class="text-center mt-3 mb-3 text-xl font-semibold">
+						{{ 'current_today_cash_register_amount' | translate}}: <span class="text-900 font-medium">{{cashRegister.totalBalance}}</span> {{currency}}
+					</div>
+				</div>
+                <div class="p-fluid">
+                    <!-- Date filter -->
+                    <div class="calendar-container"
+                        style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                        <label for="balance_date" class="mb-3 h5">{{ 'filter_by_balance_date_range' | translate
+                            }}</label>
+                        <div class="flex-row"
+                            style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+                            <p-calendar [(ngModel)]="startDate" [showIcon]="true" inputId="start_date"
+                                (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy" [showOnFocus]="false"
+                                [style]="{flex: 1, minWidth: '250px', height: '40px'}"
+                                placeholder="{{ 'start_date' | translate }}" />
+                            <p-calendar [(ngModel)]="endDate" [showIcon]="true" inputId="end_date"
+                                (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy" [showOnFocus]="false"
+                                [style]="{flex: 1, minWidth: '250px', height: '40px'}"
+                                placeholder="{{ 'end_date' | translate }}" />
+                        </div>
+                    </div>
+
+                    <!-- Check if there are daily balances -->
+                    <div *ngIf="filteredBalances.length > 0; else noDataTemplate">
+                        <p-table [value]="filteredBalances" [rows]="10" [paginator]="true" responsiveLayout="scroll">
+                            <ng-template pTemplate="header">
+                                <tr>
+                                    <th>{{ 'balance_date' | translate }}</th>
+                                    <th>{{ 'opening_balance' | translate }}</th>
+                                    <th>{{ 'closing_balance' | translate }}</th>
+                                    <th>{{ 'daily_difference' | translate }}</th>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="body" let-balance>
+                                <tr>
+                                    <td>{{ balance.balanceDate | date }}</td>
+                                    <td>{{ balance.openingBalance + currency }}</td>
+                                    <td>{{ balance.closingBalance + currency }}</td>
+                                    <td>{{ balance.dailyDifference + currency }}</td>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="footer">
+                                <tr>
+                                    <td colspan="3" class="text-right">{{ 'total_daily_difference' | translate }}</td>
+                                    <td>{{ totalDailyDifference + currency }}</td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
+
+                    <!-- Template to display when no data is available -->
+                    <ng-template #noDataTemplate>
+                        <p>{{ 'no_results_found' | translate }}</p>
+                    </ng-template>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="Close" icon="pi pi-times" (click)="cashRegisterDialog = false"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="cashRegisterSettingsDialog" [style]="{width: '450px', height: '60%'}"
+            header="{{ 'cash_register_details' | translate }}" [modal]="true" class="p-fluid ">
+            <ng-template pTemplate="content">
+                <div class="field">
+                    <label for="openingTime">{{ 'cash_register_opening_time' | translate }} <span class="required-asterisk">*</span></label>
+                        <p-calendar 
+                        name="openingTime"
+                        inputId="calendar-timeonly"  [readonlyInput]="true"
+                        [(ngModel)]="cashRegister.openingTime" ngDefaultControl
+                        [timeOnly]="true" required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !cashRegister.openingTime}"/>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !cashRegister.openingTime">{{ 'cash_register_opening_time' | translate }} {{
+                        'is_required_label' | translate }}</small>
+                </div>
+
+                <div class="field">
+                    <label for="closingTime">{{ 'cash_register_closing_time' | translate }} <span class="required-asterisk">*</span></label>
+                        <p-calendar 
+                        name="closingTime"
+                        inputId="calendar-timeonly" [readonlyInput]="true"
+                        [(ngModel)]="cashRegister.closingTime" ngDefaultControl
+                        [timeOnly]="true" required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !cashRegister.closingTime}"/>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !cashRegister.closingTime">{{ 'cash_register_closing_time' | translate }} {{
+                        'is_required_label' | translate }}</small>
+                </div>
+
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                        translate}}</small>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                    class="p-button-text" (click)="hideSettingsDialog()"></button>
+                <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
+                    (click)="updateCashRegister()"></button>
+            </ng-template>
+        </p-dialog>
+
+
+
     </div>
 </div>

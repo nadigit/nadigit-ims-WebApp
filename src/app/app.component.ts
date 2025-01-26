@@ -22,6 +22,11 @@ export class AppComponent implements OnInit {
             ) { }
 
     async ngOnInit() {
+
+        console.log('KC Host:', (window as any).__env.kcHost);
+    console.log('API Protocol:', (window as any).__env.apiProtocol);
+    console.log('API Host:', (window as any).__env.apiHost);
+    console.log('API Port:', (window as any).__env.apiPort);
         this.primengConfig.ripple = true;
 
         // Set language based on user preference (example)
@@ -30,6 +35,7 @@ export class AppComponent implements OnInit {
         const authenticated = await this.keycloakService.isLoggedIn();
         if (authenticated) {
             this.profile = await this.keycloakService.loadUserProfile();
+            console.log(this.keycloakService.getToken)
             if (this.keycloakService.isTokenExpired()) {
                 this.logOut();
             } else {

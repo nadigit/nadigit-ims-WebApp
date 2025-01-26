@@ -1,0 +1,8 @@
+.required-asterisk {
+    color: red; /* Makes the asterisk red */
+    margin-left: 2px; /* Adds a small space between text and asterisk */
+}
+.required-note {
+    margin-top: 1rem;
+    color: #666; /* Optional: style to match your app's design */
+}

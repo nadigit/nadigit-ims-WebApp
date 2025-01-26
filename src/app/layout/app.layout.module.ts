@@ -11,7 +11,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 import { RippleModule } from 'primeng/ripple';
 import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
-
+import { AppConfigModule } from './config/config.module';
 import { AppMenuComponent } from './app.menu.component';
 import { AppMenuitemComponent } from './app.menuitem.component';
 import { RouterModule } from '@angular/router';
@@ -52,7 +52,8 @@ import { TranslateModule } from '@ngx-translate/core';
         TieredMenuModule,
         MenuModule,
         ButtonModule,
-        TranslateModule
+        TranslateModule,
+        AppConfigModule
     ],
     exports: [AppLayoutComponent]
 })

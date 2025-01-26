@@ -1,37 +1,65 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
+import { environment } from 'src/environments/environment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ShopService {
+  jwt: string | undefined;
+  // host2:string= environment.apiUrl;
+  schema: string = '/organizations/shops';
+  apiProtocol: string = (window as any).__env.apiProtocol || 'http';
+  apiHost: string = (window as any).__env.apiHost || 'localhost';
+  apiPort: string = (window as any).__env.apiPort || '8090';
 
-  jwt: any;
-  host2:string= "http://localhost:8090";
-  schema: string = "/organizations/shops";
-  
-  
+  constructor(private http: HttpClient, public keycloakService: KeycloakService) {}
 
-  constructor(private http: HttpClient, public keycloakService: KeycloakService) { }
-
-  loadToken(){
-    this.jwt = this.keycloakService.getToken();
+  // Ensure that the token is loaded before calling the backend
+  async loadToken(): Promise<void> {
+    this.jwt = await this.keycloakService.getToken();
   }
 
+  // Example for saving a shop, the same approach applies to other methods
   saveShop(data: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.host2+this.schema, data, {headers:headers})
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema, data, { headers });
   }
+
   updateShop(id: any, supplier: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.host2+this.schema+'/'+id , supplier, {headers:headers});
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id, supplier, { headers });
   }
+
   deleteShop(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.host2+this.schema+'/'+id,{headers:headers});
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id, { headers });
   }
+
   getShops() {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema,{headers:headers});
-  }}
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema, { headers });
+  }
+
+  getShop(id:number) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id, { headers });
+  }
+
+  fetchCashRegisterData(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id + '/daily-balance', { headers });
+  }
+
+  getCashRegister(shopId: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + shopId + '/cash-register', { headers });
+  }
+
+  updateCashRegister(shopId: any, cashRegister: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + shopId + '/cash-register', cashRegister, { headers });
+  }
+
+}

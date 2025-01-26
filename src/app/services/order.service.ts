@@ -1,6 +1,8 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
+import { Observable } from 'rxjs';
+import { environment } from 'src/environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -8,8 +10,11 @@ import { KeycloakService } from 'keycloak-angular';
 export class OrderService {
 
   jwt: any;
-  host2:string= "http://localhost:8090";
+  // host2:string= environment.apiUrl;
   schema: string = "/orders/";
+  apiProtocol: string = (window as any).__env.apiProtocol || 'http';
+  apiHost: string = (window as any).__env.apiHost || 'localhost';
+  apiPort: string = (window as any).__env.apiPort || '8090';
 
   constructor(private http: HttpClient, public keycloakService: KeycloakService) { }
 
@@ -19,42 +24,67 @@ export class OrderService {
 
   saveOrder(data: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.host2+this.schema, data, {headers:headers})
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
   }
   updateOrder(id: any, order: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.host2+this.schema+id , order, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , order, {headers:headers});
   }
   deleteOrder(id: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.host2+this.schema+id,{headers:headers});
+    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers});
   }
   getOrders() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema,{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
+  }
+  getDeliveredOrders() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'delivered',{headers:headers});
   }
   getTodayOrders() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema + 'today',{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'today',{headers:headers});
   }
   get5TopProducts() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema + 'recent-top-products',{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'recent-top-products',{headers:headers});
   }
   getRecentOrders(){
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema + 'recent-products-sold',{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'recent-products-sold',{headers:headers});
+  }
+
+  getMonthlyOrders() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'monthly',{headers:headers});
   }
 
   getTotalOrderedProducts() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.host2 + this.schema + 'total-ordered-products',{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'total-ordered-products',{headers:headers});
   }
-
-  
 
   updateOrderStatus(id: any, order: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.host2+this.schema+id+"/order_status" , order, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema+id+"/order_status" , order, {headers:headers});
   }
+
+  processReturn(orderId: number, returnedItems: any, reason: string, notes: string | null): Observable<any> {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    // Build the query parameters
+    let params = new HttpParams()
+        .set('reason', reason);
+
+    if (notes) {
+        params = params.set('notes', notes);
+    }
+    return this.http.post<any>(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema+orderId+"/returns" , returnedItems, {headers:headers, params: params});
+  }
+
+  getOrdersReturns(id: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema+id+"/returns", {headers:headers});
+  }
+
 }

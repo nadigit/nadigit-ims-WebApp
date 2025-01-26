@@ -10,7 +10,7 @@ import { AuthGuard } from './guards/auth.guard';
             {
                 path: '', component: AppLayoutComponent,
                 children: [
-                    { path: '', loadChildren: () => import('./ims/components/dashboard/dashboard.module').then(m => m.DashboardModule), canActivate:[AuthGuard], data : { roles: ['ADMIN']} },
+                    { path: '', loadChildren: () => import('./ims/components/dashboard/dashboard.module').then(m => m.DashboardModule), canActivate:[AuthGuard], data : { roles: ['ADMIN','VENDOR','WAREHOUSEMAN']} },
                     { path: 'pages', loadChildren: () => import('./ims/components/pages/pages.module').then(m => m.PagesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR','WAREHOUSEMAN']} }
                 ]
             },

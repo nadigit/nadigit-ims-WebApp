@@ -7,12 +7,17 @@ import { SupplierService } from 'src/app/services/supplier.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
+import { PermissionService } from 'src/app/services/permission.service';
+import { KeycloakService } from 'keycloak-angular';
 
 @Component({
   templateUrl: './suppliers.component.html',
+  styleUrls: ['../pages.component.css'],
   providers: [MessageService]
 })
 export class SuppliersComponent implements OnInit {
+
+  Ressource : string = 'SUPPLIERS';
 
   supplierDialog: boolean = false;
 
@@ -44,26 +49,33 @@ export class SuppliersComponent implements OnInit {
 
   exportColumns!: ExportColumn[];
 
+  canAddSupplier: boolean = false;
+  canEditSupplier: boolean = false;
+  canDeleteSupplier: boolean = false;
+  isLoading: boolean = true;
   constructor(private messageService: MessageService,
     private supplierService: SupplierService,
     private reportingService: ReportingService,
     private translate: TranslateService,
-    private translateService: TranslationService) { }
+    private translateService: TranslationService,
+    private permissionService: PermissionService,
+    public keycloakService: KeycloakService,) { }
 
-  ngOnInit() {
+  async ngOnInit() {
+    this.isLoading=true;
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
     this.onGetAllSuppliers();
-
+    await this.checkPermissions();
     this.cols = [
-      { field: 'supplierId', header: 'ID' },
-      { field: 'name', header: 'Name' },
-      { field: 'email', header: 'Email' },
-      { field: 'phoneNumber', header: 'Phone Number' },
-      { field: 'country', header: 'Country' },
-      { field: 'city', header: 'City' },
-      { field: 'address', header: 'Address' },
+      { field: 'supplierId', header: this.translateService.instant('ID') },
+      { field: 'name', header: this.translateService.instant('supplier_name') },
+      { field: 'email', header: this.translateService.instant('supplier_email') },
+      { field: 'phoneNumber', header: this.translateService.instant('supplier_phone_number') },
+      { field: 'country', header: this.translateService.instant('supplier_country') },
+      { field: 'city', header: this.translateService.instant('supplier_city') },
+      { field: 'address', header: this.translateService.instant('supplier_address') },
     ];
 
     this.statuses = [
@@ -74,12 +86,24 @@ export class SuppliersComponent implements OnInit {
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
   }
 
+  async checkPermissions() {
+    const profile = await this.keycloakService.loadUserProfile();
+    const userId = profile.id; // Fetch user ID
+
+    await this.permissionService.init(userId).toPromise(); // Initialize permissions
+    this.canAddSupplier = this.permissionService.canCreate(this.Ressource);
+    this.canEditSupplier = this.permissionService.canUpdate(this.Ressource);
+    this.canDeleteSupplier = this.permissionService.canDelete(this.Ressource);
+
+  }
 
   deleteSelectedSuppliers() {
+    if (!this.canDeleteSupplier) return;
     this.deleteSuppliersDialog = true;
   }
 
   editSupplier(supplier: Supplier) {
+    if (!this.canEditSupplier) return;
     this.selectedCountry = {};
     this.supplier = { ...supplier };
     this.supplierDialog = true;
@@ -87,6 +111,7 @@ export class SuppliersComponent implements OnInit {
   }
 
   deleteSupplier(supplier: Supplier) {
+    if (!this.canDeleteSupplier) return;
     this.deleteSupplierDialog = true;
     this.supplier = { ...supplier };
   }
@@ -112,6 +137,7 @@ export class SuppliersComponent implements OnInit {
   }
 
   openNew() {
+    if (!this.canAddSupplier) return;
     this.selectedCountry = {};
     this.supplier = {};
     this.submitted = false;
@@ -129,6 +155,10 @@ export class SuppliersComponent implements OnInit {
       this.suppliers = [...this.suppliers];
       this.supplierDialog = false;
       this.supplier = {};
+    }
+    else{
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      return;
     }
   }
 
@@ -172,6 +202,9 @@ export class SuppliersComponent implements OnInit {
         },
         error: (err: any) => {
           console.error(err)
+        },
+        complete: () =>{
+          this.isLoading=false;
         }
       })
   }

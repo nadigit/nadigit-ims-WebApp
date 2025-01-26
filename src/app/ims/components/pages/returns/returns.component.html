@@ -1,0 +1,429 @@
+<div class="grid">
+	<div class="col-12">
+		<div class="card px-6 py-6">
+			<p-toast></p-toast>
+			<p-toolbar styleClass="mb-4">
+				<ng-template pTemplate="left">
+					<div class="my-2">
+						<button pButton pRipple *ngIf="canAddReturn" label="{{ 'new_button' | translate }}"
+							icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+							pTooltip="{{'add_new_return'|translate}}"></button>
+						<button pButton pRipple *ngIf="canDeleteReturn" label="{{ 'delete_button' | translate }}"
+							icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedReturns()"
+							pTooltip="{{'delete_return'|translate}}"
+							[disabled]="!selectedReturns || !selectedReturns.length"></button>
+					</div>
+				</ng-template>
+
+				<ng-template pTemplate="right">
+					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+						tooltipPosition="bottom" (click)="exportPdf()"></button>
+					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+						class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+				</ng-template>
+			</p-toolbar>
+
+			<div class="card flex justify-content-center" *ngIf="isLoading">
+				<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+			</div>
+
+			<p-table #dt [value]="returns" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+				[globalFilterFields]="['quantity','productDetails','customer.firstName','customer.lastName','orderDate','shop.shopName']"
+				[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+				[(selection)]="selectedReturns" selectionMode="multiple" [rowHover]="true" dataKey="returnId"
+				[expandedRowKeys]="expandedRows">
+				<ng-template pTemplate="caption" *ngIf="!isLoading">
+					<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+						<h5 class="m-0">{{ 'returns_page_title' | translate }}</h5>
+						<span class="block mt-2 md:mt-0 p-input-icon-left">
+							<i class="pi pi-search"></i>
+							<input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+								placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
+						</span>
+					</div>
+				</ng-template>
+				<ng-template pTemplate="header">
+					<tr>
+						<th style="width: 3rem">
+							<p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+						</th>
+						<th style="width: 3rem"></th>
+						<th pSortableColumn="returnId">{{ 'return_id' | translate }} <p-sortIcon
+								field="returnId"></p-sortIcon></th>
+						<th pSortableColumn="returnDate">{{ 'return_date' | translate }}
+							<p-columnFilter type="date" field="returnDate" display="menu" />
+							<p-sortIcon field="returnDate"></p-sortIcon>
+						</th>
+						<th pSortableColumn="refundAmount">{{ 'return_refund_amount' | translate }} <p-sortIcon
+								field="refundAmount"></p-sortIcon>
+						</th>
+						<th pSortableColumn="refundAmount">{{ 'return_customer' | translate }} <p-sortIcon
+							field="refundAmount"></p-sortIcon>
+					</th>
+						<th></th>
+					</tr>
+				</ng-template>
+				<ng-template pTemplate="body" let-return let-expanded="expanded">
+					<tr>
+						<td>
+							<p-tableCheckbox [value]="return"></p-tableCheckbox>
+						</td>
+
+						<td>
+							<button type="button" pButton pRipple class="p-button-text p-button-rounded p-button-plain"
+								[icon]="isRowExpanded(return.returnId) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+								(click)="toggleRow(return.returnId)"></button>
+						</td>
+						<td style="min-width:10rem;">
+							<span class="p-column-title">{{ 'return_id' | translate }}</span>
+							{{ return.returnId ? return.returnId : 'N/A'}}
+						</td>
+						<td style="min-width:10rem;">
+							<span class="p-column-title">{{ 'return_date' | translate }}</span>
+							{{ return.returnDate | date: 'shortDate' }} {{ return.returnDate | date: 'shortTime' }}
+						</td>
+						<td style="min-width:10rem;" class="font-bold">
+							<span class="p-column-title">{{ 'return_refund_amount' | translate }}</span>
+							{{return.refundAmount | currency:currency:'symbol':'1.2-2'}}
+						</td>
+						<td style="min-width:10rem;">
+							<span class="p-column-title">{{ 'return_customer' | translate }}</span>
+							{{ return.order.customer ? return.order.customer.firstName + " " + return.order.customer.lastName : 'N/A'}}
+						</td>
+						<td>
+							<div class="flex">
+								<!-- <button pButton pRipple
+									*ngIf="canEditReturn"
+									icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2"
+									(click)="editReturn(return)" pTooltip="{{'update_return'|translate}}"></button> -->
+								<button pButton pRipple
+									*ngIf="canDeleteReturn"
+									icon="pi pi-trash" class="p-button-rounded p-button-warning mr-2"
+									pTooltip="{{'delete_return'|translate}}" (click)="deleteReturn(return)"></button>
+								<!-- <button pButton pRipple icon="pi pi-print" class="p-button-rounded p-button-danger"
+									(click)="downloadInvoice(order.orderId)"></button> -->
+							</div>
+						</td>
+					</tr>
+				</ng-template>
+
+				<ng-template pTemplate="rowexpansion" let-return>
+					<tr>
+						<td colspan="10">
+							<div class="p-3">
+								<p-table [value]="return.returnItems" dataKey="returnItemId" responsiveLayout="scroll">
+									<ng-template pTemplate="header">
+					<tr>
+						<th>{{ 'product_image' | translate }}</th>
+						<th>{{ 'product_name' | translate }}</th>
+						<th>{{ 'quantity_returned' | translate }}</th>
+						<th>{{ 'return_refund_amount' | translate }}</th>
+						<th style="width: 4rem"></th>
+					</tr>
+				</ng-template>
+				<ng-template pTemplate="body" let-returnItem>
+					<tr>
+						<td><img [src]="returnItem?.product?.productImage" [alt]="returnItem.product.name" width="60"
+								class="shadow-4" /></td>
+						<td>{{returnItem.product?.name ? returnItem.product?.name : 'N/A'}}</td>
+						<td>{{returnItem.returnedQuantity ? returnItem.returnedQuantity : 'N/A'}}</td>
+						<td>
+							<ng-container
+								*ngIf="returnItem.refundAmount!== null && returnItem.refundAmount !== undefined; else notAvailable">
+								{{ returnItem.refundAmount | currency:currency:'symbol':'1.2-2' }}
+							</ng-container>
+							<ng-template #notAvailable>N/A</ng-template>
+						</td>
+						<td><p-button type="button" icon="pi pi-search" routerLink="/pages/products"></p-button></td>
+					</tr>
+
+				</ng-template>
+
+				<ng-template pTemplate="emptymessage">
+					<tr>
+						<td colspan="6">{{ 'no_products_msg' | translate }}</td>
+					</tr>
+				</ng-template>
+			</p-table>
+		</div>
+		</td>
+		</tr>
+		</ng-template>
+		<ng-template pTemplate="summary">
+			<div class="flex align-items-center justify-content-between">
+				{{'total_returns' | translate}} {{returns ? returns.length : 0 }}.
+			</div>
+		</ng-template>
+		</p-table>
+
+	</div>
+
+	<p-dialog [(visible)]="returnDialog" [style]="{width: '80%', height: '110%'}"
+		header="{{ 'return_details' | translate }}" [modal]="true" class="p-fluid ">
+		<ng-template pTemplate="content">
+
+			<div class="field" style="position: relative;">
+				<label for="order">
+					{{ 'return_order' | translate }} <span class="required-asterisk">*</span>
+				</label>
+
+				<p-dropdown [(ngModel)]="return.order" name="order" inputId="order" id="order" ngDefaultControl
+					optionLabel="orderId" [options]="orders" required autofocus
+					placeholder="{{ 'select_order_option' | translate }}" [filter]="true" filterBy="orderId"
+					[ngClass]="{'ng-invalid ng-dirty' : submitted && !return.order}" (click)="initializePickList()">
+					<ng-template pTemplate="selectedItem">
+						<span *ngIf="return && return.order" [class]="'product-badge'">{{'return_order'|translate}} {{return.order.orderId}}</span>
+					</ng-template>
+					<ng-template let-option pTemplate="item">
+						<span [class]="'product-badge'">{{'return_order'|translate}} {{option.orderId}}</span>
+					</ng-template>
+				</p-dropdown>
+				<small class="ng-dirty ng-invalid" *ngIf="submitted && !return.order">{{'return_order' |
+					translate}} {{'is_required_label' | translate}}</small>
+			</div>
+
+			<div class="field" *ngIf="return.order">
+				<label for="returnItems">
+					{{ 'order_products' | translate }} <span class="required-asterisk">* </span>
+				</label>
+				<div class="card">
+					<div class="flex flex-column gap-2 mx-auto" *ngIf="targetProducts.length>0">
+						<div class="text-center mt-3 mb-3 text-xl font-semibold">
+							{{ 'selected_products_number' | translate }} :
+							<p-badge value="{{targetProducts.length}}" badgeSize="xlarge" severity="success" />
+						</div>
+					</div>
+					<p-pickList name="returnItems" [(ngModel)]="returnItems" ngDefaultControl [source]="sourceProducts"
+						[target]="targetProducts" sourceHeader="{{ 'order_available_products' | translate }}" required
+						targetHeader="{{ 'order_selected_products' | translate }}" [dragdrop]="true" [responsive]="true"
+						[sourceStyle]="{ height: '40rem' }" [targetStyle]="{ height: '40rem' }" filterBy="name"
+						sourceFilterPlaceholder="{{ 'search_label' | translate }}"
+						targetFilterPlaceholder="{{ 'search_label' | translate }}" breakpoint="1300px"
+						(onMoveToTarget)="onMoveToTarget($event)" disableDblClick>
+						<ng-template let-product pTemplate="item">
+							<div class="flex flex-wrap p-2 align-items-center gap-3">
+								<img class="w-4rem shadow-2 flex-shrink-0 border-round" [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+									[alt]="product.name" />
+								<div class="flex-1 flex flex-column gap-2">
+									<span class="font-bold">{{ product.name }}</span>
+									<div class="flex align-products-center gap-2">
+										<i class="pi pi-tag text-sm"></i>
+										<span>{{ product.category.categoryName }}</span>
+									</div>
+								</div>
+								<span class="font-bold text-900">{{currency}} {{product.sellingPrice }}</span>
+
+								<!-- Check if product is in targetProducts (selected) to show quantity and subTotal inputs -->
+								<ng-container *ngIf="targetProducts.includes(product)">
+									<div class="field">
+										<label for="returnItemQuantity">{{ 'quantity_returned' | translate }}</label>
+										<p-inputNumber name="returnItemQuantity" id="returnItemQuantity"
+											[(ngModel)]="product.returnItemQuantity" ngDefaultControl mode="decimal"
+											[showButtons]="true" [min]="1" [max]="product.quantityAvailable"
+											[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.returnItemQuantity}"
+											required autofocus></p-inputNumber>
+										<small class="ng-dirty ng-invalid"
+											*ngIf="submitted && !product.returnItemQuantity">{{ 'order_items_quantity' |
+											translate }} {{'is_required_label' | translate}}</small>
+									</div>
+									<div>
+										<label>{{'remaining_quantity' | translate}}</label>
+
+										<p-inputNumber [ngModel]="product.returnedQuantity - product.returnItemQuantity"
+											disabled> </p-inputNumber>
+									</div>
+									<div class="field">
+										<label for="returnItemPricePerUnit">{{ 'order_items_price_per_unit' | translate
+											}}</label>
+										<p-inputNumber name="returnItemPricePerUnit" id="returnItemPricePerUnit"
+											[(ngModel)]="product.returnItemPricePerUnit" ngDefaultControl mode="decimal"
+											[showButtons]="true" [min]="product.buyingPrice"
+											[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.returnItemPricePerUnit}"
+											required autofocus></p-inputNumber>
+										<small class="ng-dirty ng-invalid"
+											*ngIf="submitted && !product.returnItemPricePerUnit">{{
+											'order_items_price_per_unit' |
+											translate }} {{'is_required_label' | translate}}</small>
+									</div>
+								</ng-container>
+							</div>
+
+						</ng-template>
+					</p-pickList>
+				</div>
+
+				<div class="flex flex-column gap-2 mx-auto">
+					<div class="text-center mt-3 mb-3 text-xl font-semibold">
+						Total: <span class="text-900 font-medium">{{ calculateTotalAmount() | number:'1.2-2' }}</span>
+						{{currency}}
+					</div>
+				</div>
+
+				<div class="field">
+					<label for="returnReason" class="mt-2">
+						{{'return_reason' | translate}} <span class="required-asterisk">*</span>
+					</label>
+					<div class="flex flex-wrap gap-3">
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="DEFECTIVE" [(ngModel)]="return.reason"
+								ngDefaultControl inputId="returnReason1"></p-radioButton>
+							<label for="returnReason1" class="ml-2">{{'return_reason_defective' | translate}}</label>
+						</div>
+
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="INCORRECT_ITEM" [(ngModel)]="return.reason"
+								ngDefaultControl inputId="returnReason2"></p-radioButton>
+							<label for="returnReason2" class="ml-2">{{'return_reason_incorrect_item' |
+								translate}}</label>
+						</div>
+
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="CHANGE_OF_MIND" [(ngModel)]="return.reason"
+								ngDefaultControl inputId="returnReason3"></p-radioButton>
+							<label for="returnReason3" class="ml-2">{{'return_reason_change_of_mind' |
+								translate}}</label>
+						</div>
+
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="OTHER" [(ngModel)]="return.reason" ngDefaultControl
+								inputId="returnReason4"></p-radioButton>
+							<label for="returnReason4" class="ml-2">{{'return_reason_other' | translate}}</label>
+						</div>
+
+					</div>
+				</div>
+
+				<div class="field">
+					<label for="notes">{{ 'return_notes' | translate }}</label>
+					<textarea rows="3" cols="20" [(ngModel)]="return.notes" name="notes"
+						placeholder="{{ 'return_notes' | translate }}" pInputTextarea></textarea>
+				</div>
+
+			</div>
+
+			<div class="required-note">
+				<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+					translate}}</small>
+			</div>
+		</ng-template>
+
+		<ng-template pTemplate="footer">
+			<button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text"
+				(click)="hideDialog()"></button>
+			<button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
+				(click)="saveReturn()"></button>
+		</ng-template>
+	</p-dialog>
+
+	<p-dialog [(visible)]="deleteReturnDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+		[style]="{width:'450px'}">
+		<div class="flex align-items-center justify-content-center">
+			<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+			<span *ngIf="return">{{ 'delete_confirmation_msg_with_param' | translate }}
+				<b>{{return.returnId}}</b>?</span>
+		</div>
+		<ng-template pTemplate="footer">
+			<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+				(click)="deleteReturnDialog = false"></button>
+			<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+				(click)="confirmDelete()"></button>
+		</ng-template>
+	</p-dialog>
+
+	<p-dialog [(visible)]="deleteReturnsDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+		[style]="{width:'450px'}">
+		<div class="flex align-items-center justify-content-center">
+			<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+			<span>{{ 'delete_selected_confirmation_msg' | translate }}</span>
+		</div>
+		<ng-template pTemplate="footer">
+			<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+				(click)="deleteReturnsDialog = false"></button>
+			<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+				(click)="confirmDeleteSelected()"></button>
+		</ng-template>
+	</p-dialog>
+
+
+	<!-- <p-dialog [(visible)]="orderReturnDialog" [style]="{width: '80%', height: '100%'}"
+		header="{{'order_return' | translate}}" [modal]="true" class="p-fluid">
+
+		<ng-template pTemplate="content">
+			<div *ngIf="order">
+				<h3>{{ 'order_items' | translate }}</h3>
+				<p-table [value]="order.orderItems" [(selection)]="selectedItems">
+					<ng-template pTemplate="header">
+						<tr>
+							<th>{{ 'product_name' | translate }}</th>
+							<th>{{ 'quantity_ordered' | translate }}</th>
+							<th>{{ 'quantity_returned' | translate }}</th>
+							<th>{{ 'remaining_quantity' | translate }}</th>
+						</tr>
+					</ng-template>
+					<ng-template pTemplate="body" let-item let-i="rowIndex">
+						<tr>
+							<td>{{ item.product.name }}</td>
+							<td>{{ item.quantity }}</td>
+							<td>
+								<input pInputText type="number" [(ngModel)]="item.returnedQuantity" [min]="0"
+									[max]="item.quantity" (ngModelChange)="updateReturnedQuantity(item)">
+							</td>
+							<td>{{ item.quantity - (item.returnedQuantity || 0) }}</td>
+						</tr>
+					</ng-template>
+				</p-table>
+
+				<div class="field">
+					<label for="returnReason" class="mt-2">
+						{{'return_reason' | translate}} <span class="required-asterisk">*</span>
+					</label>
+					<div class="flex flex-wrap gap-3">
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="DEFECTIVE" [(ngModel)]="returnReason"
+								ngDefaultControl inputId="returnReason1"></p-radioButton>
+							<label for="returnReason1" class="ml-2">{{'return_reason_defective' | translate}}</label>
+						</div>
+
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="INCORRECT_ITEM" [(ngModel)]="returnReason"
+								ngDefaultControl inputId="returnReason2"></p-radioButton>
+							<label for="returnReason2" class="ml-2">{{'return_reason_incorrect_item' |
+								translate}}</label>
+						</div>
+
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="CHANGE_OF_MIND" [(ngModel)]="returnReason"
+								ngDefaultControl inputId="returnReason3"></p-radioButton>
+							<label for="returnReason3" class="ml-2">{{'return_reason_change_of_mind' |
+								translate}}</label>
+						</div>
+
+						<div class="flex align-items-center">
+							<p-radioButton name="returnReason" value="OTHER" [(ngModel)]="returnReason" ngDefaultControl
+								inputId="returnReason4"></p-radioButton>
+							<label for="returnReason4" class="ml-2">{{'return_reason_other' | translate}}</label>
+						</div>
+
+					</div>
+				</div>
+
+				<div class="field">
+					<label for="notes">{{ 'return_notes' | translate }}</label>
+					<textarea rows="3" cols="20" [(ngModel)]="returnNotes" name="address"
+						placeholder="{{ 'return_notes' | translate }}" pInputTextarea></textarea>
+				</div>
+			</div>
+		</ng-template>
+
+		<ng-template pTemplate="footer">
+			<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
+				(click)="hideOrderReturnDialog()"></button>
+			<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
+				(click)="saveOrderReturn()"></button>
+		</ng-template>
+	</p-dialog> -->
+
+
+</div>
+</div>

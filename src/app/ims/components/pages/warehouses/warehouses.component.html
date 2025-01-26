@@ -5,10 +5,10 @@
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
-                        <button pButton pRipple label="{{'new_button' | translate}}" icon="pi pi-plus" class="p-button-success mr-2"
+                        <button pButton pRipple *ngIf="canAddWarehouse" label="{{'new_button' | translate}}" icon="pi pi-plus" class="p-button-success mr-2"
                             (click)="openNew()"></button>
-                        <button pButton pRipple label="{{'delete_button' | translate}}" icon="pi pi-trash" class="p-button-danger"
-                            (click)="deleteSelectedWarehouses()"
+                        <button pButton pRipple *ngIf="canDeleteWarehouse" label="{{'delete_button' | translate}}" icon="pi pi-trash" class="p-button-danger"
+                            (click)="deleteSelectedWarehouses()" pTooltip="{{'delete_warehouse'|translate}}"
                             [disabled]="!selectedWarehouses || !selectedWarehouses.length"></button>
                     </div>
                 </ng-template>
@@ -21,7 +21,11 @@
                 </ng-template>
             </p-toolbar>
 
-            <p-table #dt [value]="warehouses" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+              </div>
+
+            <p-table #dt [value]="warehouses" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
                 [globalFilterFields]="['name','description','address','country','city','warehouseType']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
@@ -72,14 +76,19 @@
                         </td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2"
+                                <button pButton pRipple *ngIf="canEditWarehouse" icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-success mr-2" pTooltip="{{'update_warehouse'|translate}}"
                                     (click)="editWarehouse(warehouse)"></button>
-                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="deleteWarehouse(warehouse)"></button>
+                                <button pButton pRipple *ngIf="canDeleteWarehouse" icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                    (click)="deleteWarehouse(warehouse)" pTooltip="{{'delete_warehouse'|translate}}"></button>
                             </div>
                         </td>
                     </tr>
+                </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_warehouses' | translate}} {{warehouses ? warehouses.length : 0 }}.
+                    </div>
                 </ng-template>
             </p-table>
         </div>
@@ -131,7 +140,9 @@
                     <textarea rows="3" cols="20" [(ngModel)]="warehouse.address" name="address" placeholder="{{ 'warehouse_address' | translate }}" ngDefaultControl pInputTextarea autofocus
                     ></textarea>
                 </div>       
-
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' | translate}}</small>
+                </div> 
             </ng-template>
 
             <ng-template pTemplate="footer">

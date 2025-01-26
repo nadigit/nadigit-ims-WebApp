@@ -27,6 +27,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ImageModule } from 'primeng/image';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { TreeSelectModule } from 'primeng/treeselect';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 
 
@@ -58,7 +59,8 @@ import { TreeSelectModule } from 'primeng/treeselect';
         TooltipModule,
         ImageModule,
         ZXingScannerModule,
-        TreeSelectModule
+        TreeSelectModule,
+        ProgressSpinnerModule
     ],
     declarations: [ProductsComponent],
     providers: [ReportingService]

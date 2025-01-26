@@ -10,6 +10,11 @@ export class Organization {
     email?: string;
     phoneNumber?: string;
     logo?: string;
+    website?: string;
+    taxID?: string;
+    commercialRegister?: string;
+    license?: string;
+    ice?: string;
     warehouses?: Array<Warehouse>;
     shops?: Array<Shop>;
     creationDate?: Date;

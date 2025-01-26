@@ -9,6 +9,8 @@ export class Customer {
   address?:string;
   zip?:string;
   phoneNumber?:string;
+  ice?:string;
+  cin?:string;
   customerType?:string;
   creationDate?: Date;
 } 

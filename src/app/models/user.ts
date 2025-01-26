@@ -21,9 +21,10 @@ export class User {
     lastName?: string;
     email?: string;
     emailVerified?: boolean;
-    // attributes?: {
-    //     roles?: string[]; // Assuming roles is an object, not an array
-    // };
+    attributes?: {
+        shop?: string; // Assuming roles are strings
+        warehouse?: string;
+    };
     // createdTimestamp?: number;
     enabled?: boolean;
 

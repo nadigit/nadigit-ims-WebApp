@@ -1,4 +1,7 @@
-<div class="grid">
+<div class="card flex justify-content-center" *ngIf="isLoading">
+    <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+</div>
+<div class="grid" *ngIf="!isLoading">
     <div class="col-12 lg:col-6 xl:col-3">
         <div class="card mb-0" *ngIf="orders">
             <div class="flex justify-content-between mb-3">
@@ -145,7 +148,7 @@
                 <ng-template pTemplate="body" let-product>
                     <tr>
                         <td style="width: 15%; min-width: 5rem;">
-                            <img src="{{product.productImage}}" class="shadow-4" alt="{{product.name}}" width="50">
+                            <img src="{{product.productImage ? product.productImage : 'assets/core-images/no-image.png'}}" [ngClass]="{'shadow-4': product.productImage}" alt="{{product.name}}" width="50">
                         </td>
                         <td style="width: 35%; min-width: 7rem;">{{product.name}}</td>
                         <td style="width: 35%; min-width: 8rem;">{{product.reference }}</td>
@@ -204,6 +207,11 @@
             <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
         </div>
 
+        <div class="card" *ngIf="isAdmin">
+            <h5>{{'dashboard_monthly_statistics_header' | translate}}</h5>
+            <p-chart type="bar" [data]="barData" [options]="barOptions"></p-chart>
+        </div>
+
 
         <div class="card">
             <div class="flex align-items-center justify-content-between mb-4">
@@ -233,25 +241,15 @@
                                 <span *ngIf="notification.title == 'product is out of stock'">
                                     {{'notif_product_out_of_stock' | translate}} </span>
                                 <span *ngIf="notification.title == 'product in low stock'">
-                                    {{'notif_product_out_of_stock' | translate}} </span>
+                                    {{'notif_product_low_stock' | translate}} </span>
 
                                 <br>
                                 <span class="text-400" style="font-size: smaller;">{{notification.creationDate |
                                     date:'short'}}</span>
                             </span>
                         </div>
-                        <!-- <div> 
-                        <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
-                    </div> -->
+
                     </li>
-                    <!-- <li class="flex align-items-center py-2">
-                    <div
-                        class="w-3rem h-3rem flex align-items-center justify-content-center bg-orange-100 border-circle mr-3 flex-shrink-0">
-                        <i class="pi pi-download text-xl text-orange-500"></i>
-                    </div>
-                    <span class="text-700 line-height-3">Your request for withdrawal of <span
-                            class="text-blue-500 font-medium">2500$</span> has been initiated.</span>
-                </li> -->
                 </ul>
 
                 <span *ngIf="olderNotifications.length"

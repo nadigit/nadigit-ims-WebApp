@@ -34,7 +34,7 @@
             <i class="pi pi-cog"></i>
             <span>Settings</span>
         </button>
-        <p-tieredMenu #menu [model]="items" [popup]="true"></p-tieredMenu>
+        <p-tieredMenu #menu [model]="items" [popup]="true" appendTo="body"></p-tieredMenu>
     </div>
 </div>
 
@@ -99,7 +99,7 @@
                     <div>
                         <span class="text-900 line-height-3">{{ getCustomMessage(notification) }} 
                             <span *ngIf="notification.title == 'product is out of stock'"> {{'notif_product_out_of_stock' | translate}} </span>
-                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_out_of_stock' | translate}} </span>
+                            <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_low_stock' | translate}} </span>
 
                             <br> 
                             <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>

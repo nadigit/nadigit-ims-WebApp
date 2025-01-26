@@ -10,6 +10,9 @@ import { StyleClassModule } from 'primeng/styleclass';
 import { PanelMenuModule } from 'primeng/panelmenu';
 import { DashboardsRoutingModule } from './dashboard-routing.module';
 import { TranslateModule } from '@ngx-translate/core';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TooltipModule } from 'primeng/tooltip';
+
 
 @NgModule({
     imports: [
@@ -23,6 +26,8 @@ import { TranslateModule } from '@ngx-translate/core';
         ButtonModule,
         DashboardsRoutingModule,
         TranslateModule,
+        ProgressSpinnerModule,
+        TooltipModule
     ],
     declarations: [DashboardComponent]
 })
