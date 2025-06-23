@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DashboardComponent } from './dashboard.component';
 import { ChartModule } from 'primeng/chart';
 import { MenuModule } from 'primeng/menu';
@@ -12,6 +12,11 @@ import { DashboardsRoutingModule } from './dashboard-routing.module';
 import { TranslateModule } from '@ngx-translate/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
+import { CardModule } from 'primeng/card';
+import { PanelModule } from 'primeng/panel';
+import { MessagesModule } from 'primeng/messages';
+import { DropdownModule } from 'primeng/dropdown';
+import { ProgressBarModule } from 'primeng/progressbar';
 
 
 @NgModule({
@@ -27,7 +32,13 @@ import { TooltipModule } from 'primeng/tooltip';
         DashboardsRoutingModule,
         TranslateModule,
         ProgressSpinnerModule,
-        TooltipModule
+        TooltipModule,
+        ReactiveFormsModule,
+        CardModule,
+        PanelModule,
+        MessagesModule,
+        DropdownModule,
+        ProgressBarModule
     ],
     declarations: [DashboardComponent]
 })

@@ -15,6 +15,8 @@ import { AuthGuard } from 'src/app/guards/auth.guard';
         { path: 'shops', loadChildren: () => import('./shops/shops.module').then(m => m.ShopsModule), canActivate:[AuthGuard], data : { roles:['ADMIN']} },
         { path: 'purchases', loadChildren: () => import('./purchases/purchases.module').then(m => m.PurchasesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR']} },
         { path: 'expenses', loadChildren: () => import('./expenses/expenses.module').then(m => m.ExpensesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR']} },
+        { path: 'payments', loadChildren: () => import('./payments/payments.module').then(m => m.PaymentsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR']} },
+        { path: 'refunds', loadChildren: () => import('./refunds/refunds.module').then(m => m.RefundsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR']} },
         { path: 'orders', loadChildren: () => import('./orders/orders.module').then(m => m.OrdersModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR']}},
         { path: 'returns', loadChildren: () => import('./returns/returns.module').then(m => m.ReturnsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR']}},
         { path: '**', redirectTo: '/notfound' }

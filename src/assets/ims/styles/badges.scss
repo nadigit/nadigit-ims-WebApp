@@ -1,5 +1,7 @@
 .customer-badge,
 .product-badge,
+.payment-badge,
+.return-badge,
 .order-badge {
     border-radius: var(--border-radius);
     padding: .25em .5rem;
@@ -88,7 +90,72 @@
         background: #ECCFFF;
         color: #694382;
     }
+
     &.order-partial_return {
+        background: #ebc3dd;
+        color: #82437f;
+    }
+
+    &.order-return_pending {
+        background: #fff0cc;
+        color: #8a6d1e;
+    }
+}
+
+.return-badge {
+    &.return-canceled {
+        background: #FFCDD2;
+        color: #C63737;
+    }
+
+    &.return-pending {
+        background: #FEEDAF;
+        color: #8A5340;
+    }
+
+    &.return-processing {
+        background: #bce8fb;
+        color: #447a8c;
+    }
+
+    &.return-completed {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+
+    &.return-partially_refunded {
+        background: #ebc3dd;
+        color: #82437f;
+    }
+}
+
+.payment-badge {
+    &.payment-unpaid {
+        background: #efa7af;
+        color: #C63737;
+    }
+
+    &.payment-pending {
+        background: #FEEDAF;
+        color: #8A5340;
+    }
+
+    &.payment-partially_paid {
+        background: #bce8fb;
+        color: #447a8c;
+    }
+
+    &.payment-paid {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+
+    &.payment-refunded {
+        background: #ECCFFF;
+        color: #694382;
+    }
+
+    &.payment-failed {
         background: #ebc3dd;
         color: #82437f;
     }

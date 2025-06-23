@@ -36,6 +36,7 @@ export class SettingsComponent implements OnInit {
   organizationStructure: any;
   countries: any = Country.getAllCountries();
   currenciesList: any = currencies;
+  printingFormats: any;
   selectedCountry: any = null;
   states: any = null;
   uploadedFile: File | null = null;
@@ -75,6 +76,7 @@ export class SettingsComponent implements OnInit {
 
     ];
 
+    
 
 
   }
@@ -86,7 +88,7 @@ export class SettingsComponent implements OnInit {
       this.translate.use(lang); // Use the translate service to update language
     });
 
-    const translations = await this.translate.get(['organization_title', 'global_parameters']).toPromise();
+    const translations = await this.translate.get(['organization_title', 'global_parameters','a4','receipt']).toPromise();
 
     this.menuItems = [
       {
@@ -98,6 +100,18 @@ export class SettingsComponent implements OnInit {
         icon: 'pi pi-fw pi-sliders-h',
       },
     ];
+
+    this.printingFormats = [
+      {
+        label: translations['a4'],
+        value: 'a4',
+      },
+      {
+        label: translations['receipt'],
+        value: 'receipt',
+      },
+    ];
+
     this.loadOrganization();
     this.loadConfigs();
 
@@ -156,6 +170,11 @@ export class SettingsComponent implements OnInit {
 
   trackByConfig(index: number, config: AppConfiguration): number {
     return config.id; // or config.key if that's unique
+  }
+
+  getPrintingFormatLabel(value: string): string {
+    const format = this.printingFormats.find(f => f.value === value);
+    return format ? format.label : value;
   }
 
   saveConfig(field: AppConfiguration) {

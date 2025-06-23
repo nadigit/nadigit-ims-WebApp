@@ -47,6 +47,31 @@ export class ShopService {
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id, { headers });
   }
 
+  fetchOrganizationData(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id + '/organization', { headers });
+  }
+  
+  fetchExpenseStats(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id + '/expenses/stats', { headers });
+  }
+
+  fetchPurchaseStats(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id + '/purchases/stats', { headers });
+  }
+
+  fetchRecentExpenses(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id + '/expenses/recent', { headers });
+  }
+
+  fetchRecentPurchases(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id + '/purchases/recent', { headers });
+  }
+
   fetchCashRegisterData(id: any) {
     const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id + '/daily-balance', { headers });

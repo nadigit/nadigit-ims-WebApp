@@ -76,9 +76,13 @@
                         {{ config.value }} {{ appConfigCurrency.value }}
                       </span>
 
+                      <span *ngIf="config.key === 'invoiceFormat'">
+                        {{ getPrintingFormatLabel(config.value) }}
+                      </span>
+
                       <!-- Display the value for other keys -->
                       <span
-                        *ngIf="config.key !== 'lowStockThreshold' && config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance'">
+                        *ngIf="config.key !== 'lowStockThreshold' && config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' && config.key !== 'invoiceFormat'">
                         {{ config.value }}
                       </span>
 
@@ -113,6 +117,12 @@
 
                         <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{
                         appConfigCurrency.value }}
+                      </div>
+
+                      <!-- For currency selection -->
+                      <div *ngIf="config.key == 'invoiceFormat'">
+                        <p-dropdown [options]="printingFormats" [(ngModel)]="config.value" optionValue="value"
+                          optionLabel="label" placeholder="{{ 'select_currency_option' | translate }}"></p-dropdown>
                       </div>
 
                     </ng-template>
@@ -268,6 +278,20 @@
             <input type="text" pInputText name="ice" ngDefaultControl [(ngModel)]="organization.ice" required autofocus
               [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.ice }" />
             <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.ice">{{ 'ice' | translate }} {{
+              'is_required_label' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="socialSecurityId">{{ 'social_security' | translate }}</label>
+            <input type="text" pInputText name="socialSecurityId" ngDefaultControl [(ngModel)]="organization.socialSecurityId" required autofocus
+              [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.socialSecurityId }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.socialSecurityId">{{ 'social_security' | translate }} {{
+              'is_required_label' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="bankAccountId">{{ 'bank_account' | translate }}</label>
+            <input type="text" pInputText name="bankAccountId" ngDefaultControl [(ngModel)]="organization.bankAccountId" required autofocus
+              [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankAccountId }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.bankAccountId">{{ 'bank_account' | translate }} {{
               'is_required_label' | translate }}</small>
           </div>
         </ng-template>

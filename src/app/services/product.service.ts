@@ -43,4 +43,5 @@ export class ProductService {
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'lastWeek',{headers:headers});
   }
 
+
 }

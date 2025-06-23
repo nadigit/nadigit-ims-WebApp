@@ -107,6 +107,12 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   async ngOnInit() {
     this.isLoading=true;
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
     this.initializeTranslations();
     this.onGetAllPurchases();
     this.onGetAllShops();
@@ -115,7 +121,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.getSourceProducts(),
     this.getTargetProducts(),
     this.initializePickList(),
-    this.onGetCurrency(),
+    // this.onGetCurrency(),
     await this.checkPermissions();
     await this.setUserRoles();
     this.cols = [
@@ -351,18 +357,18 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  async onGetCurrency() {
-    await (await this.configService.getConfigurationValue('currency'))
-      .subscribe({
-        next: (response: any) => {
-          this.currency = response;
-          console.log(this.currency)
-        },
-        error: (err: any) => {
-          console.log(err)
-        }
-      })
-  }
+  // async onGetCurrency() {
+  //   await (await this.configService.getConfigurationValue('currency'))
+  //     .subscribe({
+  //       next: (response: any) => {
+  //         this.currency = response;
+  //         console.log(this.currency)
+  //       },
+  //       error: (err: any) => {
+  //         console.log(err)
+  //       }
+  //     })
+  // }
 
 
   private async setUserRoles() {

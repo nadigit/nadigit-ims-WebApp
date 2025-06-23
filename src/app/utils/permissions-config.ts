@@ -272,4 +272,44 @@ export const PermissionsConfig = {
             delete: true,
         },
     },
+    PAYMENTS: {
+        ADMIN: {
+            create: true,
+            read: true,
+            update: true,
+            delete: true,
+        },
+        WAREHOUSEMAN: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        VENDOR: {
+            create: true,
+            read: true,
+            update: true,
+            delete: false,
+        },
+    },
+    REFUNDS: {
+        ADMIN: {
+            create: true,
+            read: true,
+            update: true,
+            delete: true,
+        },
+        WAREHOUSEMAN: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        VENDOR: {
+            create: true,
+            read: true,
+            update: true,
+            delete: false,
+        },
+    },
 };

@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MenuItem } from 'primeng/api';
+import { MenuItem, SelectItem } from 'primeng/api';
 
 import { Subscription, debounceTime, forkJoin } from 'rxjs';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
@@ -18,11 +18,30 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { PurchaseService } from 'src/app/services/purchase.service';
 import { ExpenseService } from 'src/app/services/expense.service';
 import { KeycloakService } from 'keycloak-angular';
+import { AnalysisService, ProfitAnalysis, ProfitPeriod, Shop } from 'src/app/services/analysis.service';
 
 @Component({
+    styleUrls: ['./dashboard.component.css'],
     templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent implements OnInit, OnDestroy {
+
+
+
+    shops: Shop[] = [];
+    shopOptions: SelectItem[] = [];
+    selectedShop: Shop | null = null;
+    selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
+
+    profitData: any;
+    loading = false;
+    profitLoading = false;
+    error: string | null = null;
+
+    // Chart data
+    profitChartData: any;
+    profitChartOptions: any;
+
 
     items!: MenuItem[];
 
@@ -97,10 +116,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     currency: any;
     isLoading = true;
+    profitPeriods: SelectItem[];
 
     constructor(private orderService: OrderService,
         private productService: ProductService,
         private purchaseService: PurchaseService,
+        private analysisService: AnalysisService,
         private expenseService: ExpenseService,
         private customerService: CustomerService,
         public layoutService: LayoutService,
@@ -121,12 +142,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.isLoading = true;
 
+        this.configService.currency$.subscribe(currency => {
+            if (currency) {
+                this.currency = currency;
+                console.log('Currency:', currency);
+            }
+        });
+
         this.translateService.currentLanguage$.subscribe(lang => {
             this.translate.use(lang); // Use the translate service to update language
         });
 
+        this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => { // Assuming English
+            this.profitPeriods = [
+                { label: translations['Today'], value: ProfitPeriod.TODAY },
+                { label: translations['Yesterday'], value: ProfitPeriod.YESTERDAY },
+                { label: translations['This Week'], value: ProfitPeriod.WEEK },
+                { label: translations['This Month'], value: ProfitPeriod.MONTH },
+                { label: translations['Last 6 Months'], value: ProfitPeriod.LAST_SIX_MONTHS },
+                { label: translations['This Year'], value: ProfitPeriod.YEAR },
+                { label: translations['Last 12 Months'], value: ProfitPeriod.LAST_12_MONTHS }
+            ];
+        });
+
         await this.setUserRoles();
-        
+
         forkJoin([
             this.getOrders(),
             this.getTodayOrders(),
@@ -153,8 +193,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
                 this.recentOrderedProducts = recentOrderedProducts;
                 this.top5Products = top5Products;
                 this.categorizeOrdersByStatus()
-                this.revenue = this.orders.reduce((sum, element) => sum + element.totalAmount, 0);
-                this.todayRevenue = this.todayOrders.reduce((sum, element) => sum + element.totalAmount, 0);
+                this.revenue = (this.orders ?? []).reduce((sum, element) => sum + (element?.totalAmount ?? 0), 0);
+                this.todayRevenue = (this.todayOrders ?? []).reduce((sum, element) => sum + (element?.totalAmount ?? 0), 0);
                 this.calculateYesterdayRevenue();
                 this.calculateRevenueDifferencePercentage();
                 this.loadOrders()
@@ -165,7 +205,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
                 this.customers = customers;
                 this.todayCustomers = todayCustomers;
                 this.initChart();
-
+                this.initProfitChart();
+                this.loadShops();
+                this.loadProfitData();
+                console.log(this.profitData);
             },
             error: (error) => {
                 console.error("Error loading data: ", error);
@@ -179,11 +222,158 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.loadRecentNotifications();
 
-        this.onGetCurrecy();
 
     }
 
+    calculateIndicatorPosition(): string {
+        if (!this.profitData?.totalRevenue) return '50%';
 
+        const marginPercentage = this.calculateProfitMargin();
+        const position = 50 + (marginPercentage / 2); // Scale to fit -100% to +100% in 0-100% width
+
+        // Constrain between 5% and 95% to keep indicator visible
+        return Math.min(Math.max(position, 5), 95) + '%';
+    }
+
+    calculateProfitMargin(): number {
+        if (this.profitData?.totalRevenue > 0) {
+            return (this.profitData.netProfit / this.profitData.totalRevenue) * 100;
+        }
+        return 0;
+    }
+
+    async loadShops(): Promise<void> {
+        const translations = await this.translate.get(['All Shops']).toPromise();
+
+        (await this.analysisService.getShops()).subscribe(shops => {
+            this.shops = shops;
+            this.shopOptions = [
+                { label: translations['All Shops'], value: null },
+                ...shops.map(shop => ({ label: shop.shopName, value: shop }))
+            ];
+            console.log('Shops loaded:', this.shops);
+            console.log(this.shopOptions)
+        });
+    }
+
+    async initProfitChart(): Promise<void> {
+        const translations = await this.translate.get(['financial_overview', 'revenue', 'product_costs', 'refunds', 'expenses', 'purchases', 'profit_net']).toPromise();
+
+        this.profitChartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: false }, // Disable stacking
+                y: { stacked: true }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: translations['profit_analysis'],
+                    font: {
+                        size: 16
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context: any) => {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('en-US', {
+                                    style: 'currency',
+                                    currency: this.currency || 'USD',
+                                }).format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+
+    onFilterChange(): void {
+        this.loadProfitData();
+    }
+
+    async loadProfitData() {
+        this.profitLoading = true;
+        this.error = null;
+
+        console.log(this.selectedShop)
+
+        try {
+            const shopId = this.selectedShop?.shopId;
+            console.log(shopId)
+            const data = await (await this.analysisService.getProfitAnalysis(this.selectedPeriod, shopId)).toPromise();
+
+            this.profitData = data;
+            this.updateProfitChart(data);
+        } catch (err) {
+            this.error = 'Failed to load profit data';
+            console.error('Error loading profit data:', err);
+        } finally {
+            this.profitLoading = false;
+        }
+    }
+
+    async updateProfitChart(data: ProfitAnalysis): Promise<void> {
+        const translations = await this.translate.get(['financial_overview', 'revenue', 'product_costs', 'refunds', 'expenses', 'purchases', 'profit_margin']).toPromise();
+
+        if (!data ||
+            data.totalRevenue === undefined ||
+            data.totalCosts === undefined) {
+            console.error('Invalid data received for chart update');
+            return;
+        }
+        this.profitChartData = {
+            labels: [translations['financial_overview']],
+            datasets: [
+                {
+                    label: translations['revenue'],
+                    data: [data.totalRevenue],
+                    backgroundColor: '#4bc0c0',
+                    borderColor: '#4bc0c0'
+                },
+                {
+                    label: translations['product_costs'],
+                    data: [-data.totalCosts],
+                    backgroundColor: '#ff6384',
+                    borderColor: '#ff6384'
+                },
+                {
+                    label: translations['refunds'],
+                    data: [-data.totalRefunds],
+                    backgroundColor: '#ff9f40',
+                    borderColor: '#ff9f40'
+                },
+                {
+                    label: translations['expenses'],
+                    data: [-data.totalExpenses],
+                    backgroundColor: '#9966ff',
+                    borderColor: '#9966ff'
+                },
+                {
+                    label: translations['purchases'],
+                    data: [-data.totalPurchases],
+                    backgroundColor: '#36a2eb',
+                    borderColor: '#36a2eb'
+                },
+                {
+                    label: translations['profit_margin'],
+                    data: [data.netProfit],
+                    backgroundColor: '#4bc0c0',
+                    borderColor: '#4bc0c0',
+                    type: 'bar'
+                }
+            ]
+        };
+    }
 
     async initChart() {
         const translations = await this.translate.get(['orders_menu_title', 'purchases_menu_title', 'expenses_menu_title']).toPromise();
@@ -395,7 +585,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private async setUserRoles() {
         this.userRoles = await this.keycloakService.getUserRoles();
         this.isAdmin = this.userRoles.includes('ADMIN');
-      }
+    }
 
     getOrders() {
         return this.orderService.getOrders();
@@ -584,16 +774,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return notification.message;
     }
 
-    async onGetCurrecy() {
-        await (await this.configService.getConfigurationValue('currency'))
-            .subscribe({
-                next: (response: any) => {
-                    this.currency = response;
-                    console.log(this.currency)
-                },
-                error: (err: any) => {
-                    console.log(err)
-                }
-            })
-    }
+    // async onGetCurrecy() {
+    //     await (await this.configService.getConfigurationValue('currency'))
+    //         .subscribe({
+    //             next: (response: any) => {
+    //                 this.currency = response;
+    //                 console.log(this.currency)
+    //             },
+    //             error: (err: any) => {
+    //                 console.log(err)
+    //             }
+    //         })
+    // }
 }

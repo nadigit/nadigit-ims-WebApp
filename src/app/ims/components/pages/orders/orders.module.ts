@@ -35,7 +35,9 @@ import { DisableDblClickDirective } from 'src/app/utils/disable_dblclick.directi
 import { TooltipModule } from 'primeng/tooltip';
 import { DynamicDialogModule } from 'primeng/dynamicdialog';
 import { ChipModule } from 'primeng/chip';
-
+import { ReactiveFormsModule } from '@angular/forms';
+import { TabViewModule } from 'primeng/tabview';
+import { TagModule } from 'primeng/tag';
 
 @NgModule({
     imports: [
@@ -71,7 +73,10 @@ import { ChipModule } from 'primeng/chip';
         CalendarModule,
         TooltipModule,
         DynamicDialogModule,
-        ChipModule
+        ChipModule,
+        ReactiveFormsModule,
+        TabViewModule,
+        TagModule
     ],
     declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective],
     providers: [ReportingService]

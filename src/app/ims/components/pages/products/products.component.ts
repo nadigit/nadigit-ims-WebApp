@@ -19,6 +19,7 @@ import { Country, State } from 'country-state-city';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
+import { DialogService } from 'primeng/dynamicdialog';
 
 
 interface UploadEvent {
@@ -141,6 +142,7 @@ export class ProductsComponent implements OnInit {
   constructor(private messageService: MessageService,
     private productService: ProductService,
     private categoryService: CategoryService,
+    private dialogService: DialogService,    
     private warehouseService: WarehouseService,
     private supplierService: SupplierService,
     private storage: AngularFireStorage,
@@ -155,6 +157,12 @@ export class ProductsComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading=true;
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
@@ -187,7 +195,7 @@ export class ProductsComponent implements OnInit {
     this.onGetAllCategories();
     this.onGetAllWarehouses();
     this.onGetAllSuppliers();
-    this.onGetCurrecy();
+    // this.onGetCurrecy();
     await this.checkPermissions();
 
     this.targetCities = [];
@@ -756,19 +764,19 @@ export class ProductsComponent implements OnInit {
       })
   }
 
-  async onGetCurrecy() {
-    await (await this.configService.getConfigurationValue('currency'))
-      .subscribe({
-        next: (response: any) => {
-          this.currency = response;
-          console.log(this.currency)
-        },
-        error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting currency', life: 3000 })
-          console.log(err)
-        }
-      })
-  }
+  // async onGetCurrecy() {
+  //   await (await this.configService.getConfigurationValue('currency'))
+  //     .subscribe({
+  //       next: (response: any) => {
+  //         this.currency = response;
+  //         console.log(this.currency)
+  //       },
+  //       error: (err: any) => {
+  //         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting currency', life: 3000 })
+  //         console.log(err)
+  //       }
+  //     })
+  // }
 
   async onDeleteProduct(id: any) {
     await this.productService.deleteProduct(id)
@@ -964,7 +972,15 @@ export class ProductsComponent implements OnInit {
     this.scanning = true;
   }
 
+    getProfitClass(product: any): string {
+    const profit = this.calculateProfit(product);
+    return profit >= 0.3 ? 'text-green-500 font-semibold' :
+      profit >= 0.1 ? 'text-blue-500' : 'text-orange-500';
+  }
 
-
+    calculateProfit(product: any): number {
+    if (!product.sellingPrice || !product.buyingPrice) return 0;
+    return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
+  }
 
 }

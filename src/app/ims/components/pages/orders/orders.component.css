@@ -10,3 +10,216 @@
     cursor: pointer; /* Indicate clickable element */
   }
   
+/* POS Dialog Styles */
+.pos-dialog .p-dialog-content {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 120px);
+}
+
+/* Product Cards */
+.product-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.product-image {
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.product-info {
+  padding: 0 0.5rem;
+}
+
+.product-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-price {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+/* Selected Products */
+.selected-products {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
+}
+
+.selected-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.selected-item:last-child {
+  border-bottom: none;
+}
+
+/* Order Totals */
+.order-totals {
+  padding: 1rem 0;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.total-line {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 2px solid #e5e7eb;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 960px) {
+  .pos-dialog {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh;
+  }
+  
+  .product-card {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.line-through {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.text-color-secondary {
+  color: #6c757d;
+}
+
+.amount-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.amount-label {
+  font-weight: 500;
+  color: #6c757d;
+  margin-right: 0.5rem;
+}
+
+.amount-value {
+  text-align: right;
+  font-family: monospace;
+}
+
+.original-amount {
+  grid-column: span 2;
+  text-decoration: line-through;
+  opacity: 0.7;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px dashed #e9ecef;
+}
+
+.refund-amount {
+  color: #dc3545;
+}
+
+.net-amount {
+  font-weight: bold;
+  color: #007bff;
+  padding-top: 0.25rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.single-amount {
+  font-weight: bold;
+}
+
+.payment-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.payment-label {
+  font-weight: 500;
+  color: #6c757d;
+  margin-right: 0.5rem;
+}
+
+.payment-value {
+  text-align: right;
+  font-family: monospace;
+}
+
+.payment-amount {
+  grid-column: span 2;
+  padding-bottom: 0.25rem;
+}
+
+.refund-amount {
+  color: #dc3545;
+  padding-bottom: 0.25rem;
+}
+
+.net-paid {
+  font-weight: bold;
+  color: #28a745;
+  padding-top: 0.25rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.single-payment {
+  font-weight: bold;
+  color: #28a745;
+}
+
+.payment-section {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+
+  .p-dropdown, .p-inputtext, .p-inputnumber, .p-calendar {
+    width: 100%;
+  }
+
+  .p-calendar .p-inputtext {
+    padding-left: 2.5rem;
+  }
+
+  .p-calendar .p-datepicker-trigger {
+    background: transparent;
+    border: none;
+    color: var(--text-color-secondary);
+    width: 2.5rem;
+  }
+
+  .required-asterisk {
+    color: var(--red-500);
+    margin-left: 0.25rem;
+  }
+}
+
+/* Make calendar icon larger */
+.p-calendar .pi-calendar {
+  font-size: 1.25rem;
+  color: var(--primary-color);
+}

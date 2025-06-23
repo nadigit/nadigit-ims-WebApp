@@ -55,9 +55,9 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-category>
-                    <tr>
+                    <tr [pSelectableRow]="category" (click)="canEditCategory ? openCategoryProductsDialog(category) : null">
                         <td>
-                            <p-tableCheckbox [value]="category"></p-tableCheckbox>
+                            <p-tableCheckbox [value]="category" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
 
                         <td style="min-width:10rem;">
@@ -73,14 +73,14 @@
                                 <button pButton pRipple *ngIf="canEditCategory" icon="pi pi-pencil"
                                     class="p-button-rounded p-button-success mr-2"
                                     pTooltip="{{'update_category'|translate}}"
-                                    (click)="editCategory(category)"></button>
+                                    (click)="editCategory(category); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canDeleteCategory" icon="pi pi-trash"
                                     class="p-button-rounded p-button-warning mr-2"
                                     pTooltip="{{'delete_category'|translate}}"
-                                    (click)="deleteCategory(category)"></button>
-                                <button pButton pRipple *ngIf="canListProducts" icon="pi pi-list"
+                                    (click)="deleteCategory(category); $event.stopPropagation()"></button>
+                                <!-- <button pButton pRipple *ngIf="canListProducts" icon="pi pi-list"
                                     class="p-button-rounded p-button-primary" pTooltip="{{'products_list'|translate}}"
-                                    (click)="openCategoryProductsDialog(category)"></button>
+                                    (click)="openCategoryProductsDialog(category); $event.stopPropagation()"></button> -->
                             </div>
                         </td>
                     </tr>
@@ -90,39 +90,98 @@
                         {{'total_categories' | translate}} {{categories ? categories.length : 0 }}.
                     </div>
                 </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_categories_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
             </p-table>
         </div>
 
-        <p-dialog [(visible)]="categoryDialog" [style]="{width: '450px', height: '100%'}"
-            header="{{'category_details' | translate}}" [modal]="true" class="p-fluid ">
+        <p-dialog [(visible)]="categoryDialog" [style]="{width: '500px'}"
+            [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{'category_details' | translate}}"
+            [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid category-dialog">
             <ng-template pTemplate="content">
-                <div class="field">
-                    <label for="categoryName">
-                        {{'category_name' | translate}} <span class="required-asterisk">*</span>
-                    </label>
-                    <input type="text" pInputText name="categoryName" ngDefaultControl
-                        [(ngModel)]="category.categoryName" required autofocus
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !category.categoryName}" />
-                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !category.categoryName">{{'category_name' |
-                        translate}} {{'is_required_label' | translate}}</small>
+                <div class="grid p-fluid">
+                    <div class="col-12">
+                        <!-- Category Name -->
+                        <div class="field">
+                            <label for="categoryName" class="block mb-2 font-bold">
+                                {{'category_name' | translate}} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-tag"></i>
+                                </span>
+                                <input type="text" pInputText name="categoryName" [(ngModel)]="category.categoryName"
+                                    required placeholder="{{ 'enter_category_name' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !category.categoryName}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !category.categoryName">
+                                {{'category_name' | translate}} {{'is_required_label' | translate}}
+                            </small>
+                        </div>
+
+                        <!-- Category Description -->
+                        <div class="field">
+                            <label for="description" class="block mb-2 font-bold">
+                                {{'category_description' | translate}}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-align-left"></i>
+                                </span>
+                                <textarea pInputTextarea [(ngModel)]="category.description" name="description" rows="3"
+                                    [autoResize]="true"
+                                    placeholder="{{ 'enter_category_description' | translate }}"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Optional: Category Image Upload -->
+                        <!-- <div class="field" *ngIf="enableCategoryImages">
+                            <label for="categoryImage" class="block mb-2 font-bold">
+                                {{'category_image' | translate}}
+                            </label>
+                            <div class="card flex justify-content-center p-3 border-1 surface-border border-round">
+                                <p-fileUpload mode="basic" name="categoryImage" accept="image/*" maxFileSize="1000000"
+                                    (onSelect)="onCategoryImageUpload($event)" chooseIcon="pi pi-image"
+                                    chooseLabel="{{'upload_image_button' | translate}}" [auto]="true"
+                                    [showUploadButton]="false" [showCancelButton]="false">
+                                </p-fileUpload>
+                                <small class="text-color-secondary block mt-2 text-center">
+                                    {{'image_upload_hint' | translate}}
+                                </small>
+                            </div>
+                            <div class="flex justify-content-center mt-3" *ngIf="category.imageUrl">
+                                <p-image [src]="category.imageUrl" alt="Category Image" width="150" [preview]="true"
+                                    class="shadow-2 border-round"></p-image>
+                            </div>
+                        </div> -->
+                    </div>
                 </div>
-                <div class="field">
-                    <label for="description">{{'category_description' | translate}}</label>
-                    <textarea rows="3" cols="20" [(ngModel)]="category.description" name="description"
-                        placeholder="{{'category_description' | translate}}" ngDefaultControl pInputTextarea
-                        autofocus></textarea>
-                </div>
-                <div class="required-note">
+
+                <div class="required-note mt-3">
                     <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
                         translate}}</small>
                 </div>
             </ng-template>
 
             <ng-template pTemplate="footer">
-                <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
-                    (click)="hideDialog()"></button>
-                <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
-                    (click)="saveCategory()"></button>
+                <div class="flex justify-content-between align-items-center w-full">
+                    <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+                        class="p-button-raised" (click)="saveCategory()"></button>
+                </div>
             </ng-template>
         </p-dialog>
 
@@ -155,81 +214,192 @@
             </ng-template>
         </p-dialog>
 
-        <p-dialog [(visible)]="categoryProductsDialog" [style]="{width: '90%', height: '100%'}"
-            header="{{'category_products_list' | translate}} {{category.categoryName}}" [modal]="true" class="p-fluid ">
+        <p-dialog [(visible)]="categoryProductsDialog" [style]="{width: '90%', height: '95vh'}" [draggable]="false"
+            [resizable]="true"
+            header="{{'category_products_list' | translate}} {{category?.categoryName}} ({{products?.length || 0}})"
+            [modal]="true" class="p-fluid category-products-dialog">
+
             <ng-template pTemplate="content">
-                <p-table #dt [value]="products" responsiveLayout="scroll" [rows]="20"
-                    [globalFilterFields]="['name','reference','quantityAvailable']" [paginator]="true"
-                    [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
-                    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                    [rowHover]="true" dataKey="id">
-                    <ng-template pTemplate="caption">
-                        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                            <h5 class="m-0">{{'products_list' | translate}}</h5>
-                            <span class="block mt-2 md:mt-0 p-input-icon-left">
-                                <i class="pi pi-search"></i>
-                                <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
-                                    placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
-                            </span>
-                        </div>
-                    </ng-template>
+                <div class="grid">
+                    <!-- Category Summary Card -->
+                    <div class="col-12 md:col-3">
+                        <p-card class="h-full" [header]="'category_info' | translate">
+                            <div class="flex flex-column gap-3">
+                                <div *ngIf="category?.image" class="flex justify-content-center mb-3">
+                                    <img [src]="category.image" [alt]="category.categoryName"
+                                        class="w-full border-round" style="max-height: 150px; object-fit: contain;">
+                                </div>
+                                <div>
+                                    <strong>{{'category_name' | translate}}:</strong> {{category?.categoryName ||
+                                    'N/A'}}
+                                </div>
+                                <div>
+                                    <strong>{{'total_products' | translate}}:</strong> {{products?.length || 0}}
+                                </div>
+                                <div *ngIf="category?.description">
+                                    <strong>{{'description' | translate}}:</strong> {{category.description}}
+                                </div>
+                            </div>
+                        </p-card>
+                    </div>
 
-                    <ng-template pTemplate="header">
-                        <tr>
-                            <th>{{ 'product_image' | translate }}</th>
-                            <th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon
-                                    field="name"></p-sortIcon></th>
-                            <th pSortableColumn="reference">{{'product_reference' | translate}} <p-sortIcon
-                                    field="reference"></p-sortIcon></th>
-                            <th pSortableColumn="quantityAvailable">{{'product_quantity' | translate}} <p-sortIcon
-                                    field="quantityAvailable"></p-sortIcon></th>
-                            <th pSortableColumn="buyingPrice">{{'product_buying_price' | translate}} <p-sortIcon
-                                    field="buyingPrice"></p-sortIcon></th>
-                            <th pSortableColumn="sellingPrice">{{'product_selling_price' | translate}} <p-sortIcon
-                                    field="sellingPrice"></p-sortIcon></th>
-                            <th></th>
-                        </tr>
-                    </ng-template>
-                    <ng-template pTemplate="body" let-product>
-                        <tr>
-                            <td style="min-width:10rem;">
-                                <img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'" [alt]="product.name"
-                                    class="my-4 md:my-0 w-6 md:w-6rem shadow-2 mr-5" />
-                            </td>
+                    <!-- Products Table -->
+                    <div class="col-12 md:col-9">
+                        <p-table #dt [value]="products" responsiveLayout="scroll" [rows]="20"
+                            [globalFilterFields]="['name','reference','quantityAvailable','buyingPrice','sellingPrice']"
+                            [paginator]="true" [rowsPerPageOptions]="[10,20,50,100]" [showCurrentPageReport]="true"
+                            currentPageReportTemplate="{first} - {last} of {totalRecords} {{'table_records' | translate}}"
+                            [rowHover]="true" dataKey="id" styleClass="p-datatable-sm p-datatable-striped">
 
-                            <td style="min-width:10rem;">
-                                <span class="p-column-title">{{'product_name' | translate}}</span>
-                                {{product.name ? product.name : 'N/A'}}
-                            </td>
-                            <td style="min-width:10rem;">
-                                <span class="p-column-title">{{'product_reference' | translate}}</span>
-                                {{product.reference ? product.reference : 'N/A'}}
-                            </td>
-                            <td style="min-width:10rem;">
-                                <span class="p-column-title">{{'product_quantity' | translate}}</span>
-                                {{ product.quantityAvailable }}
-                            </td>
-                            <td style="min-width:10rem;">
-                                <span class="p-column-title">{{'product_quantity' | translate}}</span>
-                                {{product.buyingPrice ? product.buyingPrice : 'N/A'}}
-                            </td>
-                            <td style="min-width:10rem;">
-                                <span class="p-column-title">{{'product_quantity' | translate}}</span>
-                                {{product.sellingPrice ? product.sellingPrice : 'N/A'}}
-                            </td>
-                        </tr>
-                    </ng-template>
-                    <ng-template pTemplate="summary">
-                        <div class="flex align-items-center justify-content-between">
-                            {{'total_products' | translate}} {{products ? products.length : 0 }}.
-                        </div>
-                    </ng-template>
-                </p-table>
+                            <ng-template pTemplate="caption">
+                                <div
+                                    class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-2">
+                                    <div class="flex align-items-center gap-2">
+                                        <h5 class="m-0">{{'products_list' | translate}}</h5>
+                                        <p-tag [value]="products?.length?.toString() || '0'" severity="info"></p-tag>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <!-- <p-button icon="pi pi-file-export" [label]="'export' | translate"
+                                            (click)="exportProducts()" styleClass="p-button-sm"></p-button> -->
+                                        <span class="p-input-icon-left w-full">
+                                            <i class="pi pi-search"></i>
+                                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                                placeholder="{{'search_label' | translate}}" class="w-full" />
+                                        </span>
+                                    </div>
+                                </div>
+                            </ng-template>
+
+                            <ng-template pTemplate="header">
+                                <tr>
+                                    <th style="width: 80px">{{ 'product_image' | translate }}</th>
+                                    <th pSortableColumn="name" style="min-width: 180px">
+                                        {{'product_name' | translate}} <p-sortIcon field="name"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="reference" style="min-width: 120px">
+                                        {{'product_reference' | translate}} <p-sortIcon field="reference"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="quantityAvailable" style="width: 120px" class="text-center">
+                                        {{'product_quantity' | translate}} <p-sortIcon
+                                            field="quantityAvailable"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="buyingPrice" style="width: 120px" class="text-right">
+                                        {{'product_buying_price' | translate}} <p-sortIcon
+                                            field="buyingPrice"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="sellingPrice" style="width: 120px" class="text-right">
+                                        {{'product_selling_price' | translate}} <p-sortIcon
+                                            field="sellingPrice"></p-sortIcon>
+                                    </th>
+                                    <th style="width: 120px" class="text-center">{{'profit' | translate}}</th>
+                                    <!-- <th style="width: 100px" class="text-center">{{'actions' | translate}}</th> -->
+                                </tr>
+                            </ng-template>
+
+                            <ng-template pTemplate="body" let-product let-rowIndex="rowIndex">
+                                <tr [class.out-of-stock]="product.quantityAvailable <= 0">
+                                    <td>
+                                        <p-image [src]="product.productImage || 'assets/core-images/no-image.png'"
+                                            [alt]="product.name" width="60" [preview]="true"
+                                            class="shadow-1 border-round"></p-image>
+                                    </td>
+                                    <td>
+                                        <span class="font-semibold">{{product.name || 'N/A'}}</span>
+                                        <div *ngIf="product.description" class="text-sm text-500 mt-1 line-clamp-1">
+                                            {{product.description}}
+                                        </div>
+                                    </td>
+                                    <td>{{product.reference || 'N/A'}}</td>
+                                    <td class="text-center">
+                                        <p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
+                                            [value]="product.quantityAvailable"
+                                            [icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
+                                        </p-tag>
+                                    </td>
+                                    <td class="text-right">
+                                        {{product.buyingPrice | currency:currency:'symbol':'1.2-2' || 'N/A'}}
+                                    </td>
+                                    <td class="text-right">
+                                        {{product.sellingPrice | currency:currency:'symbol':'1.2-2' || 'N/A'}}
+                                    </td>
+                                    <td class="text-center">
+                                        <span *ngIf="product.sellingPrice && product.buyingPrice"
+                                            [class]="getProfitClass(product)">
+                                            {{ calculateProfit(product) | percent:'1.2-2' }}
+                                        </span>
+                                        <span *ngIf="!product.sellingPrice || !product.buyingPrice">N/A</span>
+                                    </td>
+                                    <!-- <td class="text-center">
+                                        <button pButton pRipple icon="pi pi-eye"
+                                            class="p-button-sm p-button-rounded p-button-text"
+                                            (click)="viewProductDetails(product)"></button>
+                                        <button pButton pRipple icon="pi pi-pencil"
+                                            class="p-button-sm p-button-rounded p-button-text p-button-success ml-1"
+                                            (click)="editProduct(product)"></button>
+                                    </td> -->
+                                </tr>
+                            </ng-template>
+
+                            <ng-template pTemplate="emptymessage">
+                                <tr>
+                                    <td colspan="8">
+                                        <div class="flex flex-column align-items-center justify-content-center py-5">
+                                            <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                                style="max-width: 250px; opacity: 0.6;">
+                                            <p class="mt-3 text-gray-600 font-medium text-lg">
+                                                {{ 'no_categories_found' | translate }}
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </ng-template>
+
+                            <ng-template pTemplate="summary">
+                                <div class="flex flex-wrap align-items-center justify-content-between gap-3">
+                                    <div class="flex align-items-center gap-2">
+                                        <span class="font-medium">{{'total_products' | translate}}:</span>
+                                        <p-tag [value]="products?.length?.toString() || '0'"></p-tag>
+                                    </div>
+                                    <div class="flex gap-5">
+                                        <div class="flex flex-column">
+                                            <span class="text-sm">{{'in_stock' | translate}}</span>
+                                            <span class="font-semibold">{{getInStockCount()}}</span>
+                                        </div>
+                                        <div class="flex flex-column">
+                                            <span class="text-sm">{{'low_stock' | translate}}</span>
+                                            <span class="font-semibold">{{getLowStockCount()}}</span>
+                                        </div>
+                                        <div class="flex flex-column">
+                                            <span class="text-sm">{{'out_of_stock' | translate}}</span>
+                                            <span class="font-semibold">{{getOutOfStockCount()}}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ng-template>
+                        </p-table>
+                    </div>
+                </div>
             </ng-template>
+
             <ng-template pTemplate="footer">
                 <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
                     (click)="hideCategoryProductsDialog()"></button>
+                <!-- <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
+                    (click)="saveCategory()"></button> -->
             </ng-template>
+
+            <!-- <ng-template pTemplate="footer">
+                <div class="flex justify-content-between align-items-center">
+                    <button pButton pRipple icon="pi pi-print" [label]="'print' | translate"
+                        class="p-button-text p-button-sm" (click)="printProductList()"></button>
+                    <div>
+                        <button pButton pRipple [label]="'add_product' | translate" icon="pi pi-plus"
+                            class="p-button-sm p-button-success mr-2" (click)="addNewProduct()"></button>
+                        <button pButton pRipple [label]="'close' | translate" icon="pi pi-times"
+                            class="p-button-sm p-button-text" (click)="hideCategoryProductsDialog()"></button>
+                    </div>
+                </div>
+            </ng-template> -->
         </p-dialog>
     </div>
 </div>

@@ -2,6 +2,7 @@
 	<div class="col-12">
 		<div class="card px-6 py-6">
 			<p-toast></p-toast>
+
 			<p-toolbar styleClass="mb-4">
 				<ng-template pTemplate="left">
 					<div class="my-2">
@@ -27,8 +28,76 @@
 				<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
 			</div>
 
+			<div class="grid" *ngIf="!isLoading && isAdmin">
+				<div class="col-12 lg:col-6 xl:col-3">
+					<div class="card mb-0" *ngIf="orders">
+						<div class="flex justify-content-between mb-3">
+							<div>
+								<span class="block text-500 font-medium mb-3">{{'total_orders' |
+									translate}}</span>
+								<div class="text-900 font-medium text-xl" *ngIf="orders">{{ orders.length }}</div>
+							</div>
+							<div class="flex align-items-center justify-content-center bg-blue-100 border-round"
+								[ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+								<i class="pi pi-shopping-cart text-blue-500 text-xl"></i>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 lg:col-6 xl:col-3">
+					<div class="card mb-0">
+						<div class="flex justify-content-between mb-3">
+							<div>
+								<span class="block text-500 font-medium mb-3">{{'order_total_amount' |
+									translate}}
+								</span>
+								<div class="text-900 font-medium text-xl"> {{getTotalSpent() |
+									currency:currency:'symbol':'1.2-2'}}</div>
+							</div>
+							<div class="flex align-items-center justify-content-center bg-orange-100 border-round"
+								[ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+								<i class="pi pi-money-bill text-orange-500 text-xl"></i>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 lg:col-6 xl:col-3">
+					<div class="card mb-0">
+						<div class="flex justify-content-between mb-3">
+							<div>
+								<span class="block text-500 font-medium mb-3">{{'order_total_paid' |
+									translate}}
+								</span>
+								<div class="text-900 font-medium text-xl">{{ getTotalPaid() |
+									currency:currency:'symbol':'1.2-2' }}</div>
+							</div>
+							<div class="flex align-items-center justify-content-center bg-cyan-100 border-round"
+								[ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+								<i class="pi pi-check-circle text-cyan-500 text-xl"></i>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 lg:col-6 xl:col-3">
+					<div class="card mb-0">
+						<div class="flex justify-content-between mb-3">
+							<div>
+								<span class="block text-500 font-medium mb-3">{{'order_remaining_balance' |
+									translate}}</span>
+								<div class="text-900 font-medium text-xl">{{ getRemainingBalance() |
+									currency:currency:'symbol':'1.2-2' }}</div>
+							</div>
+							<div class="flex align-items-center justify-content-center bg-purple-100 border-round"
+								[ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+								<i class="pi pi-clock text-purple-500 text-xl"></i>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
 			<p-table #dt [value]="orders" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-				[globalFilterFields]="['quantity','productDetails','customer.firstName','customer.lastName','orderDate','shop.shopName']"
+				[globalFilterFields]="['quantity','productDetails','customer.companyName','customer.firstName','customer.lastName','orderDate','shop.shopName']"
 				[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
 				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
 				[(selection)]="selectedOrders" selectionMode="multiple" [rowHover]="true" dataKey="orderId"
@@ -77,6 +146,29 @@
 						<th pSortableColumn="totalAmount">{{ 'order_total_amount' | translate }} <p-sortIcon
 								field="totalAmount"></p-sortIcon>
 						</th>
+						<th pSortableColumn="totalPaid">{{ 'order_total_paid' | translate }} <p-sortIcon
+								field="totalPaid"></p-sortIcon>
+						</th>
+						<th style="min-width: 12rem">
+							<div class="flex justify-content-between align-items-center">
+								{{ 'order_payment_status' | translate }}
+								<p-columnFilter field="paymentStatus" matchMode="equals" display="menu">
+									<ng-template pTemplate="filter" let-value let-filter="filterCallback">
+										<p-dropdown [ngModel]="value" [options]="paymentStatuses"
+											(onChange)="filter($event.value)"
+											placeholder="{{ 'any_label' | translate }}"
+											[style]="{'min-width': '12rem'}">
+											<ng-template let-option pTemplate="item">
+												<span [class]="'order-badge order-' + option.label.toLowerCase()">
+													{{'order_payment_status_'+option.label.toLowerCase() |
+													translate}}</span>
+											</ng-template>
+										</p-dropdown>
+									</ng-template>
+								</p-columnFilter>
+								<p-sortIcon field="paymentStatus"></p-sortIcon>
+							</div>
+						</th>
 						<th pSortableColumn="fullName">
 							{{ 'order_customer' | translate }}
 							<p-sortIcon field="fullName"></p-sortIcon>
@@ -84,20 +176,20 @@
 								<ng-template pTemplate="filter" let-value let-filter="filterCallback">
 									<p-dropdown [ngModel]="value" [options]="customers"
 										(onChange)="filter($event.value)" placeholder="{{ 'any_label' | translate }}"
-										[style]="{'min-width': '12rem'}" optionLabel="fullName">
+										[style]="{'min-width': '12rem'}" [optionLabel]="getCustomerDisplayName">
 										<ng-template let-option pTemplate="item">
-											<!-- Display the full name by concatenating firstName and lastName -->
-											<span>{{ option.fullName }}</span>
+											<!-- Display the appropriate name based on customer type -->
+											<span>{{ getCustomerDisplayName(option) }}</span>
 										</ng-template>
 										<ng-template pTemplate="selectedItem" let-selected>
-											<!-- Show selected item as full name -->
-											<span *ngIf="selected">{{ selected.fullName }}</span>
+											<!-- Show selected item with appropriate name -->
+											<span *ngIf="selected">{{ getCustomerDisplayName(selected) }}</span>
 										</ng-template>
 									</p-dropdown>
 								</ng-template>
 							</p-columnFilter>
 						</th>
-						<th pSortableColumn="shop.shopName">{{ 'order_shop' | translate }}
+						<th *ngIf="isAdmin" pSortableColumn="shop.shopName">{{ 'order_shop' | translate }}
 							<p-sortIcon field="shop.shopName"></p-sortIcon>
 							<p-columnFilter field="shop.shopName" matchMode="equals" display="menu">
 								<ng-template pTemplate="filter" let-value let-filter="filterCallback">
@@ -118,58 +210,143 @@
 					</tr>
 				</ng-template>
 				<ng-template pTemplate="body" let-order let-expanded="expanded">
-					<tr>
+					<tr [pSelectableRow]="order" (click)="canProcessOrder ? showOrderStatus(order) : null">
 						<td>
-							<p-tableCheckbox [value]="order"></p-tableCheckbox>
+							<p-tableCheckbox [value]="order" (click)="$event.stopPropagation()"></p-tableCheckbox>
 						</td>
 
 						<td>
 							<button type="button" pButton pRipple class="p-button-text p-button-rounded p-button-plain"
 								[icon]="isRowExpanded(order.orderId) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
-								(click)="toggleRow(order.orderId)"></button>
+								(click)="toggleRow(order.orderId); $event.stopPropagation()"></button>
 						</td>
+
 						<td style="min-width:10rem;">
 							<span class="p-column-title">{{ 'order_id' | translate }}</span>
-							{{ order.orderId ? order.orderId : 'N/A'}}
+							#{{ order.orderId ? order.orderId : 'N/A'}}
+							<span *ngIf="isReturnedStatus(order.orderStatus)" class="ml-2"
+								[pTooltip]="getReturnTooltip(order.orderStatus)" tooltipPosition="top">
+								<i class="pi pi-undo" [ngClass]="{
+      'text-yellow-500': order.orderStatus === 'Partial_Return',
+      'text-red-500': order.orderStatus === 'Returned'
+    }"></i>
+							</span>
 						</td>
 						<td style="min-width:10rem;">
 							<span class="p-column-title">{{ 'order_date' | translate }}</span>
-							{{ order.orderDate | date: 'shortDate' }} {{ order.orderDate | date: 'shortTime' }}
+							{{ order.orderDate | date: 'dd/MM/yyyy' }} {{ order.orderDate | date: 'shortTime' }}
 						</td>
 						<td style="min-width:10rem;">
 							<span [class]="'order-badge order-' + order.orderStatus.toLowerCase()">{{order.orderStatus ?
 								('order_status_'+order.orderStatus.toLowerCase() | translate) : 'N/A'}}</span>
 						</td>
-						<td style="min-width:10rem;" class="font-bold">
+						<td style="min-width:12rem;" class="font-bold">
 							<span class="p-column-title">{{ 'order_total_amount' | translate }}</span>
-							{{order.totalAmount | currency:currency:'symbol':'1.2-2'}}
+
+							<div *ngIf="hasReturns(order); else originalAmount" class="amount-container">
+								<!-- Original Amount -->
+								<div class="original-amount">
+									<span class="amount-label">{{ 'original_amount' | translate }}:</span>
+									<span class="amount-value">{{order.totalAmount |
+										currency:currency:'symbol':'1.2-2'}}</span>
+								</div>
+
+								<!-- Refund Amount -->
+								<div class="refund-amount">
+									<span class="amount-label">{{ 'refunded_amount' | translate }}:</span>
+									<span class="amount-value">-{{getTotalRefundedAmount(order) |
+										currency:currency:'symbol':'1.2-2'}}</span>
+								</div>
+
+								<!-- Net Amount -->
+								<div class="net-amount">
+									<span class="amount-label">{{ 'net_amount' | translate }}:</span>
+									<span class="amount-value">{{getNetAmount(order) |
+										currency:currency:'symbol':'1.2-2'}}</span>
+								</div>
+							</div>
+
+							<ng-template #originalAmount>
+								<div class="single-amount">
+									{{order.totalAmount | currency:currency:'symbol':'1.2-2'}}
+								</div>
+							</ng-template>
+						</td>
+						<td style="min-width:12rem;" class="font-bold">
+							<span class="p-column-title">{{ 'order_total_paid' | translate }}</span>
+
+							<div *ngIf="hasRefunds(order); else simplePaid" class="payment-container">
+								<!-- Original Payment (totalPaid) -->
+								<div class="payment-amount">
+									<span class="payment-label">{{ 'original_payment' | translate }}:</span>
+									<span class="payment-value">{{order.totalPaid |
+										currency:currency:'symbol':'1.2-2'}}</span>
+								</div>
+
+								<!-- Refund Amount (totalRefunded) -->
+								<div class="refund-amount">
+									<span class="payment-label">{{ 'total_refunds' | translate }}:</span>
+									<span class="payment-value">-{{order.totalRefunded |
+										currency:currency:'symbol':'1.2-2'}}</span>
+								</div>
+
+								<!-- Net Paid (totalPaid - totalRefunded) -->
+								<div class="net-paid">
+									<span class="payment-label">{{ 'net_paid' | translate }}:</span>
+									<span class="payment-value">{{order.totalPaid - order.totalRefunded |
+										currency:currency:'symbol':'1.2-2'}}</span>
+								</div>
+							</div>
+
+							<ng-template #simplePaid>
+								<div class="single-payment">
+									{{order.totalPaid | currency:currency:'symbol':'1.2-2'}}
+								</div>
+							</ng-template>
+						</td>
+						<td style="min-width:10rem;">
+							<span
+								[class]="'payment-badge payment-' + order.paymentStatus.toLowerCase()">{{order.paymentStatus
+								?
+								('order_payment_status_'+order.paymentStatus.toLowerCase() | translate) : 'N/A'}}</span>
 						</td>
 						<td style="min-width:10rem;">
 							<span class="p-column-title">{{ 'order_customer' | translate }}</span>
-							{{ order.customer ? (order.customer.firstName + ' ' + order.customer.lastName) : 'N/A' }}
+							{{
+							order.customer
+							? (order.customer.customerType === 'Company'
+							? order.customer.companyName
+							: (order.customer.firstName + ' ' + order.customer.lastName))
+							: 'N/A'
+							}}
 						</td>
-						<td style="min-width:10rem;">
+						<td style="min-width:10rem;" *ngIf="isAdmin">
 							<span class="p-column-title">{{ 'order_shop' | translate }}</span>
 							{{ order.shop ? order.shop.shopName : 'N/A' }}
 						</td>
 						<td>
 							<div class="flex">
+								<button pButton pRipple *ngIf="order.orderStatus ==='Ordered' && canCancelOrder"
+									icon="pi pi-times" class="p-button-rounded p-button-danger mr-2"
+									(click)="cancelOrderFromTable(order); $event.stopPropagation()"
+									pTooltip="{{'cancel_order'|translate}}"></button>
 								<button pButton pRipple
 									*ngIf="(order.orderStatus ==='Ordered' || order.orderStatus ==='Processing') && canEditOrder"
 									icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2"
-									(click)="editOrder(order)" pTooltip="{{'update_order'|translate}}"></button>
+									(click)="editOrder(order); $event.stopPropagation()"
+									pTooltip="{{'update_order'|translate}}"></button>
 								<button pButton pRipple *ngIf="canDeleteOrder" icon="pi pi-trash"
 									class="p-button-rounded p-button-warning mr-2"
-									pTooltip="{{'delete_order'|translate}}" (click)="deleteOrder(order)"></button>
-								<!-- <button pButton pRipple icon="pi pi-print" class="p-button-rounded p-button-danger"
-									(click)="downloadInvoice(order.orderId)"></button> -->
+									pTooltip="{{'delete_order'|translate}}"
+									(click)="deleteOrder(order); $event.stopPropagation()"></button>
 								<button pButton pRipple *ngIf="canProcessOrder" icon="pi pi-list"
-									class="p-button-rounded p-button mr-2" (click)="showOrderStatus(order)"
+									class="p-button-rounded p-button mr-2"
+									(click)="showOrderStatus(order); $event.stopPropagation()"
 									pTooltip="{{'order_processing'|translate}}"></button>
-								<button pButton pRipple *ngIf="canProcessOrder && order.orderStatus === 'Delivered'"
+								<!-- <button pButton pRipple *ngIf="canProcessOrder && order.orderStatus === 'Delivered'"
 									icon="pi pi-backward" class="p-button-rounded p-button-info mr-2"
 									(click)="openOrderReturn(order)" [pTooltip]="'order_return' | translate">
-								</button>
+								</button> -->
 							</div>
 						</td>
 					</tr>
@@ -241,20 +418,27 @@
 				</div>
 
 				<p-dropdown [(ngModel)]="order.customer" name="customer" inputId="customer" id="customer"
-					ngDefaultControl optionLabel="firstName" [options]="customers" required autofocus
+					ngDefaultControl [optionLabel]="getCustomerDisplayName" [options]="customers" required autofocus
 					placeholder="{{ 'select_customer_option' | translate }}" [filter]="true"
-					filterBy="firstName,lastName" [ngClass]="{'ng-invalid ng-dirty' : submitted && !order.customer}">
+					filterBy="firstName,lastName,companyName"
+					[ngClass]="{'ng-invalid ng-dirty' : submitted && !order.customer}">
+
 					<ng-template pTemplate="selectedItem">
-						<span *ngIf="order && order.customer" [class]="'product-badge'">{{order.customer.firstName + '
-							'+
-							order.customer.lastName}}</span>
+						<span *ngIf="order && order.customer" [class]="'product-badge'">
+							{{ getCustomerDisplayName(order.customer) }}
+						</span>
 					</ng-template>
+
 					<ng-template let-option pTemplate="item">
-						<span [class]="'product-badge'">{{option.firstName + ' ' + option.lastName}}</span>
+						<span [class]="'product-badge'">
+							{{ getCustomerDisplayName(option) }}
+						</span>
 					</ng-template>
 				</p-dropdown>
-				<small class="ng-dirty ng-invalid" *ngIf="submitted && !order.customer">{{'order_customer' |
-					translate}} {{'is_required_label' | translate}}</small>
+
+				<small class="ng-dirty ng-invalid" *ngIf="submitted && !order.customer">
+					{{'order_customer' | translate}} {{'is_required_label' | translate}}
+				</small>
 			</div>
 
 			<div class="field" style="position: relative;" *ngIf="isAdmin">
@@ -352,7 +536,7 @@
 				</div>
 
 				<div class="field">
-					<label for="discountType">{{ 'discountType' | translate }}</label>
+					<label for="discountType">{{ 'discount_type' | translate }}</label>
 					<div class="flex flex-wrap gap-3">
 						<p-selectButton [options]="discountTypeOptions" [(ngModel)]="discountType" optionLabel="label"
 							optionValue="value">
@@ -382,6 +566,12 @@
 					<span> {{ calculateTax(getTotalWithoutTax()) | number: '1.2-2' }} </span> {{currency}}
 				</div>
 
+				<div class="field">
+					<label for="transportAmount">{{'transport_amount' | translate}}</label>
+					<input type="number" pInputText name="transportAmount" [(ngModel)]="order.transportAmount"
+						placeholder="{{ 'enter_transport_amount' | translate }}" autofocus />
+				</div>
+
 				<div class="flex flex-column gap-2 mx-auto">
 					<div class="text-center mt-3 mb-3 text-xl font-semibold">
 						Total: <span class="text-900 font-medium">{{ calculateTotalAmount() | number:'1.2-2' }}</span>
@@ -389,70 +579,6 @@
 					</div>
 				</div>
 
-
-			</div>
-
-			<div class="field">
-				<label for="paymentMethod">
-					{{'payment_method' | translate}} <span class="required-asterisk">*</span>
-				</label>
-				<div class="flex flex-wrap gap-3">
-					<div class="flex align-items-center">
-						<p-radioButton name="paymentMethod" value="Cash" [(ngModel)]="order.paymentMethod"
-							ngDefaultControl inputId="paymentMethod1"></p-radioButton>
-						<label for="paymentMethod1" class="ml-2">{{'payment_method_cash' | translate}}</label>
-					</div>
-
-					<div class="flex align-items-center">
-						<p-radioButton name="paymentMethod" value="Transfer" [(ngModel)]="order.paymentMethod"
-							ngDefaultControl inputId="paymentMethod4"></p-radioButton>
-						<label for="paymentMethod4" class="ml-2">{{'payment_method_transfer' | translate}}</label>
-					</div>
-
-					<div class="flex align-items-center">
-						<p-radioButton name="paymentMethod" value="Card" [(ngModel)]="order.paymentMethod"
-							ngDefaultControl inputId="paymentMethod2"></p-radioButton>
-						<label for="paymentMethod2" class="ml-2">{{'payment_method_card' | translate}}</label>
-					</div>
-
-					<div class="flex align-items-center">
-						<p-radioButton name="paymentMethod" value="Check" [(ngModel)]="order.paymentMethod"
-							ngDefaultControl inputId="paymentMethod3"></p-radioButton>
-						<label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
-					</div>
-
-					<div class="flex align-items-center">
-						<p-radioButton name="paymentMethod" value="BOE" [(ngModel)]="order.paymentMethod"
-							ngDefaultControl inputId="paymentMethod5"></p-radioButton>
-						<label for="paymentMethod5" class="ml-2">{{'payment_method_boe' | translate}}</label>
-					</div>
-				</div>
-
-				<!-- Input for cheque number, displayed only if "Check" is selected -->
-				<div *ngIf="order.paymentMethod === 'Check'" class="mt-3">
-					<label for="checkNumber">{{ 'check_number' | translate }}</label>
-					<input type="text" id="checkNumber" [(ngModel)]="order.checkNumber"
-						placeholder="{{ 'enter_check_number' | translate }}" class="p-inputtext" />
-				</div>
-				<div *ngIf="order.paymentMethod === 'Check'" class="mt-3">
-					<label for="checkExpirationDate">{{ 'expiration_date' | translate }}</label>
-					<p-calendar [(ngModel)]="order.checkExpirationDate" [showIcon]="true" inputId="checkExpirationDate"
-						dateFormat="dd/mm/yy" [showOnFocus]="false"
-						[style]="{flex: 1, minWidth: '250px', height: '40px'}"
-						placeholder="{{ 'expiration_date' | translate }}" />
-				</div>
-				<div *ngIf="order.paymentMethod === 'BOE'" class="mt-3">
-					<label for="boeNumber">{{ 'boe_number' | translate }}</label>
-					<input type="text" id="boeNumber" [(ngModel)]="order.boeNumber"
-						placeholder="{{ 'enter_boe_number' | translate }}" class="p-inputtext" />
-				</div>
-				<div *ngIf="order.paymentMethod === 'BOE'" class="mt-3">
-					<label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
-					<p-calendar [(ngModel)]="order.boeExpirationDate" [showIcon]="true" inputId="boeExpirationDate"
-						dateFormat="dd/mm/yy" [showOnFocus]="false"
-						[style]="{flex: 1, minWidth: '250px', height: '40px'}"
-						placeholder="{{ 'expiration_date' | translate }}" />
-				</div>
 			</div>
 
 			<div class="required-note">
@@ -462,109 +588,239 @@
 		</ng-template>
 
 		<ng-template pTemplate="footer">
-			<button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text"
-				(click)="hideDialog()"></button>
-			<button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
-				(click)="saveOrder()"></button>
+			<div class="flex justify-content-between align-items-center w-full">
+				<button pButton pRipple [label]="translate.instant('cancel_button')" icon="pi pi-times"
+					class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+
+				<button pButton pRipple
+					[label]="showPaymentSection ? (translate.instant('hide_payment')) : (translate.instant('add_payment'))"
+					icon="pi pi-money-bill" class="p-button-text p-button-info mr-2"
+					(click)="togglePaymentSection()"></button>
+
+				<button pButton pRipple [label]="translate.instant('save_button')" icon="pi pi-check"
+					class="p-button-raised" (click)="saveOrder()" [loading]="isSaving"></button>
+			</div>
+
+			<!-- Payment Section -->
+			<!-- Payment Section -->
+			<div *ngIf="showPaymentSection" class="payment-section mt-3 p-3 border-round surface-card shadow-2">
+				<div class="flex align-items-center mb-3">
+					<i class="pi pi-money-bill mr-2 text-primary" style="font-size: 1.25rem"></i>
+					<h4 class="m-0 text-primary">{{ 'add_payment' | translate }}</h4>
+				</div>
+
+				<div class="grid">
+					<!-- Payment Amount -->
+					<div class="field col-12 md:col-4">
+						<label class="block mb-2 font-medium">
+							<i class="pi pi-wallet mr-1"></i>
+							{{ 'payment_amount' | translate }}<span class="required-asterisk">*</span>
+						</label>
+						<p-inputNumber [(ngModel)]="payment.amount" mode="currency" [currency]="currency" [min]="0.01"
+							[max]="calculateTotalAmount()" [required]="showPaymentSection" inputStyleClass="w-full"
+							[style]="{'width': '100%'}">
+							<ng-template pTemplate="prefix">{{currency}} </ng-template>
+						</p-inputNumber>
+						<small class="p-error block mt-1" *ngIf="submitted && (!payment.amount || payment.amount <= 0)">
+							{{ translate.instant('valid_amount_required') }}
+						</small>
+					</div>
+
+					<!-- Payment Method -->
+					<div class="field col-12 md:col-4">
+						<label class="block mb-2 font-medium">
+							<i class="pi pi-credit-card mr-1"></i>
+							{{ 'payment_method' | translate }}<span class="required-asterisk">*</span>
+						</label>
+						<p-dropdown [(ngModel)]="payment.paymentMethod" [options]="paymentMethods" optionLabel="label"
+							optionValue="value" [required]="showPaymentSection" appendTo="body"
+							[style]="{'width': '100%'}">
+							<ng-template pTemplate="selectedItem">
+								<div class="flex align-items-center">
+									<i [class]="'pi mr-2 ' + getPaymentMethodIcon(payment.paymentMethod)"></i>
+									<span>{{'payment_method_' + payment.paymentMethod.toLowerCase() | translate }}</span>
+								</div>
+							</ng-template>
+							<ng-template let-method pTemplate="item">
+								<div class="flex align-items-center">
+									<i [class]="'pi mr-2 ' + getPaymentMethodIcon(method.value)"></i>
+									<span>{{ 'payment_method_' + method.label.toLowerCase() | translate }}</span>
+								</div>
+							</ng-template>
+						</p-dropdown>
+					</div>
+
+					<!-- Payment Date -->
+					<div class="field col-12 md:col-4">
+						<label class="block mb-2 font-medium">
+							<i class="pi pi-calendar mr-1"></i>
+							{{ 'payment_date' | translate }}<span class="required-asterisk">*</span>
+						</label>
+						<p-calendar [(ngModel)]="payment.paymentDate" [showIcon]="true" dateFormat="dd/mm/yy"
+							[style]="{'width': '100%'}" iconDisplay="input" inputStyleClass="w-full"
+							[showOnFocus]="false" [icon]="'pi pi-calendar'">
+						</p-calendar>
+					</div>
+
+					<!-- Conditional fields -->
+					<div class="field col-12 md:col-6" *ngIf="payment.paymentMethod === 'Check'">
+						<label class="block mb-2 font-medium">
+							<i class="pi pi-file-edit mr-1"></i>
+							{{ 'check_number' | translate }}
+						</label>
+						<input pInputText [(ngModel)]="payment.checkNumber" class="w-full">
+					</div>
+
+					<div class="field col-12 md:col-6" *ngIf="payment.paymentMethod === 'Check'">
+						<label class="block mb-2 font-medium">
+							<i class="pi pi-clock mr-1"></i>
+							{{ 'expiration_date' | translate }}
+						</label>
+						<p-calendar [(ngModel)]="payment.checkExpirationDate" [showIcon]="true" dateFormat="dd/mm/yy"
+							[style]="{'width': '100%'}" inputStyleClass="w-full" iconDisplay="input"
+							[icon]="'pi pi-calendar'">
+						</p-calendar>
+					</div>
+
+					<!-- Notes -->
+					<div class="field col-12">
+						<label class="block mb-2 font-medium">
+							<i class="pi pi-comment mr-1"></i>
+							{{ 'payment_notes' | translate }}
+						</label>
+						<textarea pInputTextarea [(ngModel)]="payment.notes" rows="2" class="w-full"></textarea>
+					</div>
+				</div>
+			</div>
 		</ng-template>
 	</p-dialog>
 
 	<p-dialog [(visible)]="customerDialog" [style]="{width: '450px', height: '100%'}"
-		header="{{'customer_details' | translate}}" [modal]="true" class="p-fluid ">
+		header="{{'customer_details' | translate}}" [modal]="true" class="p-fluid">
 		<ng-template pTemplate="content">
+			<!-- Customer Type Selection -->
 			<div class="field">
-				<label for="firstName">
-					{{'customer_first_name' | translate}} <span class="required-asterisk">*</span>
-				</label>
-				<input type="text" pInputText name="firstName" ngDefaultControl [(ngModel)]="customer.firstName"
-					required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.firstName}" />
-				<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.firstName">{{'customer_first_name' |
-					translate}} {{'is_required_label' | translate}}</small>
+				<label for="customerType">{{'customer_type' | translate}} <span
+						class="required-asterisk">*</span></label>
+				<div class="flex flex-wrap gap-3">
+					<div class="flex align-items-center">
+						<p-radioButton name="customerType" value="Particular" [(ngModel)]="customer.customerType"
+							ngDefaultControl inputId="customerType1" required
+							[ngClass]="{'ng-invalid ng-dirty': submitted && !customer.customerType}"></p-radioButton>
+						<label for="customerType1" class="ml-2">{{'customer_type_particular' | translate}}</label>
+					</div>
+					<div class="flex align-items-center">
+						<p-radioButton name="customerType" value="Company" [(ngModel)]="customer.customerType"
+							ngDefaultControl inputId="customerType2" required
+							[ngClass]="{'ng-invalid ng-dirty': submitted && !customer.customerType}"></p-radioButton>
+						<label for="customerType2" class="ml-2">{{'customer_type_company' | translate}}</label>
+					</div>
+				</div>
+				<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.customerType">
+					{{'customer_type' | translate}} {{'is_required_label' | translate}}
+				</small>
 			</div>
-			<div class="field">
-				<label for="lastName">
-					{{'customer_last_name' | translate}} <span class="required-asterisk">*</span>
-				</label>
-				<input type="text" pInputText name="lastName" ngDefaultControl [(ngModel)]="customer.lastName" required
-					autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.lastName}" />
-				<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.lastName">{{'customer_last_name' |
-					translate}} {{'is_required_label' | translate}}</small>
+
+			<!-- Particular Customer Fields -->
+			<div *ngIf="customer.customerType === 'Particular'">
+				<div class="field">
+					<label for="firstName">
+						{{'customer_first_name' | translate}} <span class="required-asterisk">*</span>
+					</label>
+					<input type="text" pInputText name="firstName" [(ngModel)]="customer.firstName" required
+						[ngClass]="{'ng-invalid ng-dirty': submitted && !customer.firstName}" />
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.firstName">
+						{{'customer_first_name' | translate}} {{'is_required_label' | translate}}
+					</small>
+				</div>
+
+				<div class="field">
+					<label for="lastName">
+						{{'customer_last_name' | translate}} <span class="required-asterisk">*</span>
+					</label>
+					<input type="text" pInputText name="lastName" [(ngModel)]="customer.lastName" required
+						[ngClass]="{'ng-invalid ng-dirty': submitted && !customer.lastName}" />
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.lastName">
+						{{'customer_last_name' | translate}} {{'is_required_label' | translate}}
+					</small>
+				</div>
+
+				<div class="field">
+					<label for="cin">
+						{{'customer_cin' | translate}} <span class="required-asterisk">*</span>
+					</label>
+					<input type="text" pInputText name="cin" [(ngModel)]="customer.cin" required
+						[ngClass]="{'ng-invalid ng-dirty': submitted && !customer.cin}" />
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.cin">
+						{{'customer_cin' | translate}} {{'is_required_label' | translate}}
+					</small>
+				</div>
 			</div>
+
+			<!-- Company Customer Fields -->
+			<div *ngIf="customer.customerType === 'Company'">
+				<div class="field">
+					<label for="companyName">
+						{{'customer_company_name' | translate}} <span class="required-asterisk">*</span>
+					</label>
+					<input type="text" pInputText name="companyName" [(ngModel)]="customer.companyName" required
+						[ngClass]="{'ng-invalid ng-dirty': submitted && !customer.companyName}" />
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.companyName">
+						{{'customer_company_name' | translate}} {{'is_required_label' | translate}}
+					</small>
+				</div>
+
+				<div class="field">
+					<label for="ice">
+						{{'customer_ice' | translate}} <span class="required-asterisk">*</span>
+					</label>
+					<input type="text" pInputText name="ice" [(ngModel)]="customer.ice" required
+						[ngClass]="{'ng-invalid ng-dirty': submitted && !customer.ice}" />
+					<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.ice">
+						{{'customer_ice' | translate}} {{'is_required_label' | translate}}
+					</small>
+				</div>
+			</div>
+
+			<!-- Common Fields -->
 			<div class="field">
 				<label for="email">{{'customer_email' | translate}}</label>
-				<input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="customer.email" autofocus />
+				<input type="email" pInputText name="email" [(ngModel)]="customer.email" />
 			</div>
 
 			<div class="field">
 				<label for="country">{{ 'customer_country' | translate }}</label>
 				<p-dropdown [(ngModel)]="customer.country" (onChange)="onSelectedCountry(customer.country)"
-					name="country" inputId="country" ngDefaultControl [options]="countries" optionValue="name"
-					optionLabel="name" [filter]="true" filterBy="name"
-					placeholder="{{ 'select_country_option' | translate }}" autofocus>
-					<ng-template pTemplate="selectedItem">
-						<span *ngIf="customer && customer.country" [class]="'product-badge'">{{customer.country}}</span>
-					</ng-template>
+					[options]="countries" optionLabel="name" [filter]="true"
+					placeholder="{{ 'select_country_option' | translate }}">
 					<ng-template let-option pTemplate="item">
-						<span [class]="'product-badge'">{{option.name}}</span>
+						<span>{{option.name}}</span>
 					</ng-template>
 				</p-dropdown>
 			</div>
 
 			<div class="field" *ngIf="customer.country">
 				<label for="city">{{ 'customer_city' | translate }}</label>
-				<p-dropdown [(ngModel)]="customer.city" name="city" inputId="city" ngDefaultControl optionValue="name"
-					optionLabel="name" [filter]="true" filterBy="name" [options]="this.states"
-					placeholder="{{ 'select_city_option' | translate }}" autofocus>
-					<ng-template pTemplate="selectedItem">
-						<span *ngIf="customer && customer.city" [class]="'product-badge'">{{customer.city}}</span>
-					</ng-template>
-					<ng-template let-option pTemplate="item">
-						<span [class]="'product-badge'">{{option.name}}</span>
-					</ng-template>
+				<p-dropdown [(ngModel)]="customer.city" [options]="states" optionLabel="name" [filter]="true"
+					placeholder="{{ 'select_city_option' | translate }}">
 				</p-dropdown>
 			</div>
 
 			<div class="field">
-				<label for="lastName">{{'customer_address' | translate}}</label>
-				<textarea rows="3" cols="20" [(ngModel)]="customer.address" name="address" placeholder="Your Address"
-					ngDefaultControl pInputTextarea autofocus></textarea>
+				<label for="address">{{'customer_address' | translate}}</label>
+				<textarea pInputTextarea [(ngModel)]="customer.address" rows="3"></textarea>
 			</div>
+
 			<div class="field">
 				<label for="zip">{{'customer_zip' | translate}}</label>
-				<input type="number" pInputText name="zip" ngDefaultControl [(ngModel)]="customer.zip" autofocus />
-
+				<input type="text" pInputText name="zip" [(ngModel)]="customer.zip" />
 			</div>
+
 			<div class="field">
 				<label for="phoneNumber">{{'customer_phone_number' | translate}}</label>
-				<input type="tel" pInputText name="phoneNumber" ngDefaultControl [(ngModel)]="customer.phoneNumber"
-					autofocus />
+				<input type="tel" pInputText name="phoneNumber" [(ngModel)]="customer.phoneNumber" />
 			</div>
 
-			<div class="field">
-				<label for="customerType">{{'customer_type' | translate}}</label>
-				<div class="flex flex-wrap gap-3">
-					<div class="flex align-items-center">
-						<p-radioButton name="customerType" value="Particular" [(ngModel)]="customer.customerType"
-							ngDefaultControl inputId="customerType1"></p-radioButton>
-						<label for="customerType1" class="ml-2">{{'customer_type_particular' | translate}}</label>
-					</div>
-
-					<div class="flex align-items-center">
-						<p-radioButton name="customerType" value="Company" [(ngModel)]="customer.customerType"
-							ngDefaultControl inputId="customerType2"></p-radioButton>
-						<label for="customerType2" class="ml-2">{{'customer_type_company' | translate}}</label>
-					</div>
-				</div>
-			</div>
-			<div class="field" *ngIf="customer.customerType=='Company'">
-				<label for="ice">
-					{{'customer_ice' | translate}} <span class="required-asterisk">*</span>
-				</label>
-				<input type="text" pInputText name="ice" ngDefaultControl [(ngModel)]="customer.ice" required autofocus
-					[ngClass]="{'ng-invalid ng-dirty' : submitted && !customer.ice}" />
-				<small class="ng-dirty ng-invalid" *ngIf="submitted && !customer.ice">{{'customer_ice' |
-					translate}} {{'is_required_label' | translate}}</small>
-			</div>
 			<div class="required-note">
 				<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
 					translate}}</small>
@@ -572,9 +828,9 @@
 		</ng-template>
 
 		<ng-template pTemplate="footer">
-			<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
+			<button pButton label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
 				(click)="hideCustomerDialog()"></button>
-			<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
+			<button pButton label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
 				(click)="saveCustomer()"></button>
 		</ng-template>
 	</p-dialog>
@@ -609,16 +865,18 @@
 	</p-dialog>
 
 
-	<p-dialog [(visible)]="detailsDialog" [style]="{width: '80%', height: '100%'}"
-		header="{{'order_processing' | translate}} {{order.orderId}} ({{'order_total_amount'|translate}} : {{order.totalAmount | number:'1.2-2'}} {{currency}})"
-		[modal]="true" class="p-fluid ">
+	<p-dialog [(visible)]="detailsDialog" [style]="{width: '80%', height: '100%'}" header="{{'order_processing' | translate}} #{{order.orderId}} - 
+    {{ order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || '')) }} |
+
+    {{'order_total_amount'|translate}}: {{order.totalAmount | number:'1.2-2'}} {{currency}}" [modal]="true"
+		class="p-fluid ">
 		<ng-template pTemplate="content">
 
 			<div class="card">
 				<p-timeline [value]="events" align="alternate" styleClass="customized-timeline">
 					<ng-template pTemplate="marker" let-event>
 						<p-button [icon]="event.icon" [raised]="true" [rounded]="true" [text]="true"
-							(click)="downloadInvoice(order.orderId, event.status)" 
+							(click)="downloadInvoice(order.orderId, event.status)"
 							pTooltip="{{event.buttonDescription}}"
 							[disabled]="order.orderStatus == 'Canceled'"></p-button>
 						<!-- <span class="custom-marker shadow-2" style="display: flex; justify-content: center; align-items: center; height: 2.5rem; width: 2.5rem; border-radius: 30px;">
@@ -630,165 +888,201 @@
 							<p-card
 								[header]="event.status ? ('order_status_' + event.status.toLowerCase() | translate) : 'N/A'"
 								[subheader]="event.date!=null ? (event.date | date:'dd/MM/yy, hh:mm') : ('now' | translate)">
-							<div class="flex justify-content-center align-items-center gap-2 flex-wrap mb-2"
-								style="text-align: center;" *ngIf="event.status == 'Ordered'">
-								<p-chip label="{{order.customer.firstName + ' ' + order.customer.lastName}}"
-									image="assets/core-images/customer.png" alt="customer" />
-							</div>
-							<div style="display: flex; justify-content: center; align-items: center;"
-								*ngIf="event.status == 'Ordered'">
+								<div class="flex justify-content-center align-items-center gap-2 flex-wrap mb-2"
+									style="text-align: center;" *ngIf="event.status == 'Ordered'">
+									<p-chip
+										label="{{ order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || '')) }}"
+										image="assets/core-images/customer.png" alt="customer" />
+								</div>
+								<div style="display: flex; justify-content: center; align-items: center;"
+									*ngIf="event.status == 'Ordered'">
 
-								<p-galleria *ngIf="images" [(value)]="images" [showIndicators]="true"
-									[showThumbnails]="false" [changeItemOnIndicatorHover]="true"
-									[responsiveOptions]="responsiveOptions" [containerStyle]="{ 'max-width': '100px' }">
-									<ng-template pTemplate="item" let-item>
-										<img *ngIf="item && event.status == 'Ordered'" [src]="item" [alt]="event.name"
-											style="width: 100%; display: block;" />
-									</ng-template>
-								</p-galleria>
-							</div>
+									<p-galleria *ngIf="images" [(value)]="images" [showIndicators]="true"
+										[showThumbnails]="false" [changeItemOnIndicatorHover]="true"
+										[responsiveOptions]="responsiveOptions"
+										[containerStyle]="{ 'max-width': '100px' }">
+										<ng-template pTemplate="item" let-item>
+											<img *ngIf="item && event.status == 'Ordered'" [src]="item"
+												[alt]="event.name" style="width: 100%; display: block;" />
+										</ng-template>
+									</p-galleria>
+								</div>
 
-							<p-accordion class="w-full" *ngIf="event.status === 'Ordered'">
-								<p-accordionTab>
-									<ng-template pTemplate="header">
-										<span class="flex align-items-center gap-2 w-full">
-											<span class="font-bold white-space-nowrap">
-												{{ 'ordered_products' | translate }}
-											</span>
-											<p-badge [value]="order?.orderItems?.length || 0" class="ml-auto"></p-badge>
-										</span>
-									</ng-template>
-									<div *ngIf="order?.orderStatus === 'Returned'; else showTable">
-										<p>{{ 'return_order_no_items_txt' | translate }}</p>
-									</div>
-									<ng-template #showTable>
-										<p-table [value]="order?.orderItems" responsiveLayout="scroll"
-											*ngIf="order?.orderItems?.length > 0">
-											<ng-template pTemplate="header">
-												<tr>
-													<th>{{ 'product_name' | translate }}</th>
-													<th>{{ 'product_reference' | translate }}</th>
-													<th>{{ 'order_items_quantity' | translate }}</th>
-													<th>{{ 'order_items_price_per_unit' | translate }}</th>
-												</tr>
-											</ng-template>
-											<ng-template pTemplate="body" let-orderItem>
-												<tr>
-													<td>{{ orderItem?.product?.name || 'N/A' }}</td>
-													<td>{{ orderItem?.product?.reference || 'N/A' }}</td>
-													<td>{{ orderItem?.quantity || 'N/A' }}</td>
-													<td>{{ orderItem?.pricePerUnit || 'N/A' }}</td>
-												</tr>
-											</ng-template>
-										</p-table>
-									</ng-template>
-								</p-accordionTab>
-							</p-accordion>
-							<p *ngIf="event.status == 'Ordered' && order.discount">
-								{{'discount' | translate}} : {{order.discount}} {{order.discountType=='Percentage' ?
-								'%' : currency}}
-							</p>
-							<p *ngIf="event.status == 'Ordered' && order.totalAmount">
-								{{'order_total_amount' | translate}} : {{order.totalAmount| number:'1.2-2'}}
-								{{currency}} ({{order.taxEnabled ? 'TTC' : 'HT'}})
-							</p>
-							<p *ngIf="event.status == 'Ordered'">
-								{{'payment_method' | translate}} :
-								{{'payment_method_'+order.paymentMethod.toLowerCase() | translate}}
-								<strong *ngIf="order.paymentMethod === 'BOE'">
-									(
-									Nº: {{order.boeNumber}}
-									<p-badge
-										value="{{'expiration_date'|translate}}: {{order.boeExpirationDate | date:'dd/MM/yyyy'}}"
-										severity="danger" />
-									)
-								</strong>
-								<strong *ngIf="order.paymentMethod === 'Check'">
-									(
-									Nº: {{order.checkNumber}}
-									<p-badge
-										value="{{'expiration_date'|translate}}: {{order.checkExpirationDate | date:'dd/MM/yyyy'}}"
-										severity="danger" />
-									)
-								</strong>
-							</p>
-							<div *ngIf="event.status == 'Processing'">
-								<p style="text-align: left;">
-									{{ 'order_under_processing' | translate }}</p>
-								<br>
-								<p *ngIf="order.orderStatus == 'Processing'">{{ 'order_processing_tocancel_text' |
-									translate }}</p>
-								<!-- <button pButton label="{{ 'cancel_order_button' | translate }}" icon="pi pi-times" class="p-button-text"
-									(click)="cancelOrder(order.orderId)"></button> -->
-								<p-button *ngIf="canCancelOrder(order)" label="{{ 'cancel_button' | translate }}"
-									icon="pi pi-times" class="p-button-text" [outlined]="true" severity="danger"
-									(click)="cancelOrder(order)" />
-							</div>
-							<div *ngIf="event.status == 'Delivered'">
-								<p style="text-align: left;">
-									{{ 'order_delivered' | translate }} {{order.customer ? (order.customer.firstName
-									+ ' ' +
-									order.customer.lastName) : 'N/A'}}.</p>
-								<br>
-								<p *ngIf="order.orderStatus == 'Delivered'">
-									{{ 'order_delivered_tocomplete_text' | translate }} {{order.expiryDate |
-									date:'dd/MM/yy, hh:mm'}}.
-								</p>
-							</div>
-
-							<p-accordion class="w-full"
-								*ngIf="event.status == 'Partial_Return' || event.status == 'Returned' && orderReturns">
-								<div *ngFor="let orderReturn of orderReturns">
+								<p-accordion class="w-full" *ngIf="event.status === 'Ordered'">
 									<p-accordionTab>
 										<ng-template pTemplate="header">
 											<span class="flex align-items-center gap-2 w-full">
-												<span class="font-bold white-space-nowrap">{{ 'return_details' |
-													translate }} : {{ orderReturn.returnDate | date }}</span>
-												<p-badge [value]="orderReturn.returnItems.length" class="ml-auto" />
+												<span class="font-bold white-space-nowrap">
+													{{ 'ordered_products' | translate }}
+												</span>
+												<p-badge [value]="order?.orderItems?.length || 0"
+													class="ml-auto"></p-badge>
 											</span>
 										</ng-template>
-										<p-table [value]="orderReturn.returnItems" responsiveLayout="scroll">
-											<ng-template pTemplate="header">
-												<tr>
-													<th>{{ 'product_name' | translate }}</th>
-													<th>{{ 'quantity_returned' | translate }}</th>
-													<th>{{ 'return_refund_amount' | translate }}</th>
-												</tr>
-											</ng-template>
-											<ng-template pTemplate="body" let-returnItem>
-												<tr>
-													<td>{{ returnItem.product?.name || 'N/A' }}</td>
-													<td>{{ returnItem.returnedQuantity || 'N/A' }}</td>
-													<td>{{ returnItem.refundAmount || 'N/A' }}</td>
-												</tr>
-											</ng-template>
-										</p-table>
+										<div *ngIf="order?.orderStatus === 'Returned'; else showTable">
+											<p>{{ 'return_order_no_items_txt' | translate }}</p>
+										</div>
+										<ng-template #showTable>
+											<p-table [value]="order?.orderItems" [scrollable]="true"
+												scrollHeight="250px" *ngIf="order?.orderItems?.length > 0">
+												<ng-template pTemplate="header">
+													<tr>
+														<th>{{ 'product_name' | translate }}</th>
+														<th>{{ 'product_reference' | translate }}</th>
+														<th>{{ 'order_items_quantity' | translate }}</th>
+														<th>{{ 'order_items_price_per_unit' | translate }}</th>
+														<th>{{ 'total' | translate }}</th>
+													</tr>
+												</ng-template>
+												<ng-template pTemplate="body" let-orderItem>
+													<tr>
+														<td>{{ orderItem?.product?.name || 'N/A' }}</td>
+														<td>{{ orderItem?.product?.reference || 'N/A' }}</td>
+														<td>{{ orderItem?.quantity || 'N/A' }}</td>
+														<td>{{ orderItem?.pricePerUnit | number:'1.2-2' || 'N/A'
+															}} {{currency}}</td>
+														<td>{{ (orderItem?.quantity * orderItem?.pricePerUnit) |
+															number:'1.2-2' }} {{currency}}</td>
+													</tr>
+												</ng-template>
+												<ng-template pTemplate="footer">
+													<tr>
+														<td colspan="3"></td>
+														<td class="footer-label">{{'discount' | translate}}:
+														</td>
+														<td class="footer-value">
+															{{order.discount}}
+															{{order.discountType=='Percentage' ? '%' :
+															currency}}
+														</td>
+													</tr>
+													<tr>
+														<td colspan="3"></td>
+														<td class="footer-label">{{'order_total_amount' |
+															translate}}:</td>
+														<td class="footer-value">
+															{{order.totalAmount| number:'1.2-2'}} {{currency}}
+															({{order.taxEnabled ? 'TTC' : 'HT'}})
+														</td>
+													</tr>
+												</ng-template>
+											</p-table>
+										</ng-template>
 									</p-accordionTab>
-									<p *ngIf="orderReturn.refundAmount" style="text-align: left;">
-										{{'return_refund_amount' | translate}} : {{orderReturn.refundAmount|
-										number:'1.2-2'}} {{currency}}
-									</p>
-									<p *ngIf="orderReturn.reason" style="text-align: left;">
-										{{'return_reason' | translate}} :
-										{{'return_reason_'+orderReturn.reason.toLowerCase() | translate}}
+								</p-accordion>
+								<p *ngIf="event.status == 'Ordered' && order.discount">
+									{{'discount' | translate}} : {{order.discount}} {{order.discountType=='Percentage' ?
+									'%' : currency}}
+								</p>
+								<p *ngIf="event.status == 'Ordered' && order.totalAmount">
+									{{'order_total_amount' | translate}} : {{order.totalAmount| number:'1.2-2'}}
+									{{currency}} ({{order.taxEnabled ? 'TTC' : 'HT'}})
+								</p>
+								<p *ngIf="order.orderStatus == 'Ordered'">{{ 'order_processing_tocancel_text' |
+									translate }}</p>
+								<!-- <button pButton label="{{ 'cancel_order_button' | translate }}" icon="pi pi-times" class="p-button-text"
+									(click)="cancelOrder(order.orderId)"></button> -->
+								<p-button *ngIf="allowCancelOrder(order)" label="{{ 'cancel_button' | translate }}"
+									icon="pi pi-times" class="p-button-text" [outlined]="true" severity="danger"
+									(click)="cancelOrder(order)" />
+								<!-- <p *ngIf="event.status == 'Ordered'">
+									{{'payment_method' | translate}} :
+									{{'payment_method_'+order.paymentMethod.toLowerCase() | translate}}
+									<strong *ngIf="order.paymentMethod === 'BOE'">
+										(
+										Nº: {{order.boeNumber}}
+										<p-badge
+											value="{{'expiration_date'|translate}}: {{order.boeExpirationDate | date:'dd/MM/yyyy'}}"
+											severity="danger" />
+										)
+									</strong>
+									<strong *ngIf="order.paymentMethod === 'Check'">
+										(
+										Nº: {{order.checkNumber}}
+										<p-badge
+											value="{{'expiration_date'|translate}}: {{order.checkExpirationDate | date:'dd/MM/yyyy'}}"
+											severity="danger" />
+										)
+									</strong>
+								</p> -->
+								<div *ngIf="event.status == 'Canceled'">
+									<p style="text-align: left;">
+										{{ 'order_canceled_text' | translate }}
 									</p>
 								</div>
-							</p-accordion>
 
+								<div *ngIf="event.status == 'Processing'">
+									<p style="text-align: left;">
+										{{ 'order_under_processing' | translate }}</p>
+									<br>
+								</div>
+								<div *ngIf="event.status == 'Delivered'">
+									<p style="text-align: left;">
+										{{ 'order_delivered' | translate }}.</p>
+									<br>
+									<p *ngIf="order.orderStatus == 'Delivered'">
+										{{ 'order_delivered_tocomplete_text' | translate }} {{order.expiryDate |
+										date:'dd/MM/yy, hh:mm'}}.
+									</p>
+								</div>
 
+								<div *ngIf="event.status == 'Completed'">
+									<p style="text-align: left;">
+										{{ 'order_completed_text' | translate }}</p>
+									<br>
+								</div>
 
-							<div *ngIf="event.status == 'Completed'">
-								<p style="text-align: left;">
-									{{ 'order_completed_text' | translate }}</p>
-								<br>
-							</div>
-							<div *ngIf="event.status == 'Canceled'">
-								<p style="text-align: left;">
-									{{ 'order_canceled_text' | translate }}
-								</p>
-							</div>
-							<button *ngIf="event.button" pButton [label]="event.button" class="p-button-text"
-								icon="pi pi-check" (click)="updateOrderStatus()"></button>
+								<p-accordion class="w-full" *ngIf="event.status == 'Return_Pending' && orderReturns">
+									<div *ngFor="let orderReturn of orderReturns">
+										<p-accordionTab>
+											<ng-template pTemplate="header">
+												<span class="flex align-items-center gap-2 w-full">
+													<span class="font-bold white-space-nowrap">{{ 'return_details' |
+														translate }} : {{ orderReturn.returnDate | date }}</span>
+													<p-badge [value]="orderReturn.returnItems.length" class="ml-auto" />
+												</span>
+											</ng-template>
+											<p-table [value]="orderReturn.returnItems" responsiveLayout="scroll">
+												<ng-template pTemplate="header">
+													<tr>
+														<th>{{ 'product_name' | translate }}</th>
+														<th>{{ 'quantity_returned' | translate }}</th>
+														<th>{{ 'return_refund_amount' | translate }}</th>
+													</tr>
+												</ng-template>
+												<ng-template pTemplate="body" let-returnItem>
+													<tr>
+														<td>{{ returnItem.product?.name || 'N/A' }}</td>
+														<td>{{ returnItem.returnedQuantity || 'N/A' }}</td>
+														<td>{{ returnItem.refundAmount || 'N/A' }}</td>
+													</tr>
+												</ng-template>
+											</p-table>
+										</p-accordionTab>
+										<p *ngIf="orderReturn.refundAmount" style="text-align: left;">
+											{{'return_refund_amount' | translate}} : {{orderReturn.refundAmount|
+											number:'1.2-2'}} {{currency}}
+										</p>
+										<p *ngIf="orderReturn.reason" style="text-align: left;">
+											{{'return_reason' | translate}} :
+											{{'return_reason_'+orderReturn.reason.toLowerCase() | translate}}
+										</p>
+									</div>
+								</p-accordion>
+
+								<div *ngIf="event.status == 'Partial_Return'">
+									<p style="text-align: left;">
+										{{ 'order_partial_return_text' | translate }}</p>
+									<br>
+								</div>
+								<div *ngIf="event.status == 'Returned'">
+									<p style="text-align: left;">
+										{{ 'order_return_text' | translate }}</p>
+									<br>
+								</div>
+
+								<button *ngIf="event.button" pButton [label]="event.button" class="p-button-text"
+									icon="pi pi-check" (click)="updateOrderStatus()"></button>
 							</p-card>
 						</div>
 						<div class="card flex justify-content-center" *ngIf="loading">
@@ -949,6 +1243,145 @@
 				(click)="hideOrderReturnDialog()"></button>
 			<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
 				(click)="saveOrderReturn()"></button>
+		</ng-template>
+	</p-dialog>
+
+
+	<p-dialog [(visible)]="invoiceDialog" [style]="{width: '80%', height: '90%'}"
+		header="{{'invoice_generator' | translate}}" [modal]="true" class="p-fluid">
+
+		<ng-template pTemplate="content">
+			<div class="p-fluid">
+				<form [formGroup]="invoiceForm">
+					<div class="grid">
+						<!-- Business Information -->
+						<div class="col-12 md:col-6">
+							<h5>Business Information</h5>
+							<div class="p-field">
+								<label for="companyName">Company Name</label>
+								<input id="companyName" type="text" pInputText formControlName="companyName" required />
+							</div>
+							<div class="p-field">
+								<label for="companyAddress">Company Address</label>
+								<textarea id="companyAddress" pInputTextarea rows="3" formControlName="companyAddress"
+									required></textarea>
+							</div>
+							<div class="p-field">
+								<label for="companyPhone">Contact Number</label>
+								<input id="companyPhone" type="tel" pInputText formControlName="companyPhone"
+									required />
+							</div>
+							<div class="p-field">
+								<label for="companyEmail">Email Address</label>
+								<input id="companyEmail" type="email" pInputText formControlName="companyEmail"
+									required />
+							</div>
+						</div>
+
+						<!-- Client Information -->
+						<div class="col-12 md:col-6">
+							<h5>Client Information</h5>
+							<div class="p-field">
+								<label for="clientName">Client Name</label>
+								<input id="clientName" type="text" pInputText formControlName="clientName" required />
+							</div>
+							<div class="p-field">
+								<label for="clientAddress">Client Address</label>
+								<textarea id="clientAddress" pInputTextarea rows="3" formControlName="clientAddress"
+									required></textarea>
+							</div>
+							<div class="p-field">
+								<label for="clientPhone">Client Contact</label>
+								<input id="clientPhone" type="tel" pInputText formControlName="clientPhone" required />
+							</div>
+						</div>
+					</div>
+
+					<!-- Invoice Details -->
+					<div class="grid">
+						<div class="col-12 md:col-4">
+							<div class="p-field">
+								<label for="invoiceNumber">Invoice Number</label>
+								<input id="invoiceNumber" type="text" pInputText formControlName="invoiceNumber"
+									required />
+							</div>
+						</div>
+						<div class="col-12 md:col-4">
+							<div class="p-field">
+								<label for="invoiceDate">Invoice Date</label>
+								<p-calendar id="invoiceDate" formControlName="invoiceDate" showIcon />
+							</div>
+						</div>
+						<div class="col-12 md:col-4">
+							<div class="p-field">
+								<label for="dueDate">Due Date</label>
+								<p-calendar id="dueDate" formControlName="dueDate" showIcon />
+							</div>
+						</div>
+					</div>
+
+					<!-- Invoice Items Table -->
+					<div class="p-datatable-responsive">
+						<p-table #dt [value]="invoiceItems.controls" responsiveLayout="scroll">
+							<ng-template pTemplate="header">
+								<tr>
+									<th>Item Description</th>
+									<th>Quantity</th>
+									<th>Unit Price</th>
+									<th>Total</th>
+									<th>Action</th>
+								</tr>
+							</ng-template>
+							<ng-template pTemplate="body" let-item let-i="rowIndex">
+								<tr [formGroup]="item">
+									<td><input type="text" pInputText formControlName="description" required /></td>
+									<td><input type="number" pInputText formControlName="quantity" required /></td>
+									<td><input type="number" pInputText formControlName="unitPrice" required /></td>
+									<td>{{ item.get('quantity').value * item.get('unitPrice').value | currency }}</td>
+									<td>
+										<button pButton pRipple icon="pi pi-trash" class="p-button-danger p-button-sm"
+											(click)="removeItem(i)"></button>
+									</td>
+								</tr>
+							</ng-template>
+						</p-table>
+
+						<button pButton label="Add Item" icon="pi pi-plus" class="p-button-secondary mt-2"
+							(click)="addItem()"></button>
+					</div>
+
+					<!-- Invoice Summary -->
+					<div class="grid justify-content-end">
+						<div class="col-12 md:col-4">
+							<div class="p-field">
+								<label for="subtotal">Subtotal</label>
+								<input id="subtotal" type="number" pInputText formControlName="subtotal" readonly />
+							</div>
+							<div class="p-field">
+								<label for="taxRate">Tax Rate (%)</label>
+								<p-dropdown id="taxRate" [options]="taxRates" formControlName="taxRate"></p-dropdown>
+							</div>
+							<div class="p-field">
+								<label for="discount">Discount</label>
+								<input id="discount" type="number" pInputText formControlName="discount" />
+							</div>
+							<div class="p-field">
+								<label for="totalAmount">Total Amount</label>
+								<input id="totalAmount" type="number" pInputText formControlName="totalAmount"
+									readonly />
+							</div>
+						</div>
+					</div>
+
+				</form>
+			</div>
+		</ng-template>
+
+		<ng-template pTemplate="footer">
+			<button pButton label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
+				(click)="hideInvoiceDialog()"></button>
+			<button pButton label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-primary"
+				(click)="saveInvoice()"></button>
 		</ng-template>
 	</p-dialog>
 

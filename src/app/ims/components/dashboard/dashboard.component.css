@@ -1,0 +1,168 @@
+.profit-summary-card {
+  .summary-header {
+    .metric-tile {
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1rem;
+      height: 100%;
+      
+      .metric-label {
+        font-size: 0.9rem;
+        color: var(--text-color-secondary);
+        margin-bottom: 0.5rem;
+      }
+      
+      .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+      
+      &.revenue-tile {
+        border-left: 4px solid var(--green-500);
+        background-color: rgba(76, 175, 80, 0.1);
+      }
+      
+      &.costs-tile {
+        border-left: 4px solid var(--red-500);
+        background-color: rgba(244, 67, 54, 0.1);
+      }
+      
+      &.profit-tile {
+        border-left: 4px solid var(--green-500);
+        background-color: rgba(76, 175, 80, 0.1);
+      }
+      
+      &.loss-tile {
+        border-left: 4px solid var(--red-500);
+        background-color: rgba(244, 67, 54, 0.1);
+      }
+    }
+  }
+  
+  .breakdown-grid {
+    .breakdown-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--surface-d);
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .breakdown-label {
+        font-weight: 500;
+      }
+      
+      .breakdown-value {
+        font-weight: bold;
+      }
+    }
+  }
+  
+  .profit-bar {
+    ::ng-deep .p-progressbar-value {
+      background-color: var(--green-500);
+    }
+  }
+  
+  .loss-bar {
+    ::ng-deep .p-progressbar-value {
+      background-color: var(--red-500);
+    }
+  }
+}
+/* Progress bar styles */
+.profit-margin-bar {
+  .bar-container {
+    height: 8px;
+    background: var(--surface-d);
+    border-radius: 4px;
+    position: relative;
+    margin: 1rem 0;
+    
+    .negative-track {
+      position: absolute;
+      left: 50%;
+      width: 50%;
+      height: 100%;
+      background: rgba(244, 67, 54, 0.2);
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .positive-track {
+      position: absolute;
+      right: 50%;
+      width: 50%;
+      height: 100%;
+      background: rgba(76, 175, 80, 0.2);
+      border-radius: 4px 0 0 4px;
+    }
+    
+    .indicator {
+      position: absolute;
+      top: -6px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      transform: translateX(-50%);
+      
+      &.positive {
+        background: var(--green-500);
+        border: 2px solid var(--green-700);
+      }
+      
+      &.negative {
+        background: var(--red-500);
+        border: 2px solid var(--red-700);
+      }
+      
+      .indicator-value {
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.75rem;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+    }
+  }
+}
+
+/* Metric tile enhancements */
+.metric-tile {
+  position: relative;
+  
+  &.critical-costs {
+    border-left: 4px solid var(--orange-500);
+    background-color: rgba(255, 152, 0, 0.1);
+    
+    .metric-value {
+      color: var(--orange-700) !important;
+    }
+  }
+  
+  &.severe-loss {
+    border-left: 4px solid var(--red-700);
+    background-color: rgba(183, 28, 28, 0.1);
+  }
+  
+  .metric-warning {
+    font-size: 0.75rem;
+    color: var(--red-700);
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    
+    i {
+      margin-right: 0.25rem;
+    }
+  }
+  
+  .text-dark-red {
+    color: var(--red-800) !important;
+  }
+}

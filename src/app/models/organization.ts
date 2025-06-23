@@ -15,6 +15,8 @@ export class Organization {
     commercialRegister?: string;
     license?: string;
     ice?: string;
+    socialSecurityId?: string;
+    bankAccountId?: string;
     warehouses?: Array<Warehouse>;
     shops?: Array<Shop>;
     creationDate?: Date;

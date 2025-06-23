@@ -12,3 +12,126 @@
     justify-content: center; /* Center the calendars horizontally */
     width: 100%; /* Ensure it takes the full width */
 }
+
+/* Add to your component or global styles */
+.shop-dialog {
+    .p-dialog-content {
+        padding: 1.5rem;
+    }
+
+    .required-asterisk {
+        color: var(--red-500);
+    }
+
+    .p-error {
+        color: var(--red-500);
+        font-size: 0.875rem;
+    }
+
+    textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .p-inputgroup-addon {
+        background: var(--surface-100);
+        border-color: var(--surface-300);
+    }
+
+    .location-fields {
+        .p-dropdown {
+            width: 100%;
+        }
+    }
+}
+
+.current-balance-card {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.balance-value {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.balance-value .label {
+  color: #6c757d;
+  margin-right: 0.5rem;
+}
+
+.balance-value .value {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.balance-trend {
+  font-size: 1rem;
+  color: #6c757d;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.shop-name {
+  color: var(--primary-color);
+}
+
+.no-data-container {
+  text-align: center;
+  padding: 2rem;
+}
+
+.no-data-icon {
+  font-size: 3rem;
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
+
+@media print {
+  .p-dialog-header, .p-dialog-footer, .filter-section {
+    display: none !important;
+  }
+  
+  .p-dialog-content {
+    overflow: visible !important;
+  }
+}
+
+
+
+/* .shop-details-dialog {
+    .p-card {
+        border: 1px solid var(--surface-border);
+        transition: box-shadow 0.2s;
+        
+        &:hover {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+        }
+        
+        .p-card-title {
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+    }
+
+    .bg-gray-50 {
+        background-color: var(--surface-50);
+    }
+    .bg-gray-100 {
+        background-color: var(--surface-100);
+    }
+
+    .text-overflow-ellipsis {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+} */

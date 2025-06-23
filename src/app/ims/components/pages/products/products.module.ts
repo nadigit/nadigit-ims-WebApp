@@ -28,6 +28,7 @@ import { ImageModule } from 'primeng/image';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { TreeSelectModule } from 'primeng/treeselect';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { DialogService, DynamicDialogModule } from 'primeng/dynamicdialog';
 
 
 
@@ -51,6 +52,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
         RadioButtonModule,
         InputNumberModule,
         DialogModule,
+        DynamicDialogModule,
         MenuModule,
         ContextMenuModule,
         MenubarModule,
@@ -63,6 +65,6 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
         ProgressSpinnerModule
     ],
     declarations: [ProductsComponent],
-    providers: [ReportingService]
+    providers: [ReportingService, DialogService]
 })
 export class ProductsModule { }

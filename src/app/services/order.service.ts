@@ -38,9 +38,9 @@ export class OrderService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
   }
-  getDeliveredOrders() {
+  getEligibleOrdersForReturn() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'delivered',{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'eligible-orders-returns',{headers:headers});
   }
   getTodayOrders() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
@@ -85,6 +85,11 @@ export class OrderService {
   getOrdersReturns(id: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema+id+"/returns", {headers:headers});
+  }
+
+  getUnpaidOrdersByCustomer(id: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema + "unpaid/" + id, {headers:headers});
   }
 
 }

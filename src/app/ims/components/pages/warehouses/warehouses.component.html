@@ -5,29 +5,30 @@
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
-                        <button pButton pRipple *ngIf="canAddWarehouse" label="{{'new_button' | translate}}" icon="pi pi-plus" class="p-button-success mr-2"
-                            (click)="openNew()"></button>
-                        <button pButton pRipple *ngIf="canDeleteWarehouse" label="{{'delete_button' | translate}}" icon="pi pi-trash" class="p-button-danger"
-                            (click)="deleteSelectedWarehouses()" pTooltip="{{'delete_warehouse'|translate}}"
+                        <button pButton pRipple *ngIf="canAddWarehouse" label="{{'new_button' | translate}}"
+                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+                        <button pButton pRipple *ngIf="canDeleteWarehouse" label="{{'delete_button' | translate}}"
+                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedWarehouses()"
+                            pTooltip="{{'delete_warehouse'|translate}}"
                             [disabled]="!selectedWarehouses || !selectedWarehouses.length"></button>
                     </div>
                 </ng-template>
 
                 <ng-template pTemplate="right">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" 
-                        pTooltip="PDF" tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" 
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
                         class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
                 </ng-template>
             </p-toolbar>
 
             <div class="card flex justify-content-center" *ngIf="isLoading">
                 <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-              </div>
+            </div>
 
             <p-table #dt [value]="warehouses" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-                [globalFilterFields]="['name','description','address','country','city','warehouseType']" [paginator]="true"
-                [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                [globalFilterFields]="['name','description','address','country','city','warehouseType']"
+                [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedWarehouses" selectionMode="multiple" [rowHover]="true" dataKey="warehouseId">
                 <ng-template pTemplate="caption">
@@ -35,8 +36,8 @@
                         <h5 class="m-0">{{'warehouses_page_title' | translate}}</h5>
                         <span class="block mt-2 md:mt-0 p-input-icon-left">
                             <i class="pi pi-search"></i>
-                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="{{ 'search_label' | translate }}"
-                                class="w-full sm:w-auto" />
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
                         </span>
                     </div>
                 </ng-template>
@@ -45,20 +46,26 @@
                         <th style="width: 3rem">
                             <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
                         </th>
-                        <th pSortableColumn="name">{{ 'warehouse_name' | translate }}<p-sortIcon field="name"></p-sortIcon></th>
-                        <th pSortableColumn="description">{{ 'warehouse_description' | translate }}<p-sortIcon field="description"></p-sortIcon></th>
-                        <th pSortableColumn="address">{{ 'warehouse_address' | translate }}<p-sortIcon field="address"></p-sortIcon></th>
-                        <th pSortableColumn="location">{{ 'warehouse_location' | translate }}<p-sortIcon field="location"></p-sortIcon></th>
+                        <th pSortableColumn="name">{{ 'warehouse_name' | translate }}<p-sortIcon
+                                field="name"></p-sortIcon></th>
+                        <th pSortableColumn="description">{{ 'warehouse_description' | translate }}<p-sortIcon
+                                field="description"></p-sortIcon></th>
+                        <th pSortableColumn="address">{{ 'warehouse_address' | translate }}<p-sortIcon
+                                field="address"></p-sortIcon></th>
+                        <th pSortableColumn="location">{{ 'warehouse_location' | translate }}<p-sortIcon
+                                field="location"></p-sortIcon></th>
                         <th></th>
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-warehouse>
-                    <tr>
+                    <tr [pSelectableRow]="warehouse"
+                        (click)="canReadWarehouse ? showWarehouseDetailsDialog(warehouse) : null">
+
                         <td>
-                            <p-tableCheckbox [value]="warehouse"></p-tableCheckbox>
+                            <p-tableCheckbox [value]="warehouse" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
 
-                        <td >
+                        <td>
                             <span class="p-column-title">{{ 'warehouse_name' | translate }}</span>
                             {{warehouse.name ? warehouse.name : 'N/A'}}
                         </td>
@@ -77,10 +84,13 @@
                         <td>
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditWarehouse" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2" pTooltip="{{'update_warehouse'|translate}}"
-                                    (click)="editWarehouse(warehouse)"></button>
-                                <button pButton pRipple *ngIf="canDeleteWarehouse" icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="deleteWarehouse(warehouse)" pTooltip="{{'delete_warehouse'|translate}}"></button>
+                                    class="p-button-rounded p-button-success mr-2"
+                                    pTooltip="{{'update_warehouse'|translate}}"
+                                    (click)="editWarehouse(warehouse); $event.stopPropagation()"></button>
+                                <button pButton pRipple *ngIf="canDeleteWarehouse" icon="pi pi-trash"
+                                    class="p-button-rounded p-button-warning"
+                                    (click)="deleteWarehouse(warehouse); $event.stopPropagation()"
+                                    pTooltip="{{'delete_warehouse'|translate}}"></button>
                             </div>
                         </td>
                     </tr>
@@ -90,73 +100,324 @@
                         {{'total_warehouses' | translate}} {{warehouses ? warehouses.length : 0 }}.
                     </div>
                 </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_warehouses_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
             </p-table>
         </div>
 
-        <p-dialog [(visible)]="warehouseDialog" [style]="{width: '450px', height: '100%'}" header="{{ 'warehouse_details' | translate }}" [modal]="true"
-            class="p-fluid ">
+        <p-dialog [(visible)]="warehouseDialog" [style]="{width: '500px'}"
+            [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'warehouse_details' | translate }}"
+            [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid warehouse-dialog">
             <ng-template pTemplate="content">
-                <div class="field">
-                    <label for="name">{{ 'warehouse_name' | translate }}</label>
-                    <input type="text" pInputText name="name" ngDefaultControl [(ngModel)]="warehouse.name" required autofocus
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !warehouse.name}" />
-                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !warehouse.name">{{ 'warehouse_name' | translate }} {{ 'is_required_label' | translate }}</small>
-                </div>
-                <div class="field">
-                    <label for="description">{{ 'warehouse_description' | translate }}</label>
-                    <input type="description" pInputText name="description" ngDefaultControl [(ngModel)]="warehouse.description" autofocus/>
+                <div class="grid p-fluid">
+                    <div class="col-12">
+                        <!-- Warehouse Name -->
+                        <div class="field">
+                            <label for="name" class="block mb-2 font-bold">
+                                {{ 'warehouse_name' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-home"></i>
+                                </span>
+                                <input type="text" pInputText name="name" [(ngModel)]="warehouse.name" required
+                                    placeholder="{{ 'enter_warehouse_name' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !warehouse.name}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !warehouse.name">
+                                {{ 'warehouse_name' | translate }} {{ 'is_required_label' | translate }}
+                            </small>
+                        </div>
+
+                        <!-- Warehouse Description -->
+                        <div class="field">
+                            <label for="description" class="block mb-2 font-bold">
+                                {{ 'warehouse_description' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-align-left"></i>
+                                </span>
+                                <textarea pInputTextarea [(ngModel)]="warehouse.description" rows="3"
+                                    [autoResize]="true"
+                                    placeholder="{{ 'enter_warehouse_description' | translate }}"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Location Fields -->
+                        <div class="grid">
+                            <!-- Country Field -->
+                            <div class="field col-12 md:col-6">
+                                <label for="country" class="block mb-2 font-bold">
+                                    {{ 'warehouse_country' | translate }}
+                                </label>
+                                <p-dropdown [(ngModel)]="warehouse.country"
+                                    (onChange)="onSelectedCountry(warehouse.country)" name="country"
+                                    [options]="countries" optionValue="name" optionLabel="name" [filter]="true"
+                                    filterBy="name" [showClear]="true"
+                                    placeholder="{{ 'select_country_option' | translate }}">
+                                    <ng-template pTemplate="selectedItem">
+                                        <span *ngIf="warehouse && warehouse.country"
+                                            class="flex align-items-center gap-2">
+                                            <i class="pi pi-globe"></i>
+                                            {{warehouse.country}}
+                                        </span>
+                                    </ng-template>
+                                    <ng-template let-option pTemplate="item">
+                                        <span class="flex align-items-center gap-2">
+                                            <i class="pi pi-globe"></i>
+                                            {{option.name}}
+                                        </span>
+                                    </ng-template>
+                                </p-dropdown>
+                            </div>
+
+                            <!-- City Field (shown when country is selected) -->
+                            <div class="field col-12 md:col-6" *ngIf="warehouse.country">
+                                <label for="city" class="block mb-2 font-bold">
+                                    {{ 'warehouse_city' | translate }}
+                                </label>
+                                <p-dropdown [(ngModel)]="warehouse.city" name="city" [options]="states"
+                                    optionLabel="name" optionValue="name" [filter]="true" [showClear]="true"
+                                    placeholder="{{ 'select_city_option' | translate }}">
+                                    <ng-template pTemplate="selectedItem">
+                                        <span *ngIf="warehouse && warehouse.city" class="flex align-items-center gap-2">
+                                            <i class="pi pi-map-marker"></i>
+                                            {{warehouse.city}}
+                                        </span>
+                                    </ng-template>
+                                    <ng-template let-option pTemplate="item">
+                                        <span class="flex align-items-center gap-2">
+                                            <i class="pi pi-map-marker"></i>
+                                            {{option.name}}
+                                        </span>
+                                    </ng-template>
+                                </p-dropdown>
+                            </div>
+                        </div>
+
+                        <!-- Warehouse Address -->
+                        <div class="field">
+                            <label for="address" class="block mb-2 font-bold">
+                                {{ 'warehouse_address' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-map"></i>
+                                </span>
+                                <textarea pInputTextarea [(ngModel)]="warehouse.address" name="address" rows="3"
+                                    [autoResize]="true"
+                                    placeholder="{{ 'enter_warehouse_address' | translate }}"></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="field" >
-                    <label for="country">{{ 'warehouse_country' | translate }}</label>
-                    <p-dropdown [(ngModel)]="warehouse.country" (onChange)="onSelectedCountry(warehouse.country)" name="country" inputId="country" 
-                    ngDefaultControl [options]="countries" optionValue="name" optionLabel="name" [filter]="true" filterBy="name" 
-                    placeholder="{{ 'select_country_option' | translate }}" autofocus >
-                        <ng-template pTemplate="selectedItem">
-                            <span *ngIf="warehouse && warehouse.country" [class]="'product-badge'">{{warehouse.country}}</span>
-                        </ng-template>
-                        <ng-template let-option pTemplate="item">
-                            <span [class]="'product-badge'">{{option.name}}</span>
-                        </ng-template>
-                    </p-dropdown>
+                <div class="required-note mt-3">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                        translate}}</small>
                 </div>
-
-                <div class="field" *ngIf="warehouse.country">
-                    <label for="city">{{ 'warehouse_city' | translate }}</label>
-                    <p-dropdown [(ngModel)]="warehouse.city" name="city" inputId="city" ngDefaultControl 
-                    optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="this.states" 
-                    placeholder="{{ 'select_city_option' | translate }}" autofocus>
-                        <ng-template pTemplate="selectedItem">
-                            <span *ngIf="warehouse && warehouse.city" [class]="'product-badge'">{{warehouse.city}}</span>
-                        </ng-template>
-                        <ng-template let-option pTemplate="item">
-                            <span [class]="'product-badge'">{{option.name}}</span>
-                        </ng-template>
-                    </p-dropdown>
-                </div>
-
-                <div class="field">
-                    <label for="Address">{{ 'warehouse_address' | translate }}</label>
-                    <textarea rows="3" cols="20" [(ngModel)]="warehouse.address" name="address" placeholder="{{ 'warehouse_address' | translate }}" ngDefaultControl pInputTextarea autofocus
-                    ></textarea>
-                </div>       
-                <div class="required-note">
-                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' | translate}}</small>
-                </div> 
             </ng-template>
 
             <ng-template pTemplate="footer">
-                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times" class="p-button-text"
-                    (click)="hideDialog()"></button>
-                <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
-                    (click)="saveWarehouse()"></button>
+                <div class="flex justify-content-between align-items-center w-full">
+                    <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                        class="p-button-raised" (click)="saveWarehouse()"></button>
+                </div>
             </ng-template>
         </p-dialog>
 
-        <p-dialog [(visible)]="deleteWarehouseDialog" header="{{ 'confirm_label' | translate }}" [modal]="true" [style]="{width:'450px'}">
+        <p-dialog [(visible)]="warehouseDetailsDialog" [style]="{width: '850px'}"
+            [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'warehouse_details' | translate }}"
+            [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid warehouse-details-dialog"
+            [contentStyle]="{'max-height': '80vh'}">
+
+            <ng-template pTemplate="content">
+                <div class="grid p-fluid">
+                    <!-- Warehouse Basic Info Section -->
+                    <div class="col-12 md:col-5 pr-4">
+                        <div class="surface-card p-4 border-round shadow-2 mb-4">
+                            <h3 class="mt-0 mb-4 flex align-items-center">
+                                <i class="pi pi-info-circle mr-2 text-primary"></i>
+                                {{ 'basic_information' | translate }}
+                            </h3>
+
+                            <div class="field mb-4" *ngIf="selectedWarehouse && selectedWarehouse.name">
+                                <label class="block mb-2 font-medium text-900">
+                                    <i class="pi pi-home mr-1"></i>
+                                    {{ 'warehouse_name' | translate }}
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon bg-gray-100">
+                                        <i class="pi pi-building"></i>
+                                    </span>
+                                    <input pInputText [value]="selectedWarehouse.name" readonly
+                                        class="w-full bg-gray-50" />
+                                </div>
+                            </div>
+
+                            <div class="field mb-4" *ngIf="selectedWarehouse.description">
+                                <label class="block mb-2 font-medium text-900">
+                                    <i class="pi pi-align-left mr-1"></i>
+                                    {{ 'warehouse_description' | translate }}
+                                </label>
+                                <textarea pInputTextarea [value]="selectedWarehouse.description" rows="3"
+                                    [autoResize]="true" readonly class="w-full bg-gray-50"></textarea>
+                            </div>
+
+                            <div class="field" *ngIf="selectedWarehouse.address || selectedWarehouse.city || selectedWarehouse.country">
+                                <label class="block mb-2 font-medium text-900">
+                                    <i class="pi pi-map mr-1"></i>
+                                    {{ 'location' | translate }}
+                                </label>
+                                <div class="surface-100 p-3 border-round">
+                                    <div class="flex align-items-center mb-2" *ngIf="selectedWarehouse.country">
+                                        <i class="pi pi-globe mr-2 text-primary"></i>
+                                        <span class="text-900">{{ selectedWarehouse.country || 'N/A' }}</span>
+                                    </div>
+                                    <div class="flex align-items-center mb-2" *ngIf="selectedWarehouse.city">
+                                        <i class="pi pi-map-marker mr-2 text-primary"></i>
+                                        <span class="text-900">{{ selectedWarehouse.city || 'N/A' }}</span>
+                                    </div>
+                                    <div class="flex align-items-start" *ngIf="selectedWarehouse.address">
+                                        <i class="pi pi-compass mr-2 text-primary mt-1"></i>
+                                        <span class="text-900">{{ selectedWarehouse.address || 'N/A' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warehouse Statistics Section -->
+                    <div class="col-12 md:col-7 pl-2">
+                        <div class="grid">
+                            <div class="col-12 md:col-6 pr-2" *ngIf="warehouseStats">
+                                <p-card header="{{ 'inventory_summary' | translate }}"
+                                    styleClass="shadow-2 border-round-lg">
+                                    <div class="flex flex-column gap-3">
+                                        <div
+                                            class="flex justify-content-between align-items-center p-2 surface-50 border-round">
+                                            <span class="font-medium">
+                                                <i class="pi pi-box mr-2"></i>
+                                                {{ 'total_products' | translate }}
+                                            </span>
+                                            <strong class="text-xl">{{ warehouseStats?.totalProducts || 0 }}</strong>
+                                        </div>
+                                        <div
+                                            class="flex justify-content-between align-items-center p-2 surface-50 border-round">
+                                            <span class="font-medium">
+                                                <i class="pi pi-layer-group mr-2"></i>
+                                                {{ 'total_quantity' | translate }}
+                                            </span>
+                                            <strong class="text-xl">{{ warehouseStats?.totalQuantity || 0 }}</strong>
+                                        </div>
+                                        <div
+                                            class="flex justify-content-between align-items-center p-2 surface-50 border-round">
+                                            <span class="font-medium">
+                                                <i class="pi pi-money-bill mr-2"></i>
+                                                {{ 'total_value' | translate }}
+                                            </span>
+                                            <strong class="text-xl">
+                                                {{ warehouseStats?.totalValue | currency:currency:'symbol':'1.2-2' }}
+                                            </strong>
+                                        </div>
+                                    </div>
+                                </p-card>
+                            </div>
+
+                            <div class="col-12 md:col-6 pl-2" *ngIf="inventoryStatuses && inventoryStatuses.length">
+                                <p-card header="{{ 'inventory_status' | translate }}"
+                                    styleClass="shadow-2 border-round-lg">
+                                    <div class="flex flex-column gap-3">
+                                        <div *ngFor="let status of inventoryStatuses"
+                                            class="flex justify-content-between align-items-center p-2 surface-50 border-round">
+                                            <span class="font-medium">
+                                                <i [class]="'mr-2 ' + getStatusIcon(status.value)"></i>
+                                                {{ status.label | translate }}
+                                            </span>
+                                            <strong class="text-xl">{{ getStatusCount(status.value) }}</strong>
+                                        </div>
+                                    </div>
+                                </p-card>
+                            </div>
+                        </div>
+
+                        <!-- Product List Section -->
+                        <div class="col-12 mt-4" *ngIf="warehouseProducts && warehouseProducts.length">
+                            <p-card header="{{ 'products_in_stock' | translate }}"
+                                styleClass="shadow-2 border-round-lg">
+                                <p-table [value]="warehouseProducts" [paginator]="true" [rows]="5"
+                                    [showCurrentPageReport]="true" styleClass="p-datatable-sm"
+                                    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                                    [rowsPerPageOptions]="[5,10,25]">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th style="width:35%">{{ 'product' | translate }}</th>
+                                            <th style="width:20%">{{ 'reference' | translate }}</th>
+                                            <th style="width:20%">{{ 'quantity' | translate }}</th>
+                                            <th style="width:25%">{{ 'status' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="body" let-product>
+                                        <tr>
+                                            <td>
+                                                <div class="flex align-items-center gap-2">
+                                                    <img [src]="product.productImage || 'assets/core-images/no-image.png'"
+                                                        [alt]="product.name" width="40" class="border-round shadow-1">
+                                                    <span>{{ product.name }}</span>
+                                                </div>
+                                            </td>
+                                            <td>{{ product.reference }}</td>
+                                            <td>{{ product.quantityAvailable }}</td>
+                                            <td>
+                                                <span
+                                                    [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
+                                                    {{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="emptymessage">
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4">
+                                                <i class="pi pi-inbox text-2xl block mb-2"></i>
+                                                {{ 'no_products_found' | translate }}
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                            </p-card>
+                        </div>
+                    </div>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="{{ 'close' | translate }}" icon="pi pi-times" class="p-button-outlined"
+                    (click)="hideWarehouseDetailsDialog()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteWarehouseDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-                <span *ngIf="warehouse">{{'delete_confirmation_msg_with_param' | translate}} <b>{{warehouse.name}}</b>?</span>
+                <span *ngIf="warehouse">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>{{warehouse.name}}</b>?</span>
             </div>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
@@ -166,7 +427,8 @@
             </ng-template>
         </p-dialog>
 
-        <p-dialog [(visible)]="deleteWarehousesDialog" header="{{ 'confirm_label' | translate }}" [modal]="true" [style]="{width:'450px'}">
+        <p-dialog [(visible)]="deleteWarehousesDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span>{{'delete_selected_confirmation_msg' | translate}}</span>

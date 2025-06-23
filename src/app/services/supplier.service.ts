@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
+import { Observable } from 'rxjs';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
@@ -37,5 +38,21 @@ export class SupplierService {
   getSuppliers() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
+  }
+
+  getPurchasesBySupplier(id:any){
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema +id+ '/purchases',{headers:headers});
+
+  }
+
+  // getProductsBySupplier(id:any){
+  //   let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+  //   return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema +id+ '/products',{headers:headers});
+  // }
+
+  getProductsBySupplier(id: any): Observable<any[]> {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get<any[]>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/products', { headers: headers });
   }
 }

@@ -9,4 +9,36 @@
     text-decoration: none; /* Remove underline from link */
     cursor: pointer; /* Indicate clickable element */
   }
-  
+
+  .product-dialog {
+    .p-dialog-content {
+        padding: 1.5rem;
+    }
+
+    .image-section {
+        .image-container {
+            img {
+                max-height: 300px;
+                object-fit: contain;
+            }
+        }
+    }
+
+    .required-asterisk {
+        color: var(--red-500);
+    }
+
+    .p-error {
+        color: var(--red-500);
+        font-size: 0.875rem;
+    }
+
+    .upload-container {
+        background-color: var(--surface-ground);
+        transition: background-color 0.2s;
+
+        &:hover {
+            background-color: var(--surface-100);
+        }
+    }
+}

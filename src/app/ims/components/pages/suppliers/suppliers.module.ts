@@ -20,7 +20,12 @@ import { ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateModule } from '@ngx-translate/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
-
+import { AvatarModule } from 'primeng/avatar';
+import { AvatarGroupModule } from 'primeng/avatargroup';
+import { TabViewModule } from 'primeng/tabview';
+import { TagModule } from 'primeng/tag';
+import { ChartModule } from 'primeng/chart';
+import { CardModule } from 'primeng/card';
 
 
 
@@ -44,7 +49,13 @@ import { TooltipModule } from 'primeng/tooltip';
         DialogModule,
         TranslateModule,
         ProgressSpinnerModule,
-        TooltipModule
+        TooltipModule,
+        AvatarModule,
+        AvatarGroupModule,
+        TabViewModule,
+        TagModule,
+        ChartModule,
+        CardModule
     ],
     declarations: [SuppliersComponent],
     providers: [ReportingService],

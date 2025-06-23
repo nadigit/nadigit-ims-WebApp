@@ -13,33 +13,38 @@ export class WarehouseService {
   schema: string = "/organizations/warehouses";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
-  apiPort: string = (window as any).__env.apiPort || '8090';  
-  
+  apiPort: string = (window as any).__env.apiPort || '8090';
+
 
   constructor(private http: HttpClient, public keycloakService: KeycloakService) { }
 
-  loadToken(){
+  loadToken() {
     this.jwt = this.keycloakService.getToken();
   }
 
   saveWarehouse(data: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers })
   }
   updateWarehouse(id: any, supplier: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+'/'+id , supplier, {headers:headers});
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id, supplier, { headers: headers });
   }
   deleteWarehouse(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+'/'+id,{headers:headers});
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id, { headers: headers });
   }
   getWarehouses() {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, { headers: headers });
   }
-  getWarehouse(id:number) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id,{headers:headers});
+  getWarehouse(id: number) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id, { headers: headers });
+  }
+
+  getProductsByWarehouse(id: any) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id + '/products', { headers: headers });
   }
 }

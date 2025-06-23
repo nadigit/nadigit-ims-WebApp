@@ -16,6 +16,9 @@ export class TranslationService {
     if (this.supportedLanguages.find(l => l.value === lang)) { // Find language by value
       this.currentLang.next(lang);
       localStorage.setItem('preferredLanguage', lang);
+      document.documentElement.lang = lang;
+      document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+      
     } else {
       console.error(`Language "${lang}" not supported.`);
     }
@@ -25,6 +28,7 @@ export class TranslationService {
     { label: 'English', value: 'en' },
     { label: 'Français', value: 'fr' },
     { label: 'Español', value: 'sp' },
+    { label: 'الْعَرَبِيَّةُ', value: 'ar' }
   ]; // Your supported languages
 
   public getPreferredLanguage(): string {

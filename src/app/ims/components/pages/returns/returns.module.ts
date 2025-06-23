@@ -34,6 +34,8 @@ import { ReportingService } from 'src/app/utils/reporting.service';
 import { TooltipModule } from 'primeng/tooltip';
 import { DynamicDialogModule } from 'primeng/dynamicdialog';
 import { ChipModule } from 'primeng/chip';
+import { TagModule } from 'primeng/tag';
+import { TabViewModule } from 'primeng/tabview';
 
 
 @NgModule({
@@ -70,7 +72,9 @@ import { ChipModule } from 'primeng/chip';
         CalendarModule,
         TooltipModule,
         DynamicDialogModule,
-        ChipModule
+        ChipModule,
+        TagModule,
+        TabViewModule
     ],
     declarations: [ReturnsComponent, FilterProductsPipe],
     providers: [ReportingService]

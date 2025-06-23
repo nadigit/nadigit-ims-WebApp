@@ -1,0 +1,24 @@
+.product-badge {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.p-dropdown-item .flex {
+  width: 100%;
+  gap: 1rem;
+}
+
+.amount-helper {
+  color: #6c757d;
+  font-size: 0.875rem;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
+/* Make error messages more visible */
+.ng-invalid.ng-dirty + small {
+  color: #dc3545;
+  display: block;
+  margin-top: 0.25rem;
+}

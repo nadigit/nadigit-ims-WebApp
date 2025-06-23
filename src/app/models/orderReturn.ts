@@ -1,14 +1,18 @@
+import { ReturnStatus } from "../enums/return-status.enum";
 import { Order } from "./order";
+import { Refund } from "./refund";
 import { ReturnItem } from "./returnItem";
 
 
 export class OrderReturn { 
   returnId?: number;
-  reason?: string;
   notes?: string;
-  returnDate?: Date;
+  returnDate?: Date | string;
   order?: Order;
-  refundAmount?: number;  
+  totalRefundableAmount?: number;
   returnItems?: Array<ReturnItem>;
+  returnStatus?: ReturnStatus;
+  refunds?: Array<Refund>;
+  createdBy?: string;
   creationDate?: Date;
 }

@@ -19,6 +19,11 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
+import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { OrderReturn } from 'src/app/models/orderReturn';
+import { Payment } from 'src/app/models/payment';
+import { PaymentService } from 'src/app/services/payment.service';
 
 interface EventItem {
   status?: string;
@@ -47,6 +52,24 @@ export class FilterProductsPipe implements PipeTransform {
 })
 export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
+  invoiceForm = this.fb.group({
+    companyName: [''],
+    companyAddress: [''],
+    companyPhone: [''],
+    companyEmail: [''],
+    clientName: [''],
+    clientAddress: [''],
+    clientPhone: [''],
+    invoiceNumber: [''],
+    invoiceDate: [''],
+    dueDate: [''],
+    subtotal: [0],
+    taxRate: [0],
+    discount: [0],
+    totalAmount: [0],
+    invoiceItems: this.fb.array([]) // ✅ FormArray for dynamic items
+  });
+
   @ViewChild('pickList') pickList: ElementRef | undefined;
 
   Ressource: string = 'ORDERS';
@@ -68,6 +91,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   deleteOrderDialog: boolean = false;
 
   deleteOrdersDialog: boolean = false;
+
+  invoiceDialog: boolean = false;
 
   products: Product[] = [];
 
@@ -96,6 +121,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   cols: any[] = [];
 
   statuses: any[] = [];
+
+  paymentStatuses: any[] = [];
 
   rowsPerPageOptions = [20, 50, 100];
 
@@ -151,13 +178,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
 
   statusSequences: { [key: string]: string[] } = {
-    'Ordered': ['Processing'],
+    'Ordered': ['Processing', 'Canceled'],
     'Processing': ['Delivered'],
     'Delivered': ['Completed'],
-    'Partial_Return': ['Completed'],
-    'Completed': [],
-    'Cancelled': [],
+    'Completed': ['Return_Pending'],
+    'Return_Pending': ['Returned', 'Partial_Return'],
+    'Canceled': [],
     'Returned': [],
+    'Partial_Return': [],
   };
 
   images: any[];
@@ -193,15 +221,40 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   discountTypeOptions: any;
 
+  organization: any;
+
+  showPaymentSection: boolean = false;
+
+  payment: Payment = {};
+
+  isSavingPayment: boolean = false;
+
+  paymentMethods = [
+    { label: 'Cash', value: 'Cash' },
+    { label: 'Card', value: 'Card' },
+    { label: 'Check', value: 'Check' },
+    { label: 'Transfer', value: 'Transfer' },
+    { label: 'BOE', value: 'BOE' }
+  ];
+
+  orderReturnsMap: Map<number, OrderReturn[]> = new Map();
+  loadingReturns: Set<number> = new Set();
+
   // Permissions
   canAddCustomer: boolean = false;
   canAddShop: boolean = false;
   canAddOrder: boolean = false;
   canEditOrder: boolean = false;
+  canCancelOrder: boolean = false;
   canDeleteOrder: boolean = false;
   canProcessOrder: boolean = false;
 
   isLoading: boolean = true;
+
+
+  // initialInvoiceItems = [{ description: '', quantity: 1, unitPrice: 0 }];
+  // taxRates = [{ label: '0%', value: 0 }, { label: '5%', value: 5 }, { label: '10%', value: 10 }, { label: '18%', value: 18 }];
+
 
   @ViewChild('filter') filter!: ElementRef;
 
@@ -209,6 +262,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private orderService: OrderService,
     private productService: ProductService,
     private customerService: CustomerService,
+    private paymentService: PaymentService,
     private shopService: ShopService,
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
@@ -218,12 +272,97 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
+    public organizationService: OrganizationService,
+    private fb: FormBuilder
   ) {
     this.loadTaxRate();
+
+  }
+
+  get invoiceItems(): FormArray {
+    return this.invoiceForm.get('invoiceItems') as FormArray;
+  }
+
+  // ✅ Function to Open Dialog and Pre-Fill Data
+  showInvoiceDialog() {
+    this.invoiceDialog = true; // Show the dialog
+
+    // Prepare document number generation
+    const documentType = this.order?.orderStatus || 'Facture'; // Get from order
+    const lastDocument = this.order?.orderId.toString() || 'F-24020705'; // Replace with actual last document retrieval
+    const newDocumentNumber = this.generateDocumentNumber(documentType, lastDocument);
+
+    // Pre-fill form with existing order data
+    this.invoiceForm.patchValue({
+      companyName: this.organization?.organizationName || '',
+      companyAddress: this.organization?.address || '',
+      companyPhone: this.organization?.phoneNumber || '',
+      companyEmail: this.organization?.email || '',
+      clientName: `${this.order?.customer?.firstName || ''} ${this.order?.customer?.lastName || ''}`.trim(),
+      clientAddress: this.order?.customer?.address || '',
+      clientPhone: this.order?.customer?.phoneNumber || '',
+      invoiceNumber: newDocumentNumber, // Use dynamically generated number
+      invoiceDate: new Date().toISOString().split('T')[0],
+      dueDate: new Date().toISOString().split('T')[0],
+      subtotal: this.order?.dutyFreeAmount || 0,
+      taxRate: this.order?.taxAmount || 0,
+      discount: this.order?.discount || 0,
+      totalAmount: this.order?.totalAmount || 0,
+    });
+
+    // Fill invoice items
+    this.invoiceItems.clear(); // Remove previous items
+    this.order?.orderItems?.forEach((item: any) => {
+      this.invoiceItems.push(this.fb.group({
+        description: [item.product.name || ''],
+        quantity: [item.quantity || 1],
+        unitPrice: [item.pricePerUnit || 0]
+      }));
+    });
+  }
+
+  saveInvoice() {
+    console.log('Invoice Data:', this.invoiceForm.value);
+  }
+
+  generateDocumentNumber(documentType: string, lastDocumentNumber: string): string {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2); // Last two digits of the year
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // Month (01-12)
+    const day = String(now.getDate()).padStart(2, '0'); // Day (01-31)
+    const datePart = `${year}${month}${day}`;
+
+    // Map document types to prefixes
+    const docPrefixes: { [key: string]: string } = {
+      Facture: "F",
+      Devis: "D",
+      "Bon de Livraison": "BL",
+      "Bon de Commande": "BC",
+      Retour: "BR",
+      "Retour Partiel": "BR"
+    };
+
+    const prefix = docPrefixes[documentType] || "XX"; // Default to "XX" if type is unknown
+
+    let nextNumber = 1; // Default if no previous document exists
+
+    if (lastDocumentNumber) {
+      const lastNumber = parseInt(lastDocumentNumber.slice(-2), 10); // Extract last 2 digits
+      nextNumber = isNaN(lastNumber) ? 1 : lastNumber + 1; // Increment if valid
+    }
+
+    return `${prefix}-${datePart}${String(nextNumber).padStart(2, '0')}`;
   }
 
   async ngOnInit() {
     this.isLoading = true;
+
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
 
     // Set up translation and events
     this.initializeTranslations();
@@ -237,9 +376,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.getSourceProducts(),
       this.getTargetProducts(),
       this.initializePickList(),
-      this.onGetCurrency(),
+      // this.onGetCurrency(),
       this.setUserRoles(),
       this.checkPermissions(),
+      this.onGetOrganization(),
     ]);
 
     // Initialize table columns and statuses
@@ -258,8 +398,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       .getTranslation(this.translateService.getPreferredLanguage())
       .subscribe((translations) => {
         this.discountTypeOptions = [
-          { label: 'amount', value: 'Amount' },
-          { label: 'percentage', value: 'Percentage' }
+          { label: translations['amount'], value: 'Amount' },
+          { label: translations['percentage'], value: 'Percentage' }
         ];
         this.events = [
           {
@@ -270,6 +410,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
             image: 'game-controller.jpg',
             button: translations['process_order_button'],
             buttonDescription: translations['generate_quote'],
+          },
+          {
+            status: 'Canceled',
+            date: 'test',
+            icon: 'pi pi-times-circle',
+            color: '#FF9800'
           },
           {
             status: 'Processing',
@@ -288,30 +434,29 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
             buttonDescription: translations['generate_delivery_order']
           },
           {
+            status: 'Completed',
+            date: 'test',
+            icon: 'pi pi-print',
+            color: '#608b68',
+            buttonDescription: translations['generate_invoice']
+          },
+          {
+            status: 'Return_Pending',
+            date: 'test',
+            icon: 'pi pi-print',
+            color: '#607C6A',
+          },
+          {
             status: 'Partial_Return',
             date: 'test',
             icon: 'pi pi-print',
             color: '#607C6A',
-            button: translations['complete_order_button'],
             buttonDescription: translations['generate_return_order']
           },
-          { 
-            status: 'Completed', 
-            date: 'test', 
-            icon: 'pi pi-print', 
-            color: '#608b68',
-            buttonDescription: translations['generate_invoice']
-          },
-          { 
-            status: 'Canceled', 
-            date: 'test', 
-            icon: 'pi pi-times-circle', 
-            color: '#FF9800' 
-          },
-          { 
-            status: 'Returned', 
-            date: 'test', 
-            icon: 'pi pi-print', 
+          {
+            status: 'Returned',
+            date: 'test',
+            icon: 'pi pi-print',
             color: '#FF9800',
             buttonDescription: translations['generate_return_order']
           },
@@ -346,10 +491,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       { label: 'Ordered', value: 'Ordered' },
       { label: 'Delivered', value: 'Delivered' },
       { label: 'Canceled', value: 'Canceled' },
-      { label: 'Completed', value: 'Completed' },
+      { label: 'Return_Pending', value: 'Return_Pending' },
       { label: 'Returned', value: 'Returned' },
       { label: 'Partial_Return', value: 'Partial_Return' },
       { label: 'Processing', value: 'Processing' },
+    ];
+
+    this.paymentStatuses = [
+      { label: 'Paid', value: 'PAID' },
+      { label: 'Partially Paid', value: 'PARTIALLY_PAID' },
+      { label: 'Unpaid', value: 'UNPAID' },
+      { label: 'Pending', value: 'PENDING' },
+      { label: 'Failed', value: 'FAILED' },
+      { label: 'Refunded', value: 'REFUNDED' },
     ];
   }
 
@@ -370,6 +524,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.disableDoubleClick(sourceItems);
       this.disableDoubleClick(targetItems);
     }
+
+    this.orders.forEach(order => {
+      if (this.hasReturns(order)) {
+        this.loadOrderReturns(order);
+      }
+    });
   }
 
   disableDoubleClick(items: NodeListOf<Element>) {
@@ -381,6 +541,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
+  togglePaymentSection(): void {
+    this.showPaymentSection = !this.showPaymentSection;
+    if (this.showPaymentSection) {
+      this.payment.amount = this.calculateTotalAmount();
+      this.payment.paymentDate = new Date();
+      this.payment.paymentMethod = 'Cash';
+    }
+  }
+
   async checkPermissions() {
     const profile = await this.keycloakService.loadUserProfile();
     const userId = profile.id; // Fetch user ID
@@ -390,7 +559,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.canEditOrder = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteOrder = this.permissionService.canDelete(this.Ressource);
     this.canProcessOrder = this.permissionService.canProcess(this.Ressource);
-
+    this.canCancelOrder = this.permissionService.canProcess(this.Ressource);
     this.canAddCustomer = this.permissionService.canCreate('CUSTOMERS');
     this.canAddShop = this.permissionService.canCreate('SHOPS');
   }
@@ -402,12 +571,67 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
-  toggleRow(orderID: string): void {
-    this.expandedRows[orderID] = !this.expandedRows[orderID];
+  toggleRow(orderId: number): void {
+    this.expandedRows[orderId.toString()] = !this.isRowExpanded(orderId.toString());
+    const order = this.orders.find(o => o.orderId === orderId);
+    if (order && this.hasReturns(order)) {
+      this.loadOrderReturns(order);
+    }
   }
 
   isRowExpanded(orderID: string): boolean {
     return this.expandedRows[orderID] === true;
+  }
+
+  isReturnedStatus(status: string): boolean {
+    return status === 'Returned' || status === 'Partial_Return';
+  }
+
+  getReturnTooltip(status: string): string {
+    switch (status) {
+      case 'Returned': return this.translate.instant('fully_returned_tooltip');
+      case 'Partial_Return': return this.translate.instant('partially_returned_tooltip');
+      default: return '';
+    }
+  }
+
+  hasReturns(order: Order): boolean {
+    return order.orderStatus === 'Returned' || order.orderStatus === 'Partial_Return';
+  }
+
+  hasRefunds(order: Order): boolean {
+    return order.totalRefunded > 0;
+  }
+
+  getTotalPayments(order: Order): number {
+    return order.totalPaid || 0;
+  }
+  async loadOrderReturns(order: Order): Promise<void> {
+    if (!order.orderId || this.loadingReturns.has(order.orderId) || this.orderReturnsMap.has(order.orderId)) {
+      return;
+    }
+
+    this.loadingReturns.add(order.orderId);
+    try {
+      const returns = await this.orderService.getOrdersReturns(order.orderId).toPromise();
+      this.orderReturnsMap.set(order.orderId, (returns as OrderReturn[]) || []);
+    } catch (error) {
+      console.error('Error loading returns:', error);
+      this.orderReturnsMap.set(order.orderId, []);
+    } finally {
+      this.loadingReturns.delete(order.orderId);
+    }
+  }
+
+  getTotalRefundedAmount(order: Order): number {
+    if (!this.orderReturnsMap.has(order.orderId)) return 0;
+
+    const returns = this.orderReturnsMap.get(order.orderId);
+    return returns?.reduce((sum, ret) => sum + (ret.totalRefundableAmount || 0), 0) || 0;
+  }
+
+  getNetAmount(order: Order): number {
+    return (order.totalAmount || 0) - this.getTotalRefundedAmount(order);
   }
 
   initializePickList(): void {
@@ -451,6 +675,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.shopDialog = true;
   }
 
+  openInvoiceDialog() {
+    this.invoiceDialog = true;
+  }
+
+  hideInvoiceDialog() {
+    this.invoiceDialog = false;
+  }
+
   deleteSelectedOrders() {
     if (!this.canDeleteOrder) return;
     this.deleteOrdersDialog = true;
@@ -487,17 +719,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     console.log(this.order);
   }
 
-  openOrderReturn(order: Order) {
-    if (!this.canProcessOrder) return;
-    this.order = { ...order };
-    this.selectedItems = order.orderItems.map(item => ({
-      ...item,
-      returnedQuantity: 0, // Ensure this is initialized to 0
-      remainingQuantity: item.quantity
-    }));
-    console.log('Selected Items:', this.selectedItems);  // Add this for debugging
-    this.orderReturnDialog = true;
-  }
+  // openOrderReturn(order: Order) {
+  //   if (!this.canProcessOrder) return;
+  //   this.order = { ...order };
+  //   this.selectedItems = order.orderItems.map(item => ({
+  //     ...item,
+  //     returnedQuantity: 0, // Ensure this is initialized to 0
+  //     remainingQuantity: item.quantity
+  //   }));
+  //   console.log('Selected Items:', this.selectedItems);  // Add this for debugging
+  //   this.orderReturnDialog = true;
+  // }
 
   // Update the remaining quantity after return
   updateRemainingQuantity(item: any) {
@@ -518,50 +750,50 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   // Save the order return (submit to backend)
-  saveOrderReturn() {
-    console.log(this.selectedItems);
+  // saveOrderReturn() {
+  //   console.log(this.selectedItems);
 
-    // Prepare the return data in a Map format (orderItemId => returnedQuantity)
-    const returnedItems = this.selectedItems.reduce((acc: any, item: any) => {
-      console.log('Item returned quantity:', item.returnedQuantity); // Debugging log
-      if (item.returnedQuantity > 0) {
-        acc[item.orderItemId] = item.returnedQuantity; // Use orderItemId as the key
-      }
-      return acc;
-    }, {});
+  //   // Prepare the return data in a Map format (orderItemId => returnedQuantity)
+  //   const returnedItems = this.selectedItems.reduce((acc: any, item: any) => {
+  //     console.log('Item returned quantity:', item.returnedQuantity); // Debugging log
+  //     if (item.returnedQuantity > 0) {
+  //       acc[item.orderItemId] = item.returnedQuantity; // Use orderItemId as the key
+  //     }
+  //     return acc;
+  //   }, {});
 
-    console.log('Returned Items:', returnedItems); // Debugging log
+  //   console.log('Returned Items:', returnedItems); // Debugging log
 
-    if (Object.keys(returnedItems).length === 0) {
-      this.messageService.add({ severity: 'warn', summary: 'No items returned', detail: 'Please specify the quantity to return' });
-      return;
-    }
+  //   if (Object.keys(returnedItems).length === 0) {
+  //     this.messageService.add({ severity: 'warn', summary: 'No items returned', detail: 'Please specify the quantity to return' });
+  //     return;
+  //   }
 
-    if (!this.returnReason || this.returnReason.trim() === '') {
-      this.messageService.add({ severity: 'warn', summary: 'Reason required', detail: 'Please provide a reason for the return.' });
-      return;
-    }
+  //   if (!this.returnReason || this.returnReason.trim() === '') {
+  //     this.messageService.add({ severity: 'warn', summary: 'Reason required', detail: 'Please provide a reason for the return.' });
+  //     return;
+  //   }
 
-    // Call the API to process the return
-    this.orderService
-      .processReturn(this.order.orderId, returnedItems, this.returnReason, this.returnNotes || null)
-      .subscribe({
-        next: (response) => {
-          this.messageService.add({ severity: 'success', summary: 'Return processed', detail: 'The order return has been successfully processed.' });
-          this.hideOrderReturnDialog();
-          this.onGetAllOrders();
-        },
-        error: (err) => {
-          console.error('Error processing return:', err); // Debugging log
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'There was an error processing the return.' });
-        }
-      });
+  //   // Call the API to process the return
+  //   this.orderService
+  //     .processReturn(this.order.orderId, returnedItems, this.returnReason, this.returnNotes || null)
+  //     .subscribe({
+  //       next: (response) => {
+  //         this.messageService.add({ severity: 'success', summary: 'Return processed', detail: 'The order return has been successfully processed.' });
+  //         this.hideOrderReturnDialog();
+  //         this.onGetAllOrders();
+  //       },
+  //       error: (err) => {
+  //         console.error('Error processing return:', err); // Debugging log
+  //         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'There was an error processing the return.' });
+  //       }
+  //     });
 
-    // Refresh the orders and reset dialog
-    this.orders = [...this.orders];
-    this.orderReturnDialog = false;
-    this.order = {};
-  }
+  //   // Refresh the orders and reset dialog
+  //   this.orders = [...this.orders];
+  //   this.orderReturnDialog = false;
+  //   this.order = {};
+  // }
 
   deleteOrder(order: Order) {
     if (!this.canDeleteOrder) return;
@@ -606,9 +838,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   openNew() {
     if (!this.canAddOrder) return;
     this.order = {};
-    this.order.paymentMethod = "Cash";
     this.discountType = "Amount";
     this.order.discount = 0;
+    this.order.transportAmount = 0;
     this.order.taxEnabled = false;
     this.targetProducts = [];
     this.orderItems = [];
@@ -626,63 +858,154 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     return `${year}-${month}-${day}`;
   }
 
+  // async saveOrder() {
+  //   this.submitted = true;
+
+  //   // Validate Discount Type and Ensure Proper Handling
+  //   if (this.discountType === 'Percentage' && this.order.discount > 100) {
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: 'Error',
+  //       detail: 'Percentage discount cannot exceed 100%',
+  //       life: 3000,
+  //     });
+  //     return;
+  //   }
+
+  //   // Check Customer Selection
+  //   if (!this.order.customer) {
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: 'Error',
+  //       detail: 'Customer is required.',
+  //       life: 3000,
+  //     });
+  //     return;
+  //   }
+
+  //   // Check Shop Selection (if admin)
+  //   if (this.isAdmin && !this.order.shop) {
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: 'Error',
+  //       detail: 'Shop is required.',
+  //       life: 3000,
+  //     });
+  //     return;
+  //   }
+
+  //   // Check Product Selection
+  //   if (this.targetProducts.length === 0) {
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: 'Error',
+  //       detail: 'At least one product must be selected.',
+  //       life: 3000,
+  //     });
+  //     return;
+  //   }
+
+  //   // Prepare Order Items
+  //   const orderItems: OrderItem[] = this.targetProducts.map((product) => ({
+  //     product,
+  //     quantity: product['orderItemQuantity'],
+  //     pricePerUnit: product['orderItemPricePerUnit'],
+  //   }));
+
+  //   // Create New Order Object
+  //   const newOrder: Order = {
+  //     ...this.order,
+  //     orderItems,
+  //     taxEnabled: this.taxEnabled,
+  //     discountType: this.discountType, // Pass discount type as it is
+  //     discount: this.order.discount, // Pass discount value without conversion
+  //   };
+
+  //   // Cleanup: Remove temporary fields from products
+  //   newOrder.orderItems.forEach((orderItem) => {
+  //     delete orderItem.product['orderItemQuantity'];
+  //     delete orderItem.product['orderItemPricePerUnit'];
+  //   });
+
+  //   try {
+  //     if (newOrder.orderId) {
+  //       await this.updateOrder(newOrder.orderId, newOrder);
+  //       this.messageService.add({
+  //         severity: 'success',
+  //         summary: 'Successful',
+  //         detail: 'Order Updated',
+  //         life: 3000,
+  //       });
+  //     } else {
+  //       await this.addOrder(newOrder);
+  //       this.messageService.add({
+  //         severity: 'success',
+  //         summary: 'Successful',
+  //         detail: 'Order Added',
+  //         life: 3000,
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error(error);
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: 'Error',
+  //       detail: 'Error occurred',
+  //       life: 3000,
+  //     });
+  //   }
+
+  //   this.orders = [...this.orders];
+  //   this.orderDialog = false;
+  //   this.order = {};
+  // }
+
   async saveOrder() {
     this.submitted = true;
 
-    // Validate Discount Type and Ensure Proper Handling
+    if (this.showPaymentSection) {
+      const paymentValid = this.validatePayment();
+      if (!paymentValid) {
+        return; // Stop if payment validation fails
+      }
+    }
+
+    // Existing order validations
     if (this.discountType === 'Percentage' && this.order.discount > 100) {
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Percentage discount cannot exceed 100%',
+        detail: this.translate.instant('percentage_discount_exceeds_limit'),
         life: 3000,
       });
       return;
     }
 
-    // Format Date Fields for Backend
-    if (this.order.paymentMethod === 'Check' && this.order.checkExpirationDate) {
-      const date =
-        typeof this.order.checkExpirationDate === 'string'
-          ? new Date(this.order.checkExpirationDate)
-          : this.order.checkExpirationDate;
-      this.order.checkExpirationDate = this.formatDate(date);
-    } else if (this.order.paymentMethod === 'BOE' && this.order.boeExpirationDate) {
-      const date =
-        typeof this.order.boeExpirationDate === 'string'
-          ? new Date(this.order.boeExpirationDate)
-          : this.order.boeExpirationDate;
-      this.order.boeExpirationDate = this.formatDate(date);
-    }
-
-    // Check Customer Selection
     if (!this.order.customer) {
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Customer is required.',
+        detail: this.translate.instant('customer_required'),
         life: 3000,
       });
       return;
     }
 
-    // Check Shop Selection (if admin)
     if (this.isAdmin && !this.order.shop) {
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Shop is required.',
+        detail: this.translate.instant('shop_required'),
         life: 3000,
       });
       return;
     }
 
-    // Check Product Selection
     if (this.targetProducts.length === 0) {
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'At least one product must be selected.',
+        detail: this.translate.instant('products_required'),
         life: 3000,
       });
       return;
@@ -700,19 +1023,21 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       ...this.order,
       orderItems,
       taxEnabled: this.taxEnabled,
-      discountType: this.discountType, // Pass discount type as it is
-      discount: this.order.discount, // Pass discount value without conversion
+      discountType: this.discountType,
+      discount: this.order.discount,
     };
 
-    // Cleanup: Remove temporary fields from products
+    // Cleanup temporary fields
     newOrder.orderItems.forEach((orderItem) => {
       delete orderItem.product['orderItemQuantity'];
       delete orderItem.product['orderItemPricePerUnit'];
     });
 
     try {
+      let savedOrder: Order;
+
       if (newOrder.orderId) {
-        await this.updateOrder(newOrder.orderId, newOrder);
+        savedOrder = await this.updateOrder(newOrder.orderId, newOrder);
         this.messageService.add({
           severity: 'success',
           summary: 'Successful',
@@ -720,27 +1045,108 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           life: 3000,
         });
       } else {
-        await this.addOrder(newOrder);
+        // Now properly awaiting the addOrder promise
+        savedOrder = await this.addOrder(newOrder);
         this.messageService.add({
           severity: 'success',
           summary: 'Successful',
           detail: 'Order Added',
           life: 3000,
         });
+
+        // Only process payment if we have a valid saved order
+        if (this.showPaymentSection && savedOrder) {
+          await this.processPayment(savedOrder);
+        }
       }
+
+      this.resetForms();
+      this.orderDialog = false;
+
+    } catch (error) {
+      console.error('Error in saveOrder:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Error occurred: ' + error.message,
+        life: 3000,
+      });
+    }
+  }
+
+  validatePayment(): boolean {
+    if (!this.payment.amount || !this.payment.paymentMethod || !this.payment.paymentDate) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('required_fields_missing'),
+        life: 3000,
+      });
+      return false;
+    }
+
+    if (this.payment.amount < 0.01) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('payment_amount_invalid_min'),
+        life: 3000,
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+
+  async resetForms(): Promise<void> {
+    this.order = {};
+    this.targetProducts = [];
+    this.showPaymentSection = false;
+    this.payment = {
+      amount: null,
+      paymentMethod: 'Cash',
+      paymentDate: new Date(),
+      checkNumber: null,
+      checkExpirationDate: null,
+      boeNumber: null,
+      boeExpirationDate: null,
+      notes: ''
+    };
+    this.submitted = false;
+    this.onGetAllOrders().then(() => {
+      console.log('Orders refreshed after payment');
+    });
+  }
+
+  async processPayment(order: Order): Promise<void> {
+    this.isSavingPayment = true;
+    try {
+      const paymentResponse = await this.paymentService.savePayment(
+        order.orderId,
+        this.payment.amount,
+        this.payment.paymentMethod
+      ).toPromise();
+
+      // this.updateLocalOrderWithPayment(order.orderId, paymentResponse);
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Successful',
+        detail: this.translate.instant('payment_added'),
+        life: 3000,
+      });
     } catch (error) {
       console.error(error);
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Error occurred',
+        detail: this.translate.instant('payment_error') + ': ' + error.message,
         life: 3000,
       });
+    } finally {
+      this.isSavingPayment = false;
     }
-
-    this.orders = [...this.orders];
-    this.orderDialog = false;
-    this.order = {};
   }
 
   saveCustomer() {
@@ -826,7 +1232,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           this.customers = response;
           this.customers = this.customers.map(customer => ({
             ...customer,
-            fullName: `${customer.firstName} ${customer.lastName}`
+            fullName: this.getCustomerDisplayName(customer)
           }));
           console.log(this.customers);
         },
@@ -845,6 +1251,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         },
         error: (err: any) => {
           this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting shops', life: 3000 })
+        }
+      })
+  }
+
+  async onGetOrganization() {
+    await this.organizationService.getOrganization()
+      .subscribe({
+        next: (response: any) => {
+          this.organization = response;
+          console.log(this.organization);
+        },
+        error: (err: any) => {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting organization', life: 3000 })
         }
       })
   }
@@ -906,6 +1325,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.orders.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
 
       console.log(this.orders)
+      this.orders.forEach(o => {
+        if (this.hasReturns(o)) {
+          this.loadOrderReturns(o);   // 🔸 now the map is filled before the table shows
+        }
+      });
       this.isLoading = false;
     } catch (error) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting orders', life: 3000 });
@@ -945,21 +1369,46 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       })
   }
 
-  async addOrder(order: any): Promise<any> {
-    console.log(order);
+  // async addOrder(order: any): Promise<any> {
+  //   console.log(order);
 
-    await this.orderService.saveOrder(order).subscribe({
-      next: (response: any) => {
-        console.log(response);
-        this.onGetAllOrders();
-        this.onGetAllProducts();
-        return true;
-      },
-      error(err: any) {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new order', life: 3000 })
-        console.log(err);
-        return false;
-      },
+  //   this.orderService.saveOrder(order).subscribe({
+  //     next: (response: any) => {
+  //       console.log(response);
+  //       this.onGetAllOrders();
+  //       this.onGetAllProducts();
+  //       return true;
+  //     },
+  //     error(err: any) {
+  //       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new order', life: 3000 });
+  //       console.log(err);
+  //       return false;
+  //     },
+  //   });
+  // }
+
+  async addOrder(order: any): Promise<Order> {
+    console.log('Saving order:', order);
+
+    return new Promise((resolve, reject) => {
+      this.orderService.saveOrder(order).subscribe({
+        next: (response: any) => {
+          console.log('Order saved successfully:', response);
+          this.onGetAllOrders();
+          this.onGetAllProducts();
+          resolve(response); // Resolve with the saved order
+        },
+        error: (err: any) => {
+          console.error('Error saving order:', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Error while adding new order',
+            life: 3000
+          });
+          reject(err); // Reject the promise on error
+        }
+      });
     });
   }
 
@@ -1075,73 +1524,84 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   }
 
-  showOrderStatus(order) {
+  async showOrderStatus(order) {
     this.order = { ...order };
     this.images = [];
-    this.onGetAllOrderReturn(this.order.orderId);
-  
+    await this.onGetAllOrderReturn(this.order.orderId);
+
     this.order.orderItems.forEach(item => {
-      this.images.push(item.product.productImage);
+      this.images.push(item.product?.productImage ?? 'assets/core-images/no-image.png');
     });
-  
+
     // Initialize originalEvents if not already initialized
     if (!this.originalEvents || this.originalEvents.length === 0) {
       this.originalEvents = [...this.events];
     }
-  
+
     // Find the index of the current status
     const currentStatusIndex = this.originalEvents.findIndex(event => event.status === this.order.orderStatus);
-  
+
     // Filter events up to the current status
     const filteredEvents = this.originalEvents.slice(0, currentStatusIndex + 1);
-  
+
     // Conditional filtering based on order status
     switch (this.order.orderStatus) {
+      case 'Return_Pending':
+      case 'Processing':
+        this.events = filteredEvents.filter(
+          event => !['Canceled'].includes(event.status)
+        );
+        break;
       case 'Canceled':
         this.events = filteredEvents.filter(
-          event => !['Delivered', 'Completed', 'Returned', 'Partial_Return'].includes(event.status)
+          event => !['Processing', 'Delivered', 'Completed', 'Return_Pending', 'Returned', 'Partial_Return'].includes(event.status)
+        );
+        break;
+      case 'Delivered':
+        this.events = filteredEvents.filter(
+          event => !['Canceled'].includes(event.status)
+        );
+        break;
+      case 'Completed':
+        this.events = filteredEvents.filter(
+          event => !['Partial_Return', 'Returned', 'Return_Pending', 'Canceled'].includes(event.status)
         );
         break;
       case 'Returned':
         this.events = filteredEvents.filter(
-          event => !['Partial_Return', 'Canceled', 'Completed'].includes(event.status)
+          event => !['Partial_Return', 'Canceled'].includes(event.status)
         );
         break;
-      case 'Completed':
-        if (!this.order.returnDate) {
-          this.events = filteredEvents.filter(
-            event => !['Partial_Return', 'Returned'].includes(event.status)
-          );
-        } else {
-          this.events = filteredEvents;
-        }
+      case 'Partial_Return':
+        this.events = filteredEvents.filter(
+          event => !['Returned', 'Canceled'].includes(event.status)
+        );
         break;
       default:
         this.events = filteredEvents;
         break;
     }
-  
+
     this.syncEventDates(this.events);
-  
+
     this.detailsDialog = true;
   }
-  
+
 
   async editOrderStatus(id: any, order: any): Promise<boolean> {
     try {
       const response = await this.orderService.updateOrderStatus(id, order).toPromise();
       console.log(response);
-  
+
       await this.onGetAllOrders(); // Wait for updated orders
       this.cdr.detectChanges(); // Manually trigger change detection
-  
       return true;
     } catch (error) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Error', 
-        detail: 'Error while updating the order', 
-        life: 3000 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Error while updating the order',
+        life: 3000
       });
       return false;
     }
@@ -1231,6 +1691,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
       } finally {
         this.loading = false; // Set loading flag to false when the operation is completed
+        this.showOrderStatus(this.order); // Show the order status dialog
+
       }
   }
 
@@ -1253,6 +1715,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         case 'Canceled':
           event.date = this.order.cancelDate ? new Date(this.order.cancelDate) : null;
           break;
+        case 'Return_Pending':
+          event.date = this.order.returnPendingDate ? new Date(this.order.returnPendingDate) : null;
+          break;
         case 'Partial_Return':
         case 'Returned':
           event.date = this.order.returnDate ? new Date(this.order.returnDate) : null;
@@ -1264,8 +1729,22 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
-  canCancelOrder(order: Order): boolean {
-    return order.orderStatus === 'Processing'; // Adjust the condition based on your status criteria
+  allowCancelOrder(order: Order): boolean {
+    return order.orderStatus === 'Ordered'; // Adjust the condition based on your status criteria
+  }
+
+  async cancelOrderFromTable(order: Order) {
+    try {
+      order.orderStatus = "Canceled";
+      // Update the existing events with the corresponding date from the order
+      await this.editOrderStatus(order.orderId, order);
+      this.syncEventDates(this.events);
+      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Canceled', life: 3000 });
+      this.cdr.detectChanges(); // Detect changes to update the UI
+
+    } catch (error) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while canceling order', life: 3000 });
+    }
   }
 
   async cancelOrder(order: Order) {
@@ -1281,7 +1760,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
       // Assign the filtered events to the events array
       if (this.order.orderStatus === 'Canceled') {
-        this.events = filteredEvents.filter(event => event.status !== 'Delivered' && event.status !== 'Completed');
+        this.events = filteredEvents.filter(event => event.status !== 'Delivered' && event.status !== 'Completed' && event.status !== 'Returned' && event.status !== 'Partial_Return' && event.status !== 'Processing' && event.status !== 'Return_Pending');
       } else {
         // Assign the filtered events to the events array
         this.events = filteredEvents;
@@ -1331,9 +1810,18 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       total += this.calculateTax(total); // Pass the discounted total to calculate tax
     }
 
+    // Add transport amount to the total
+    total += this.order.transportAmount;
+
+    // Ensure the final total is not below zero
+    if (total < 0) {
+      total = 0;
+    }
+
     // Return the final total
     return total;
   }
+
 
   calculateTax(totalWithoutTax: number): number {
     // Calculate tax based on the total amount after discount
@@ -1426,17 +1914,55 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  async onGetCurrency() {
-    await (await this.configService.getConfigurationValue('currency'))
-      .subscribe({
-        next: (response: any) => {
-          this.currency = response;
-          console.log(this.currency)
-        },
-        error: (err: any) => {
-          console.log(err)
-        }
-      })
+  //   async onGetCurrency() {
+  //   await (await this.configService.getConfigurationValue('currency'))
+  //     .subscribe({
+  //       next: (response: any) => {
+  //         this.currency = response;
+  //         console.log(this.currency)
+  //       },
+  //       error: (err: any) => {
+  //         console.log(err)
+  //       }
+  //     })
+  // }
+
+  getCustomerDisplayName(customer: any): string {
+    if (!customer) return 'N/A';
+
+    if (customer.customerType === 'Company') {
+      return customer.companyName || 'Unnamed Company';
+    }
+
+    return [customer.firstName, customer.lastName]
+      .filter(name => name)
+      .join(' ') || 'Unnamed Customer';
+  }
+
+  getTotalSpent(): number {
+    return this.orders?.reduce((total, order) => total + (order.totalAmount || 0), 0) || 0;
+  }
+
+  getTotalPaid(): number {
+    return this.orders?.reduce((total, order) => {
+      return total + (order.totalPaid || 0);
+    }, 0) || 0;
+  }
+
+  // Calculate remaining balance
+  getRemainingBalance(): number {
+    return this.getTotalSpent() - this.getTotalPaid();
+  }
+
+  getPaymentMethodIcon(method: string): string {
+    switch (method) {
+      case 'Cash': return 'pi-money-bill';
+      case 'Card': return 'pi-credit-card';
+      case 'Check': return 'pi-file-edit';
+      case 'Transfer': return 'pi-send';
+      case 'BOE': return 'pi-file-excel';
+      default: return 'pi-money-bill';
+    }
   }
 
 }

@@ -9,15 +9,17 @@ import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   templateUrl: './suppliers.component.html',
-  styleUrls: ['../pages.component.css'],
+  styleUrls: ['./suppliers.component.css', '../pages.component.css'],
   providers: [MessageService]
 })
 export class SuppliersComponent implements OnInit {
 
-  Ressource : string = 'SUPPLIERS';
+  Ressource: string = 'SUPPLIERS';
 
   supplierDialog: boolean = false;
 
@@ -25,15 +27,23 @@ export class SuppliersComponent implements OnInit {
 
   deleteSuppliersDialog: boolean = false;
 
+  supplierDetailsDialog: boolean = false;
+
   suppliers: Supplier[] = [];
 
   supplier: Supplier = {};
 
   selectedSuppliers: Supplier[] = [];
 
+  supplierProducts: any[] = [];
+
+  supplierPurchases: any[] = [];
+
   submitted: boolean = false;
 
   cols: any[] = [];
+
+  currency: any = '';
 
   statuses: any[] = [];
 
@@ -49,9 +59,15 @@ export class SuppliersComponent implements OnInit {
 
   exportColumns!: ExportColumn[];
 
+  monthlyPurchasesChartData: any;
+  productDistributionChartData: any;
+  barChartOptions: any;
+  pieChartOptions: any;
+
   canAddSupplier: boolean = false;
   canEditSupplier: boolean = false;
   canDeleteSupplier: boolean = false;
+  canReadSupplier: boolean = false;
   isLoading: boolean = true;
   constructor(private messageService: MessageService,
     private supplierService: SupplierService,
@@ -59,13 +75,21 @@ export class SuppliersComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
+    private configService: AppConfigurationService,
     public keycloakService: KeycloakService,) { }
 
   async ngOnInit() {
-    this.isLoading=true;
+    this.isLoading = true;
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
+
     this.onGetAllSuppliers();
     await this.checkPermissions();
     this.cols = [
@@ -94,6 +118,7 @@ export class SuppliersComponent implements OnInit {
     this.canAddSupplier = this.permissionService.canCreate(this.Ressource);
     this.canEditSupplier = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteSupplier = this.permissionService.canDelete(this.Ressource);
+    this.canReadSupplier = this.permissionService.canRead(this.Ressource);
 
   }
 
@@ -144,6 +169,170 @@ export class SuppliersComponent implements OnInit {
     this.supplierDialog = true;
   }
 
+  async openSupplierDialog(supplier: any): Promise<void> {
+    this.supplier = supplier;
+    await this.loadSupplierProducts();   
+    await this.loadSupplierPurchases();
+    this.initChartOptions();
+    this.supplierDetailsDialog = true;
+
+    console.log(this.supplierProducts)
+    console.log(this.supplierPurchases)
+  }
+
+
+  async loadSupplierProducts(): Promise<void> {
+    try {
+      const products = await firstValueFrom<any[]>(
+        this.supplierService.getProductsBySupplier(this.supplier.supplierId)
+      );
+      this.supplierProducts = Array.isArray(products) ? products : [];
+      this.prepareProductDistributionChart();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async loadSupplierPurchases(): Promise<void> {
+    try {
+      const purchasesResult = await firstValueFrom<any>(
+        this.supplierService.getPurchasesBySupplier(this.supplier.supplierId)
+      );
+      this.supplierPurchases = Array.isArray(purchasesResult) ? purchasesResult : [];
+
+      this.supplierPurchases.forEach((purchase: any) => {
+        if (purchase.shop?.cashRegister?.dailyBalances) {
+          delete purchase.shop.cashRegister.dailyBalances;
+        }
+        purchase.creationDate = new Date(purchase.creationDate);
+        purchase.dateOfPurchase = new Date(purchase.dateOfPurchase);
+        purchase.boeExpirationDate = new Date(purchase.boeExpirationDate);
+        purchase.checkExpirationDate = new Date(purchase.checkExpirationDate);
+      });
+
+      this.prepareMonthlyPurchasesChart();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  prepareMonthlyPurchasesChart(): void {
+    const monthlyData = this.groupPurchasesByMonth(this.supplierPurchases);
+    this.monthlyPurchasesChartData = {
+      labels: Object.keys(monthlyData),
+      datasets: [{
+        label: this.currency,
+        data: Object.values(monthlyData),
+        backgroundColor: '#6366F1'
+      }]
+    };
+  }
+
+  prepareProductDistributionChart(): void {
+    const categoryCounts = this.countProductsByCategory(this.supplierProducts);
+    this.productDistributionChartData = {
+      labels: Object.keys(categoryCounts),
+      datasets: [{
+        data: Object.values(categoryCounts),
+        backgroundColor: [
+          '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6',
+          '#F97316', '#8B5CF6', '#EF4444', '#14B8A6', '#84CC16'
+        ]
+      }]
+    };
+  }
+
+  getSupplierInitials(supplier: any): string {
+    if (!supplier?.name) return '';
+    const names = supplier.name.split(' ');
+    return names.map((n: string) => n[0]).join('').toUpperCase();
+  }
+
+  getSupplierColor(supplier: any): string {
+    // Generate a consistent color based on supplier ID
+    const colors = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'];
+    return colors[Math.abs(supplier.supplierId) % colors.length];
+  }
+
+  getInventoryStatusSeverity(status: string): string {
+    switch (status) {
+      case 'INSTOCK': return 'success';
+      case 'LOWSTOCK': return 'warning';
+      case 'OUTOFSTOCK': return 'danger';
+      default: return 'info';
+    }
+  }
+
+getPaymentMethodSeverity(method: string): string {
+    switch (method?.toLowerCase()) {
+        case 'cash':
+            return 'success';
+        case 'credit':
+            return 'warning';
+        case 'check':
+            return 'help';
+        case 'transfer':
+            return 'info';
+        default:
+            return 'danger';
+    }
+}
+
+  getTotalSpentWithSupplier(): number {
+    return this.supplierPurchases?.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0) || 0;
+  }
+
+  getLastPurchaseDate(): Date | null {
+    if (!this.supplierPurchases?.length) return null;
+    const sorted = [...this.supplierPurchases].sort((a, b) =>
+      b.dateOfPurchase - a.dateOfPurchase
+    );
+    return sorted[0].dateOfPurchase;
+  }
+
+  private groupPurchasesByMonth(purchases: any[]): { [key: string]: number } {
+    return purchases.reduce((acc, purchase) => {
+      const month = new Date(purchase.dateOfPurchase).toLocaleString('default', {
+        month: 'short',
+        year: 'numeric'
+      });
+      acc[month] = (acc[month] || 0) + purchase.totalAmount;
+      return acc;
+    }, {});
+  }
+
+  private countProductsByCategory(products: any[]): { [key: string]: number } {
+    return products.reduce((acc, product) => {
+      const category = product.category?.categoryName || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {});
+  }
+
+  viewPurchaseDetails(purchase: any): void {
+    // Implement purchase details view
+  }
+
+  createNewPurchase(): void {
+    // Implement new purchase creation
+  }
+
+  contactSupplier(): void {
+    if (this.supplier.email) {
+      window.location.href = `mailto:${this.supplier.email}`;
+    } else if (this.supplier.phoneNumber) {
+      window.location.href = `tel:${this.supplier.phoneNumber}`;
+    }
+  }
+
+  printSupplierDetails(): void {
+    window.print();
+  }
+
+  exportToExcel(): void {
+    // Implement Excel export
+  }
+
   saveSupplier() {
     this.submitted = true;
     if (this.supplier.name) {
@@ -154,12 +343,41 @@ export class SuppliersComponent implements OnInit {
       }
       this.suppliers = [...this.suppliers];
       this.supplierDialog = false;
-      this.supplier = {};
+      if (!this.supplierDetailsDialog) {
+        this.supplier = {};
+      }
     }
-    else{
+    else {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
       return;
     }
+  }
+
+  initChartOptions(): void {
+    console.log('intializing charts ...')
+    this.barChartOptions = {
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: (value: number) => this.currency + value.toFixed(2)
+          }
+        }
+      }
+    };
+
+    this.pieChartOptions = {
+      plugins: {
+        legend: {
+          position: 'right'
+        }
+      }
+    };
   }
 
   onGlobalFilter(table: Table, event: Event) {
@@ -203,8 +421,8 @@ export class SuppliersComponent implements OnInit {
         error: (err: any) => {
           console.error(err)
         },
-        complete: () =>{
-          this.isLoading=false;
+        complete: () => {
+          this.isLoading = false;
         }
       })
   }
@@ -286,7 +504,7 @@ export class SuppliersComponent implements OnInit {
     });
 
     // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedSuppliers,'suppliers');
+    this.reportingService.exportExcel(modifiedSuppliers, 'suppliers');
   }
 
 }

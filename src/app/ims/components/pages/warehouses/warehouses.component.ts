@@ -9,15 +9,18 @@ import { TranslateService } from '@ngx-translate/core';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
+import { Product } from 'src/app/models/product';
+import { ProductService } from 'src/app/services/product.service';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 @Component({
   templateUrl: './warehouses.component.html',
-  styleUrls: ['../pages.component.css'],
+  styleUrls: ['./warehouses.component.css', '../pages.component.css'],
   providers: [MessageService]
 })
 export class WarehousesComponent implements OnInit {
 
-  Ressource : string = 'WAREHOUSES';
+  Ressource: string = 'WAREHOUSES';
 
   warehouseDialog: boolean = false;
 
@@ -52,18 +55,38 @@ export class WarehousesComponent implements OnInit {
   canAddWarehouse: boolean = false;
   canEditWarehouse: boolean = false;
   canDeleteWarehouse: boolean = false;
+  canReadWarehouse: boolean = false;
 
   isLoading: boolean = true;
 
+  currency: any;
+
+  warehouseDetailsDialog: boolean = false;
+  selectedWarehouse: Warehouse = {};
+  warehouseProducts: Product[] = [];
+  warehouseStats: any = {};
+  inventoryStatuses = [
+    { label: 'in_stock', value: 'INSTOCK' },
+    { label: 'low_stock', value: 'LOWSTOCK' },
+    { label: 'out_of_stock', value: 'OUTOFSTOCK' }
+  ];
+
   constructor(private messageService: MessageService,
-     private warehouseService: WarehouseService,
-     private reportingService: ReportingService,
-     private translate: TranslateService,
-     private translateService: TranslationService,
-     private permissionService: PermissionService,
-     public keycloakService: KeycloakService,) { }
+    private warehouseService: WarehouseService,
+    private reportingService: ReportingService,
+    private translate: TranslateService,
+    private configService: AppConfigurationService,
+    private translateService: TranslationService,
+    private permissionService: PermissionService,
+    public keycloakService: KeycloakService,) { }
 
   async ngOnInit() {
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
     this.isLoading = true;
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
@@ -98,13 +121,22 @@ export class WarehousesComponent implements OnInit {
     this.canAddWarehouse = this.permissionService.canCreate(this.Ressource);
     this.canEditWarehouse = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteWarehouse = this.permissionService.canDelete(this.Ressource);
-
+    this.canReadWarehouse = this.permissionService.canRead(this.Ressource);
   }
 
   deleteSelectedWarehouses() {
     if (!this.canDeleteWarehouse) return;
     this.deleteWarehousesDialog = true;
   }
+
+  getStatusIcon(status: string): string {
+    switch(status.toLowerCase()) {
+        case 'instock': return 'pi pi-check-circle text-green-500';
+        case 'lowstock': return 'pi pi-exclamation-circle text-yellow-500';
+        case 'outofstock': return 'pi pi-times-circle text-red-500';
+        default: return 'pi pi-question-circle';
+    }
+}
 
   editWarehouse(warehouse: Warehouse) {
     if (!this.canEditWarehouse) return;
@@ -150,6 +182,38 @@ export class WarehousesComponent implements OnInit {
     this.warehouseDialog = true;
   }
 
+  showWarehouseDetailsDialog(warehouse: Warehouse) {
+    this.selectedWarehouse = { ...warehouse };
+    this.loadWarehouseDetails(warehouse.warehouseId);
+    this.warehouseDetailsDialog = true;
+  }
+
+  loadWarehouseDetails(warehouseId: number) {
+    // Load products in this warehouse
+    this.warehouseService.getProductsByWarehouse(warehouseId).subscribe((products: Product[]) => {
+      this.warehouseProducts = products;
+      this.calculateWarehouseStats();
+    });
+  }
+
+  calculateWarehouseStats() {
+    this.warehouseStats = {
+      totalProducts: this.warehouseProducts.length,
+      totalQuantity: this.warehouseProducts.reduce((sum, p) => sum + (p.quantityAvailable || 0), 0),
+      totalValue: this.warehouseProducts.reduce((sum, p) => sum + ((p.quantityAvailable || 0) * (p.buyingPrice || 0)), 0)
+    };
+  }
+
+  // Get count for each inventory status
+  getStatusCount(status: string): number {
+    return this.warehouseProducts.filter(p => p.inventoryStatus === status).length;
+  }
+
+  // Hide dialog
+  hideWarehouseDetailsDialog() {
+    this.warehouseDetailsDialog = false;
+  }
+
   saveWarehouse() {
     this.submitted = true;
     if (this.warehouse.name) {
@@ -161,7 +225,7 @@ export class WarehousesComponent implements OnInit {
       this.warehouses = [...this.warehouses];
       this.warehouseDialog = false;
       this.warehouse = {};
-    } else{
+    } else {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
       return;
     }
@@ -170,7 +234,7 @@ export class WarehousesComponent implements OnInit {
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
- 
+
 
   clear(table: Table) {
     table.clear();
@@ -209,8 +273,8 @@ export class WarehousesComponent implements OnInit {
         error: (err: any) => {
           console.log(err)
         },
-        complete: () =>{
-          this.isLoading=false;
+        complete: () => {
+          this.isLoading = false;
         }
       })
   }
@@ -271,8 +335,8 @@ export class WarehousesComponent implements OnInit {
   //   this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
   //   console.log(this.states);
   // }
-  
-  onChangeCountry(){
+
+  onChangeCountry() {
     this.warehouse.city = undefined;
     console.log("clear city")
   }
@@ -280,38 +344,38 @@ export class WarehousesComponent implements OnInit {
   onSelectedCountry(event) {
     console.log('event :' + event);
     console.log(event.value);
-    if ((this.warehouse.country != this.selectedCountry) && (this.warehouse.city == undefined)) this.warehouse.city=undefined;
+    if ((this.warehouse.country != this.selectedCountry) && (this.warehouse.city == undefined)) this.warehouse.city = undefined;
     this.countries.forEach(element => {
       if (element.name === event) {
-        this.selectedCountry = element; 
+        this.selectedCountry = element;
       }
     });
     console.log(this.selectedCountry.isoCode)
     this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
 
-}
+  }
 
-exportPdf() {
-  this.reportingService.exportPdf(this.exportColumns, this.warehouses, 'warehouses')
-}
+  exportPdf() {
+    this.reportingService.exportPdf(this.exportColumns, this.warehouses, 'warehouses')
+  }
 
-exportExcel() {
-  // Clone the suppliers array to avoid modifying the original array
-  const modifiedWarehouses = this.warehouses.map(warehouse => {
-    // Create a copy of the supplier object to modify
-    const modifiedWarehouse = { ...warehouse };
+  exportExcel() {
+    // Clone the suppliers array to avoid modifying the original array
+    const modifiedWarehouses = this.warehouses.map(warehouse => {
+      // Create a copy of the supplier object to modify
+      const modifiedWarehouse = { ...warehouse };
 
-    // Remove the column you want to exclude
-    delete modifiedWarehouse.creationDate;
+      // Remove the column you want to exclude
+      delete modifiedWarehouse.creationDate;
 
-    // Alternatively, if the columnToRemove is a property with a known name, you can use:
-    // delete modifiedSupplier['columnToRemove'];
+      // Alternatively, if the columnToRemove is a property with a known name, you can use:
+      // delete modifiedSupplier['columnToRemove'];
 
-    return modifiedWarehouse;
-  });
+      return modifiedWarehouse;
+    });
 
-  // Now, export the modified array to Excel
-  this.reportingService.exportExcel(modifiedWarehouses,'warehouses');
-}
+    // Now, export the modified array to Excel
+    this.reportingService.exportExcel(modifiedWarehouses, 'warehouses');
+  }
 
 }

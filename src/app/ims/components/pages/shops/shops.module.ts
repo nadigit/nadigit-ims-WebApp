@@ -21,6 +21,9 @@ import { ReportingService } from 'src/app/utils/reporting.service';
 import { CalendarModule } from 'primeng/calendar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
+import { CardModule } from 'primeng/card';
+import { TabViewModule } from 'primeng/tabview';
+import { TagModule } from 'primeng/tag';
 
 
 @NgModule({
@@ -44,7 +47,10 @@ import { TooltipModule } from 'primeng/tooltip';
         TranslateModule,
         CalendarModule,
         ProgressSpinnerModule,
-        TooltipModule
+        TooltipModule,
+        CardModule,
+        TabViewModule,
+        TagModule
     ],
     declarations: [ShopsComponent],
     providers: [ReportingService],

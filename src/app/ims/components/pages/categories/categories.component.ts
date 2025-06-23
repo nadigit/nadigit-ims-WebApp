@@ -3,8 +3,10 @@ import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
+import { firstValueFrom } from 'rxjs';
 import { Category } from 'src/app/models/category';
 import { Product } from 'src/app/models/product';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -12,7 +14,7 @@ import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service'
 
 @Component({
   templateUrl: './categories.component.html',
-  styleUrls: ['../pages.component.css'],
+  styleUrls: ['../pages.component.css', './categories.component.css'],
   providers: [MessageService]
 })
 export class CategoriesComponent implements OnInit {
@@ -20,6 +22,8 @@ export class CategoriesComponent implements OnInit {
   Ressource: string = "CATEGORIES"
 
   categoryDialog: boolean = false;
+
+  lowStockThreshold;
 
   categoryProductsDialog: boolean = false;
 
@@ -47,20 +51,31 @@ export class CategoriesComponent implements OnInit {
   canAddCategory: boolean = false;
   canEditCategory: boolean = false;
   canDeleteCategory: boolean = false;
-  canListProducts:boolean = false;
+  canListProducts: boolean = false;
 
   isLoading = true;
+  currency: string = '';
 
-  constructor(private messageService: MessageService, 
+  constructor(private messageService: MessageService,
     private categoryService: CategoryService,
     private reportingService: ReportingService,
     public keycloakService: KeycloakService,
+    private configService: AppConfigurationService,
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,) { }
 
   async ngOnInit() {
-    this.isLoading =true;
+    this.isLoading = true;
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
+
+    this.lowStockThreshold = await this.getLowStockThreshold();
+
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
@@ -131,13 +146,14 @@ export class CategoriesComponent implements OnInit {
     this.categoryDialog = true;
   }
 
-  async openCategoryProductsDialog(category: Category){
+  async openCategoryProductsDialog(category: Category) {
     this.category = category;
+    console.log(this.lowStockThreshold)
     await this.onGetCategoryProducts();
     this.categoryProductsDialog = true;
   }
 
-  hideCategoryProductsDialog(){
+  hideCategoryProductsDialog() {
     this.category = {};
     this.categoryProductsDialog = false;
   }
@@ -153,7 +169,7 @@ export class CategoriesComponent implements OnInit {
       this.categories = [...this.categories];
       this.categoryDialog = false;
       this.category = {};
-    } else{
+    } else {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
       return;
     }
@@ -162,7 +178,7 @@ export class CategoriesComponent implements OnInit {
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
- 
+
   async onGetAllCategories() {
     await this.categoryService.getCategories()
       .subscribe({
@@ -175,7 +191,7 @@ export class CategoriesComponent implements OnInit {
           console.log(err)
         },
         complete: () => {
-            this.isLoading = false;
+          this.isLoading = false;
         }
       })
   }
@@ -240,24 +256,71 @@ export class CategoriesComponent implements OnInit {
   exportPdf() {
     this.reportingService.exportPdf(this.exportColumns, this.categories, 'categories')
   }
-  
+
   exportExcel() {
     // Clone the suppliers array to avoid modifying the original array
     const modifiedCategories = this.categories.map(category => {
       // Create a copy of the supplier object to modify
       const modifiedCategory = { ...category };
-  
+
       // Remove the column you want to exclude
       delete modifiedCategory.creationDate;
-  
+
       // Alternatively, if the columnToRemove is a property with a known name, you can use:
       // delete modifiedSupplier['columnToRemove'];
-  
+
       return modifiedCategory;
     });
-  
+
     // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedCategories,'categories');
+    this.reportingService.exportExcel(modifiedCategories, 'categories');
+  }
+
+  async getLowStockThreshold(): Promise<number> {
+    let threshold: any;
+    try {
+      const value = await firstValueFrom(await this.configService.getConfiguration('lowStockThreshold'));
+
+      threshold = (value !== undefined && value !== null)
+        ? Number(value.value)
+        : 10;
+      return threshold;
+    } catch (error) {
+      console.error('Error fetching low stock threshold:', error);
+      threshold = 10; // fallback value
+      return threshold;
+    }
+  }
+
+
+  getQuantitySeverity(quantity: number): string {
+    if (quantity === undefined || quantity === null) return 'info';
+    if (quantity <= 0) return 'danger';
+    if (quantity < this.lowStockThreshold) return 'warning';
+    return 'success';
+  }
+
+  calculateProfit(product: any): number {
+    if (!product.sellingPrice || !product.buyingPrice) return 0;
+    return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
+  }
+
+  getProfitClass(product: any): string {
+    const profit = this.calculateProfit(product);
+    return profit >= 0.3 ? 'text-green-500 font-semibold' :
+      profit >= 0.1 ? 'text-blue-500' : 'text-orange-500';
+  }
+
+  getInStockCount(): number {
+    return this.products?.filter(p => p.quantityAvailable > this.lowStockThreshold)?.length || 0;
+  }
+
+  getLowStockCount(): number {
+    return this.products?.filter(p => p.quantityAvailable > 0 && p.quantityAvailable <= this.lowStockThreshold)?.length || 0;
+  }
+
+  getOutOfStockCount(): number {
+    return this.products?.filter(p => p.quantityAvailable <= 0)?.length || 0;
   }
 
 }

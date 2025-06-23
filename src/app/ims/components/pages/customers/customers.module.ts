@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CustomersRoutingModule } from './customers-routing.module';
-import { CustomersComponent } from './customers.component';
+import { AbsolutePipe, CustomersComponent } from './customers.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -20,6 +20,13 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
+import { CardModule } from 'primeng/card';
+import { TagModule } from 'primeng/tag';
+import { AvatarModule } from 'primeng/avatar';
+import { AvatarGroupModule } from 'primeng/avatargroup';
+import { ChartModule } from 'primeng/chart';
+import { TabViewModule } from 'primeng/tabview';
+
 
 
 @NgModule({
@@ -42,9 +49,16 @@ import { TooltipModule } from 'primeng/tooltip';
         DialogModule,
         TranslateModule,
         ProgressSpinnerModule,
-        TooltipModule
+        TooltipModule,
+        TagModule,
+        CardModule,
+        AvatarModule,
+        AvatarGroupModule,
+        ChartModule,
+        TabViewModule
     ],
-    declarations: [CustomersComponent],
+    declarations: [CustomersComponent, AbsolutePipe],
+    exports:[AbsolutePipe],
     providers: [ReportingService]
 })
 export class CustomersModule { }

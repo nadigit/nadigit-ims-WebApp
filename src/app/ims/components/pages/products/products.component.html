@@ -60,12 +60,14 @@
 
 					<p-table #dt [value]="products" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll"
 						[rows]="20" [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions"
-						[showCurrentPageReport]="true" dataKey="id"
+						[showCurrentPageReport]="true" dataKey="productId"
 						currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
 						[(selection)]="selectedProducts" selectionMode="multiple" [rowHover]="true">
 						<ng-template pTemplate="header">
 							<tr>
-								<th> </th>
+								<th style="width: 3rem">
+									<p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+								</th>
 								<th>{{ 'product_image' | translate }}</th>
 								<th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon
 										field="name"></p-sortIcon></th>
@@ -78,30 +80,33 @@
 								<th pSortableColumn="quantityAvailable">{{'product_quantity' | translate}} <p-sortIcon
 										field="quantityAvailable"></p-sortIcon></th>
 								<th pSortableColumn="inventoryStatus">{{'product_inventory_status' | translate}}
-									<p-sortIcon field="inventoryStatus"></p-sortIcon></th>
-								<!-- <th pSortableColumn="buyingPrice">{{'product_buying_price' | translate}} <p-sortIcon
-										field="buyingPrice"></p-sortIcon></th> -->
+									<p-sortIcon field="inventoryStatus"></p-sortIcon>
+								</th>
+								<th pSortableColumn="buyingPrice" *ngIf="isAdmin">{{'product_buying_price' | translate}}
+									<p-sortIcon field="buyingPrice"></p-sortIcon>
+								</th>
 								<th pSortableColumn="sellingPrice">{{'product_selling_price' | translate}} <p-sortIcon
 										field="sellingPrice"></p-sortIcon></th>
+								<th pSortableColumn="profit" *ngIf="isAdmin">{{'profit' | translate}} <p-sortIcon
+										field="profit"></p-sortIcon></th>
 								<th pSortableColumn="supplier">{{'product_supplier' | translate}} <p-sortIcon
 										field="supplier"></p-sortIcon>
 								</th>
 								<th pSortableColumn="warehouse">{{'product_warehouse' | translate}} <p-sortIcon
-									field="warehouse"></p-sortIcon>
-							</th>
+										field="warehouse"></p-sortIcon>
+								</th>
 								<th></th>
 							</tr>
 						</ng-template>
 						<ng-template pTemplate="body" let-product>
-							<tr>
+							<tr [pSelectableRow]="product" (click)="canEditProduct ? editProduct(product) : null">
 								<td>
-									<p-tableCheckbox [value]="product"></p-tableCheckbox>
+									<p-tableCheckbox [value]="product" (click)="$event.stopPropagation()"></p-tableCheckbox>
 								</td>
 
 								<td style="min-width:10rem;">
-									<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'" 
-										 [alt]="product.name" 
-										 class="my-4 md:my-0 w-6 md:w-6rem shadow-2 mr-5" />
+									<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+										[alt]="product.name" class="my-4 md:my-0 w-6 md:w-6rem shadow-2 mr-5" />
 								</td>
 
 								<td style="min-width:10rem;">
@@ -129,13 +134,21 @@
 									</span>
 								</td>
 
-								<!-- <td style="min-width:10rem;">
+								<td style="min-width:10rem;" *ngIf="isAdmin">
 									<span class="p-column-title">{{'product_quantity' | translate}}</span>
 									{{ product.buyingPrice }} {{currency}}
-								</td> -->
+								</td>
 								<td style="min-width:10rem;">
-									<span class="p-column-title">{{'product_quantity' | translate}}</span>
+									<span class="p-column-title">{{'product_selling_price' | translate}}</span>
 									{{ product.sellingPrice }} {{currency}}
+								</td>
+								<td class="text-center" *ngIf="isAdmin">
+									<span class="p-column-title">{{'profit' | translate}}</span>
+									<span *ngIf="product.sellingPrice && product.buyingPrice"
+										[class]="getProfitClass(product)">
+										{{ calculateProfit(product) | percent:'1.2-2' }}
+									</span>
+									<span *ngIf="!product.sellingPrice || !product.buyingPrice">N/A</span>
 								</td>
 								<td style="min-width:10rem;">
 									<span class="p-column-title">{{'product_supplier' | translate}}</span>
@@ -150,11 +163,11 @@
 										<button pButton pRipple *ngIf="canEditProduct" icon="pi pi-pencil"
 											class="p-button-rounded p-button-success mr-2"
 											pTooltip="{{'update_product'|translate}}"
-											(click)="editProduct(product)"></button>
+											(click)="editProduct(product); $event.stopPropagation()"></button>
 										<button pButton pRipple *ngIf="canDeleteProduct" icon="pi pi-trash"
 											class="p-button-rounded p-button-warning mr-2"
 											pTooltip="{{'delete_product'|translate}}"
-											(click)="deleteProduct(product)"></button>
+											(click)="deleteProduct(product); $event.stopPropagation()"></button>
 									</div>
 								</td>
 							</tr>
@@ -163,6 +176,19 @@
 							<div class="flex align-items-center justify-content-between">
 								{{'total_products' | translate}} {{products ? products.length : 0 }}.
 							</div>
+						</ng-template>
+						<ng-template pTemplate="emptymessage">
+							<tr>
+								<td colspan="20" class="text-center">
+									<div class="flex flex-column align-items-center justify-content-center py-5">
+										<img src="assets/core-images/no_data_found.png" alt="No Data Found"
+											style="max-width: 250px; opacity: 0.6;">
+										<p class="mt-3 text-gray-600 font-medium text-lg">
+											{{ 'no_products_found' | translate }}
+										</p>
+									</div>
+								</td>
+							</tr>
 						</ng-template>
 					</p-table>
 				</ng-template>
@@ -182,8 +208,9 @@
 								</div>
 								<div class="flex flex-column align-items-center text-center mb-3"
 									(click)="editProduct(product)">
-									<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'" [alt]="product.name"
-										class="w-9 shadow-2 my-3 mx-0" style="height: 170px; width: 100px;" />
+									<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+										[alt]="product.name" class="w-9 shadow-2 my-3 mx-0"
+										style="height: 170px; width: 100px;" />
 									<div class="text-2xl font-bold">{{product.name}}</div>
 									<div class="mb-3">{{product.reference}}</div>
 								</div>
@@ -202,172 +229,274 @@
 				</ng-template>
 			</p-dataView>
 		</div>
-		<p-dialog [(visible)]="productDialog" (onHide)="resetScanning()" [style]="{width: '80%', height: '100%'}"
-			header="{{'product_details' | translate}}" [modal]="true" class="p-fluid ">
+		<p-dialog [(visible)]="productDialog" (onHide)="resetScanning()"
+			[style]="{width: '80%', maxWidth: '800px', minHeight: '600px'}" header="{{'product_details' | translate}}"
+			[modal]="true" [draggable]="false" [resizable]="false" [breakpoints]="{'960px': '90%', '640px': '95%'}"
+			class="p-fluid product-dialog">
 			<ng-template pTemplate="content">
+				<div class="grid p-fluid">
+					<!-- Left Column - Image Section -->
+					<div class="col-12 md:col-4">
+						<div class="image-section card p-3" *ngIf="product.productImage; else upload_image">
+							<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
+								translate}}</label>
+							<div class="image-container relative">
+								<p-image [src]="product.productImage" [alt]="product.name" width="100%" [preview]="true"
+									class="block shadow-2 border-round" imageClass="w-full"></p-image>
+								<div class="image-actions flex justify-content-center gap-2 mt-3">
+									<p-button icon="pi pi-pencil" [text]="true" [rounded]="true" severity="info"
+										(click)="editImage()" [tooltip]="'edit_image_tooltip' | translate"></p-button>
+									<p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+										(click)="removeImage()"
+										[tooltip]="'remove_image_tooltip' | translate"></p-button>
+								</div>
+							</div>
+						</div>
 
-				<div *ngIf="product.productImage; else upload_image">
-					<label for="productImage">{{'product_image' | translate}}</label>
-					<div class="flex justify-content-center">
-						<p-image [src]="product.productImage" [alt]="product.name" width="150" [preview]="true"
-							class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
+						<ng-template #upload_image>
+							<div class="field card p-3">
+								<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
+									translate}}</label>
+								<div class="upload-container border-1 surface-border border-round p-3 text-center">
+									<p-fileUpload mode="basic" name="productImage" accept="image/*"
+										maxFileSize="1000000" (onSelect)="onFileUpload($event)"
+										chooseLabel="{{'upload_file_button' | translate}}" chooseIcon="pi pi-upload"
+										[auto]="true" [showUploadButton]="false" [showCancelButton]="false">
+									</p-fileUpload>
+									<small class="text-color-secondary block mt-2">{{'image_upload_hint' |
+										translate}}</small>
+								</div>
+							</div>
+						</ng-template>
 					</div>
-					<!-- Add button to replace image -->
-					<div class="flex justify-content-center">
-						<div class="edit-icon" (click)="editImage()" style="cursor: pointer;">
-							<i class="pi pi-pencil" style="font-size: 24px; color: #007ad9;"></i>
+
+					<!-- Right Column - Form Fields -->
+					<div class="col-12 md:col-8">
+						<div class="form-section grid">
+							<!-- Product Name -->
+							<div class="field col-12 md:col-6">
+								<label for="name" class="block mb-2 font-bold">
+									{{'product_name' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<div class="p-inputgroup">
+									<input type="text" pInputText name="name" [(ngModel)]="product.name" required
+										autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.name}"
+										maxlength="50" placeholder="{{'enter_product_name' | translate}}" />
+									<span class="p-inputgroup-addon">
+										<i class="pi pi-tag"></i>
+									</span>
+								</div>
+								<div class="flex justify-content-between mt-1">
+									<small class="p-error" *ngIf="submitted && !product.name">
+										{{'product_name' | translate}} {{'is_required_label' | translate}}
+									</small>
+									<small *ngIf="product.name" class="text-color-secondary">
+										{{ 50 - product.name.length }} {{'characters_remaining_lbl' | translate}}
+									</small>
+								</div>
+							</div>
+
+							<!-- Product Reference -->
+							<div class="field col-12 md:col-6">
+								<label for="reference" class="block mb-2 font-bold">
+									{{'product_reference' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<div class="p-inputgroup">
+									<input type="text" pInputText name="reference" [(ngModel)]="product.reference"
+										required [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.reference}"
+										placeholder="{{'enter_product_reference' | translate}}" />
+									<span class="p-inputgroup-addon">
+										<i class="pi pi-qrcode"></i>
+									</span>
+								</div>
+								<small class="p-error" *ngIf="submitted && !product.reference">
+									{{'product_reference' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Product Description -->
+							<div class="field col-12">
+								<label for="description" class="block mb-2 font-bold">
+									{{'product_description' | translate}}
+								</label>
+								<textarea pInputTextarea name="description" [(ngModel)]="product.description" rows="3"
+									[autoResize]="true"
+									placeholder="{{'enter_product_description' | translate}}"></textarea>
+							</div>
+
+							<!-- Quantity Available -->
+							<div class="field col-12 md:col-4">
+								<label for="quantityAvailable" class="block mb-2 font-bold">
+									{{'product_quantity' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<p-inputNumber name="quantityAvailable" [(ngModel)]="product.quantityAvailable"
+									mode="decimal" [showButtons]="true" [min]="0"
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.quantityAvailable}"
+									placeholder="0" required>
+									<ng-template pTemplate="prefix">
+										<i class="pi pi-box"></i>
+									</ng-template>
+								</p-inputNumber>
+								<small class="p-error" *ngIf="submitted && !product.quantityAvailable">
+									{{'product_quantity' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Buying Price -->
+							<div class="field col-12 md:col-4">
+								<label for="buyingPrice" class="block mb-2 font-bold">
+									{{'product_buying_price' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<p-inputNumber name="buyingPrice" [(ngModel)]="product.buyingPrice" mode="currency"
+									[currency]="currency" [showButtons]="true" [min]="0"
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.buyingPrice}"
+									[max]="9999999999" required>
+									<ng-template pTemplate="prefix">
+										<i class="pi pi-money-bill"></i>
+									</ng-template>
+								</p-inputNumber>
+								<small class="p-error" *ngIf="submitted && !product.buyingPrice">
+									{{'product_buying_price' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Selling Price -->
+							<div class="field col-12 md:col-4">
+								<label for="sellingPrice" class="block mb-2 font-bold">
+									{{'product_selling_price' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<p-inputNumber name="sellingPrice" [(ngModel)]="product.sellingPrice" mode="currency"
+									[currency]="currency" [showButtons]="true" [min]="0"
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.sellingPrice}"
+									[max]="9999999999" required>
+									<ng-template pTemplate="prefix">
+										<i class="pi pi-tag"></i>
+									</ng-template>
+								</p-inputNumber>
+								<small class="p-error" *ngIf="submitted && !product.sellingPrice">
+									{{'product_selling_price' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Category -->
+							<div class="field col-12" style="position: relative;">
+								<div class="flex align-items-center justify-content-between mb-2">
+									<label for="category" class="font-bold">
+										{{ 'product_category' | translate }} <span class="required-asterisk">*</span>
+									</label>
+									<a *ngIf="canAddCategory" (click)="openCategoryDialog()"
+										class="text-sm text-primary cursor-pointer">
+										<i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
+									</a>
+								</div>
+								<p-dropdown appendTo="body" [(ngModel)]="product.category" name="category"
+									optionLabel="categoryName" [options]="categories" [filter]="true"
+									filterBy="categoryName" [showClear]="true"
+									placeholder="{{ 'select_category_option' | translate }}" required
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.category}">
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="product && product.category" class="flex align-items-center gap-2">
+											<i class="pi pi-folder"></i>
+											{{ product.category.categoryName }}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-folder"></i>
+											{{ option.categoryName }}
+										</span>
+									</ng-template>
+								</p-dropdown>
+								<small class="p-error" *ngIf="submitted && !product.category">
+									{{'product_category' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Supplier -->
+							<div class="field col-12" style="position: relative;">
+								<div class="flex align-items-center justify-content-between mb-2">
+									<label for="supplier" class="font-bold">
+										{{'product_supplier' | translate}} <span class="required-asterisk">*</span>
+									</label>
+									<a *ngIf="canAddSupplier" (click)="openSupplierDialog()"
+										class="text-sm text-primary cursor-pointer">
+										<i class="pi pi-plus"></i> {{ 'add_new_supplier' | translate }}
+									</a>
+								</div>
+								<p-dropdown appendTo="body" [(ngModel)]="product.supplier" name="supplier"
+									optionLabel="name" [options]="suppliers" [filter]="true" filterBy="name"
+									[showClear]="true" placeholder="{{'select_supplier_option' | translate}}" required>
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="product && product.supplier" class="flex align-items-center gap-2">
+											<i class="pi pi-truck"></i>
+											{{product.supplier.name}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-truck"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+								<small class="p-error" *ngIf="submitted && !product.supplier">
+									{{'product_supplier' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Warehouse (Admin only) -->
+							<div class="field col-12" style="position: relative;" *ngIf="isAdmin">
+								<div class="flex align-items-center justify-content-between mb-2">
+									<label for="warehouse" class="font-bold">
+										{{'product_warehouse' | translate}} <span class="required-asterisk">*</span>
+									</label>
+									<a *ngIf="canAddWarehouse" (click)="openWarehouseDialog()"
+										class="text-sm text-primary cursor-pointer">
+										<i class="pi pi-plus"></i> {{ 'add_new_warehouse' | translate }}
+									</a>
+								</div>
+								<p-dropdown appendTo="body" [(ngModel)]="product.warehouse" name="warehouse"
+									optionLabel="name" [options]="warehouses" [filter]="true" filterBy="name"
+									[showClear]="true" placeholder="{{'select_warehouse_option' | translate}}" required>
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="product && product.warehouse"
+											class="flex align-items-center gap-2">
+											<i class="pi pi-home"></i>
+											{{product.warehouse.name}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-home"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+								<small class="p-error" *ngIf="submitted && !product.warehouse">
+									{{'product_warehouse' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
 						</div>
 					</div>
 				</div>
 
-				<ng-template #upload_image>
-					<div class="field">
-						<label for="productImage">{{'product_image' | translate}}</label>
-						<!-- Display the file upload component -->
-						<div class="card flex justify-content-center">
-							<!-- <p-toast></p-toast> -->
-							<p-fileUpload mode="basic" name="demo[]" url="https://www.primefaces.org/cdn/api/upload.php"
-								accept="image/*" maxFileSize="1000000" (onSelect)="onFileUpload($event)"
-								chooseLabel="{{'upload_file_button' | translate}}"></p-fileUpload>
-						</div>
-					</div>
-				</ng-template>
-
-				<div class="field">
-					<label for="name">{{'product_name' | translate}} <span class="required-asterisk">*</span></label>
-					<input type="text" pInputText name="name" ngDefaultControl [(ngModel)]="product.name" required
-					  autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.name}" maxlength="50" />
-					<small class="ng-dirty ng-invalid" *ngIf="submitted && !product.name" > 
-					  {{'product_name' | translate}} {{'is_required_label' | translate}}
-					</small>
-					<div *ngIf="product.name">
-					  <small>{{ 50 - product.name.length }} {{'characters_remaining_lbl' | translate}}</small>
-					</div>
-				  </div>
-				<div class="field">
-					<label for="reference">{{'product_reference' | translate}} <span
-							class="required-asterisk">*</span></label>
-					<input type="text" pInputText name="reference" ngDefaultControl [(ngModel)]="product.reference"
-						required autofocus
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.reference}" />
-					<small class="ng-dirty ng-invalid" *ngIf="submitted && !product.reference">{{'product_reference' |
-						translate}} {{'is_required_label' | translate}}</small>
-				</div>
-				<div class="field">
-					<label for="description">{{'product_description' | translate}}</label>
-					<input type="text" pInputText name="description" ngDefaultControl [(ngModel)]="product.description"
-						autofocus />
-				</div>
-				<div class="field">
-					<label for="quantityAvailable">{{'product_quantity' | translate}} <span
-							class="required-asterisk">*</span></label>
-					<p-inputNumber name="quantityAvailable" [(ngModel)]="product.quantityAvailable" ngDefaultControl
-						mode="decimal" [showButtons]="true"
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.quantityAvailable}" placeholder="0"
-						required autofocus></p-inputNumber>
-					<small class="ng-dirty ng-invalid"
-						*ngIf="submitted && !product.quantityAvailable">{{'product_quantity' | translate}}
-						{{'is_required_label' | translate}}</small>
-				</div>
-				<div class="field">
-					<label for="buyingPrice">{{'product_buying_price' | translate}} <span
-							class="required-asterisk">*</span></label>
-					<p-inputNumber name="buyingPrice" [(ngModel)]="product.buyingPrice" ngDefaultControl mode="currency"
-						[currency]="currency" [showButtons]="true"
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.buyingPrice}" [max]="9999999999"
-						placeholder="MAD 00.00" required autofocus></p-inputNumber>
-					<small class="ng-dirty ng-invalid"
-						*ngIf="submitted && !product.buyingPrice">{{'product_buying_price' | translate}}
-						{{'is_required_label' | translate}}</small>
-				</div>
-				<div class="field">
-					<label for="sellingPrice">{{'product_selling_price' | translate}} <span
-							class="required-asterisk">*</span></label>
-					<p-inputNumber name="sellingPrice" [(ngModel)]="product.sellingPrice" ngDefaultControl
-						mode="currency" [currency]="currency" [showButtons]="true"
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.sellingPrice}" [max]="9999999999"
-						placeholder="MAD 00.00" required autofocus></p-inputNumber>
-					<small class="ng-dirty ng-invalid"
-						*ngIf="submitted && !product.sellingPrice">{{'product_selling_price' | translate}}
-						{{'is_required_label' | translate}}</small>
-				</div>
-				<div class="field" style="position: relative;">
-					<label for="category">{{ 'product_category' | translate }} <span
-							class="required-asterisk">*</span></label>
-					<div class="add-wrapper" *ngIf="canAddCategory">
-						<a (click)="openCategoryDialog()">{{ 'add_new_category' | translate }}</a>
-					</div>
-					<p-dropdown appendTo="body" [(ngModel)]="product.category" name="category" inputId="category"
-						ngDefaultControl optionLabel="categoryName" [options]="categories" [filter]="true"
-						filterBy="categoryName" placeholder="{{ 'select_category_option' | translate }}" required
-						autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.category}">
-						<ng-template pTemplate="selectedItem">
-							<span *ngIf="product && product.category" [class]="'product-badge'">{{
-								product.category.categoryName }}</span>
-						</ng-template>
-						<ng-template let-option pTemplate="item">
-							<span [class]="'product-badge'">{{ option.categoryName }}</span>
-						</ng-template>
-					</p-dropdown>
-					<small class="ng-dirty ng-invalid" *ngIf="submitted && !product.category">{{'product_category' |
-						translate}} {{'is_required_label' | translate}}</small>
-				</div>
-				<div class="field" style="position: relative;">
-					<label for="supplier">{{'product_supplier' | translate}} <span
-							class="required-asterisk">*</span></label>
-					<div class="add-wrapper" *ngIf="canAddSupplier">
-						<a (click)="openSupplierDialog()">{{ 'add_new_supplier' | translate }}</a>
-					</div>
-					<p-dropdown appendTo="body" [(ngModel)]="product.supplier" name="supplier" inputId="supplier"
-						ngDefaultControl optionLabel="name" [options]="suppliers" [filter]="true" filterBy="name"
-						placeholder="{{'select_supplier_option' | translate}}" required autofocus
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.supplier}">
-						<ng-template pTemplate="selectedItem">
-							<span *ngIf="product && product.supplier"
-								[class]="'product-badge'">{{product.supplier.name}}</span>
-						</ng-template>
-						<ng-template let-option pTemplate="item">
-							<span [class]="'product-badge'">{{option.name}}</span>
-						</ng-template>
-					</p-dropdown>
-					<small class="ng-dirty ng-invalid" *ngIf="submitted && !product.supplier">{{'product_supplier' |
-						translate}} {{'is_required_label' | translate}}</small>
-				</div>
-
-				<div class="field" style="position: relative;" *ngIf="isAdmin">
-					<label for="warehouse">{{'product_warehouse' | translate}} <span
-							class="required-asterisk">*</span></label>
-					<div class="add-wrapper" *ngIf="canAddWarehouse">
-						<a (click)="openWarehouseDialog()">{{ 'add_new_warehouse' | translate }}</a>
-					</div>
-					<p-dropdown appendTo="body" [(ngModel)]="product.warehouse" name="warehouse" inputId="warehouse"
-						ngDefaultControl optionLabel="name" [options]="warehouses" [filter]="true" filterBy="name"
-						placeholder="{{'select_warehouse_option' | translate}}" required autofocus
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.warehouse}">
-						<ng-template pTemplate="selectedItem">
-							<span *ngIf="product && product.warehouse"
-								[class]="'product-badge'">{{product.warehouse.name}}</span>
-						</ng-template>
-						<ng-template let-option pTemplate="item">
-							<span [class]="'product-badge'">{{option.name}}</span>
-						</ng-template>
-					</p-dropdown>
-					<small class="ng-dirty ng-invalid" *ngIf="submitted && !product.supplier">{{'product_warehouse' |
-						translate}} {{'is_required_label' | translate}}</small>
-				</div>
-				<div class="required-note">
+				<div class="required-note mt-4">
 					<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
 						translate}}</small>
 				</div>
 			</ng-template>
 
 			<ng-template pTemplate="footer">
-				<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
-					(click)="hideProductDialog()"></button>
-				<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
-					(click)="saveProduct()"></button>
+				<div class="flex justify-content-between align-items-center w-full">
+					<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+						class="p-button-text p-button-danger" (click)="hideProductDialog()"></button>
+					<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+						class="p-button-raised" (click)="saveProduct()"></button>
+				</div>
 			</ng-template>
 		</p-dialog>
+
+
 
 		<p-dialog [(visible)]="categoryDialog" [style]="{width: '450px', height: '100%'}"
 			header="{{'category_details' | translate}}" [modal]="true" class="p-fluid ">

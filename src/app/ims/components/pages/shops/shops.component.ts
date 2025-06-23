@@ -12,11 +12,15 @@ import { DailyBalance } from 'src/app/models/dailyBalance';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import * as XLSX from 'xlsx';
+import { DatePipe } from '@angular/common';
+import { Purchase } from 'src/app/models/purchase';
+import { Expense } from 'src/app/models/expense';
 
 @Component({
   templateUrl: './shops.component.html',
   styleUrls: ['./shops.component.css', '../pages.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class ShopsComponent implements OnInit {
 
@@ -35,6 +39,8 @@ export class ShopsComponent implements OnInit {
   cashRegister: CashRegister = {};
 
   selectedShops: Shop[] = [];
+
+  selectedShop: Shop = {};
 
   submitted: boolean = false;
 
@@ -66,17 +72,33 @@ export class ShopsComponent implements OnInit {
 
   canAddShop: boolean = false;
   canEditShop: boolean = false;
+  canReadShop: boolean = false;
   canDeleteShop: boolean = false;
   canReadCash: boolean = false;
 
   isLoading: boolean = false;
 
   cashRegisterSettingsDialog: boolean = false;
-  currency: any ='';
+  currency: any = '';
+
+  shopDetailsDialog: boolean = false;
+  loading: boolean = false;
+  loadingPurchases: boolean = false;
+  loadingExpenses: boolean = false;
+  cashRegisterData: any;
+  organizationData: any;
+  purchaseStats: any;
+  expenseStats: any;
+  recentPurchases: Purchase[] = [];
+  recentExpenses: Expense[] = [];
+
+  dailyDifferenceTrend: number = 0;
+  dailyDifferencePercentage: number = 0;
 
 
   constructor(private messageService: MessageService,
     private shopService: ShopService,
+    private datePipe: DatePipe,
     private reportingService: ReportingService,
     private translate: TranslateService,
     private translateService: TranslationService,
@@ -85,14 +107,24 @@ export class ShopsComponent implements OnInit {
     public keycloakService: KeycloakService,) { }
 
   async ngOnInit() {
+    const defaultStartDate = new Date();
+    defaultStartDate.setDate(defaultStartDate.getDate() - 30);
+    this.startDate = defaultStartDate;
+    this.endDate = new Date();
     this.today = new Date();
     this.isLoading = true;
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
     await this.checkPermissions();
     this.onGetAllShops();
-    this.onGetCurrecy();
+    // this.onGetCurrecy();
 
     this.cols = [
       { field: 'shopId', header: this.translateService.instant('ID') },
@@ -109,8 +141,195 @@ export class ShopsComponent implements OnInit {
       { label: 'OUTOFSTOCK', value: 'outofstock' }
     ];
 
+    
+
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
+  }
+
+  getPurchaseStatusSeverity(status: string): string {
+    switch (status?.toLowerCase()) {
+        case 'completed':
+            return 'success';
+        case 'pending':
+            return 'warning';
+        case 'cancelled':
+            return 'danger';
+        default:
+            return 'info';
+    }
+}
+
+getPaymentMethodSeverity(method: string): string {
+    switch (method?.toLowerCase()) {
+        case 'cash':
+            return 'success';
+        case 'credit':
+            return 'warning';
+        case 'check':
+            return 'help';
+        case 'transfer':
+            return 'info';
+        default:
+            return 'danger';
+    }
+}
+
+  async loadShopDetails(): Promise<void> {
+    this.loading = true;
+    console.log('Loading shop details for:', this.shop);
+    try {
+      await Promise.all([
+        this.loadCashRegisterData(),
+        this.loadOrganizationData(),
+        this.loadPurchaseStats(),
+        this.loadExpenseStats(),
+        this.loadRecentPurchases(),
+        this.loadRecentExpenses()
+      ]);
+    } catch (error) {
+      console.error('Error loading shop details:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to load shop details'
+      });
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  async loadCashRegisterData(): Promise<void> {
+    console.log('Loading cash register data for shop:', this.selectedShop.shopId);
+    if (!this.selectedShop.shopId) return;
+    try {
+      this.cashRegisterData = await this.shopService.getCashRegister(this.selectedShop.shopId).toPromise();
+      console.log('Cash register data loaded:', this.cashRegisterData);
+    } catch (error) {
+      console.error('Error loading cash register:', error);
+      this.cashRegisterData = null;
+    }
+  }
+
+  async loadOrganizationData(): Promise<void> {
+    if (!this.selectedShop.shopId) return;
+    try {
+      this.organizationData = await this.shopService.fetchOrganizationData(this.selectedShop.shopId).toPromise();
+      console.log('Organization data loaded:', this.organizationData);
+    } catch (error) {
+      console.error('Error loading organization:', error);
+      this.organizationData = null;
+    }
+  }
+
+  async loadPurchaseStats(): Promise<void> {
+    if (!this.selectedShop.shopId) return;
+    try {
+      this.purchaseStats = await this.shopService.fetchPurchaseStats(this.selectedShop.shopId).toPromise();
+    } catch (error) {
+      console.error('Error loading purchase stats:', error);
+      this.purchaseStats = { count: 0, total: 0 };
+    }
+  }
+
+  async loadExpenseStats(): Promise<void> {
+    if (!this.selectedShop.shopId) return;
+    try {
+      this.expenseStats = await this.shopService.fetchExpenseStats(this.selectedShop.shopId).toPromise();
+    } catch (error) {
+      console.error('Error loading expense stats:', error);
+      this.expenseStats = { count: 0, total: 0 };
+    }
+  }
+
+  async loadRecentPurchases(): Promise<void> {
+    if (!this.selectedShop.shopId) return;
+    this.loadingPurchases = true;
+    try {
+      this.recentPurchases = await this.shopService.fetchRecentPurchases(this.selectedShop.shopId).toPromise() as Purchase[];
+      console.log('Recent purchases loaded:', this.recentPurchases);
+    } catch (error) {
+      console.error('Error loading recent purchases:', error);
+      this.recentPurchases = [];
+    } finally {
+      this.loadingPurchases = false;
+    }
+  }
+
+  async loadRecentExpenses(): Promise<void> {
+    if (!this.selectedShop.shopId) return;
+    this.loadingExpenses = true;
+    try {
+      this.recentExpenses = await this.shopService.fetchRecentExpenses(this.selectedShop.shopId).toPromise() as Expense[];
+      console.log('Recent expenses loaded:', this.recentExpenses);
+    } catch (error) {
+      console.error('Error loading recent expenses:', error);
+      this.recentExpenses = [];
+    } finally {
+      this.loadingExpenses = false;
+    }
+  }
+
+  refreshData(): void {
+    Promise.all([
+      this.fetchCashRegisterData(this.shop.shopId),
+      this.onGetShopCashRegister()
+    ]);
+  }
+
+  exportToExcel(): void {
+    const dataToExport = this.filteredBalances.map(balance => ({
+      'Date': this.datePipe.transform(balance.balanceDate, 'mediumDate'),
+      'Opening Balance': balance.openingBalance,
+      'Closing Balance': balance.closingBalance,
+      'Daily Difference': balance.dailyDifference
+    }));
+
+    const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook: XLSX.WorkBook = { Sheets: { 'data': worksheet }, SheetNames: ['data'] };
+    XLSX.writeFile(workbook, `CashRegister_${this.shop.shopName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  printReport(): void {
+    window.print();
+  }
+
+
+  isToday(date: Date): boolean {
+    if (!date) return false;
+    const balanceDate = new Date(date);
+    const today = new Date();
+    return (
+      balanceDate.getDate() === today.getDate() &&
+      balanceDate.getMonth() === today.getMonth() &&
+      balanceDate.getFullYear() === today.getFullYear()
+    );
+  }
+
+
+  calculateTotalsAndTrends(): void {
+    // Calculate trend (compare with previous period)
+    if (this.filteredBalances.length > 1) {
+      const currentPeriodSum = this.filteredBalances.slice(-7).reduce(
+        (sum, balance) => sum + (balance.dailyDifference || 0), 0
+      );
+      const previousPeriodSum = this.filteredBalances.slice(-14, -7).reduce(
+        (sum, balance) => sum + (balance.dailyDifference || 0), 0
+      );
+
+      this.dailyDifferenceTrend = currentPeriodSum - previousPeriodSum;
+      this.dailyDifferencePercentage = previousPeriodSum !== 0 ?
+        (this.dailyDifferenceTrend / Math.abs(previousPeriodSum)) * 100 : 0;
+    } else {
+      this.dailyDifferenceTrend = 0;
+      this.dailyDifferencePercentage = 0;
+    }
+  }
+
+  clearDateFilter(): void {
+    this.startDate = null;
+    this.endDate = null;
+    this.filterByDateRange();
   }
 
   async checkPermissions() {
@@ -120,6 +339,7 @@ export class ShopsComponent implements OnInit {
     await this.permissionService.init(userId).toPromise(); // Initialize permissions
     this.canAddShop = this.permissionService.canCreate(this.Ressource);
     this.canEditShop = this.permissionService.canUpdate(this.Ressource);
+    this.canReadShop = this.permissionService.canRead(this.Ressource);
     this.canDeleteShop = this.permissionService.canDelete(this.Ressource);
     this.canReadCash = this.permissionService.canCashRead(this.Ressource);
 
@@ -134,7 +354,33 @@ export class ShopsComponent implements OnInit {
     this.shop = { ...shop };
     this.shopDialog = true;
     console.log(this.shop.country)
-    this.onSelectedCountry(this.shop.country)
+    if (this.shop.country) {
+      this.onSelectedCountry(this.shop.country)
+    }
+  }
+
+  async showShopDetailsDialog(shop: Shop): Promise<void> {
+    console.log('Selected shop:', shop);
+
+    this.selectedShop = {
+      ...shop,
+      creationDate: shop.creationDate ? new Date(shop.creationDate) : null
+    };
+
+    this.shopDetailsDialog = true;
+
+    await this.loadShopDetails();
+    console.log('Shop details loaded:', this.selectedShop);
+  }
+
+  hideShopDetailsDialog(): void {
+    this.shopDetailsDialog = false;
+    this.cashRegisterData = null;
+    this.organizationData = null;
+    this.purchaseStats = null;
+    this.expenseStats = null;
+    this.recentPurchases = [];
+    this.recentExpenses = [];
   }
 
   deleteShop(shop: Shop) {
@@ -181,6 +427,7 @@ export class ShopsComponent implements OnInit {
 
   saveShop() {
     this.submitted = true;
+    console.log(this.shop);
     if (this.shop.shopName) {
       if (this.shop.shopId) {
         this.updateShop(this.shop.shopId, this.shop) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Shop Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating shop', life: 3000 })
@@ -198,26 +445,26 @@ export class ShopsComponent implements OnInit {
 
   updateCashRegister() {
     this.submitted = true;
-  
+
     // Check if openingTime and closingTime exist and format them
     if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
       // Function to format Date object as a LocalTime string ("HH:mm:ss")
       const formatDateToLocalTime = (date: Date): string => {
         return date.toTimeString().split(' ')[0]; // Extracts "HH:mm:ss" portion
       };
-  
+
       // Format openingTime and closingTime to LocalTime strings
       this.cashRegister.openingTime = formatDateToLocalTime(new Date(this.cashRegister.openingTime));
       this.cashRegister.closingTime = formatDateToLocalTime(new Date(this.cashRegister.closingTime));
-  
+
       // Call saveCashRegister with formatted cashRegister data
       const success = this.saveCashRegister(this.shop.shopId, this.cashRegister);
-  
+
       // Show success or error message based on the result
-      success 
+      success
         ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Cash Register Updated', life: 3000 })
         : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating cash register', life: 3000 });
-  
+
       // Close dialog and reset cashRegister object
       this.cashRegisterSettingsDialog = false;
       this.cashRegister = {};
@@ -276,24 +523,66 @@ export class ShopsComponent implements OnInit {
       })
   }
 
-  async onGetShopCashRegister() {
-    await (await this.shopService.getCashRegister(this.shop.shopId)).subscribe({
-      next: (response: any) => {
-        this.cashRegister = response;
-
-        // Temporarily cast to `any` to allow assigning a Date
-        if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
-          this.cashRegister.openingTime = this.convertTimeStringToDate(this.cashRegister.openingTime as any);
-          this.cashRegister.closingTime = this.convertTimeStringToDate(this.cashRegister.closingTime as any);
-        }
-
-        console.log(this.cashRegister);
-      },
-      error: (err: any) => {
-        console.log(err);
-      }
-    });
+  private convertTimeStringToDate(timeString: string): Date {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
   }
+
+  async onGetShopCashRegister() {
+    try {
+      const response = await (this.shopService.getCashRegister(this.shop.shopId)).toPromise();
+      this.cashRegister = response;
+
+      // Convert time strings to Date objects
+      if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
+        if (typeof this.cashRegister.openingTime === 'string') {
+          this.cashRegister.openingTime = this.convertTimeStringToDate(this.cashRegister.openingTime);
+        }
+        if (typeof this.cashRegister.closingTime === 'string') {
+          this.cashRegister.closingTime = this.convertTimeStringToDate(this.cashRegister.closingTime);
+        }
+      }
+
+      this.filterByDateRange();
+      this.calculateTotalsAndTrends();
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Data Loaded',
+        detail: 'Cash register data has been refreshed'
+      });
+    } catch (err) {
+      console.error(err);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to load cash register data'
+      });
+    }
+  }
+
+  // async onGetShopCashRegister() {
+  //   await (await this.shopService.getCashRegister(this.shop.shopId)).subscribe({
+  //     next: (response: any) => {
+  //       this.cashRegister = response;
+
+  //       // Temporarily cast to `any` to allow assigning a Date
+  //       if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
+  //         this.cashRegister.openingTime = this.convertTimeStringToDate(this.cashRegister.openingTime as any);
+  //         this.cashRegister.closingTime = this.convertTimeStringToDate(this.cashRegister.closingTime as any);
+  //       }
+
+  //       console.log(this.cashRegister);
+  //       this.filterByDateRange();
+  //       this.calculateTotalsAndTrends();
+  //     },
+  //     error: (err: any) => {
+  //       console.log(err);
+  //     }
+  //   });
+  // }
 
   async onDeleteShop(id: any) {
     await (await this.shopService.deleteShop(id))
@@ -310,8 +599,7 @@ export class ShopsComponent implements OnInit {
 
 
   async updateShop(id: any, shop: any): Promise<any> {
-    console.log(shop)
-    await (await this.shopService.updateShop(id, shop))
+    this.shopService.updateShop(id, shop)
       .subscribe({
         next: (response: any) => {
           console.log(response);
@@ -362,15 +650,12 @@ export class ShopsComponent implements OnInit {
   }
 
   onSelectedCountry(event) {
-    console.log('event :' + event);
-    console.log(event.value);
     if ((this.shop.country != this.selectedCountry) && (this.shop.city == undefined)) this.shop.city = undefined;
     this.countries.forEach(element => {
       if (element.name === event) {
         this.selectedCountry = element;
       }
     });
-    console.log(this.selectedCountry.isoCode)
     this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
 
   }
@@ -378,43 +663,99 @@ export class ShopsComponent implements OnInit {
   async openCashRegisterDialog(shop: any) {
     this.cashRegister = {};
     this.shop = shop;
-    this.fetchCashRegisterData(shop.shopId); // Fetch the cash register data for the selected shop
-    await this.onGetShopCashRegister();
+
+    // Reset filters
+    this.startDate = null;
+    this.endDate = null;
+
+    // Parallel loading of both data sources
+    await Promise.all([
+      this.fetchCashRegisterData(shop.shopId),
+      this.onGetShopCashRegister()
+    ]);
+
     this.cashRegisterDialog = true;
   }
 
+
   async fetchCashRegisterData(shopId: number): Promise<void> {
-    (await this.shopService.fetchCashRegisterData(shopId)).subscribe(
-      (data: DailyBalance[]) => {
-        this.dailyBalances = data;  // Store the fetched data
-        this.filteredBalances = [...data];  // Initially, filtered balances are the same as all balances
-        this.calculateTotalDailyDifference(this.filteredBalances);  // Calculate the total daily difference
-      },
-      error => {
-        console.error('Error fetching cash register data:', error);
-      }
-    );
+    try {
+      const data = await (await this.shopService.fetchCashRegisterData(shopId)).toPromise();
+      console.log('Fetched cash register data:', data);
+      const balances: DailyBalance[] = Array.isArray(data) ? data : [];
+      this.dailyBalances = balances.map(balance => ({
+        ...balance,
+        balanceDate: new Date(balance.balanceDate).toISOString() // Convert to string as required by DailyBalance
+      }));
+      this.filteredBalances = [...this.dailyBalances];
+      this.calculateTotalDailyDifference(this.filteredBalances);
+    } catch (error) {
+      console.error('Error fetching cash register data:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to fetch daily balances'
+      });
+    }
+  }
+
+  formatDateForFilter(date: any): Date {
+    if (!date) return null;
+    if (date instanceof Date) return date;
+    return new Date(date);
   }
 
   // Modify filter method to handle date range
+  // filterByDateRange() {
+  //   // If both dates are selected, filter balances based on the date range
+  //   if (this.startDate && this.endDate) {
+  //     const start = new Date(this.startDate);
+  //     const end = new Date(this.endDate);
+  //     end.setHours(23, 59, 59, 999); // Include the end date till the end of the day
+
+  //     this.filteredBalances = this.dailyBalances.filter((balance) => {
+  //       const balanceDate = new Date(balance.balanceDate);
+  //       return balanceDate >= start && balanceDate <= end;
+  //     });
+  //   } else {
+  //     // If no dates are selected, show all balances
+  //     this.filteredBalances = [...this.dailyBalances];
+  //   }
+
+  //   // Recalculate the total daily difference after filtering
+  //   this.calculateTotalDailyDifference(this.filteredBalances);
+  //   this.calculateTotalsAndTrends();
+  // }
+
   filterByDateRange() {
-    // If both dates are selected, filter balances based on the date range
+    // Validate dates
+    if (this.startDate && this.endDate && this.startDate > this.endDate) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Invalid Date Range',
+        detail: 'Start date cannot be after end date'
+      });
+      return;
+    }
+
+    // If both dates are selected, filter balances
     if (this.startDate && this.endDate) {
       const start = new Date(this.startDate);
       const end = new Date(this.endDate);
-      end.setHours(23, 59, 59, 999); // Include the end date till the end of the day
+      end.setHours(23, 59, 59, 999); // Include entire end day
 
       this.filteredBalances = this.dailyBalances.filter((balance) => {
         const balanceDate = new Date(balance.balanceDate);
         return balanceDate >= start && balanceDate <= end;
       });
     } else {
-      // If no dates are selected, show all balances
+      // Show all balances if no filter
       this.filteredBalances = [...this.dailyBalances];
     }
 
-    // Recalculate the total daily difference after filtering
+    // Calculate totals
     this.calculateTotalDailyDifference(this.filteredBalances);
+    this.calculateTotalsAndTrends();
   }
 
   calculateTotalDailyDifference(balances: DailyBalance[]) {
@@ -447,24 +788,24 @@ export class ShopsComponent implements OnInit {
     this.reportingService.exportExcel(modifiedShops, 'shops');
   }
 
-  private convertTimeStringToDate(timeString: string): Date {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0);
-    return date;
-  }
+  // private convertTimeStringToDate(timeString: string): Date {
+  //   const [hours, minutes] = timeString.split(':').map(Number);
+  //   const date = new Date();
+  //   date.setHours(hours, minutes, 0);
+  //   return date;
+  // }
 
-  async onGetCurrecy() {
-    await (await this.configService.getConfigurationValue('currency'))
-      .subscribe({
-        next: (response: any) => {
-          this.currency = response;
-          console.log(this.currency)
-        },
-        error: (err: any) => {
-          console.log(err)
-        }
-      })
-  }
+  // async onGetCurrecy() {
+  //   await (await this.configService.getConfigurationValue('currency'))
+  //     .subscribe({
+  //       next: (response: any) => {
+  //         this.currency = response;
+  //         console.log(this.currency)
+  //       },
+  //       error: (err: any) => {
+  //         console.log(err)
+  //       }
+  //     })
+  // }
 
 }

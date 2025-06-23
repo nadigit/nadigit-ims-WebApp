@@ -30,5 +30,8 @@ export class Product {
   returnItemQuantity?: number;
   returnItemPricePerUnit?: number;
 
+  returnItemReason?: string;
+  returnItemCondition?: string;
 
+  orderItem?: OrderItem;
 }

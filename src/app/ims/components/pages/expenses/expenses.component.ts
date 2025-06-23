@@ -10,6 +10,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { Expense } from 'src/app/models/expense';
 import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 @Component({
   templateUrl: './expenses.component.html',
@@ -47,6 +48,7 @@ export class ExpensesComponent implements OnInit {
   valSwitch: boolean = false;
 
   exportColumns!: ExportColumn[];
+  currency: string = '';
 
   canAddExpense: boolean = false;
   canEditExpense: boolean = false;
@@ -56,15 +58,22 @@ export class ExpensesComponent implements OnInit {
   isAdmin: boolean = false;
   constructor(private messageService: MessageService,
     private expenseService: ExpenseService,
+    private configService: AppConfigurationService,
     private reportingService: ReportingService,
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private shopService: ShopService) { }
-
+    
   async ngOnInit() {
     this.isLoading=true;
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });

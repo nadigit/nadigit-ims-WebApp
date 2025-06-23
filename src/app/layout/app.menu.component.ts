@@ -37,7 +37,9 @@ export class AppMenuComponent implements OnInit {
       { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/pages/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/pages/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/pages/orders'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['payments_menu_title'], icon: 'pi pi-fw pi-credit-card', routerLink: ['/pages/payments'], roles: ['VENDOR', 'ADMIN'] },
       { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/pages/returns'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/pages/refunds'], roles: ['VENDOR', 'ADMIN'] },
       { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pages/purchases'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
       { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-dollar', routerLink: ['/pages/expenses'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
     ];

@@ -64,14 +64,14 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-purchase>
-                    <tr>
+                    <tr [pSelectableRow]="purchase" (click)="canEditPurchase ? editPurchase(purchase) : null">
                         <td>
-                            <p-tableCheckbox [value]="purchase"></p-tableCheckbox>
+                            <p-tableCheckbox [value]="purchase" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
 
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'ID' | translate }}</span>
-                            {{purchase.id ? purchase.id : 'N/A'}}
+                            #{{purchase.id ? purchase.id : 'N/A'}}
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'purchase_date' | translate }}</span>
@@ -97,9 +97,9 @@
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditPurchase" icon="pi pi-pencil"
                                     class="p-button-rounded p-button-success mr-2" pTooltip="{{'update_purchase'|translate}}"
-                                    (click)="editPurchase(purchase)"></button>
+                                    (click)="editPurchase(purchase); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canDeletePurchase" icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="deletePurchase(purchase)" pTooltip="{{'delete_purchase'|translate}}"></button>
+                                    (click)="deletePurchase(purchase); $event.stopPropagation()" pTooltip="{{'delete_purchase'|translate}}"></button>
                             </div>
                         </td>
                     </tr>
@@ -108,6 +108,20 @@
                     <div class="flex align-items-center justify-content-between">
                         {{'total_purchases' | translate}} {{purchases ? purchases.length : 0 }}.
                     </div>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_purchases_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
                 </ng-template>
             </p-table>
         </div>

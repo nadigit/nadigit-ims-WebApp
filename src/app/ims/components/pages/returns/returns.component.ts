@@ -16,6 +16,13 @@ import { KeycloakService } from 'keycloak-angular';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { ReturnItem } from 'src/app/models/returnItem';
 import { ReturnService } from 'src/app/services/return.service';
+import { ReturnStatus } from 'src/app/enums/return-status.enum';
+// import { ItemCondition } from 'src/app/enums/item-condition.enum';
+import { RefundStatus } from 'src/app/enums/refund-status.enum';
+import { CurrencyPipe } from '@angular/common';
+import { OrderItem } from 'src/app/models/orderItem';
+import { Customer } from 'src/app/models/customer';
+import { CustomerService } from 'src/app/services/customer.service';
 
 
 @Pipe({
@@ -45,6 +52,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   detailsDialog: boolean = false;
 
+  returnDetailsDialog: boolean = false;
 
   deleteReturnDialog: boolean = false;
 
@@ -81,6 +89,10 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   sortReturn: number = 0;
 
   sortField: string = '';
+
+  customers: Customer[] = [];
+
+  customer: Customer = {};
 
   menuItems: MenuItem[] = [];
 
@@ -140,6 +152,12 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   taxRate: number = 0.0;
 
+  Math = Math;
+
+  returnReasons: any[];
+
+  itemConditions: any[] = [];
+
   // Permissions
   canAddReturn: boolean = false;
   canEditReturn: boolean = false;
@@ -148,10 +166,12 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   isLoading: boolean = true;
 
   @ViewChild('filter') filter!: ElementRef;
+  canReadReturn: boolean = false;
 
   constructor(private messageService: MessageService,
     private returnService: ReturnService,
     private orderService: OrderService,
+    private customerService: CustomerService,
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
     private invoiceService: InvoiceService,
@@ -167,8 +187,16 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   async ngOnInit() {
     this.isLoading = true;
 
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
+
     // Set up translation and events
     this.initializeTranslations();
+
 
     // Load data
     await Promise.all([
@@ -176,7 +204,8 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       this.getSourceProducts(),
       this.getTargetProducts(),
       this.initializePickList(),
-      this.onGetCurrency(),
+      this.onGetAllCustomers(),
+      // this.onGetCurrency(),
       this.setUserRoles(),
       this.checkPermissions(),
     ]);
@@ -199,6 +228,19 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
         this.TaxEnabledOptions = [
           { label: translations['enabled'], value: true },
           { label: translations['disabled'], value: false },
+        ];
+
+        this.returnReasons = [
+          { label: translations['return_reason_defective'], value: 'DEFECTIVE' },
+          { label: translations['return_reason_incorrect_item'], value: 'INCORRECT_ITEM' },
+          { label: translations['return_reason_change_of_mind'], value: 'CHANGE_OF_MIND' },
+          { label: translations['return_reason_other'], value: 'OTHER' }
+        ];
+
+        this.itemConditions = [
+          { label: translations['item_condition_new'], value: 'NEW' },
+          { label: translations['item_condition_used'], value: 'USED' },
+          { label: translations['item_condition_damaged'], value: 'DAMAGED' }
         ];
       });
   }
@@ -244,6 +286,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     this.canAddReturn = this.permissionService.canCreate(this.Ressource);
     this.canEditReturn = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteReturn = this.permissionService.canDelete(this.Ressource);
+    this.canReadReturn = this.permissionService.canRead(this.Ressource);
 
   }
 
@@ -272,19 +315,72 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     this.targetProducts = this.getTargetProducts();
   }
 
+  getOrderDisplayLabel = (order: any): string => {
+    if (!order) return '';
+
+    const orderId = order.orderId || 'N/A';
+    const totalAmount = order.totalAmount;
+    //const itemCount = order.orderItems.length || 0;
+    const itemCount = order.itemCount !== undefined ? order.itemCount : this.getSafeItemsCount(order);
+    const customerName = this.getCustomerDisplayName(order.customer);
+
+    return `#${orderId} • ${totalAmount} • ${itemCount} ${this.translate.instant('items')} • ${customerName}`;
+  }
+
+
+  getSafeItemsCount(order: any): number {
+    // Safest possible item count implementation
+    try {
+      if (!order) return 0;
+      if (!order.orderItems) return 0;
+      if (!Array.isArray(order.orderItems)) return 0;
+      return order.orderItems.length;
+    } catch (e) {
+      console.warn('Error counting order items:', e);
+      return 0;
+    }
+  }
+
+  //   countOrderItems(order: any): number {
+  //     if (!order || !order.orderItems) return 0;
+  //     return order.orderItems.reduce((total: number, item: any) => total + (item.quantity || 1), 0);
+  // }
+
+  getCustomerDisplayName(customer: any): string {
+    if (!customer) return this.translate.instant('no_customer');
+
+    if (customer.customerType === 'Company') {
+      return customer.companyName || this.translate.instant('unnamed_company');
+    }
+
+    const firstName = customer.firstName || '';
+    const lastName = customer.lastName || '';
+    return firstName || lastName ?
+      `${firstName} ${lastName}`.trim() :
+      this.translate.instant('unnamed_customer');
+  }
+
 
   getSourceProducts(): Product[] {
     console.log("in get source products");
+
     if (this.return && this.return.order && this.return.order.orderItems?.length > 0) {
       return this.return.order.orderItems
-        .map(orderItem => orderItem.product) // Extract products from order items
-        .filter(product =>
+        .filter(orderItem =>
           !this.return.returnItems?.some(
-            returnItem => returnItem.product.productId === product.productId // Not already part of return items
+            returnItem => returnItem.product.productId === orderItem.product?.productId
           )
-        );
+        )
+        .map(orderItem => {
+          const product = { ...orderItem.product }; // Clone to avoid mutating original object
+
+          // Attach useful data from orderItem
+          product.orderItem = orderItem;
+          product.orderItemPricePerUnit = orderItem.pricePerUnit; // ✅ Set the price here
+
+          return product;
+        });
     } else {
-      // Return empty array if no order or order items exist
       return [];
     }
   }
@@ -308,10 +404,10 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   editReturn(orderReturn: OrderReturn) {
     if (!this.canEditReturn) return;
-  
+
     // Clone the orderReturn to this.return to prevent side-effects
     this.return = { ...orderReturn };
-  
+
     // Initialize returnItems by mapping the return data to the required structure
     this.returnItems = this.return.returnItems.map(item => {
       return {
@@ -325,26 +421,27 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
         refundAmount: item.refundAmount,
       };
     });
-  
+    console.log(this.returnItems);
+
     // Set the return dialog to true
     this.returnDialog = true;
-  
+
     // Initialize pick list
     this.initializePickList();
-  
+
     // Add the new fields directly to the order object for consistency
     this.return.returnItems.forEach(item => {
       item.product.returnItemQuantity = item.returnedQuantity;
       item.product.returnItemPricePerUnit = item.refundAmount;
     });
-  
+
     // Ensure targetProducts are updated with the current return items
     this.targetProducts = [...this.returnItems.map(item => item.product)];
-  
+
     // Log the return to verify
     console.log(this.return);
   }
-  
+
 
 
   // Update the remaining quantity after return
@@ -395,11 +492,32 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     this.return = {};
     this.targetProducts = [];
     this.returnItems = [];
+    this.return.returnDate = new Date();
     this.submitted = false;
-    this.returnDialog = true;
     this.onGetAllOrders(),
-    this.initializePickList();
+      this.initializePickList();
+    this.returnDialog = true;
 
+    // this.targetProducts = (this.return.order.orderItems ?? []).map((item: OrderItem) => {
+    //   const product = { ...item.product }; // Clone to avoid mutating original
+
+    //   // Attach orderItem reference if needed later
+    //   product.orderItem = item;
+
+    //   // Initialize with orderItem values
+    //   product.returnItemQuantity = item.quantity! - (item.returnedQuantity ?? 0);
+    //   product.returnItemPricePerUnit = item.pricePerUnit ?? product.buyingPrice ?? 0;
+    //   product.returnItemCondition = 'NEW'; // Default condition
+    //   product.returnItemReason = 'INCORRECT_ITEM'; // Default reason
+    //   return product;
+    // });
+
+  }
+
+  private findOrderItemForProduct(product: Product): OrderItem | undefined {
+    return this.return.order?.orderItems?.find(
+      item => item.product.productId === product.productId
+    );
   }
 
   async saveReturn() {
@@ -411,10 +529,10 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     //   return;
     // }
 
-    if (!this.return.reason || this.return.reason.trim() === '') {
-      this.messageService.add({ severity: 'warn', summary: 'Reason required', detail: 'Please provide a reason for the return.' });
-      return;
-    }
+    // if (!this.return.reason || this.return.reason.trim() === '') {
+    //   this.messageService.add({ severity: 'warn', summary: 'Reason required', detail: 'Please provide a reason for the return.' });
+    //   return;
+    // }
 
     // Check Product Selection
     if (this.targetProducts.length === 0) {
@@ -427,12 +545,48 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       return;
     }
 
+    // Validate all products have OrderItem references
+    const productsWithoutOrderItem = this.targetProducts.filter(
+      p => !p.orderItem
+    );
+
+    if (productsWithoutOrderItem.length > 0) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Invalid products',
+        detail: 'Some products are missing order references',
+        life: 3000,
+      });
+      return;
+    }
+
+    if (this.return.returnDate) {
+      // Ensure `dateOfExpense` is a Date object
+      const date =
+        typeof this.return.returnDate === "string"
+          ? new Date(this.return.returnDate)
+          : this.return.returnDate;
+
+      // Format the date into YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+      const day = String(date.getDate()).padStart(2, "0");
+
+      this.return.returnDate = `${year}-${month}-${day}`; // Convert to string format
+    }
+
     // Prepare Order Items
-    const returnItems: ReturnItem[] = this.targetProducts.map((product) => ({
-      product,
-      returnedQuantity: product['returnItemQuantity'],
-      refundAmount: product['returnItemPricePerUnit'],
-    }));
+    const returnItems: ReturnItem[] = this.targetProducts.map((product) => {
+      const refundAmount = product.returnItemPricePerUnit * product.returnItemQuantity;
+      return {
+        product: product,
+        returnedQuantity: product.returnItemQuantity,
+        refundAmount: refundAmount,
+        condition: product.returnItemCondition || 'NEW', // Default to 'NEW' if not specified
+        orderItem: product.orderItem,
+        reason: product.returnItemReason || 'INCORRECT_ITEM', // Default to 'INCORRECT_ITEM' if not specified
+      } as ReturnItem;
+    });
 
     console.log(returnItems)
     // Create New Order Object
@@ -447,17 +601,20 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     newOrderReturn.returnItems.forEach((orderItem) => {
       delete orderItem.product['returnItemQuantity'];
       delete orderItem.product['returnItemPricePerUnit'];
+      delete orderItem.product['orderItem']
+      delete orderItem.product['returnItemCondition'];
+      delete orderItem.product['returnItemReason'];
     });
 
     try {
       if (newOrderReturn.returnId) {
-        // await this.updateReturn(newOrderReturn.returnId, newOrderReturn);
-        // this.messageService.add({
-        //   severity: 'success',
-        //   summary: 'Successful',
-        //   detail: 'Return Updated',
-        //   life: 3000,
-        // });
+        await this.updateReturn(newOrderReturn.returnId, newOrderReturn);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Successful',
+          detail: 'Return Updated',
+          life: 3000,
+        });
         return;
       } else {
         await this.addReturn(newOrderReturn);
@@ -469,11 +626,11 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
         });
       }
     } catch (error) {
-      console.error(error);
+      console.error('Return creation failed:', error);
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Error occurred',
+        detail: error.message || 'Failed to process return',
         life: 3000,
       });
     }
@@ -482,6 +639,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     this.returnDialog = false;
     this.return = {};
   }
+
 
 
   onGlobalFilter(table: Table, event: Event) {
@@ -518,14 +676,45 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
+
+
+
+  getStatusSeverity(status: ReturnStatus): string {
+    switch (status) {
+      case ReturnStatus.COMPLETED: return 'success';
+      case ReturnStatus.PENDING: return 'warning';
+      case ReturnStatus.CANCELLED: return 'danger';
+      default: return 'info';
+    }
+  }
+
+  getConditionSeverity(condition: any): string {
+    switch (condition) {
+      case 'NEW': return 'success';
+      case 'USED': return 'warning';
+      case 'DAMAGED': return 'danger';
+      default: return 'info';
+    }
+  }
+
+  // getRefundStatusSeverity(status: RefundStatus): string {
+  //   switch (status) {
+  //     case RefundStatus.COMPLETED: return 'success';
+  //     case RefundStatus.PENDING: return 'warning';
+  //     case RefundStatus.FAILED: return 'danger';
+  //     default: return 'info';
+  //   }
+  // }
+
   async onGetAllReturns() {
     try {
       const response = await this.returnService.getReturns().toPromise();
       console.log(response)
       this.returns = response as OrderReturn[];
-
-      // Order the orders by orderDate in descending order
-      // this.returns.sort((a, b) => b.returnDate.getTime() - a.returnDate.getTime());
+      this.returns.forEach((returnObj: any) => {
+        returnObj.creationDate = new Date(<Date>returnObj.creationDate)
+        returnObj.returnDate = new Date(<Date>returnObj.returnDate)
+      });
 
       console.log(this.returns)
       this.isLoading = false;
@@ -549,22 +738,22 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
 
-  // async updateReturn(id: any, orderReturn: any): Promise<any> {
-  //   console.log(orderReturn)
-  //   // orderReturn.products = this.targetProducts;
-  //   await this.returnService.updateReturn(id, orderReturn)
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         console.log(response);
-  //         this.onGetAllReturns();
-  //         return true;
-  //       },
-  //       error(err: any) {
-  //         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating the error', life: 3000 })
-  //         return false;
-  //       },
-  //     })
-  // }
+  async updateReturn(id: any, orderReturn: any): Promise<any> {
+    console.log(orderReturn)
+    // orderReturn.products = this.targetProducts;
+    await this.returnService.updateReturn(id, orderReturn)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.onGetAllReturns();
+          return true;
+        },
+        error(err: any) {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating the error', life: 3000 })
+          return false;
+        },
+      })
+  }
 
   async addReturn(orderReturn: any): Promise<any> {
     console.log(orderReturn);
@@ -583,15 +772,44 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
+
   async onGetAllOrders() {
     try {
-      const response = await this.orderService.getDeliveredOrders().toPromise();
-      this.orders = response as Order[];
+      this.isLoading = true;
+      const response = await this.orderService.getEligibleOrdersForReturn().toPromise();
+
+      // Preprocess orders to include itemCount
+      this.orders = (response as Order[]).map(order => ({
+        ...order,
+        itemCount: this.calculateOrderItemsCount(order)
+      }));
+
       this.isLoading = false;
     } catch (error) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting orders', life: 3000 });
+      this.isLoading = false;
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Error while getting orders',
+        life: 3000
+      });
+      console.error('Error fetching orders:', error);
     }
   }
+
+  calculateOrderItemsCount(order: Order): number {
+    try {
+      // Check if orderItems exists and is an array
+      if (order?.orderItems && Array.isArray(order.orderItems)) {
+        return order.orderItems.length;
+      }
+      return 0;
+    } catch (e) {
+      console.warn('Error calculating order items count:', e);
+      return 0;
+    }
+  }
+
 
   onSortChange(event: any) {
     const value = event.value;
@@ -603,6 +821,23 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       this.sortReturn = 1;
       this.sortField = value;
     }
+  }
+
+  async onGetAllCustomers() {
+    await this.customerService.getCustomers()
+      .subscribe({
+        next: (response: any) => {
+          this.customers = response;
+          this.customers = this.customers.map(customer => ({
+            ...customer,
+            fullName: this.getCustomerDisplayName(customer)
+          }));
+          console.log(this.customers);
+        },
+        error: (err: any) => {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customers', life: 3000 })
+        }
+      })
   }
 
   downloadInvoice(orderId: number, status: string): void {
@@ -667,12 +902,23 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
       // Iterate over each item in the event
       event.items.forEach((item: any) => {
+        const orderItem = this.findOrderItemForProduct(product);
+        console.log(orderItem);
+
+        if (!orderItem) {
+          console.error('Original order item not found for product:', product);
+          return;
+        }
         // Check if the productId matches
         if (product.productId === item.productId) {
-          // Add the orderItemPricePerUnit field and assign the value of sellingPrice from the item
-          product.returnItemPricePerUnit = item.sellingPrice;
+          console.log(item);
+          product.returnItemPricePerUnit = item.orderItemPricePerUnit || item.sellingPrice;
           product.returnItemQuantity = 1;
+          product.returnItemCondition = 'NEW'; // Default condition
+          product.returnItemReason = 'INCORRECT_ITEM'; // Default to global reason
+          product.orderItem = orderItem; // Add the orderItem field
         }
+        console.log(product);
       });
     });
     // Force change detection
@@ -689,7 +935,12 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
     const existingProduct = this.targetProducts.find(targetProduct => targetProduct.productId === product.productId);
     if (!existingProduct) {
-      const newProduct = { ...product, returnItemPricePerUnit: product.sellingPrice, returnItemQuantity: 1 };
+      const newProduct = { ...product, returnItemPricePerUnit: product.sellingPrice, returnItemQuantity: 1, returnItemCondition: 'NEW', returnItemReason: 'INCORRECT_ITEM' };
+      newProduct.orderItem = this.findOrderItemForProduct(product);
+      if (!newProduct.orderItem) {
+        console.error('Original order item not found for product:', product);
+        return;
+      }
       this.targetProducts.push(newProduct);
       this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
       this.returnItems.push(newProduct); // Update orderItems for ngModel binding
@@ -752,18 +1003,18 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  async onGetCurrency() {
-    await (await this.configService.getConfigurationValue('currency'))
-      .subscribe({
-        next: (response: any) => {
-          this.currency = response;
-          console.log(this.currency)
-        },
-        error: (err: any) => {
-          console.log(err)
-        }
-      })
-  }
+  // async onGetCurrency() {
+  //   await (await this.configService.getConfigurationValue('currency'))
+  //     .subscribe({
+  //       next: (response: any) => {
+  //         this.currency = response;
+  //         console.log(this.currency)
+  //       },
+  //       error: (err: any) => {
+  //         console.log(err)
+  //       }
+  //     })
+  // }
 
   calculateTotalAmount(): number {
     let total = 0;
@@ -780,6 +1031,86 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
     // Return the final total
     return total;
+  }
+
+  openReturnDetailsDialog(returnData: OrderReturn): void {
+    this.return = { ...returnData };
+    this.returnDetailsDialog = true;
+  }
+
+  getReturnReasonLabel(reason: string): string {
+    const found = this.returnReasons.find(r => r.value === reason);
+    return found ? found.label : reason;
+  }
+
+  getRefundMethodIcon(method: string): string {
+    switch (method) {
+      case 'Cash': return 'pi pi-money-bill';
+      case 'Card': return 'pi pi-credit-card';
+      case 'Transfer': return 'pi pi-bank';
+      case 'Check': return 'pi pi-file-edit';
+      case 'BOE': return 'pi pi-file-edit';
+      default: return 'pi pi-dollar';
+    }
+  }
+
+    getRefundStatusSeverity(status: string): string {
+    switch (status?.toLowerCase()) {
+      case 'pending': return 'success';
+      case 'processing': return 'info';
+      case 'completed': return 'warning';
+      case 'failed': return 'danger';
+      default: return 'danger';
+    }
+  }
+
+
+  getRefundMethodSeverity(method: string): string {
+    switch(method?.toLowerCase()) {
+        case 'cash': return 'success';
+        case 'card': return 'info';
+        case 'transfer': return 'warning';
+        case 'check': return 'help';
+        case 'boe': return 'help';
+        default: return 'danger';
+    }
+}
+
+  canProcessRefund(): boolean {
+    return this.return?.returnStatus !== ReturnStatus.COMPLETED &&
+      this.return?.totalRefundableAmount > 0;
+  }
+
+  viewOrder(order: Order): void {
+    // Implement your order view logic
+    console.log('View order:', order);
+    this.messageService.add({
+      severity: 'info',
+      summary: this.translate.instant('order_details'),
+      detail: `Showing details for order #${order.orderId}`
+    });
+  }
+
+  processRefund(): void {
+    // Implement your refund processing logic
+    this.messageService.add({
+      severity: 'info',
+      summary: this.translate.instant('process_refund'),
+      detail: this.translate.instant('opening_refund_dialog')
+    });
+  }
+
+  printReturn(): void {
+    window.print();
+  }
+
+  exportToPDF(): void {
+    // Implement PDF export logic
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('export_pdf'),
+      detail: this.translate.instant('return_exported_pdf')
+    });
   }
 
 }

@@ -38,4 +38,14 @@ export class ReturnService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
   }
+
+  getReturnById(id: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema+id,{headers:headers});
+  }
+
+  getReturnsReadyForRefund() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'eligible-refund' ,{headers:headers});
+  }
 }

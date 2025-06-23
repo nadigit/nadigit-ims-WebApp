@@ -44,6 +44,7 @@ export class ProfileComponent implements OnInit {
     'en': 'English',
     'fr': 'Français',
     'sp': 'Español',
+    'ar': 'الْعَرَبِيَّةُ',
     // Add more languages as needed
   };
 

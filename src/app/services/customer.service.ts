@@ -49,4 +49,19 @@ export class CustomerService {
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + id + '/orders',{headers:headers});
   }
 
+  getCustomerReturns(id:any){
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + id + '/returns',{headers:headers});
+  }
+
+  getCustomerPayments(id:any){
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + id + '/payments',{headers:headers});
+  }
+
+  getCustomersWithUnpaidOrders(){
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'unpaid-orders',{headers:headers});
+  }
+
 }

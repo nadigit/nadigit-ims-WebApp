@@ -125,8 +125,6 @@ export class AppConfigComponent implements OnInit {
     changeTheme(theme: string, colorScheme: string) {
         this.theme = theme;
         this.colorScheme = colorScheme;
-
-        // Save the dark mode preference to localStorage
         localStorage.setItem('darkMode', colorScheme === 'dark' ? 'dark' : 'light');
     }
 
