@@ -21,7 +21,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
-
+import { TagModule } from 'primeng/tag';
 
 
 
@@ -46,7 +46,8 @@ import { TooltipModule } from 'primeng/tooltip';
         TranslateModule,
         ProgressSpinnerModule,
         CalendarModule,
-        TooltipModule
+        TooltipModule,
+        TagModule
     ],
     declarations: [ExpensesComponent],
     providers: [ReportingService],

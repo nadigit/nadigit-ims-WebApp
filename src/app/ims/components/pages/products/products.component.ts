@@ -29,13 +29,13 @@ interface UploadEvent {
 
 @Component({
   templateUrl: './products.component.html',
-  styleUrls: ['./products.component.css','../pages.component.css'],
+  styleUrls: ['./products.component.css', '../pages.component.css'],
   providers: [MessageService]
 })
 
 export class ProductsComponent implements OnInit {
 
-  Ressource : string = 'PRODUCTS';
+  Ressource: string = 'PRODUCTS';
 
   currency: any;
 
@@ -138,11 +138,11 @@ export class ProductsComponent implements OnInit {
   userRoles: any;
   isAdmin: boolean = false;
 
-  
+
   constructor(private messageService: MessageService,
     private productService: ProductService,
     private categoryService: CategoryService,
-    private dialogService: DialogService,    
+    private dialogService: DialogService,
     private warehouseService: WarehouseService,
     private supplierService: SupplierService,
     private storage: AngularFireStorage,
@@ -151,12 +151,12 @@ export class ProductsComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-    public keycloakService: KeycloakService,) { 
-      this.setUserRoles();
-    }
+    public keycloakService: KeycloakService,) {
+    this.setUserRoles();
+  }
 
   async ngOnInit() {
-    this.isLoading=true;
+    this.isLoading = true;
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -171,7 +171,7 @@ export class ProductsComponent implements OnInit {
         { label: translations['descending_price'], value: '!sellingPrice' },
         { label: translations['ascending_price'], value: 'sellingPrice' },
         { label: translations['availability_desc'], value: 'inventoryStatus' }, // Descending availability
-        { label: translations['availability_asc'], value: '!inventoryStatus' } 
+        { label: translations['availability_asc'], value: '!inventoryStatus' }
       ];
       this.items = [
         {
@@ -188,7 +188,7 @@ export class ProductsComponent implements OnInit {
             this.deleteProduct(this.selectedProduct);
           },
         },
-  
+
       ];
     });
     this.onGetAllProducts();
@@ -200,7 +200,7 @@ export class ProductsComponent implements OnInit {
 
     this.targetCities = [];
 
-    
+
     await this.checkPermissions();
 
     // Remove the "Delete" item if the user cannot delete the product
@@ -266,13 +266,13 @@ export class ProductsComponent implements OnInit {
 
   applyFilters() {
     let tempProducts = [...this.products];
-  
+
     console.log("Selected Nodes:", this.selectedNodes);
     const categoryLabel = this.translateService.instant('Categories');
     const warehouseLabel = this.translateService.instant('Warehouses');
     const supplierLabel = this.translateService.instant('Suppliers');
 
-  
+
     // Separate filtering for different fields (e.g., categories, warehouses, suppliers)
     const selectedCategories = this.selectedNodes.filter(
       (node) => node.parent?.label === categoryLabel
@@ -283,11 +283,11 @@ export class ProductsComponent implements OnInit {
     const selectedSuppliers = this.selectedNodes.filter(
       (node) => node.parent?.label === supplierLabel
     );
-  
+
     console.log('Selected Categories:', selectedCategories);
     console.log('Selected Warehouses:', selectedWarehouses);
     console.log('Selected Suppliers:', selectedSuppliers);
-  
+
     // Apply category filter (inclusive)
     if (selectedCategories.length > 0) {
       tempProducts = tempProducts.filter((product) =>
@@ -296,7 +296,7 @@ export class ProductsComponent implements OnInit {
         )
       );
     }
-  
+
     // Apply warehouse filter (strict)
     if (selectedWarehouses.length > 0) {
       tempProducts = tempProducts.filter((product) =>
@@ -305,7 +305,7 @@ export class ProductsComponent implements OnInit {
         )
       );
     }
-  
+
     // Apply supplier filter (strict)
     if (selectedSuppliers.length > 0) {
       tempProducts = tempProducts.filter((product) =>
@@ -314,7 +314,7 @@ export class ProductsComponent implements OnInit {
         )
       );
     }
-  
+
     // Apply search input filter
     if (this.searchInput) {
       const searchTerm = this.searchInput.toUpperCase();
@@ -327,12 +327,12 @@ export class ProductsComponent implements OnInit {
         (product.warehouse?.name || '').toUpperCase().includes(searchTerm)
       );
     }
-  
+
     console.log('Filtered Products:', tempProducts);
     this.filteredProducts = tempProducts;
   }
-  
-  
+
+
   nodeMatchesProduct(node: TreeNode, product: any): boolean {
     if (node.children && node.children.length > 0) {
       // Recursively check child nodes
@@ -353,12 +353,12 @@ export class ProductsComponent implements OnInit {
       }
     }
   }
-  
+
 
   filterNodes() {
     this.filteredNodes = [];
     console.log("All Nodes:", this.nodes);
-    
+
     if (this.selectedNodes.length === 0) {
       this.filteredNodes = [...this.nodes];
       console.log("Filtered Nodes (No Selection):", this.filteredNodes);
@@ -487,7 +487,6 @@ export class ProductsComponent implements OnInit {
     if (!this.canDeleteProduct) return;
     this.deleteProductDialog = false;
     await this.onDeleteProduct(this.product.productId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Product Deleted', life: 3000 });
     this.product = {};
   }
 
@@ -524,13 +523,44 @@ export class ProductsComponent implements OnInit {
 
   async saveProduct() {
     this.submitted = true;
-    if (this.product.name && this.product.reference && this.product.quantityAvailable && this.product.buyingPrice && 
-      this.product.sellingPrice && this.product.category && this.product.supplier) {
-        if (this.isAdmin && !this.product.warehouse) {
-          // Optionally, show an error message or handle it as needed
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Warehouse is required.', life: 3000 });
-          return; // Exit the method to prevent submission
-        }
+
+    if (
+      this.product.name &&
+      this.product.reference &&
+      this.product.quantityAvailable &&
+      this.product.buyingPrice &&
+      this.product.sellingPrice &&
+      this.product.category &&
+      this.product.supplier
+    ) {
+      if (this.isAdmin && !this.product.warehouse) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('warehouse_required'),
+          life: 3000,
+        });
+        return;
+      }
+
+      // 🔍 Check for duplicate product with same reference in the same warehouse
+      const isDuplicate = this.products.some(p =>
+        p.reference === this.product.reference &&
+        p.warehouse?.warehouseId === this.product.warehouse?.warehouseId &&
+        p.productId !== this.product.productId // exclude current product if updating
+      );
+
+      if (isDuplicate) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('product_already_exists_in_warehouse'),
+          life: 4000,
+        });
+        return;
+      }
+
+      // 📦 Upload product image if any
       if (this.uploadedFile) {
         const filePath = `images/${this.uploadedFile.name}`;
         const fileRef = this.storage.ref(filePath);
@@ -543,40 +573,79 @@ export class ProductsComponent implements OnInit {
           this.uploadedFile = null;
         } catch (error) {
           console.error('Error uploading file:', error);
-          this.messageService.add({ severity: 'error', summary: 'Image Error', detail: 'Error while uploading image', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_uploading_image'),
+            life: 3000,
+          });
+          return;
         }
       }
 
+      // ✏️ Update or add product
       if (this.product.productId) {
         this.updateProduct(this.product.productId, this.product)
-          ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Product Updated', life: 3000 })
-          : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating product', life: 3000 });
+          ? this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_updated'),
+            life: 3000,
+          })
+          : this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_product'),
+            life: 3000,
+          });
       } else {
-        this.addProduct(this.product)
-          ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Product created with success', life: 3000 })
-          : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding product', life: 3000 });
+        this.addProduct(this.product);
       }
 
+      // ✅ Reset and close dialog
       this.productDialog = false;
       this.product = {};
-    } else{
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3100 });
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3100,
+      });
       return;
     }
   }
+
 
   editImage() {
     this.product.productImage = null;
     this.uploadedFile = null;
   }
-  
+
 
   saveCategory() {
-    if (this.category.categoryName){
-      this.addCategory(this.category) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Category created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new category', life: 3000 }))
-    } 
-    else{
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields.', life: 3000 });
+    if (this.category.categoryName) {
+      this.addCategory(this.category)
+        ? this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('category_added'),
+          life: 3000
+        })
+        : this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_adding_new_category'),
+          life: 3000
+        });
+    }
+    else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
       return
     }
     this.categories = [...this.categories];
@@ -585,12 +654,28 @@ export class ProductsComponent implements OnInit {
   }
 
   saveWarehouse() {
-    if (this.warehouse.name){
-      this.addWarehouse(this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouse created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding user', life: 3000 }))
-    } 
-    else{
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields.', life: 3000 });
-      return
+    if (this.warehouse.name) {
+      this.addWarehouse(this.warehouse)
+        ? this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('warehouse_added'),
+          life: 3000
+        })
+        : this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_adding_warehouse'),
+          life: 3000
+        });
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
+      return;
     }
     this.warehouses = [...this.warehouses];
     this.warehouseDialog = false;
@@ -598,12 +683,28 @@ export class ProductsComponent implements OnInit {
   }
 
   saveSupplier() {
-    if (this.supplier.name){
-      this.addSupplier(this.supplier) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Supplier created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding supplier', life: 3000 }))
-    } 
-    else{
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields.', life: 3000 });
-      return
+    if (this.supplier.name) {
+      this.addSupplier(this.supplier)
+        ? this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('supplier_added'),
+          life: 3000
+        })
+        : this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_adding_supplier'),
+          life: 3000
+        });
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
+      return;
     }
     this.suppliers = [...this.suppliers];
     this.supplierDialog = false;
@@ -649,7 +750,7 @@ export class ProductsComponent implements OnInit {
     await this.categoryService.getCategories().subscribe({
       next: async (response: any) => {
         this.categories = response;
-  
+
         // Create category parent node
         const categoryNode = {
           label: await this.translateService.instant('Categories'), // Ensure this matches your filter logic
@@ -660,7 +761,7 @@ export class ProductsComponent implements OnInit {
             parent: { label: this.translateService.instant('Categories') }, // Add parent reference
           })),
         };
-  
+
         this.nodes.push(categoryNode);
         console.log(this.nodes)
         this.filterNodes();
@@ -669,20 +770,20 @@ export class ProductsComponent implements OnInit {
       error: (err: any) => {
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Error while getting categories',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_categories'),
           life: 3000,
         });
         console.log(err);
       },
     });
   }
-  
+
   async onGetAllWarehouses() {
     await this.warehouseService.getWarehouses().subscribe({
       next: (response: any) => {
         this.warehouses = response;
-  
+
         // Create warehouse parent node
         const warehouseNode = {
           label: this.translateService.instant('Warehouses'), // Ensure this matches your filter logic
@@ -693,7 +794,7 @@ export class ProductsComponent implements OnInit {
             parent: { label: this.translateService.instant('Warehouses') }, // Add parent reference
           })),
         };
-  
+
         this.nodes.push(warehouseNode);
         this.filterNodes();
         console.log(this.warehouses);
@@ -701,20 +802,20 @@ export class ProductsComponent implements OnInit {
       error: (err: any) => {
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Error while getting warehouses',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_warehouses'),
           life: 3000,
         });
         console.log(err);
       },
     });
   }
-  
+
   async onGetAllSuppliers() {
     await this.supplierService.getSuppliers().subscribe({
       next: (response: any) => {
         this.suppliers = response;
-  
+
         // Create supplier parent node
         const supplierNode = {
           label: this.translateService.instant('Suppliers'), // Ensure this matches your filter logic
@@ -725,7 +826,7 @@ export class ProductsComponent implements OnInit {
             parent: { label: this.translateService.instant('Suppliers') }, // Add parent reference
           })),
         };
-  
+
         this.nodes.push(supplierNode);
         this.filterNodes();
         console.log(this.suppliers);
@@ -733,15 +834,15 @@ export class ProductsComponent implements OnInit {
       error: (err: any) => {
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Error while getting suppliers',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_suppliers'),
           life: 3000,
         });
         console.log(err);
       },
     });
   }
-  
+
 
   async onGetAllProducts() {
     await this.productService.getProducts()
@@ -750,11 +851,17 @@ export class ProductsComponent implements OnInit {
           this.products = response;
           this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
           this.filteredProducts = [...this.products];
+          this.applyFilters();
           this.filterNodes();
           console.log(this.products);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting the list of products', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_products'),
+            life: 3000
+          });
           console.log(err)
         },
         complete: () => {
@@ -764,30 +871,27 @@ export class ProductsComponent implements OnInit {
       })
   }
 
-  // async onGetCurrecy() {
-  //   await (await this.configService.getConfigurationValue('currency'))
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.currency = response;
-  //         console.log(this.currency)
-  //       },
-  //       error: (err: any) => {
-  //         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting currency', life: 3000 })
-  //         console.log(err)
-  //       }
-  //     })
-  // }
-
   async onDeleteProduct(id: any) {
     await this.productService.deleteProduct(id)
       .subscribe({
         next: (response: any) => {
           console.log(response);
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_deleted'),
+            life: 3000
+          });
           this.onGetAllProducts();
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while deleting product', life: 3000 })
-          console.log(err)
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_product'),
+            life: 3000
+          });
+          console.log(err);
         },
       })
   }
@@ -802,8 +906,13 @@ export class ProductsComponent implements OnInit {
           this.onGetAllProducts();
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating the product', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_product'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
@@ -817,10 +926,21 @@ export class ProductsComponent implements OnInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllProducts();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_added'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new product', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_product'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
@@ -835,8 +955,13 @@ export class ProductsComponent implements OnInit {
           this.onGetAllCategories();
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new category', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_new_category'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
@@ -851,8 +976,13 @@ export class ProductsComponent implements OnInit {
           this.onGetAllWarehouses();
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new warehouse', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_warehouse'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
@@ -867,8 +997,13 @@ export class ProductsComponent implements OnInit {
           this.onGetAllSuppliers();
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new supplier', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_supplier'),
+            life: 3000
+          });
           console.error(err);
           return false;
         },
@@ -972,13 +1107,13 @@ export class ProductsComponent implements OnInit {
     this.scanning = true;
   }
 
-    getProfitClass(product: any): string {
+  getProfitClass(product: any): string {
     const profit = this.calculateProfit(product);
     return profit >= 0.3 ? 'text-green-500 font-semibold' :
       profit >= 0.1 ? 'text-blue-500' : 'text-orange-500';
   }
 
-    calculateProfit(product: any): number {
+  calculateProfit(product: any): number {
     if (!product.sellingPrice || !product.buyingPrice) return 0;
     return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
   }

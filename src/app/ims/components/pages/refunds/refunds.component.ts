@@ -62,7 +62,7 @@ export class RefundsComponent implements OnInit {
   valSwitch: boolean = false;
 
   exportColumns!: ExportColumn[];
-  
+
   userRoles: any;
   isAdmin: boolean = false;
 
@@ -79,6 +79,7 @@ export class RefundsComponent implements OnInit {
   canDeleteRefund: boolean = false;
   isLoading: boolean = true;
   refundStatuses: any[] = [];
+  maxRefundDate: Date;
 
   constructor(private messageService: MessageService,
     private refundService: RefundService,
@@ -93,6 +94,8 @@ export class RefundsComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    this.maxRefundDate = new Date(); // Today's date
+    this.maxRefundDate.setHours(23, 59, 59, 999); // Include entire current day
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -104,8 +107,8 @@ export class RefundsComponent implements OnInit {
     });
     this.onGetAllRefunds();
     this.onGetAllCustomersWithUnpaidOrders(),
-    await this.setUserRoles(),
-    await this.checkPermissions();
+      await this.setUserRoles(),
+      await this.checkPermissions();
     this.cols = [
       { field: 'refundId', header: this.translateService.instant('ID') },
       { field: 'name', header: this.translateService.instant('refund_name') },
@@ -125,10 +128,10 @@ export class RefundsComponent implements OnInit {
     ];
 
     this.refundStatuses = [
-    { value: 'PENDING', label:'refund_status_pending' },
-    { value: 'PROCESSING', label: 'refund_status_processing' },
-    { value: 'COMPLETED', label: 'refund_status_completed' }
-  ];
+      { value: 'PENDING', label: 'refund_status_pending' },
+      { value: 'PROCESSING', label: 'refund_status_processing' },
+      { value: 'COMPLETED', label: 'refund_status_completed' }
+    ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
   }
@@ -145,9 +148,9 @@ export class RefundsComponent implements OnInit {
   }
 
   private async setUserRoles() {
-        this.userRoles = await this.keycloakService.getUserRoles();
-        this.isAdmin = this.userRoles.includes('ADMIN');
-    }
+    this.userRoles = await this.keycloakService.getUserRoles();
+    this.isAdmin = this.userRoles.includes('ADMIN');
+  }
 
   deleteSelectedRefunds() {
     if (!this.canDeleteRefund) return;
@@ -169,14 +172,12 @@ export class RefundsComponent implements OnInit {
   confirmDeleteSelected() {
     this.deleteRefundsDialog = false;
     this.selectedRefunds.forEach(selectedRefund => this.onDeleteRefund(selectedRefund.refundId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Refunds Deleted', life: 3000 });
     this.selectedRefunds = [];
   }
 
   async confirmDelete() {
     this.deleteRefundDialog = false;
     await this.onDeleteRefund(this.refund.refundId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Refund Deleted', life: 3000 });
     this.refund = {};
   }
 
@@ -196,6 +197,12 @@ export class RefundsComponent implements OnInit {
     this.refundDialog = true;
   }
 
+  isRefundValidForUpdate(refund: any): boolean {
+    const today = new Date();
+    const refundDate = new Date(refund.refundDate);
+    return refundDate.toDateString() === today.toDateString();
+  }
+
   getReturnDisplayLabel = (ret: OrderReturn): string => {
     if (!ret) { return ''; }
 
@@ -204,22 +211,8 @@ export class RefundsComponent implements OnInit {
     const refundAmt = ret.totalRefundableAmount ?? 0;
     const customer = this.getCustomerDisplayName(ret.order?.customer);
 
-    return `#${returnId} • Order #${orderId} • ${refundAmt} ${this.currency} • ${customer}`;
+    return `#${returnId} • ${this.translate.instant('order')} #${orderId} • ${refundAmt} ${this.currency} • ${customer}`;
   };
-
-  // getOrderReturnDisplayLabel = (orderReturn: any): string => {
-  //   if (!orderReturn) return '';
-
-  //   const returnId = orderReturn.returnId || 'N/A';
-  //   const orderId = orderReturn.order.orderId || 'N/A';
-  //   const totalAmount = orderReturn.totalRefundableAmount !== undefined ? orderReturn.totalRefundableAmount : 0;
-  //   //const itemCount = order.orderItems.length || 0;
-  //   // const itemCount = orderReturn.itemCount !== undefined ? orderReturn.itemCount : this.getSafeItemsCount(order);
-  //   const customerName = this.getCustomerDisplayName(orderReturn.order.customer);
-
-  //   //return `#${returnId} • ${totalAmount} • ${itemCount} ${this.translate.instant('items')} • ${customerName}`;
-  //   return `#${returnId} Order #${orderId} - ${this.getCustomerDisplayName(orderReturn.order?.customer)}`;
-  // }
 
   private formatDate(date: Date): string {
     const year = date.getFullYear();
@@ -231,12 +224,64 @@ export class RefundsComponent implements OnInit {
   async saveRefund() {
     this.submitted = true;
 
-    // Validate amount
+    console.log(this.refund);
+
+    if (!this.refund.orderReturn) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields')
+      });
+      return;
+    }
+
     if (this.refund.amount <= 0 || this.refund.amount > this.maxRefundAmount) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('refund_amount_invalid')
+      });
+      return;
+    }
+
+    if (!this.refund.refundDate) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields')
+      });
+      return;
+    }
+
+    if (!this.refund.refundMethod) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields')
+      });
+      return;
+    }
+
+    if (
+      this.refund.refundMethod === 'Check' &&
+      (!this.refund.checkNumber || !this.refund.checkExpirationDate)
+    ) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('check_fields_required')
+      });
+      return;
+    }
+
+    if (
+      this.refund.refundMethod === 'BOE' &&
+      (!this.refund.boeNumber || !this.refund.boeExpirationDate)
+    ) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('boe_fields_required')
       });
       return;
     }
@@ -250,54 +295,28 @@ export class RefundsComponent implements OnInit {
     }
 
     if (this.refund.checkExpirationDate) {
-      // Ensure `dateOfExpense` is a Date object
       const date =
-        typeof this.refund.checkExpirationDate === "string"
+        typeof this.refund.checkExpirationDate === 'string'
           ? new Date(this.refund.checkExpirationDate)
           : this.refund.checkExpirationDate;
-
-      // Format the date into YYYY-MM-DD
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-      const day = String(date.getDate()).padStart(2, "0");
-
-      this.refund.checkExpirationDate = `${year}-${month}-${day}`; // Convert to string format
+      this.refund.checkExpirationDate = this.formatDate(date);
     }
-    else if (this.refund.boeExpirationDate) {
-      // Ensure `dateOfExpense` is a Date object
+
+    if (this.refund.boeExpirationDate) {
       const date =
-        typeof this.refund.boeExpirationDate === "string"
+        typeof this.refund.boeExpirationDate === 'string'
           ? new Date(this.refund.boeExpirationDate)
           : this.refund.boeExpirationDate;
-
-      // Format the date into YYYY-MM-DD
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-      const day = String(date.getDate()).padStart(2, "0");
-
-      this.refund.boeExpirationDate = `${year}-${month}-${day}`; // Convert to string format
+      this.refund.boeExpirationDate = this.formatDate(date);
     }
-
 
     if (this.refund.orderReturn) {
       let success = false;
 
       if (this.refund.refundId) {
         success = await this.updateRefund(this.refund.refundId, this.refund);
-        this.messageService.add({
-          severity: success ? 'success' : 'error',
-          summary: success ? 'Successful' : 'Error',
-          detail: success ? 'Refund updated with success' : 'Error while updating refund',
-          life: 3000,
-        });
       } else {
         success = await this.addRefund(this.refund);
-        this.messageService.add({
-          severity: success ? 'success' : 'error',
-          summary: success ? 'Successful' : 'Error',
-          detail: success ? 'Refund created with success' : 'Error while adding refund',
-          life: 3000,
-        });
       }
 
       if (success) {
@@ -306,12 +325,13 @@ export class RefundsComponent implements OnInit {
         this.refund = {};
       }
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
     }
-  }
-
-  private generateTransactionId(): string {
-    return 'TXN-' + Date.now();
   }
 
   onOrderSelect(order: Order) {
@@ -334,28 +354,6 @@ export class RefundsComponent implements OnInit {
     table.clear();
   }
 
-  getSeverity(status: any) {
-    switch (status) {
-      case false:
-        return 'danger';
-
-      case true:
-        return 'success';
-
-      case 'new':
-        return 'info';
-
-      case 'negotiation':
-        return 'warning';
-
-      case 'renewal':
-        return null;
-
-      default:
-        return '';
-    }
-  }
-
   async onGetAllRefunds() {
     await this.refundService.getRefunds()
       .subscribe({
@@ -373,7 +371,13 @@ export class RefundsComponent implements OnInit {
           });
         },
         error: (err: any) => {
-          console.error(err)
+          console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_refunds'),
+            life: 3000
+          });
         },
         complete: () => {
           this.isLoading = false;
@@ -387,11 +391,23 @@ export class RefundsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllRefunds();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('refund_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.error(err)
+        error: (err: any) => {
+          console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_refund'),
+            life: 3000
+          });
         },
-      })
+      });
   }
 
 
@@ -401,10 +417,22 @@ export class RefundsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllRefunds();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('refund_updated'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
+        error: (err: any) => {
           console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_refund'),
+            life: 3000
+          });
           return false;
         },
       })
@@ -415,10 +443,22 @@ export class RefundsComponent implements OnInit {
       this.refundService.saveRefund(refund).subscribe({
         next: () => {
           this.onGetAllRefunds();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('refund_added'),
+            life: 3000
+          });
           resolve(true);
         },
         error: (err: any) => {
           console.error('Error adding refund:', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_refund'),
+            life: 3000
+          });
           resolve(false);
         }
       });
@@ -437,7 +477,12 @@ export class RefundsComponent implements OnInit {
           console.log(this.customers);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customers', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_customers'),
+            life: 3000
+          });
         }
       })
   }
@@ -450,29 +495,24 @@ export class RefundsComponent implements OnInit {
   }
 
   onReturnSelect(selectedReturn: OrderReturn) {
-    this.maxRefundAmount = selectedReturn.totalRefundableAmount;
+    if (!selectedReturn) {
+      this.maxRefundAmount = 0;
+      return;
+    }
+
+    const totalRefundable = selectedReturn.totalRefundableAmount || 0;
+
+    const totalAlreadyRefunded = selectedReturn.refunds?.reduce((sum, refund) => {
+      return sum + (refund.amount || 0);
+    }, 0) || 0;
+
+    this.maxRefundAmount = totalRefundable - totalAlreadyRefunded;
+
+    // Ensure current refund doesn't exceed max
     if (this.refund.amount > this.maxRefundAmount) {
       this.refund.amount = this.maxRefundAmount;
     }
   }
-
-  // onCustomerSelect(customer: Customer) {
-  //   if (customer?.customerId) {
-  //     this.orderService.getUnpaidOrdersByCustomer(customer.customerId).subscribe({
-  //       next: (orders: Order[]) => {
-  //         this.unpaidOrders = orders;
-  //         this.refund.orderReturn = null;
-  //       },
-  //       error: (err) => {
-  //         console.error('Error fetching unpaid orders', err);
-  //         this.unpaidOrders = [];
-  //       }
-  //     });
-  //   } else {
-  //     this.unpaidOrders = [];
-  //   }
-  // }
-
 
   exportPdf() {
     this.reportingService.exportPdf(this.exportColumns, this.refunds, 'refunds')
@@ -497,18 +537,10 @@ export class RefundsComponent implements OnInit {
     this.reportingService.exportExcel(modifiedRefunds, 'refunds');
   }
 
-  // async onGetCurrency() {
-  //   await (await this.configService.getConfigurationValue('currency'))
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.currency = response;
-  //         console.log(this.currency)
-  //       },
-  //       error: (err: any) => {
-  //         console.log(err)
-  //       }
-  //     })
-  // }
+  getRefundedAmount(orderReturn: OrderReturn): number {
+    if (!orderReturn.refunds || orderReturn.refunds.length === 0) return 0;
+    return orderReturn.refunds.reduce((sum, refund) => sum + (refund.amount || 0), 0);
+  }
 
   getStatusSeverity(status: RefundStatus): string {
     switch (status) {
@@ -526,7 +558,7 @@ export class RefundsComponent implements OnInit {
       'Check': 'refund_method_check',
       'Card': 'refund_method_card',
       'Transfer': 'refund_method_cash',
-      'CASH': 'refund_method_transfer',
+      'Cash': 'refund_method_transfer',
       'BOE': 'refund_method_boe',
       'DIGITAL_WALLET': 'refund_method_digital_wallet'
     }[method] || method;
@@ -559,11 +591,12 @@ export class RefundsComponent implements OnInit {
   }
 
   getPaymentMethodSeverity(method: string): string {
-    switch (method) {
-      case 'CASH': return 'success';
-      case 'CARD': return 'info';
-      case 'TRANSFER': return 'warning';
-      case 'CHECK': return 'help';
+    switch (method?.toLowerCase()) {
+      case 'cash': return 'success';
+      case 'card': return 'info';
+      case 'transfer': return 'warning';
+      case 'check': return 'help';
+      case 'boe': return 'help';
       default: return 'danger';
     }
   }

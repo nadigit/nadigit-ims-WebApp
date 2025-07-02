@@ -29,7 +29,7 @@ import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { TreeSelectModule } from 'primeng/treeselect';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DialogService, DynamicDialogModule } from 'primeng/dynamicdialog';
-
+import { TagModule } from 'primeng/tag';
 
 
 
@@ -62,7 +62,8 @@ import { DialogService, DynamicDialogModule } from 'primeng/dynamicdialog';
         ImageModule,
         ZXingScannerModule,
         TreeSelectModule,
-        ProgressSpinnerModule
+        ProgressSpinnerModule,
+        TagModule
     ],
     declarations: [ProductsComponent],
     providers: [ReportingService, DialogService]

@@ -22,17 +22,25 @@ export class PaymentService {
     this.jwt = this.keycloakService.getToken();
   }
 
-  savePayment(orderId: number, amount: number, paymentMethod: string) {
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
-    const params = new HttpParams()
-      .set('orderId', orderId.toString())
-      .set('amount', amount.toString())
-      .set('paymentMethod', paymentMethod);
+  // savePayment(orderId: number, amount: number, paymentMethod: string, paymentDate: Date) {
+  //   const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+  //   const formattedDate = paymentDate.toISOString().split('T')[0]; // "2025-06-23"
+
+  //   const params = new HttpParams()
+  //     .set('orderId', orderId.toString())
+  //     .set('amount', amount.toString())
+  //     .set('paymentMethod', paymentMethod)
+  //     .set('paymentDate', formattedDate);
   
+  //   const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}process`;
+  
+  //   return this.http.post(url, null, { headers, params });
+  // }
+  savePayment(payment: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}process`;
-  
-    return this.http.post(url, null, { headers, params });
-  }
+    return this.http.post(url, payment, { headers });
+}
   
   updatePayment(id: any, payment: any) {
     const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });

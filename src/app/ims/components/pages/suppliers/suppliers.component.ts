@@ -1,5 +1,5 @@
 import { Component, EventEmitter, OnInit } from '@angular/core';
-import { MessageService } from 'primeng/api';
+import { MessageService, PrimeNGConfig } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Supplier } from 'src/app/models/supplier';
 import { Country, State } from 'country-state-city';
@@ -11,6 +11,7 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { firstValueFrom } from 'rxjs';
+import { CountryTranslatePipe } from 'src/app/pipes/country-translate.pipe';
 
 @Component({
   templateUrl: './suppliers.component.html',
@@ -45,13 +46,11 @@ export class SuppliersComponent implements OnInit {
 
   currency: any = '';
 
-  statuses: any[] = [];
-
   rowsPerPageOptions = [20, 50, 100];
 
   valSwitch: boolean = false;
 
-  countries: any = Country.getAllCountries();
+  countries: any;
 
   selectedCountry: any = null;
 
@@ -73,6 +72,7 @@ export class SuppliersComponent implements OnInit {
     private supplierService: SupplierService,
     private reportingService: ReportingService,
     private translate: TranslateService,
+    private countryTranslatePipe: CountryTranslatePipe,
     private translateService: TranslationService,
     private permissionService: PermissionService,
     private configService: AppConfigurationService,
@@ -81,7 +81,12 @@ export class SuppliersComponent implements OnInit {
   async ngOnInit() {
     this.isLoading = true;
     this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang); // Use the translate service to update language
+      this.translate.use(lang);
+      this.countries = Country.getAllCountries().map(country => ({
+        ...country,
+        translatedName: this.translate.instant(`countries.${country.name}`)
+      }));
+
     });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -102,11 +107,6 @@ export class SuppliersComponent implements OnInit {
       { field: 'address', header: this.translateService.instant('supplier_address') },
     ];
 
-    this.statuses = [
-      { label: 'INSTOCK', value: 'instock' },
-      { label: 'LOWSTOCK', value: 'lowstock' },
-      { label: 'OUTOFSTOCK', value: 'outofstock' }
-    ];
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
   }
 
@@ -144,14 +144,12 @@ export class SuppliersComponent implements OnInit {
   confirmDeleteSelected() {
     this.deleteSuppliersDialog = false;
     this.selectedSuppliers.forEach(selectedSupplier => this.onDeleteSupplier(selectedSupplier.supplierId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Suppliers Deleted', life: 3000 });
     this.selectedSuppliers = [];
   }
 
   async confirmDelete() {
     this.deleteSupplierDialog = false;
     await this.onDeleteSupplier(this.supplier.supplierId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Supplier Deleted', life: 3000 });
     this.supplier = {};
   }
 
@@ -171,13 +169,10 @@ export class SuppliersComponent implements OnInit {
 
   async openSupplierDialog(supplier: any): Promise<void> {
     this.supplier = supplier;
-    await this.loadSupplierProducts();   
+    await this.loadSupplierProducts();
     await this.loadSupplierPurchases();
     this.initChartOptions();
     this.supplierDetailsDialog = true;
-
-    console.log(this.supplierProducts)
-    console.log(this.supplierPurchases)
   }
 
 
@@ -189,6 +184,12 @@ export class SuppliersComponent implements OnInit {
       this.supplierProducts = Array.isArray(products) ? products : [];
       this.prepareProductDistributionChart();
     } catch (err) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_getting_supplier_products'),
+        life: 3000
+      });
       console.error(err);
     }
   }
@@ -212,6 +213,12 @@ export class SuppliersComponent implements OnInit {
 
       this.prepareMonthlyPurchasesChart();
     } catch (err) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_getting_supplier_purchases'),
+        life: 3000
+      });
       console.error(err);
     }
   }
@@ -254,29 +261,20 @@ export class SuppliersComponent implements OnInit {
     return colors[Math.abs(supplier.supplierId) % colors.length];
   }
 
-  getInventoryStatusSeverity(status: string): string {
-    switch (status) {
-      case 'INSTOCK': return 'success';
-      case 'LOWSTOCK': return 'warning';
-      case 'OUTOFSTOCK': return 'danger';
-      default: return 'info';
+  getPaymentMethodSeverity(method: string): string {
+    switch (method?.toLowerCase()) {
+      case 'cash':
+        return 'success';
+      case 'credit':
+        return 'warning';
+      case 'check':
+        return 'help';
+      case 'transfer':
+        return 'info';
+      default:
+        return 'danger';
     }
   }
-
-getPaymentMethodSeverity(method: string): string {
-    switch (method?.toLowerCase()) {
-        case 'cash':
-            return 'success';
-        case 'credit':
-            return 'warning';
-        case 'check':
-            return 'help';
-        case 'transfer':
-            return 'info';
-        default:
-            return 'danger';
-    }
-}
 
   getTotalSpentWithSupplier(): number {
     return this.supplierPurchases?.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0) || 0;
@@ -337,18 +335,22 @@ getPaymentMethodSeverity(method: string): string {
     this.submitted = true;
     if (this.supplier.name) {
       if (this.supplier.supplierId) {
-        this.updateSupplier(this.supplier.supplierId, this.supplier) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Supplier updated with success', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating supplier', life: 3000 })
+        this.updateSupplier(this.supplier.supplierId, this.supplier);
       } else {
-        this.addSupplier(this.supplier) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Supplier created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding supplier', life: 3000 }))
+        this.addSupplier(this.supplier);
       }
       this.suppliers = [...this.suppliers];
       this.supplierDialog = false;
       if (!this.supplierDetailsDialog) {
         this.supplier = {};
       }
-    }
-    else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
       return;
     }
   }
@@ -389,28 +391,6 @@ getPaymentMethodSeverity(method: string): string {
     table.clear();
   }
 
-  getSeverity(status: any) {
-    switch (status) {
-      case false:
-        return 'danger';
-
-      case true:
-        return 'success';
-
-      case 'new':
-        return 'info';
-
-      case 'negotiation':
-        return 'warning';
-
-      case 'renewal':
-        return null;
-
-      default:
-        return '';
-    }
-  }
-
   async onGetAllSuppliers() {
     await this.supplierService.getSuppliers()
       .subscribe({
@@ -420,6 +400,12 @@ getPaymentMethodSeverity(method: string): string {
         },
         error: (err: any) => {
           console.error(err)
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_getting_suppliers'),
+            life: 3000
+          });
         },
         complete: () => {
           this.isLoading = false;
@@ -428,28 +414,51 @@ getPaymentMethodSeverity(method: string): string {
   }
 
   async onDeleteSupplier(id: any) {
-    await this.supplierService.deleteSupplier(id)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllSuppliers();
-        },
-        error(err: any) {
-          console.error(err)
-        },
-      })
+    this.supplierService.deleteSupplier(id).subscribe({
+      next: (response: any) => {
+        this.onGetAllSuppliers();
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('supplier_deleted'),
+          life: 3000,
+        });
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_deleting_supplier'),
+          life: 3000,
+        });
+      },
+    });
   }
 
 
   async updateSupplier(id: any, supplier: any): Promise<any> {
     console.log(supplier)
-    await this.supplierService.updateSupplier(id, supplier)
+    this.supplierService.updateSupplier(id, supplier)
       .subscribe({
         next: (response: any) => {
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('supplier_updated'),
+            life: 3000
+          });
           this.onGetAllSuppliers();
           return true;
         },
         error(err: any) {
           console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_updating_supplier'),
+            life: 3000
+          });
           return false;
         },
       })
@@ -460,10 +469,22 @@ getPaymentMethodSeverity(method: string): string {
       .subscribe({
         next: (response: any) => {
           this.onGetAllSuppliers();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('supplier_added'),
+            life: 3000
+          });
           return true;
         },
         error(err: any) {
           console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_adding_supplier'),
+            life: 3000
+          });
           return false;
         },
       })
@@ -505,6 +526,17 @@ getPaymentMethodSeverity(method: string): string {
 
     // Now, export the modified array to Excel
     this.reportingService.exportExcel(modifiedSuppliers, 'suppliers');
+  }
+
+  filterCountry(value: any, filter: string): boolean {
+    // Convert both to lowercase for case-insensitive comparison
+    const normalizedFilter = filter.toLowerCase();
+
+    // Check both original name and translated name
+    return (
+      value.name.toLowerCase().includes(normalizedFilter) ||
+      value.translatedName.toLowerCase().includes(normalizedFilter)
+    );
   }
 
 }

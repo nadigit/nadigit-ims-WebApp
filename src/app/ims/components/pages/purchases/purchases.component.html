@@ -1,7 +1,25 @@
 <div class="grid">
     <div class="col-12">
         <div class="card px-6 py-6">
+            <h5>{{ 'purchases_menu_title' | translate }}</h5>
             <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'purchases_page_description' | translate }}
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddPurchase" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditPurchase" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeletePurchase" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                </div>
+            </div>
+
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
@@ -64,7 +82,7 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-purchase>
-                    <tr [pSelectableRow]="purchase" (click)="canEditPurchase ? editPurchase(purchase) : null">
+                    <tr [pSelectableRow]="purchase" (click)="canEditPurchase && isPurchaseFinalized(purchase) ? editPurchase(purchase) : null">
                         <td>
                             <p-tableCheckbox [value]="purchase" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
@@ -72,6 +90,9 @@
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'ID' | translate }}</span>
                             #{{purchase.id ? purchase.id : 'N/A'}}
+                            <i *ngIf="!isPurchaseFinalized(purchase)" class="pi pi-lock text-red-500 ml-2"
+                                pTooltip="{{ 'purchase_locked' | translate }}">
+                            </i>
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'purchase_date' | translate }}</span>
@@ -83,7 +104,7 @@
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'purchase_total_amount' | translate }}</span>
-                            {{ purchase.totalAmount ? purchase.totalAmount : 'N/A' }}
+                            {{ purchase.totalAmount ? (purchase.totalAmount | currency:currency:'symbol':'1.2-2') : 'N/A' }}
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'purchase_supplier' | translate }}</span>
@@ -95,10 +116,11 @@
                         </td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple *ngIf="canEditPurchase" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2" pTooltip="{{'update_purchase'|translate}}"
+                                <button pButton pRipple *ngIf="canEditPurchase && isPurchaseFinalized(purchase)" icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-info mr-2" pTooltip="{{'update_purchase'|translate}}"
                                     (click)="editPurchase(purchase); $event.stopPropagation()"></button>
-                                <button pButton pRipple *ngIf="canDeletePurchase" icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                <button pButton pRipple *ngIf="canDeletePurchase && isPurchaseFinalized(purchase)" icon="pi pi-trash" 
+                                    class="p-button-rounded p-button-danger"
                                     (click)="deletePurchase(purchase); $event.stopPropagation()" pTooltip="{{'delete_purchase'|translate}}"></button>
                             </div>
                         </td>
@@ -143,9 +165,19 @@
                     <p-calendar [(ngModel)]="purchase.dateOfPurchase" ngDefaultControl name="dateOfPurchase" inputId="dateOfPurchase"
                         dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
                         placeholder="{{ 'purchase_date' | translate }}" required autofocus 
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.dateOfPurchase}"/>
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.dateOfPurchase}"
+                        appendTo="body" [maxDate]="maxPurchaseDate" (onSelect)="checkCashRegisterStatus()"/>
                     <small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.purpose">{{ 'purchase_date' |
                         translate }} {{'is_required_label' | translate}}</small>
+                    
+                    <div *ngIf="showCashRegisterWarning" class="p-message p-message-warn mt-2">
+                        <div class="p-message-wrapper">
+                            <span class="p-message-icon pi pi-exclamation-triangle mr-2"></span>
+                            <div class="p-message-text">
+                                {{ 'cash_register_closed_warning' | translate }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="field" style="position: relative;" *ngIf="isAdmin">

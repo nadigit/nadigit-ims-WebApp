@@ -1,7 +1,27 @@
 <div class="grid">
     <div class="col-12">
         <div class="card px-6 py-6">
+            <h5>{{ 'refunds_menu_title' | translate }}</h5>
             <p-toast></p-toast>
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'refunds_page_description' | translate }}
+                    <!-- <span *ngIf="customers?.length" class="font-semibold">
+                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
+                    </span> -->
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddRefund" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditRefund" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteRefund" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                    <!-- <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag> -->
+                </div>
+            </div>
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
@@ -49,6 +69,8 @@
                         <th style="width: 3rem">
                             <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
                         </th>
+                        <th pSortableColumn="transactionId">{{'refund_transaction_id' | translate}} <p-sortIcon
+                                field="transactionId"></p-sortIcon></th>
                         <th pSortableColumn="orderReturn.order.orderId">{{ 'order_id' | translate }}
                             <p-sortIcon field="orderReturn.order.orderId"></p-sortIcon>
                         </th>
@@ -75,9 +97,9 @@
                         <th pSortableColumn="amount">{{'amount' | translate}}
                             <p-sortIcon field="amount"></p-sortIcon>
                         </th>
-                        <th pSortableColumn="status">{{'refund_status' | translate}}
+                        <!-- <th pSortableColumn="status">{{'refund_status' | translate}}
                             <p-sortIcon field="status"></p-sortIcon>
-                        </th>
+                        </th> -->
                         <th pSortableColumn="method">{{'refund_method' | translate}}
                             <p-sortIcon field="method"></p-sortIcon>
                         </th>
@@ -92,8 +114,18 @@
                 </ng-template>
 
                 <ng-template pTemplate="body" let-refund>
-                    <tr>
-                        <td><p-tableCheckbox [value]="refund" (click)="$event.stopPropagation()"></p-tableCheckbox></td>
+                    <tr [pSelectableRow]="refund" [pSelectableRowDisabled]="!isRefundValidForUpdate(refund)" (click)="canEditRefund && isRefundValidForUpdate(refund) ? editRefund(refund) : null">
+                        <td>
+                            <p-tableCheckbox [value]="refund" 
+                            [disabled]="!isRefundValidForUpdate(refund)" 
+                            (click)="$event.stopPropagation()"></p-tableCheckbox>
+                        </td>
+                        <td>
+                            <p-chip label="{{ refund.transactionId ?? 'N/A' }}" />
+                            <i *ngIf="!isRefundValidForUpdate(refund)" class="pi pi-lock text-red-500 ml-2"
+                                pTooltip="{{ 'refund_locked' | translate }}">
+                            </i>
+                        </td>
                         <td>#{{ refund.orderReturn?.order?.orderId || 'N/A' }}</td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'customer' | translate }}</span>
@@ -106,10 +138,10 @@
                             }}
                         </td>
                         <td>{{ refund.amount | currency:currency:'symbol':'1.2-2' }}</td>
-                        <td>
-                            <p-tag value="{{'refund_status_'+ refund.status.toLowerCase() | translate}}"
-                                [severity]="getStatusSeverity(refund.status)"></p-tag>
-                        </td>
+                        <!-- <td>
+                            <p-tag value="{{'refund_status_'+ refund?.status?.toLowerCase() | translate}}"
+                                [severity]="getStatusSeverity(refund?.status)"></p-tag>
+                        </td> -->
 
                         <td>
                             <p-tag [value]="'payment_method_'+refund?.refundMethod?.toLowerCase() | translate"
@@ -118,15 +150,15 @@
                             </p-tag>
                         </td>
                         <!-- <td>{{ refund.originalPayment?.transactionId || 'N/A' }}</td> -->
-                        <td>{{ refund.refundDate | date:'short' }}</td>
+                        <td>{{ refund.refundDate | date:'dd/MM/yyyy' }}</td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple *ngIf="canEditRefund && refund.status === 'PENDING'"
-                                    icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2"
-                                    (click)="editRefund(refund)" pTooltip="{{ 'edit_refund' | translate }}"></button>
-                                <button pButton pRipple *ngIf="canDeleteRefund && refund.status === 'PENDING'"
-                                    icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="confirmDeleteRefund(refund)"
+                                <button pButton pRipple *ngIf="canEditRefund && isRefundValidForUpdate(refund)"
+                                    icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+                                    (click)="editRefund(refund); $event.stopPropagation()" pTooltip="{{ 'edit_refund' | translate }}"></button>
+                                <button pButton pRipple *ngIf="canDeleteRefund && isRefundValidForUpdate(refund)"
+                                    icon="pi pi-trash" class="p-button-rounded p-button-danger"
+                                    (click)="deleteRefund(refund); $event.stopPropagation()"
                                     pTooltip="{{ 'delete_refund' | translate }}"></button>
                             </div>
                         </td>
@@ -202,8 +234,9 @@
                     <p-dropdown [(ngModel)]="refund.orderReturn" [options]="eligibleReturns"
                         [optionLabel]="getReturnDisplayLabel" placeholder="{{ 'select_return_option' | translate }}"
                         [filter]="true" filterBy="returnId,order.orderId,order.customer.firstName,
-                        order.customer.lastName,order.customer.companyName" [showClear]="true" inputId="orderReturn"
-                        name="orderReturn" (onChange)="onReturnSelect($event.value)"
+    order.customer.lastName,order.customer.companyName" [showClear]="true" inputId="orderReturn" name="orderReturn"
+                        (onChange)="onReturnSelect($event.value)" [emptyMessage]="'no_returns_available' | translate"
+                        [emptyFilterMessage]="'no_returns_matching_filter' | translate"
                         [ngClass]="{'ng-invalid ng-dirty': submitted && !refund.orderReturn}">
 
                         <!-- Selected value inside the input box -->
@@ -213,38 +246,30 @@
                             </span>
                         </ng-template>
 
-                        <!-- Each row inside the panel -->
+                        <!-- Each row inside the dropdown panel -->
                         <ng-template pTemplate="item" let-return>
-                            <div class="flex justify-content-between align-items-center">
-                                <span>Return #{{ return.returnId }}</span>
-                                <span>Order #{{ return.order?.orderId }}</span>
-                                <span>{{ getCustomerDisplayName(return.order?.customer) }}</span>
-                                <span class="font-bold">
-                                    {{ return.totalRefundableAmount | currency: currency }}
-                                </span>
+                            <div class="flex flex-column">
+                                <div class="flex justify-content-between align-items-center">
+                                    <span>{{'return'|translate}} #{{ return.returnId }}</span>
+                                    <span>{{'order'|translate}} #{{ return.order?.orderId }}</span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center text-sm text-gray-600 mt-1">
+                                    <span>{{ getCustomerDisplayName(return.order?.customer) }}</span>
+                                    <span>{{'total'|translate}}: {{ return.totalRefundableAmount | currency: currency
+                                        }}</span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center text-sm mt-1">
+                                    <span>{{'refunded'|translate}}: {{
+                                        getRefundedAmount(return) | currency: currency
+                                        }}</span>
+                                    <span>{{'due'|translate}}: {{
+                                        (return.totalRefundableAmount - getRefundedAmount(return)) | currency: currency
+                                        }}</span>
+                                </div>
                             </div>
                         </ng-template>
-
                     </p-dropdown>
 
-                    <!-- <p-dropdown [(ngModel)]="refund.orderReturn" name="orderReturn" inputId="orderReturn"
-                        [options]="eligibleReturns" optionLabel="getOrderReturnDisplayLabel" required
-                        placeholder="{{ 'select_return_option' | translate }}" [filter]="true"
-                        filterBy="returnId,orderId,customer.firstName,customer.lastName,customer.companyName"
-                        (onChange)="onReturnSelect($event.value)"
-                        [ngClass]="{'ng-invalid ng-dirty': submitted && !refund.orderReturn}">
-
-                        <ng-template let-return pTemplate="item">
-                            <div class="flex justify-content-between align-items-center">
-                                <span>Return #{{ return.returnId }}</span>
-                                <span>Order #{{ return.order?.orderId }}</span>
-                                <span>Customer: {{ getCustomerDisplayName(return.order?.customer) }}</span>
-                                <span class="font-bold">
-                                    {{ return.totalRefundableAmount | currency:currency }}
-                                </span>
-                            </div>
-                        </ng-template>
-                    </p-dropdown> -->
 
                     <small class="ng-dirty ng-invalid" *ngIf="submitted && !refund.orderReturn">
                         {{ 'order_return_is_required' | translate }}
@@ -252,7 +277,7 @@
                 </div>
 
                 <!-- Original Payment (Optional) -->
-                <div class="field" *ngIf="refund.orderReturn?.order?.payments?.length">
+                <!-- <div class="field" *ngIf="refund.orderReturn?.order?.payments?.length">
                     <label for="originalPayment">
                         {{ 'original_payment' | translate }}
                     </label>
@@ -267,7 +292,7 @@
                             </div>
                         </ng-template>
                     </p-dropdown>
-                </div>
+                </div> -->
 
                 <!-- Amount -->
                 <div class="field">
@@ -309,7 +334,7 @@
                         <label for="checkExpirationDate">{{ 'expiration_date' | translate }}</label>
                         <p-calendar [(ngModel)]="refund.checkExpirationDate" [showIcon]="true"
                             inputId="checkExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
-                            placeholder="{{ 'expiration_date' | translate }}" />
+                            placeholder="{{ 'expiration_date' | translate }}" appendTo="body" />
                     </div>
                     <div *ngIf="refund.refundMethod === 'BOE'" class="field">
                         <label for="boeNumber">{{ 'boe_number' | translate }}</label>
@@ -319,12 +344,12 @@
                     <div *ngIf="refund.refundMethod === 'BOE'" class="field">
                         <label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
                         <p-calendar [(ngModel)]="refund.boeExpirationDate" [showIcon]="true" inputId="boeExpirationDate"
-                            dateFormat="dd/mm/yy" [showOnFocus]="false"
+                            dateFormat="dd/mm/yy" [showOnFocus]="false" appendTo="body"
                             placeholder="{{ 'expiration_date' | translate }}" />
                     </div>
                 </div>
 
-                <div class="field" *ngIf="refund.orderReturn">
+                <!-- <div class="field" *ngIf="refund.orderReturn">
                     <label for="status">{{ 'status' | translate }}</label>
                     <p-dropdown [(ngModel)]="refund.status" [options]="refundStatuses" optionLabel="label"
                         optionValue="value" placeholder="{{ 'select_refund_status' | translate }}">
@@ -335,7 +360,7 @@
                             {{ selectedStatus?.label | translate }}
                         </ng-template>
                     </p-dropdown>
-                </div>
+                </div> -->
 
                 <div class="field">
                     <label for="refundDate">{{ 'refund_date' | translate }} <span
@@ -343,7 +368,8 @@
                     <p-calendar [(ngModel)]="refund.refundDate" ngDefaultControl name="refundDate" inputId="refundDate"
                         dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
                         placeholder="{{ 'refund_date' | translate }}" required autofocus
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !refund.refundDate}" />
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !refund.refundDate}" [maxDate]="maxRefundDate"
+                        appendTo="body" />
                     <small class="ng-dirty ng-invalid" *ngIf="submitted && !refund.refundDate">{{ 'refund_date' |
                         translate }} {{'is_required_label' | translate}}</small>
                 </div>
@@ -374,7 +400,7 @@
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span *ngIf="refund">{{'delete_confirmation_msg_with_param' | translate}}
-                    <b>{{refund.name}}</b>?</span>
+                    <b>#{{refund.transactionId}}</b>?</span>
             </div>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"

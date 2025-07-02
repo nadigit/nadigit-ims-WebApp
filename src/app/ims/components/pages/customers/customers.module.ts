@@ -26,6 +26,7 @@ import { AvatarModule } from 'primeng/avatar';
 import { AvatarGroupModule } from 'primeng/avatargroup';
 import { ChartModule } from 'primeng/chart';
 import { TabViewModule } from 'primeng/tabview';
+import { ProgressBarModule } from 'primeng/progressbar';
 
 
 
@@ -55,7 +56,8 @@ import { TabViewModule } from 'primeng/tabview';
         AvatarModule,
         AvatarGroupModule,
         ChartModule,
-        TabViewModule
+        TabViewModule,
+        ProgressBarModule
     ],
     declarations: [CustomersComponent, AbsolutePipe],
     exports:[AbsolutePipe],

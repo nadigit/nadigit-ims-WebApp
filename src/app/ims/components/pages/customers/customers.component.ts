@@ -110,7 +110,6 @@ export class CustomersComponent implements OnInit {
 
     await this.checkPermissions();
     this.onGetAllCustomers();
-    // this.onGetCurrency();
     this.initializeStatuses();
 
     this.initChartOptions();
@@ -294,16 +293,24 @@ export class CustomersComponent implements OnInit {
 
   async confirmDeleteSelected() {
     this.deleteCustomersDialog = false;
-    await this.selectedCustomers.forEach(selectedCustomer => this.onDeleteCustomer(selectedCustomer.customerId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Customers Deleted', life: 3000 });
-    this.selectedCustomers = [];
+    try {
+      for (const selectedCustomer of this.selectedCustomers) {
+        await this.onDeleteCustomer(selectedCustomer.customerId);
+      }
+      this.selectedCustomers = [];
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async confirmDelete() {
     this.deleteCustomerDialog = false;
-    await this.onDeleteCustomer(this.customer.customerId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Customer Deleted', life: 3000 });
-    this.customer = {};
+    try {
+      await this.onDeleteCustomer(this.customer.customerId);
+      this.customer = {};
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   hideDialog() {
@@ -332,29 +339,16 @@ export class CustomersComponent implements OnInit {
     this.customerDialog = true;
   }
 
-  //     async onGetCurrency() {
-  //   await (await this.configService.getConfigurationValue('currency'))
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.currency = response;
-  //         console.log(this.currency)
-  //       },
-  //       error: (err: any) => {
-  //         console.log(err)
-  //       }
-  //     })
-  // }
-
   saveCustomer() {
     this.submitted = true;
 
     // Validate customer type
     if (!this.customer.customerType) {
       this.messageService.add({
-        severity: 'warn',
-        summary: 'Required field',
-        detail: 'Customer Type is required',
-        life: 3000
+      severity: 'warn',
+      summary: this.translate.instant('required_field'),
+      detail: this.translate.instant('customer_type_required'),
+      life: 3000
       });
       return;
     }
@@ -364,8 +358,8 @@ export class CustomersComponent implements OnInit {
       if (!this.customer.cin) {
         this.messageService.add({
           severity: 'warn',
-          summary: 'Required field',
-          detail: 'CIN is required for Particular customers',
+          summary: this.translate.instant('required_field'),
+          detail: this.translate.instant('customer_cin_required'),
           life: 3000
         });
         return;
@@ -373,8 +367,8 @@ export class CustomersComponent implements OnInit {
       if (!this.customer.firstName || !this.customer.lastName) {
         this.messageService.add({
           severity: 'error',
-          summary: 'Required fields',
-          detail: 'First Name and Last Name are required for Particular customers',
+          summary: this.translate.instant('required_fields'),
+          detail: this.translate.instant('customer_first_last_name_required'),
           life: 3000
         });
         return;
@@ -385,8 +379,8 @@ export class CustomersComponent implements OnInit {
       if (!this.customer.ice) {
         this.messageService.add({
           severity: 'warn',
-          summary: 'Required field',
-          detail: 'ICE is required for Company customers',
+          summary: this.translate.instant('required_field'),
+          detail: this.translate.instant('customer_ice_required'),
           life: 3000
         });
         return;
@@ -394,8 +388,8 @@ export class CustomersComponent implements OnInit {
       if (!this.customer.companyName) {
         this.messageService.add({
           severity: 'error',
-          summary: 'Required field',
-          detail: 'Company Name is required for Company customers',
+          summary: this.translate.instant('required_field'),
+          detail: this.translate.instant('customer_company_name_required'),
           life: 3000
         });
         return;
@@ -405,23 +399,10 @@ export class CustomersComponent implements OnInit {
     // Process save or update
     try {
       if (this.customer.customerId) {
-        const success = this.updateCustomer(this.customer.customerId, this.customer);
-        this.messageService.add({
-          severity: success ? 'success' : 'error',
-          summary: success ? 'Successful' : 'Error',
-          detail: success ? 'Customer Updated' : 'Error while updating customer',
-          life: 3000
-        });
+        this.updateCustomer(this.customer.customerId, this.customer);
       } else {
-        const success = this.addCustomer(this.customer);
-        this.messageService.add({
-          severity: success ? 'success' : 'error',
-          summary: success ? 'Successful' : 'Error',
-          detail: success ? 'Customer Added' : 'Error while adding customer',
-          life: 3000
-        });
+        this.addCustomer(this.customer);
       }
-
       this.customers = [...this.customers];
       this.customerDialog = false;
       if (!this.displayHistoryDialog) {
@@ -430,8 +411,8 @@ export class CustomersComponent implements OnInit {
     } catch (error) {
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
-        detail: 'An unexpected error occurred',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('unexpected_error_occurred'),
         life: 3000
       });
       console.error('Error saving customer:', error);
@@ -451,11 +432,15 @@ export class CustomersComponent implements OnInit {
           this.customers.forEach((customer: any) => (customer.creationDate = new Date(<Date>customer.creationDate)));
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customers', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_customers'),
+            life: 3000
+          });
           console.log(err)
         },
         complete: () => {
-          // Set loading to false after data is fully loaded
           this.isLoading = false;
         }
       })
@@ -466,12 +451,23 @@ export class CustomersComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllCustomers();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('customer_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while deleting customer', life: 3000 })
-          console.log(err)
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_customer'),
+            life: 3000
+          });
+          console.log(err);
         },
-      })
+      });
   }
 
 
@@ -480,14 +476,25 @@ export class CustomersComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllCustomers();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('customer_updated'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating customer', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_customer'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
-      })
+      });
   }
 
   async addCustomer(data: any): Promise<any> {
@@ -495,14 +502,25 @@ export class CustomersComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllCustomers();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('customer_added'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new customer', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_customer'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
-      })
+      });
   }
 
   onChangeCountry() {
@@ -536,10 +554,14 @@ export class CustomersComponent implements OnInit {
       this.customerOrders = response as Order[];
       console.log(this.customerOrders);
     } catch (err) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customer orders', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_customer_orders'),
+        life: 3000
+      });
       console.error(err);
     }
-
   }
 
   async getCustomerReturns(id: any) {
@@ -548,10 +570,14 @@ export class CustomersComponent implements OnInit {
       this.customerReturns = response as Order[];
       console.log(this.customerReturns);
     } catch (err) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customer returns', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_customer_returns'),
+        life: 3000
+      });
       console.error(err);
     }
-
   }
 
   async getCustomerPayments(id: any) {
@@ -560,10 +586,14 @@ export class CustomersComponent implements OnInit {
       this.customerPayments = response as Order[];
       console.log(this.customerPayments);
     } catch (err) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customer payments', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_customer_payments'),
+        life: 3000
+      });
       console.error(err);
     }
-
   }
 
   exportPdf() {
@@ -685,26 +715,6 @@ export class CustomersComponent implements OnInit {
     // Compare current period with previous period
     // Implementation depends on your business logic
     return 0;
-  }
-
-  getOrderStatusSeverity(status: string): string {
-    switch (status) {
-      case 'COMPLETED': return 'success';
-      case 'PROCESSING': return 'info';
-      case 'PENDING': return 'warning';
-      case 'CANCELLED': return 'danger';
-      default: return '';
-    }
-  }
-
-  getPaymentStatusSeverity(status: string): string {
-    switch (status) {
-      case 'PAID': return 'success';
-      case 'PARTIAL': return 'info';
-      case 'PENDING': return 'warning';
-      case 'OVERDUE': return 'danger';
-      default: return '';
-    }
   }
 
   getPaymentMethodIcon(method: string): string {

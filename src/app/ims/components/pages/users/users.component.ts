@@ -209,7 +209,13 @@ export class UsersComponent implements OnInit {
           console.log(this.warehouses);
         },
         error: (err: any) => {
-          console.log(err)
+          console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_warehouses'),
+            life: 3000
+          });
         }
       })
   }
@@ -222,7 +228,13 @@ export class UsersComponent implements OnInit {
           console.log(this.shops);
         },
         error: (err: any) => {
-          console.log(err)
+          console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_shops'),
+            life: 3000
+          });
         }
       })
   }
@@ -265,6 +277,12 @@ export class UsersComponent implements OnInit {
 
     } catch (error) {
         console.error(error);
+        this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_loading_user_data'),
+            life: 3000
+        });
     }
 
     this.onGetAllRoles();
@@ -292,12 +310,10 @@ export class UsersComponent implements OnInit {
     if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.deleteUsersDialog = false;
       await this.selectedUsers.forEach(selectedUser => this.onDeleteUser(selectedUser.id));
-      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Users Deleted', life: 3000 });
       this.selectedUsers = [];
     } else {
       this.deleteRolesDialog = false;
       await this.selectedRoles.forEach(selectedRole => this.onDeleteRole(selectedRole.name));
-      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Roles Deleted', life: 3000 });
       this.selectedRoles = [];
     }
   }
@@ -306,13 +322,11 @@ export class UsersComponent implements OnInit {
     if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.deleteUserDialog = false;
       await this.onDeleteUser(this.user.id);
-      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
       this.user = {};
     } else {
       console.log(this.activeItem)
       this.deleteRoleDialog = false;
       await this.onDeleteRole(this.appRole.name);
-      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Role Deleted', life: 3000 });
       this.appRole = {};
     }
 
@@ -372,11 +386,23 @@ export class UsersComponent implements OnInit {
             observer.next();
           } else {
             this.loading = false; // Set loading flag to false if userRoles is not an array
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_getting_user_roles'),
+              life: 3000
+            });
             observer.error("User roles data is not in the expected format.");
           }
           observer.complete(); // Emit completion signal
         }, error => {
           this.loading = false; // Set loading flag to false if there's an error
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_user_roles'),
+            life: 3000
+          });
           observer.error("Error fetching user roles: " + error);
           observer.complete(); // Emit completion signal
         });
@@ -428,18 +454,23 @@ export class UsersComponent implements OnInit {
     this.submitted=true;
     if (this.user && this.user.username && this.user.email && this.user.lastName && this.user.firstName && this.userCredential) {
       try {
-        this.onGetAllRoles()
-        await this.initializePickList().toPromise();
-        console.log(this.targetRoles);
-        this.isUserInfoValid = true;
+      this.onGetAllRoles()
+      await this.initializePickList().toPromise();
+      console.log(this.targetRoles);
+      this.isUserInfoValid = true;
       } catch (error) {
-        console.error('Error initializing picklist:', error);
-        this.isUserInfoValid = false;
-        alert("Error initializing picklist. Please try again.");
+      console.error('Error initializing picklist:', error);
+      this.isUserInfoValid = false;
+      alert(this.translate.instant('error_initializing_picklist') || "Error initializing picklist. Please try again.");
       }
     } else {
       this.isUserInfoValid = false;
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill up all the required user data.', life: 3000 });
+      this.messageService.add({ 
+      severity: 'error', 
+      summary: this.translate.instant('error'), 
+      detail: this.translate.instant('please_fill_required_user_data'), 
+      life: 3000 
+      });
       return;
     }
   }
@@ -462,12 +493,12 @@ export class UsersComponent implements OnInit {
 
         console.log(this.user)
         console.log(this.userRoles)
-        this.saveUserInfoAndRoleMapping(this.user, this.targetRoles) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating user', life: 3000 })
+        this.saveUserInfoAndRoleMapping(this.user, this.targetRoles)
       } else {
         this.user.credentials = [];
         console.log(this.userCredential)
         console.log(this.user.credentials)
-        const response = this.saveUserInfoAndRoleMapping(this.user, this.targetRoles) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User created', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding user', life: 3000 }))
+        const response = this.saveUserInfoAndRoleMapping(this.user, this.targetRoles)
         console.log(this.user.credentials)
       }
       this.users = [...this.users];
@@ -489,9 +520,9 @@ export class UsersComponent implements OnInit {
     if (this.appRole.name.trim()) {
       if (this.appRole.id) {
         console.log(this.appRole)
-        this.updateRole(this.appRole.name, this.appRole) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Role Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating role', life: 3000 })
+        this.updateRole(this.appRole.name, this.appRole)
       } else {
-        this.addRole(this.appRole) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Role created', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding role', life: 3000 }))
+        this.addRole(this.appRole)
       }
       this.appRoles = [...this.appRoles];
 
@@ -520,37 +551,9 @@ export class UsersComponent implements OnInit {
 
 
 
-
-
-  /////////////////
-
-
   clear(table: Table) {
     table.clear();
   }
-
-  getSeverity(status: any) {
-    switch (status) {
-      case false:
-        return 'danger';
-
-      case true:
-        return 'success';
-
-      // case 'new':
-      //     return 'info';
-
-      // case 'negotiation':
-      //     return 'warning';
-
-      // case 'renewal':
-      //     return null;
-
-      default:
-        return '';
-    }
-  }
-
 
 
   onGetAllRoles() {
@@ -563,6 +566,12 @@ export class UsersComponent implements OnInit {
         },
         error: (err: any) => {
           console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_roles'),
+            life: 3000
+          });
         }
       });
   }
@@ -577,9 +586,16 @@ export class UsersComponent implements OnInit {
         user.creationDate = new Date(<Date>user.creationDate);
         user.roles = await this.getUserRoles(user.id);
       });
-      this.isLoading=false;
+      this.isLoading = false;
     } catch (error) {
       console.log(error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_users'),
+        life: 3000
+      });
+      this.isLoading = false;
     }
   }
 
@@ -593,25 +609,26 @@ export class UsersComponent implements OnInit {
         return roles;
       } else {
         console.error(`Invalid roles response for user with ID ${userId}:`, rolesResponse);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_user_roles'),
+          life: 3000
+        });
         return [];
       }
     } catch (error) {
       console.error(`Error fetching roles for user with ID ${userId}:`, error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_user_roles'),
+        life: 3000
+      });
       return [];
     }
   }
-  // getUserRoles(userId) {
-  //   this.authService.getUserRoles(userId)
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         console.log(response);
-  //         return response;
-  //       },
-  //       error: (err: any) => {
-  //         console.log(err)
-  //       }
-  //     })
-  // }
+
 
   async onDeleteUser(id: any) {
     await this.authService.deleteUser(id)
@@ -619,11 +636,23 @@ export class UsersComponent implements OnInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllUsers();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('user_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.log(err)
+        error: (err: any) => {
+          console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_user'),
+            life: 3000
+          });
         },
-      })
+      });
   }
 
   loadingUsers: boolean = false;
@@ -694,9 +723,21 @@ export class UsersComponent implements OnInit {
       const response = await this.authService.updateUser(id, user).toPromise();
       console.log(response);
       await this.onGetAllUsers();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('user_updated'),
+        life: 3000
+      });
       return true;
     } catch (error) {
       console.log(error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_user'),
+        life: 3000
+      });
       return false;
     }
   }
@@ -709,9 +750,22 @@ export class UsersComponent implements OnInit {
       // Wait for the list of users to be updated
       await this.onGetAllUsers();
 
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('user_created'),
+        life: 3000
+      });
+
       return true;
     } catch (error) {
       console.log(error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_creating_user'),
+        life: 3000
+      });
       return false;
     }
   }
@@ -720,10 +774,21 @@ export class UsersComponent implements OnInit {
     try {
       const response = await this.authService.saveUserRolesMapping(id, role).toPromise();
       console.log(response);
-      // this.onGetAllUsers();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('user_roles_updated'),
+        life: 3000
+      });
       return true;
     } catch (error) {
       console.log(error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_user_roles'),
+        life: 3000
+      });
       return false;
     }
   }
@@ -732,42 +797,25 @@ export class UsersComponent implements OnInit {
     try {
       const response = await this.authService.deleteUserRolesMapping(id, role).toPromise();
       console.log(response);
-      // this.onGetAllUsers();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('user_roles_deleted'),
+        life: 3000
+      });
       return true;
     } catch (error) {
       console.log(error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_deleting_user_roles'),
+        life: 3000
+      });
       return false;
     }
   }
-  // async updateUser(id: any, user: any): Promise<any> {
-  //   console.log(user)
-  //   await this.authService.updateUser(id, user)
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         console.log(response);
-  //         this.onGetAllUsers();
-  //         return true;
-  //       },
-  //       error(err: any) {
-  //         console.log(err);
-  //         return false;
-  //       },
-  //     })
-  // }
-  // async addUser(data: any): Promise<any> {
-  //   await this.authService.saveUser(data)
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         console.log(response);
-  //         this.onGetAllUsers();
-  //         return true;
-  //       },
-  //       error(err: any) {
-  //         console.log(err);
-  //         return false;
-  //       },
-  //     })
-  // }
+
 
   async updateRole(id: any, user: any): Promise<any> {
     console.log(user)
@@ -776,10 +824,22 @@ export class UsersComponent implements OnInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllRoles();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('role_updated'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
+        error: (err: any) => {
           console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_role'),
+            life: 3000
+          });
           return false;
         },
       })
@@ -790,10 +850,22 @@ export class UsersComponent implements OnInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllRoles();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('role_created'),
+            life: 3000
+          });
           return true;
         },
         error(err: any) {
           console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_creating_role'),
+            life: 3000
+          });
           return false;
         },
       })
@@ -805,17 +877,24 @@ export class UsersComponent implements OnInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllRoles();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('role_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.log(err)
+        error: (err: any) => {
+          console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_role'),
+            life: 3000
+          });
         },
-      })
+      });
   }
-
-  //   clear(table: Table) {
-  //     table.clear();
-  // }
-
 
 
 
@@ -823,46 +902,6 @@ export class UsersComponent implements OnInit {
     throw new Error('Method not implemented.');
   }
 
-
-
-  // createId(): string {
-  //   let id = '';
-  //   var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  //   for (var i = 0; i < 5; i++) {
-  //     id += chars.charAt(Math.floor(Math.random() * chars.length));
-  //   }
-  //   return id;
-  // }
-
-
-
-
-
-  //   deleteUser(user: User) {
-  //     this.confirmationService.confirm({
-  //       message: 'Are you sure you want to delete ' + user.userName + '?',
-  //       header: 'Confirm',
-  //       icon: 'pi pi-exclamation-triangle',
-  //       accept: () => {
-  //           this.users = this.users.filter((val: any) => val.id !== user.id);
-  //           this.user = {};
-  //           this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
-  //       }
-  //   });
-  //   }
-
-  //   deleteSelectedUsers() {
-  //     this.confirmationService.confirm({
-  //       message: 'Are you sure you want to delete the selected user?',
-  //       header: 'Confirm',
-  //       icon: 'pi pi-exclamation-triangle',
-  //       accept: () => {
-  //           this.users = this.users.filter((val: any) => !this.selectedUsers?.includes(val));
-  //           this.selectedUsers = null;
-  //           this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Users Deleted', life: 3000 });
-  //       }
-  //   });
-  //   }
 
   exportPdf() {
     if (this.activeItem.icon == 'pi pi-fw pi-user')

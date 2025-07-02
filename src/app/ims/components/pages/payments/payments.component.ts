@@ -58,10 +58,15 @@ export class PaymentsComponent implements OnInit {
   isSaving: boolean = false;
   paymentMethodOptions: any[] = [];
 
+  showCashRegisterWarning = false;
+
+  maxPaymentDate: Date;
+
   canAddPayment: boolean = false;
   canEditPayment: boolean = false;
   canDeletePayment: boolean = false;
   isLoading: boolean = true;
+  canBeDeleted: boolean
   constructor(private messageService: MessageService,
     private paymentService: PaymentService,
     private customerService: CustomerService,
@@ -75,6 +80,8 @@ export class PaymentsComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    this.maxPaymentDate = new Date(); // Today's date
+    this.maxPaymentDate.setHours(23, 59, 59, 999); // Include entire current day
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -85,8 +92,7 @@ export class PaymentsComponent implements OnInit {
       this.translate.use(lang); // Use the translate service to update language
     });
     this.onGetAllPayments();
-    // this.onGetCurrency(),
-      this.onGetAllCustomersWithUnpaidOrders(),
+    this.onGetAllCustomersWithUnpaidOrders(),
       await this.checkPermissions();
     this.cols = [
       { field: 'paymentId', header: this.translateService.instant('ID') },
@@ -97,14 +103,14 @@ export class PaymentsComponent implements OnInit {
       { field: 'city', header: this.translateService.instant('payment_city') },
       { field: 'address', header: this.translateService.instant('payment_address') },
     ];
-    
+
     this.paymentMethodOptions = [
-    { label: this.translate.instant('payment_method_cash'), value: 'Cash', icon: 'pi pi-money-bill' },
-    { label: this.translate.instant('payment_method_card'), value: 'Card', icon: 'pi pi-credit-card' },
-    { label: this.translate.instant('payment_method_check'), value: 'Check', icon: 'pi pi-file-edit' },
-    { label: this.translate.instant('payment_method_transfer'), value: 'Transfer', icon: 'pi pi-bank' },
-    { label: this.translate.instant('payment_method_boe'), value: 'BOE', icon: 'pi pi-file' }
-];
+      { label: this.translate.instant('payment_method_cash'), value: 'Cash', icon: 'pi pi-money-bill' },
+      { label: this.translate.instant('payment_method_card'), value: 'Card', icon: 'pi pi-credit-card' },
+      { label: this.translate.instant('payment_method_check'), value: 'Check', icon: 'pi pi-file-edit' },
+      { label: this.translate.instant('payment_method_transfer'), value: 'Transfer', icon: 'pi pi-bank' },
+      { label: this.translate.instant('payment_method_boe'), value: 'BOE', icon: 'pi pi-file' }
+    ];
 
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
@@ -150,14 +156,12 @@ export class PaymentsComponent implements OnInit {
   confirmDeleteSelected() {
     this.deletePaymentsDialog = false;
     this.selectedPayments.forEach(selectedPayment => this.onDeletePayment(selectedPayment.paymentId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Payments Deleted', life: 3000 });
     this.selectedPayments = [];
   }
 
   async confirmDelete() {
     this.deletePaymentDialog = false;
     await this.onDeletePayment(this.payment.paymentId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Payment Deleted', life: 3000 });
     this.payment = {};
   }
 
@@ -175,142 +179,26 @@ export class PaymentsComponent implements OnInit {
     this.paymentDialog = true;
   }
 
-  private formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  checkCashRegisterStatus() {
+    if (!this.payment.paymentDate || this.payment.paymentMethod !== 'Cash') {
+      this.showCashRegisterWarning = false;
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const paymentDate = new Date(this.payment.paymentDate);
+    paymentDate.setHours(0, 0, 0, 0);
+
+    this.showCashRegisterWarning = paymentDate < today;
   }
 
-  //   async savePaymentOLD() {
-  //     this.submitted = true;
-
-  //     // Validate required fields
-  //     if (!this.payment.order || !this.payment.amount || !this.payment.paymentMethod || !this.payment.paymentDate) {
-  //         this.messageService.add({
-  //             severity: 'error',
-  //             summary: this.translate.instant('error'),
-  //             detail: this.translate.instant('required_fields_missing')
-  //         });
-  //         return;
-  //     }
-
-  //     // Validate amount (changed <= to < for 0.01)
-  //     if (this.payment.amount < 0.01 || this.payment.amount > this.maxPaymentAmount) {
-  //         this.messageService.add({
-  //             severity: 'error',
-  //             summary: this.translate.instant('error'),
-  //             detail: this.translate.instant('payment_amount_invalid', {
-  //                 max: this.maxPaymentAmount.toFixed(2)
-  //             })
-  //         });
-  //         return;
-  //     }
-
-  //     // Validate payment method specific fields
-  //     if (this.payment.paymentMethod === 'Check' && !this.payment.checkNumber) {
-  //         this.messageService.add({
-  //             severity: 'error',
-  //             summary: this.translate.instant('error'),
-  //             detail: this.translate.instant('check_number_required')
-  //         });
-  //         return;
-  //     }
-
-  //       if (this.payment.paymentDate) {
-  //         // Ensure `dateOfExpense` is a Date object
-  //         const date =
-  //           typeof this.payment.paymentDate === "string"
-  //             ? new Date(this.payment.paymentDate)
-  //             : this.payment.paymentDate;
-
-  //         // Format the date into YYYY-MM-DD
-  //         const year = date.getFullYear();
-  //         const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  //         const day = String(date.getDate()).padStart(2, "0");
-
-  //         this.payment.paymentDate = `${year}-${month}-${day}`; // Convert to string format
-  //       }
-
-  //       if (this.payment.checkExpirationDate) {
-  //         // Ensure `dateOfExpense` is a Date object
-  //         const date =
-  //           typeof this.payment.checkExpirationDate === "string"
-  //             ? new Date(this.payment.checkExpirationDate)
-  //             : this.payment.checkExpirationDate;
-
-  //         // Format the date into YYYY-MM-DD
-  //         const year = date.getFullYear();
-  //         const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  //         const day = String(date.getDate()).padStart(2, "0");
-
-  //         this.payment.checkExpirationDate = `${year}-${month}-${day}`; // Convert to string format
-  //       }
-
-  //       if (this.payment.boeExpirationDate) {
-  //         // Ensure `dateOfExpense` is a Date object
-  //         const date =
-  //           typeof this.payment.boeExpirationDate === "string"
-  //             ? new Date(this.payment.boeExpirationDate)
-  //             : this.payment.boeExpirationDate;
-
-  //         // Format the date into YYYY-MM-DD
-  //         const year = date.getFullYear();
-  //         const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  //         const day = String(date.getDate()).padStart(2, "0");
-
-  //         this.payment.boeExpirationDate = `${year}-${month}-${day}`; // Convert to string format
-  //       }
-
-  //     try {
-  //         // Verify payment won't exceed order total (server-side validation)
-  //         const order = this.payment.order;
-  //         const otherPaymentsTotal = order.payments
-  //             .filter(p => p.paymentId !== this.payment.paymentId)
-  //             .reduce((sum, p) => sum + p.amount, 0);
-
-  //         if (otherPaymentsTotal + this.payment.amount > order.totalAmount) {
-  //             throw new Error(this.translate.instant('payment_exceeds_order_total'));
-  //         }
-
-  //         let success = false;
-  //         let action: string;
-
-  //         if (this.payment.paymentId) {
-  //           console.log('Attempting to update payment ID:', this.payment.paymentId);
-  //           success = await this.updatePayment(this.payment.paymentId, this.payment);
-  //           action = 'updated';
-  //         } else {
-  //             this.payment.transactionId = this.generateTransactionId();
-  //             success = await this.addPayment(this.payment);
-  //             action = 'created';
-  //         }
-
-  //         if (success) {
-  //             this.messageService.add({
-  //                 severity: 'success',
-  //                 summary: this.translate.instant('success'),
-  //                 detail: this.translate.instant(`payment_${action}_success`),
-  //                 life: 3000
-  //             });
-
-  //             this.payments = [...this.payments];
-  //             this.paymentDialog = false;
-  //             this.payment = {};
-  //             this.onGetAllPayments(); // Refresh payments list
-  //         } else {
-  //             throw new Error(this.translate.instant(`payment_${action}_error`));
-  //         }
-  //     } catch (error) {
-  //         this.messageService.add({
-  //             severity: 'error',
-  //             summary: this.translate.instant('error'),
-  //             detail: error.message || this.translate.instant('save_error'),
-  //             life: 3000
-  //         });
-  //         console.error('Payment save error:', error);
-  //     }
-  // }
+  isPaymentNotSettled(payment: any): boolean {
+    const today = new Date();
+    const paymentDate = new Date(payment.paymentDate);
+    return paymentDate.toDateString() === today.toDateString();
+  }
 
   async savePayment() {
     this.submitted = true;
@@ -320,7 +208,7 @@ export class PaymentsComponent implements OnInit {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('required_fields_missing')
+        detail: this.translate.instant('please_fill_required_fields')
       });
       return;
     }
@@ -336,20 +224,52 @@ export class PaymentsComponent implements OnInit {
       return;
     }
 
+    if (this.showCashRegisterWarning && this.payment.paymentMethod === 'Cash') {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('note'),
+        detail: this.translate.instant('cash_register_closed_warning'),
+        life: 5000
+      });
+    }
+
+    if (
+      this.payment.paymentMethod === 'Check' &&
+      (!this.payment.checkNumber || !this.payment.checkExpirationDate)
+    ) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('check_fields_required')
+      });
+      return;
+    }
+
+    if (
+      this.payment.paymentMethod === 'BOE' &&
+      (!this.payment.boeNumber || !this.payment.boeExpirationDate)
+    ) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('boe_fields_required')
+      });
+      return;
+    }
 
     if (this.payment.order) {
-    const order = await this.loadPaymentsForOrder(this.payment.order.orderId);
-    console.log('Loaded order:', order);
+      const order = await this.loadPaymentsForOrder(this.payment.order.orderId);
+      console.log('Loaded order:', order);
 
-    const payments = order?.payments || []; // safely fallback to empty array
+      const payments = order?.payments || []; // safely fallback to empty array
 
-    const otherPaymentsTotal = payments
-      .filter(p => p.paymentId !== this.payment.paymentId)
-      .reduce((sum, p) => sum + p.amount, 0);
+      const otherPaymentsTotal = payments
+        .filter(p => p.paymentId !== this.payment.paymentId)
+        .reduce((sum, p) => sum + p.amount, 0);
 
-    if (otherPaymentsTotal + this.payment.amount > order.totalAmount) {
-      throw new Error(this.translate.instant('payment_exceeds_order_total'));
-    }
+      if (otherPaymentsTotal + this.payment.amount > order.totalAmount) {
+        throw new Error(this.translate.instant('payment_exceeds_order_total'));
+      }
 
 
       if (this.payment.paymentDate) {
@@ -400,14 +320,17 @@ export class PaymentsComponent implements OnInit {
       try {
         if (this.payment.paymentId) {
           await this.updatePayment(this.payment.paymentId, this.payment);
-          this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Payment Updated', life: 3000 });
         } else {
           await this.addPayment(this.payment);
-          this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Payment Added', life: 3000 });
         }
       } catch (error) {
         console.error(error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error occurred', life: 3000 });
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_occurred'),
+          life: 3000
+        });
       } finally {
         this.isSaving = false;
       }
@@ -420,8 +343,7 @@ export class PaymentsComponent implements OnInit {
 
   showPaymentHistory() {
     // Implement payment history view
-}
-
+  }
 
   async onOrderSelect(order: Order) {
     if (!order) {
@@ -462,28 +384,6 @@ export class PaymentsComponent implements OnInit {
     table.clear();
   }
 
-  getSeverity(status: any) {
-    switch (status) {
-      case false:
-        return 'danger';
-
-      case true:
-        return 'success';
-
-      case 'new':
-        return 'info';
-
-      case 'negotiation':
-        return 'warning';
-
-      case 'renewal':
-        return null;
-
-      default:
-        return '';
-    }
-  }
-
   async onGetAllPayments() {
     await this.paymentService.getPayments()
       .subscribe({
@@ -501,7 +401,13 @@ export class PaymentsComponent implements OnInit {
           });
         },
         error: (err: any) => {
-          console.error(err)
+          console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_payments'),
+            life: 3000
+          });
         },
         complete: () => {
           this.isLoading = false;
@@ -520,8 +426,8 @@ export class PaymentsComponent implements OnInit {
         console.error('Error loading payments for order:', error);
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Error loading payments for order',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_loading_payments_for_order'),
           life: 3000
         });
         throw error;
@@ -533,11 +439,23 @@ export class PaymentsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllPayments();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('payment_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.error(err)
+        error: (err: any) => {
+          console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_deleting_payment'),
+            life: 3000
+          });
         },
-      })
+      });
   }
 
 
@@ -548,31 +466,84 @@ export class PaymentsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllPayments();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('payment_updated'),
+            life: 3000
+          });
           console.log(response);
           return true;
         },
-        error(err: any) {
+        error: (err: any) => {
           console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_updating_payment'),
+            life: 3000
+          });
           return false;
         },
       })
   }
 
-  addPayment(data: any): Promise<boolean> {
-    const { order, amount, paymentMethod } = data;
-    return new Promise((resolve) => {
-      this.paymentService.savePayment(order.orderId, amount, paymentMethod).subscribe({
-        next: () => {
-          this.onGetAllPayments();
-          resolve(true);
-        },
-        error: (err: any) => {
-          console.error('Error adding payment:', err);
-          resolve(false);
-        }
-      });
+  // addPayment(data: any): Promise<boolean> {
+  //   const { order, amount, paymentMethod, paymentDate } = data;
+  //   const dateObj = paymentDate instanceof Date ? paymentDate : new Date(paymentDate);
+
+  //   return new Promise((resolve) => {
+  //     this.paymentService.savePayment(order.orderId, amount, paymentMethod, dateObj).subscribe({
+  //       next: () => {
+  //         this.onGetAllPayments();
+  //         this.messageService.add({
+  //           severity: 'success',
+  //           summary: this.translate.instant('successful'),
+  //           detail: this.translate.instant('payment_added'),
+  //           life: 3000
+  //         });
+  //         resolve(true);
+  //       },
+  //       error: (err: any) => {
+  //         console.error('Error adding payment:', err);
+  //         this.messageService.add({
+  //           severity: 'error',
+  //           summary: this.translate.instant('error'),
+  //           detail: this.translate.instant('error_adding_payment'),
+  //           life: 3000
+  //         });
+  //         resolve(false);
+  //       }
+  //     });
+  //   });
+  // }
+
+  addPayment(payment: any): Promise<boolean> {
+  return new Promise((resolve) => {
+    this.paymentService.savePayment(payment).subscribe({
+      next: () => {
+        this.onGetAllPayments();
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('payment_added'),
+          life: 3000
+        });
+        resolve(true);
+      },
+      error: (err: any) => {
+        console.error('Error adding payment:', err);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_adding_payment'),
+          life: 3000
+        });
+        resolve(false);
+      }
     });
-  }
+  });
+}
 
   async onGetAllCustomersWithUnpaidOrders() {
     await this.customerService.getCustomersWithUnpaidOrders()
@@ -586,7 +557,13 @@ export class PaymentsComponent implements OnInit {
           console.log(this.customers);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customers', life: 3000 })
+          console.error('Error fetching customers with unpaid orders', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_customers'),
+            life: 3000
+          });
         }
       })
   }
@@ -602,6 +579,12 @@ export class PaymentsComponent implements OnInit {
         error: (err) => {
           console.error('Error fetching unpaid orders', err);
           this.unpaidOrders = [];
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_fetching_unpaid_orders'),
+            life: 3000
+          });
         }
       });
     } else {
@@ -633,19 +616,6 @@ export class PaymentsComponent implements OnInit {
     this.reportingService.exportExcel(modifiedPayments, 'payments');
   }
 
-  // async onGetCurrency() {
-  //   await (await this.configService.getConfigurationValue('currency'))
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.currency = response;
-  //         console.log(this.currency)
-  //       },
-  //       error: (err: any) => {
-  //         console.log(err)
-  //       }
-  //     })
-  // }
-
   getCustomerDisplayName(customer: any): string {
     if (!customer) return 'N/A';
 
@@ -658,7 +628,7 @@ export class PaymentsComponent implements OnInit {
       .join(' ') || 'Unnamed Customer';
   }
 
-    getPaymentStatusSeverity(status: string): string {
+  getPaymentStatusSeverity(status: string): string {
     switch (status) {
       case 'PAID': return 'success';
       case 'PARTIAL': return 'info';
@@ -678,20 +648,20 @@ export class PaymentsComponent implements OnInit {
     }
   }
 
-getPaymentMethodSeverity(method: string): string {
+  getPaymentMethodSeverity(method: string): string {
     switch (method?.toLowerCase()) {
-        case 'cash':
-            return 'success';
-        case 'credit':
-            return 'warning';
-        case 'check':
-            return 'help';
-        case 'transfer':
-            return 'info';
-        default:
-            return 'danger';
+      case 'cash':
+        return 'success';
+      case 'credit':
+        return 'warning';
+      case 'check':
+        return 'help';
+      case 'transfer':
+        return 'info';
+      default:
+        return 'danger';
     }
-}
+  }
 
 
 }

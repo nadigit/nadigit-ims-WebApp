@@ -1,7 +1,28 @@
 <div class="grid">
     <div class="col-12">
         <div class="card px-6 py-6">
+            <h5>{{'payments_menu_title' | translate}}</h5>
             <p-toast></p-toast>
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'payments_page_description' | translate }}
+                    <!-- <span *ngIf="customers?.length" class="font-semibold">
+                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
+                    </span> -->
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddPayment" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditPayment" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeletePayment" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                    <!-- <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag> -->
+                </div>
+            </div>
+
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
@@ -84,10 +105,15 @@
                 </ng-template>
 
                 <ng-template pTemplate="body" let-payment>
-                    <tr [pSelectableRow]="payment" (click)="canEditPayment ? editPayment(payment) : null">
-                        <td><p-tableCheckbox [value]="payment" (click)="$event.stopPropagation()"></p-tableCheckbox>
+                    <tr [pSelectableRow]="payment" (click)="canEditPayment && isPaymentNotSettled(payment) ? editPayment(payment) : null">
+                        <td><p-tableCheckbox [value]="payment" [disabled]="!isPaymentNotSettled(payment)" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
-                        <td><p-chip label="{{ payment.transactionId ?? 'N/A' }}" /></td>
+                        <td>
+                            <p-chip label="{{ payment.transactionId ?? 'N/A' }}" />
+                            <i *ngIf="!isPaymentNotSettled(payment)" class="pi pi-lock text-red-500 ml-2"
+                                pTooltip="{{ 'payment_locked' | translate }}">
+                            </i>
+                        </td>
                         <td>#{{ payment.order?.orderId ?? 'N/A' }}</td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'payment_customer' | translate }}</span>
@@ -109,14 +135,16 @@
                         <td>{{ payment.paymentDate | date: 'dd/MM/yyyy' }}</td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple *ngIf="canEditPayment" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2"
+                                <button pButton pRipple *ngIf="canEditPayment && isPaymentNotSettled(payment)" 
+                                    icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-info mr-2"
                                     pTooltip="{{ 'update_payment' | translate }}"
                                     (click)="editPayment(payment); $event.stopPropagation()"></button>
-                                <button pButton pRipple *ngIf="canDeletePayment" icon="pi pi-trash"
-                                    class="p-button-rounded p-button-warning"
+                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-danger"
+                                    *ngIf="canDeletePayment && isPaymentNotSettled(payment)"
                                     (click)="deletePayment(payment); $event.stopPropagation()"
-                                    pTooltip="{{ 'delete_payment' | translate }}"></button>
+                                    pTooltip="{{'delete_payment' | translate}}">
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -160,6 +188,7 @@
                     <p-dropdown [(ngModel)]="payment.customer" name="customer" inputId="customer" id="customer"
                         ngDefaultControl [optionLabel]="getCustomerDisplayName" [options]="customers" required autofocus
                         placeholder="{{ 'select_customer_option' | translate }}" [filter]="true"
+                        [disabled]="payment.paymentId"
                         filterBy="firstName,lastName,companyName" (onChange)="onCustomerSelect($event.value)"
                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.customer}">
 
@@ -193,6 +222,7 @@
                         optionLabel="orderId" [options]="unpaidOrders" required autofocus
                         placeholder="{{ 'select_order_option' | translate }}" [filter]="true"
                         (onChange)="onOrderSelect($event.value)" filterBy="orderId,totalAmount"
+                        [disabled]="payment.paymentId"
                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.order}">
                         <ng-template pTemplate="selectedItem">
                             <span *ngIf="payment && payment.order" [class]="'product-badge'">
@@ -279,8 +309,7 @@
                         </div>
                     </div>
 
-                    <div class="field">
-
+                    <div>
                         <!-- Input for cheque number, displayed only if "Check" is selected -->
                         <div *ngIf="payment.paymentMethod === 'Check'" class="field">
                             <label for="checkNumber">{{ 'check_number' | translate }}</label>
@@ -291,7 +320,7 @@
                             <label for="checkExpirationDate">{{ 'expiration_date' | translate }}</label>
                             <p-calendar [(ngModel)]="payment.checkExpirationDate" [showIcon]="true"
                                 inputId="checkExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
-                                placeholder="{{ 'expiration_date' | translate }}" />
+                                placeholder="{{ 'expiration_date' | translate }}" appendTo="body"/>
                         </div>
                         <div *ngIf="payment.paymentMethod === 'BOE'" class="field">
                             <label for="boeNumber">{{ 'boe_number' | translate }}</label>
@@ -302,21 +331,39 @@
                             <label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
                             <p-calendar [(ngModel)]="payment.boeExpirationDate" [showIcon]="true"
                                 inputId="boeExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
-                                placeholder="{{ 'expiration_date' | translate }}" />
+                                placeholder="{{ 'expiration_date' | translate }}"  appendTo="body"/>
                         </div>
                     </div>
                 </div>
 
                 <!-- Payment Date -->
-                <div class="field">
+                <!-- <div class="field">
                     <label for="paymentDate">{{ 'payment_date' | translate }} <span
                             class="required-asterisk">*</span></label>
                     <p-calendar [(ngModel)]="payment.paymentDate" ngDefaultControl name="paymentDate"
                         inputId="paymentDate" dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
-                        placeholder="{{ 'payment_date' | translate }}" required autofocus
+                        placeholder="{{ 'payment_date' | translate }}" required autofocus appendTo="body"
                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.paymentDate}" />
                     <small class="ng-dirty ng-invalid" *ngIf="submitted && !payment.paymentDate">{{ 'payment_date' |
                         translate }} {{'is_required_label' | translate}}</small>
+                </div> -->
+
+                <div class="field">
+                    <label for="paymentDate">{{ 'payment_date' | translate }}</label>
+                    <p-calendar [(ngModel)]="payment.paymentDate" ngDefaultControl name="paymentDate"
+                        inputId="paymentDate" dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
+                        placeholder="{{ 'payment_date' | translate }}" required autofocus appendTo="body"
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.paymentDate}" 
+                        (onSelect)="checkCashRegisterStatus()" [maxDate]="maxPaymentDate"></p-calendar>
+
+                    <div *ngIf="showCashRegisterWarning" class="p-message p-message-warn mt-2">
+                        <div class="p-message-wrapper">
+                            <span class="p-message-icon pi pi-exclamation-triangle"></span>
+                            <div class="p-message-text">
+                                {{ 'cash_register_closed_warning' | translate }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Notes -->
@@ -346,7 +393,7 @@
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span *ngIf="payment">{{'delete_confirmation_msg_with_param' | translate}}
-                    <b>{{payment.name}}</b>?</span>
+                    <b>{{payment.transactionId}}</b>?</span>
             </div>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"

@@ -23,7 +23,7 @@ import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { PickListModule } from 'primeng/picklist';
 import { SelectButtonModule } from 'primeng/selectbutton';
-
+import { TagModule } from 'primeng/tag';
 
 @NgModule({
     imports: [
@@ -48,7 +48,8 @@ import { SelectButtonModule } from 'primeng/selectbutton';
         CalendarModule,
         TooltipModule,
         PickListModule,
-        SelectButtonModule
+        SelectButtonModule,
+        TagModule
     ],
     declarations: [PurchasesComponent],
     providers: [ReportingService],

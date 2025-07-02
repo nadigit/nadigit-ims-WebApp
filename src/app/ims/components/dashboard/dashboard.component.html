@@ -179,7 +179,7 @@
 
                         <div class="p-col-12">
                             <p-card header="{{'profit_analysis_dashboard' | translate}} -  {{profitData.shopName}}"
-                                subheader="{{(profitData.startDate | date)}} {{'to' | translate}} {{(profitData.endDate | date)}}"
+                                subheader="{{(profitData.startDate | date :'dd/MM/yyyy')}} {{'to' | translate}} {{(profitData.endDate | date:'dd/MM/yyyy')}}"
                                 class="profit-summary-card">
 
                                 <!-- Header with Key Metrics -->
@@ -417,7 +417,7 @@
 
                                     <br>
                                     <span class="text-400" style="font-size: smaller;">{{notification.creationDate |
-                                        date:'short'}}</span>
+                                        date:'dd/MM/yyyy'}}</span>
                                 </span>
                             </div>
 
@@ -453,7 +453,7 @@
 
                                     <br>
                                     <span class="text-400" style="font-size: smaller;">{{notification.creationDate |
-                                        date:'short'}}</span>
+                                        date:'dd/MM/yyyy'}}</span>
                                 </span>
                             </div>
                         </li>
@@ -477,7 +477,7 @@
             <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
         </div>
 
-        <div class="card" *ngIf="products">
+        <div class="card" *ngIf="products && isAdmin">
             <h5>{{'dashboard_inventory_overview_header' | translate}}</h5>
             <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
         </div>

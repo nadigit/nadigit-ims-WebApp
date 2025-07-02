@@ -1,7 +1,25 @@
 <div class="grid">
     <div class="col-12">
         <div class="card px-6 py-6">
+            <h5>{{ 'purchases_menu_title' | translate }}</h5>
             <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'expenses_page_description' | translate }}
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddExpense" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditExpense" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteExpense" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                </div>
+            </div>
+
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
@@ -61,7 +79,7 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-expense>
-                    <tr [pSelectableRow]="expense" (click)="canEditExpense ? editExpense(expense) : null">
+                    <tr [pSelectableRow]="expense" (click)="canEditExpense && isExpenseFinalized(expense)? editExpense(expense) : null">
                         <td>
                             <p-tableCheckbox [value]="expense" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
@@ -69,6 +87,9 @@
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'ID' | translate }}</span>
                             #{{expense.id ? expense.id : 'N/A'}}
+                            <i *ngIf="!isExpenseFinalized(expense)" class="pi pi-lock text-red-500 ml-2"
+                                pTooltip="{{ 'expense_locked' | translate }}">
+                            </i>
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'expense_date' | translate }}</span>
@@ -80,7 +101,7 @@
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'expense_amount' | translate }}</span>
-                            {{ expense.amount ? expense.amount : 'N/A' }}
+                            {{ expense.amount ? (expense.amount| currency:currency:'symbol':'1.2-2') : 'N/A' }}
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'expense_shop' | translate }}</span>
@@ -88,10 +109,10 @@
                         </td>
                         <td>
                             <div class="flex">
-                                <button pButton pRipple *ngIf="canEditExpense" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2" pTooltip="{{'update_expense'|translate}}"
+                                <button pButton pRipple *ngIf="canEditExpense && isExpenseFinalized(expense)" icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-info mr-2" pTooltip="{{'update_expense'|translate}}"
                                     (click)="editExpense(expense) ; $event.stopPropagation()"></button>
-                                <button pButton pRipple *ngIf="canDeleteExpense" icon="pi pi-trash" class="p-button-rounded p-button-warning"
+                                <button pButton pRipple *ngIf="canDeleteExpense && isExpenseFinalized(expense)" icon="pi pi-trash" class="p-button-rounded p-button-danger"
                                     (click)="deleteExpense(expense) ; $event.stopPropagation()" pTooltip="{{'delete_expense'|translate}}"></button>
                             </div>
                         </td>
@@ -133,8 +154,8 @@
                 <div class="field">
                     <label for="dateOfExpense">{{ 'expense_date' | translate }} <span class="required-asterisk">*</span></label>
                     <p-calendar [(ngModel)]="expense.dateOfExpense" ngDefaultControl name="dateOfExpense" inputId="dateOfExpense"
-                        dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
-                        placeholder="{{ 'expense_date' | translate }}" required autofocus 
+                        dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true" [maxDate]="maxExpenseDate"
+                        appendTo="body" placeholder="{{ 'expense_date' | translate }}" required autofocus 
                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !expense.dateOfExpense}"/>
                     <small class="ng-dirty ng-invalid" *ngIf="submitted && !expense.purpose">{{ 'expense_date' |
                         translate }} {{'is_required_label' | translate}}</small>

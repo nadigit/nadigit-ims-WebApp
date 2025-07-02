@@ -1,7 +1,31 @@
 <div class="grid">
     <div class="col-12">
         <div class="card px-6 py-6">
+            <h5>{{'suppliers_menu_title' | translate}}</h5>
             <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'suppliers_page_description' | translate }}
+                    <!-- <span *ngIf="suppliers?.length" class="font-semibold">
+                        Currently showing {{ suppliers.length }} {{ suppliers.length === 1 ? 'supplier' : 'suppliers' }}.
+                    </span> -->
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddSupplier" value="{{'create' | translate}}" icon="pi pi-plus"
+                        severity="success"></p-tag>
+                    <p-tag *ngIf="canEditSupplier" value="{{'edit' | translate}}" icon="pi pi-pencil"
+                        severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteSupplier" value="{{'delete' | translate}}" icon="pi pi-trash"
+                        severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                </div>
+            </div>
+
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
@@ -28,7 +52,7 @@
             </div>
 
             <p-table #dt [value]="suppliers" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-                [globalFilterFields]="['firstName','lastName','email','country','city','phoneNumber','supplierType']"
+                [globalFilterFields]="['name','email','email','country','city','phoneNumber','address']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedSuppliers" selectionMode="multiple" [rowHover]="true" dataKey="supplierId">
@@ -55,6 +79,10 @@
                                 field="phoneNumber"></p-sortIcon></th>
                         <th pSortableColumn="address">{{ 'supplier_address' | translate }}<p-sortIcon
                                 field="address"></p-sortIcon></th>
+                        <th pSortableColumn="creationDate">{{ 'creation_date' | translate }}
+                            <p-columnFilter type="date" field="creationDate" display="menu" />
+                            <p-sortIcon field="creationDate"></p-sortIcon>
+                        </th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -76,18 +104,26 @@
                             <span class="p-column-title">{{ 'supplier_phone_number' | translate }}</span>
                             {{ supplier.phoneNumber ? supplier.phoneNumber : 'N/A' }}
                         </td>
-                        <td style="min-width:10rem;">
+                        <!-- <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'supplier_address' | translate }}</span>
                             {{ supplier.country ? (supplier.city + ', ' + supplier.country) : 'N/A' }}
+                        </td> -->
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'supplier_address' | translate }}</span>
+                            {{ supplier.country ? (supplier.city + ', ' + (supplier.country | countryTranslate)) : 'N/A'
+                            }}
                         </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'creation_date' | translate }}</span>
+                            {{ supplier.creationDate ? (supplier.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
                         <td>
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditSupplier" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2"
+                                    class="p-button-rounded p-button-info mr-2"
                                     pTooltip="{{'update_supplier'|translate}}"
                                     (click)="editSupplier(supplier); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canDeleteSupplier" icon="pi pi-trash"
-                                    class="p-button-rounded p-button-warning"
+                                    class="p-button-rounded p-button-danger"
                                     (click)="deleteSupplier(supplier); $event.stopPropagation()"
                                     pTooltip="{{'delete_supplier'|translate}}"></button>
                             </div>
@@ -160,20 +196,23 @@
                                 </label>
                                 <p-dropdown [(ngModel)]="supplier.country"
                                     (onChange)="onSelectedCountry(supplier.country)" name="country"
-                                    [options]="countries" optionValue="name" optionLabel="name" [filter]="true"
-                                    filterBy="name" [showClear]="true"
+                                    [options]="countries" optionValue="name" optionLabel="translatedName"
+                                    [filter]="true" [filterFields]="['name', 'translatedName']"
+                                    [filterBy]="filterCountry" [showClear]="true"
                                     placeholder="{{ 'select_country_option' | translate }}">
+
                                     <ng-template pTemplate="selectedItem">
                                         <span *ngIf="supplier && supplier.country"
                                             class="flex align-items-center gap-2">
                                             <i class="pi pi-globe"></i>
-                                            {{supplier.country}}
+                                            {{ supplier.country | countryTranslate }}
                                         </span>
                                     </ng-template>
+
                                     <ng-template let-option pTemplate="item">
                                         <span class="flex align-items-center gap-2">
                                             <i class="pi pi-globe"></i>
-                                            {{option.name}}
+                                            {{ option.translatedName }}
                                         </span>
                                     </ng-template>
                                 </p-dropdown>
@@ -299,7 +338,7 @@
                                 </span>
                                 <span class="supplier-since" *ngIf="supplier?.creationDate">
                                     <i class="pi pi-calendar"></i> {{ 'supplier_since' | translate }}:
-                                    {{supplier.creationDate | date:'mediumDate'}}
+                                    {{supplier.creationDate | date:'dd/MM/yyyy'}}
                                 </span>
                             </div>
                         </div>
@@ -314,9 +353,10 @@
                             [pTooltip]="'export_to_excel' | translate" tooltipPosition="bottom"
                             (click)="exportToExcel()">
                         </button> -->
-                        <button pButton pRipple icon="pi pi-pencil"
+                        <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditSupplier"
                             class="p-button-rounded p-button-text p-button-plain"
-                            [pTooltip]="'update_supplier' | translate" tooltipPosition="bottom" (click)="editSupplier(supplier)">
+                            [pTooltip]="'update_supplier' | translate" tooltipPosition="bottom"
+                            (click)="editSupplier(supplier)">
                         </button>
                     </div>
                 </div>
@@ -332,7 +372,8 @@
                                 <h4>{{ 'supplier_information' | translate }}</h4>
                             </div>
 
-                            <div class="supplier-contact" *ngIf="supplier?.email || supplier?.phoneNumber || supplier?.address || supplier?.city || supplier?.country">
+                            <div class="supplier-contact"
+                                *ngIf="supplier?.email || supplier?.phoneNumber || supplier?.address || supplier?.city || supplier?.country">
                                 <div class="contact-item" *ngIf="supplier?.email">
                                     <i class="pi pi-envelope"></i>
                                     <a [href]="'mailto:' + supplier.email">{{supplier.email}}</a>
@@ -347,7 +388,8 @@
                                 </div>
                                 <div class="contact-item" *ngIf="supplier?.city || supplier?.country">
                                     <i class="pi pi-globe"></i>
-                                    <span>{{supplier.city}} {{supplier.country ? ', ' + supplier.country : ''}}</span>
+                                    <span>{{supplier.city}} {{supplier.country ? ', ' + (supplier.country |
+                                        countryTranslate) : ''}}</span>
                                 </div>
                             </div>
 
@@ -367,7 +409,7 @@
                                 </div>
                                 <div class="stat-item" *ngIf="getLastPurchaseDate()">
                                     <span class="label">{{ 'last_purchase' | translate }}:</span>
-                                    <span class="value">{{getLastPurchaseDate() | date:'shortDate' || 'N/A'}}</span>
+                                    <span class="value">{{getLastPurchaseDate() | date:'dd/MM/yyyy' || 'N/A'}}</span>
                                 </div>
                             </div>
                         </div>
@@ -410,10 +452,10 @@
                                             <td>{{product.sellingPrice | currency:currency:'symbol':'1.2-2'}}</td>
                                             <td>{{product.quantityAvailable}}</td>
                                             <td>
-                                                <p-tag value="{{'product_'+product.inventoryStatus.toLowerCase()
-										| translate}}"
-                                                    [severity]="getInventoryStatusSeverity(product.inventoryStatus)">
-                                                </p-tag>
+                                                <span
+                                                    [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{'product_'+product.inventoryStatus.toLowerCase()
+                                                    | translate}}
+                                                </span>
                                             </td>
                                         </tr>
                                     </ng-template>
@@ -448,12 +490,13 @@
                                     <ng-template pTemplate="body" let-purchase>
                                         <tr>
                                             <td>{{purchase.id}}</td>
-                                            <td>{{purchase.dateOfPurchase | date:'mediumDate'}}</td>
+                                            <td>{{purchase.dateOfPurchase | date:'dd/MM/yyyy'}}</td>
                                             <!-- <td>{{purchase.invoice || 'N/A'}}</td> -->
                                             <td>{{purchase.purchaseItems?.length || 0}}</td>
                                             <td>{{purchase.totalAmount | currency:currency:'symbol':'1.2-2'}}</td>
                                             <td>
-                                                <p-tag value="{{'payment_method_' + purchase.paymentMethod.toLowerCase() | translate}}"
+                                                <p-tag
+                                                    value="{{'payment_method_' + purchase.paymentMethod.toLowerCase() | translate}}"
                                                     [severity]="getPaymentMethodSeverity(purchase.paymentMethod)">
                                                 </p-tag>
                                             </td>

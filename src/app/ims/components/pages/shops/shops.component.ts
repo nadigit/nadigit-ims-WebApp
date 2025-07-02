@@ -191,8 +191,9 @@ getPaymentMethodSeverity(method: string): string {
       console.error('Error loading shop details:', error);
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to load shop details'
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_shop_details'),
+        life: 3000
       });
     } finally {
       this.loading = false;
@@ -200,11 +201,9 @@ getPaymentMethodSeverity(method: string): string {
   }
 
   async loadCashRegisterData(): Promise<void> {
-    console.log('Loading cash register data for shop:', this.selectedShop.shopId);
     if (!this.selectedShop.shopId) return;
     try {
       this.cashRegisterData = await this.shopService.getCashRegister(this.selectedShop.shopId).toPromise();
-      console.log('Cash register data loaded:', this.cashRegisterData);
     } catch (error) {
       console.error('Error loading cash register:', error);
       this.cashRegisterData = null;
@@ -215,7 +214,6 @@ getPaymentMethodSeverity(method: string): string {
     if (!this.selectedShop.shopId) return;
     try {
       this.organizationData = await this.shopService.fetchOrganizationData(this.selectedShop.shopId).toPromise();
-      console.log('Organization data loaded:', this.organizationData);
     } catch (error) {
       console.error('Error loading organization:', error);
       this.organizationData = null;
@@ -247,7 +245,6 @@ getPaymentMethodSeverity(method: string): string {
     this.loadingPurchases = true;
     try {
       this.recentPurchases = await this.shopService.fetchRecentPurchases(this.selectedShop.shopId).toPromise() as Purchase[];
-      console.log('Recent purchases loaded:', this.recentPurchases);
     } catch (error) {
       console.error('Error loading recent purchases:', error);
       this.recentPurchases = [];
@@ -261,7 +258,6 @@ getPaymentMethodSeverity(method: string): string {
     this.loadingExpenses = true;
     try {
       this.recentExpenses = await this.shopService.fetchRecentExpenses(this.selectedShop.shopId).toPromise() as Expense[];
-      console.log('Recent expenses loaded:', this.recentExpenses);
     } catch (error) {
       console.error('Error loading recent expenses:', error);
       this.recentExpenses = [];
@@ -390,16 +386,13 @@ getPaymentMethodSeverity(method: string): string {
 
   async confirmDeleteSelected() {
     this.deleteShopsDialog = false;
-    await this.selectedShops.forEach(selectedShop => this.onDeleteShop(selectedShop.shopId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Shops Deleted', life: 3000 });
+    await Promise.all(this.selectedShops.map(selectedShop => this.onDeleteShop(selectedShop.shopId)));
     this.selectedShops = [];
   }
 
   async confirmDelete() {
     this.deleteShopDialog = false;
     await this.onDeleteShop(this.shop.shopId);
-    //this.users = this.users.filter(val => val.id !== this.user.id);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Shop Deleted', life: 3000 });
     this.shop = {};
   }
 
@@ -430,15 +423,44 @@ getPaymentMethodSeverity(method: string): string {
     console.log(this.shop);
     if (this.shop.shopName) {
       if (this.shop.shopId) {
-        this.updateShop(this.shop.shopId, this.shop) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Shop Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating shop', life: 3000 })
+        this.updateShop(this.shop.shopId, this.shop)
+          ? this.messageService.add({ 
+              severity: 'success', 
+              summary: this.translate.instant('successful'), 
+              detail: this.translate.instant('shop_updated'), 
+              life: 3000 
+            })
+          : this.messageService.add({ 
+              severity: 'error', 
+              summary: this.translate.instant('error'), 
+              detail: this.translate.instant('error_updating_shop'), 
+              life: 3000 
+            });
       } else {
-        this.addShop(this.shop) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Shop Updated', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding shop', life: 3000 }))
+        this.addShop(this.shop)
+          ? this.messageService.add({ 
+              severity: 'success', 
+              summary: this.translate.instant('successful'), 
+              detail: this.translate.instant('shop_added'), 
+              life: 3000 
+            })
+          : this.messageService.add({ 
+              severity: 'error', 
+              summary: this.translate.instant('error'), 
+              detail: this.translate.instant('error_adding_shop'), 
+              life: 3000 
+            });
       }
       this.shops = [...this.shops];
       this.shopDialog = false;
       this.shop = {};
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: this.translate.instant('error'), 
+        detail: this.translate.instant('please_fill_required_fields'), 
+        life: 3000 
+      });
       return;
     }
   }
@@ -450,7 +472,7 @@ getPaymentMethodSeverity(method: string): string {
     if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
       // Function to format Date object as a LocalTime string ("HH:mm:ss")
       const formatDateToLocalTime = (date: Date): string => {
-        return date.toTimeString().split(' ')[0]; // Extracts "HH:mm:ss" portion
+      return date.toTimeString().split(' ')[0]; // Extracts "HH:mm:ss" portion
       };
 
       // Format openingTime and closingTime to LocalTime strings
@@ -462,15 +484,30 @@ getPaymentMethodSeverity(method: string): string {
 
       // Show success or error message based on the result
       success
-        ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Cash Register Updated', life: 3000 })
-        : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating cash register', life: 3000 });
+      ? this.messageService.add({ 
+        severity: 'success', 
+        summary: this.translate.instant('successful'), 
+        detail: this.translate.instant('cash_register_updated'), 
+        life: 3000 
+        })
+      : this.messageService.add({ 
+        severity: 'error', 
+        summary: this.translate.instant('error'), 
+        detail: this.translate.instant('error_updating_cash_register'), 
+        life: 3000 
+        });
 
       // Close dialog and reset cashRegister object
       this.cashRegisterSettingsDialog = false;
       this.cashRegister = {};
     } else {
       // Show error if required fields are missing
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({ 
+      severity: 'error', 
+      summary: this.translate.instant('error'), 
+      detail: this.translate.instant('please_fill_required_fields'), 
+      life: 3000 
+      });
       return;
     }
   }
@@ -550,39 +587,18 @@ getPaymentMethodSeverity(method: string): string {
 
       this.messageService.add({
         severity: 'success',
-        summary: 'Data Loaded',
-        detail: 'Cash register data has been refreshed'
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('cash_register_data_refreshed')
       });
     } catch (err) {
       console.error(err);
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to load cash register data'
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_cash_register_data')
       });
     }
   }
-
-  // async onGetShopCashRegister() {
-  //   await (await this.shopService.getCashRegister(this.shop.shopId)).subscribe({
-  //     next: (response: any) => {
-  //       this.cashRegister = response;
-
-  //       // Temporarily cast to `any` to allow assigning a Date
-  //       if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
-  //         this.cashRegister.openingTime = this.convertTimeStringToDate(this.cashRegister.openingTime as any);
-  //         this.cashRegister.closingTime = this.convertTimeStringToDate(this.cashRegister.closingTime as any);
-  //       }
-
-  //       console.log(this.cashRegister);
-  //       this.filterByDateRange();
-  //       this.calculateTotalsAndTrends();
-  //     },
-  //     error: (err: any) => {
-  //       console.log(err);
-  //     }
-  //   });
-  // }
 
   async onDeleteShop(id: any) {
     await (await this.shopService.deleteShop(id))
@@ -590,13 +606,24 @@ getPaymentMethodSeverity(method: string): string {
         next: (response: any) => {
           console.log(response);
           this.onGetAllShops();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('shop_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.log(err)
+        error: (err: any) => {
+          console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_deleting_shop'),
+            life: 3000
+          });
         },
-      })
+      });
   }
-
 
   async updateShop(id: any, shop: any): Promise<any> {
     this.shopService.updateShop(id, shop)
@@ -705,35 +732,13 @@ getPaymentMethodSeverity(method: string): string {
     return new Date(date);
   }
 
-  // Modify filter method to handle date range
-  // filterByDateRange() {
-  //   // If both dates are selected, filter balances based on the date range
-  //   if (this.startDate && this.endDate) {
-  //     const start = new Date(this.startDate);
-  //     const end = new Date(this.endDate);
-  //     end.setHours(23, 59, 59, 999); // Include the end date till the end of the day
-
-  //     this.filteredBalances = this.dailyBalances.filter((balance) => {
-  //       const balanceDate = new Date(balance.balanceDate);
-  //       return balanceDate >= start && balanceDate <= end;
-  //     });
-  //   } else {
-  //     // If no dates are selected, show all balances
-  //     this.filteredBalances = [...this.dailyBalances];
-  //   }
-
-  //   // Recalculate the total daily difference after filtering
-  //   this.calculateTotalDailyDifference(this.filteredBalances);
-  //   this.calculateTotalsAndTrends();
-  // }
-
   filterByDateRange() {
     // Validate dates
     if (this.startDate && this.endDate && this.startDate > this.endDate) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Invalid Date Range',
-        detail: 'Start date cannot be after end date'
+        summary: this.translate.instant('invalid_date_range'),
+        detail: this.translate.instant('start_date_cannot_be_after_end_date')
       });
       return;
     }
@@ -787,25 +792,5 @@ getPaymentMethodSeverity(method: string): string {
     // Now, export the modified array to Excel
     this.reportingService.exportExcel(modifiedShops, 'shops');
   }
-
-  // private convertTimeStringToDate(timeString: string): Date {
-  //   const [hours, minutes] = timeString.split(':').map(Number);
-  //   const date = new Date();
-  //   date.setHours(hours, minutes, 0);
-  //   return date;
-  // }
-
-  // async onGetCurrecy() {
-  //   await (await this.configService.getConfigurationValue('currency'))
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.currency = response;
-  //         console.log(this.currency)
-  //       },
-  //       error: (err: any) => {
-  //         console.log(err)
-  //       }
-  //     })
-  // }
 
 }

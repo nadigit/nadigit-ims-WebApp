@@ -111,16 +111,33 @@ export class CategoriesComponent implements OnInit {
 
   async confirmDeleteSelected() {
     this.deleteCategoriesDialog = false;
-    await this.selectedCategories.forEach(selectedCategory => this.onDeleteCategory(selectedCategory.categoryId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Categories Deleted', life: 3000 });
+    let hasError = false;
+
+    for (const selectedCategory of this.selectedCategories) {
+      try {
+        await this.onDeleteCategory(selectedCategory.categoryId);
+      } catch (error) {
+        hasError = true;
+        console.error('Error deleting category:', error);
+      }
+    }
+
+    if (!hasError) {
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('categories_deleted'),
+        life: 3000
+      });
+    }
+
     this.selectedCategories = [];
   }
 
   async checkPermissions() {
     const profile = await this.keycloakService.loadUserProfile();
-    const userId = profile.id; // Fetch user ID
-
-    await this.permissionService.init(userId).toPromise(); // Initialize permissions
+    const userId = profile.id;
+    await this.permissionService.init(userId).toPromise();
     this.canAddCategory = this.permissionService.canCreate(this.Ressource);
     this.canEditCategory = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteCategory = this.permissionService.canDelete(this.Ressource);
@@ -129,9 +146,12 @@ export class CategoriesComponent implements OnInit {
 
   async confirmDelete() {
     this.deleteCategoryDialog = false;
-    await this.onDeleteCategory(this.category.categoryId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Category Deleted', life: 3000 });
-    this.category = {};
+    try {
+      await this.onDeleteCategory(this.category.categoryId);
+      this.category = {};
+    } catch (error) {
+      console.error('Error deleting category:', error);
+    }
   }
 
   hideDialog() {
@@ -158,19 +178,32 @@ export class CategoriesComponent implements OnInit {
     this.categoryProductsDialog = false;
   }
 
-  saveCategory() {
+  async saveCategory() {
     this.submitted = true;
     if (this.category.categoryName) {
       if (this.category.categoryId) {
-        this.updateCategory(this.category.categoryId, this.category) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Category Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating category', life: 3000 })
+        try {
+          await this.updateCategory(this.category.categoryId, this.category);
+        } catch (error) {
+          console.error('Error updating category:', error);
+        }
       } else {
-        this.addCategory(this.category) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Category created', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new category', life: 3000 }))
+        try {
+          await this.addCategory(this.category);
+        } catch (error) {
+          console.error('Error adding category:', error);
+        }
       }
       this.categories = [...this.categories];
       this.categoryDialog = false;
       this.category = {};
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
       return;
     }
   }
@@ -187,7 +220,7 @@ export class CategoriesComponent implements OnInit {
           this.categories.forEach((category: any) => (category.creationDate = new Date(<Date>category.creationDate)));
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting categories', life: 3000 })
+          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_getting_categories'), life: 3000 })
           console.log(err)
         },
         complete: () => {
@@ -203,23 +236,33 @@ export class CategoriesComponent implements OnInit {
           this.products = response;
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting products', life: 3000 })
+          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_getting_products'), life: 3000 })
           console.log(err)
         }
       })
   }
 
-  async onDeleteCategory(id: any) {
-    await this.categoryService.deleteCategory(id)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllCategories();
-        },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while deleting category', life: 3000 })
-          console.log(err)
-        },
-      })
+  async onDeleteCategory(id: any): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.categoryService.deleteCategory(id)
+        .subscribe({
+          next: (response: any) => {
+            this.onGetAllCategories();
+            this.messageService.add({
+              severity: 'success',
+              summary: this.translate.instant('successful'),
+              detail: this.translate.instant('category_deleted'),
+              life: 3000
+            });
+            resolve();
+          },
+          error: (err: any) => {
+            this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_deleting_category'), life: 3000 });
+            console.log(err);
+            reject(err);
+          }
+        });
+    });
   }
 
 
@@ -228,11 +271,17 @@ export class CategoriesComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllCategories();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('category_updated'),
+            life: 3000
+          });
           return true;
         },
         error(err: any) {
           console.log(err);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating category', life: 3000 })
+          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_updating_category'), life: 3000 })
           return false;
         },
       })
@@ -243,14 +292,25 @@ export class CategoriesComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllCategories();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('category_created'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
+        error: (err: any) => {
           console.log(err);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new category', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_adding_category'),
+            life: 3000
+          });
           return false;
         },
-      })
+      });
   }
 
   exportPdf() {

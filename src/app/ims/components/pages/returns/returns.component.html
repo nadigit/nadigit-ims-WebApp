@@ -1,7 +1,27 @@
 <div class="grid">
 	<div class="col-12">
 		<div class="card px-6 py-6">
+			<h5>{{ 'returns_menu_title' | translate }}</h5>
 			<p-toast></p-toast>
+			<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'returns_page_description' | translate }}
+                    <!-- <span *ngIf="customers?.length" class="font-semibold">
+                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
+                    </span> -->
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddReturn" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditReturn" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteReturn" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                    <!-- <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag> -->
+                </div>
+            </div>
 			<p-toolbar styleClass="mb-4">
 				<ng-template pTemplate="left">
 					<div class="my-2">
@@ -108,9 +128,13 @@
 				</ng-template>
 
 				<ng-template pTemplate="body" let-return let-expanded="expanded">
-					<tr [pSelectableRow]="return" (click)="canReadReturn ? openReturnDetailsDialog(return) : null">
+					<tr [pSelectableRow]="return"
+						[pSelectableRowDisabled]="return.returnStatus !== 'PENDING' && return.returnStatus !== 'PROCESSING'"
+						(click)="canReadReturn ? openReturnDetailsDialog(return) : null">
 						<td>
-							<p-tableCheckbox [value]="return" (click)="$event.stopPropagation()"></p-tableCheckbox>
+							<p-tableCheckbox [value]="return"
+								[disabled]="return.returnStatus !== 'PENDING' && return.returnStatus !== 'PROCESSING'"
+								(click)="$event.stopPropagation()"></p-tableCheckbox>
 						</td>
 						<td>
 							<button type="button" pButton pRipple class="p-button-text p-button-rounded p-button-plain"
@@ -124,7 +148,7 @@
 
 						<td style="min-width:10rem;">
 							<span class="p-column-title">{{ 'return_date' | translate }}</span>
-							{{ return.returnDate | date: 'shortDate' }} {{ return.returnDate | date: 'shortTime' }}
+							{{ return.returnDate | date: 'dd/MM/yyyy' }}
 						</td>
 						<td style="min-width:10rem;" class="font-bold">
 							<span class="p-column-title">{{ 'return_refund_amount' | translate }}</span>
@@ -149,8 +173,12 @@
 						</td>
 						<td>
 							<div class="flex">
-								<button pButton pRipple *ngIf="canDeleteReturn" icon="pi pi-trash"
-									class="p-button-rounded p-button-warning mr-2"
+								<button pButton pRipple *ngIf="canDeleteReturn && (return.returnStatus ==='PENDING')"
+									icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+									pTooltip="{{'update_return'|translate}}"
+									(click)="editReturn(return); $event.stopPropagation()"></button>
+								<button pButton pRipple *ngIf="canDeleteReturn && (return.returnStatus ==='PENDING')"
+									icon="pi pi-trash" class="p-button-rounded p-button-danger mr-2"
 									pTooltip="{{'delete_return'|translate}}"
 									(click)="deleteReturn(return); $event.stopPropagation()"></button>
 							</div>
@@ -215,7 +243,7 @@
 					</ng-template>
 					<ng-template pTemplate="body" let-refund>
 						<tr>
-							<td>{{ refund.refundDate | date:'short' }}</td>
+							<td>{{ refund.refundDate | date:'dd/MM/yyyy' }}</td>
 							<td>{{ refund.amount | currency:currency:'symbol':'1.2-2' }}</td>
 
 							<td>
@@ -237,6 +265,24 @@
 		</div>
 		</td>
 		</tr>
+		</ng-template>
+		<ng-template pTemplate="summary">
+			<div class="flex align-items-center justify-content-between">
+				{{'total_returns' | translate}} {{returns ? returns.length : 0 }}.
+			</div>
+		</ng-template>
+		<ng-template pTemplate="emptymessage">
+			<tr>
+				<td colspan="8">
+					<div class="flex flex-column align-items-center justify-content-center py-5">
+						<img src="assets/core-images/no_data_found.png" alt="No Data Found"
+							style="max-width: 250px; opacity: 0.6;">
+						<p class="mt-3 text-gray-600 font-medium text-lg">
+							{{ 'no_returns_found' | translate }}
+						</p>
+					</div>
+				</td>
+			</tr>
 		</ng-template>
 		</p-table>
 

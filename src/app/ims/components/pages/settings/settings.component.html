@@ -1,6 +1,7 @@
 <div class="grid">
   <div class="col-12">
     <div class="card px-6 py-6">
+      <h5>{{ 'settings_menu_title' | translate }}</h5>
       <p-tabMenu [model]="menuItems" [activeItem]="activeItem"
         (activeItemChange)="onActiveItemChange($event)"></p-tabMenu>
       <br>

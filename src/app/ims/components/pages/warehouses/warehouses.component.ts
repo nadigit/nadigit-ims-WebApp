@@ -147,6 +147,7 @@ export class WarehousesComponent implements OnInit {
     this.onSelectedCountry(this.warehouse.country)
   }
 
+
   deleteWarehouse(warehouse: Warehouse) {
     if (!this.canDeleteWarehouse) return;
     this.deleteWarehouseDialog = true;
@@ -156,15 +157,12 @@ export class WarehousesComponent implements OnInit {
   async confirmDeleteSelected() {
     this.deleteWarehousesDialog = false;
     await this.selectedWarehouses.forEach(selectedWarehouse => this.onDeleteWarehouse(selectedWarehouse.warehouseId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouses Deleted', life: 3000 });
     this.selectedWarehouses = [];
   }
 
   async confirmDelete() {
     this.deleteWarehouseDialog = false;
     await this.onDeleteWarehouse(this.warehouse.warehouseId);
-    //this.users = this.users.filter(val => val.id !== this.user.id);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouse Deleted', life: 3000 });
     this.warehouse = {};
   }
 
@@ -218,15 +216,44 @@ export class WarehousesComponent implements OnInit {
     this.submitted = true;
     if (this.warehouse.name) {
       if (this.warehouse.warehouseId) {
-        this.updateWarehouse(this.warehouse.warehouseId, this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouse Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating warehouse', life: 3000 })
+        this.updateWarehouse(this.warehouse.warehouseId, this.warehouse)
+          ? this.messageService.add({ 
+              severity: 'success', 
+              summary: this.translate.instant('successful'), 
+              detail: this.translate.instant('warehouse_updated'), 
+              life: 3000 
+            })
+          : this.messageService.add({ 
+              severity: 'error', 
+              summary: this.translate.instant('error'), 
+              detail: this.translate.instant('error_updating_warehouse'), 
+              life: 3000 
+            });
       } else {
-        this.addWarehouse(this.warehouse) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Warehouse Updated', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding warehouse', life: 3000 }))
+        this.addWarehouse(this.warehouse)
+          ? this.messageService.add({ 
+              severity: 'success', 
+              summary: this.translate.instant('successful'), 
+              detail: this.translate.instant('warehouse_added'), 
+              life: 3000 
+            })
+          : this.messageService.add({ 
+              severity: 'error', 
+              summary: this.translate.instant('error'), 
+              detail: this.translate.instant('error_adding_warehouse'), 
+              life: 3000 
+            });
       }
       this.warehouses = [...this.warehouses];
       this.warehouseDialog = false;
       this.warehouse = {};
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: this.translate.instant('error'), 
+        detail: this.translate.instant('please_fill_required_fields'), 
+        life: 3000 
+      });
       return;
     }
   }
@@ -238,28 +265,6 @@ export class WarehousesComponent implements OnInit {
 
   clear(table: Table) {
     table.clear();
-  }
-
-  getSeverity(status: any) {
-    switch (status) {
-      case false:
-        return 'danger';
-
-      case true:
-        return 'success';
-
-      case 'new':
-        return 'info';
-
-      case 'negotiation':
-        return 'warning';
-
-      case 'renewal':
-        return null;
-
-      default:
-        return '';
-    }
   }
 
   async onGetAllWarehouses() {
@@ -285,11 +290,23 @@ export class WarehousesComponent implements OnInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllWarehouses();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('warehouse_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.log(err)
+        error: (err: any) => {
+          console.log(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_deleting_warehouse'),
+            life: 3000
+          });
         },
-      })
+      });
   }
 
 
@@ -324,33 +341,18 @@ export class WarehousesComponent implements OnInit {
       })
   }
 
-  // async onSelectedCountry(selectedCountry: any) {
-  //   console.log(this.warehouse.country)
-  //     this.countries.forEach(element => {
-  //       if ((this.warehouse.country != this.selectedCountry) && (this.warehouse.country != undefined)) this.warehouse.city=undefined;
-  //       if (element.name === selectedCountry) {
-  //         this.selectedCountry = element; 
-  //       }
-  //     });
-  //   this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
-  //   console.log(this.states);
-  // }
-
   onChangeCountry() {
     this.warehouse.city = undefined;
     console.log("clear city")
   }
 
-  onSelectedCountry(event) {
-    console.log('event :' + event);
-    console.log(event.value);
+onSelectedCountry(event) {
     if ((this.warehouse.country != this.selectedCountry) && (this.warehouse.city == undefined)) this.warehouse.city = undefined;
     this.countries.forEach(element => {
       if (element.name === event) {
         this.selectedCountry = element;
       }
     });
-    console.log(this.selectedCountry.isoCode)
     this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
 
   }

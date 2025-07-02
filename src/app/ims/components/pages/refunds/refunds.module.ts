@@ -22,6 +22,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
 import { CalendarModule } from 'primeng/calendar';
 import { TagModule } from 'primeng/tag';
+import { ChipModule } from 'primeng/chip';
 
 
 
@@ -48,7 +49,8 @@ import { TagModule } from 'primeng/tag';
         ProgressSpinnerModule,
         TooltipModule,
         CalendarModule,
-        TagModule
+        TagModule,
+        ChipModule
     ],
     declarations: [RefundsComponent],
     providers: [ReportingService],

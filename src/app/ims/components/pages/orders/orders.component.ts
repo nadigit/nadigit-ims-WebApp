@@ -243,6 +243,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   // Permissions
   canAddCustomer: boolean = false;
   canAddShop: boolean = false;
+  canAddPayment: boolean = false;
   canAddOrder: boolean = false;
   canEditOrder: boolean = false;
   canCancelOrder: boolean = false;
@@ -376,7 +377,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.getSourceProducts(),
       this.getTargetProducts(),
       this.initializePickList(),
-      // this.onGetCurrency(),
       this.setUserRoles(),
       this.checkPermissions(),
       this.onGetOrganization(),
@@ -562,6 +562,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.canCancelOrder = this.permissionService.canProcess(this.Ressource);
     this.canAddCustomer = this.permissionService.canCreate('CUSTOMERS');
     this.canAddShop = this.permissionService.canCreate('SHOPS');
+    this.canAddPayment = this.permissionService.canCreate('PAYMENTS');
   }
 
   async loadTaxRate() {
@@ -618,6 +619,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     } catch (error) {
       console.error('Error loading returns:', error);
       this.orderReturnsMap.set(order.orderId, []);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_order_returns'),
+        life: 3000
+      });
     } finally {
       this.loadingReturns.delete(order.orderId);
     }
@@ -707,6 +714,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         pricePerUnit: item.pricePerUnit,
       };
     });
+    this.showPaymentSection = false;
     this.orderDialog = true;
     this.initializePickList();
 
@@ -719,17 +727,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     console.log(this.order);
   }
 
-  // openOrderReturn(order: Order) {
-  //   if (!this.canProcessOrder) return;
-  //   this.order = { ...order };
-  //   this.selectedItems = order.orderItems.map(item => ({
-  //     ...item,
-  //     returnedQuantity: 0, // Ensure this is initialized to 0
-  //     remainingQuantity: item.quantity
-  //   }));
-  //   console.log('Selected Items:', this.selectedItems);  // Add this for debugging
-  //   this.orderReturnDialog = true;
-  // }
 
   // Update the remaining quantity after return
   updateRemainingQuantity(item: any) {
@@ -749,52 +746,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.updateRemainingQuantity(item);
   }
 
-  // Save the order return (submit to backend)
-  // saveOrderReturn() {
-  //   console.log(this.selectedItems);
-
-  //   // Prepare the return data in a Map format (orderItemId => returnedQuantity)
-  //   const returnedItems = this.selectedItems.reduce((acc: any, item: any) => {
-  //     console.log('Item returned quantity:', item.returnedQuantity); // Debugging log
-  //     if (item.returnedQuantity > 0) {
-  //       acc[item.orderItemId] = item.returnedQuantity; // Use orderItemId as the key
-  //     }
-  //     return acc;
-  //   }, {});
-
-  //   console.log('Returned Items:', returnedItems); // Debugging log
-
-  //   if (Object.keys(returnedItems).length === 0) {
-  //     this.messageService.add({ severity: 'warn', summary: 'No items returned', detail: 'Please specify the quantity to return' });
-  //     return;
-  //   }
-
-  //   if (!this.returnReason || this.returnReason.trim() === '') {
-  //     this.messageService.add({ severity: 'warn', summary: 'Reason required', detail: 'Please provide a reason for the return.' });
-  //     return;
-  //   }
-
-  //   // Call the API to process the return
-  //   this.orderService
-  //     .processReturn(this.order.orderId, returnedItems, this.returnReason, this.returnNotes || null)
-  //     .subscribe({
-  //       next: (response) => {
-  //         this.messageService.add({ severity: 'success', summary: 'Return processed', detail: 'The order return has been successfully processed.' });
-  //         this.hideOrderReturnDialog();
-  //         this.onGetAllOrders();
-  //       },
-  //       error: (err) => {
-  //         console.error('Error processing return:', err); // Debugging log
-  //         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'There was an error processing the return.' });
-  //       }
-  //     });
-
-  //   // Refresh the orders and reset dialog
-  //   this.orders = [...this.orders];
-  //   this.orderReturnDialog = false;
-  //   this.order = {};
-  // }
-
   deleteOrder(order: Order) {
     if (!this.canDeleteOrder) return;
     this.deleteOrderDialog = true;
@@ -803,20 +754,32 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   async confirmDeleteSelected() {
     this.deleteOrdersDialog = false;
-    await this.selectedOrders.forEach(selectedOrder => this.onDeleteOrder(selectedOrder.orderId));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Orders Deleted', life: 3000 });
+    await Promise.all(this.selectedOrders.map(selectedOrder => this.onDeleteOrder(selectedOrder.orderId)));
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('orders_deleted'),
+      life: 3000
+    });
     this.selectedOrders = [];
   }
 
   async confirmDelete() {
     this.deleteOrderDialog = false;
     await this.onDeleteOrder(this.order.orderId);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Deleted', life: 3000 });
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('order_deleted'),
+      life: 3000
+    });
     this.order = {};
   }
 
   hideDialog() {
     this.orderDialog = false;
+    this.showPaymentSection = false;
+    this.payment = {};
     this.submitted = false;
   }
 
@@ -851,114 +814,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   }
 
-  private formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  // async saveOrder() {
-  //   this.submitted = true;
-
-  //   // Validate Discount Type and Ensure Proper Handling
-  //   if (this.discountType === 'Percentage' && this.order.discount > 100) {
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: 'Error',
-  //       detail: 'Percentage discount cannot exceed 100%',
-  //       life: 3000,
-  //     });
-  //     return;
-  //   }
-
-  //   // Check Customer Selection
-  //   if (!this.order.customer) {
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: 'Error',
-  //       detail: 'Customer is required.',
-  //       life: 3000,
-  //     });
-  //     return;
-  //   }
-
-  //   // Check Shop Selection (if admin)
-  //   if (this.isAdmin && !this.order.shop) {
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: 'Error',
-  //       detail: 'Shop is required.',
-  //       life: 3000,
-  //     });
-  //     return;
-  //   }
-
-  //   // Check Product Selection
-  //   if (this.targetProducts.length === 0) {
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: 'Error',
-  //       detail: 'At least one product must be selected.',
-  //       life: 3000,
-  //     });
-  //     return;
-  //   }
-
-  //   // Prepare Order Items
-  //   const orderItems: OrderItem[] = this.targetProducts.map((product) => ({
-  //     product,
-  //     quantity: product['orderItemQuantity'],
-  //     pricePerUnit: product['orderItemPricePerUnit'],
-  //   }));
-
-  //   // Create New Order Object
-  //   const newOrder: Order = {
-  //     ...this.order,
-  //     orderItems,
-  //     taxEnabled: this.taxEnabled,
-  //     discountType: this.discountType, // Pass discount type as it is
-  //     discount: this.order.discount, // Pass discount value without conversion
-  //   };
-
-  //   // Cleanup: Remove temporary fields from products
-  //   newOrder.orderItems.forEach((orderItem) => {
-  //     delete orderItem.product['orderItemQuantity'];
-  //     delete orderItem.product['orderItemPricePerUnit'];
-  //   });
-
-  //   try {
-  //     if (newOrder.orderId) {
-  //       await this.updateOrder(newOrder.orderId, newOrder);
-  //       this.messageService.add({
-  //         severity: 'success',
-  //         summary: 'Successful',
-  //         detail: 'Order Updated',
-  //         life: 3000,
-  //       });
-  //     } else {
-  //       await this.addOrder(newOrder);
-  //       this.messageService.add({
-  //         severity: 'success',
-  //         summary: 'Successful',
-  //         detail: 'Order Added',
-  //         life: 3000,
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error(error);
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: 'Error',
-  //       detail: 'Error occurred',
-  //       life: 3000,
-  //     });
-  //   }
-
-  //   this.orders = [...this.orders];
-  //   this.orderDialog = false;
-  //   this.order = {};
-  // }
 
   async saveOrder() {
     this.submitted = true;
@@ -974,7 +829,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     if (this.discountType === 'Percentage' && this.order.discount > 100) {
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
+        summary: this.translate.instant('error'),
         detail: this.translate.instant('percentage_discount_exceeds_limit'),
         life: 3000,
       });
@@ -984,7 +839,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     if (!this.order.customer) {
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
+        summary: this.translate.instant('error'),
         detail: this.translate.instant('customer_required'),
         life: 3000,
       });
@@ -994,7 +849,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     if (this.isAdmin && !this.order.shop) {
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
+        summary: this.translate.instant('error'),
         detail: this.translate.instant('shop_required'),
         life: 3000,
       });
@@ -1004,7 +859,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     if (this.targetProducts.length === 0) {
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
+        summary: this.translate.instant('error'),
         detail: this.translate.instant('products_required'),
         life: 3000,
       });
@@ -1040,8 +895,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         savedOrder = await this.updateOrder(newOrder.orderId, newOrder);
         this.messageService.add({
           severity: 'success',
-          summary: 'Successful',
-          detail: 'Order Updated',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('order_updated'),
           life: 3000,
         });
       } else {
@@ -1049,13 +904,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         savedOrder = await this.addOrder(newOrder);
         this.messageService.add({
           severity: 'success',
-          summary: 'Successful',
-          detail: 'Order Added',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('order_added'),
           life: 3000,
         });
 
         // Only process payment if we have a valid saved order
         if (this.showPaymentSection && savedOrder) {
+          console.log('Processing payment for order:', savedOrder);
           await this.processPayment(savedOrder);
         }
       }
@@ -1067,8 +923,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       console.error('Error in saveOrder:', error);
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
-        detail: 'Error occurred: ' + error.message,
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_occurred') + ': ' + (error?.message || error),
         life: 3000,
       });
     }
@@ -1079,7 +935,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('required_fields_missing'),
+        detail: this.translate.instant('please_fill_required_fields'),
         life: 3000,
       });
       return false;
@@ -1119,28 +975,121 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
+  // async processPayment(order: Order): Promise<void> {
+  //   this.isSavingPayment = true;
+  //   try {
+  //     const paymentResponse = await this.paymentService.savePayment(
+  //       order.orderId,
+  //       this.payment.amount,
+  //       this.payment.paymentMethod,
+  //       this.payment.paymentDate instanceof Date ? this.payment.paymentDate : new Date(this.payment.paymentDate),
+  //     ).toPromise();
+
+  //     // this.updateLocalOrderWithPayment(order.orderId, paymentResponse);
+
+  //     this.messageService.add({
+  //       severity: 'success',
+  //       summary: this.translate.instant('successful'),
+  //       detail: this.translate.instant('payment_added'),
+  //       life: 3000,
+  //     });
+  //   } catch (error) {
+  //     console.error(error);
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: this.translate.instant('error'),
+  //       detail: this.translate.instant('payment_error') + ': ' + error.message,
+  //       life: 3000,
+  //     });
+  //   } finally {
+  //     this.isSavingPayment = false;
+  //   }
+  // }
+
   async processPayment(order: Order): Promise<void> {
     this.isSavingPayment = true;
+    this.payment.order = order;
+    this.payment.customer = order.customer;
+    console.log('Processing payment for order:', order);
+
+    if (!this.payment.order || !this.payment.amount || !this.payment.paymentMethod || !this.payment.paymentDate) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields')
+      });
+      return;
+    }
+
+    if (this.payment.amount < 0.01 || this.payment.amount > this.calculateTotalAmount()) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('payment_amount_invalid', {
+          max: this.calculateTotalAmount().toFixed(2)
+        })
+      });
+      return;
+    }
+
+    if (this.payment.paymentDate) {
+      // Ensure `dateOfExpense` is a Date object
+      const date =
+        typeof this.payment.paymentDate === "string"
+          ? new Date(this.payment.paymentDate)
+          : this.payment.paymentDate;
+
+      // Format the date into YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+      const day = String(date.getDate()).padStart(2, "0");
+
+      this.payment.paymentDate = `${year}-${month}-${day}`; // Convert to string format
+    }
+
+    if (this.payment.checkExpirationDate) {
+      // Ensure `dateOfExpense` is a Date object
+      const date =
+        typeof this.payment.checkExpirationDate === "string"
+          ? new Date(this.payment.checkExpirationDate)
+          : this.payment.checkExpirationDate;
+
+      // Format the date into YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+      const day = String(date.getDate()).padStart(2, "0");
+
+      this.payment.checkExpirationDate = `${year}-${month}-${day}`; // Convert to string format
+    }
+    else if (this.payment.boeExpirationDate) {
+      // Ensure `dateOfExpense` is a Date object
+      const date =
+        typeof this.payment.boeExpirationDate === "string"
+          ? new Date(this.payment.boeExpirationDate)
+          : this.payment.boeExpirationDate;
+
+      // Format the date into YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+      const day = String(date.getDate()).padStart(2, "0");
+
+      this.payment.boeExpirationDate = `${year}-${month}-${day}`; // Convert to string format
+    }
+
     try {
-      const paymentResponse = await this.paymentService.savePayment(
-        order.orderId,
-        this.payment.amount,
-        this.payment.paymentMethod
-      ).toPromise();
 
-      // this.updateLocalOrderWithPayment(order.orderId, paymentResponse);
-
+      const paymentResponse = await this.paymentService.savePayment(this.payment).toPromise();
       this.messageService.add({
         severity: 'success',
-        summary: 'Successful',
+        summary: this.translate.instant('successful'),
         detail: this.translate.instant('payment_added'),
         life: 3000,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
+        summary: this.translate.instant('error'),
         detail: this.translate.instant('payment_error') + ': ' + error.message,
         life: 3000,
       });
@@ -1151,9 +1100,26 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   saveCustomer() {
     if (this.customer.firstName && this.customer.lastName) {
-      this.addCustomer(this.customer) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Customer Added', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding customer', life: 3000 }))
+      this.addCustomer(this.customer)
+        ? this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('customer_added'),
+          life: 3000
+        })
+        : this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_adding_customer'),
+          life: 3000
+        });
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
       return;
     }
     this.customers = [...this.customers];
@@ -1163,9 +1129,26 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   saveShop() {
     if (this.shop.shopName) {
-      this.addCustomer(this.shop) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Shop Added', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding shop', life: 3000 }))
+      this.addShop(this.shop)
+        ? this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('shop_added'),
+          life: 3000
+        })
+        : this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_adding_shop'),
+          life: 3000
+        });
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
       return;
     }
     this.shops = [...this.shops];
@@ -1186,29 +1169,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     table.clear();
   }
 
-  getSeverity(status: any) {
-    switch (status) {
-      case false:
-        return 'danger';
-
-      case true:
-        return 'success';
-
-      case 'new':
-        return 'info';
-
-      case 'negotiation':
-        return 'warning';
-
-      case 'renewal':
-        return null;
-
-      default:
-        return '';
-    }
-  }
-
-
 
   async onGetAllProducts() {
     await this.productService.getProducts()
@@ -1220,7 +1180,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           this.cdr.markForCheck();
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting products', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_products'),
+            life: 3000
+          });
         }
       })
   }
@@ -1237,7 +1202,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           console.log(this.customers);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting customers', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_customers'),
+            life: 3000
+          });
         }
       })
   }
@@ -1250,7 +1220,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           console.log(this.shops);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting shops', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_shops'),
+            life: 3000
+          });
         }
       })
   }
@@ -1263,7 +1238,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           console.log(this.organization);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting organization', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_organization'),
+            life: 3000
+          });
         }
       })
   }
@@ -1276,7 +1256,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           console.log(this.orderReturns);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting order return items', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_order_return_items'),
+            life: 3000
+          });
         }
       })
   }
@@ -1332,7 +1317,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       });
       this.isLoading = false;
     } catch (error) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting orders', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_orders'),
+        life: 3000
+      });
     }
   }
 
@@ -1343,8 +1333,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           console.log(response);
           this.onGetAllOrders();
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while deleting the order', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_order'),
+            life: 3000
+          });
           console.log(err)
         },
       })
@@ -1362,30 +1357,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           this.onGetAllProducts();
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating the order', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_order'),
+            life: 3000
+          });
           return false;
         },
       })
   }
-
-  // async addOrder(order: any): Promise<any> {
-  //   console.log(order);
-
-  //   this.orderService.saveOrder(order).subscribe({
-  //     next: (response: any) => {
-  //       console.log(response);
-  //       this.onGetAllOrders();
-  //       this.onGetAllProducts();
-  //       return true;
-  //     },
-  //     error(err: any) {
-  //       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new order', life: 3000 });
-  //       console.log(err);
-  //       return false;
-  //     },
-  //   });
-  // }
 
   async addOrder(order: any): Promise<Order> {
     console.log('Saving order:', order);
@@ -1402,8 +1384,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           console.error('Error saving order:', err);
           this.messageService.add({
             severity: 'error',
-            summary: 'Error',
-            detail: 'Error while adding new order',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_order'),
             life: 3000
           });
           reject(err); // Reject the promise on error
@@ -1420,8 +1402,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           this.onGetAllCustomers();
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new customer', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_customer'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
@@ -1436,8 +1423,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           this.onGetAllShops();
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new shop', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_shop'),
+            life: 3000
+          });
           console.log(err);
           return false;
         },
@@ -1599,8 +1591,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     } catch (error) {
       this.messageService.add({
         severity: 'error',
-        summary: 'Error',
-        detail: 'Error while updating the order',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_order'),
         life: 3000
       });
       return false;
@@ -1739,11 +1731,21 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       // Update the existing events with the corresponding date from the order
       await this.editOrderStatus(order.orderId, order);
       this.syncEventDates(this.events);
-      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Canceled', life: 3000 });
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_canceled'),
+        life: 3000
+      });
       this.cdr.detectChanges(); // Detect changes to update the UI
 
     } catch (error) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while canceling order', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_canceling_order'),
+        life: 3000
+      });
     }
   }
 
@@ -1766,13 +1768,22 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         this.events = filteredEvents;
       }
       this.syncEventDates(this.events);
-      this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Order Canceled', life: 3000 });
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_canceled'),
+        life: 3000
+      });
       this.cdr.detectChanges(); // Detect changes to update the UI
 
     } catch (error) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while canceling order', life: 3000 });
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_canceling_order'),
+        life: 3000
+      });
     }
-
   }
 
   onDiscountChange(): void {
@@ -1913,19 +1924,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       }, 300);
     }
   }
-
-  //   async onGetCurrency() {
-  //   await (await this.configService.getConfigurationValue('currency'))
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.currency = response;
-  //         console.log(this.currency)
-  //       },
-  //       error: (err: any) => {
-  //         console.log(err)
-  //       }
-  //     })
-  // }
 
   getCustomerDisplayName(customer: any): string {
     if (!customer) return 'N/A';

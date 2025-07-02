@@ -17,5 +17,5 @@ export interface Refund {
   boeExpirationDate?: Date | string;
   notes?: string;
   createdBy?: string;
-  creationDate?: Date | string;
+  creationDate?: Date;
 }

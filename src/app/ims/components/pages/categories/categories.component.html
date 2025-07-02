@@ -1,7 +1,26 @@
 <div class="grid">
     <div class="col-12">
         <div class="card px-6 py-6">
+            <h5>{{'categories_menu_title' | translate}}</h5>
             <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'categories_page_description' | translate }}
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddCategory" value="{{'create'|translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditCategory" value="{{'edit'|translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteCategory" value="{{'delete'|translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export'|translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                    <p-tag *ngIf="canListProducts" value="{{'view_products'|translate}}" icon="pi pi-list" severity="help"></p-tag>
+                </div>
+            </div>
+
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
@@ -71,11 +90,11 @@
                         <td>
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditCategory" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2"
+                                    class="p-button-rounded p-button-info mr-2"
                                     pTooltip="{{'update_category'|translate}}"
                                     (click)="editCategory(category); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canDeleteCategory" icon="pi pi-trash"
-                                    class="p-button-rounded p-button-warning mr-2"
+                                    class="p-button-rounded p-button-danger mr-2"
                                     pTooltip="{{'delete_category'|translate}}"
                                     (click)="deleteCategory(category); $event.stopPropagation()"></button>
                                 <!-- <button pButton pRipple *ngIf="canListProducts" icon="pi pi-list"

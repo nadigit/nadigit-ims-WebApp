@@ -56,6 +56,7 @@ export class ExpensesComponent implements OnInit {
   isLoading: boolean = true;
   userRoles: any;
   isAdmin: boolean = false;
+  maxExpenseDate: any;
   constructor(private messageService: MessageService,
     private expenseService: ExpenseService,
     private configService: AppConfigurationService,
@@ -68,6 +69,8 @@ export class ExpensesComponent implements OnInit {
     
   async ngOnInit() {
     this.isLoading=true;
+    this.maxExpenseDate = new Date(); // Today's date
+    this.maxExpenseDate.setHours(23, 59, 59, 999); // Include entire current day
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -128,14 +131,12 @@ export class ExpensesComponent implements OnInit {
   confirmDeleteSelected() {
     this.deleteExpensesDialog = false;
     this.selectedExpenses.forEach(selectedExpense => this.onDeleteExpense(selectedExpense.id));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Expenses Deleted', life: 3000 });
     this.selectedExpenses = [];
   }
 
   async confirmDelete() {
     this.deleteExpenseDialog = false;
     await this.onDeleteExpense(this.expense.id);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Expense Deleted', life: 3000 });
     this.expense = {};
   }
 
@@ -148,12 +149,53 @@ export class ExpensesComponent implements OnInit {
     if (!this.canAddExpense) return;
     this.expense = {};
     this.expense.dateOfExpense = new Date();
+    this.expense.paymentMethod = 'Cash';
     this.submitted = false;
     this.expenseDialog = true;
   }
 
+  isExpenseFinalized(expense: any): boolean {
+    const today = new Date();
+    const dateOfExpense = new Date(expense.dateOfExpense);
+    return dateOfExpense.toDateString() === today.toDateString();
+  }
+
   saveExpense() {
     this.submitted = true;
+
+          if (!this.expense.paymentMethod) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('please_fill_required_fields')
+        });
+        return;
+      }
+
+      if (
+        this.expense.paymentMethod === 'Check' &&
+        (!this.expense.checkNumber || !this.expense.checkExpirationDate)
+      ) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('check_fields_required')
+        });
+        return;
+      }
+
+      if (
+        this.expense.paymentMethod === 'BOE' &&
+        (!this.expense.boeNumber || !this.expense.boeExpirationDate)
+      ) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('boe_fields_required')
+        });
+        return;
+      }
+
     if (this.expense.dateOfExpense) {
       // Ensure `dateOfExpense` is a Date object
       const date =
@@ -200,16 +242,21 @@ export class ExpensesComponent implements OnInit {
       console.log(this.expense)
 
       if (this.expense.id) {
-        this.updateExpense(this.expense.id, this.expense) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Expense updated with success', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating expense', life: 3000 })
+        this.updateExpense(this.expense.id, this.expense)
       } else {
-        this.addExpense(this.expense) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Expense created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding expense', life: 3000 }))
+        this.addExpense(this.expense)
       }
       this.expenses = [...this.expenses];
       this.expenseDialog = false;
       this.expense = {};
     }
     else{
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: this.translateService.instant('error'), 
+        detail: this.translateService.instant('please_fill_required_fields'), 
+        life: 3000 
+      });
       return;
     }
   }
@@ -249,9 +296,21 @@ export class ExpensesComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllExpenses();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translateService.instant('successful'),
+            detail: this.translateService.instant('expense_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.error(err)
+        error: (err: any) => {
+          console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translateService.instant('error'),
+            detail: this.translateService.instant('error_deleting_expense'),
+            life: 3000
+          });
         },
       })
   }
@@ -259,17 +318,17 @@ export class ExpensesComponent implements OnInit {
   async onGetAllShops() {
     await this.shopService.getShops().subscribe({
       next: (response: any) => {
-        this.shops = response;
-        console.log(this.shops);
+      this.shops = response;
+      console.log(this.shops);
       },
       error: (err: any) => {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Error while getting shops',
-          life: 3000,
-        });
-        console.log(err);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translateService.instant('error'),
+        detail: this.translateService.instant('error_getting_shops'),
+        life: 3000,
+      });
+      console.log(err);
       },
     });
   }
@@ -280,10 +339,22 @@ export class ExpensesComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllExpenses();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translateService.instant('successful'),
+            detail: this.translateService.instant('expense_updated'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
+        error: (err: any) => {
           console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translateService.instant('error'),
+            detail: this.translateService.instant('error_updating_expense'),
+            life: 3000
+          });
           return false;
         },
       })
@@ -294,10 +365,22 @@ export class ExpensesComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllExpenses();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translateService.instant('successful'),
+            detail: this.translateService.instant('expense_added'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
+        error: (err: any) => {
           console.error(err);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translateService.instant('error'),
+            detail: this.translateService.instant('error_adding_expense'),
+            life: 3000
+          });
           return false;
         },
       })

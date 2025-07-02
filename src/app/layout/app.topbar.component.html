@@ -65,7 +65,7 @@
                             <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_low_stock' | translate}} </span>
 
                             <br> 
-                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'dd/MM/yyyy'}}</span>
                         </span>
                     </div>
                     <!-- <div> 
@@ -102,7 +102,7 @@
                             <span *ngIf="notification.title == 'product in low stock'"> {{'notif_product_low_stock' | translate}} </span>
 
                             <br> 
-                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'short'}}</span>
+                            <span class="text-400" style="font-size: smaller;">{{notification.creationDate | date:'dd/MM/yyyy'}}</span>
                         </span>
                     </div>
                 </li>

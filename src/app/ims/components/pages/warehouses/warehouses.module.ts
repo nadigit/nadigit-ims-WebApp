@@ -20,7 +20,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
-
+import { TagModule } from 'primeng/tag';
 
 @NgModule({
     imports: [
@@ -42,7 +42,8 @@ import { TooltipModule } from 'primeng/tooltip';
         DialogModule,
         TranslateModule,
         ProgressSpinnerModule,
-        TooltipModule
+        TooltipModule,
+        TagModule
     ],
     declarations: [WarehousesComponent],
     providers: [ReportingService],

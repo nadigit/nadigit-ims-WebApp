@@ -1,7 +1,29 @@
 <div class="grid">
     <div class="col-12">
         <div class="card px-6 py-6">
+            <h5>{{'customers_menu_title' | translate}}</h5>
             <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'customers_page_description' | translate }}
+                    <!-- <span *ngIf="customers?.length" class="font-semibold">
+                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
+                    </span> -->
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddCustomer" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditCustomer" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteCustomer" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                    <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag>
+                </div>
+            </div>
+
             <p-toolbar styleClass="mb-4">
                 <ng-template pTemplate="left">
                     <div class="my-2">
@@ -96,11 +118,11 @@
                         <td>
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditCustomer" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-success mr-2"
+                                    class="p-button-rounded p-button-info mr-2"
                                     pTooltip="{{'update_customer'|translate}}"
                                     (click)="editCustomer(customer); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canDeleteCustomer" icon="pi pi-trash"
-                                    class="p-button-rounded p-button-warning mr-2"
+                                    class="p-button-rounded p-button-danger mr-2"
                                     pTooltip="{{'delete_customer'|translate}}"
                                     (click)="deleteCustomer(customer); $event.stopPropagation()"></button>
                                 <!-- <button pButton pRipple *ngIf="canReadHistory" icon="pi pi-list"
@@ -281,8 +303,8 @@
                                 </label>
                                 <p-dropdown [(ngModel)]="customer.country"
                                     (onChange)="onSelectedCountry(customer.country)" [options]="countries"
-                                    optionLabel="name" optionValue="name" [filter]="true" filterBy="name" [showClear]="true" 
-                                    placeholder="{{ 'select_country_option' | translate }}">
+                                    optionLabel="name" optionValue="name" [filter]="true" filterBy="name"
+                                    [showClear]="true" placeholder="{{ 'select_country_option' | translate }}">
                                     <ng-template pTemplate="selectedItem">
                                         <span *ngIf="customer && customer.country"
                                             class="flex align-items-center gap-2">
@@ -383,7 +405,13 @@
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span *ngIf="customer">{{'delete_confirmation_msg_with_param' | translate}}
-                    <b>{{customer.firstName}} {{customer.lastName}}</b>?</span>
+                    <b>{{
+                            customer.customerType === 'Company'
+                            ? (customer.companyName || 'N/A')
+                            : (customer.firstName && customer.lastName
+                            ? (customer.firstName + ' ' + customer.lastName)
+                            : (customer.firstName || customer.lastName || 'N/A'))
+                            }}</b>?</span>
             </div>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
@@ -430,7 +458,7 @@
                                 </span>
                                 <span class="customer-since" *ngIf="customer.creationDate">
                                     <i class="pi pi-calendar"></i> {{ 'customer_since' | translate }}:
-                                    {{customer.creationDate | date:'mediumDate'}}
+                                    {{customer.creationDate | date:'dd/MM/yyyy'}}
                                 </span>
                                 <span class="customer-phone" *ngIf="customer.phone">
                                     <i class="pi pi-phone"></i> {{customer.phone}}
@@ -445,9 +473,10 @@
                         <button pButton icon="pi pi-print" class="p-button-rounded p-button-text p-button-plain"
                             [pTooltip]="'print_report' | translate" (click)="printCustomerHistory()">
                         </button>
-                        <button pButton pRipple icon="pi pi-pencil"
+                        <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditCustomer"
                             class="p-button-rounded p-button-text p-button-plain"
-                            [pTooltip]="'update_customer' | translate" tooltipPosition="bottom" (click)="editCustomer(customer)">
+                            [pTooltip]="'update_customer' | translate" tooltipPosition="bottom"
+                            (click)="editCustomer(customer)">
                         </button>
                         <!-- <button pButton icon="pi pi-file-excel" class="p-button-rounded p-button-text p-button-plain"
                             [pTooltip]="'export_to_excel' | translate" (click)="exportToExcel()"
@@ -681,7 +710,7 @@
                                                 <a (click)="viewOrderDetails(order)" class="order-link">#{{
                                                     order.orderId }}</a>
                                             </td>
-                                            <td>{{ order.orderDate | date: 'mediumDate' }}</td>
+                                            <td>{{ order.orderDate | date: 'dd/MM/yyyy' }}</td>
                                             <td>{{ order.totalAmount | currency:currency:'symbol':'1.2-2' }}</td>
                                             <td>
                                                 <span [ngClass]="{'text-green-500': order.totalPaid > 0}">
@@ -689,18 +718,18 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <!-- <p-tag
-                                                    [value]="'order_status_'+order?.orderStatus?.toLowerCase() | translate"
-                                                    [severity]="getOrderStatusSeverity(order.orderStatus)">
-                                                </p-tag> -->
-                                                <span [class]="'order-badge order-' + order.orderStatus.toLowerCase()">{{order.orderStatus ?
-								('order_status_'+order.orderStatus.toLowerCase() | translate) : 'N/A'}}</span>
+                                                <span
+                                                    [class]="'order-badge order-' + order.orderStatus.toLowerCase()">{{order.orderStatus
+                                                    ?
+                                                    ('order_status_'+order.orderStatus.toLowerCase() | translate) :
+                                                    'N/A'}}</span>
                                             </td>
                                             <td>
-                                                <p-tag
-                                                    [value]="'order_payment_status_'+order?.paymentStatus?.toLowerCase() | translate"
-                                                    [severity]="getPaymentStatusSeverity(order.paymentStatus)">
-                                                </p-tag>
+                                                <span
+                                                    [class]="'payment-badge payment-' + order.paymentStatus.toLowerCase()">{{order.paymentStatus
+                                                    ?
+                                                    ('order_payment_status_'+order.paymentStatus.toLowerCase() |
+                                                    translate) : 'N/A'}}</span>
                                             </td>
                                             <!-- <td>
                                                 <button pButton icon="pi pi-eye" class="p-button-rounded p-button-text"
@@ -816,7 +845,7 @@
                                                 <a (click)="viewReturnDetails(return)" class="order-link">#{{
                                                     return.returnId }}</a>
                                             </td>
-                                            <td>{{ return.returnDate | date:'mediumDate' }}</td>
+                                            <td>{{ return.returnDate | date:'dd/MM/yyyy' }}</td>
                                             <td>{{ return.totalRefundableAmount | currency:currency:'symbol':'1.2-2' }}
                                             </td>
                                             <td>
@@ -824,8 +853,11 @@
                                                     [value]="'return_status_'+return.returnStatus.toLowerCase() | translate"
                                                     [severity]="getReturnStatusSeverity(return.returnStatus)">
                                                 </p-tag> -->
-                                                <span [class]="'return-badge return-' + return.returnStatus.toLowerCase()">{{return.returnStatus ?
-								('return_status_'+return.returnStatus.toLowerCase() | translate) : 'N/A'}}</span>
+                                                <span
+                                                    [class]="'return-badge return-' + return.returnStatus.toLowerCase()">{{return.returnStatus
+                                                    ?
+                                                    ('return_status_'+return.returnStatus.toLowerCase() | translate) :
+                                                    'N/A'}}</span>
                                             </td>
                                             <td>{{ return.returnItems?.length || 0 }}</td>
                                             <td>
@@ -964,7 +996,7 @@
                                                 <a (click)="viewPaymentDetails(payment)" class="order-link">#{{
                                                     payment.paymentId }}</a>
                                             </td>
-                                            <td>{{ payment.paymentDate | date:'mediumDate' }}</td>
+                                            <td>{{ payment.paymentDate | date:'dd/MM/yyyy' }}</td>
                                             <td>{{ payment.amount | currency:currency:'symbol':'1.2-2' }}</td>
                                             <td>
                                                 <p-tag

@@ -25,7 +25,7 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   @ViewChild('pickList') pickList: ElementRef | undefined;
 
-  Ressource : string = 'PURCHASES';
+  Ressource: string = 'PURCHASES';
 
   purchaseDialog: boolean = false;
 
@@ -83,13 +83,16 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   taxRate: number = 0.0;
 
+  showCashRegisterWarning = false;
+
   canAddPurchase: boolean = false;
   canEditPurchase: boolean = false;
   canDeletePurchase: boolean = false;
   isLoading: boolean = true;
   userRoles: any;
   isAdmin: boolean = false;
-  
+  maxPurchaseDate: any;
+
   constructor(private messageService: MessageService,
     private purchaseService: PurchaseService,
     private reportingService: ReportingService,
@@ -102,11 +105,13 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
     private productService: ProductService) {
-      this.loadTaxRate();
-     }
+    this.loadTaxRate();
+  }
 
   async ngOnInit() {
-    this.isLoading=true;
+    this.isLoading = true;
+    this.maxPurchaseDate = new Date(); // Today's date
+    this.maxPurchaseDate.setHours(23, 59, 59, 999); // Include entire current day
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -119,10 +124,9 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.onGetAllProducts();
     this.onGetAllSuppliers();
     this.getSourceProducts(),
-    this.getTargetProducts(),
-    this.initializePickList(),
-    // this.onGetCurrency(),
-    await this.checkPermissions();
+      this.getTargetProducts(),
+      this.initializePickList(),
+      await this.checkPermissions();
     await this.setUserRoles();
     this.cols = [
       { field: 'id', header: this.translateService.instant('ID') },
@@ -140,6 +144,21 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     if ('purchase' in changes) {
       this.initializePickList();
     }
+  }
+
+  checkCashRegisterStatus() {
+    if (!this.purchase.dateOfPurchase || this.purchase.paymentMethod !== 'Cash') {
+      this.showCashRegisterWarning = false;
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dateOfPurchase = new Date(this.purchase.dateOfPurchase);
+    dateOfPurchase.setHours(0, 0, 0, 0);
+
+    this.showCashRegisterWarning = dateOfPurchase < today;
   }
 
   private initializeTranslations() {
@@ -357,20 +376,6 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  // async onGetCurrency() {
-  //   await (await this.configService.getConfigurationValue('currency'))
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.currency = response;
-  //         console.log(this.currency)
-  //       },
-  //       error: (err: any) => {
-  //         console.log(err)
-  //       }
-  //     })
-  // }
-
-
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
@@ -437,20 +442,19 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   confirmDeleteSelected() {
     this.deletePurchasesDialog = false;
     this.selectedPurchases.forEach(selectedPurchase => this.onDeletePurchase(selectedPurchase.id));
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Purchases Deleted', life: 3000 });
     this.selectedPurchases = [];
   }
 
   async confirmDelete() {
     this.deletePurchaseDialog = false;
     await this.onDeletePurchase(this.purchase.id);
-    this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Purchase Deleted', life: 3000 });
     this.purchase = {};
   }
 
   hideDialog() {
     this.purchaseDialog = false;
     this.submitted = false;
+    this.purchase = {};
   }
 
   openNew() {
@@ -468,6 +472,12 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.purchaseDialog = true;
   }
 
+  isPurchaseFinalized(purchase: any): boolean {
+    const today = new Date();
+    const dateOfPurchase = new Date(purchase.dateOfPurchase);
+    return dateOfPurchase.toDateString() === today.toDateString();
+  }
+
   async savePurchase() {
     this.submitted = true;
     console.log(this.purchase)
@@ -479,14 +489,48 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           typeof this.purchase.dateOfPurchase === "string"
             ? new Date(this.purchase.dateOfPurchase)
             : this.purchase.dateOfPurchase;
-    
+
         // Format the date into YYYY-MM-DD
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
         const day = String(date.getDate()).padStart(2, "0");
-    
+
         this.purchase.dateOfPurchase = `${year}-${month}-${day}`; // Convert to string format
       }
+
+      if (!this.purchase.paymentMethod) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('please_fill_required_fields')
+        });
+        return;
+      }
+
+      if (
+        this.purchase.paymentMethod === 'Check' &&
+        (!this.purchase.checkNumber || !this.purchase.checkExpirationDate)
+      ) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('check_fields_required')
+        });
+        return;
+      }
+
+      if (
+        this.purchase.paymentMethod === 'BOE' &&
+        (!this.purchase.boeNumber || !this.purchase.boeExpirationDate)
+      ) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('boe_fields_required')
+        });
+        return;
+      }
+
 
       if (this.purchase.checkExpirationDate) {
         // Ensure `dateOfExpense` is a Date object
@@ -494,122 +538,117 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           typeof this.purchase.checkExpirationDate === "string"
             ? new Date(this.purchase.checkExpirationDate)
             : this.purchase.checkExpirationDate;
-    
+
         // Format the date into YYYY-MM-DD
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
         const day = String(date.getDate()).padStart(2, "0");
-    
+
         this.purchase.checkExpirationDate = `${year}-${month}-${day}`; // Convert to string format
-      } 
+      }
       else if (this.purchase.boeExpirationDate) {
         // Ensure `dateOfExpense` is a Date object
         const date =
           typeof this.purchase.boeExpirationDate === "string"
             ? new Date(this.purchase.boeExpirationDate)
             : this.purchase.boeExpirationDate;
-    
+
         // Format the date into YYYY-MM-DD
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
         const day = String(date.getDate()).padStart(2, "0");
-    
+
         this.purchase.boeExpirationDate = `${year}-${month}-${day}`; // Convert to string format
       }
 
-    // Check if the customer is selected
-    if (!this.purchase.supplier) {
-      // Optionally, show an error message or handle it as needed
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Supplier is required.', life: 3000 });
-      return; // Exit the method to prevent submission
-    }
-
-    if (this.isAdmin && !this.purchase.shop) {
-      // Optionally, show an error message or handle it as needed
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Shop is required.', life: 3000 });
-      return; // Exit the method to prevent submission
-    }
-
-    // Check if at least one product is selected
-    if (this.targetProducts.length === 0) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'At least one product must be selected.', life: 3000 });
-      return; // Exit the method to prevent submission
-    }
-
-    // Map the target products to order items with the required structure
-    const purchaseItems: PurchaseItem[] = this.targetProducts.map(product => ({
-      product,
-      quantityPurchased: product['purchaseItemQuantity'],
-      buyingPrice: product['purchaseItemPricePerUnit']
-    }));
-
-    // Create a new order object to avoid modifying the existing one directly
-    const newPurchase: Purchase = { ...this.purchase };
-
-    // Assign the new order items to the new order
-    newPurchase.purchaseItems = purchaseItems;
-
-    // Remove 'quantity' and 'subTotal' properties from each product in orderItems
-    newPurchase.purchaseItems.forEach(purchaseItem => {
-      delete purchaseItem.product['purchaseItemQuantity'];
-      delete purchaseItem.product['purchaseItemPricePerUnit'];
-    });
-
-    newPurchase.taxEnabled = this.taxEnabled;
-
-    console.log(newPurchase);
-
-    try {
-      if (newPurchase.id) {
-        await this.updatePurchase(newPurchase.id, newPurchase);
-        this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Purchase Updated', life: 3000 });
-      } else {
-
-        await this.addPurchase(newPurchase);
-        this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Purchase Added', life: 3000 });
+      // Check if the customer is selected
+      if (!this.purchase.supplier) {
+        // Optionally, show an error message or handle it as needed
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('supplier_required'),
+          life: 3000
+        });
+        return; // Exit the method to prevent submission
       }
-    } catch (error) {
-      console.error(error);
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error occurred', life: 3000 });
+
+      if (this.isAdmin && !this.purchase.shop) {
+        // Optionally, show an error message or handle it as needed
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('shop_required'),
+          life: 3000
+        });
+        return; // Exit the method to prevent submission
+      }
+
+      // Check if at least one product is selected
+      if (this.targetProducts.length === 0) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('at_least_one_product_required'),
+          life: 3000
+        });
+        return; // Exit the method to prevent submission
+      }
+
+      if (this.showCashRegisterWarning && this.purchase.paymentMethod === 'Cash') {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('cash_register_closed_warning'),
+          life: 5000
+        });
+      }
+
+      // Map the target products to order items with the required structure
+      const purchaseItems: PurchaseItem[] = this.targetProducts.map(product => ({
+        product,
+        quantityPurchased: product['purchaseItemQuantity'],
+        buyingPrice: product['purchaseItemPricePerUnit']
+      }));
+
+      // Create a new order object to avoid modifying the existing one directly
+      const newPurchase: Purchase = { ...this.purchase };
+
+      // Assign the new order items to the new order
+      newPurchase.purchaseItems = purchaseItems;
+
+      // Remove 'quantity' and 'subTotal' properties from each product in orderItems
+      newPurchase.purchaseItems.forEach(purchaseItem => {
+        delete purchaseItem.product['purchaseItemQuantity'];
+        delete purchaseItem.product['purchaseItemPricePerUnit'];
+      });
+
+      newPurchase.taxEnabled = this.taxEnabled;
+
+      console.log(newPurchase);
+
+      try {
+        if (newPurchase.id) {
+          await this.updatePurchase(newPurchase.id, newPurchase);
+        } else {
+
+          await this.addPurchase(newPurchase);
+        }
+      } catch (error) {
+        console.error(error);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_occurred'),
+          life: 3000
+        });
+      }
+
+      this.purchases = [...this.purchases];
+      this.purchaseDialog = false;
+      this.purchase = {};
     }
-
-    this.purchases = [...this.purchases];
-    this.purchaseDialog = false;
-    this.purchase = {};
   }
-}
-
-  // savePurchase() {
-  //   this.submitted = true;
-  //   if (this.purchase.purpose) {
-  //     if (this.purchase.dateOfPurchase) {
-  //       // Ensure `dateOfExpense` is a Date object
-  //       const date =
-  //         typeof this.purchase.dateOfPurchase === "string"
-  //           ? new Date(this.purchase.dateOfPurchase)
-  //           : this.purchase.dateOfPurchase;
-    
-  //       // Format the date into YYYY-MM-DD
-  //       const year = date.getFullYear();
-  //       const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  //       const day = String(date.getDate()).padStart(2, "0");
-    
-  //       this.purchase.dateOfPurchase = `${year}-${month}-${day}`; // Convert to string format
-  //     }
-  //     if (this.purchase.id) {
-  //       this.updatePurchase(this.purchase.id, this.purchase) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Purchase updated with success', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating purchase', life: 3000 })
-  //     } else {
-  //       this.addPurchase(this.purchase) ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Purchase created with success', life: 3000 }) : (this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding purchase', life: 3000 }))
-  //     }
-  //     this.purchases = [...this.purchases];
-  //     this.purchaseDialog = false;
-  //     this.purchase = {};
-  //   }
-  //   else{
-  //     this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill out the required fields', life: 3000 });
-  //     return;
-  //   }
-  // }
 
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
@@ -629,8 +668,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
       error: (err: any) => {
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Error while getting shops',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_shops'),
           life: 3000,
         });
         console.log(err);
@@ -647,8 +686,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
       error: (err: any) => {
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Error while getting suppliers',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_suppliers'),
           life: 3000,
         });
         console.log(err);
@@ -672,10 +711,16 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           });
         },
         error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_purchases'),
+            life: 3000,
+          });
           console.error(err)
         },
-        complete: () =>{
-          this.isLoading=false;
+        complete: () => {
+          this.isLoading = false;
         }
       })
   }
@@ -685,11 +730,23 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
       .subscribe({
         next: (response: any) => {
           this.onGetAllPurchases();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('purchase_deleted'),
+            life: 3000
+          });
         },
-        error(err: any) {
-          console.error(err)
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_purchase'),
+            life: 3000
+          });
+          console.error(err);
         },
-      })
+      });
   }
 
   async updatePurchase(id: any, purchase: any): Promise<any> {
@@ -701,10 +758,21 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           console.log(response);
           this.onGetAllPurchases();
           this.onGetAllProducts();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('purchase_updated'),
+            life: 3000
+          });
           return true;
         },
-        error(err: any) {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating the purchase', life: 3000 })
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_purchase'),
+            life: 3000
+          });
           return false;
         },
       })
@@ -717,10 +785,21 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         console.log(response);
         this.onGetAllPurchases();
         this.onGetAllProducts();
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('purchase_added'),
+          life: 3000
+        });
         return true;
       },
-      error(err: any) {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while adding new purchase', life: 3000 })
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_adding_purchase'),
+          life: 3000
+        });
         console.log(err);
         return false;
       },
@@ -728,34 +807,6 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
 
-  // async updatePurchase(id: any, purchase: any): Promise<any> {
-  //   console.log(purchase)
-  //   await this.purchaseService.updatePurchase(id, purchase)
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.onGetAllPurchases();
-  //         return true;
-  //       },
-  //       error(err: any) {
-  //         console.error(err);
-  //         return false;
-  //       },
-  //     })
-  // }
-
-  // async addPurchase(data: any): Promise<any> {
-  //   await this.purchaseService.savePurchase(data)
-  //     .subscribe({
-  //       next: (response: any) => {
-  //         this.onGetAllPurchases();
-  //         return true;
-  //       },
-  //       error(err: any) {
-  //         console.error(err);
-  //         return false;
-  //       },
-  //     })
-  // }
 
   async onGetAllProducts() {
     await this.productService.getProducts()
@@ -766,7 +817,12 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           console.log(this.products);
         },
         error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while getting the list of products', life: 3000 })
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_products'),
+            life: 3000
+          });
           console.log(err)
         },
         complete: () => {
@@ -796,10 +852,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     });
 
     // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedPurchases,'purchases');
+    this.reportingService.exportExcel(modifiedPurchases, 'purchases');
   }
 
-  
+
 
 }
 
