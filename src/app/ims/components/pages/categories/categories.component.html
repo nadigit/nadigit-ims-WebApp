@@ -70,6 +70,10 @@
                                 field="categoryName"></p-sortIcon></th>
                         <th pSortableColumn="description">{{'category_description' | translate}} <p-sortIcon
                                 field="description"></p-sortIcon></th>
+                        <th pSortableColumn="creationDate">{{ 'creation_date' | translate }}
+                            <p-columnFilter type="date" field="creationDate" display="menu" />
+                            <p-sortIcon field="creationDate"></p-sortIcon>
+                        </th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -87,6 +91,10 @@
                             <span class="p-column-title">{{'category_description' | translate}}</span>
                             {{category.description ? category.description : 'N/A'}}
                         </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'creation_date' | translate }}</span>
+                            {{ category.creationDate ? (category.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
+                        <td>
                         <td>
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditCategory" icon="pi pi-pencil"

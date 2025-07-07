@@ -1172,6 +1172,7 @@
   "error_getting_suppliers": "Error while getting suppliers",
   "error_deleting_supplier": "Error while deleting supplier",
   "supplier_updated": "Supplier updated successfully",
+  "warehouse_updated":"Warehouse updated successfully",
 
   "starts_with": "Starts with",
   "contains": "Contains",

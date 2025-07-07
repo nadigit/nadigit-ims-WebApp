@@ -1175,6 +1175,7 @@
   "error_getting_suppliers": "حدث خطأ أثناء جلب الموردين",
   "error_deleting_supplier": "حدث خطأ أثناء حذف المورد",
   "supplier_updated": "تم تحديث بيانات المورد بنجاح",
+  "warehouse_updated":"تم تحديث المستودع بنجاح.",
 
   "starts_with": "يبدأ بـ",
   "contains": "يحتوي على",

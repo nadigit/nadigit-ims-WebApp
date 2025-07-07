@@ -21,6 +21,7 @@ import { ReportingService } from 'src/app/utils/reporting.service';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 @NgModule({
     imports: [
@@ -43,7 +44,8 @@ import { TagModule } from 'primeng/tag';
         TranslateModule,
         ProgressSpinnerModule,
         TooltipModule,
-        TagModule
+        TagModule,
+        SharedModule
     ],
     declarations: [WarehousesComponent],
     providers: [ReportingService],

@@ -10,6 +10,7 @@ import { Country, State } from 'country-state-city';
 import { AppConfiguration } from 'src/app/models/appConfiguration';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { currencies } from 'currencies.json';
+import { LocationService } from 'src/app/services/location.service';
 
 
 interface UploadEvent {
@@ -34,7 +35,7 @@ export class SettingsComponent implements OnInit {
   organizationSteps: MenuItem[] | undefined;
   selectedNodes!: TreeNode[];
   organizationStructure: any;
-  countries: any = Country.getAllCountries();
+  countries: any;
   currenciesList: any = currencies;
   printingFormats: any;
   selectedCountry: any = null;
@@ -58,6 +59,7 @@ export class SettingsComponent implements OnInit {
     private organizationService: OrganizationService,
     private appConfigService: AppConfigurationService,
     private translate: TranslateService,
+    private locationService: LocationService,
     private translateService: TranslationService,) {
 
     this.organizationSteps = [
@@ -85,7 +87,8 @@ export class SettingsComponent implements OnInit {
     this.isLoading = true;
     this.imageLoading = true;
     this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang); // Use the translate service to update language
+      this.translate.use(lang);
+      this.countries = this.locationService.getAllCountriesWithTranslation();
     });
 
     const translations = await this.translate.get(['organization_title', 'global_parameters','a4','receipt']).toPromise();
@@ -432,7 +435,18 @@ export class SettingsComponent implements OnInit {
       }
     });
     console.log(this.selectedCountry.isoCode);
-    this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
+    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
+  }
+
+  filterCountry(value: any, filter: string): boolean {
+    // Convert both to lowercase for case-insensitive comparison
+    const normalizedFilter = filter.toLowerCase();
+
+    // Check both original name and translated name
+    return (
+      value.name.toLowerCase().includes(normalizedFilter) ||
+      value.translatedName.toLowerCase().includes(normalizedFilter)
+    );
   }
 
   async updateOrganization(id: any, organization: any): Promise<any> {

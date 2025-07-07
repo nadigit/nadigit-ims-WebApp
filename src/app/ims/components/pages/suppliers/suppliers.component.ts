@@ -11,7 +11,7 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { firstValueFrom } from 'rxjs';
-import { CountryTranslatePipe } from 'src/app/pipes/country-translate.pipe';
+import { LocationService } from 'src/app/services/location.service';
 
 @Component({
   templateUrl: './suppliers.component.html',
@@ -72,7 +72,7 @@ export class SuppliersComponent implements OnInit {
     private supplierService: SupplierService,
     private reportingService: ReportingService,
     private translate: TranslateService,
-    private countryTranslatePipe: CountryTranslatePipe,
+    private locationService: LocationService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
     private configService: AppConfigurationService,
@@ -82,11 +82,7 @@ export class SuppliersComponent implements OnInit {
     this.isLoading = true;
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
-      this.countries = Country.getAllCountries().map(country => ({
-        ...country,
-        translatedName: this.translate.instant(`countries.${country.name}`)
-      }));
-
+      this.countries = this.locationService.getAllCountriesWithTranslation();
     });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -501,7 +497,7 @@ export class SuppliersComponent implements OnInit {
         this.selectedCountry = element;
       }
     });
-    this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
+    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
 
   }
 

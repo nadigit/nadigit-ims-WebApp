@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx';
 import { DatePipe } from '@angular/common';
 import { Purchase } from 'src/app/models/purchase';
 import { Expense } from 'src/app/models/expense';
+import { LocationService } from 'src/app/services/location.service';
 
 @Component({
   templateUrl: './shops.component.html',
@@ -52,7 +53,7 @@ export class ShopsComponent implements OnInit {
 
   valSwitch: boolean = false;
 
-  countries: any = Country.getAllCountries();
+  countries: any;
 
   selectedCountry: any = null;
 
@@ -102,6 +103,7 @@ export class ShopsComponent implements OnInit {
     private reportingService: ReportingService,
     private translate: TranslateService,
     private translateService: TranslationService,
+    private locationService: LocationService,
     private permissionService: PermissionService,
     private configService: AppConfigurationService,
     public keycloakService: KeycloakService,) { }
@@ -120,7 +122,9 @@ export class ShopsComponent implements OnInit {
       }
     });
     this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang); // Use the translate service to update language
+      this.translate.use(lang);
+      this.countries = this.locationService.getAllCountriesWithTranslation();
+
     });
     await this.checkPermissions();
     this.onGetAllShops();
@@ -683,10 +687,20 @@ getPaymentMethodSeverity(method: string): string {
         this.selectedCountry = element;
       }
     });
-    this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
-
+    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
   }
 
+  filterCountry(value: any, filter: string): boolean {
+    // Convert both to lowercase for case-insensitive comparison
+    const normalizedFilter = filter.toLowerCase();
+
+    // Check both original name and translated name
+    return (
+      value.name.toLowerCase().includes(normalizedFilter) ||
+      value.translatedName.toLowerCase().includes(normalizedFilter)
+    );
+  }
+  
   async openCashRegisterDialog(shop: any) {
     this.cashRegister = {};
     this.shop = shop;

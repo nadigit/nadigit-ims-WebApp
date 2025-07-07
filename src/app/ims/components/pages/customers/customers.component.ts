@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
+import { LocationService } from 'src/app/services/location.service';
 
 @Pipe({ name: 'absolute' })
 export class AbsolutePipe implements PipeTransform {
@@ -55,7 +56,7 @@ export class CustomersComponent implements OnInit {
 
   rowsPerPageOptions = [20, 50, 100];
 
-  countries: any = Country.getAllCountries();
+  countries: any;
 
   selectedCountry: any = null;
 
@@ -91,6 +92,7 @@ export class CustomersComponent implements OnInit {
     private customerService: CustomerService,
     private reportingService: ReportingService,
     private configService: AppConfigurationService,
+    private locationService: LocationService,
     private translate: TranslateService,
     public keycloakService: KeycloakService,
     private translateService: TranslationService,
@@ -105,7 +107,9 @@ export class CustomersComponent implements OnInit {
       }
     });
     this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang); // Use the translate service to update language
+      this.translate.use(lang);
+      this.countries = this.locationService.getAllCountriesWithTranslation();
+
     });
 
     await this.checkPermissions();
@@ -259,8 +263,16 @@ export class CustomersComponent implements OnInit {
 
   getFullAddress(customer: any): string {
     if (!customer) return '';
-    return [customer.address, customer.city, customer.state, customer.postalCode, customer.country]
-      .filter(part => part).join(', ');
+
+    const translatedCountry = this.countries?.find(c => c.name === customer.country)?.translatedName || customer.country;
+
+    return [
+      customer.address,
+      customer.city,
+      customer.state,
+      customer.postalCode,
+      translatedCountry
+    ].filter(part => part).join(', ');
   }
 
   getFormattedTrend(trendValue: number): string {
@@ -534,8 +546,18 @@ export class CustomersComponent implements OnInit {
         this.selectedCountry = element;
       }
     });
-    this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
+    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
+  }
 
+  filterCountry(value: any, filter: string): boolean {
+    // Convert both to lowercase for case-insensitive comparison
+    const normalizedFilter = filter.toLowerCase();
+
+    // Check both original name and translated name
+    return (
+      value.name.toLowerCase().includes(normalizedFilter) ||
+      value.translatedName.toLowerCase().includes(normalizedFilter)
+    );
   }
 
   async openCustomerHistoryDialog(customer: Customer) {

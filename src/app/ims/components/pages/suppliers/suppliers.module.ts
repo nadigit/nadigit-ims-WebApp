@@ -26,7 +26,7 @@ import { TabViewModule } from 'primeng/tabview';
 import { TagModule } from 'primeng/tag';
 import { ChartModule } from 'primeng/chart';
 import { CardModule } from 'primeng/card';
-import { CountryTranslatePipe } from 'src/app/pipes/country-translate.pipe';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 
@@ -56,9 +56,10 @@ import { CountryTranslatePipe } from 'src/app/pipes/country-translate.pipe';
         TabViewModule,
         TagModule,
         ChartModule,
-        CardModule
+        CardModule,
+        SharedModule
     ],
-    declarations: [SuppliersComponent, CountryTranslatePipe],
-    providers: [ReportingService, CountryTranslatePipe],
+    declarations: [SuppliersComponent],
+    providers: [ReportingService],
 })
 export class SuppliersModule { }

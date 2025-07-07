@@ -49,7 +49,7 @@
             </div>
 
             <p-table #dt [value]="payments" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-                [globalFilterFields]="['order.orderId','amount','paymentStatus','paymentMethod','transactionId','notes','createdBy']"
+                [globalFilterFields]="['order.orderId','amount','paymentStatus','paymentMethod','transactionId','notes','createdBy', 'customer.firstName', 'customer.lastName', 'customer.companyName']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedPayments" selectionMode="multiple" [rowHover]="true" dataKey="paymentId">

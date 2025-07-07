@@ -16,11 +16,14 @@
                     </span> -->
                 </p>
                 <div class="flex mt-3 gap-2">
-                    <p-tag *ngIf="canAddShop" value="{{'create'|translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canAddShop" value="{{'create'|translate}}" icon="pi pi-plus"
+                        severity="success"></p-tag>
                     <p-tag *ngIf="canEditShop" value="{{'edit'|translate}}" icon="pi pi-pencil" severity="info"></p-tag>
-                    <p-tag *ngIf="canDeleteShop" value="{{'delete'|translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag *ngIf="canDeleteShop" value="{{'delete'|translate}}" icon="pi pi-trash"
+                        severity="danger"></p-tag>
                     <p-tag value="{{'export'|translate}}" icon="pi pi-download" severity="warning"></p-tag>
-                    <p-tag *ngIf="canReadCash" value="{{'cash_register'|translate}}" icon="pi pi-dollar" severity="help"></p-tag>
+                    <p-tag *ngIf="canReadCash" value="{{'cash_register'|translate}}" icon="pi pi-dollar"
+                        severity="help"></p-tag>
                 </div>
             </div>
 
@@ -77,6 +80,10 @@
                                 field="address"></p-sortIcon></th>
                         <th pSortableColumn="location">{{ 'shop_location' | translate }}<p-sortIcon
                                 field="location"></p-sortIcon></th>
+                        <th pSortableColumn="creationDate">{{ 'creation_date' | translate }}
+                            <p-columnFilter type="date" field="creationDate" display="menu" />
+                            <p-sortIcon field="creationDate"></p-sortIcon>
+                        </th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -100,17 +107,19 @@
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'shop_location' | translate }}</span>
-                            {{ shop.country ? (shop.city + ', ' +shop.country) : 'N/A'}}
+                            {{ shop.country ? (shop.city + ', ' + (shop.country | countryTranslate)) : 'N/A'}}
                         </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'creation_date' | translate }}</span>
+                            {{ shop.creationDate ? (shop.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
+                        <td>
                         <td>
                             <div class="flex">
                                 <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditShop"
-                                    pTooltip="{{'update_shop'|translate}}"
-                                    class="p-button-rounded p-button-info mr-2"
+                                    pTooltip="{{'update_shop'|translate}}" class="p-button-rounded p-button-info mr-2"
                                     (click)="editShop(shop); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canDeleteShop" icon="pi pi-trash"
-                                    pTooltip="{{'delete_shop'|translate}}"
-                                    class="p-button-rounded p-button-danger mr-2"
+                                    pTooltip="{{'delete_shop'|translate}}" class="p-button-rounded p-button-danger mr-2"
                                     (click)="deleteShop(shop); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canReadCash" icon="pi pi-dollar"
                                     class="p-button-rounded p-button-primary"
@@ -187,19 +196,22 @@
                                     {{ 'shop_country' | translate }}
                                 </label>
                                 <p-dropdown [(ngModel)]="shop.country" (onChange)="onSelectedCountry(shop.country)"
-                                    name="country" [options]="countries" optionValue="name" optionLabel="name"
-                                    [filter]="true" filterBy="name" [showClear]="true"
+                                    name="country" [options]="countries" optionValue="name" optionLabel="translatedName"
+                                    [filter]="true" [filterFields]="['name', 'translatedName']"
+                                    [filterBy]="filterCountry" [showClear]="true"
                                     placeholder="{{ 'select_country_option' | translate }}">
+
                                     <ng-template pTemplate="selectedItem">
                                         <span *ngIf="shop && shop.country" class="flex align-items-center gap-2">
                                             <i class="pi pi-globe"></i>
-                                            {{shop?.country? shop.country : ('select_country_option' | translate )}}
+                                            {{ shop.country | countryTranslate }}
                                         </span>
                                     </ng-template>
+
                                     <ng-template let-option pTemplate="item">
                                         <span class="flex align-items-center gap-2">
                                             <i class="pi pi-globe"></i>
-                                            {{option.name}}
+                                            {{ option.translatedName }}
                                         </span>
                                     </ng-template>
                                 </p-dropdown>
@@ -278,106 +290,58 @@
                 <div class="grid p-fluid">
                     <!-- Shop Basic Info Section -->
                     <div class="col-12 md:col-5 pr-4">
-                        <!-- Shop Logo/Badge -->
-                        <!-- <div class="flex justify-content-center mb-4" *ngIf="selectedShop.logo">
-                            <img [src]="selectedShop.logo" alt="Shop Logo" class="border-circle w-8rem h-8rem shadow-2">
-                        </div>
-                        <div class="flex justify-content-center mb-4" *ngIf="!selectedShop.logo">
-                            <div
-                                class="border-circle w-8rem h-8rem shadow-2 bg-primary flex justify-content-center align-items-center">
-                                <i class="pi pi-store text-5xl text-white"></i>
-                            </div>
-                        </div> -->
+                        <div class="surface-card p-4 border-round shadow-2 mb-4">
+                            <h3 class="mt-0 mb-4 flex align-items-center">
+                                <i class="pi pi-info-circle mr-2 text-primary"></i>
+                                {{ 'basic_information' | translate }}
+                            </h3>
 
-                        <!-- Basic Information Card -->
-                        <div class="surface-card p-4 border-round shadow-2 mb-4"
-                            *ngIf="selectedShop.shopName || selectedShop.description || selectedShop.creationDate">
-                            <div class="flex align-items-center mb-4">
-                                <i class="pi pi-shopping-bag mr-3 text-primary" style="font-size: 1.5rem"></i>
-                                <h3 class="m-0">{{ 'basic_information' | translate }}</h3>
-                            </div>
-
-                            <div class="field mb-4" *ngIf="selectedShop.shopName">
+                            <div class="field mb-4" *ngIf="selectedShop && selectedShop.shopName">
                                 <label class="block mb-2 font-medium text-900">
-                                    <i class="pi pi-tag mr-2 text-primary"></i>
+                                    <i class="pi pi-home mr-1"></i>
                                     {{ 'shop_name' | translate }}
                                 </label>
-                                <div class="p-inputgroup border-1 surface-border border-round">
-                                    <span class="p-inputgroup-addon bg-gray-100">
-                                        <i class="pi pi-shopping-bag text-primary"></i>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon">
+                                        <i class="pi pi-building"></i>
                                     </span>
-                                    <input pInputText [value]="selectedShop.shopName" readonly
-                                        class="w-full bg-gray-50" />
+                                    <input pInputText [value]="selectedShop.shopName" readonly class="w-full" />
                                 </div>
                             </div>
 
                             <div class="field mb-4" *ngIf="selectedShop.description">
                                 <label class="block mb-2 font-medium text-900">
-                                    <i class="pi pi-align-left mr-2 text-primary"></i>
+                                    <i class="pi pi-align-left mr-1"></i>
                                     {{ 'shop_description' | translate }}
                                 </label>
-                                <div class="p-inputgroup border-1 surface-border border-round">
-                                    <span class="p-inputgroup-addon bg-gray-100 align-items-start pt-3">
-                                        <i class="pi pi-align-left text-primary"></i>
-                                    </span>
-                                    <textarea pInputTextarea [value]="selectedShop.description" rows="3"
-                                        [autoResize]="true" readonly class="w-full bg-gray-50"></textarea>
-                                </div>
+                                <textarea pInputTextarea [value]="selectedShop.description" rows="3" [autoResize]="true"
+                                    readonly class="w-full"></textarea>
                             </div>
 
-                            <div class="field" *ngIf="selectedShop.creationDate">
+                            <div class="field"
+                                *ngIf="selectedShop.address || selectedShop.city || selectedShop.country">
                                 <label class="block mb-2 font-medium text-900">
-                                    <i class="pi pi-calendar mr-2 text-primary"></i>
-                                    {{ 'creation_date' | translate }}
+                                    <i class="pi pi-map mr-1"></i>
+                                    {{ 'location' | translate }}
                                 </label>
-                                <div class="p-inputgroup border-1 surface-border border-round">
-                                    <span class="p-inputgroup-addon bg-gray-100">
-                                        <i class="pi pi-calendar text-primary"></i>
-                                    </span>
-                                    <p-calendar [(ngModel)]="selectedShop.creationDate" [readonlyInput]="true"
-                                        [showIcon]="false" dateFormat="dd/mm/yy" inputStyleClass="w-full bg-gray-50"
-                                        [disabled]="true">
-                                    </p-calendar>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Location Card -->
-                        <div class="surface-card p-4 border-round shadow-2"
-                            *ngIf="selectedShop.country || selectedShop.city || selectedShop.address">
-                            <div class="flex align-items-center mb-4">
-                                <i class="pi pi-map-marker mr-3 text-primary" style="font-size: 1.5rem"></i>
-                                <h3 class="m-0">{{ 'location' | translate }}</h3>
-                            </div>
-
-                            <div class="flex flex-column gap-3">
-                                <div class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors"
-                                    *ngIf="selectedShop.country">
-                                    <i class="pi pi-globe mr-3 text-xl text-primary"></i>
-                                    <div>
-                                        <div class="font-medium">{{ selectedShop.country || 'N/A' }}</div>
+                                <div class="surface-100 p-3 border-round">
+                                    <div class="flex align-items-center mb-2" *ngIf="selectedShop.country">
+                                        <i class="pi pi-globe mr-2 text-primary"></i>
+                                        <span class="text-900">{{ (selectedShop.country | countryTranslate) || 'N/A'
+                                            }}</span>
                                     </div>
-                                </div>
-
-                                <div class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors"
-                                    *ngIf="selectedShop.city">
-                                    <i class="pi pi-map-marker mr-3 text-xl text-primary"></i>
-                                    <div>
-                                        <div class="font-medium">{{ selectedShop.city || 'N/A' }}</div>
+                                    <div class="flex align-items-center mb-2" *ngIf="selectedShop.city">
+                                        <i class="pi pi-map-marker mr-2 text-primary"></i>
+                                        <span class="text-900">{{ selectedShop.city || 'N/A' }}</span>
                                     </div>
-                                </div>
-
-                                <div class="flex align-items-start p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors"
-                                    *ngIf="selectedShop.address">
-                                    <i class="pi pi-compass mr-3 text-xl text-primary mt-1"></i>
-                                    <div>
-                                        <div class="font-medium">{{ selectedShop.address || 'N/A' }}</div>
+                                    <div class="flex align-items-start" *ngIf="selectedShop.address">
+                                        <i class="pi pi-compass mr-2 text-primary mt-1"></i>
+                                        <span class="text-900">{{ selectedShop.address || 'N/A' }}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                     <!-- Shop Statistics Section -->
                     <div class="col-12 md:col-7 pl-2">
                         <div class="grid">

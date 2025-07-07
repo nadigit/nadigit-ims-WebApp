@@ -24,6 +24,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { CardModule } from 'primeng/card';
 import { TabViewModule } from 'primeng/tabview';
 import { TagModule } from 'primeng/tag';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 @NgModule({
@@ -50,7 +51,8 @@ import { TagModule } from 'primeng/tag';
         TooltipModule,
         CardModule,
         TabViewModule,
-        TagModule
+        TagModule,
+        SharedModule
     ],
     declarations: [ShopsComponent],
     providers: [ReportingService],

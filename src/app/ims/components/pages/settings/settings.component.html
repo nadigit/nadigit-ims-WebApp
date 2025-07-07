@@ -215,15 +215,16 @@
           <div class="field">
             <label for="country">{{ 'shop_country' | translate }}</label>
             <p-dropdown [(ngModel)]="organization.country" (onChange)="onSelectedCountry(organization.country)"
-              name="country" inputId="country" ngDefaultControl [options]="countries" optionValue="name"
-              optionLabel="name" [filter]="true" filterBy="name" placeholder="{{ 'select_country_option' | translate }}"
-              autofocus>
+              name="country" inputId="country" ngDefaultControl [options]="countries"
+              placeholder="{{ 'select_country_option' | translate }}" [filter]="true"
+              [filterFields]="['name', 'translatedName']" [filterBy]="filterCountry" autofocus optionValue="name"
+              optionLabel="translatedName">
               <ng-template pTemplate="selectedItem">
-                <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country
+                <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country | countryTranslate
                   }}</span>
               </ng-template>
               <ng-template let-option pTemplate="item">
-                <span class="product-badge">{{ option.name }}</span>
+                <span class="product-badge">{{ option.translatedName }}</span>
               </ng-template>
             </p-dropdown>
           </div>
@@ -283,16 +284,19 @@
           </div>
           <div class="field">
             <label for="socialSecurityId">{{ 'social_security' | translate }}</label>
-            <input type="text" pInputText name="socialSecurityId" ngDefaultControl [(ngModel)]="organization.socialSecurityId" required autofocus
+            <input type="text" pInputText name="socialSecurityId" ngDefaultControl
+              [(ngModel)]="organization.socialSecurityId" required autofocus
               [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.socialSecurityId }" />
-            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.socialSecurityId">{{ 'social_security' | translate }} {{
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.socialSecurityId">{{ 'social_security'
+              | translate }} {{
               'is_required_label' | translate }}</small>
           </div>
           <div class="field">
             <label for="bankAccountId">{{ 'bank_account' | translate }}</label>
-            <input type="text" pInputText name="bankAccountId" ngDefaultControl [(ngModel)]="organization.bankAccountId" required autofocus
-              [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankAccountId }" />
-            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.bankAccountId">{{ 'bank_account' | translate }} {{
+            <input type="text" pInputText name="bankAccountId" ngDefaultControl [(ngModel)]="organization.bankAccountId"
+              required autofocus [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankAccountId }" />
+            <small class="ng-dirty ng-invalid" *ngIf="submitted && !organization.bankAccountId">{{ 'bank_account' |
+              translate }} {{
               'is_required_label' | translate }}</small>
           </div>
         </ng-template>

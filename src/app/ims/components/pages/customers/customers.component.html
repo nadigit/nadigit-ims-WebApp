@@ -16,11 +16,15 @@
                     </span> -->
                 </p>
                 <div class="flex mt-3 gap-2">
-                    <p-tag *ngIf="canAddCustomer" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
-                    <p-tag *ngIf="canEditCustomer" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
-                    <p-tag *ngIf="canDeleteCustomer" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag *ngIf="canAddCustomer" value="{{'create' | translate}}" icon="pi pi-plus"
+                        severity="success"></p-tag>
+                    <p-tag *ngIf="canEditCustomer" value="{{'edit' | translate}}" icon="pi pi-pencil"
+                        severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteCustomer" value="{{'delete' | translate}}" icon="pi pi-trash"
+                        severity="danger"></p-tag>
                     <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
-                    <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag>
+                    <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history"
+                        severity="help"></p-tag>
                 </div>
             </div>
 
@@ -77,6 +81,10 @@
                                 field="country"></p-sortIcon></th>
                         <th pSortableColumn="customerType">{{'customer_type' | translate}} <p-sortIcon
                                 field="customerType"></p-sortIcon></th>
+                        <th pSortableColumn="creationDate">{{ 'creation_date' | translate }}
+                            <p-columnFilter type="date" field="creationDate" display="menu" />
+                            <p-sortIcon field="creationDate"></p-sortIcon>
+                        </th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -102,8 +110,9 @@
                             {{customer.email ? customer.email : 'N/A'}}
                         </td>
                         <td style="min-width:10rem;">
-                            <span class="p-column-title">{{'customer_address' | translate}}</span>
-                            {{customer.country ? (customer.city + ', ' + customer.country) : 'N/A'}}
+                            <span class="p-column-title">{{ 'customer_address' | translate }}</span>
+                            {{ customer.country ? (customer.city + ', ' + (customer.country | countryTranslate)) : 'N/A'
+                            }}
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'customer_type' | translate }}</span>
@@ -115,6 +124,10 @@
                             : 'N/A'
                             }}
                         </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'creation_date' | translate }}</span>
+                            {{ customer.creationDate ? (customer.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
+                        <td>
                         <td>
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditCustomer" icon="pi pi-pencil"
@@ -302,20 +315,24 @@
                                     {{ 'customer_country' | translate }}
                                 </label>
                                 <p-dropdown [(ngModel)]="customer.country"
-                                    (onChange)="onSelectedCountry(customer.country)" [options]="countries"
-                                    optionLabel="name" optionValue="name" [filter]="true" filterBy="name"
-                                    [showClear]="true" placeholder="{{ 'select_country_option' | translate }}">
+                                    (onChange)="onSelectedCountry(customer.country)" name="country"
+                                    [options]="countries" optionValue="name" optionLabel="translatedName"
+                                    [filter]="true" [filterFields]="['name', 'translatedName']"
+                                    [filterBy]="filterCountry" [showClear]="true"
+                                    placeholder="{{ 'select_country_option' | translate }}">
+
                                     <ng-template pTemplate="selectedItem">
                                         <span *ngIf="customer && customer.country"
                                             class="flex align-items-center gap-2">
                                             <i class="pi pi-globe"></i>
-                                            {{customer.country}}
+                                            {{ customer.country | countryTranslate }}
                                         </span>
                                     </ng-template>
+
                                     <ng-template let-option pTemplate="item">
                                         <span class="flex align-items-center gap-2">
                                             <i class="pi pi-globe"></i>
-                                            {{option.name}}
+                                            {{ option.translatedName }}
                                         </span>
                                     </ng-template>
                                 </p-dropdown>
@@ -406,12 +423,12 @@
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span *ngIf="customer">{{'delete_confirmation_msg_with_param' | translate}}
                     <b>{{
-                            customer.customerType === 'Company'
-                            ? (customer.companyName || 'N/A')
-                            : (customer.firstName && customer.lastName
-                            ? (customer.firstName + ' ' + customer.lastName)
-                            : (customer.firstName || customer.lastName || 'N/A'))
-                            }}</b>?</span>
+                        customer.customerType === 'Company'
+                        ? (customer.companyName || 'N/A')
+                        : (customer.firstName && customer.lastName
+                        ? (customer.firstName + ' ' + customer.lastName)
+                        : (customer.firstName || customer.lastName || 'N/A'))
+                        }}</b>?</span>
             </div>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
@@ -648,8 +665,8 @@
                                             </th>
                                             <th pSortableColumn="orderDate" style="width: 120px">
                                                 {{ 'order_date' | translate }}
-                                                <p-columnFilter type="date" field="orderDate"
-                                                    display="menu"></p-columnFilter>
+                                                <!-- <p-columnFilter type="date" field="orderDate"
+                                                    display="menu"></p-columnFilter> -->
                                                 <p-sortIcon field="orderDate"></p-sortIcon>
                                             </th>
                                             <th pSortableColumn="totalAmount" style="width: 150px">
@@ -801,8 +818,8 @@
                                             </th>
                                             <th pSortableColumn="returnDate" style="width: 120px">
                                                 {{ 'return_date' | translate }}
-                                                <p-columnFilter type="date" field="returnDate"
-                                                    display="menu"></p-columnFilter>
+                                                <!-- <p-columnFilter type="date" field="returnDate"
+                                                    display="menu"></p-columnFilter> -->
                                                 <p-sortIcon field="returnDate"></p-sortIcon>
                                             </th>
                                             <th pSortableColumn="totalRefundableAmount" style="width: 150px">
@@ -935,8 +952,8 @@
                                             </th>
                                             <th pSortableColumn="paymentDate" style="width: 120px">
                                                 {{ 'payment_date' | translate }}
-                                                <p-columnFilter type="date" field="paymentDate"
-                                                    display="menu"></p-columnFilter>
+                                                <!-- <p-columnFilter type="date" field="paymentDate"
+                                                    display="menu"></p-columnFilter> -->
                                                 <p-sortIcon field="paymentDate"></p-sortIcon>
                                             </th>
                                             <th pSortableColumn="amount" style="width: 150px">

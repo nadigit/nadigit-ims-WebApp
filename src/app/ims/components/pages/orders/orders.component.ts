@@ -67,7 +67,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     taxRate: [0],
     discount: [0],
     totalAmount: [0],
-    invoiceItems: this.fb.array([]) // ✅ FormArray for dynamic items
+    invoiceItems: this.fb.array([])
   });
 
   @ViewChild('pickList') pickList: ElementRef | undefined;
@@ -486,6 +486,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     ];
   }
 
+  showEventButton(event: any): boolean {
+    const statusMatches = event.status === this.order.orderStatus;
+    const hasButton = !!event.button;
+    const isDelivered = event.status === 'Delivered';
+    const isPaid = this.order.paymentStatus === 'PAID';
+
+    if (!hasButton || !statusMatches) return false;
+    if (isDelivered && !isPaid) return false;
+    return true;
+  }
+
   private initializeStatuses() {
     this.statuses = [
       { label: 'Ordered', value: 'Ordered' },
@@ -499,7 +510,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
     this.paymentStatuses = [
       { label: 'Paid', value: 'PAID' },
-      { label: 'Partially Paid', value: 'PARTIALLY_PAID' },
+      { label: 'Partially_Paid', value: 'PARTIALLY_PAID' },
       { label: 'Unpaid', value: 'UNPAID' },
       { label: 'Pending', value: 'PENDING' },
       { label: 'Failed', value: 'FAILED' },

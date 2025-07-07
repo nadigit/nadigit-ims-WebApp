@@ -14,4 +14,8 @@ export class Customer {
   cin?:string;
   customerType?:string;
   creationDate?: Date;
+  fullName?: string;
+
 } 
+
+

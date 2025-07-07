@@ -12,6 +12,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { Product } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { LocationService } from 'src/app/services/location.service';
 
 @Component({
   templateUrl: './warehouses.component.html',
@@ -44,7 +45,7 @@ export class WarehousesComponent implements OnInit {
 
   valSwitch: boolean = false;
 
-  countries: any = Country.getAllCountries();
+  countries: any;
 
   selectedCountry: any = null;
 
@@ -76,6 +77,7 @@ export class WarehousesComponent implements OnInit {
     private reportingService: ReportingService,
     private translate: TranslateService,
     private configService: AppConfigurationService,
+    private locationService: LocationService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,) { }
@@ -89,7 +91,8 @@ export class WarehousesComponent implements OnInit {
     });
     this.isLoading = true;
     this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang); // Use the translate service to update language
+      this.translate.use(lang);
+      this.countries = this.locationService.getAllCountriesWithTranslation();
     });
     await this.checkPermissions();
     this.onGetAllWarehouses();
@@ -353,8 +356,18 @@ onSelectedCountry(event) {
         this.selectedCountry = element;
       }
     });
-    this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
+    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
+  }
 
+  filterCountry(value: any, filter: string): boolean {
+    // Convert both to lowercase for case-insensitive comparison
+    const normalizedFilter = filter.toLowerCase();
+
+    // Check both original name and translated name
+    return (
+      value.name.toLowerCase().includes(normalizedFilter) ||
+      value.translatedName.toLowerCase().includes(normalizedFilter)
+    );
   }
 
   exportPdf() {

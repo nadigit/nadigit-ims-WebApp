@@ -192,7 +192,7 @@
 											placeholder="{{ 'any_label' | translate }}"
 											[style]="{'min-width': '12rem'}">
 											<ng-template let-option pTemplate="item">
-												<span [class]="'order-badge order-' + option.label.toLowerCase()">
+												<span [class]="'payment-badge payment-' + option.label.toLowerCase()">
 													{{'order_payment_status_'+option.label.toLowerCase() |
 													translate}}</span>
 											</ng-template>
@@ -202,10 +202,10 @@
 								<p-sortIcon field="paymentStatus"></p-sortIcon>
 							</div>
 						</th>
-						<th pSortableColumn="fullName">
+						<th pSortableColumn="customer">
 							{{ 'order_customer' | translate }}
-							<p-sortIcon field="fullName"></p-sortIcon>
-							<p-columnFilter field="fullName" matchMode="contains" display="menu">
+							<p-sortIcon field="customer"></p-sortIcon>
+							<p-columnFilter field="customer" matchMode="equals" display="menu">
 								<ng-template pTemplate="filter" let-value let-filter="filterCallback">
 									<p-dropdown [ngModel]="value" [options]="customers"
 										(onChange)="filter($event.value)" placeholder="{{ 'any_label' | translate }}"
@@ -420,7 +420,7 @@
 
 				<ng-template pTemplate="emptymessage">
 					<tr>
-						<td colspan="6">{{ 'no_products_msg' | translate }}</td>
+						<td colspan="10">{{ 'no_products_msg' | translate }}</td>
 					</tr>
 				</ng-template>
 
@@ -436,7 +436,7 @@
 		</ng-template>
 		<ng-template pTemplate="emptymessage">
 			<tr>
-				<td colspan="8">
+				<td colspan="12">
 					<div class="flex flex-column align-items-center justify-content-center py-5">
 						<img src="assets/core-images/no_data_found.png" alt="No Data Found"
 							style="max-width: 250px; opacity: 0.6;">
@@ -1218,7 +1218,7 @@
 								</div>
 
 								<button
-									*ngIf="event.button && event.status === order.status && (event.status !== 'Delivered' || order.paymentStatus === 'PAID')"
+									*ngIf="showEventButton(event)"
 									pButton [label]="event.button" class="p-button-text" icon="pi pi-check"
 									(click)="updateOrderStatus()"></button>
 							</p-card>

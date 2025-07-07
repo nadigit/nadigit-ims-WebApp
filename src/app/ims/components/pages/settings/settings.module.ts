@@ -29,6 +29,7 @@ import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ImageModule } from 'primeng/image';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { TooltipModule } from 'primeng/tooltip';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 
@@ -60,7 +61,8 @@ import { TooltipModule } from 'primeng/tooltip';
         OrganizationChartModule,
         ImageModule,
         InputSwitchModule,
-        TooltipModule
+        TooltipModule,
+        SharedModule
     ],
     schemas: [
         CUSTOM_ELEMENTS_SCHEMA, // or NO_ERRORS_SCHEMA

@@ -1147,6 +1147,7 @@
   "purchase_locked": "Compra Bloqueada",
   "expense_locked": "Gasto Bloqueado",
   "return_total_amount": "Monto Total de la Devolución",
+  "warehouse_updated":"El almacén se ha actualizado correctamente.",
 
   "about_this_page": "Acerca de esta página",
   "suppliers_page_description": "Esta página muestra todos tus proveedores. Puedes gestionar la información de los proveedores, rastrear compras y analizar las relaciones con los proveedores. Usa la búsqueda y los filtros para encontrar proveedores específicos rápidamente.",

@@ -48,7 +48,7 @@
             </div>
 
             <p-table #dt [value]="refunds" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-                [globalFilterFields]="['orderReturn.order.orderId','amount','status','method','originalPayment.transactionId','notes']"
+                [globalFilterFields]="['orderReturn.order.orderId','amount','status','method','originalPayment.transactionId','notes', 'orderReturn.order.customer.firstName', 'orderReturn.order.customer.lastName', 'orderReturn.order.customer.companyName']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedRefunds" selectionMode="multiple" [rowHover]="true" dataKey="refundId">

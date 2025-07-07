@@ -27,7 +27,7 @@ import { AvatarGroupModule } from 'primeng/avatargroup';
 import { ChartModule } from 'primeng/chart';
 import { TabViewModule } from 'primeng/tabview';
 import { ProgressBarModule } from 'primeng/progressbar';
-
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 @NgModule({
@@ -57,7 +57,8 @@ import { ProgressBarModule } from 'primeng/progressbar';
         AvatarGroupModule,
         ChartModule,
         TabViewModule,
-        ProgressBarModule
+        ProgressBarModule,
+        SharedModule
     ],
     declarations: [CustomersComponent, AbsolutePipe],
     exports:[AbsolutePipe],
