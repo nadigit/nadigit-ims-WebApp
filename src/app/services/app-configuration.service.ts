@@ -97,5 +97,13 @@ export class AppConfigurationService {
       this.currencySubject.next(null);
     }
   }
+
+  async getSystemInfo(): Promise<Observable<any>> {
+    const headers = await this.getHeaders();
+    return this.http.get(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema,
+      { headers }
+    );
+  }
   
 }

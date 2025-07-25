@@ -23,7 +23,9 @@ import { TieredMenuModule } from 'primeng/tieredmenu';
 import { MenuModule } from 'primeng/menu';
 import { ButtonModule } from 'primeng/button';
 import { TranslateModule } from '@ngx-translate/core';
-
+import { DialogModule } from 'primeng/dialog';
+import { TableModule } from 'primeng/table';
+import { ChipModule } from 'primeng/chip';
 
 
 @NgModule({
@@ -53,7 +55,10 @@ import { TranslateModule } from '@ngx-translate/core';
         MenuModule,
         ButtonModule,
         TranslateModule,
-        AppConfigModule
+        AppConfigModule,
+        DialogModule,
+        TableModule,
+        ChipModule
     ],
     exports: [AppLayoutComponent]
 })

@@ -1,14 +1,157 @@
 <div class="layout-wrapper" [ngClass]="containerClass">
-    <app-topbar></app-topbar>
-    <div class="layout-sidebar">
-        <app-sidebar></app-sidebar>
+  <app-topbar></app-topbar>
+  <div class="layout-sidebar">
+    <app-sidebar></app-sidebar>
+  </div>
+  <div class="layout-main-container">
+    <div class="layout-main">
+      <router-outlet></router-outlet>
     </div>
-    <div class="layout-main-container">
-        <div class="layout-main">
-            <router-outlet></router-outlet>
-        </div>
-        <app-footer></app-footer>
-    </div>
-    <app-config></app-config>
-    <div class="layout-mask"></div>
+    <app-footer></app-footer>
+  </div>
+  <app-config></app-config>
+  <div class="layout-mask"></div>
 </div>
+
+<p-dialog 
+  header="{{ 'about_nadigit_ims' | translate }}" 
+  [(visible)]="layoutService.showSystemInfoDialog" 
+  [modal]="true"
+  [style]="{width: '750px'}" 
+  [closable]="true" 
+  [dismissableMask]="true"
+  [breakpoints]="{'960px': '80vw', '640px': '95vw'}"
+  [draggable]="false"
+>
+  <div class="system-info-container p-4">
+    <!-- Header with logo and system name -->
+    <div class="system-header mb-5 text-center">
+      <img 
+        src="assets/app-logo/nadigitims-logo.png" 
+        alt="Nadigit IMS Logo" 
+        class="logo-img mb-3"
+        style="height: 70px;"
+      >
+      <h2 class="m-0 text-primary font-bold text-2xl">{{layoutService.systemInfo?.appName || 'Nadigit IMS'}}</h2>
+      <p class="text-lg text-color-secondary m-0 mt-2">{{ 'inventory_management_system' | translate }}</p>
+      <p class="text-sm text-color-secondary mt-2 inline-block px-3 py-1 rounded-full">
+        {{ 'version' | translate }} {{layoutService.systemInfo?.appVersion || 'Loading...'}}
+      </p>
+      <p-divider styleClass="my-3"></p-divider>
+    </div>
+
+    <!-- Main content grid -->
+    <div class="grid">
+      <!-- Left column -->
+      <div class="col-12 md:col-6 pr-0 md:pr-3">
+        <!-- Support Information Card -->
+        <div class="contact-card p-4 border-round-lg surface-card shadow-2 mb-4">
+          <h3 class="mt-0 mb-4 flex align-items-center text-xl">
+            <i class="pi pi-info-circle mr-2 text-primary"></i>
+            {{ 'support_information' | translate }}
+          </h3>
+          
+          <div class="support-item mb-4">
+            <div class="flex align-items-start">
+              <i class="pi pi-globe text-primary mt-1 mr-3"></i>
+              <div>
+                <p class="font-semibold mb-1 text-sm">{{ 'website' | translate }}</p>
+                <a *ngIf="layoutService.systemInfo?.supportWebsite; else loadingTxt"
+                  [href]="layoutService.systemInfo.supportWebsite" 
+                  target="_blank"
+                  class="text-color-secondary no-underline hover:underline hover:text-primary">
+                  {{layoutService.systemInfo.supportWebsite}}
+                </a>
+              </div>
+            </div>
+          </div>
+          
+          <div class="support-item mb-4">
+            <div class="flex align-items-start">
+              <i class="pi pi-envelope text-primary mt-1 mr-3"></i>
+              <div>
+                <p class="font-semibold mb-1 text-sm">{{ 'email' | translate }}</p>
+                <a *ngIf="layoutService.systemInfo?.supportEmail; else loadingTxt"
+                  [href]="'mailto:' + layoutService.systemInfo.supportEmail"
+                  class="text-color-secondary no-underline hover:underline hover:text-primary">
+                  {{layoutService.systemInfo.supportEmail}}
+                </a>
+              </div>
+            </div>
+          </div>
+          
+          <div class="support-item">
+            <div class="flex align-items-start">
+              <i class="pi pi-phone text-primary mt-1 mr-3"></i>
+              <div>
+                <p class="font-semibold mb-1 text-sm">{{ 'phone' | translate }}</p>
+                <p *ngIf="layoutService.systemInfo?.supportPhone; else loadingTxt" 
+                  class="text-color-secondary m-0">
+                  {{layoutService.systemInfo.supportPhone}}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- License Information Card -->
+        <div class="license-card p-4 border-round-lg surface-card shadow-2">
+          <h3 class="mt-0 mb-4 flex align-items-center text-xl">
+            <i class="pi pi-key mr-2 text-primary"></i>
+            {{ 'license_information' | translate }}
+          </h3>
+          
+          <div class="license-detail mb-4">
+            <p class="text-sm text-color-secondary mb-1">{{ 'license_expiration_date' | translate }}</p>
+            <div class="flex align-items-center">
+              <p class="font-semibold m-0 text-lg">
+                {{layoutService.systemInfo?.licenseExpiresAt || 'Loading...'}}
+              </p>
+              <span *ngIf="daysUntilExpiration !== null" 
+                [class.text-green-500]="daysUntilExpiration > 30"
+                [class.text-yellow-500]="daysUntilExpiration <= 30 && daysUntilExpiration > 0"
+                [class.text-red-500]="daysUntilExpiration <= 0" 
+                class="ml-3 text-sm bg-surface-300 px-2 py-1 rounded-full">
+                {{daysUntilExpiration > 0 ? 
+                  ('days_remaining' | translate:{ days: daysUntilExpiration }) : 
+                  ('expired' | translate)}}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div class="col-12 md:col-6 pl-0 md:pl-3">
+        <!-- System Features Card -->
+        <div class="features-card p-4 border-round-lg surface-card shadow-2 h-full">
+          <h3 class="mt-0 mb-4 flex align-items-center text-xl">
+            <i class="pi pi-star mr-2 text-primary"></i>
+            {{ 'system_features' | translate }}
+          </h3>
+          
+          <div class="grid">
+            <div *ngFor="let key of featureKeys" class="col-12 md:col-6 mb-3">
+              <div class="feature-item flex align-items-center p-2 hover:surface-hover transition-colors transition-duration-150 rounded">
+                <i class="pi pi-check-circle text-green-500 mr-3"></i>
+                <span>{{ key | translate }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center text-sm text-color-secondary mt-5 pt-3 border-top-1 border-surface-border">
+      <p class="m-0">
+        <i class="pi pi-copyright"></i> 
+        {{ 'nadigit_rights_reserved' | translate:{ year: currentYear } }}
+      </p>
+    </div>
+  </div>
+</p-dialog>
+
+<ng-template #loadingTxt>
+  <p class="text-color-secondary m-0">{{ 'loading' | translate }}...</p>
+</ng-template>

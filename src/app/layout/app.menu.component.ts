@@ -57,11 +57,21 @@ export class AppMenuComponent implements OnInit {
         icon: 'pi pi-fw pi-briefcase',
         items: inventoryItems
       },
-      // {
-      //   items: [
-      //     { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
-      //   ]
-      // }
+    ];
+
+    const systemInfo = [
+      {
+        label: translations['system'], // Add "System" section title
+        items: [
+          { 
+            label: translations['system_info'], 
+            icon: 'pi pi-fw pi-info-circle', 
+            command: () => {
+              this.layoutService.triggerSystemInfoLoad();
+            }
+          },
+        ]
+      }
     ];
 
     const logoutMenu = [
@@ -83,12 +93,14 @@ export class AppMenuComponent implements OnInit {
             { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/pages/settings'], roles: ['ADMIN'] },
           ]
         },
+        ...systemInfo,
         ...logoutMenu,
       ];
     } else {
       // Non-admin menu remains the same as common, no need for additional check
       this.model = [
         ...commonMenu,
+        ...systemInfo,
         ...logoutMenu, // Add logout at the end for non-admin
       ];
     }

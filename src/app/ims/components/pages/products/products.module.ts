@@ -30,7 +30,10 @@ import { TreeSelectModule } from 'primeng/treeselect';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DialogService, DynamicDialogModule } from 'primeng/dynamicdialog';
 import { TagModule } from 'primeng/tag';
-
+import { ProgressBarModule } from 'primeng/progressbar';
+import { ChartModule } from 'primeng/chart';
+import { GalleriaModule } from 'primeng/galleria';
+import { SplitButtonModule } from 'primeng/splitbutton';
 
 
 @NgModule({
@@ -63,7 +66,11 @@ import { TagModule } from 'primeng/tag';
         ZXingScannerModule,
         TreeSelectModule,
         ProgressSpinnerModule,
-        TagModule
+        TagModule,
+        ProgressBarModule,
+        ChartModule,
+        GalleriaModule,
+        SplitButtonModule
     ],
     declarations: [ProductsComponent],
     providers: [ReportingService, DialogService]

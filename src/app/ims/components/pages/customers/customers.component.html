@@ -83,8 +83,7 @@
                                 field="customerType"></p-sortIcon></th>
                         <th pSortableColumn="creationDate">{{ 'creation_date' | translate }}
                             <p-columnFilter type="date" field="creationDate" display="menu" />
-                            <p-sortIcon field="creationDate"></p-sortIcon>
-                        </th>
+                            <p-sortIcon field="creationDate"></p-sortIcon></th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -127,7 +126,7 @@
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'creation_date' | translate }}</span>
                             {{ customer.creationDate ? (customer.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
-                        <td>
+                        </td>
                         <td>
                             <div class="flex">
                                 <button pButton pRipple *ngIf="canEditCustomer" icon="pi pi-pencil"

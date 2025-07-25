@@ -127,12 +127,20 @@ export class ProductsComponent implements OnInit {
 
   states: any = null;
 
+  productDetailDialog: boolean = false;
+
+  profitChartData: any;
+  chartOptions: any;
+
+  printOptions: any[] = [];
+
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
   canAddWarehouse: boolean = false;
   canAddCategory: boolean = false;
   canAddSupplier: boolean = false;
+  canReadProduct: boolean = false;
 
   isLoading: boolean = true;
   userRoles: any;
@@ -172,6 +180,23 @@ export class ProductsComponent implements OnInit {
         { label: translations['ascending_price'], value: 'sellingPrice' },
         { label: translations['availability_desc'], value: 'inventoryStatus' }, // Descending availability
         { label: translations['availability_asc'], value: '!inventoryStatus' }
+      ];
+      this.printOptions = [
+        {
+          label: translations['standard_label'],
+          icon: 'pi pi-tag',
+          command: () => this.productService.printLabel(this.selectedProduct, 'STANDARD')
+        },
+        {
+          label: translations['barcode_label'],
+          icon: 'pi pi-qrcode',
+          command: () => this.productService.printLabel(this.selectedProduct, 'BARCODE')
+        },
+        {
+          label: translations['shipping_label'],
+          icon: 'pi pi-truck',
+          command: () => this.productService.printLabel(this.selectedProduct, 'SHIPPING')
+        }
       ];
       this.items = [
         {
@@ -222,6 +247,8 @@ export class ProductsComponent implements OnInit {
       { field: 'Supplier', header: this.translateService.instant('product_supplier') },
     ];
 
+
+
     this.statuses = [
       { label: 'INSTOCK', value: 'instock' },
       { label: 'LOWSTOCK', value: 'lowstock' },
@@ -239,10 +266,54 @@ export class ProductsComponent implements OnInit {
     this.canAddProduct = this.permissionService.canCreate(this.Ressource);
     this.canEditProduct = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteProduct = this.permissionService.canDelete(this.Ressource);
+    this.canReadProduct = this.permissionService.canRead(this.Ressource);
 
     this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
     this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
     this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
+  }
+
+  showProductDetails(product: Product) {
+    this.selectedProduct = product;
+    this.prepareProfitChart();
+    this.productDetailDialog = true;
+    this.deactivateScanning();
+  }
+
+  getInventorySeverity(status: string): string {
+    switch (status) {
+      case 'INSTOCK': return 'success';
+      case 'LOWSTOCK': return 'warning';
+      case 'OUTOFSTOCK': return 'danger';
+      default: return 'info';
+    }
+  }
+
+  prepareProfitChart() {
+    this.profitChartData = {
+      labels: ['Cost', 'Profit'],
+      datasets: [
+        {
+          data: [this.selectedProduct.buyingPrice,
+          this.selectedProduct.sellingPrice - this.selectedProduct.buyingPrice],
+          backgroundColor: ['#6366F1', '#10B981'],
+          hoverBackgroundColor: ['#8183f4', '#34d399']
+        }
+      ]
+    };
+
+    this.chartOptions = {
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            padding: 20
+          }
+        }
+      },
+      cutout: '70%'
+    };
   }
 
   nodeSelect(event: { node: TreeNode }) {

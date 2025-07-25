@@ -1,5 +1,6 @@
 import { Injectable, effect, signal } from '@angular/core';
 import { Subject } from 'rxjs';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 export interface AppConfig {
     inputStyle: string;
@@ -32,6 +33,13 @@ export class LayoutService {
         scale: 14,
     };
 
+    public systemInfo: any = {};
+    public showSystemInfoDialog: boolean = false;
+
+    systemInfoLoaded$ = new Subject<void>();
+
+
+
     config = signal<AppConfig>(this._config);
 
     state: LayoutState = {
@@ -51,7 +59,7 @@ export class LayoutService {
 
     overlayOpen$ = this.overlayOpen.asObservable();
 
-    constructor() {
+    constructor(private appConfigService: AppConfigurationService) {
         effect(() => {
             const config = this.config();
             if (this.updateStyle(config)) {
@@ -60,6 +68,7 @@ export class LayoutService {
             this.changeScale(config.scale);
             this.onConfigUpdate();
         });
+
     }
 
     updateStyle(config: AppConfig) {
@@ -68,6 +77,54 @@ export class LayoutService {
             config.colorScheme !== this._config.colorScheme
         );
     }
+
+    triggerSystemInfoLoad() {
+        console.log('Triggering system info load...');
+        this.loadSystemInfo().then(() => {
+            console.log('System info loaded, opening dialog...');
+            console.log('System Info:', this.systemInfo);
+            console.log('Dialog will open')
+            this.showSystemInfoDialog = true;
+            console.log('System info loaded and dialog opened');
+        });
+    }
+
+    async loadSystemInfo() {
+        try {
+            const obs = await this.appConfigService.getSystemInfo();
+            obs.subscribe({
+                next: (data) => {
+                    const flatObject = {};
+                    const toCamel = (str: string) => str.replace(/\.(\w)/g, (_, c) => c.toUpperCase());
+                    for (const item of data) {
+                        const key = toCamel(item.key);
+                        flatObject[key] = item.value;
+                    }
+                    this.systemInfo = flatObject;
+                    this.systemInfoLoaded$.next();
+                    console.log('Parsed system info:', this.systemInfo);
+                },
+                error: (err) => {
+                    console.error('Failed to load system info:', err);
+                    // fallback
+                    this.systemInfo = {
+                        appName: 'Nadigit IMS',
+                        appVersion: '2026.0.1',
+                        supportWebsite: 'https://nadigit.com',
+                        supportEmail: 'support@nadigit.ma',
+                        supportPhone: '+212-536-336-166',
+                        licenseCustomer: 'ElectroMadrid',
+                        licenseProduct: 'Nadigit-IMS',
+                        licenseExpiresAt: '2026-12-31'
+                    };
+                    this.systemInfoLoaded$.next();
+                }
+            });
+        } catch (error) {
+            console.error('Error loading system info:', error);
+        }
+    }
+
 
     onMenuToggle() {
         if (this.isOverlay()) {
@@ -128,8 +185,8 @@ export class LayoutService {
                 el == this._config.theme
                     ? (el = config.theme)
                     : el == `theme-${this._config.colorScheme}`
-                    ? (el = `theme-${config.colorScheme}`)
-                    : el
+                        ? (el = `theme-${config.colorScheme}`)
+                        : el
             )
             .join('/');
 

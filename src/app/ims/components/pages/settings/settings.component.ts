@@ -78,7 +78,7 @@ export class SettingsComponent implements OnInit {
 
     ];
 
-    
+
 
 
   }
@@ -91,7 +91,7 @@ export class SettingsComponent implements OnInit {
       this.countries = this.locationService.getAllCountriesWithTranslation();
     });
 
-    const translations = await this.translate.get(['organization_title', 'global_parameters','a4','receipt']).toPromise();
+    const translations = await this.translate.get(['organization_title', 'global_parameters', 'a4', 'receipt']).toPromise();
 
     this.menuItems = [
       {
@@ -149,27 +149,29 @@ export class SettingsComponent implements OnInit {
 
   async loadConfigs(): Promise<void> {
     (await this.appConfigService.getAllConfigurations()).subscribe((params: AppConfiguration[]) => {
-      this.configs = params.sort((a, b) => a.id - b.id);
+      // Only keep non-editable configs
+      const nonEditableConfigs = params.filter(config => config.editable);
 
-      // Find the tax configuration and initialize taxPercentage
-      const taxConfig = this.configs.find(config => config.key === 'tax');
+      this.configs = nonEditableConfigs.sort((a, b) => a.id - b.id);
 
-      const autoOrderComplete = this.configs.find(config => config.key === 'autoOrderComplete');
+      // Find tax config (if you need it even if editable, use original list `params`)
+      const taxConfig = params.find(config => config.key === 'tax');
+      const autoOrderComplete = params.find(config => config.key === 'autoOrderComplete');
 
       if (taxConfig) {
-        // Convert the string to a number and multiply by 100
-        this.taxPercentage = parseFloat(taxConfig.value) * 100; // Convert to percentage (e.g., 0.2 to 20)
+        this.taxPercentage = parseFloat(taxConfig.value) * 100;
       }
 
       if (autoOrderComplete) {
-        this.autoOrderCompleteChecked ? true : false;
-        console.log(this.autoOrderCompleteChecked);
+        this.autoOrderCompleteChecked = autoOrderComplete.value === 'active';
       }
 
-      this.appConfigCurrency = this.configs.find(config => config.key === 'currency');
-      console.log(this.configs);
+      this.appConfigCurrency = params.find(config => config.key === 'currency');
+
+      console.log('Non-editable configs:', this.configs);
     });
   }
+
 
   trackByConfig(index: number, config: AppConfiguration): number {
     return config.id; // or config.key if that's unique
@@ -196,21 +198,21 @@ export class SettingsComponent implements OnInit {
     console.log(config);
     (await this.appConfigService.saveConfiguration(config)).subscribe({
       next: (response: AppConfiguration) => {
-        this.messageService.add({ 
-          severity: 'success', 
-          summary: this.translate.instant('successful'), 
-          detail: this.translate.instant('configuration_updated'), 
-          life: 3000 
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('configuration_updated'),
+          life: 3000
         });
         this.loadConfigs();
       },
       error: (err: any) => {
         console.error(err);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: this.translate.instant('error'), 
-          detail: this.translate.instant('error_while_updating_configuration'), 
-          life: 3000 
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_updating_configuration'),
+          life: 3000
         });
       }
     });
@@ -231,56 +233,56 @@ export class SettingsComponent implements OnInit {
       const translations = await this.translate.get(['shops_menu_title', 'warehouses_menu_title']).toPromise();
 
       this.organizationService.getOrganization().subscribe(data => {
-      this.organization = data;
+        this.organization = data;
 
-      this.organizationStructure = [
-        {
-        expanded: true,
-        type: 'organization',
-        data: {
-          name: this.organization.organizationName,
-          title: 'Organization'
-        },
-        children: [
+        this.organizationStructure = [
           {
-          expanded: true,
-          type: 'shops',
-          data: {
-            name: translations['shops_menu_title'],
-          },
-          children: this.organization.shops.map(shop => ({
-            label: shop.shopName
-          }))
-          },
-          {
-          expanded: true,
-          type: 'warehouses',
-          data: {
-            name: translations['warehouses_menu_title'],
-          },
-          children: this.organization.warehouses.map(warehouse => ({
-            label: warehouse.name
-          }))
+            expanded: true,
+            type: 'organization',
+            data: {
+              name: this.organization.organizationName,
+              title: 'Organization'
+            },
+            children: [
+              {
+                expanded: true,
+                type: 'shops',
+                data: {
+                  name: translations['shops_menu_title'],
+                },
+                children: this.organization.shops.map(shop => ({
+                  label: shop.shopName
+                }))
+              },
+              {
+                expanded: true,
+                type: 'warehouses',
+                data: {
+                  name: translations['warehouses_menu_title'],
+                },
+                children: this.organization.warehouses.map(warehouse => ({
+                  label: warehouse.name
+                }))
+              }
+            ]
           }
-        ]
-        }
-      ];
+        ];
 
-      this.isLoading = false;
-      this.getLogoImage(this.organization.logo);
+        this.isLoading = false;
+        this.getLogoImage(this.organization.logo);
       });
     } catch (error) {
       console.error('Error loading translations or organization data:', error);
       this.isLoading = false;
       this.messageService.add({
-      severity: 'error',
-      summary: this.translate.instant('error'),
-      detail: this.translate.instant('error_loading_organization_data'),
-      life: 3000
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_organization_data'),
+        life: 3000
       });
     }
   }
-  
+
 
   editImage() {
     this.organization.logo = null;
@@ -327,12 +329,12 @@ export class SettingsComponent implements OnInit {
           }
         } catch (error) {
           console.error('Error uploading file:', error);
-            this.messageService.add({ 
-            severity: 'error', 
-            summary: this.translate.instant('error'), 
-            detail: this.translate.instant('error_while_uploading_logo'), 
-            life: 3000 
-            });
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_uploading_logo'),
+            life: 3000
+          });
           return; // Exit if there's an error
         }
       }
@@ -346,11 +348,11 @@ export class SettingsComponent implements OnInit {
         }
       } catch (error) {
         console.error('Error while saving organization:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: this.translate.instant('error'), 
-          detail: this.translate.instant('error_while_saving_organization'), 
-          life: 3000 
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_saving_organization'),
+          life: 3000
         });
       }
 
@@ -378,22 +380,22 @@ export class SettingsComponent implements OnInit {
     if (this.selectedLogo) {
       this.organizationService.uploadLogo(this.selectedLogo).subscribe(
         response => {
-          this.messageService.add({ 
-            severity: 'success', 
-            summary: this.translate.instant('successful'), 
-            detail: this.translate.instant('logo_uploaded_successfully'), 
-            life: 3000 
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('logo_uploaded_successfully'),
+            life: 3000
           });
-            console.log('Logo uploaded and path saved:', response);
-            // Optionally, refresh organization data to show the new logo
-            this.loadOrganization();
+          console.log('Logo uploaded and path saved:', response);
+          // Optionally, refresh organization data to show the new logo
+          this.loadOrganization();
         },
         error => {
-          this.messageService.add({ 
-            severity: 'error', 
-            summary: this.translate.instant('error'), 
-            detail: this.translate.instant('error_while_uploading_logo'), 
-            life: 3000 
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_uploading_logo'),
+            life: 3000
           });
           console.error('Error uploading logo:', error);
         }
@@ -454,22 +456,22 @@ export class SettingsComponent implements OnInit {
     await this.organizationService.updateOrganization(id, organization)
       .subscribe({
         next: (response: any) => {
-          this.messageService.add({ 
-            severity: 'success', 
-            summary: this.translate.instant('successful'), 
-            detail: this.translate.instant('organization_updated'), 
-            life: 3000 
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('organization_updated'),
+            life: 3000
           });
           console.log(response);
           this.loadOrganization();
           return true;
         },
         error: (err: any) => {
-          this.messageService.add({ 
-            severity: 'error', 
-            summary: this.translate.instant('error'), 
-            detail: this.translate.instant('error_while_updating_organization'), 
-            life: 3000 
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_organization'),
+            life: 3000
           });
           console.log(err);
           return false;
@@ -481,22 +483,22 @@ export class SettingsComponent implements OnInit {
     await this.organizationService.saveOrganization(data)
       .subscribe({
         next: (response: any) => {
-          this.messageService.add({ 
-            severity: 'success', 
-            summary: this.translate.instant('successful'), 
-            detail: this.translate.instant('organization_added'), 
-            life: 3000 
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('organization_added'),
+            life: 3000
           });
           console.log(response);
           this.loadOrganization();
           return true;
         },
         error: (err: any) => {
-          this.messageService.add({ 
-            severity: 'error', 
-            summary: this.translate.instant('error'), 
-            detail: this.translate.instant('error_while_adding_organization'), 
-            life: 3000 
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_organization'),
+            life: 3000
           });
           console.log(err);
           return false;

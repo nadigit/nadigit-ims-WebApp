@@ -81,11 +81,21 @@
                         {{ getPrintingFormatLabel(config.value) }}
                       </span>
 
+                      <span *ngIf="config.key === 'returnWindow'">
+                        {{ config.value }} {{ 'days' | translate }}
+                      </span>
+
+                      <span *ngIf="config.key === 'refundWindow'">
+                        {{ config.value }} {{ 'days' | translate }}
+                      </span>
+
                       <!-- Display the value for other keys -->
                       <span
-                        *ngIf="config.key !== 'lowStockThreshold' && config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' && config.key !== 'invoiceFormat'">
+                        *ngIf="config.key !== 'lowStockThreshold' && config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' && config.key !== 'invoiceFormat' && config.key !== 'returnWindow' && config.key !== 'refundWindow'">
                         {{ config.value }}
                       </span>
+
+                      
 
                     </ng-container>
 
@@ -113,17 +123,18 @@
                         appConfigCurrency.value }}
                       </div>
 
-                      <div *ngIf="config.key == 'cashRegDefaultOpeningBalance'">
-                        <p-inputSwitch [(ngModel)]="checked" [disabled]="true" />
-
-                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{
-                        appConfigCurrency.value }}
-                      </div>
-
                       <!-- For currency selection -->
                       <div *ngIf="config.key == 'invoiceFormat'">
                         <p-dropdown [options]="printingFormats" [(ngModel)]="config.value" optionValue="value"
                           optionLabel="label" placeholder="{{ 'select_currency_option' | translate }}"></p-dropdown>
+                      </div>
+
+                      <div *ngIf="config.key == 'returnWindow'">
+                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{'days' |translate}}
+                      </div>
+
+                      <div *ngIf="config.key == 'refundWindow'">
+                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{'days' |translate}}
                       </div>
 
                     </ng-template>

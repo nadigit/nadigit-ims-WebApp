@@ -42,6 +42,14 @@ export class ProductService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'lastWeek',{headers:headers});
   }
+  printLabel(product: any, type: string) {
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${product.productId}/label?labelType=${type}`;
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    this.http.get(url, { headers: headers, responseType: 'blob' }).subscribe(blob => {
+      const blobUrl = window.URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    });
+  }
 
 
 }
