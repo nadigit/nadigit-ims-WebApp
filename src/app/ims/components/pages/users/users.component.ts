@@ -257,10 +257,6 @@ export class UsersComponent implements OnInit {
     //this.deleteUsersDialog = true;
   }
 
-  // deleteSelectedRoles() {
-  //   this.deleteRolesDialog = true;
-  // }
-
   async editUser(user: User) {
     this.user = { ...user };
     const warehouseId = Number(user.attributes.warehouse);
@@ -712,8 +708,6 @@ export class UsersComponent implements OnInit {
       console.error("Error:", error);
       // Set loading flag to false in case of error
       this.loading = false;
-      // Handle the error
-      // ...
     }
   }
 

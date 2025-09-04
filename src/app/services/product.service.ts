@@ -26,9 +26,9 @@ export class ProductService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
   }
-  updateProduct(id: any, customer: any) {
+  updateProduct(id: any, product: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , customer, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , product, {headers:headers});
   }
   deleteProduct(id: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
@@ -37,6 +37,18 @@ export class ProductService {
   getProducts() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
+  }
+  deactivateProduct(id: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema + id + '/deactivate', {headers:headers})
+  }
+  getInactiveProducts() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'inactive',{headers:headers});
+  }
+  reactivateProduct(id: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema + id + '/reactivate', {headers:headers});
   }
   getProductsOfLastWeek() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})

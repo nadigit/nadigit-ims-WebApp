@@ -20,6 +20,7 @@ interface UploadEvent {
 
 @Component({
   templateUrl: './settings.component.html',
+  styleUrls: ['./settings.component.css', '../pages.component.css'],
   providers: [MessageService]
 })
 export class SettingsComponent implements OnInit {
@@ -65,7 +66,6 @@ export class SettingsComponent implements OnInit {
     this.organizationSteps = [
       {
         label: 'organization_info_lbl',
-        // command: () => showUserRoleMapping()
       },
       {
         label: 'shops_menu_title',
@@ -77,10 +77,6 @@ export class SettingsComponent implements OnInit {
       },
 
     ];
-
-
-
-
   }
 
   async ngOnInit() {
@@ -505,5 +501,6 @@ export class SettingsComponent implements OnInit {
         },
       });
   }
+
 
 }

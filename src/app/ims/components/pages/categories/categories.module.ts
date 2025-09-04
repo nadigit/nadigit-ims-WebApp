@@ -22,6 +22,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
 import { ImageModule } from 'primeng/image';
+import { GalleriaModule } from 'primeng/galleria';
 
 
 
@@ -47,7 +48,8 @@ import { ImageModule } from 'primeng/image';
         ProgressSpinnerModule,
         TooltipModule,
         TagModule,
-        ImageModule
+        ImageModule,
+        GalleriaModule
     ],
     declarations: [CategoriesComponent],
     providers: [ReportingService]

@@ -2,6 +2,8 @@ import { Category } from "./category";
 import { Supplier } from "./supplier";
 import { Warehouse } from "./warehouse";
 import { OrderItem } from "./orderItem";
+import { ProductAttribute } from "./productAttribute";
+import { MeasureUnit } from "../enums/measure-condition.enum";
 
 
 export class Product {
@@ -34,4 +36,8 @@ export class Product {
   returnItemCondition?: string;
 
   orderItem?: OrderItem;
+
+  attributes?: ProductAttribute[];
+  measureUnit?: MeasureUnit;
+  deletable?: boolean;
 }

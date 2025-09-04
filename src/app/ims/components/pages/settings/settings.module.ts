@@ -30,7 +30,7 @@ import { ImageModule } from 'primeng/image';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { TooltipModule } from 'primeng/tooltip';
 import { SharedModule } from 'src/app/shared/shared.module';
-
+import { CardModule } from 'primeng/card';
 
 
 @NgModule({
@@ -62,7 +62,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
         ImageModule,
         InputSwitchModule,
         TooltipModule,
-        SharedModule
+        SharedModule,
+        CardModule
     ],
     schemas: [
         CUSTOM_ELEMENTS_SCHEMA, // or NO_ERRORS_SCHEMA

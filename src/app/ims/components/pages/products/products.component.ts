@@ -1,5 +1,5 @@
 import { Component, HostListener, OnInit } from '@angular/core';
-import { MessageService, SelectItem, MenuItem, TreeNode } from 'primeng/api';
+import { MessageService, SelectItem, MenuItem, TreeNode, ConfirmationService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
 import { Product } from 'src/app/models/product';
@@ -11,7 +11,7 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
-import { lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -20,17 +20,14 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { DialogService } from 'primeng/dynamicdialog';
+import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
+import { UploadEvent } from 'src/app/models/uploadEvent';
 
-
-interface UploadEvent {
-  originalEvent: Event;
-  files: File[];
-}
 
 @Component({
   templateUrl: './products.component.html',
   styleUrls: ['./products.component.css', '../pages.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, ConfirmationService]
 })
 
 export class ProductsComponent implements OnInit {
@@ -67,11 +64,17 @@ export class ProductsComponent implements OnInit {
 
   deleteProductDialog: boolean = false;
 
+  archiveProductDialog: boolean = false;
+
+  unArchiveProductDialog: boolean = false;
+
   deleteProductsDialog: boolean = false;
 
   products: Product[] = [];
 
   product: Product = {};
+
+  archivedProduct: Product = {};
 
   categories: Category[] = [];
 
@@ -134,23 +137,38 @@ export class ProductsComponent implements OnInit {
 
   printOptions: any[] = [];
 
+  lowStockThreshold;
+
+  public translations: any = {};
+
+
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
+  canReadProduct: boolean = false;
+
   canAddWarehouse: boolean = false;
   canAddCategory: boolean = false;
   canAddSupplier: boolean = false;
-  canReadProduct: boolean = false;
 
   isLoading: boolean = true;
   userRoles: any;
   isAdmin: boolean = false;
+  measureUnits: any[] = [];
+  attributeTypes: any[] = [];
 
+  archivedProductsDialog: boolean = false;
+  archivedProducts: Product[] = [];
+  filteredArchivedProducts: Product[] = [];
+  isLoadingArchived: boolean = false;
+  archivedSearchInput: string = '';
+  selectedArchivedNodes: any[] = [];
 
   constructor(private messageService: MessageService,
     private productService: ProductService,
     private categoryService: CategoryService,
     private dialogService: DialogService,
+    private confirmationService: ConfirmationService,
     private warehouseService: WarehouseService,
     private supplierService: SupplierService,
     private storage: AngularFireStorage,
@@ -161,6 +179,20 @@ export class ProductsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,) {
     this.setUserRoles();
+    this.measureUnits = [
+      { value: 'UNIT', label: this.translate.instant('UNIT') },
+      { value: 'KG', label: this.translate.instant('KG') },
+      { value: 'LITER', label: this.translate.instant('LITER') },
+      { value: 'PIECE', label: this.translate.instant('PIECE') },
+      { value: 'BOX', label: this.translate.instant('BOX') },
+      { value: 'METER', label: this.translate.instant('METER') }
+    ];
+    this.attributeTypes = [
+      { label: this.translate.instant('String'), value: 'STRING' },
+      { label: this.translate.instant('Integer'), value: 'INTEGER' },
+      { label: this.translate.instant('Double'), value: 'DOUBLE' },
+      { label: this.translate.instant('Boolean'), value: 'BOOLEAN' }
+    ];
   }
 
   async ngOnInit() {
@@ -171,10 +203,12 @@ export class ProductsComponent implements OnInit {
         console.log('Currency:', currency);
       }
     });
+    this.lowStockThreshold = await this.getLowStockThreshold();
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
-    this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => { // Assuming English
+    this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => {
+      this.translations = translations;
       this.sortOptions = [
         { label: translations['descending_price'], value: '!sellingPrice' },
         { label: translations['ascending_price'], value: 'sellingPrice' },
@@ -198,29 +232,12 @@ export class ProductsComponent implements OnInit {
           command: () => this.productService.printLabel(this.selectedProduct, 'SHIPPING')
         }
       ];
-      this.items = [
-        {
-          label: translations['edit_button'],
-          icon: 'pi pi-fw pi-pencil',
-          command: () => {
-            this.editProduct(this.selectedProduct)
-          },
-        },
-        {
-          label: translations['delete_button'],
-          icon: 'pi pi-fw pi-trash',
-          command: () => {
-            this.deleteProduct(this.selectedProduct);
-          },
-        },
 
-      ];
     });
     this.onGetAllProducts();
     this.onGetAllCategories();
     this.onGetAllWarehouses();
     this.onGetAllSuppliers();
-    // this.onGetCurrecy();
     await this.checkPermissions();
 
     this.targetCities = [];
@@ -228,10 +245,6 @@ export class ProductsComponent implements OnInit {
 
     await this.checkPermissions();
 
-    // Remove the "Delete" item if the user cannot delete the product
-    if (!this.canDeleteProduct) {
-      this.items = this.items.filter(item => item.icon !== 'pi pi-fw pi-trash');
-    }
 
     this.cols = [
       { field: 'name', header: this.translateService.instant('product_name') },
@@ -247,8 +260,6 @@ export class ProductsComponent implements OnInit {
       { field: 'Supplier', header: this.translateService.instant('product_supplier') },
     ];
 
-
-
     this.statuses = [
       { label: 'INSTOCK', value: 'instock' },
       { label: 'LOWSTOCK', value: 'lowstock' },
@@ -256,6 +267,31 @@ export class ProductsComponent implements OnInit {
     ];
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
+  }
+
+  buildMenuItems(product: any) {
+    this.items = [
+      {
+        label: this.translations['edit_button'],
+        icon: 'pi pi-fw pi-pencil',
+        command: () => this.editProduct(product),
+      },
+      {
+        label: product.deletable
+          ? this.translations['delete_button']
+          : this.translations['archive_button'],
+        icon: product.deletable
+          ? 'pi pi-fw pi-trash'
+          : 'pi pi-fw pi-folder',
+        command: () => {
+          if (product.deletable) {
+            this.deleteProduct(product);
+          } else {
+            this.archiveProduct(product);
+          }
+        },
+      },
+    ];
   }
 
   async checkPermissions() {
@@ -386,20 +422,44 @@ export class ProductsComponent implements OnInit {
       );
     }
 
-    // Apply search input filter
+    // Filter by search input (including attributes)
     if (this.searchInput) {
       const searchTerm = this.searchInput.toUpperCase();
-      tempProducts = tempProducts.filter((product) =>
-        (product.name || '').toUpperCase().includes(searchTerm) ||
-        (product.reference || '').toUpperCase().includes(searchTerm) ||
-        (product.description || '').toUpperCase().includes(searchTerm) ||
-        (product.category?.categoryName || '').toUpperCase().includes(searchTerm) ||
-        (product.supplier?.name || '').toUpperCase().includes(searchTerm) ||
-        (product.warehouse?.name || '').toUpperCase().includes(searchTerm)
-      );
+
+      tempProducts = tempProducts.filter(product => {
+        // Check main product fields
+        const matchesProduct =
+          (product.name || '').toUpperCase().includes(searchTerm) ||
+          (product.reference || '').toUpperCase().includes(searchTerm) ||
+          (product.description || '').toUpperCase().includes(searchTerm) ||
+          (product.category?.categoryName || '').toUpperCase().includes(searchTerm) ||
+          (product.supplier?.name || '').toUpperCase().includes(searchTerm) ||
+          (product.warehouse?.name || '').toUpperCase().includes(searchTerm);
+
+        // Check attributes
+        const matchesAttributes = product.attributes?.some(attr => {
+          let value = '';
+          switch (attr.attributeType) {
+            case 'BOOLEAN':
+              value = attr.booleanValue ? 'YES' : 'NO';
+              break;
+            case 'INTEGER':
+              value = attr.intValue?.toString() || '';
+              break;
+            case 'DOUBLE':
+              value = attr.doubleValue?.toString() || '';
+              break;
+            default:
+              value = attr.stringValue || '';
+          }
+          return value.toUpperCase().includes(searchTerm) ||
+            (attr.attributeName || '').toUpperCase().includes(searchTerm);
+        });
+
+        return matchesProduct || matchesAttributes;
+      });
     }
 
-    console.log('Filtered Products:', tempProducts);
     this.filteredProducts = tempProducts;
   }
 
@@ -517,9 +577,6 @@ export class ProductsComponent implements OnInit {
   openProductNotFound() {
     this.notFoundProductDialog = true;
   }
-  // deleteSelectedProducts() {
-  //   this.deleteProductsDialog = true;
-  // }
 
   openCategoryDialog() {
     if (!this.canAddCategory) return;
@@ -553,7 +610,6 @@ export class ProductsComponent implements OnInit {
     this.product = { ...product };
   }
 
-
   async confirmDelete() {
     if (!this.canDeleteProduct) return;
     this.deleteProductDialog = false;
@@ -582,6 +638,7 @@ export class ProductsComponent implements OnInit {
   openNew() {
     if (!this.canAddProduct) return;
     this.product = {};
+    this.product.measureUnit = MeasureUnit.UNIT;
     this.submitted = false;
     this.productDialog = true;
     this.scanning = false;
@@ -654,6 +711,19 @@ export class ProductsComponent implements OnInit {
         }
       }
 
+      // Clean attributes before saving
+      if (this.product.attributes && this.product.attributes.length > 0) {
+        this.product.attributes.forEach(attr => {
+          // strip transient field if it still exists
+          delete attr.value;
+
+          // optionally normalize booleans (Angular checkboxes can send null)
+          if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
+            attr.booleanValue = false;
+          }
+        });
+      }
+
       // ✏️ Update or add product
       if (this.product.productId) {
         this.updateProduct(this.product.productId, this.product)
@@ -687,10 +757,42 @@ export class ProductsComponent implements OnInit {
     }
   }
 
+  // Convert attribute value for display
+  displayAttributeValue(attr: any): string {
+    if (!attr) return '';
+    switch (attr.attributeType) {
+      case 'BOOLEAN':
+        return attr.booleanValue ? 'Yes' : 'No';
+      case 'INTEGER':
+        return attr.intValue?.toString() || '';
+      case 'DOUBLE':
+        return attr.doubleValue?.toFixed(2) || '';
+      default:
+        return attr.stringValue || '';
+    }
+  }
 
   editImage() {
     this.product.productImage = null;
     this.uploadedFile = null;
+  }
+
+  addAttribute() {
+    if (!this.product.attributes) {
+      this.product.attributes = [];
+    }
+
+    this.product.attributes.push({
+      attributeName: '',
+      attributeType: 'STRING', // default type
+      value: ''
+    });
+  }
+
+  removeAttribute(index: number) {
+    if (this.product.attributes && this.product.attributes.length > index) {
+      this.product.attributes.splice(index, 1);
+    }
   }
 
 
@@ -967,6 +1069,30 @@ export class ProductsComponent implements OnInit {
       })
   }
 
+  async onArchiveProduct(id: any) {
+    await this.productService.deactivateProduct(id)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_archived'),
+            life: 3000
+          });
+          this.onGetAllProducts();
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_archiving_product'),
+            life: 3000
+          });
+          console.log(err);
+        },
+      })
+  }
 
   async updateProduct(id: any, product: any): Promise<any> {
     console.log(product)
@@ -1187,6 +1313,149 @@ export class ProductsComponent implements OnInit {
   calculateProfit(product: any): number {
     if (!product.sellingPrice || !product.buyingPrice) return 0;
     return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
+  }
+
+  private parseAttributeValue(attr: any): any {
+    switch (attr.attributeType) {
+      case 'INTEGER': return Number(attr.value);
+      case 'DOUBLE': return Number(attr.value);
+      case 'BOOLEAN': return attr.value === true || attr.value === 'true';
+      default: return attr.value; // STRING
+    }
+  }
+
+  getMeasureUnit(unit: string, quantity: number): string {
+    if (!unit) return 'UNIT'; // fallback
+
+    const pluralizable = ['UNIT', 'PIECE', 'BOX', 'METER'];
+
+    if (quantity > 1 && pluralizable.includes(unit)) {
+      return `${unit}_plural`;
+    }
+
+    return unit;
+  }
+
+  getQuantitySeverity(quantity: number): string {
+    if (quantity === undefined || quantity === null) return 'info';
+    if (quantity <= 0) return 'danger';
+    if (quantity < this.lowStockThreshold) return 'warning';
+    return 'success';
+  }
+
+  async getLowStockThreshold(): Promise<number> {
+    let threshold: any;
+    try {
+      const value = await firstValueFrom(await this.configService.getConfiguration('lowStockThreshold'));
+
+      threshold = (value !== undefined && value !== null)
+        ? Number(value.value)
+        : 10;
+      return threshold;
+    } catch (error) {
+      console.error('Error fetching low stock threshold:', error);
+      threshold = 10; // fallback value
+      return threshold;
+    }
+  }
+
+  archiveProduct(product: Product) {
+    if (!this.canDeleteProduct) return;
+    this.archiveProductDialog = true;
+    this.product = { ...product };
+    this.productDialog = false;
+  }
+
+  async confirmArchive() {
+    if (!this.canDeleteProduct) return;
+    this.archiveProductDialog = false;
+    await this.onArchiveProduct(this.product.productId);
+    this.product = {};
+    this.selectedProduct = {};
+  }
+
+
+  unarchiveProduct(product: Product) {
+    if (!this.canDeleteProduct) return;
+    this.unArchiveProductDialog = true;
+    this.archivedProduct = { ...product };
+  }
+
+  async confirmUnarchive() {
+    if (!this.canDeleteProduct) return;
+    this.archiveProductDialog = false;
+    this.reactivateProduct(this.archivedProduct);
+    this.archivedProduct = {};
+    this.unArchiveProductDialog = false;
+  }
+
+  openArchivedProductsDialog(): void {
+    this.deactivateScanning();
+    this.archivedProductsDialog = true;
+    this.loadArchivedProducts();
+  }
+
+  loadArchivedProducts(): void {
+      this.isLoadingArchived = true;
+      this.productService.getInactiveProducts().subscribe({
+          next: (products: Product[]) => {
+              this.archivedProducts = products;
+              this.filteredArchivedProducts = products;
+              this.isLoadingArchived = false;
+          },
+          error: (error) => {
+              console.error('Error loading archived products:', error);
+              this.isLoadingArchived = false;
+          }
+      });
+  }
+
+  applyArchivedFilters(): void {
+    let filtered = [...this.archivedProducts];
+    
+    // Apply category filter
+    if (this.selectedArchivedNodes && this.selectedArchivedNodes.length > 0) {
+        const selectedCategoryIds = this.selectedArchivedNodes.map(node => node.key);
+        filtered = filtered.filter(product => 
+            product.category && selectedCategoryIds.includes(product.category.categoryId.toString())
+        );
+    }
+    
+    // Apply search filter
+    if (this.archivedSearchInput) {
+        const searchTerm = this.archivedSearchInput.toLowerCase();
+        filtered = filtered.filter(product => 
+            product.name.toLowerCase().includes(searchTerm) || 
+            (product.reference && product.reference.toLowerCase().includes(searchTerm)) ||
+            (product.category && product.category.categoryName.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    this.filteredArchivedProducts = filtered;
+  }
+
+
+  reactivateProduct(product: Product): void {
+    this.productService.reactivateProduct(product.productId).subscribe({
+        next: () => {
+            this.messageService.add({
+                severity: 'success',
+                summary: this.translate.instant('success'),
+                detail: this.translate.instant('product_reactivated')
+            });
+            // Remove from archived list
+            this.archivedProducts = this.archivedProducts.filter(p => p.productId !== product.productId);
+            this.applyArchivedFilters();
+        },
+        error: (error) => {
+            console.error('Error reactivating product:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: this.translate.instant('error'),
+                detail: this.translate.instant('reactivate_product_error')
+            });
+        }
+    });
   }
 
 }

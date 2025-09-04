@@ -54,9 +54,6 @@
       <div class="grid" *ngIf="activeItem?.icon == 'pi pi-fw pi-sliders-h' && !isLoading">
         <div class="col-12">
           <div class="card">
-            <!-- <div class="block-section"> -->
-            <!-- <div class="block-content"> -->
-            <!-- <div class="surface-section"> -->
             <div class="surface-section">
               <div class="text-500 mb-5">{{ 'administration_description_txt' | translate }}</div>
               <ul class="list-none p-0 m-0">
@@ -158,26 +155,9 @@
       <p-dialog [(visible)]="organizationDialog" [style]="{ width: '450px', height: '100%' }"
         header="{{ 'organization_info_lbl' | translate }}" [modal]="true" class="p-fluid">
         <ng-template pTemplate="content">
-          <!-- <div *ngIf="organization.logo; else upload_image">
-              <label for="logo">{{ 'product_image' | translate }}</label>
-              <div class="flex justify-content-center">
-                <p-image [src]="organization.logo" [alt]="organization.organizationName" width="150" [preview]="true" class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
-              </div>
-            </div>
-            <ng-template #upload_image>
-              <div class="field">
-                <label for="logo">{{ 'product_image' | translate }}</label>
-                <div class="card flex justify-content-center">
-                  <p-toast></p-toast>
-                  <p-fileUpload mode="basic" name="demo[]" url="https://www.primefaces.org/cdn/api/upload.php" accept="image/*" maxFileSize="1000000" (onSelect)="onFileUpload($event)" chooseLabel="{{ 'upload_file_button' | translate }}"></p-fileUpload>
-                </div>
-              </div>
-            </ng-template> -->
           <div *ngIf="organization.logo; else upload_image">
             <label for="logo">{{ 'organization_logo' | translate }}</label>
             <div class="flex justify-content-center">
-              <!-- <p-image [src]="logoImageUrl" [alt]="organization.organizationName" width="150" [preview]="true"
-                class="mt-0 mx-auto mb-5 block shadow-2"></p-image> -->
               <p-image *ngIf="logoImageUrl; else placeholderImage" [src]="logoImageUrl"
                 [alt]="organization.organizationName" width="150" [preview]="true"
                 class="mt-0 mx-auto mb-5 block shadow-2"></p-image>

@@ -1,15 +1,22 @@
 import { Component, OnInit } from '@angular/core';
+import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { Category } from 'src/app/models/category';
 import { Product } from 'src/app/models/product';
+import { Supplier } from 'src/app/models/supplier';
+import { UploadEvent } from 'src/app/models/uploadEvent';
+import { Warehouse } from 'src/app/models/warehouse';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { PermissionService } from 'src/app/services/permission.service';
+import { ProductService } from 'src/app/services/product.service';
+import { SupplierService } from 'src/app/services/supplier.service';
 import { TranslationService } from 'src/app/services/translation.service';
+import { WarehouseService } from 'src/app/services/warehouse.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 
 @Component({
@@ -52,18 +59,52 @@ export class CategoriesComponent implements OnInit {
   canEditCategory: boolean = false;
   canDeleteCategory: boolean = false;
   canListProducts: boolean = false;
-
+  canAddProduct: boolean = false;
+  canEditProduct: boolean = false;
+  canDeleteProduct: boolean = false;
+  canReadProduct: boolean = false;
+  isAdmin: boolean = false;
+  measureUnits: any[] = [];
+  attributeTypes: any[] = [];
+  deleteProductDialog: boolean=false;
   isLoading = true;
   currency: string = '';
-
+  selectedProduct: Product;
+  productDetailDialog: boolean = false;
+  productDialog: boolean = false;
+  userRoles: any;
+  suppliers: Supplier[] = [];
+  warehouses: Warehouse[] = [];
+  imageURL: any;
+  uploadedFile: File | null = null;
   constructor(private messageService: MessageService,
     private categoryService: CategoryService,
+    private productService: ProductService,
+    private supplierService: SupplierService,
+    private warehouseService: WarehouseService,
+    private storage: AngularFireStorage,
     private reportingService: ReportingService,
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private translate: TranslateService,
     private translateService: TranslationService,
-    private permissionService: PermissionService,) { }
+    private permissionService: PermissionService,) {
+      this.setUserRoles();
+      this.measureUnits = [
+        { value: 'UNIT', label: this.translate.instant('UNIT') },
+        { value: 'KG', label: this.translate.instant('KG') },
+        { value: 'LITER', label: this.translate.instant('LITER') },
+        { value: 'PIECE', label: this.translate.instant('PIECE') },
+        { value: 'BOX', label: this.translate.instant('BOX') },
+        { value: 'METER', label: this.translate.instant('METER') }
+      ];
+      this.attributeTypes = [
+        { label: this.translate.instant('String'), value: 'STRING' },
+        { label: this.translate.instant('Integer'), value: 'INTEGER' },
+        { label: this.translate.instant('Double'), value: 'DOUBLE' },
+        { label: this.translate.instant('Boolean'), value: 'BOOLEAN' }
+      ];
+     }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -141,7 +182,11 @@ export class CategoriesComponent implements OnInit {
     this.canAddCategory = this.permissionService.canCreate(this.Ressource);
     this.canEditCategory = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteCategory = this.permissionService.canDelete(this.Ressource);
-    this.canListProducts = this.permissionService.canListProducts(this.Ressource)
+    this.canListProducts = this.permissionService.canListProducts(this.Ressource);
+    this.canAddProduct = this.permissionService.canCreate('PRODUCTS');
+    this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
+    this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
+    this.canReadProduct = this.permissionService.canRead('PRODUCTS');
   }
 
   async confirmDelete() {
@@ -265,6 +310,27 @@ export class CategoriesComponent implements OnInit {
     });
   }
 
+  async onGetAllSuppliers() {
+    await this.supplierService.getSuppliers()
+      .subscribe({
+        next: (response: any) => {
+          this.suppliers = response;
+          this.suppliers.forEach((supplier: any) => (supplier.creationDate = new Date(<Date>supplier.creationDate)));
+        },
+        error: (err: any) => {
+          console.error(err)
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_getting_suppliers'),
+            life: 3000
+          });
+        },
+        complete: () => {
+          this.isLoading = false;
+        }
+      })
+  }
 
   async updateCategory(id: any, category: any): Promise<any> {
     await this.categoryService.updateCategory(id, category)
@@ -382,5 +448,284 @@ export class CategoriesComponent implements OnInit {
   getOutOfStockCount(): number {
     return this.products?.filter(p => p.quantityAvailable <= 0)?.length || 0;
   }
+
+  getMeasureUnit(unit: string, quantity: number): string {
+    if (!unit) return 'UNIT'; // fallback
+
+    const pluralizable = ['UNIT', 'PIECE', 'BOX', 'METER'];
+
+    if (quantity > 1 && pluralizable.includes(unit)) {
+      return `${unit}_plural`;
+    }
+
+    return unit;
+  }
+
+    viewProductDetails(product: Product) {
+      this.selectedProduct = product;
+      this.productDetailDialog = true;
+    }
+  
+    // Convert attribute value for display
+    displayAttributeValue(attr: any): string {
+      if (!attr) return '';
+      switch (attr.attributeType) {
+        case 'BOOLEAN':
+          return attr.booleanValue ? 'Yes' : 'No';
+        case 'INTEGER':
+          return attr.intValue?.toString() || '';
+        case 'DOUBLE':
+          return attr.doubleValue?.toFixed(2) || '';
+        default:
+          return attr.stringValue || '';
+      }
+    }
+  
+    editProduct(product: Product) {
+      if (!this.canEditProduct) return;
+      this.selectedProduct = product;
+      this.onGetAllCategories();
+      this.onGetAllWarehouses();
+      this.onGetAllSuppliers();
+      this.productDialog = true;
+    }
+  
+    addAttribute() {
+      if (!this.selectedProduct.attributes) {
+        this.selectedProduct.attributes = [];
+      }
+  
+      this.selectedProduct.attributes.push({
+        attributeName: '',
+        attributeType: 'STRING', // default type
+        value: ''
+      });
+    }
+  
+    removeAttribute(index: number) {
+      if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > index) {
+        this.selectedProduct.attributes.splice(index, 1);
+      }
+    }
+  
+    editImage() {
+      this.selectedProduct.productImage = null;
+      this.uploadedFile = null;
+    }
+  
+    async saveProduct() {
+      this.submitted = true;
+  
+      if (
+        this.selectedProduct.name &&
+        this.selectedProduct.reference &&
+        this.selectedProduct.quantityAvailable &&
+        this.selectedProduct.buyingPrice &&
+        this.selectedProduct.sellingPrice &&
+        this.selectedProduct.category &&
+        this.selectedProduct.supplier
+      ) {
+        if (this.isAdmin && !this.selectedProduct.warehouse) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('warehouse_required'),
+            life: 3000,
+          });
+          return;
+        }
+  
+        // 🔍 Check for duplicate product with same reference in the same warehouse
+        const isDuplicate = this.products.some((p: any) =>
+          p.reference === this.selectedProduct.reference &&
+          p.warehouse?.warehouseId === this.selectedProduct.warehouse?.warehouseId &&
+          p.productId !== this.selectedProduct.productId // exclude current product if updating
+        );
+  
+        if (isDuplicate) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('product_already_exists_in_warehouse'),
+            life: 4000,
+          });
+          return;
+        }
+  
+        // 📦 Upload product image if any
+        if (this.uploadedFile) {
+          const filePath = `images/${this.uploadedFile.name}`;
+          const fileRef = this.storage.ref(filePath);
+          const task = this.storage.upload(filePath, this.uploadedFile);
+  
+          try {
+            await lastValueFrom(task.snapshotChanges());
+            const url = await lastValueFrom(fileRef.getDownloadURL());
+            this.selectedProduct.productImage = url;
+            this.uploadedFile = null;
+          } catch (error) {
+            console.error('Error uploading file:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_uploading_image'),
+              life: 3000,
+            });
+            return;
+          }
+        }
+  
+        // Clean attributes before saving
+        if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > 0) {
+          this.selectedProduct.attributes.forEach(attr => {
+            // strip transient field if it still exists
+            delete attr.value;
+  
+            // optionally normalize booleans (Angular checkboxes can send null)
+            if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
+              attr.booleanValue = false;
+            }
+          });
+        }
+  
+        // ✏️ Update or add product
+        if (this.selectedProduct.productId) {
+          this.updateProduct(this.selectedProduct.productId, this.selectedProduct)
+            ? this.messageService.add({
+              severity: 'success',
+              summary: this.translate.instant('successful'),
+              detail: this.translate.instant('product_updated'),
+              life: 3000,
+            })
+            : this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_updating_product'),
+              life: 3000,
+            });
+        }
+  
+        // ✅ Reset and close dialog
+        this.productDialog = false;
+        // this.selectedProduct = {};
+      } else {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('please_fill_required_fields'),
+          life: 3100,
+        });
+        return;
+      }
+    }
+  
+    deleteProduct(product: Product) {
+      if (!this.canDeleteProduct) return;
+      this.deleteProductDialog = true;
+      this.selectedProduct = { ...product };
+    }
+  
+    async confirmProductDelete() {
+      if (!this.canDeleteProduct) return;
+      this.deleteProductDialog = false;
+      await this.onDeleteProduct(this.selectedProduct.productId);
+      this.selectedProduct = {};
+    }
+  
+    async onDeleteProduct(id: any) {
+      await this.productService.deleteProduct(id)
+        .subscribe({
+          next: async (response: any) => {
+            console.log(response);
+            this.messageService.add({
+              severity: 'success',
+              summary: this.translate.instant('successful'),
+              detail: this.translate.instant('product_deleted'),
+              life: 3000
+            });
+            await this.onGetCategoryProducts();
+          },
+          error: (err: any) => {
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_deleting_product'),
+              life: 3000
+            });
+            console.log(err);
+          },
+        })
+    }
+  
+    async updateProduct(id: any, product: any): Promise<any> {
+      console.log(product)
+      await this.productService.saveProduct(product)
+        .subscribe({
+          next: async (response: any) => {
+            console.log(response);
+            await this.onGetCategoryProducts();
+            return true;
+          },
+          error: (err: any) => {
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_updating_product'),
+              life: 3000
+            });
+            console.log(err);
+            return false;
+          },
+        })
+    }
+  
+    private async setUserRoles() {
+      this.userRoles = await this.keycloakService.getUserRoles();
+      this.isAdmin = this.userRoles.includes('ADMIN');
+    }
+  
+    async onGetAllWarehouses() {
+      await this.warehouseService.getWarehouses().subscribe({
+        next: (response: any) => {
+          this.warehouses = response;
+  
+          // Create warehouse parent node
+          const warehouseNode = {
+            label: this.translateService.instant('Warehouses'), // Ensure this matches your filter logic
+            icon: 'pi pi-fw pi-database',
+            children: this.warehouses.map((warehouse) => ({
+              label: warehouse.name,
+              data: warehouse,
+              parent: { label: this.translateService.instant('Warehouses') }, // Add parent reference
+            })),
+          };
+          console.log(this.warehouses);
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_warehouses'),
+            life: 3000,
+          });
+          console.log(err);
+        },
+      });
+    }
+  
+    async onFileUpload(event: UploadEvent): Promise<void> {
+      console.log("in upload");
+      const file = event.files[0];
+  
+      // Save the file temporarily and update the imageURL
+      this.imageURL = URL.createObjectURL(file);
+  
+      // Store the actual file for later use
+      this.uploadedFile = file;
+  
+      // Note: The actual upload to Firebase Storage will happen when the user clicks "Save" in the saveProduct method
+    }
+  
+  
 
 }
