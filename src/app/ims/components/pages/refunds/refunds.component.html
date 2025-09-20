@@ -48,7 +48,7 @@
             </div>
 
             <p-table #dt [value]="refunds" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-                [globalFilterFields]="['orderReturn.order.orderId','amount','status','method','originalPayment.transactionId','notes', 'orderReturn.order.customer.firstName', 'orderReturn.order.customer.lastName', 'orderReturn.order.customer.companyName']"
+                [globalFilterFields]="['orderReturn.order.reference','amount','status','method','originalPayment.transactionId','notes', 'orderReturn.order.customer.firstName', 'orderReturn.order.customer.lastName', 'orderReturn.order.customer.companyName']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedRefunds" selectionMode="multiple" [rowHover]="true" dataKey="refundId">
@@ -71,8 +71,8 @@
                         </th>
                         <th pSortableColumn="transactionId">{{'refund_transaction_id' | translate}} <p-sortIcon
                                 field="transactionId"></p-sortIcon></th>
-                        <th pSortableColumn="orderReturn.order.orderId">{{ 'order_id' | translate }}
-                            <p-sortIcon field="orderReturn.order.orderId"></p-sortIcon>
+                        <th pSortableColumn="orderReturn.order.reference">{{ 'order_reference' | translate }}
+                            <p-sortIcon field="orderReturn.order.reference"></p-sortIcon>
                         </th>
                         <th pSortableColumn="fullName">
                             {{ 'customer' | translate }}
@@ -126,7 +126,7 @@
                                 pTooltip="{{ 'refund_locked' | translate }}">
                             </i>
                         </td>
-                        <td>#{{ refund.orderReturn?.order?.orderId || 'N/A' }}</td>
+                        <td>#{{ refund.orderReturn?.order?.reference || 'N/A' }}</td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'customer' | translate }}</span>
                             {{
@@ -231,41 +231,43 @@
                     <label for="orderReturn">
                         {{ 'order_return' | translate }} <span class="required-asterisk">*</span>
                     </label>
-                    <p-dropdown [(ngModel)]="refund.orderReturn" [options]="eligibleReturns"
-                        [optionLabel]="getReturnDisplayLabel" placeholder="{{ 'select_return_option' | translate }}"
-                        [filter]="true" filterBy="returnId,order.orderId,order.customer.firstName,
-    order.customer.lastName,order.customer.companyName" [showClear]="true" inputId="orderReturn" name="orderReturn"
-                        (onChange)="onReturnSelect($event.value)" [emptyMessage]="'no_returns_available' | translate"
+                    <p-dropdown
+                        [(ngModel)]="refund.orderReturn"
+                        [options]="eligibleReturns"
+                        [dataKey]="'returnId'"
+                        placeholder="{{ 'select_return_option' | translate }}"
+                        [filter]="true"
+                        filterBy="returnId,order.reference,order.customer.firstName,order.customer.lastName,order.customer.companyName"
+                        [showClear]="true"
+                        inputId="orderReturn"
+                        name="orderReturn"
+                        (onChange)="onReturnSelect($event.value)"
+                        [emptyMessage]="'no_returns_available' | translate"
                         [emptyFilterMessage]="'no_returns_matching_filter' | translate"
                         [ngClass]="{'ng-invalid ng-dirty': submitted && !refund.orderReturn}">
 
                         <!-- Selected value inside the input box -->
                         <ng-template pTemplate="selectedItem" let-return>
                             <span *ngIf="return" class="product-badge">
-                                {{ getReturnDisplayLabel(return) }}
+                            {{ getReturnDisplayLabel(return) }}
                             </span>
                         </ng-template>
 
                         <!-- Each row inside the dropdown panel -->
                         <ng-template pTemplate="item" let-return>
                             <div class="flex flex-column">
-                                <div class="flex justify-content-between align-items-center">
-                                    <span>{{'return'|translate}} #{{ return.returnId }}</span>
-                                    <span>{{'order'|translate}} #{{ return.order?.orderId }}</span>
-                                </div>
-                                <div class="flex justify-content-between align-items-center text-sm text-gray-600 mt-1">
-                                    <span>{{ getCustomerDisplayName(return.order?.customer) }}</span>
-                                    <span>{{'total'|translate}}: {{ return.totalRefundableAmount | currency: currency
-                                        }}</span>
-                                </div>
-                                <div class="flex justify-content-between align-items-center text-sm mt-1">
-                                    <span>{{'refunded'|translate}}: {{
-                                        getRefundedAmount(return) | currency: currency
-                                        }}</span>
-                                    <span>{{'due'|translate}}: {{
-                                        (return.totalRefundableAmount - getRefundedAmount(return)) | currency: currency
-                                        }}</span>
-                                </div>
+                            <div class="flex justify-content-between align-items-center">
+                                <span>{{'return'|translate}} #{{ return.returnId }}</span>
+                                <span>{{'order'|translate}} #{{ return.order?.reference }}</span>
+                            </div>
+                            <div class="flex justify-content-between align-items-center text-sm text-gray-600 mt-1">
+                                <span>{{ getCustomerDisplayName(return.order?.customer) }}</span>
+                                <span>{{'total'|translate}}: {{ return.totalRefundableAmount | currency: currency }}</span>
+                            </div>
+                            <div class="flex justify-content-between align-items-center text-sm mt-1">
+                                <span>{{'refunded'|translate}}: {{ getRefundedAmount(return) | currency: currency }}</span>
+                                <span>{{'due'|translate}}: {{ (return.totalRefundableAmount - getRefundedAmount(return)) | currency: currency }}</span>
+                            </div>
                             </div>
                         </ng-template>
                     </p-dropdown>

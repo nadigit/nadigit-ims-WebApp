@@ -1,0 +1,566 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <h5>{{'categories_menu_title' | translate}}</h5>
+            <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'categories_page_description' | translate }}
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddFinancialDocs" value="{{'create'|translate}}" icon="pi pi-plus" severity="success"></p-tag>
+                    <p-tag *ngIf="canEditFinancialDocs" value="{{'edit'|translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteFinancialDocs" value="{{'delete'|translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+                    <p-tag value="{{'export'|translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                    <p-tag *ngIf="canReadFinancialDocs" value="{{'read'|translate}}" icon="pi pi-list" severity="help"></p-tag>
+                </div>
+            </div>
+
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button *ngIf="canAddFinancialDocs" pButton pRipple label="{{'new_button' | translate}}"
+                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+                            pTooltip="{{'add_new_financial_doc'|translate}}"></button>
+                        <button *ngIf="canDeleteFinancialDocs" pButton pRipple label="{{'delete_button' | translate}}"
+                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedFinancialDocs()"
+                            pTooltip="{{'delete_financial_doc'|translate}}"
+                            [disabled]="!selectedFinancialDocs || !selectedFinancialDocs.length"></button>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="right">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+                </ng-template>
+            </p-toolbar>
+
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="financialDocs" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['docNumber','docType']" [paginator]="true"
+                [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedFinancialDocs" selectionMode="multiple" [rowHover]="true" dataKey="financialDocId">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{'financial_docs_page_title' | translate}}</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+					<tr>
+						<th style="width: 3rem">
+						<p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+						</th>
+
+						<th pSortableColumn="docNumber">
+						{{ 'document_number' | translate }}
+						<p-sortIcon field="docNumber"></p-sortIcon>
+						</th>
+
+						<th pSortableColumn="docTitle">
+						{{ 'document_title' | translate }}
+						<p-sortIcon field="docTitle"></p-sortIcon>
+						</th>
+
+						<th pSortableColumn="docType">
+						{{ 'document_type' | translate }}
+						<p-sortIcon field="docType"></p-sortIcon>
+						</th>
+
+						<th pSortableColumn="docStatus">
+						{{ 'document_status' | translate }}
+						<p-sortIcon field="docStatus"></p-sortIcon>
+						</th>
+
+						<th pSortableColumn="createdAt">
+						{{ 'creation_date' | translate }}
+						<p-columnFilter type="date" field="createdAt" display="menu" />
+						<p-sortIcon field="createdAt"></p-sortIcon>
+						</th>
+
+						<th pSortableColumn="issuedAt">
+						{{ 'issued_date' | translate }}
+						<p-columnFilter type="date" field="issuedAt" display="menu" />
+						<p-sortIcon field="issuedAt"></p-sortIcon>
+						</th>
+
+						<th>
+						{{ 'file' | translate }}
+						</th>
+
+						<th></th>
+					</tr>
+					</ng-template>
+
+					<ng-template pTemplate="body" let-doc>
+					<tr [pSelectableRow]="doc" (click)="canReadFinancialDocs ? viewFinancialDocDetailsDialog(doc) : null">
+						<td>
+						<p-tableCheckbox [value]="doc" (click)="$event.stopPropagation()"></p-tableCheckbox>
+						</td>
+
+						<td>
+						<span class="p-column-title">{{ 'document_number' | translate }}</span>
+						{{ doc.docNumber || 'N/A' }}
+						</td>
+
+						<td>
+						<span class="p-column-title">{{ 'document_title' | translate }}</span>
+						{{ doc.docTitle || 'N/A' }}
+						</td>
+
+						<td>
+						<span class="p-column-title">{{ 'document_type' | translate }}</span>
+						{{ doc.docType || 'N/A' }}
+						</td>
+
+						<td>
+						<span class="p-column-title">{{ 'document_status' | translate }}</span>
+						{{ doc.docStatus || 'N/A' }}
+						</td>
+
+						<td>
+						<span class="p-column-title">{{ 'creation_date' | translate }}</span>
+						{{ doc.createdAt ? (doc.createdAt | date:'dd/MM/yyyy') : 'N/A' }}
+						</td>
+
+						<td>
+						<span class="p-column-title">{{ 'issued_date' | translate }}</span>
+						{{ doc.issuedAt ? (doc.issuedAt | date:'dd/MM/yyyy') : 'N/A' }}
+						</td>
+
+						<td>
+							<span class="p-column-title">{{ 'file' | translate }}</span>
+							<button *ngIf="doc.fileUrl"
+									(click)="openIssuedPdf(doc)"
+									class="p-button p-button-text p-button-sm">
+								<i class="pi pi-file-pdf"></i>
+							</button>
+							<span *ngIf="!doc.fileUrl">N/A</span>
+						</td>
+
+						<td>
+						<div class="flex">
+							<!-- Edit button -->
+							<button pButton pRipple *ngIf="canEditFinancialDocs && doc.docStatus =='DRAFT'"
+									icon="pi pi-pencil"
+									class="p-button-rounded p-button-info mr-2"
+									pTooltip="{{ 'update_financial_doc' | translate }}"
+									(click)="editFinancialDoc(doc); $event.stopPropagation()">
+							</button>
+
+							<!-- Delete button -->
+							<button pButton pRipple *ngIf="canDeleteFinancialDocs && isAdmin"
+									icon="pi pi-trash"
+									class="p-button-rounded p-button-danger mr-2"
+									pTooltip="{{ 'delete_financial_doc' | translate }}"
+									(click)="deleteFinancialDoc(doc); $event.stopPropagation()">
+							</button>
+
+							<!-- Issue button -->
+							<button pButton pRipple *ngIf="canIssueFinancialDocs && doc.docStatus =='DRAFT'"
+									icon="pi pi-check-circle"
+									class="p-button-rounded p-button-success mr-2"
+									pTooltip="{{ 'issue_financial_doc' | translate }}"
+									(click)="issueFinancialDoc(doc); $event.stopPropagation()">
+							</button>
+						</div>
+						</td>
+					</tr>
+					</ng-template>
+
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_financial_docs' | translate}} {{financialDocs ? financialDocs?.length : 0 }}.
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_financial_docs_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="financialDocDialog" [style]="{width: '600px'}"
+			[breakpoints]="{'960px': '90vw', '640px': '95vw'}"
+			header="{{'financial_document_details' | translate}}"
+			[modal]="true" [draggable]="false" [resizable]="false"
+			class="p-fluid financial-doc-dialog">
+
+			<ng-template pTemplate="content">
+				<div class="grid p-fluid">
+					<div class="col-12">
+						<div class="field" style="position: relative;">
+							<label for="order">
+								{{ 'payment_order' | translate }} <span class="required-asterisk">*</span>
+							</label>
+
+							<p-dropdown [(ngModel)]="financialDoc.order" name="order" inputId="order" id="order" ngDefaultControl
+								optionLabel="orderId" [options]="orders" required autofocus
+								placeholder="{{ 'select_order_option' | translate }}" [filter]="true"
+								filterBy="orderId,totalAmount" appendTo="body"
+								[ngClass]="{'ng-invalid ng-dirty' : submitted && !financialDoc.order}">
+								<ng-template pTemplate="selectedItem">
+									<span *ngIf="financialDoc && financialDoc.order" [class]="'product-badge'">
+										#{{financialDoc.order.orderId}} -
+										{{financialDoc.order.totalAmount | currency:currency:'symbol':'1.2-2'}} ({{
+										'payment_paid_amount' | translate }}: {{financialDoc.order.totalPaid |
+										currency:currency:'symbol':'1.2-2'}})
+									</span>
+								</ng-template>
+								<ng-template let-option pTemplate="item">
+									<div class="flex justify-content-between">
+										<span>#{{option.orderId}}</span>
+										<span>{{ 'payment_total' | translate }}: {{option.totalAmount |
+											currency:currency:'symbol':'1.2-2'}}</span>
+										<span>{{ 'payment_paid_amount' | translate }}: {{option.totalPaid |
+											currency:currency:'symbol':'1.2-2'}}</span>
+										<span>{{ 'payment_due_amount' | translate }}: {{(option.totalAmount - option.totalPaid)
+											| currency:currency:'symbol':'1.2-2'}}</span>
+									</div>
+								</ng-template>
+							</p-dropdown>
+							<small class="ng-dirty ng-invalid" *ngIf="submitted && !financialDoc.order">{{'payment_order' |
+								translate}} {{'is_required_label' | translate}}</small>
+						</div>
+						<!-- Document Number -->
+						<div class="field">
+							<label for="docNumber" class="block mb-2 font-bold">
+								{{'document_number' | translate}} <span class="required-asterisk">*</span>
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-hashtag"></i>
+								</span>
+								<input type="text" pInputText name="docNumber"
+									[(ngModel)]="financialDoc.docNumber" required
+									placeholder="{{ 'enter_document_number' | translate }}"
+									[ngClass]="{'ng-invalid ng-dirty': submitted && !financialDoc.docNumber}" />
+							</div>
+							<small class="p-error" *ngIf="submitted && !financialDoc.docNumber">
+								{{'document_number' | translate}} {{'is_required_label' | translate}}
+							</small>
+						</div>
+
+						<!-- Document Title -->
+						<div class="field">
+							<label for="docTitle" class="block mb-2 font-bold">
+								{{'document_title' | translate}}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-align-left"></i>
+								</span>
+								<input type="text" pInputText name="docTitle"
+									[(ngModel)]="financialDoc.docTitle"
+									placeholder="{{ 'enter_document_title' | translate }}" />
+							</div>
+						</div>
+
+						<!-- Document Type -->
+						<div class="field">
+							<label for="docType" class="block mb-2 font-bold">
+								{{'document_type' | translate}} <span class="required-asterisk">*</span>
+							</label>
+							<p-dropdown [options]="docTypes" [(ngModel)]="financialDoc.docType"
+								optionLabel="label" optionValue="value" placeholder="{{'select_document_type' | translate}}"
+								appendTo="body">
+							</p-dropdown>
+							<small class="p-error" *ngIf="submitted && !financialDoc.docType">
+								{{'document_type' | translate}} {{'is_required_label' | translate}}
+							</small>
+						</div>
+
+						<!-- Document Status -->
+						<div class="field">
+							<label for="docStatus" class="block mb-2 font-bold">
+								{{'document_status' | translate}} <span class="required-asterisk">*</span>
+							</label>
+							<p-dropdown [options]="docStatuses" [(ngModel)]="financialDoc.docStatus"
+								optionLabel="label" optionValue="value" placeholder="{{'select_document_status' | translate}}"
+								appendTo="body">
+							</p-dropdown>
+							<small class="p-error" *ngIf="submitted && !financialDoc.docStatus">
+								{{'document_status' | translate}} {{'is_required_label' | translate}}
+							</small>
+						</div>
+
+						<!-- Issued Date -->
+						<div class="field">
+							<label for="issuedAt" class="block mb-2 font-bold">
+								{{'issued_date' | translate}}
+							</label>
+							<p-calendar [(ngModel)]="financialDoc.issuedAt" name="issuedAt"
+								dateFormat="dd/mm/yy" showIcon="true" appendTo="body"></p-calendar>
+						</div>
+
+						<!-- File Upload / URL -->
+						<div class="field">
+							<label for="fileUrl" class="block mb-2 font-bold">
+								{{'document_file' | translate}}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-file-pdf"></i>
+								</span>
+								<input type="text" pInputText name="fileUrl"
+									[(ngModel)]="financialDoc.fileUrl"
+									placeholder="{{ 'enter_file_url' | translate }}" />
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="required-note mt-3">
+					<small><span class="required-asterisk">*</span>
+						{{'fields_marked_with_asterisk_required' | translate}}
+					</small>
+				</div>
+			</ng-template>
+
+			<ng-template pTemplate="footer">
+				<div class="flex justify-content-between align-items-center w-full">
+					<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+						class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+					<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+						class="p-button-raised" (click)="saveFinancialDoc()"></button>
+				</div>
+			</ng-template>
+		</p-dialog>
+
+
+        <p-dialog [(visible)]="deleteFinancialDocDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="financialDoc">{{ 'delete_confirmation_msg_with_param' | translate }}
+                    <b>{{financialDoc.docNumber}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+                    (click)="deleteFinancialDocDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteFinancialDocsDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{ 'delete_selected_confirmation_msg' | translate }}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+                    (click)="deleteFinancialDocsDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+
+		<p-dialog [(visible)]="issueFinancialDocDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="financialDoc">{{ 'issue_doc_confirmation_msg_with_param' | translate }}
+                    <b>{{financialDoc.docNumber}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+                    (click)="issueFinancialDocDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+                    (click)="confirmIssueDocument()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="financialDocDetailsDialog" [style]="{width: '90%', height: '95vh'}"
+			[draggable]="false" [resizable]="true"
+			header="{{'financial_doc_details' | translate}} {{financialDoc?.docNumber}}"
+			[modal]="true" class="p-fluid">
+
+			<ng-template pTemplate="content">
+				<div class="grid">
+					<!-- Financial Document Summary -->
+					<div class="col-12 md:col-3">
+						<p-card class="h-full" [header]="'document_info' | translate">
+							<div class="flex flex-column gap-3">
+
+								<div>
+									<strong>{{'document_number' | translate}}:</strong> {{ financialDoc?.docNumber || 'N/A' }}
+								</div>
+								<div>
+									<strong>{{'document_title' | translate}}:</strong> {{ financialDoc?.docTitle || 'N/A' }}
+								</div>
+								<div>
+									<strong>{{'document_type' | translate}}:</strong> {{ financialDoc?.docType || 'N/A' }}
+								</div>
+								<div>
+									<strong>{{'document_status' | translate}}:</strong> {{ financialDoc?.docStatus || 'N/A' }}
+								</div>
+								<div>
+									<strong>{{'creation_date' | translate}}:</strong>
+									{{ financialDoc?.createdAt ? (financialDoc.createdAt | date:'dd/MM/yyyy HH:mm') : 'N/A' }}
+								</div>
+								<div>
+									<strong>{{'issued_date' | translate}}:</strong>
+									{{ financialDoc?.issuedAt ? (financialDoc.issuedAt | date:'dd/MM/yyyy HH:mm') : 'N/A' }}
+								</div>
+								<div *ngIf="financialDoc?.canceledAt">
+									<strong>{{'canceled_date' | translate}}:</strong>
+									{{ financialDoc.canceledAt | date:'dd/MM/yyyy HH:mm' }}
+								</div>
+								<div>
+									<strong>{{'created_by' | translate}}:</strong> {{ financialDoc?.createdBy || 'N/A' }}
+								</div>
+								<div *ngIf="financialDoc?.issuedBy">
+									<strong>{{'issued_by' | translate}}:</strong> {{ financialDoc.issuedBy }}
+								</div>
+								<div *ngIf="financialDoc?.canceledBy">
+									<strong>{{'canceled_by' | translate}}:</strong> {{ financialDoc.canceledBy }}
+								</div>
+								<div *ngIf="financialDoc?.fileUrl">
+									<strong>{{'file' | translate}}:</strong>
+									<a [href]="financialDoc.fileUrl" target="_blank">
+										<i class="pi pi-file-pdf"></i> {{ 'download_file' | translate }}
+									</a>
+								</div>
+							</div>
+						</p-card>
+					</div>
+
+					<!-- Associated Order Products -->
+					<div class="col-12 md:col-9">
+						<p-table #dt [value]="orderItems" responsiveLayout="scroll" [rows]="20"
+							[globalFilterFields]="['name','reference','quantity','unitPrice','total']"
+							[paginator]="true" [rowsPerPageOptions]="[10,20,50,100]" [showCurrentPageReport]="true"
+							currentPageReportTemplate="{first} - {last} of {totalRecords} {{'table_records' | translate}}"
+							[rowHover]="true" dataKey="id"
+							styleClass="p-datatable-sm p-datatable-striped">
+
+							<ng-template pTemplate="caption">
+								<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-2">
+									<div class="flex align-items-center gap-2">
+										<h5 class="m-0">{{'order_items' | translate}}</h5>
+										<p-tag [value]="orderItems?.length?.toString() || '0'" severity="info"></p-tag>
+									</div>
+									<div class="flex gap-2">
+										<span class="p-input-icon-left w-full">
+											<i class="pi pi-search"></i>
+											<input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+												placeholder="{{'search_label' | translate}}" class="w-full" />
+										</span>
+									</div>
+								</div>
+							</ng-template>
+
+							<ng-template pTemplate="header">
+								<tr>
+									<th style="width: 80px">{{ 'product_image' | translate }}</th>
+									<th pSortableColumn="name" style="min-width: 180px">
+										{{'product_name' | translate}} <p-sortIcon field="name"></p-sortIcon>
+									</th>
+									<th pSortableColumn="reference" style="min-width: 120px">
+										{{'product_reference' | translate}} <p-sortIcon field="reference"></p-sortIcon>
+									</th>
+									<th pSortableColumn="quantity" style="width: 120px" class="text-center">
+										{{'quantity' | translate}} <p-sortIcon field="quantity"></p-sortIcon>
+									</th>
+									<th pSortableColumn="unitPrice" style="width: 120px" class="text-right">
+										{{'unit_price' | translate}} <p-sortIcon field="unitPrice"></p-sortIcon>
+									</th>
+									<th style="width: 120px" class="text-right">{{'total' | translate}}</th>
+								</tr>
+							</ng-template>
+
+							<ng-template pTemplate="body" let-item>
+								<tr>
+									<td>
+										<p-image [src]="item.productImage || 'assets/core-images/no-image.png'"
+											[alt]="item.name" width="60" [preview]="true"
+											class="shadow-1 border-round"></p-image>
+									</td>
+									<td>
+										<span class="font-semibold">{{item.name || 'N/A'}}</span>
+										<div *ngIf="item.description" class="text-sm text-500 mt-1 line-clamp-1">
+											{{item.description}}
+										</div>
+									</td>
+									<td>{{item.reference || 'N/A'}}</td>
+									<td class="text-center">
+										{{item.quantity || 0}}
+									</td>
+									<td class="text-right">
+										{{item.unitPrice | currency:currency:'symbol':'1.2-2' || 'N/A'}}
+									</td>
+									<td class="text-right">
+										{{(item.unitPrice * item.quantity) | currency:currency:'symbol':'1.2-2'}}
+									</td>
+								</tr>
+							</ng-template>
+
+							<ng-template pTemplate="emptymessage">
+								<tr>
+									<td colspan="6">
+										<div class="flex flex-column align-items-center justify-content-center py-5">
+											<img src="assets/core-images/no_data_found.png" alt="No Data Found"
+												style="max-width: 250px; opacity: 0.6;">
+											<p class="mt-3 text-gray-600 font-medium text-lg">
+												{{ 'no_order_items_found' | translate }}
+											</p>
+										</div>
+									</td>
+								</tr>
+							</ng-template>
+
+							<ng-template pTemplate="summary">
+								<div class="flex flex-wrap align-items-center justify-content-between gap-3">
+									<div class="flex align-items-center gap-2">
+										<span class="font-medium">{{'total_items' | translate}}:</span>
+										<p-tag [value]="orderItems?.length?.toString() || '0'"></p-tag>
+									</div>
+									<div class="flex flex-column">
+										<span class="text-sm">{{'grand_total' | translate}}</span>
+										<span class="font-semibold">
+											{{ getOrderTotal() | currency:currency:'symbol':'1.2-2' }}
+										</span>
+									</div>
+								</div>
+							</ng-template>
+						</p-table>
+					</div>
+				</div>
+			</ng-template>
+
+			<ng-template pTemplate="footer">
+				<button pButton pRipple label="{{'close' | translate}}" icon="pi pi-times"
+					class="p-button-text" (click)="hideFinancialDocDetailsDialog()"></button>
+			</ng-template>
+		</p-dialog>
+
+
+    </div>
+</div>

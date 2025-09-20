@@ -19,6 +19,18 @@ export const PermissionsConfig = {
             update: false,
             delete: false,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
     },
     CATEGORIES: {
         ADMIN: {
@@ -65,6 +77,20 @@ export const PermissionsConfig = {
             delete: true,
             history_read: true,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+            history_read: true,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+            history_read: true,
+        },
     },
     ORDERS: {
         ADMIN: {
@@ -88,6 +114,19 @@ export const PermissionsConfig = {
             update: true,
             delete: true,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        
     },
     RETURNS: {
         ADMIN: {
@@ -106,7 +145,19 @@ export const PermissionsConfig = {
             create: true,
             read: true,
             update: true,
-            delete: true,
+            delete: false,
+        },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
         },
     },
     PROFILE: {
@@ -128,6 +179,18 @@ export const PermissionsConfig = {
             update: true,
             delete: false,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: true,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: true,
+            delete: false,
+        },
     },
     SETTINGS: {
         ADMIN: {
@@ -143,6 +206,18 @@ export const PermissionsConfig = {
             delete: false,
         },
         VENDOR: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        AUDITOR: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
             create: false,
             read: false,
             update: false,
@@ -171,6 +246,18 @@ export const PermissionsConfig = {
             delete: false,
             cash_read: true,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
     },
     SUPPLIERS: {
         ADMIN: {
@@ -186,6 +273,18 @@ export const PermissionsConfig = {
             delete: true,
         },
         VENDOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
             create: false,
             read: true,
             update: false,
@@ -211,6 +310,18 @@ export const PermissionsConfig = {
             update: false,
             delete: false,
         },
+        AUDITOR: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
     },
     WAREHOUSES: {
         ADMIN: {
@@ -231,6 +342,19 @@ export const PermissionsConfig = {
             update: false,
             delete: false,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        
     },
     PURCHASES: {
         ADMIN: {
@@ -247,6 +371,18 @@ export const PermissionsConfig = {
         },
         VENDOR: {
             create: true,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
             read: true,
             update: false,
             delete: false,
@@ -271,6 +407,18 @@ export const PermissionsConfig = {
             update: true,
             delete: true,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
     },
     PAYMENTS: {
         ADMIN: {
@@ -289,6 +437,18 @@ export const PermissionsConfig = {
             create: true,
             read: true,
             update: true,
+            delete: false,
+        },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
             delete: false,
         },
     },
@@ -311,5 +471,55 @@ export const PermissionsConfig = {
             update: true,
             delete: false,
         },
+        AUDITOR: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: true,
+            update: false,
+            delete: false,
+        },
     },
+    FINANCIAL_DOCUMENTS:
+        {
+        ADMIN: {
+            create: true,
+            read: true,
+            update: true,
+            delete: true,
+            issue: true,
+        },
+        WAREHOUSEMAN: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+            issue: false,
+        },
+        VENDOR: {
+            create: true,
+            read: true,
+            update: false,
+            delete: false,
+            issue: false,
+        },
+        AUDITOR: {
+            create: true,
+            read: true,
+            update: false,
+            delete: false,
+            issue: false,
+        },
+        ACCOUNTANT: {
+            create: true,
+            read: true,
+            update: true,
+            delete: true,
+            issue: true,
+        },
+    }
 };

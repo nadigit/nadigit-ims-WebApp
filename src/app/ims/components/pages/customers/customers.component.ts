@@ -441,6 +441,7 @@ export class CustomersComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.customers = response;
+          console.log(this.customers);
           this.customers.forEach((customer: any) => (customer.creationDate = new Date(<Date>customer.creationDate)));
         },
         error: (err: any) => {

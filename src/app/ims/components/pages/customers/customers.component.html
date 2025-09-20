@@ -81,9 +81,18 @@
                                 field="country"></p-sortIcon></th>
                         <th pSortableColumn="customerType">{{'customer_type' | translate}} <p-sortIcon
                                 field="customerType"></p-sortIcon></th>
-                        <th pSortableColumn="creationDate">{{ 'creation_date' | translate }}
-                            <p-columnFilter type="date" field="creationDate" display="menu" />
-                            <p-sortIcon field="creationDate"></p-sortIcon></th>
+                        <th pSortableColumn="totalOrders">{{ 'total_orders' | translate }}
+                            <p-columnFilter type="numeric" field="totalOrders" display="menu" />
+                            <p-sortIcon field="totalOrders"></p-sortIcon></th>
+                        <th pSortableColumn="totalAmount">{{ 'order_total_amount' | translate }}
+                            <p-columnFilter type="numeric" field="totalAmount" display="menu" />
+                            <p-sortIcon field="totalAmount"></p-sortIcon></th>
+                        <th pSortableColumn="totalPaid">{{ 'order_total_paid' | translate }}
+                            <p-columnFilter type="numeric" field="totalPaid" display="menu" />
+                            <p-sortIcon field="totalPaid"></p-sortIcon></th>
+                        <th pSortableColumn="remainingBalance">{{ 'order_remaining_balance' | translate }}
+                            <p-columnFilter type="numeric" field="remainingBalance" display="menu" />
+                            <p-sortIcon field="remainingBalance"></p-sortIcon></th>
                         <th></th>
                     </tr>
                 </ng-template>
@@ -94,7 +103,7 @@
                             <p-tableCheckbox [value]="customer" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
 
-                        <td style="min-width:10rem;">
+                        <td style="min-width:10rem;" class="font-bold">
                             <span class="p-column-title">{{'customer_name' | translate}}</span>
                             {{
                             customer.customerType === 'Company'
@@ -124,8 +133,33 @@
                             }}
                         </td>
                         <td style="min-width:10rem;">
-                            <span class="p-column-title">{{ 'creation_date' | translate }}</span>
-                            {{ customer.creationDate ? (customer.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
+                            <span class="p-column-title">{{ 'order_total_orders' | translate }}</span>
+                            {{customer.totalOrders || 0}}
+                        </td>
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'order_total_amount' | translate }}</span>
+                            {{customer.totalAmount | currency:currency:'symbol':'1.2-2'}}
+                        </td>
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'order_total_paid' | translate }}</span>
+                            {{customer.totalPaid | currency:currency:'symbol':'1.2-2'}}
+                        </td>
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'order_remaining_balance' | translate }}</span>
+                            <span 
+                                [ngClass]="{
+                                    'text-red-600 font-bold': (customer.totalAmount - customer.totalPaid) > 0,
+                                    'text-green-600': (customer.totalAmount - customer.totalPaid) <= 0
+                                }">
+                                {{ (customer.totalAmount - customer.totalPaid) | currency:currency:'symbol':'1.2-2' }}
+                            </span>
+                            <ng-container *ngIf="(customer.totalAmount - customer.totalPaid) > 0">
+                                <p-tag 
+                                    value="{{'due' | translate}}" 
+                                    severity="danger" 
+                                    icon="pi pi-exclamation-triangle">
+                                </p-tag>
+                            </ng-container>
                         </td>
                         <td>
                             <div class="flex">

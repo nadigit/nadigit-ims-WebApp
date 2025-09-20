@@ -313,13 +313,13 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   getOrderDisplayLabel = (order: any): string => {
     if (!order) return '';
 
-    const orderId = order.orderId || 'N/A';
+    const reference = order.reference || 'N/A';
     const totalAmount = order.totalAmount;
     //const itemCount = order.orderItems.length || 0;
     const itemCount = order.itemCount !== undefined ? order.itemCount : this.getSafeItemsCount(order);
     const customerName = this.getCustomerDisplayName(order.customer);
 
-    return `#${orderId} • ${totalAmount} • ${itemCount} ${this.translate.instant('items')} • ${customerName}`;
+    return `#${reference} • ${totalAmount} • ${itemCount} ${this.translate.instant('items')} • ${customerName}`;
   }
 
 

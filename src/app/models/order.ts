@@ -7,6 +7,7 @@ import { Shop } from "./shop";
 
 export class Order { 
   orderId?: number;
+  reference?: string;
   orderStatus?: string;
   orderDate?: Date;
   processingDate?: Date;

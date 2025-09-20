@@ -41,7 +41,8 @@ export class AppMenuComponent implements OnInit {
       { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/pages/returns'], roles: ['VENDOR', 'ADMIN'] },
       { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/pages/refunds'], roles: ['VENDOR', 'ADMIN'] },
       { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pages/purchases'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
-      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-dollar', routerLink: ['/pages/expenses'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/pages/expenses'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      { label: translations['financial_docs_menu_title'], icon: 'pi pi-fw pi-file', routerLink: ['/pages/financial-documents'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
     ];
   
     // Setup common structure for both admin and non-admin users

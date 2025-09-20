@@ -157,8 +157,9 @@ export class RefundsComponent implements OnInit {
     this.deleteRefundsDialog = true;
   }
 
-  editRefund(refund: Refund) {
+  async editRefund(refund: Refund) {
     if (!this.canEditRefund) return;
+    await this.loadEligibleReturns();
     this.refund = { ...refund };
     this.refundDialog = true;
   }
@@ -207,11 +208,11 @@ export class RefundsComponent implements OnInit {
     if (!ret) { return ''; }
 
     const returnId = ret.returnId ?? 'N/A';
-    const orderId = ret.order?.orderId ?? 'N/A';
+    const reference = ret.order?.reference ?? 'N/A';
     const refundAmt = ret.totalRefundableAmount ?? 0;
     const customer = this.getCustomerDisplayName(ret.order?.customer);
 
-    return `#${returnId} • ${this.translate.instant('order')} #${orderId} • ${refundAmt} ${this.currency} • ${customer}`;
+    return `#${returnId} • ${this.translate.instant('order')} #${reference} • ${refundAmt} ${this.currency} • ${customer}`;
   };
 
   private formatDate(date: Date): string {
@@ -493,6 +494,9 @@ export class RefundsComponent implements OnInit {
       console.log(this.eligibleReturns);
     });
   }
+
+  compareReturns = (o1: OrderReturn, o2: OrderReturn): boolean =>
+  o1 && o2 ? o1.returnId === o2.returnId : o1 === o2;
 
   onReturnSelect(selectedReturn: OrderReturn) {
     if (!selectedReturn) {

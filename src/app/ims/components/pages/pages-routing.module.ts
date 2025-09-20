@@ -19,6 +19,7 @@ import { AuthGuard } from 'src/app/guards/auth.guard';
         { path: 'refunds', loadChildren: () => import('./refunds/refunds.module').then(m => m.RefundsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR']} },
         { path: 'orders', loadChildren: () => import('./orders/orders.module').then(m => m.OrdersModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR']}},
         { path: 'returns', loadChildren: () => import('./returns/returns.module').then(m => m.ReturnsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR']}},
+        { path: 'financial-documents', loadChildren: () => import('./financial-documents/financial-documents.module').then(m => m.FinancialDocumentsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR','ACCOUNTANT','AUDITOR']}},
         { path: '**', redirectTo: '/notfound' }
     ])],
     exports: [RouterModule]

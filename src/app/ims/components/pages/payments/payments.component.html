@@ -49,7 +49,7 @@
             </div>
 
             <p-table #dt [value]="payments" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-                [globalFilterFields]="['order.orderId','amount','paymentStatus','paymentMethod','transactionId','notes','createdBy', 'customer.firstName', 'customer.lastName', 'customer.companyName']"
+                [globalFilterFields]="['order.orderId','order.reference','amount','paymentStatus','paymentMethod','transactionId','notes','createdBy', 'customer.firstName', 'customer.lastName', 'customer.companyName']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedPayments" selectionMode="multiple" [rowHover]="true" dataKey="paymentId">
@@ -72,8 +72,8 @@
                         </th>
                         <th pSortableColumn="transactionId">{{'payment_transaction_id' | translate}} <p-sortIcon
                                 field="transactionId"></p-sortIcon></th>
-                        <th pSortableColumn="order.orderId">{{ 'order_id' | translate }} <p-sortIcon
-                                field="order.orderId"></p-sortIcon>
+                        <th pSortableColumn="order.reference">{{ 'order_reference' | translate }} <p-sortIcon
+                                field="order.reference"></p-sortIcon>
                         <th pSortableColumn="fullName">
                             {{ 'order_customer' | translate }}
                             <p-sortIcon field="fullName"></p-sortIcon>
@@ -114,7 +114,7 @@
                                 pTooltip="{{ 'payment_locked' | translate }}">
                             </i>
                         </td>
-                        <td>#{{ payment.order?.orderId ?? 'N/A' }}</td>
+                        <td>#{{ payment.order?.reference ?? 'N/A' }}</td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'payment_customer' | translate }}</span>
                             {{
@@ -219,14 +219,14 @@
                     </div> -->
 
                     <p-dropdown [(ngModel)]="payment.order" name="order" inputId="order" id="order" ngDefaultControl
-                        optionLabel="orderId" [options]="unpaidOrders" required autofocus
+                        optionLabel="reference" [options]="unpaidOrders" required autofocus
                         placeholder="{{ 'select_order_option' | translate }}" [filter]="true"
-                        (onChange)="onOrderSelect($event.value)" filterBy="orderId,totalAmount"
+                        (onChange)="onOrderSelect($event.value)" filterBy="reference,totalAmount"
                         [disabled]="payment.paymentId"
                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.order}">
                         <ng-template pTemplate="selectedItem">
                             <span *ngIf="payment && payment.order" [class]="'product-badge'">
-                                #{{payment.order.orderId}} -
+                                #{{payment.order.reference}} -
                                 {{payment.order.totalAmount | currency:currency:'symbol':'1.2-2'}} ({{
                                 'payment_paid_amount' | translate }}: {{payment.order.totalPaid |
                                 currency:currency:'symbol':'1.2-2'}})
@@ -234,7 +234,7 @@
                         </ng-template>
                         <ng-template let-option pTemplate="item">
                             <div class="flex justify-content-between">
-                                <span>#{{option.orderId}}</span>
+                                <span>#{{option.reference}}</span>
                                 <span>{{ 'payment_total' | translate }}: {{option.totalAmount |
                                     currency:currency:'symbol':'1.2-2'}}</span>
                                 <span>{{ 'payment_paid_amount' | translate }}: {{option.totalPaid |

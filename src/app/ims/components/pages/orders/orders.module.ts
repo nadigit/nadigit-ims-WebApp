@@ -38,6 +38,8 @@ import { ChipModule } from 'primeng/chip';
 import { ReactiveFormsModule } from '@angular/forms';
 import { TabViewModule } from 'primeng/tabview';
 import { TagModule } from 'primeng/tag';
+import { AutoCompleteModule } from 'primeng/autocomplete';
+import { InputSwitchModule } from 'primeng/inputswitch';
 
 @NgModule({
     imports: [
@@ -76,7 +78,9 @@ import { TagModule } from 'primeng/tag';
         ChipModule,
         ReactiveFormsModule,
         TabViewModule,
-        TagModule
+        TagModule,
+        AutoCompleteModule,
+        InputSwitchModule
     ],
     declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective],
     providers: [ReportingService]

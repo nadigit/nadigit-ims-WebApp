@@ -15,7 +15,9 @@ export class Customer {
   customerType?:string;
   creationDate?: Date;
   fullName?: string;
-
+  totalOrders?: number;
+  totalAmount?: number;
+  totalPaid?: number;
 } 
 
 

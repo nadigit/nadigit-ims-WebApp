@@ -11,6 +11,7 @@ import { AppConfiguration } from 'src/app/models/appConfiguration';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { currencies } from 'currencies.json';
 import { LocationService } from 'src/app/services/location.service';
+import { firstValueFrom } from 'rxjs';
 
 
 interface UploadEvent {
@@ -54,6 +55,23 @@ export class SettingsComponent implements OnInit {
   logoImageUrl: string | undefined; // Declare the logoImageUrl property
   imageLoading: boolean = true;
   autoOrderCompleteChecked: boolean = false;
+
+  imagePreviewUrl: string | null = null;
+  isImageLoading: boolean = false;
+  isDragOver: boolean = false;
+  imageZoomDialog: boolean = false;
+  recentProductImages: string[] = [];
+  isSaving: boolean = false; // Add this
+  uploadProgress: number = 0; // Add this
+  existingImageFile: any = null; // Add this
+
+
+  availableLocales: any[] = [
+    { label: 'English', value: 'en' },
+    { label: 'Arabic', value: 'ar' },
+    { label: 'French', value: 'fr' },
+    { label: 'Spanish', value: 'es' }
+  ];
 
   constructor(
     private messageService: MessageService,
@@ -116,6 +134,12 @@ export class SettingsComponent implements OnInit {
 
     this.activeItem = this.menuItems[0];
 
+  }
+
+// Add this method to your component
+  getLocaleLabel(localeValue: string): string {
+    const locale = this.availableLocales.find(l => l.value === localeValue);
+    return locale ? locale.label : '';
   }
 
   onActiveIndexChange(event: number) {
@@ -224,70 +248,69 @@ export class SettingsComponent implements OnInit {
   }
 
   async loadOrganization(): Promise<void> {
-    try {
+  this.isLoading = true;
 
-      const translations = await this.translate.get(['shops_menu_title', 'warehouses_menu_title']).toPromise();
+  try {
+    // Load translations first
+    const translations = await firstValueFrom(
+      this.translate.get(['shops_menu_title', 'warehouses_menu_title'])
+    );
 
-      this.organizationService.getOrganization().subscribe(data => {
-        this.organization = data;
+    // Load organization data
+    const data = await firstValueFrom(this.organizationService.getOrganization());
+    this.organization = data;
+    console.log(this.organization);
 
-        this.organizationStructure = [
+    // Build organization structure
+    this.organizationStructure = [
+      {
+        expanded: true,
+        type: 'organization',
+        data: {
+          name: this.organization.organizationName,
+          title: 'Organization'
+        },
+        children: [
           {
             expanded: true,
-            type: 'organization',
-            data: {
-              name: this.organization.organizationName,
-              title: 'Organization'
-            },
-            children: [
-              {
-                expanded: true,
-                type: 'shops',
-                data: {
-                  name: translations['shops_menu_title'],
-                },
-                children: this.organization.shops.map(shop => ({
-                  label: shop.shopName
-                }))
-              },
-              {
-                expanded: true,
-                type: 'warehouses',
-                data: {
-                  name: translations['warehouses_menu_title'],
-                },
-                children: this.organization.warehouses.map(warehouse => ({
-                  label: warehouse.name
-                }))
-              }
-            ]
+            type: 'shops',
+            data: { name: translations['shops_menu_title'] },
+            children: this.organization.shops.map(shop => ({ label: shop.shopName }))
+          },
+          {
+            expanded: true,
+            type: 'warehouses',
+            data: { name: translations['warehouses_menu_title'] },
+            children: this.organization.warehouses.map(warehouse => ({ label: warehouse.name }))
           }
-        ];
+        ]
+      }
+    ];
 
-        this.isLoading = false;
-        this.getLogoImage(this.organization.logo);
-      });
-    } catch (error) {
-      console.error('Error loading translations or organization data:', error);
-      this.isLoading = false;
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_loading_organization_data'),
-        life: 3000
-      });
-    }
+    // Now that we have the organization, get the logo
+    await this.getLogoImage(this.organization.logo);
+
+  } catch (error) {
+    console.error('Error loading translations or organization data:', error);
+    this.messageService.add({
+      severity: 'error',
+      summary: this.translate.instant('error'),
+      detail: this.translate.instant('error_loading_organization_data'),
+      life: 3000
+    });
+  } finally {
+    this.isLoading = false;
   }
+}
 
 
-  editImage() {
-    this.organization.logo = null;
-    this.uploadedFile = null;
-  }
+  // editImage() {
+  //   this.organization.logo = null;
+  //   this.uploadedFile = null;
+  // }
 
   async openOrganizationDialog(event: any): Promise<void> {
     if (event.node.data.title === 'Organization') {
-      this.getLogoImage(this.organization.logo)
       this.organizationDialog = true;
       console.log(event);
     }
@@ -321,6 +344,7 @@ export class SettingsComponent implements OnInit {
           if (uploadResponse && uploadResponse.logoUrl) {
             this.organization.logo = uploadResponse.logoUrl; // Set logo URL
             this.logoImageUrl = uploadResponse.logoUrl;
+            this.imagePreviewUrl = uploadResponse.logoUrl;
           } else {
           }
         } catch (error) {
@@ -360,44 +384,19 @@ export class SettingsComponent implements OnInit {
   }
 
 
-  onFileUpload(event: any) {
-    const file = event.files[0];
-    if (file) {
-      this.uploadedFile = file; // Store selected file
-      const reader = new FileReader();
-      reader.onload = () => {
-        this.logoImageUrl = reader.result as string; // Temporary preview
-      };
-      reader.readAsDataURL(file);
-    }
-  }
+  // onFileUpload(event: any) {
+  //   const file = event.files[0];
+  //   if (file) {
+  //     this.uploadedFile = file; // Store selected file
+  //     const reader = new FileReader();
+  //     reader.onload = () => {
+  //       this.logoImageUrl = reader.result as string; // Temporary preview
+  //     };
+  //     reader.readAsDataURL(file);
+  //   }
+  // }
   // Method to upload logo
-  uploadLogo() {
-    if (this.selectedLogo) {
-      this.organizationService.uploadLogo(this.selectedLogo).subscribe(
-        response => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('logo_uploaded_successfully'),
-            life: 3000
-          });
-          console.log('Logo uploaded and path saved:', response);
-          // Optionally, refresh organization data to show the new logo
-          this.loadOrganization();
-        },
-        error => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_logo'),
-            life: 3000
-          });
-          console.error('Error uploading logo:', error);
-        }
-      );
-    }
-  }
+
   getLogoImage(path: string) {
     this.imageLoading = true;
     console.log("path: " + path)
@@ -502,5 +501,117 @@ export class SettingsComponent implements OnInit {
       });
   }
 
+
+  async onFileUpload(event: any): Promise<void> {
+    const file = event.files[0];
+    
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('invalid_image_format'),
+            life: 3000,
+        });
+        return;
+    }
+    
+    // Validate file size (5MB max)
+    if (file.size > 5000000) {
+        this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('image_too_large'),
+            life: 3000,
+        });
+        return;
+    }
+    
+    // Show loading state
+    this.isImageLoading = true;
+    
+    // Create preview
+    this.imagePreviewUrl = URL.createObjectURL(file);
+    this.logoImageUrl = URL.createObjectURL(file);
+    
+    // Store the file for upload
+    this.uploadedFile = file;
+    
+    // Auto-hide loading after a brief moment (image load event will handle it)
+    setTimeout(() => {
+        if (this.isImageLoading) this.isImageLoading = false;
+    }, 2000);
+}
+
+// Drag and drop handlers
+onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+}
+
+onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+}
+
+onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+    
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+        const file = event.dataTransfer.files[0];
+        
+        // Create a mock event object for the fileUpload method
+        this.onFileUpload({ files: [file] });
+    }
+}
+
+// Image error handler
+onImageError(): void {
+    this.isImageLoading = false;
+    this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('image_load_error'),
+        life: 3000,
+    });
+    
+    // Fallback to default image
+    this.imagePreviewUrl = null;
+    this.organization.logo = 'assets/core-images/no-image.png';
+}
+
+// Zoom image
+zoomImage(): void {
+    this.imageZoomDialog = true;
+}
+
+// Select recent image
+selectRecentImage(imageUrl: string): void {
+    this.organization.logo = imageUrl;
+    this.imagePreviewUrl = null;
+    this.logoImageUrl = null;
+    this.uploadedFile = null;
+}
+
+editImage(): void {
+  this.clearImage();
+}
+
+removeImage(): void {
+  this.clearImage();
+}
+
+clearImage(): void {
+  this.logoImageUrl = null;
+  this.imagePreviewUrl = null;
+  this.organization.logo = null;
+  this.uploadedFile = null;
+}
 
 }

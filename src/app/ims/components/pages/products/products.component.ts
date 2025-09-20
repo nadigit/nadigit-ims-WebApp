@@ -141,6 +141,14 @@ export class ProductsComponent implements OnInit {
 
   public translations: any = {};
 
+  imagePreviewUrl: string | null = null;
+  isImageLoading: boolean = false;
+  isDragOver: boolean = false;
+  imageZoomDialog: boolean = false;
+  recentProductImages: string[] = [];
+  isSaving: boolean = false;
+  uploadProgress: number = 0;
+  existingImageFile: any = null;
 
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
@@ -267,6 +275,11 @@ export class ProductsComponent implements OnInit {
     ];
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
+    // Load recent images from localStorage
+    const savedRecentImages = localStorage.getItem('recentProductImages');
+    if (savedRecentImages) {
+        this.recentProductImages = JSON.parse(savedRecentImages);
+    }
   }
 
   buildMenuItems(product: any) {
@@ -689,27 +702,63 @@ export class ProductsComponent implements OnInit {
       }
 
       // 📦 Upload product image if any
-      if (this.uploadedFile) {
-        const filePath = `images/${this.uploadedFile.name}`;
-        const fileRef = this.storage.ref(filePath);
-        const task = this.storage.upload(filePath, this.uploadedFile);
+      // if (this.uploadedFile) {
+      //   const filePath = `images/${this.uploadedFile.name}`;
+      //   const fileRef = this.storage.ref(filePath);
+      //   const task = this.storage.upload(filePath, this.uploadedFile);
 
-        try {
-          await lastValueFrom(task.snapshotChanges());
-          const url = await lastValueFrom(fileRef.getDownloadURL());
-          this.product.productImage = url;
-          this.uploadedFile = null;
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_image'),
-            life: 3000,
-          });
-          return;
+      //   try {
+      //     await lastValueFrom(task.snapshotChanges());
+      //     const url = await lastValueFrom(fileRef.getDownloadURL());
+      //     this.product.productImage = url;
+      //     this.uploadedFile = null;
+      //   } catch (error) {
+      //     console.error('Error uploading file:', error);
+      //     this.messageService.add({
+      //       severity: 'error',
+      //       summary: this.translate.instant('error'),
+      //       detail: this.translate.instant('error_while_uploading_image'),
+      //       life: 3000,
+      //     });
+      //     return;
+      //   }
+      // }
+      // 📦 Upload product image if any (only if it's a new file)
+        if (this.uploadedFile && this.uploadedFile !== this.existingImageFile) {
+            this.isSaving = true; // Show saving indicator
+            
+            try {
+                const filePath = `images/${Date.now()}_${this.uploadedFile.name}`;
+                const fileRef = this.storage.ref(filePath);
+                const task = this.storage.upload(filePath, this.uploadedFile);
+
+                // Show upload progress
+                task.percentageChanges().subscribe(percentage => {
+                    this.uploadProgress = percentage;
+                });
+
+                await lastValueFrom(task.snapshotChanges());
+                const url = await lastValueFrom(fileRef.getDownloadURL());
+                this.product.productImage = url;
+                
+                // Add to recent images
+                this.addToRecentImages(url);
+                
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: this.translate.instant('error'),
+                    detail: this.translate.instant('error_while_uploading_image'),
+                    life: 3000,
+                });
+                this.isSaving = false;
+                return;
+            } finally {
+                this.uploadedFile = null;
+                this.uploadProgress = 0;
+            }
         }
-      }
 
       // Clean attributes before saving
       if (this.product.attributes && this.product.attributes.length > 0) {
@@ -772,10 +821,18 @@ export class ProductsComponent implements OnInit {
     }
   }
 
-  editImage() {
-    this.product.productImage = null;
-    this.uploadedFile = null;
-  }
+  // editImage() {
+  //   this.product.productImage = null;
+  //   this.uploadedFile = null;
+  // }
+
+  addToRecentImages(imageUrl: string): void {
+    // Keep only the 6 most recent images
+    this.recentProductImages = [imageUrl, ...this.recentProductImages].slice(0, 6);
+    
+    // You might want to persist this to local storage
+    localStorage.setItem('recentProductImages', JSON.stringify(this.recentProductImages));
+}
 
   addAttribute() {
     if (!this.product.attributes) {
@@ -1219,17 +1276,113 @@ export class ProductsComponent implements OnInit {
     }
   }
 
-  async onFileUpload(event: UploadEvent): Promise<void> {
-    console.log("in upload");
+  async onFileUpload(event: any): Promise<void> {
     const file = event.files[0];
-
-    // Save the file temporarily and update the imageURL
-    this.imageURL = URL.createObjectURL(file);
-
-    // Store the actual file for later use
+    
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('invalid_image_format'),
+            life: 3000,
+        });
+        return;
+    }
+    
+    // Validate file size (5MB max)
+    if (file.size > 5000000) {
+        this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('image_too_large'),
+            life: 3000,
+        });
+        return;
+    }
+    
+    // Show loading state
+    this.isImageLoading = true;
+    
+    // Create preview
+    this.imagePreviewUrl = URL.createObjectURL(file);
+    
+    // Store the file for upload
     this.uploadedFile = file;
+    
+    // Auto-hide loading after a brief moment (image load event will handle it)
+    setTimeout(() => {
+        if (this.isImageLoading) this.isImageLoading = false;
+    }, 2000);
+}
 
-    // Note: The actual upload to Firebase Storage will happen when the user clicks "Save" in the saveProduct method
+// Drag and drop handlers
+onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+}
+
+onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+}
+
+onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+    
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+        const file = event.dataTransfer.files[0];
+        
+        // Create a mock event object for the fileUpload method
+        this.onFileUpload({ files: [file] });
+    }
+}
+
+  // Image error handler
+  onImageError(): void {
+      this.isImageLoading = false;
+      this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('image_load_error'),
+          life: 3000,
+      });
+      
+      // Fallback to default image
+      this.imagePreviewUrl = null;
+      this.product.productImage = 'assets/core-images/no-image.png';
+  }
+
+  // Zoom image
+  zoomImage(): void {
+      this.imageZoomDialog = true;
+  }
+
+  // Select recent image
+  selectRecentImage(imageUrl: string): void {
+      this.product.productImage = imageUrl;
+      this.imagePreviewUrl = null;
+      this.uploadedFile = null;
+  }
+
+  // Enhanced editImage method
+  editImage(): void {
+    this.product.productImage = null;
+    this.imagePreviewUrl = null;
+    this.uploadedFile = null;
+  }
+
+  // Enhanced removeImage method
+  removeImage(): void {
+    this.product.productImage = null;
+    this.imagePreviewUrl = null;
+    this.uploadedFile = null;
   }
 
   exportPdf() {

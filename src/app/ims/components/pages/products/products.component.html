@@ -32,29 +32,23 @@
 			<p-toolbar styleClass="mb-4">
 				<ng-template pTemplate="left">
 					<div class="flex align-items-center gap-2 my-2">
-						<button pButton pRipple *ngIf="canAddProduct"
-								label="{{'new_button' | translate}}"
-								icon="pi pi-plus"
-								class="p-button-success mr-2"
-								(click)="openNew()"
-								pTooltip="{{'add_new_product'|translate}}">
+						<button pButton pRipple *ngIf="canAddProduct" label="{{'new_button' | translate}}"
+							icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+							pTooltip="{{'add_new_product'|translate}}">
 						</button>
-						<button pButton pRipple *ngIf="isAdmin"
-								label="{{'archived_products' | translate}}"
-								icon="pi pi-folder"
-								class="p-button-warning"
-								(click)="openArchivedProductsDialog()"
-								pTooltip="{{'view_archived_products'|translate}}">
+						<button pButton pRipple *ngIf="isAdmin" label="{{'archived_products' | translate}}"
+							icon="pi pi-folder" class="p-button-warning" (click)="openArchivedProductsDialog()"
+							pTooltip="{{'view_archived_products'|translate}}">
 						</button>
 					</div>
 				</ng-template>
 
 				<ng-template pTemplate="right">
 					<div class="flex align-items-center gap-2 my-2">
-					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
-						tooltipPosition="bottom" (click)="exportPdf()"></button>
-					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
-						class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+						<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+							tooltipPosition="bottom" (click)="exportPdf()"></button>
+						<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+							class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
 					</div>
 				</ng-template>
 			</p-toolbar>
@@ -297,18 +291,50 @@
 				<div class="grid p-fluid">
 					<!-- Left Column - Image Section -->
 					<div class="col-12 md:col-4">
-						<div class="image-section card p-3" *ngIf="product.productImage; else upload_image">
+						<div class="image-section card p-3"
+							*ngIf="product.productImage || imagePreviewUrl; else upload_image">
 							<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
 								translate}}</label>
 							<div class="image-container relative">
-								<p-image [src]="product.productImage" [alt]="product.name" width="100%" [preview]="true"
-									class="block shadow-2 border-round" imageClass="w-full"></p-image>
-								<div class="image-actions flex justify-content-center gap-2 mt-3">
-									<p-button icon="pi pi-pencil" [text]="true" [rounded]="true" severity="info"
-										(click)="editImage()" [tooltip]="'edit_image_tooltip' | translate"></p-button>
-									<p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
-										(click)="removeImage()"
-										[tooltip]="'remove_image_tooltip' | translate"></p-button>
+								<!-- Image with preview and loading state -->
+								<div class="image-wrapper border-round overflow-hidden surface-ground"
+									[ngClass]="{'loading': isImageLoading}">
+									<p-image [src]="imagePreviewUrl || product.productImage" [alt]="product.name"
+										width="100%" [preview]="true" class="block shadow-2 border-round"
+										imageClass="w-full" (onLoad)="isImageLoading = false"
+										(onError)="onImageError()">
+									</p-image>
+
+									<!-- Loading overlay -->
+									<div class="loading-overlay flex align-items-center justify-content-center"
+										*ngIf="isImageLoading">
+										<p-progressSpinner strokeWidth="4" animationDuration=".5s"
+											styleClass="w-2rem h-2rem" ariaLabel="image-loading">
+										</p-progressSpinner>
+									</div>
+
+									<!-- Image actions overlay -->
+									<div
+										class="image-actions-overlay flex align-items-center justify-content-center gap-2">
+										<p-button icon="pi pi-search-plus" [text]="true" [rounded]="true"
+											severity="secondary" (click)="zoomImage()"
+											[tooltip]="'zoom_image_tooltip' | translate"></p-button>
+										<p-button icon="pi pi-pencil" [text]="true" [rounded]="true" severity="info"
+											(click)="editImage()"
+											[tooltip]="'edit_image_tooltip' | translate"></p-button>
+										<p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+											(click)="removeImage()"
+											[tooltip]="'remove_image_tooltip' | translate"></p-button>
+									</div>
+								</div>
+
+								<!-- File info -->
+								<div class="file-info mt-2 text-sm text-color-secondary" *ngIf="uploadedFile">
+									<div class="flex align-items-center">
+										<i class="pi pi-file mr-1"></i>
+										<span class="truncate">{{ uploadedFile.name }}</span>
+									</div>
+									<div>{{ uploadedFile.size | fileSize }}</div>
 								</div>
 							</div>
 						</div>
@@ -317,14 +343,42 @@
 							<div class="field card p-3">
 								<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
 									translate}}</label>
-								<div class="upload-container border-1 surface-border border-round p-3 text-center">
-									<p-fileUpload mode="basic" name="productImage" accept="image/*"
-										maxFileSize="1000000" (onSelect)="onFileUpload($event)"
-										chooseLabel="{{'upload_file_button' | translate}}" chooseIcon="pi pi-upload"
-										[auto]="true" [showUploadButton]="false" [showCancelButton]="false">
-									</p-fileUpload>
-									<small class="text-color-secondary block mt-2">{{'image_upload_hint' |
-										translate}}</small>
+
+								<!-- Drag and drop area -->
+								<div class="upload-container border-2 surface-border border-dashed border-round p-4 text-center"
+									(drop)="onDrop($event)" (dragover)="onDragOver($event)"
+									(dragleave)="onDragLeave($event)" [ngClass]="{'drag-over': isDragOver}">
+
+									<div class="upload-content">
+										<i class="pi pi-cloud-upload text-4xl text-color-secondary mb-3"></i>
+										<h4 class="mb-2">{{'drag_drop_title' | translate}}</h4>
+										<p class="text-color-secondary text-sm mb-3">{{'drag_drop_subtitle' |
+											translate}}</p>
+
+										<p-fileUpload mode="basic" name="productImage" accept="image/*"
+											maxFileSize="5000000" (onSelect)="onFileUpload($event)"
+											chooseLabel="{{'browse_files_button' | translate}}"
+											chooseIcon="pi pi-folder-open" [auto]="true" [showUploadButton]="false"
+											[showCancelButton]="false">
+										</p-fileUpload>
+
+										<small class="text-color-secondary block mt-2">{{'image_upload_hint' |
+											translate}}</small>
+									</div>
+								</div>
+
+								<!-- Recent images (if available) -->
+								<div class="recent-images mt-3" *ngIf="recentProductImages?.length > 0">
+									<h5 class="mb-2">{{'recent_images' | translate}}</h5>
+									<div class="grid">
+										<div class="col-4" *ngFor="let img of recentProductImages">
+											<div class="recent-image-container border-1 surface-border border-round p-1 cursor-pointer"
+												(click)="selectRecentImage(img)">
+												<img [src]="img" alt="Recent product image" class="w-full border-round"
+													style="height: 60px; object-fit: cover;">
+											</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						</ng-template>
@@ -636,6 +690,18 @@
 			</ng-template>
 		</p-dialog>
 
+		<p-dialog [(visible)]="imageZoomDialog" [modal]="true" [style]="{width: '90vw', maxWidth: '1000px'}" 
+				[draggable]="false" [resizable]="false" [closable]="true" [closeOnEscape]="true">
+			<ng-template pTemplate="header">
+				<span class="text-xl font-semibold">{{'image_preview' | translate}}</span>
+			</ng-template>
+			<ng-template pTemplate="content">
+				<div class="flex justify-content-center">
+					<img [src]="imagePreviewUrl || product.productImage" [alt]="product.name" class="max-w-full max-h-30rem">
+				</div>
+			</ng-template>
+		</p-dialog>
+
 		<p-dialog [(visible)]="productDetailDialog" [modal]="true" [style]="{width: '75vw', maxWidth: '1200px'}"
 			[breakpoints]="{'960px': '90vw', '640px': '95vw'}" [draggable]="false" [resizable]="false"
 			header="{{selectedProduct?.name || ('product_details' | translate)}}">
@@ -802,21 +868,18 @@
 					</div>
 					<div class="flex gap-2">
 						<!-- Show Delete if deletable -->
-						<p-button *ngIf="canDeleteProduct && selectedProduct.deletable" 
-							icon="pi pi-trash" styleClass="p-button-danger"
-							pTooltip="{{'delete_product'|translate}}"
-							(click)="deleteProduct(selectedProduct)"
-							[label]="'delete_product' | translate">
+						<p-button *ngIf="canDeleteProduct && selectedProduct.deletable" icon="pi pi-trash"
+							styleClass="p-button-danger" pTooltip="{{'delete_product'|translate}}"
+							(click)="deleteProduct(selectedProduct)" [label]="'delete_product' | translate">
 						</p-button>
 
 						<!-- Show Archive if not deletable -->
-						<p-button *ngIf="canDeleteProduct && !selectedProduct.deletable" 
-							icon="pi pi-folder" styleClass="p-button-warning"
-							(click)="archiveProduct(selectedProduct)"
+						<p-button *ngIf="canDeleteProduct && !selectedProduct.deletable" icon="pi pi-folder"
+							styleClass="p-button-warning" (click)="archiveProduct(selectedProduct)"
 							[label]="'archive_product' | translate">
 						</p-button>
-						
-						<p-button icon="pi pi-pencil" [label]="'edit' | translate" *ngIf="canEditProduct" 
+
+						<p-button icon="pi pi-pencil" [label]="'edit' | translate" *ngIf="canEditProduct"
 							(click)="editProduct(selectedProduct)"></p-button>
 						<p-button icon="pi pi-times" [label]="'close' | translate" styleClass="p-button-outlined"
 							(click)="productDetailDialog = false"></p-button>
@@ -845,9 +908,8 @@
 						<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
 					</div>
 
-					<p-dataView #archivedDv [value]="filteredArchivedProducts" *ngIf="!isLoadingArchived"
-						[rows]="15" [sortField]="sortField" [sortOrder]="sortOrder" layout="list"
-						emptyMessage=" ">
+					<p-dataView #archivedDv [value]="filteredArchivedProducts" *ngIf="!isLoadingArchived" [rows]="15"
+						[sortField]="sortField" [sortOrder]="sortOrder" layout="list" emptyMessage=" ">
 						<ng-template pTemplate="header">
 							<div class="flex flex-column md:flex-row md:justify-content-between gap-2">
 								<span class="p-input-icon-left">
@@ -874,7 +936,8 @@
 												field="category"></p-sortIcon>
 										</th>
 										<th pSortableColumn="quantityAvailable">{{'product_quantity' | translate}}
-											<p-sortIcon field="quantityAvailable"></p-sortIcon></th>
+											<p-sortIcon field="quantityAvailable"></p-sortIcon>
+										</th>
 										<th pSortableColumn="inventoryStatus">{{'product_inventory_status' | translate}}
 											<p-sortIcon field="inventoryStatus"></p-sortIcon>
 										</th>
@@ -883,7 +946,8 @@
 											<p-sortIcon field="buyingPrice"></p-sortIcon>
 										</th>
 										<th pSortableColumn="sellingPrice">{{'product_selling_price' | translate}}
-											<p-sortIcon field="sellingPrice"></p-sortIcon></th>
+											<p-sortIcon field="sellingPrice"></p-sortIcon>
+										</th>
 										<th pSortableColumn="supplier">{{'product_supplier' | translate}} <p-sortIcon
 												field="supplier"></p-sortIcon>
 										</th>

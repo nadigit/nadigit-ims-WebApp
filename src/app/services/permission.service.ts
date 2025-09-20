@@ -36,7 +36,7 @@ export class PermissionService {
         if (rolePermissions) {
           // Initialize permissions if not already done
           if (!combinedPermissions[resource]) {
-            combinedPermissions[resource] = { create: false, read: false, update: false, delete: false, process: false, cash_read: false, history_read: false, products_read: false };
+            combinedPermissions[resource] = { create: false, read: false, update: false, delete: false, process: false, cash_read: false, history_read: false, products_read: false, issue: false };
           }
   
           combinedPermissions[resource].create ||= rolePermissions.create;
@@ -47,7 +47,7 @@ export class PermissionService {
           combinedPermissions[resource].cash_read ||= rolePermissions.cash_read;
           combinedPermissions[resource].history_read ||= rolePermissions.history_read;
           combinedPermissions[resource].products_read ||= rolePermissions.products_read;
-          
+          combinedPermissions[resource].issue ||= rolePermissions.issue;
         }
       });
     });
@@ -87,5 +87,9 @@ export class PermissionService {
 
   canListProducts(resource: string): boolean {
     return this.permissions[resource]?.products_read ?? false;
+  }
+
+  canIssueFinDocs(resource: string): boolean{
+    return this.permissions[resource]?.issue ?? false;
   }
 }

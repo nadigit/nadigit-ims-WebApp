@@ -71,8 +71,8 @@
 							<p-tableHeaderCheckbox></p-tableHeaderCheckbox>
 						</th>
 						<th style="width: 3rem"></th>
-						<th pSortableColumn="order.orderId">{{ 'order_id' | translate }} <p-sortIcon
-								field="order.orderId"></p-sortIcon>
+						<th pSortableColumn="order.reference">{{ 'order_reference' | translate }} <p-sortIcon
+								field="order.reference"></p-sortIcon>
 						</th>
 						<th pSortableColumn="returnDate">{{ 'return_date' | translate }}
 							<p-columnFilter type="date" field="returnDate" display="menu" />
@@ -142,8 +142,8 @@
 								(click)="toggleRow(return.returnId); $event.stopPropagation()"></button>
 						</td>
 						<td style="min-width:10rem;">
-							<span class="p-column-title">{{ 'order_id' | translate }}</span>
-							#{{ return.order?.orderId ?? 'N/A' }}
+							<span class="p-column-title">{{ 'order_reference' | translate }}</span>
+							#{{ return.order?.reference ?? 'N/A' }}
 						</td>
 
 						<td style="min-width:10rem;">
@@ -300,7 +300,7 @@
 				<p-dropdown [(ngModel)]="return.order" name="order" inputId="order" id="order" ngDefaultControl
 					[optionLabel]="getOrderDisplayLabel" [options]="orders" required
 					placeholder="{{ 'select_order_option' | translate }}" [filter]="true"
-					filterBy="orderId,totalAmount,totalItems,customer.firstName,customer.lastName,customer.companyName"
+					filterBy="reference,totalAmount,totalItems,customer.firstName,customer.lastName,customer.companyName"
 					[ngClass]="{'ng-invalid ng-dirty' : submitted && !return.order}" (click)="initializePickList()">
 
 					<ng-template pTemplate="selectedItem">
@@ -312,7 +312,7 @@
 					<ng-template let-option pTemplate="item">
 						<div class="order-dropdown-item">
 							<div class="flex justify-content-between">
-								<strong>#{{option.orderId}}</strong>
+								<strong>#{{option.reference}}</strong>
 								<span>{{ 'order_date' | translate }}: {{option.orderDate | date: 'dd/MM/yyyy'}}</span>
 							</div>
 							<div class="flex justify-content-between">
@@ -545,7 +545,7 @@
 							<span class="label">{{ 'order_reference' | translate }}:</span>
 							<span class="value">
 								<a (click)="viewOrder(return?.order)" class="order-link">
-									#{{return?.order?.orderId}}
+									#{{return?.order?.reference}}
 								</a>
 							</span>
 						</div>
@@ -734,85 +734,6 @@
 				(click)="confirmDeleteSelected()"></button>
 		</ng-template>
 	</p-dialog>
-
-
-	<!-- <p-dialog [(visible)]="orderReturnDialog" [style]="{width: '80%', height: '100%'}"
-		header="{{'order_return' | translate}}" [modal]="true" class="p-fluid">
-
-		<ng-template pTemplate="content">
-			<div *ngIf="order">
-				<h3>{{ 'order_items' | translate }}</h3>
-				<p-table [value]="order.orderItems" [(selection)]="selectedItems">
-					<ng-template pTemplate="header">
-						<tr>
-							<th>{{ 'product_name' | translate }}</th>
-							<th>{{ 'quantity_ordered' | translate }}</th>
-							<th>{{ 'quantity_returned' | translate }}</th>
-							<th>{{ 'remaining_quantity' | translate }}</th>
-						</tr>
-					</ng-template>
-					<ng-template pTemplate="body" let-item let-i="rowIndex">
-						<tr>
-							<td>{{ item.product.name }}</td>
-							<td>{{ item.quantity }}</td>
-							<td>
-								<input pInputText type="number" [(ngModel)]="item.returnedQuantity" [min]="0"
-									[max]="item.quantity" (ngModelChange)="updateReturnedQuantity(item)">
-							</td>
-							<td>{{ item.quantity - (item.returnedQuantity || 0) }}</td>
-						</tr>
-					</ng-template>
-				</p-table>
-
-				<div class="field">
-					<label for="returnReason" class="mt-2">
-						{{'return_reason' | translate}} <span class="required-asterisk">*</span>
-					</label>
-					<div class="flex flex-wrap gap-3">
-						<div class="flex align-items-center">
-							<p-radioButton name="returnReason" value="DEFECTIVE" [(ngModel)]="returnReason"
-								ngDefaultControl inputId="returnReason1"></p-radioButton>
-							<label for="returnReason1" class="ml-2">{{'return_reason_defective' | translate}}</label>
-						</div>
-
-						<div class="flex align-items-center">
-							<p-radioButton name="returnReason" value="INCORRECT_ITEM" [(ngModel)]="returnReason"
-								ngDefaultControl inputId="returnReason2"></p-radioButton>
-							<label for="returnReason2" class="ml-2">{{'return_reason_incorrect_item' |
-								translate}}</label>
-						</div>
-
-						<div class="flex align-items-center">
-							<p-radioButton name="returnReason" value="CHANGE_OF_MIND" [(ngModel)]="returnReason"
-								ngDefaultControl inputId="returnReason3"></p-radioButton>
-							<label for="returnReason3" class="ml-2">{{'return_reason_change_of_mind' |
-								translate}}</label>
-						</div>
-
-						<div class="flex align-items-center">
-							<p-radioButton name="returnReason" value="OTHER" [(ngModel)]="returnReason" ngDefaultControl
-								inputId="returnReason4"></p-radioButton>
-							<label for="returnReason4" class="ml-2">{{'return_reason_other' | translate}}</label>
-						</div>
-
-					</div>
-				</div>
-
-				<div class="field">
-					<label for="notes">{{ 'return_notes' | translate }}</label>
-					<textarea rows="3" cols="20" [(ngModel)]="returnNotes" name="address"
-						placeholder="{{ 'return_notes' | translate }}" pInputTextarea></textarea>
-				</div>
-			</div>
-		</ng-template>
-
-		<ng-template pTemplate="footer">
-			<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times" class="p-button-text"
-				(click)="hideOrderReturnDialog()"></button>
-			<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-text"
-				(click)="saveOrderReturn()"></button>
-		</ng-template>
-	</p-dialog> -->
 
 
 </div>

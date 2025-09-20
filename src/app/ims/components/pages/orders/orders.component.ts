@@ -24,6 +24,7 @@ import { OrganizationService } from 'src/app/services/organization.service';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
 import { PaymentService } from 'src/app/services/payment.service';
+import { CategoryService } from 'src/app/services/category.service';
 
 interface EventItem {
   status?: string;
@@ -273,6 +274,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
+    private categoryService: CategoryService,
     public organizationService: OrganizationService,
     private fb: FormBuilder
   ) {
@@ -385,10 +387,22 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     // Initialize table columns and statuses
     this.initializeTableColumns();
     this.initializeStatuses();
+        this.initializePaymentMethods();
+
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
   }
 
+  initializePaymentMethods(): void {
+    this.paymentMethods = [
+      { label: 'Cash', value: 'Cash' },
+      { label: 'Credit Card', value: 'CreditCard' },
+      { label: 'Debit Card', value: 'DebitCard' },
+      { label: 'Bank Transfer', value: 'BankTransfer' },
+      { label: 'Check', value: 'Check' },
+      { label: 'Mobile Payment', value: 'MobilePayment' }
+    ];
+  }
   private initializeTranslations() {
     this.translateService.currentLanguage$.subscribe((lang) => {
       this.translate.use(lang); // Update language
@@ -552,12 +566,28 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
+  // togglePaymentSection(): void {
+  //   this.showPaymentSection = !this.showPaymentSection;
+  //   if (this.showPaymentSection) {
+  //     this.payment.amount = this.calculateTotalAmount();
+  //     this.payment.paymentDate = new Date();
+  //     this.payment.paymentMethod = 'Cash';
+  //   }
+  // }
+
   togglePaymentSection(): void {
     this.showPaymentSection = !this.showPaymentSection;
+    
     if (this.showPaymentSection) {
-      this.payment.amount = this.calculateTotalAmount();
-      this.payment.paymentDate = new Date();
-      this.payment.paymentMethod = 'Cash';
+      // Initialize payment with current total if not set
+      if (!this.payment.amount || this.payment.amount === 0) {
+        this.payment.amount = this.calculateTotalAmount();
+      }
+      
+      // Set payment date to today if not set
+      if (!this.payment.paymentDate) {
+        this.payment.paymentDate = new Date();
+      }
     }
   }
 
@@ -706,7 +736,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.deleteOrdersDialog = true;
   }
 
-  editOrder(order: Order) {
+  async editOrder(order: Order) {
     if (!this.canEditOrder) return;
     this.order = { ...order };
     console.log(this.discountType);
@@ -727,6 +757,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
     this.showPaymentSection = false;
     this.orderDialog = true;
+    await this.onGetAllCategories();
     this.initializePickList();
 
     // Add the new fields directly to the order object
@@ -809,20 +840,25 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.orderReturnDialog = false;
   }
 
-  openNew() {
+  async openNew() {
     if (!this.canAddOrder) return;
     this.order = {};
     this.discountType = "Amount";
     this.order.discount = 0;
     this.order.transportAmount = 0;
     this.order.taxEnabled = false;
+    await this.onGetAllCategories();
     this.targetProducts = [];
     this.orderItems = [];
+    this.quickProducts=this.products.slice(0,10);
     this.submitted = false;
+    this.showPaymentSection = false;
+    this.payment = new Payment();
     this.orderDialog = true;
+
+
     this.onGetAllProducts();
     this.initializePickList();
-
   }
 
 
@@ -1805,50 +1841,64 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     // Additional logic for handling the discount input can go here
   }
 
+  // calculateTotalAmount(): number {
+  //   let total = 0;
+
+  //   // Calculate the total based on product quantities and prices
+  //   for (const product of this.targetProducts) {
+  //     total += product.orderItemQuantity * product.orderItemPricePerUnit;
+  //   }
+
+  //   // Apply discount
+  //   if (this.discountType === 'Percentage') {
+  //     // Calculate discount as a percentage
+  //     total -= total * (this.order.discount / 100);
+  //   } else {
+  //     // Calculate discount as a fixed amount
+  //     total -= this.order.discount;
+  //   }
+
+  //   // Ensure the total is not below zero after applying the discount
+  //   if (total < 0) {
+  //     total = 0;
+  //   }
+
+  //   // Apply tax if enabled
+  //   if (this.taxEnabled) {
+  //     total += this.calculateTax(total); // Pass the discounted total to calculate tax
+  //   }
+
+  //   // Add transport amount to the total
+  //   total += this.order.transportAmount;
+
+  //   // Ensure the final total is not below zero
+  //   if (total < 0) {
+  //     total = 0;
+  //   }
+
+  //   // Return the final total
+  //   return total;
+  // }
+
   calculateTotalAmount(): number {
-    let total = 0;
-
-    // Calculate the total based on product quantities and prices
-    for (const product of this.targetProducts) {
-      total += product.orderItemQuantity * product.orderItemPricePerUnit;
-    }
-
-    // Apply discount
-    if (this.discountType === 'Percentage') {
-      // Calculate discount as a percentage
-      total -= total * (this.order.discount / 100);
-    } else {
-      // Calculate discount as a fixed amount
-      total -= this.order.discount;
-    }
-
-    // Ensure the total is not below zero after applying the discount
-    if (total < 0) {
-      total = 0;
-    }
-
-    // Apply tax if enabled
-    if (this.taxEnabled) {
-      total += this.calculateTax(total); // Pass the discounted total to calculate tax
-    }
-
-    // Add transport amount to the total
-    total += this.order.transportAmount;
-
-    // Ensure the final total is not below zero
-    if (total < 0) {
-      total = 0;
-    }
-
-    // Return the final total
-    return total;
+    const subtotal = this.getSubtotal();
+    const discountAmount = this.calculateDiscountAmount();
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = this.calculateTax(taxableAmount);
+    const transportAmount = this.order.transportAmount || 0;
+    
+    return taxableAmount + taxAmount + transportAmount;
   }
 
+  // calculateTax(totalWithoutTax: number): number {
+  //   // Calculate tax based on the total amount after discount
+  //   console.log(totalWithoutTax)
+  //   return this.taxEnabled ? totalWithoutTax * this.taxRate : 0;
+  // }
 
-  calculateTax(totalWithoutTax: number): number {
-    // Calculate tax based on the total amount after discount
-    console.log(totalWithoutTax)
-    return this.taxEnabled ? totalWithoutTax * this.taxRate : 0;
+  calculateTax(amount: number): number {
+    if (!this.taxEnabled) return 0;
+    return (amount * this.taxRate) / 100;
   }
 
   getTotalWithoutTax(): number {
@@ -1974,4 +2024,250 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
+  filteredProducts: Product[] = [];
+  productSearch: string = '';
+
+filterProducts(event: any): void {
+    const query = event.query;
+    if (!query || query.length < 1) {
+      this.filteredProducts = [...this.sourceProducts];
+      return;
+    }
+    
+    this.filteredProducts = this.sourceProducts.filter(product => 
+      product.name.toLowerCase().includes(query.toLowerCase()) ||
+      (product.category && product.category.categoryName.toLowerCase().includes(query.toLowerCase()))
+    );
+  }
+
+addProductToOrder(product: Product): void {
+    if (!product || product.quantityAvailable <= 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('product_quantity_insufficient'),
+        life: 3000,
+      });
+      return;
+    }
+
+    const existingProduct = this.targetProducts.find(p => p.productId === product.productId);
+    
+    if (!existingProduct) {
+      // Initialize order item properties
+      const productToAdd = { 
+        ...product, 
+        orderItemQuantity: 1,
+        orderItemPricePerUnit: product.sellingPrice
+      };
+      this.targetProducts = [...this.targetProducts, productToAdd];
+      
+      // Convert to OrderItem for orderItems array
+      this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
+    } else {
+      // Product already exists, increase quantity
+      existingProduct.orderItemQuantity += 1;
+      this.targetProducts = [...this.targetProducts];
+      
+      // Convert to OrderItem for orderItems array
+      this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
+    }
+    
+    this.productSearch = '';
+    this.calculateTotalAmount();
+    this.cdr.detectChanges();
+  }
+
+  removeProductFromOrder(product: Product): void {
+    this.targetProducts = this.targetProducts.filter(p => p.productId !== product.productId);
+    
+    // Convert to OrderItem for orderItems array
+    this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
+    
+    this.calculateTotalAmount();
+    this.cdr.detectChanges();
+  }
+
+  private convertProductsToOrderItems(products: Product[]): OrderItem[] {
+    return products.map(product => {
+      const orderItem: OrderItem = {
+        product: {
+          productId: product.productId,
+          name: product.name,
+          description: product.description,
+          buyingPrice: product.buyingPrice,
+          sellingPrice: product.sellingPrice,
+          quantityAvailable: product.quantityAvailable,
+          productImage: product.productImage,
+          category: product.category
+        },
+        quantity: product.orderItemQuantity || 0,
+        pricePerUnit: product.orderItemPricePerUnit || 0,
+        subTotal: (product.orderItemQuantity || 0) * (product.orderItemPricePerUnit || 0)
+      };
+      return orderItem;
+    });
+  }
+
+  private convertOrderItemsToProducts(orderItems: OrderItem[]): Product[] {
+    return orderItems.map(item => {
+      if (!item.product) return new Product();
+      
+      return {
+        ...item.product,
+        orderItemQuantity: item.quantity || 0,
+        orderItemPricePerUnit: item.pricePerUnit || 0
+      };
+    });
+  }
+
+updateProductSubtotal(product: Product): void {
+    // Trigger change detection
+    this.targetProducts = [...this.targetProducts];
+    
+    // Convert to OrderItem for orderItems array
+    this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
+    
+    this.calculateTotalAmount();
+  }
+
+
+  
+    getSubtotal(): number {
+    return this.targetProducts.reduce((total, product) => {
+      const quantity = product.orderItemQuantity || 0;
+      const price = product.orderItemPricePerUnit || 0;
+      return total + (price * quantity);
+    }, 0);
+  }
+
+
+    calculateDiscountAmount(): number {
+    const subtotal = this.getSubtotal();
+    if (this.discountType === 'Percentage') {
+      return (subtotal * (this.order.discount || 0)) / 100;
+    } else {
+      return this.order.discount || 0;
+    }
+  }
+
+validateOrder(): boolean {
+    // Check customer
+    if (!this.order.customer) {
+      return false;
+    }
+    
+    // Check shop if admin
+    if (this.isAdmin && !this.order.shop) {
+      return false;
+    }
+    
+    // Check products
+    if (this.targetProducts.length === 0) {
+      return false;
+    }
+    
+    // Check each product has quantity and price
+    for (const product of this.targetProducts) {
+      if (!product.orderItemQuantity || product.orderItemQuantity <= 0 ||
+          !product.orderItemPricePerUnit || product.orderItemPricePerUnit <= 0) {
+        return false;
+      }
+    }
+    
+    // Check payment if payment section is shown
+    if (this.showPaymentSection) {
+      if (!this.payment.amount || this.payment.amount <= 0 ||
+          !this.payment.paymentMethod || !this.payment.paymentDate) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  prepareOrderData(): any {
+    // Convert the order to the format expected by your API
+    return {
+      ...this.order,
+      orderItems: this.targetProducts.map(product => ({
+        productId: product.productId,
+        quantity: product.orderItemQuantity,
+        pricePerUnit: product.orderItemPricePerUnit
+      })),
+      discountType: this.discountType,
+      discount: this.order.discount || 0,
+      taxEnabled: this.taxEnabled,
+      taxRate: this.taxRate,
+      totalAmount: this.calculateTotalAmount(),
+      payment: this.showPaymentSection ? this.payment : null
+    };
+  }
+
+barcodeInput: string = '';
+  categories: any[] = [];
+  selectedCategory: any = null;
+  quickProducts: Product[] = [];
+  // allProducts: Product[] = [];
+  addProductByBarcode(): void {
+    if (!this.barcodeInput) return;
+    
+    const product = this.products.find(p => p.reference === this.barcodeInput);
+    if (product) {
+      this.addProductToOrder(product);
+      this.barcodeInput = '';
+    } else {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('product_not_found'),
+        life: 3000,
+      });
+    }
+  }
+
+  startBarcodeScanner(): void {
+    // Implement barcode scanner functionality
+    console.log('Starting barcode scanner...');
+    // You can integrate with a barcode scanner library here
+  }
+
+  showProductSelectionDialog(): void {
+    // Implement a dialog for bulk product selection
+    console.log('Show product selection dialog');
+  }
+
+  addMultipleProducts(products: Product[]): void {
+    products.forEach(product => {
+      this.addProductToOrder(product);
+    });
+  }
+
+  filterByCategory(): void {
+    if (!this.selectedCategory) {
+      this.filteredProducts = [...this.products];
+    } else {
+      this.filteredProducts = this.products.filter(product => 
+        product.category?.categoryId === this.selectedCategory.categoryId
+      );
+    }
+  }
+
+  async onGetAllCategories() {
+    await this.categoryService.getCategories()
+      .subscribe({
+        next: (response: any) => {
+          this.categories = response;
+          this.categories.forEach((category: any) => (category.creationDate = new Date(<Date>category.creationDate)));
+        },
+        error: (err: any) => {
+          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_getting_categories'), life: 3000 })
+          console.log(err)
+        },
+        complete: () => {
+          this.isLoading = false;
+        }
+      })
+  }
+  
 }
