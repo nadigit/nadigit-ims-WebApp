@@ -10,7 +10,7 @@ export class CategoryService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/stock/categories/";
+  schema: string = "/api/stock/categories/";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';
@@ -36,6 +36,10 @@ export class CategoryService {
   getCategories() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
+  }
+  getProductsCategories() {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'products-categories',{headers:headers});
   }
   getCategoryProducts(categoryId: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})

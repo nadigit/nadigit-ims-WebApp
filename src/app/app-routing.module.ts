@@ -10,8 +10,44 @@ import { AuthGuard } from './guards/auth.guard';
             {
                 path: '', component: AppLayoutComponent,
                 children: [
-                    { path: '', loadChildren: () => import('./ims/components/dashboard/dashboard.module').then(m => m.DashboardModule), canActivate:[AuthGuard], data : { roles: ['ADMIN','VENDOR','WAREHOUSEMAN']} },
-                    { path: 'pages', loadChildren: () => import('./ims/components/pages/pages.module').then(m => m.PagesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR','WAREHOUSEMAN']} }
+                    // Dashboard
+                    { path: '', loadChildren: () => import('./ims/components/dashboard/dashboard.module').then(m => m.DashboardModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] } },
+
+                    // Inventory Section
+                    {
+                        path: 'inventory',
+                        loadChildren: () => import('./ims/components/inventory/inventory.module').then(m => m.InventoryModule),
+                        canActivate: [AuthGuard],
+                        data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] }
+                    },
+
+                    // Sales Section
+                    {
+                        path: 'sales',
+                        loadChildren: () => import('./ims/components/sales/sales.module').then(m => m.SalesModule),
+                        canActivate: [AuthGuard],
+                        data: { roles: ['ADMIN', 'VENDOR'] }
+                    },
+
+                    // Finance Section
+                    {
+                        path: 'finance',
+                        loadChildren: () => import('./ims/components/finance/finance.module').then(m => m.FinanceModule),
+                        canActivate: [AuthGuard],
+                        data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN', 'ACCOUNTANT', 'AUDITOR'] }
+                    },
+
+                    // Administration Section (Admin Only)
+                    {
+                        path: 'administration',
+                        loadChildren: () => import('./ims/components/administration/administration.module').then(m => m.AdministrationModule),
+                        canActivate: [AuthGuard],
+                        data: { roles: ['ADMIN'] }
+                    },
+
+                    // Profile
+                    { path: 'profile', loadChildren: () => import('./ims/components/profile/profile.module').then(m => m.ProfileModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] } },
+                    // { path: 'pages', loadChildren: () => import('./ims/components/pages/pages.module').then(m => m.PagesModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] } }
                 ]
             },
             { path: 'auth', loadChildren: () => import('./ims/components/auth/auth.module').then(m => m.AuthModule) },

@@ -11,7 +11,7 @@ export class ReturnService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/returns/";
+  schema: string = "/api/returns/";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';
@@ -47,5 +47,10 @@ export class ReturnService {
   getReturnsReadyForRefund() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'eligible-refund' ,{headers:headers});
+  }
+
+  cancelReturn(id: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema + id + '/cancel', {headers:headers});
   }
 }

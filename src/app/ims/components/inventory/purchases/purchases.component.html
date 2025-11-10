@@ -1,0 +1,924 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <h5>{{ 'purchases_menu_title' | translate }}</h5>
+            <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'purchases_page_description' | translate }}
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddPurchase" value="{{'create' | translate}}" icon="pi pi-plus"
+                        severity="success"></p-tag>
+                    <p-tag *ngIf="canEditPurchase" value="{{'edit' | translate}}" icon="pi pi-pencil"
+                        severity="info"></p-tag>
+                    <p-tag *ngIf="canDeletePurchase" value="{{'delete' | translate}}" icon="pi pi-trash"
+                        severity="danger"></p-tag>
+                    <p-tag *ngIf="canProcessPurchase" value="{{'process' | translate}}" icon="pi pi-cog"
+                        severity="help"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                </div>
+            </div>
+
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button pButton pRipple *ngIf="canAddPurchase" label="{{ 'new_button' | translate }}"
+                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+                            pTooltip="{{'add_new_purchase'|translate}}"></button>
+                        <button pButton pRipple *ngIf="canDeletePurchase" label="{{ 'delete_button' | translate }}"
+                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedPurchases()"
+                            pTooltip="{{'delete_purchase'|translate}}"
+                            [disabled]="!selectedPurchases || !selectedPurchases.length"></button>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="right">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+                </ng-template>
+            </p-toolbar>
+
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="purchases" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['purpose','reference','dateOfPurchase','totalAmount','supplier.name','shop.shopName']"
+                [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedPurchases" selectionMode="multiple" [rowHover]="true" dataKey="purchaseId"
+                [expandedRowKeys]="expandedRows">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{ 'purchases_page_title' | translate }}</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th style="width: 3rem"></th>
+                        <th pSortableColumn="reference">{{ 'purchase_reference' | translate }} <p-sortIcon
+                                field="reference"></p-sortIcon></th>
+                        <th pSortableColumn="dateOfPurchase">{{ 'purchase_date' | translate }}
+                            <p-sortIcon field="dateOfPurchase"></p-sortIcon>
+                            <p-columnFilter type="date" field="dateOfPurchase" display="menu" />
+                        </th>
+                        <th pSortableColumn="purpose">{{ 'purchase_purpose' | translate }} <p-sortIcon
+                                field="purpose"></p-sortIcon></th>
+                        <th style="min-width: 12rem">
+                            <div class="flex justify-content-between align-items-center">
+                                {{ 'purchase_status' | translate }}
+                                <p-columnFilter field="purchaseStatus" matchMode="equals" display="menu">
+                                    <ng-template pTemplate="filter" let-value let-filter="filterCallback">
+                                        <p-dropdown [ngModel]="value" [options]="statuses"
+                                            (onChange)="filter($event.value)"
+                                            placeholder="{{ 'any_label' | translate }}"
+                                            [style]="{'min-width': '12rem'}">
+                                            <ng-template let-option pTemplate="item">
+                                                <span [class]="'purchase-badge purchase-' + option.label.toLowerCase()">
+                                                    {{'purchase_status_'+option.label.toLowerCase() | translate}}</span>
+                                            </ng-template>
+                                        </p-dropdown>
+                                    </ng-template>
+                                </p-columnFilter>
+                                <p-sortIcon field="purchaseStatus"></p-sortIcon>
+                            </div>
+                        </th>
+                        <th pSortableColumn="totalAmount">{{ 'purchase_total_amount' | translate }}<p-sortIcon
+                                field="totalAmount"></p-sortIcon></th>
+                        <th pSortableColumn="totalPaid">{{ 'purchase_total_paid' | translate }} <p-sortIcon
+                                field="totalPaid"></p-sortIcon>
+                        </th>
+                        <th style="min-width: 12rem">
+                            <div class="flex justify-content-between align-items-center">
+                                {{ 'purchase_payment_status' | translate }}
+                                <p-columnFilter field="paymentStatus" matchMode="equals" display="menu">
+                                    <ng-template pTemplate="filter" let-value let-filter="filterCallback">
+                                        <p-dropdown [ngModel]="value" [options]="paymentStatuses"
+                                            (onChange)="filter($event.value)"
+                                            placeholder="{{ 'any_label' | translate }}"
+                                            [style]="{'min-width': '12rem'}">
+                                            <ng-template let-option pTemplate="item">
+                                                <span [class]="'payment-badge payment-' + option.label.toLowerCase()">
+                                                    {{'purchase_payment_status_'+option.label.toLowerCase() |
+                                                    translate}}</span>
+                                            </ng-template>
+                                        </p-dropdown>
+                                    </ng-template>
+                                </p-columnFilter>
+                                <p-sortIcon field="paymentStatus"></p-sortIcon>
+                            </div>
+                        </th>
+                        <th pSortableColumn="supplier">{{ 'purchase_supplier' | translate }}
+                            <p-sortIcon field="supplier"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="shop">{{ 'purchase_shop' | translate }}<p-sortIcon
+                                field="shop"></p-sortIcon></th>
+                        <th></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-purchase let-expanded="expanded">
+                    <tr (click)="canReadPurchase ? showPurchaseDetails(purchase) : null">
+                        <td>
+                            <p-tableCheckbox [value]="purchase" (click)="$event.stopPropagation()"></p-tableCheckbox>
+                        </td>
+
+                        <td>
+                            <button type="button" pButton pRipple class="p-button-text p-button-rounded p-button-plain"
+                                [icon]="isRowExpanded(purchase.purchaseId) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+                                (click)="toggleRow(purchase.purchaseId); $event.stopPropagation()"></button>
+                        </td>
+
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_reference' | translate }}</span>
+                            #{{purchase.reference ? purchase.reference : 'N/A'}}
+                            <!-- <i *ngIf="!isPurchaseFinalized(purchase)" class="pi pi-lock text-red-500 ml-2"
+                                pTooltip="{{ 'purchase_locked' | translate }}">
+                            </i> -->
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_date' | translate }}</span>
+                            {{ purchase.dateOfPurchase ? (purchase.dateOfPurchase | date: 'dd/MM/yyyy') : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_purpose' | translate }}</span>
+                            {{ purchase.purpose ? purchase.purpose : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span
+                                [class]="'purchase-badge purchase-' + purchase.purchaseStatus.toLowerCase()">{{purchase.purchaseStatus
+                                ?
+                                ('purchase_status_'+purchase.purchaseStatus.toLowerCase() | translate) : 'N/A'}}</span>
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_total_amount' | translate }}</span>
+                            {{ purchase.totalAmount ? (purchase.totalAmount | currency:currency:'symbol':'1.2-2') :
+                            'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <div class="single-payment">
+                                {{purchase.totalPaid | currency:currency:'symbol':'1.2-2'}}
+                            </div>
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span
+                                [class]="'payment-badge payment-' + purchase.paymentStatus.toLowerCase()">{{purchase.paymentStatus
+                                ?
+                                ('purchase_payment_status_'+purchase.paymentStatus.toLowerCase() | translate) :
+                                'N/A'}}</span>
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_supplier' | translate }}</span>
+                            {{ purchase.supplier ? purchase.supplier.name : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_shop' | translate }}</span>
+                            {{ purchase.shop ? purchase.shop.shopName : 'N/A' }}
+                        </td>
+                        <td>
+                            <div class="flex">
+                                <button pButton pRipple *ngIf="purchase.purchaseStatus ==='PENDING' && canCancelPurchase"
+									icon="pi pi-times" class="p-button-rounded p-button-warning mr-2"
+									(click)="cancelPurchase(purchase); $event.stopPropagation()"
+									pTooltip="{{'cancel_order'|translate}}"></button>
+                                <button pButton pRipple *ngIf="canEditPurchase && purchase.purchaseStatus ==='PENDING'"
+                                    icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+                                    pTooltip="{{'update_purchase'|translate}}"
+                                    (click)="editPurchase(purchase); $event.stopPropagation()"></button>
+                                <button pButton pRipple *ngIf="canDeletePurchase && purchase.purchaseStatus ==='PENDING'"
+                                    icon="pi pi-trash" class="p-button-rounded p-button-danger mr-2"
+                                    (click)="deletePurchase(purchase); $event.stopPropagation()"
+                                    pTooltip="{{'delete_purchase'|translate}}"></button>
+                                <button pButton pRipple *ngIf="canProcessPurchase" icon="pi pi-cog"
+									class="p-button-rounded p-button mr-2"
+									(click)="showPurchaseDetails(purchase); $event.stopPropagation()"
+									pTooltip="{{'purchase_processing'|translate}}"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="rowexpansion" let-purchase>
+                    <tr>
+                        <td colspan="10">
+                            <div class="p-3">
+                                <p-table [value]="purchase.purchaseItems" dataKey="purchaseItemId"
+                                    responsiveLayout="scroll">
+                                    <ng-template pTemplate="header">
+                    <tr>
+                        <th>{{ 'product_image' | translate }}</th>
+                        <th>{{ 'product_name' | translate }}</th>
+                        <th>{{ 'order_items_quantity' | translate }}</th>
+                        <th>{{ 'order_items_price' | translate }}</th>
+                        <th style="width: 4rem"></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-purchaseItem>
+                    <tr>
+                        <td><img [src]="purchaseItem.product.productImage ? purchaseItem.product.productImage : 'assets/core-images/no-image.png'"
+                                [alt]="purchaseItem.product.name" width="60"
+                                [ngClass]="{'shadow-4': product.productImage}" /></td>
+                        <td>{{purchaseItem.product.name ? purchaseItem.product.name : 'N/A'}}</td>
+                        <td>{{purchaseItem.quantityPurchased ? purchaseItem.quantityPurchased : 'N/A'}}</td>
+                        <td>
+                            <ng-container
+                                *ngIf="purchaseItem.totalCost !== null && purchaseItem.totalCost !== undefined; else notAvailable">
+                                {{ purchaseItem.totalCost | currency:currency:'symbol':'1.2-2' }}
+                            </ng-container>
+                            <ng-template #notAvailable>N/A</ng-template>
+                        </td>
+                        <td><p-button type="button" icon="pi pi-search" routerLink="/pages/products"></p-button></td>
+                    </tr>
+
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="10">{{ 'no_products_msg' | translate }}</td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+        </td>
+        </tr>
+        </ng-template>
+        <ng-template pTemplate="summary">
+            <div class="flex align-items-center justify-content-between">
+                {{'total_purchases' | translate}} {{purchases ? purchases.length : 0 }}.
+            </div>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+            <tr>
+                <td colspan="8">
+                    <div class="flex flex-column align-items-center justify-content-center py-5">
+                        <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                            style="max-width: 250px; opacity: 0.6;">
+                        <p class="mt-3 text-gray-600 font-medium text-lg">
+                            {{ 'no_purchases_found' | translate }}
+                        </p>
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+        </p-table>
+    </div>
+
+    <p-dialog [(visible)]="purchaseDialog" [style]="{width: '80%', height: '100%'}"
+        header="{{ 'purchase_details' | translate }}" [modal]="true" class="p-fluid ">
+        <ng-template pTemplate="content">
+
+            <div class="field">
+                <label for="purpose">{{ 'purchase_purpose' | translate }} <span
+                        class="required-asterisk">*</span></label>
+                <input type="text" pInputText name="purpose" ngDefaultControl [(ngModel)]="purchase.purpose" required
+                    autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.purpose}" />
+                <small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.purpose">{{ 'purchase_purpose' |
+                    translate }} {{'is_required_label' | translate}}</small>
+            </div>
+
+            <div class="field">
+                <label for="dateOfPurchase">{{ 'purchase_date' | translate }} <span
+                        class="required-asterisk">*</span></label>
+                <p-calendar [(ngModel)]="purchase.dateOfPurchase" ngDefaultControl name="dateOfPurchase"
+                    inputId="dateOfPurchase" dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
+                    placeholder="{{ 'purchase_date' | translate }}" required autofocus
+                    [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.dateOfPurchase}" appendTo="body"
+                    [maxDate]="maxPurchaseDate" (onSelect)="checkCashRegisterStatus()" />
+                <small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.purpose">{{ 'purchase_date' |
+                    translate }} {{'is_required_label' | translate}}</small>
+
+                <div *ngIf="showCashRegisterWarning" class="p-message p-message-warn mt-2">
+                    <div class="p-message-wrapper">
+                        <span class="p-message-icon pi pi-exclamation-triangle mr-2"></span>
+                        <div class="p-message-text">
+                            {{ 'cash_register_closed_warning' | translate }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field" style="position: relative;" *ngIf="isAdmin">
+                <label for="shop">{{'purchase_shop' | translate}} <span class="required-asterisk">*</span></label>
+                <p-dropdown appendTo="body" [(ngModel)]="purchase.shop" name="shop" inputId="shop" ngDefaultControl
+                    optionLabel="shopName" [options]="shops" [filter]="true" filterBy="shopName"
+                    placeholder="{{'select_shop_option' | translate}}" required autofocus
+                    [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.shop}">
+                    <ng-template pTemplate="selectedItem">
+                        <span *ngIf="purchase && purchase.shop"
+                            [class]="'product-badge'">{{purchase.shop.shopName}}</span>
+                    </ng-template>
+                    <ng-template let-option pTemplate="item">
+                        <span [class]="'product-badge'">{{option.shopName}}</span>
+                    </ng-template>
+                </p-dropdown>
+                <small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.shop">{{'purchase_shop' |
+                    translate}} {{'is_required_label' | translate}}</small>
+            </div>
+
+            <div class="field" style="position: relative;">
+                <label for="supplier">{{'purchase_supplier' | translate}} <span
+                        class="required-asterisk">*</span></label>
+                <p-dropdown appendTo="body" [(ngModel)]="purchase.supplier" name="supplier" inputId="supplier"
+                    ngDefaultControl optionLabel="name" [options]="suppliers" [filter]="true" filterBy="name"
+                    placeholder="{{'select_supplier_option' | translate}}" required autofocus
+                    [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.supplier}">
+                    <ng-template pTemplate="selectedItem">
+                        <span *ngIf="purchase && purchase.supplier"
+                            [class]="'product-badge'">{{purchase.supplier.name}}</span>
+                    </ng-template>
+                    <ng-template let-option pTemplate="item">
+                        <span [class]="'product-badge'">{{option.name}}</span>
+                    </ng-template>
+                </p-dropdown>
+                <small class="ng-dirty ng-invalid" *ngIf="submitted && !purchase.supplier">{{'purchase_supplier' |
+                    translate}} {{'is_required_label' | translate}}</small>
+            </div>
+
+            <div class="field">
+                <label for="purchaseItems">
+                    {{ 'order_products' | translate }} <span class="required-asterisk">* </span>
+                </label>
+                <div class="card">
+                    <!-- <div class="flex flex-column gap-2 mx-auto" *ngIf="targetProducts.length>0">
+                            <div class="text-center mt-3 mb-3 text-xl font-semibold">
+                                {{ 'selected_products_number' | translate }} :
+                                <p-badge value="{{targetProducts.length}}" badgeSize="xlarge" severity="success" />
+                            </div>
+                        </div> -->
+                    <p-pickList name="purchaseItems" [(ngModel)]="purchaseItems" ngDefaultControl
+                        [source]="sourceProducts" [target]="targetProducts"
+                        sourceHeader="{{ 'order_available_products' | translate }}" required
+                        targetHeader="{{ 'order_selected_products' | translate }}" [dragdrop]="true" [responsive]="true"
+                        [sourceStyle]="{ height: '40rem' }" [targetStyle]="{ height: '40rem' }" filterBy="name"
+                        sourceFilterPlaceholder="{{ 'search_label' | translate }}"
+                        targetFilterPlaceholder="{{ 'search_label' | translate }}" breakpoint="1300px"
+                        (onMoveToTarget)="onMoveToTarget($event)" disableDblClick>
+                        <ng-template let-product pTemplate="item">
+                            <div class="flex flex-wrap p-2 align-items-center gap-3">
+                                <img class="w-4rem shadow-2 flex-shrink-0 border-round"
+                                    [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+                                    [alt]="product.name" />
+                                <div class="flex-1 flex flex-column gap-2">
+                                    <span class="font-bold">{{ product.name }}</span>
+                                    <div class="flex align-products-center gap-2">
+                                        <i class="pi pi-tag text-sm"></i>
+                                        <span>{{ product.category.categoryName }}</span>
+                                    </div>
+                                </div>
+                                <span class="font-bold text-900">{{currency}} {{product.buyingPrice }}</span>
+
+                                <!-- Check if product is in targetProducts (selected) to show quantity and subTotal inputs -->
+                                <ng-container *ngIf="targetProducts.includes(product)">
+                                    <div class="field">
+                                        <label for="purchaseItemPricePerUnit">{{ 'order_items_price_per_unit' |
+                                            translate }}</label>
+                                        <p-inputNumber name="purchaseItemPricePerUnit" id="purchaseItemPricePerUnit"
+                                            [(ngModel)]="product.purchaseItemPricePerUnit" ngDefaultControl
+                                            mode="decimal" [showButtons]="true" [min]="1"
+                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemPricePerUnit}"
+                                            required autofocus></p-inputNumber>
+                                        <small class="ng-dirty ng-invalid"
+                                            *ngIf="submitted && !product.purchaseItemPricePerUnit">{{
+                                            'order_items_price_per_unit' |
+                                            translate }} {{'is_required_label' | translate}}</small>
+                                    </div>
+                                    <div class="field">
+                                        <label for="purchaseItemQuantity">{{ 'order_items_quantity' | translate
+                                            }}</label>
+                                        <p-inputNumber name="purchaseItemQuantity" id="purchaseItemQuantity"
+                                            [(ngModel)]="product.purchaseItemQuantity" ngDefaultControl mode="decimal"
+                                            [showButtons]="true" [min]="1"
+                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemQuantity}"
+                                            required autofocus></p-inputNumber>
+                                        <small class="ng-dirty ng-invalid"
+                                            *ngIf="submitted && !product.purchaseItemQuantity">{{ 'order_items_quantity'
+                                            |
+                                            translate }} {{'is_required_label' | translate}}</small>
+                                    </div>
+                                    <!-- <div>
+                                            <label>{{'order_product_available_quantity' | translate}}</label>
+    
+                                            <p-inputNumber [ngModel]="product.quantityAvailable - product.purchaseItemQuantity"
+                                                disabled> </p-inputNumber>
+                                        </div> -->
+                                </ng-container>
+                            </div>
+
+                        </ng-template>
+                    </p-pickList>
+                </div>
+
+                <div class="field">
+                    <label for="discount">{{'discount' | translate}}</label>
+                    <input type="number" pInputText name="discount" [(ngModel)]="purchase.discount"
+                        placeholder="{{'enter_discount' | translate}}" />
+                </div>
+
+                <div class="field">
+                    <label for="taxEnabled">{{ 'tax' | translate }}</label>
+                    <div class="flex flex-wrap gap-3">
+                        <p-selectButton [options]="TaxEnabledOptions" [(ngModel)]="taxEnabled" optionLabel="label"
+                            optionValue="value">
+                        </p-selectButton>
+                    </div>
+                </div>
+
+                <!-- Conditional tax calculation field -->
+                <div *ngIf="taxEnabled" class="field">
+                    <label for="taxAmount">{{ 'tax_to_pay' | translate }} : </label>
+                    <span> {{ calculateTax() | number: '1.2-2' }} </span> {{currency}}
+                </div>
+
+                <div class="flex flex-column gap-2 mx-auto">
+                    <div class="text-center mt-3 mb-3 text-xl font-semibold">
+                        Total: <span class="text-900 font-medium">{{ calculateTotalAmount() }}</span> {{currency}}
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="required-note">
+                <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                    translate}}</small>
+            </div>
+        </ng-template>
+
+        <ng-template pTemplate="footer">
+            <div class="flex justify-content-between align-items-center w-full">
+                <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+                    class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-raised"
+                    (click)="savePurchase()"></button>
+            </div>
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="purchaseDetailsDialog" [style]="{width: '95vw', maxWidth: '1200px', height: '95vh'}"
+        header="{{'purchase_details' | translate}}" [modal]="true" class="p-fluid premium-purchase-details-dialog"
+        [draggable]="false" [resizable]="false" (onHide)="hidePurchaseDetailsDialog()">
+
+        <ng-template pTemplate="content">
+            <!-- Purchase Header -->
+            <div class="purchase-details-header"
+                [ngClass]="'status-' + (selectedPurchase?.purchaseStatus || '')?.toLowerCase()">
+                <div class="flex align-items-center justify-content-between">
+                    <div class="flex align-items-center gap-3">
+                        <div class="purchase-icon">
+                            <i class="pi pi-shopping-cart text-white"></i>
+                        </div>
+                        <div>
+                            <h2 class="m-0 text-white">#{{ selectedPurchase?.reference }}</h2>
+                            <p class="m-0 text-white opacity-80">
+                                {{ selectedPurchase?.purpose || 'N/A' }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="flex align-items-center gap-3 justify-content-end">
+                            <span
+                                [class]="'purchase-badge purchase-' + selectedPurchase.purchaseStatus.toLowerCase()">{{selectedPurchase.purchaseStatus
+                                ?
+                                ('purchase_status_'+selectedPurchase.purchaseStatus.toLowerCase() | translate) : 'N/A'}}
+                            </span>
+
+                            <span
+                                [class]="'payment-badge payment-' + selectedPurchase.paymentStatus.toLowerCase()">{{selectedPurchase.paymentStatus
+                                ?
+                                ('purchase_payment_status_'+selectedPurchase.paymentStatus.toLowerCase() | translate) :
+                                'N/A'}}
+                            </span>
+                        </div>
+                        <div class="text-white mt-1 font-bold text-xl">
+                            {{ selectedPurchase?.totalAmount | currency:currency:'symbol':'1.2-2' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid mt-4">
+                <!-- Left Panel - Purchase Timeline & Products -->
+                <div class="col-12 md:col-8">
+                    <!-- Purchase Timeline -->
+                    <div class="details-section">
+                        <h4 class="section-title">
+                            <i class="pi pi-history mr-2"></i>
+                            {{ 'purchase_timeline' | translate }}
+                        </h4>
+
+                        <div class="timeline-container">
+                            <p-timeline class="premium-timeline" [value]="purchaseEvents" align="alternate">
+                                <ng-template pTemplate="marker" let-event>
+                                    <div class="timeline-marker" [ngClass]="{'active': isPurchaseEventActive(event)}">
+                                        <i [class]="event.icon + ' marker-icon'"></i>
+                                        <div class="marker-tooltip">
+                                            {{ event.status ? ('purchase_status_' + event.status.toLowerCase() |
+                                            translate) : 'N/A' }}
+                                        </div>
+                                    </div>
+                                </ng-template>
+
+                                <ng-template pTemplate="content" let-event>
+                                    <div class="timeline-card" [ngClass]="{'active': isPurchaseEventActive(event)}">
+                                        <div class="timeline-header">
+                                            <h5 class="m-0">
+                                                {{ event.status ? ('purchase_status_' + event.status.toLowerCase() |
+                                                translate) : 'N/A' }}
+                                            </h5>
+                                            <span class="timeline-date">
+                                                {{ event.date != null ? (event.date | date:'medium') : ('now' |
+                                                translate) }}
+                                            </span>
+                                        </div>
+
+                                        <div class="timeline-content">
+                                            <!-- Created Status Content -->
+                                            <div *ngIf="event.status === 'PENDING'" class="created-content">
+                                                <!-- Supplier Info -->
+                                                <div class="supplier-info mb-3 text-center">
+                                                    <div
+                                                        class="flex align-items-center justify-content-center gap-2 mb-2">
+                                                        <i class="pi pi-building text-primary"></i>
+                                                        <strong>{{ 'supplier_information' | translate }}</strong>
+                                                    </div>
+                                                    <p-chip [label]="selectedPurchase?.supplier?.name || 'N/A'"
+                                                        image="assets/core-images/supplier.png" class="supplier-chip">
+                                                    </p-chip>
+                                                </div>
+
+                                                <!-- Products Accordion -->
+                                                <p-accordion class="w-full products-accordion">
+                                                    <p-accordionTab>
+                                                        <ng-template pTemplate="header">
+                                                            <div class="flex align-items-center gap-2 w-full">
+                                                                <i class="pi pi-box text-primary"></i>
+                                                                <span class="font-bold">
+                                                                    {{ 'purchased_products' | translate }}
+                                                                </span>
+                                                                <p-badge
+                                                                    [value]="selectedPurchase?.purchaseItems?.length || 0"
+                                                                    severity="info" class="ml-auto">
+                                                                </p-badge>
+                                                            </div>
+                                                        </ng-template>
+
+                                                        <p-table [value]="selectedPurchase?.purchaseItems"
+                                                            [scrollable]="true" scrollHeight="300px"
+                                                            *ngIf="selectedPurchase?.purchaseItems?.length > 0"
+                                                            styleClass="premium-products-table">
+                                                            <ng-template pTemplate="header">
+                                                                <tr>
+                                                                    <th style="width: 40%">{{ 'product' | translate }}
+                                                                    </th>
+                                                                    <th style="width: 15%">{{ 'quantity' | translate }}
+                                                                    </th>
+                                                                    <th style="width: 15%">{{ 'unit_cost' | translate }}
+                                                                    </th>
+                                                                    <th style="width: 15%">{{ 'total_cost' | translate
+                                                                        }}</th>
+                                                                    <th style="width: 15%">{{ 'stock_added' | translate
+                                                                        }}</th>
+                                                                </tr>
+                                                            </ng-template>
+                                                            <ng-template pTemplate="body" let-purchaseItem>
+                                                                <tr>
+                                                                    <td>
+                                                                        <div class="product-info">
+                                                                            <img [src]="purchaseItem?.product?.productImage || 'assets/core-images/no-image.png'"
+                                                                                [alt]="purchaseItem?.product?.name"
+                                                                                class="product-image" />
+                                                                            <div class="product-details">
+                                                                                <div class="product-name">{{
+                                                                                    purchaseItem?.product?.name || 'N/A'
+                                                                                    }}</div>
+                                                                                <div class="product-category">{{
+                                                                                    purchaseItem?.product?.category?.categoryName
+                                                                                    || 'N/A' }}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <p-tag
+                                                                            [value]="purchaseItem?.quantityPurchased || '0'"
+                                                                            severity="info" styleClass="quantity-tag">
+                                                                        </p-tag>
+                                                                    </td>
+                                                                    <td class="font-semibold">
+                                                                        {{ purchaseItem?.unitCost | number:'1.2-2' }}
+                                                                        {{currency}}
+                                                                    </td>
+                                                                    <td class="font-bold text-primary">
+                                                                        {{ purchaseItem?.totalCost | number:'1.2-2' }}
+                                                                        {{currency}}
+                                                                    </td>
+                                                                    <td>
+                                                                        <p-tag
+                                                                            [value]="purchaseItem?.quantityPurchased || '0'"
+                                                                            severity="success"
+                                                                            styleClass="quantity-tag">
+                                                                        </p-tag>
+                                                                    </td>
+                                                                </tr>
+                                                            </ng-template>
+                                                            <ng-template pTemplate="footer">
+                                                                <tr class="summary-row">
+                                                                    <td colspan="3"></td>
+                                                                    <td class="footer-label">{{'subtotal' | translate}}:
+                                                                    </td>
+                                                                    <td class="footer-value">
+                                                                        {{ getPurchaseSubtotal() | number:'1.2-2' }}
+                                                                        {{currency}}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="summary-row"
+                                                                    *ngIf="selectedPurchase?.taxAmount">
+                                                                    <td colspan="3"></td>
+                                                                    <td class="footer-label">{{'tax' | translate}}:</td>
+                                                                    <td class="footer-value">
+                                                                        +{{ selectedPurchase?.taxAmount | number:'1.2-2'
+                                                                        }} {{currency}}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="summary-row"
+                                                                    *ngIf="selectedPurchase?.shippingCost">
+                                                                    <td colspan="3"></td>
+                                                                    <td class="footer-label">{{'shipping_cost' |
+                                                                        translate}}:</td>
+                                                                    <td class="footer-value">
+                                                                        +{{ selectedPurchase?.shippingCost |
+                                                                        number:'1.2-2' }} {{currency}}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="summary-total">
+                                                                    <td colspan="3"></td>
+                                                                    <td class="footer-label">{{'purchase_total_amount' |
+                                                                        translate}}:</td>
+                                                                    <td class="footer-value total">
+                                                                        {{selectedPurchase?.totalAmount |
+                                                                        number:'1.2-2'}} {{currency}}
+                                                                    </td>
+                                                                </tr>
+                                                            </ng-template>
+                                                        </p-table>
+                                                    </p-accordionTab>
+                                                </p-accordion>
+                                            </div>
+
+                                            <!-- Other Status Contents -->
+                                            <div *ngIf="event.status !== 'PENDING'" class="status-content">
+                                                <p [innerHTML]="getPurchaseStatusDescription(event.status)"></p>
+
+                                                <!-- Payment Details -->
+                                                <div *ngIf="event.status !== 'PENDING' && selectedPurchase?.paymentDetails"
+                                                    class="payment-details mt-3 p-3 rounded-lg">
+                                                    <div class="grid">
+                                                        <div class="col-6">
+                                                            <strong>{{ 'payment_method' | translate }}:</strong>
+                                                            <p>{{ selectedPurchase.paymentDetails.method }}</p>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <strong>{{ 'payment_date' | translate }}:</strong>
+                                                            <p>{{ selectedPurchase.paymentDetails.date | date:'medium'
+                                                                }}</p>
+                                                        </div>
+                                                        <div class="col-12"
+                                                            *ngIf="selectedPurchase.paymentDetails.reference">
+                                                            <strong>{{ 'payment_reference' | translate }}:</strong>
+                                                            <p>{{ selectedPurchase.paymentDetails.reference }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="timeline-actions" *ngIf="showPurchaseEventButton(event)">
+                                            <button pButton [label]="event.button"
+                                                [icon]="getPurchaseActionButtonIcon(event.status)"
+                                                [severity]="getPurchaseActionButtonSeverity(event.status)"
+                                                (click)="updatePurchaseStatus()" class="action-button">
+                                            </button>
+                                        </div>
+                                    </div>
+                                </ng-template>
+                            </p-timeline>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel - Purchase Summary & Quick Actions -->
+                <div class="col-12 md:col-4">
+                    <!-- Purchase Summary -->
+                    <div class="details-section">
+                        <h4 class="section-title">
+                            <i class="pi pi-chart-bar mr-2"></i>
+                            {{ 'purchase_summary' | translate }}
+                        </h4>
+
+                        <div class="purchase-summary-card">
+                            <div class="summary-item" *ngIf="selectedPurchase?.reference">
+                                <span>{{ 'purchase_reference' | translate }}:</span>
+                                <strong>#{{ selectedPurchase?.reference }}</strong>
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.dateOfPurchase">
+                                <span>{{ 'purchase_date' | translate }}:</span>
+                                <span>{{ selectedPurchase?.dateOfPurchase | date:'shortDate' }}</span>
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.supplier">
+                                <span>{{ 'supplier' | translate }}:</span>
+                                <span>{{ selectedPurchase?.supplier?.name || 'N/A' }}</span>
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.shop">
+                                <span>{{ 'shop' | translate }}:</span>
+                                <span>{{ selectedPurchase.shop.shopName }}</span>
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.purpose">
+                                <span>{{ 'purpose' | translate }}:</span>
+                                <span>{{ selectedPurchase?.purpose || 'N/A' }}</span>
+                            </div>
+                            <div class="summary-divider"
+                                *ngIf="selectedPurchase?.taxAmount || selectedPurchase?.shippingCost || selectedPurchase?.discount">
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.purchaseItems?.length > 0">
+                                <span>{{ 'subtotal' | translate }}:</span>
+                                <span>{{ getPurchaseSubtotal() | number:'1.2-2' }} {{currency}}</span>
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.taxAmount">
+                                <span>{{ 'tax' | translate }}:</span>
+                                <span>+{{ selectedPurchase.taxAmount | number:'1.2-2' }} {{currency}}</span>
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.shippingCost">
+                                <span>{{ 'shipping_cost' | translate }}:</span>
+                                <span>+{{ selectedPurchase.shippingCost | number:'1.2-2' }} {{currency}}</span>
+                            </div>
+                            <div class="summary-item" *ngIf="selectedPurchase?.discount">
+                                <span>{{ 'discount' | translate }}:</span>
+                                <span class="text-green-600">-{{ selectedPurchase.discount | number:'1.2-2' }}
+                                    {{currency}}</span>
+                            </div>
+                            <div class="summary-total" *ngIf="selectedPurchase?.totalAmount">
+                                <span>{{ 'total' | translate }}:</span>
+                                <span class="total-amount">{{ selectedPurchase?.totalAmount | number:'1.2-2' }}
+                                    {{currency}}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="details-section">
+                        <h4 class="section-title">
+                            <i class="pi pi-bolt mr-2"></i>
+                            {{ 'quick_actions' | translate }}
+                        </h4>
+
+                        <div class="actions-grid">
+                            <button pButton pRipple icon="pi pi-print" [label]="'print_invoice' | translate"
+                                class="p-button-outlined p-button-help w-full mb-2"
+                                (click)="printPurchaseInvoice(selectedPurchase)">
+                            </button>
+
+                            <button pButton pRipple icon="pi pi-file-pdf" [label]="'export_pdf' | translate"
+                                class="p-button-outlined p-button-danger w-full mb-2"
+                                (click)="exportPurchaseToPDF(selectedPurchase)">
+                            </button>
+
+                            <button pButton pRipple icon="pi pi-copy" [label]="'duplicate_purchase' | translate"
+                                class="p-button-outlined p-button-success w-full mb-2"
+                                (click)="duplicatePurchase(selectedPurchase)">
+                            </button>
+
+                            <button pButton pRipple icon="pi pi-box" [label]="'update_stock' | translate"
+                                class="p-button-outlined p-button-warning w-full"
+                                (click)="updateStockFromPurchase(selectedPurchase)">
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Supplier Information -->
+                    <div class="details-section" *ngIf="selectedPurchase?.supplier">
+                        <h4 class="section-title">
+                            <i class="pi pi-building mr-2"></i>
+                            {{ 'supplier_information' | translate }}
+                        </h4>
+
+                        <div class="supplier-card p-3 rounded-lg">
+                            <div class="flex align-items-center gap-3 mb-3">
+                                <i class="pi pi-user text-2xl text-primary"></i>
+                                <div>
+                                    <div class="font-semibold text-lg">{{ selectedPurchase.supplier.name }}
+                                    </div>
+                                    <div class="text-sm text-600">{{ selectedPurchase.supplier.company ||
+                                        'N/A' }}</div>
+                                </div>
+                            </div>
+
+                            <div class="grid">
+                                <div class="col-12 mb-2" *ngIf="selectedPurchase.supplier.email">
+                                    <i class="pi pi-envelope mr-2 text-600"></i>
+                                    <span class="text-sm">{{ selectedPurchase.supplier.email }}</span>
+                                </div>
+                                <div class="col-12 mb-2" *ngIf="selectedPurchase.supplier.phone">
+                                    <i class="pi pi-phone mr-2 text-600"></i>
+                                    <span class="text-sm">{{ selectedPurchase.supplier.phone }}</span>
+                                </div>
+                                <div class="col-12" *ngIf="selectedPurchase.supplier.address">
+                                    <i class="pi pi-map-marker mr-2 text-600"></i>
+                                    <span class="text-sm">{{ selectedPurchase.supplier.address }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audit Information -->
+                    <div class="details-section" *ngIf="selectedPurchase?.createdBy || selectedPurchase?.creationDate">
+                        <h4 class="section-title">
+                            <i class="pi pi-history mr-2"></i>
+                            {{ 'audit_information' | translate }}
+                        </h4>
+
+                        <div class="audit-info">
+                            <div class="audit-item">
+                                <label>{{ 'created_date' | translate }}</label>
+                                <span>{{ selectedPurchase.creationDate | date:'short' }}</span>
+                            </div>
+                        </div>
+
+                        <div class="audit-info">
+                            <div class="audit-item">
+                                <label>{{ 'created_by' | translate }}</label>
+                                <span>{{ selectedPurchase.createdBy }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </ng-template>
+
+        <ng-template pTemplate="footer">
+            <div class="flex justify-content-between align-items-center w-full mt-3">
+                <button pButton pRipple label="{{'close' | translate}}" icon="pi pi-times" class="p-button-text"
+                    (click)="hidePurchaseDetailsDialog()">
+                </button>
+
+                <div class="flex gap-2">
+                    <button pButton pRipple *ngIf="canDeletePurchase && selectedPurchase.purchaseStatus ==='PENDING'"
+                        label="{{ 'delete_purchase' | translate }}" icon="pi pi-trash" class="p-button-danger"
+                        (click)="deletePurchase(selectedPurchase)">
+                    </button>
+
+                    <button pButton pRipple *ngIf="canEditPurchase && selectedPurchase.purchaseStatus ==='PENDING'"
+                        label="{{ 'edit_purchase' | translate }}" icon="pi pi-pencil" class="p-button-primary"
+                        (click)="editPurchase(selectedPurchase)">
+                    </button>
+
+                    <button pButton pRipple label="{{ 'refresh' | translate }}" icon="pi pi-refresh"
+                        class="p-button-outlined p-button-secondary" (click)="refreshPurchaseDetails()">
+                    </button>
+                </div>
+            </div>
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="deletePurchaseDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+        [style]="{width:'450px'}">
+        <div class="flex align-items-center justify-content-center">
+            <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+            <span *ngIf="purchase">{{'delete_confirmation_msg_with_param' | translate}}
+                <b>{{purchase.reference}}</b>?</span>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                (click)="deletePurchaseDialog = false"></button>
+            <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                (click)="confirmDelete()"></button>
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="deletePurchasesDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+        [style]="{width:'450px'}">
+        <div class="flex align-items-center justify-content-center">
+            <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+            <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                (click)="deletePurchasesDialog = false"></button>
+            <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                (click)="confirmDeleteSelected()"></button>
+        </ng-template>
+    </p-dialog>
+</div>
+</div>

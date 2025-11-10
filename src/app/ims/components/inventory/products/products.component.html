@@ -1,0 +1,1289 @@
+<div class="grid p-fluid">
+
+
+	<div class="col-12">
+
+		<div class="card">
+			<h5>{{'products_menu_title' | translate}}</h5>
+			<p-toast></p-toast>
+			<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+				<div class="flex align-items-center mb-3">
+					<i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+					<h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+				</div>
+				<p class="m-0 text-600">
+					{{ 'products_page_description' | translate }}
+					<!-- <span *ngIf="customers?.length" class="font-semibold">
+                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
+                    </span> -->
+				</p>
+				<div class="flex align-items-center gap-2">
+					<p-tag *ngIf="canAddProduct" value="{{'create' | translate}}" icon="pi pi-plus"
+						severity="success"></p-tag>
+					<p-tag *ngIf="canEditProduct" value="{{'edit' | translate}}" icon="pi pi-pencil"
+						severity="info"></p-tag>
+					<p-tag *ngIf="canDeleteProduct" value="{{'delete' | translate}}" icon="pi pi-trash"
+						severity="danger"></p-tag>
+					<p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+					<!-- <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag> -->
+				</div>
+			</div>
+
+			<p-toolbar styleClass="mb-4">
+				<ng-template pTemplate="left">
+					<div class="flex align-items-center gap-2 my-2">
+						<button pButton pRipple *ngIf="canAddProduct" label="{{'new_button' | translate}}"
+							icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+							pTooltip="{{'add_new_product'|translate}}">
+						</button>
+						<button pButton pRipple *ngIf="isAdmin" label="{{'archived_products' | translate}}"
+							icon="pi pi-folder" class="p-button-warning" (click)="openArchivedProductsDialog()"
+							pTooltip="{{'view_archived_products'|translate}}">
+						</button>
+					</div>
+				</ng-template>
+
+				<ng-template pTemplate="right">
+					<div class="flex align-items-center gap-2 my-2">
+						<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+							tooltipPosition="bottom" (click)="exportPdf()"></button>
+						<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+							class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+					</div>
+				</ng-template>
+			</p-toolbar>
+
+			<div class="card flex justify-content-center" *ngIf="isLoading">
+				<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+			</div>
+
+			<p-dataView #dv [value]="filteredProducts" *ngIf="!isLoading" [paginator]="dv.layout === 'grid'" [rows]="15"
+				[sortField]="sortField" [sortOrder]="sortOrder" layout="list"
+				emptyMessage="{{ 'no_results_found' | translate }}">
+				<ng-template pTemplate="header">
+					<div class="flex flex-column md:flex-row md:justify-content-between gap-2">
+						<p-dropdown [options]="sortOptions" placeholder="{{ 'sort_by_price' | translate }}"
+							(onChange)="onSortChange($event)">
+							<ng-template pTemplate="item" let-option>
+								<span>{{ option.label | translate }}</span>
+							</ng-template>
+						</p-dropdown>
+
+						<p-treeSelect class="w-full md:w-20rem" containerStyleClass="w-full" [(ngModel)]="selectedNodes"
+							[options]="nodes" display="chip" [metaKeySelection]="false" selectionMode="checkbox"
+							placeholder="{{ 'select_items' | translate}}" (onNodeSelect)="applyFilters()"
+							(onNodeUnselect)="applyFilters()">
+						</p-treeSelect>
+
+						<span class="p-input-icon-left">
+							<i class="pi pi-search"></i>
+							<input type="search" pInputText placeholder="{{ 'search_label' | translate }}"
+								[(ngModel)]="searchInput" (input)="applyFilters()" (focus)="deactivateScanning()"
+								(blur)="activateScanning()">
+						</span>
+
+						<p-dataViewLayoutOptions></p-dataViewLayoutOptions>
+					</div>
+				</ng-template>
+
+				<ng-template let-products pTemplate="listItem">
+
+					<p-table #dt [value]="products" *ngIf="!isLoading" [rows]="20" [paginator]="true"
+						[rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true" dataKey="productId"
+						currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+						[(selection)]="selectedProducts" selectionMode="multiple" [rowHover]="true">
+
+						<!-- HEADER -->
+						<ng-template pTemplate="header">
+							<tr>
+								<th style="width: 3rem">
+									<p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+								</th>
+								<th>{{ 'product' | translate }}</th>
+								<th>{{ 'details' | translate }}</th>
+								<th>{{ 'stock' | translate }}</th>
+								<th *ngIf="isAdmin">{{ 'pricing' | translate }}</th>
+								<th>{{ 'creation_date' | translate }}</th>
+								<th></th>
+							</tr>
+						</ng-template>
+
+						<!-- BODY -->
+						<ng-template pTemplate="body" let-product>
+							<tr [pSelectableRow]="product"
+								(click)="canReadProduct ? showProductDetails(product) : null">
+								<!-- Checkbox -->
+								<td>
+									<p-tableCheckbox [value]="product"
+										(click)="$event.stopPropagation()"></p-tableCheckbox>
+								</td>
+
+								<!-- Image + Name + Reference -->
+								<td style="min-width:15rem;">
+									<div class="flex align-items-center">
+										<img [src]="product.productImage || 'assets/core-images/no-image.png'"
+											[alt]="product.name"
+											class="w-4rem h-4rem mr-3 border-round shadow-1 object-cover" />
+										<div class="flex flex-column">
+											<div class="font-bold text-lg">{{ product.name || 'N/A' }}</div>
+											<small class="text-muted">{{ 'ref' | translate }}: {{ product.reference ||
+												'—' }}</small>
+
+											<!-- Attributes -->
+											<div *ngIf="product.attributes?.length" class="mt-2 flex flex-wrap gap-1">
+												<p-tag *ngFor="let attr of product.attributes"
+													[value]="attr.attributeName + ': ' + attr.value" severity="info"
+													styleClass="text-xs px-2 py-1">
+												</p-tag>
+											</div>
+										</div>
+									</div>
+								</td>
+
+								<!-- Category + Supplier + Warehouse -->
+								<td style="min-width:16rem;">
+									<div class="flex flex-column gap-1">
+										<div><strong>{{ 'product_category' | translate }}:</strong> {{
+											product.category?.categoryName || 'N/A' }}</div>
+										<div><strong>{{ 'product_supplier' | translate }}:</strong> {{
+											product.supplier?.name || 'N/A' }}</div>
+										<div><strong>{{ 'product_warehouse' | translate }}:</strong> {{
+											product.warehouse?.name || 'N/A' }}</div>
+									</div>
+								</td>
+
+								<!-- Quantity + Inventory status -->
+								<td style="min-width:10rem;">
+									<p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
+										[value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
+										[icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
+									</p-tag>
+									<div class="mt-2">
+										<span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
+											{{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
+										</span>
+									</div>
+								</td>
+
+								<!-- Pricing (visible to admin only) -->
+								<td *ngIf="isAdmin" style="min-width:14rem;">
+									<div><strong>{{ 'product_buying_price' | translate }}:</strong> {{
+										product.buyingPrice }} {{ currency }}</div>
+									<div><strong>{{ 'product_selling_price' | translate }}:</strong> {{
+										product.sellingPrice }} {{ currency }}</div>
+									<div *ngIf="product.buyingPrice && product.sellingPrice && isAdmin">
+										<strong>{{ 'profit' | translate }}:</strong>
+										<span [class]="getProfitClass(product)">
+											{{ calculateProfit(product) | percent:'1.2-2' }}
+										</span>
+									</div>
+								</td>
+
+								<!-- Creation Date -->
+								<td>{{ product.creationDate ? (product.creationDate | date:'dd/MM/yyyy') : 'N/A' }}</td>
+
+								<!-- Actions -->
+								<td>
+									<div class="flex">
+										<button pButton pRipple *ngIf="canEditProduct" icon="pi pi-pencil"
+											class="p-button-rounded p-button-info mr-2"
+											pTooltip="{{'update_product'|translate}}"
+											(click)="editProduct(product); $event.stopPropagation()"></button>
+										<button pButton pRipple *ngIf="canDeleteProduct && product.deletable"
+											icon="pi pi-trash" class="p-button-rounded p-button-danger mr-2"
+											pTooltip="{{'delete_product'|translate}}"
+											(click)="deleteProduct(product); $event.stopPropagation()"></button>
+										<button pButton pRipple *ngIf="canDeleteProduct && !product.deletable"
+											icon="pi pi-folder" class="p-button-rounded p-button-warning mr-2"
+											pTooltip="{{'archive_product'|translate}}"
+											(click)="archiveProduct(product); $event.stopPropagation()"></button>
+									</div>
+								</td>
+							</tr>
+						</ng-template>
+
+						<!-- SUMMARY -->
+						<ng-template pTemplate="summary">
+							<div class="flex align-items-center justify-content-between">
+								{{ 'total_products' | translate }} {{ products?.length || 0 }}.
+							</div>
+						</ng-template>
+
+						<!-- EMPTY -->
+						<ng-template pTemplate="emptymessage">
+							<tr>
+								<td colspan="10" class="text-center">
+									<div class="flex flex-column align-items-center justify-content-center py-5">
+										<img src="assets/core-images/no_data_found.png" alt="No Data Found"
+											style="max-width: 250px; opacity: 0.6;">
+										<p class="mt-3 text-gray-600 font-medium text-lg">
+											{{ 'no_products_found' | translate }}
+										</p>
+									</div>
+								</td>
+							</tr>
+						</ng-template>
+					</p-table>
+
+				</ng-template>
+
+				<ng-template let-products pTemplate="gridItem">
+					<div class="grid grid-nogutter">
+						<div class="col-12 md:col-4" *ngFor="let product of products">
+							<div class="card m-3 border-1 surface-border">
+								<div class="flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
+									<div class="flex align-items-center">
+										<i class="pi pi-tag mr-2"></i>
+										<span class="font-semibold">{{product.category.categoryName}}</span>
+									</div>
+									<span
+										[class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{'product_'+product.inventoryStatus.toLowerCase()
+										| translate}}</span>
+								</div>
+								<div class="flex flex-column align-items-center text-center mb-3"
+									(click)="canReadProduct ? showProductDetails(product) : null">
+									<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+										[alt]="product.name" class="w-9 shadow-2 my-3 mx-0"
+										style="height: 170px; width: 100px;" />
+									<div class="text-2xl font-bold">{{product.name}}</div>
+									<div class="mb-3">{{product.reference}}</div>
+								</div>
+								<div class="flex align-items-center justify-content-between">
+									<span class="text-2xl font-semibold">{{currency}} {{ product.sellingPrice }}</span>
+									<div>
+										<button #btn type="button" pButton icon="pi pi-ellipsis-v"
+											(click)="buildMenuItems(product, translations); menu.toggle($event)">
+										</button>
+										<p-tieredMenu #menu [model]="items" [popup]="true" [appendTo]="'body'"
+											[target]="btn"></p-tieredMenu>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</ng-template>
+			</p-dataView>
+		</div>
+
+		<p-dialog [(visible)]="productDialog" (onHide)="resetScanning()"
+			[style]="{width: '80%', maxWidth: '800px', minHeight: '600px'}" header="{{'product_details' | translate}}"
+			[modal]="true" [draggable]="false" [resizable]="false" [breakpoints]="{'960px': '90%', '640px': '95%'}"
+			class="p-fluid product-dialog">
+			<ng-template pTemplate="content">
+				<div class="grid p-fluid">
+					<!-- Left Column - Image Section -->
+					<div class="col-12 md:col-4">
+						<div class="image-section card p-3"
+							*ngIf="product.productImage || imagePreviewUrl; else upload_image">
+							<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
+								translate}}</label>
+							<div class="image-container relative">
+								<!-- Image with preview and loading state -->
+								<div class="image-wrapper border-round overflow-hidden surface-ground"
+									[ngClass]="{'loading': isImageLoading}">
+									<p-image [src]="imagePreviewUrl || product.productImage" [alt]="product.name"
+										width="100%" [preview]="true" class="block shadow-2 border-round"
+										imageClass="w-full" (onLoad)="isImageLoading = false"
+										(onError)="onImageError()">
+									</p-image>
+
+									<!-- Loading overlay -->
+									<div class="loading-overlay flex align-items-center justify-content-center"
+										*ngIf="isImageLoading">
+										<p-progressSpinner strokeWidth="4" animationDuration=".5s"
+											styleClass="w-2rem h-2rem" ariaLabel="image-loading">
+										</p-progressSpinner>
+									</div>
+
+									<!-- Image actions overlay -->
+									<div
+										class="image-actions-overlay flex align-items-center justify-content-center gap-2">
+										<p-button icon="pi pi-search-plus" [text]="true" [rounded]="true"
+											severity="secondary" (click)="zoomImage()"
+											[tooltip]="'zoom_image_tooltip' | translate"></p-button>
+										<p-button icon="pi pi-pencil" [text]="true" [rounded]="true" severity="info"
+											(click)="editImage()"
+											[tooltip]="'edit_image_tooltip' | translate"></p-button>
+										<p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+											(click)="removeImage()"
+											[tooltip]="'remove_image_tooltip' | translate"></p-button>
+									</div>
+								</div>
+
+								<!-- File info -->
+								<div class="file-info mt-2 text-sm text-color-secondary" *ngIf="uploadedFile">
+									<div class="flex align-items-center">
+										<i class="pi pi-file mr-1"></i>
+										<span class="truncate">{{ uploadedFile.name }}</span>
+									</div>
+									<div>{{ uploadedFile.size | fileSize }}</div>
+								</div>
+							</div>
+						</div>
+
+						<ng-template #upload_image>
+							<div class="field card p-3">
+								<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
+									translate}}</label>
+
+								<!-- Drag and drop area -->
+								<div class="upload-container border-2 surface-border border-dashed border-round p-4 text-center"
+									(drop)="onDrop($event)" (dragover)="onDragOver($event)"
+									(dragleave)="onDragLeave($event)" [ngClass]="{'drag-over': isDragOver}">
+
+									<div class="upload-content">
+										<i class="pi pi-cloud-upload text-4xl text-color-secondary mb-3"></i>
+										<h4 class="mb-2">{{'drag_drop_title' | translate}}</h4>
+										<p class="text-color-secondary text-sm mb-3">{{'drag_drop_subtitle' |
+											translate}}</p>
+
+										<p-fileUpload mode="basic" name="productImage" accept="image/*"
+											maxFileSize="5000000" (onSelect)="onFileUpload($event)"
+											chooseLabel="{{'browse_files_button' | translate}}"
+											chooseIcon="pi pi-folder-open" [auto]="true" [showUploadButton]="false"
+											[showCancelButton]="false">
+										</p-fileUpload>
+
+										<small class="text-color-secondary block mt-2">{{'image_upload_hint' |
+											translate}}</small>
+									</div>
+								</div>
+
+								<!-- Recent images (if available) -->
+								<div class="recent-images mt-3" *ngIf="recentProductImages?.length > 0">
+									<h5 class="mb-2">{{'recent_images' | translate}}</h5>
+									<div class="grid">
+										<div class="col-4" *ngFor="let img of recentProductImages">
+											<div class="recent-image-container border-1 surface-border border-round p-1 cursor-pointer"
+												(click)="selectRecentImage(img)">
+												<img [src]="img" alt="Recent product image" class="w-full border-round"
+													style="height: 60px; object-fit: cover;">
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</ng-template>
+					</div>
+
+					<!-- Right Column - Form Fields -->
+					<div class="col-12 md:col-8">
+						<div class="form-section grid">
+							<!-- Product Name -->
+							<div class="field col-12 md:col-6">
+								<label for="name" class="block mb-2 font-bold">
+									{{'product_name' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<div class="p-inputgroup">
+									<input type="text" pInputText name="name" [(ngModel)]="product.name" required
+										autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.name}"
+										maxlength="50" placeholder="{{'enter_product_name' | translate}}"
+										[readonly]="!isAdmin && product?.productId" />
+									<span class="p-inputgroup-addon">
+										<i class="pi pi-tag"></i>
+									</span>
+								</div>
+								<div class="flex justify-content-between mt-1">
+									<small class="p-error" *ngIf="submitted && !product.name">
+										{{'product_name' | translate}} {{'is_required_label' | translate}}
+									</small>
+									<small *ngIf="product.name" class="text-color-secondary">
+										{{ 40 - product.name.length }} {{'characters_remaining_lbl' | translate}}
+									</small>
+								</div>
+							</div>
+
+							<!-- Product Reference -->
+							<div class="field col-12 md:col-6">
+								<label for="reference" class="block mb-2 font-bold">
+									{{'product_reference' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<div class="p-inputgroup">
+									<input type="text" pInputText name="reference" [(ngModel)]="product.reference"
+										required [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.reference}"
+										placeholder="{{'enter_product_reference' | translate}}"
+										[readonly]="!isAdmin && product?.productId" />
+									<span class="p-inputgroup-addon">
+										<i class="pi pi-qrcode"></i>
+									</span>
+								</div>
+								<small class="p-error" *ngIf="submitted && !product.reference">
+									{{'product_reference' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Product Description -->
+							<div class="field col-12">
+								<label for="description" class="block mb-2 font-bold">
+									{{'product_description' | translate}}
+								</label>
+								<textarea pInputTextarea name="description" [(ngModel)]="product.description" rows="3"
+									[autoResize]="true"
+									placeholder="{{'enter_product_description' | translate}}"></textarea>
+							</div>
+
+							<!-- Quantity Available -->
+							<div class="field col-12 md:col-4">
+								<label for="quantityAvailable" class="block mb-2 font-bold">
+									{{'product_quantity' | translate}}
+								</label>
+								<p-inputNumber name="quantityAvailable" [(ngModel)]="product.quantityAvailable"
+									mode="decimal" [showButtons]="true" [min]="0"
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.quantityAvailable}"
+									placeholder="0" required [readonly]="!isAdmin && product?.productId">
+									<ng-template pTemplate="prefix">
+										<i class="pi pi-box"></i>
+									</ng-template>
+								</p-inputNumber>
+								<small class="p-error" *ngIf="submitted && !product.quantityAvailable">
+									{{'product_quantity' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Measure Unit -->
+							<div class="field col-12 md:col-4">
+								<label for="measureUnit" class="block mb-2 font-bold">
+									{{'product_measure_unit' | translate}}
+								</label>
+
+								<p-dropdown appendTo="body" [(ngModel)]="product.measureUnit" name="measureUnit"
+									[options]="measureUnits" optionLabel="label" optionValue="value"
+									placeholder="{{'select_measure_unit' | translate}}" required
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.measureUnit}"
+									[disabled]="!isAdmin && product?.productId">
+								</p-dropdown>
+
+								<small class="p-error" *ngIf="submitted && !product.measureUnit">
+									{{'product_measure_unit' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Buying Price -->
+							<div class="field col-12 md:col-4">
+								<label for="buyingPrice" class="block mb-2 font-bold">
+									{{'product_buying_price' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<p-inputNumber name="buyingPrice" [(ngModel)]="product.buyingPrice" mode="currency"
+									[currency]="currency" [showButtons]="true" [min]="0"
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.buyingPrice}"
+									[max]="9999999999" required [readonly]="!isAdmin && product?.productId">
+									<ng-template pTemplate="prefix">
+										<i class="pi pi-money-bill"></i>
+									</ng-template>
+								</p-inputNumber>
+								<small class="p-error" *ngIf="submitted && !product.buyingPrice">
+									{{'product_buying_price' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Selling Price -->
+							<div class="field col-12 md:col-4">
+								<label for="sellingPrice" class="block mb-2 font-bold">
+									{{'product_selling_price' | translate}} <span class="required-asterisk">*</span>
+								</label>
+								<p-inputNumber name="sellingPrice" [(ngModel)]="product.sellingPrice" mode="currency"
+									[currency]="currency" [showButtons]="true" [min]="0"
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.sellingPrice}"
+									[max]="9999999999" required [readonly]="!isAdmin && product?.productId">
+									<ng-template pTemplate="prefix">
+										<i class="pi pi-tag"></i>
+									</ng-template>
+								</p-inputNumber>
+								<small class="p-error" *ngIf="submitted && !product.sellingPrice">
+									{{'product_selling_price' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Costing Method -->
+							<div class="field col-12 md:col-8">
+								<label for="costingMethod" class="block mb-2 font-bold">
+									{{ 'product_costing_method' | translate }}
+								</label>
+
+								<p-dropdown appendTo="body" [(ngModel)]="product.costingMethod" name="costingMethod"
+									[options]="costingMethods" optionLabel="label" optionValue="value"
+									placeholder="{{ 'inherit_costing_method' | translate }}" [showClear]="true"
+									[disabled]="!isAdmin && product?.productId"
+									(onChange)="updateEffectiveCostingMethodLabel()">
+								</p-dropdown>
+
+								<small class="text-color-secondary">
+									{{ 'costing_method_inheritance_help' | translate }}
+								</small>
+							</div>
+
+							<!-- Effective Costing Method (Read Only Info) -->
+							<div class="field col-12 md:col-8 mt-2">
+								<label class="block mb-1 font-bold">
+									{{ 'effective_costing_method' | translate }}
+								</label>
+
+								<div class="p-2 border-round flex align-items-center gap-2" [ngClass]="{
+         'bg-primary-50 text-primary-700': product.costingMethod,
+         'bg-teal-50 text-teal-700': !product.costingMethod && product.category?.costingMethod && product.category.costingMethod !== 'NONE',
+         'bg-purple-50 text-purple-700': !product.costingMethod && (!product.category?.costingMethod || product.category.costingMethod === 'NONE') 
+                                           && product.warehouse?.organization?.costingMethod && product.warehouse.organization.costingMethod !== 'NONE',
+         'bg-yellow-50 text-yellow-700': isCostingMethodNone
+       }">
+									<i class="pi pi-info-circle"></i>
+									<span>{{ effectiveCostingMethodLabel }}</span>
+								</div>
+
+								<small class="text-color-secondary">
+									{{ 'effective_costing_method_explanation' | translate }}
+								</small>
+							</div>
+
+							<div class="field col-12 md:col-4" *ngIf="isStandardCostRequired()">
+								<label for="standardCost">{{ 'product_standard_cost' | translate }} <span
+										class="required-asterisk">*</span></label>
+								<p-inputNumber name="standardCost" [(ngModel)]="product.standardCost" mode="currency"
+									[currency]="currency" [showButtons]="true" [min]="0" required>
+									<ng-template pTemplate="prefix">
+										<i class="pi pi-money-bill"></i>
+									</ng-template>
+								</p-inputNumber>
+							</div>
+
+
+							<!-- Category -->
+							<div class="field col-12" style="position: relative;">
+								<div class="flex align-items-center justify-content-between mb-2">
+									<label for="category" class="font-bold">
+										{{ 'product_category' | translate }} <span class="required-asterisk">*</span>
+									</label>
+									<a *ngIf="canAddCategory" (click)="openCategoryDialog()"
+										class="text-sm text-primary cursor-pointer">
+										<i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
+									</a>
+								</div>
+								<p-dropdown appendTo="body" [(ngModel)]="product.category" name="category"
+									optionLabel="categoryName" [options]="categories" [filter]="true"
+									filterBy="categoryName" [showClear]="true"
+									placeholder="{{ 'select_category_option' | translate }}" required
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.category}"
+									[disabled]="!isAdmin && product?.productId">
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="product && product.category" class="flex align-items-center gap-2">
+											<i class="pi pi-folder"></i>
+											{{ product.category.categoryName }}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-folder"></i>
+											{{ option.categoryName }}
+										</span>
+									</ng-template>
+								</p-dropdown>
+								<small class="p-error" *ngIf="submitted && !product.category">
+									{{'product_category' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Supplier -->
+							<div class="field col-12" style="position: relative;">
+								<div class="flex align-items-center justify-content-between mb-2">
+									<label for="supplier" class="font-bold">
+										{{'product_supplier' | translate}} <span class="required-asterisk">*</span>
+									</label>
+									<a *ngIf="canAddSupplier" (click)="openSupplierDialog()"
+										class="text-sm text-primary cursor-pointer">
+										<i class="pi pi-plus"></i> {{ 'add_new_supplier' | translate }}
+									</a>
+								</div>
+								<p-dropdown appendTo="body" [(ngModel)]="product.supplier" name="supplier"
+									optionLabel="name" [options]="suppliers" [filter]="true" filterBy="name"
+									[showClear]="true" placeholder="{{'select_supplier_option' | translate}}" required
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.supplier}"
+									[disabled]="!isAdmin && product?.productId">
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="product && product.supplier" class="flex align-items-center gap-2">
+											<i class="pi pi-truck"></i>
+											{{product.supplier.name}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-truck"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+								<small class="p-error" *ngIf="submitted && !product.supplier">
+									{{'product_supplier' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Warehouse (Admin only) -->
+							<div class="field col-12" style="position: relative;" *ngIf="isAdmin">
+								<div class="flex align-items-center justify-content-between mb-2">
+									<label for="warehouse" class="font-bold">
+										{{'product_warehouse' | translate}} <span class="required-asterisk">*</span>
+									</label>
+									<a *ngIf="canAddWarehouse" (click)="openWarehouseDialog()"
+										class="text-sm text-primary cursor-pointer">
+										<i class="pi pi-plus"></i> {{ 'add_new_warehouse' | translate }}
+									</a>
+								</div>
+								<p-dropdown appendTo="body" [(ngModel)]="product.warehouse" name="warehouse"
+									optionLabel="name" [options]="warehouses" [filter]="true" filterBy="name"
+									[showClear]="true" placeholder="{{'select_warehouse_option' | translate}}" required>
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="product && product.warehouse"
+											class="flex align-items-center gap-2">
+											<i class="pi pi-home"></i>
+											{{product.warehouse.name}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-home"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+								<small class="p-error" *ngIf="submitted && !product.warehouse">
+									{{'product_warehouse' | translate}} {{'is_required_label' | translate}}
+								</small>
+							</div>
+
+							<!-- Dynamic Attributes Section -->
+							<div class="field col-12">
+								<label class="font-bold">{{ 'product_custom_attributes' | translate }}</label>
+								<div *ngFor="let attr of product.attributes; let i = index" class="p-fluid grid mb-2">
+									<!-- Attribute Name -->
+									<div class="field col-4">
+										<input type="text" pInputText [(ngModel)]="attr.attributeName"
+											name="attributeName{{i}}"
+											placeholder="{{'attribute_name_placeholder' | translate}}" />
+									</div>
+
+									<!-- Attribute Type -->
+									<div class="field col-3">
+										<p-dropdown [(ngModel)]="attr.attributeType" name="attributeType{{i}}"
+											[options]="attributeTypes" optionLabel="label" optionValue="value"
+											placeholder="{{'attribute_type_placeholder' | translate}}" appendTo="body">
+										</p-dropdown>
+									</div>
+
+									<!-- Attribute Value -->
+									<div class="field col-4">
+										<ng-container [ngSwitch]="attr.attributeType">
+											<!-- String -->
+											<input *ngSwitchCase="'STRING'" type="text" pInputText
+												[(ngModel)]="attr.stringValue" name="stringValue{{i}}"
+												placeholder="{{'attribute_value_placeholder' | translate}}" />
+
+											<!-- Integer -->
+											<input *ngSwitchCase="'INTEGER'" type="number" pInputText
+												[(ngModel)]="attr.intValue" name="intValue{{i}}"
+												placeholder="{{'attribute_value_placeholder' | translate}}" />
+
+											<!-- Double -->
+											<input *ngSwitchCase="'DOUBLE'" type="number" step="0.01" pInputText
+												[(ngModel)]="attr.doubleValue" name="doubleValue{{i}}"
+												placeholder="{{'attribute_value_placeholder' | translate}}" />
+
+											<!-- Boolean -->
+											<p-checkbox *ngSwitchCase="'BOOLEAN'" [(ngModel)]="attr.booleanValue"
+												name="booleanValue{{i}}" binary="true"
+												label="{{'true_false' | translate}}">
+											</p-checkbox>
+										</ng-container>
+									</div>
+
+									<!-- Remove Attribute Button -->
+									<div class="field col-1 flex align-items-center">
+										<button pButton icon="pi pi-times" class="p-button-rounded p-button-danger"
+											type="button" (click)="removeAttribute(i)"></button>
+									</div>
+								</div>
+
+								<!-- Add Attribute Button -->
+								<button pButton type="button" label="{{'add_attribute_button' | translate}}"
+									icon="pi pi-plus" (click)="addAttribute()" class="p-button-sm mt-2"></button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="required-note mt-4">
+					<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+						translate}}</small>
+				</div>
+			</ng-template>
+
+			<ng-template pTemplate="footer">
+				<div class="flex justify-content-between align-items-center w-full">
+					<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+						class="p-button-text p-button-danger" (click)="hideProductDialog()"></button>
+					<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+						class="p-button-raised" (click)="saveProduct()"></button>
+				</div>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="imageZoomDialog" [modal]="true" [style]="{width: '90vw', maxWidth: '1000px'}"
+			[draggable]="false" [resizable]="false" [closable]="true" [closeOnEscape]="true">
+			<ng-template pTemplate="header">
+				<span class="text-xl font-semibold">{{'image_preview' | translate}}</span>
+			</ng-template>
+			<ng-template pTemplate="content">
+				<div class="flex justify-content-center">
+					<img [src]="imagePreviewUrl || product.productImage" [alt]="product.name"
+						class="max-w-full max-h-30rem">
+				</div>
+			</ng-template>
+		</p-dialog>
+
+		<app-product-details [(visible)]="productDetailDialog" [product]="selectedProduct" [canEdit]="canEditProduct"
+			[canDelete]="canDeleteProduct" [isAdmin]="isAdmin" [currency]="currency"
+			[getQuantitySeverityFn]="getQuantitySeverity" [getMeasureUnitFn]="getMeasureUnit"
+			[displayAttributeValueFn]="displayAttributeValue" [calculateProfitFn]="calculateProfit"
+			(onEdit)="editProduct($event)" (onDelete)="deleteProduct($event)" (onArchive)="archiveProduct($event)">
+		</app-product-details>
+
+		<p-dialog [(visible)]="archivedProductsDialog" [modal]="true"
+			[style]="{width: '90vw', maxWidth: '1400px', height: '90vh'}"
+			[breakpoints]="{'960px': '95vw', '640px': '98vw'}" [draggable]="false" [resizable]="false"
+			header="{{ 'archived_products' | translate }}">
+			<ng-template pTemplate="content">
+				<div class="card">
+					<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+						<div class="flex align-items-center mb-3">
+							<i class="pi pi-archive text-primary mr-2" style="font-size: 1.25rem"></i>
+							<h3 class="m-0 text-900">{{ 'archived_products_title' | translate }}</h3>
+						</div>
+						<p class="m-0 text-600">
+							{{ 'archived_products_description' | translate }}
+						</p>
+					</div>
+
+					<div class="card flex justify-content-center" *ngIf="isLoadingArchived">
+						<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+					</div>
+
+					<p-dataView #archivedDv [value]="filteredArchivedProducts" *ngIf="!isLoadingArchived" [rows]="15"
+						[sortField]="sortField" [sortOrder]="sortOrder" layout="list" emptyMessage=" ">
+						<ng-template pTemplate="header">
+							<div class="flex flex-column md:flex-row md:justify-content-between gap-2">
+								<span class="p-input-icon-left">
+									<i class="pi pi-search"></i>
+									<input type="search" pInputText placeholder="{{ 'search_label' | translate }}"
+										[(ngModel)]="archivedSearchInput" (input)="applyArchivedFilters()">
+								</span>
+							</div>
+						</ng-template>
+
+						<ng-template let-products pTemplate="listItem">
+							<p-table #archivedDt [value]="products" *ngIf="!isLoadingArchived" [columns]="cols"
+								responsiveLayout="scroll" [rows]="20" [paginator]="true"
+								[rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+								dataKey="productId"
+								currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+								[rowHover]="true">
+								<ng-template pTemplate="header">
+									<tr>
+										<th>{{ 'product_image' | translate }}</th>
+										<th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon
+												field="name"></p-sortIcon></th>
+										<th pSortableColumn="category">{{'product_category' | translate}} <p-sortIcon
+												field="category"></p-sortIcon>
+										</th>
+										<th pSortableColumn="quantityAvailable">{{'product_quantity' | translate}}
+											<p-sortIcon field="quantityAvailable"></p-sortIcon>
+										</th>
+										<th pSortableColumn="inventoryStatus">{{'product_inventory_status' | translate}}
+											<p-sortIcon field="inventoryStatus"></p-sortIcon>
+										</th>
+										<th pSortableColumn="buyingPrice" *ngIf="isAdmin">{{'product_buying_price' |
+											translate}}
+											<p-sortIcon field="buyingPrice"></p-sortIcon>
+										</th>
+										<th pSortableColumn="sellingPrice">{{'product_selling_price' | translate}}
+											<p-sortIcon field="sellingPrice"></p-sortIcon>
+										</th>
+										<th pSortableColumn="supplier">{{'product_supplier' | translate}} <p-sortIcon
+												field="supplier"></p-sortIcon>
+										</th>
+										<th pSortableColumn="warehouse">{{'product_warehouse' | translate}} <p-sortIcon
+												field="warehouse"></p-sortIcon>
+										</th>
+										<th pSortableColumn="archivedDate">{{ 'archived_date' | translate }}
+											<p-columnFilter type="date" field="archivedDate" display="menu" />
+											<p-sortIcon field="archivedDate"></p-sortIcon>
+										</th>
+										<th>{{ 'actions' | translate }}</th>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="body" let-product>
+									<tr>
+										<td style="min-width:10rem;">
+											<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+												[alt]="product.name" class="my-4 md:my-0 w-6 md:w-6rem shadow-2 mr-5" />
+										</td>
+
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{'product_name' | translate}}</span>
+											{{product.name ? product.name : 'N/A'}}
+										</td>
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{'product_category' | translate}}</span>
+											{{product.category ? product.category.categoryName : 'N/A'}}
+										</td>
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{ 'product_quantity' | translate }}</span>
+											<p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
+												[value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
+												[icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
+											</p-tag>
+										</td>
+
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{'product_inventory_status' |
+												translate}}</span>
+											<span
+												[class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{'product_'+product.inventoryStatus.toLowerCase()
+												| translate}}
+											</span>
+										</td>
+
+										<td style="min-width:10rem;" *ngIf="isAdmin">
+											<span class="p-column-title">{{'product_quantity' | translate}}</span>
+											{{ product.buyingPrice }} {{currency}}
+										</td>
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{'product_selling_price' | translate}}</span>
+											{{ product.sellingPrice }} {{currency}}
+										</td>
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{'product_supplier' | translate}}</span>
+											{{product.supplier ? product.supplier.name : 'N/A'}}
+										</td>
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{'product_warehouse' | translate}}</span>
+											{{product.warehouse ? product.warehouse.name : 'N/A'}}
+										</td>
+										<td style="min-width:10rem;">
+											<span class="p-column-title">{{ 'archived_date' | translate }}</span>
+											{{ product.archivedDate ? (product.archivedDate | date:'dd/MM/yyyy') : 'N/A'
+											}}
+										</td>
+										<td>
+											<div class="flex">
+												<button pButton pRipple icon="pi pi-refresh"
+													class="p-button-rounded p-button-success mr-2"
+													pTooltip="{{'reactivate_product'|translate}}"
+													(click)="unarchiveProduct(product); $event.stopPropagation()"></button>
+											</div>
+										</td>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="summary">
+									<div class="flex align-items-center justify-content-between">
+										{{'total_archived_products' | translate}} {{products ? products.length : 0 }}.
+									</div>
+								</ng-template>
+								<ng-template pTemplate="emptymessage">
+									<tr>
+										<td colspan="20" class="text-center">
+											<div
+												class="flex flex-column align-items-center justify-content-center py-5">
+												<img src="assets/core-images/no_data_found.png" alt="No Data Found"
+													style="max-width: 250px; opacity: 0.6;">
+												<p class="mt-3 text-gray-600 font-medium text-lg">
+													{{ 'no_archived_products_found' | translate }}
+												</p>
+											</div>
+										</td>
+									</tr>
+								</ng-template>
+							</p-table>
+						</ng-template>
+					</p-dataView>
+				</div>
+			</ng-template>
+			<ng-template pTemplate="footer">
+				<div class="flex justify-content-end gap-2">
+					<p-button icon="pi pi-times" [label]="'close' | translate" styleClass="p-button-outlined"
+						(click)="archivedProductsDialog = false"></p-button>
+				</div>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="categoryDialog" [style]="{width: '500px'}"
+			[breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{'category_details' | translate}}"
+			[modal]="true" [draggable]="false" [resizable]="false" class="p-fluid category-dialog">
+			<ng-template pTemplate="content">
+				<div class="grid p-fluid">
+					<div class="col-12">
+						<!-- Category Name -->
+						<div class="field">
+							<label for="categoryName" class="block mb-2 font-bold">
+								{{'category_name' | translate}} <span class="required-asterisk">*</span>
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-tag"></i>
+								</span>
+								<input type="text" pInputText name="categoryName" [(ngModel)]="category.categoryName"
+									required placeholder="{{ 'enter_category_name' | translate }}"
+									[ngClass]="{'ng-invalid ng-dirty': submitted && !category.categoryName}" />
+							</div>
+							<small class="p-error" *ngIf="submitted && !category.categoryName">
+								{{'category_name' | translate}} {{'is_required_label' | translate}}
+							</small>
+						</div>
+
+						<!-- Category Description -->
+						<div class="field">
+							<label for="description" class="block mb-2 font-bold">
+								{{'category_description' | translate}}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-align-left"></i>
+								</span>
+								<textarea pInputTextarea [(ngModel)]="category.description" name="description" rows="3"
+									[autoResize]="true"
+									placeholder="{{ 'enter_category_description' | translate }}"></textarea>
+							</div>
+						</div>
+
+					</div>
+				</div>
+
+				<div class="required-note mt-3">
+					<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+						translate}}</small>
+				</div>
+			</ng-template>
+
+			<ng-template pTemplate="footer">
+				<div class="flex justify-content-between align-items-center w-full">
+					<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+						class="p-button-text p-button-danger" (click)="hideCategoryDialog()"></button>
+					<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+						class="p-button-raised" (click)="saveCategory()"></button>
+				</div>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="warehouseDialog" [style]="{width: '500px'}"
+			[breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'warehouse_details' | translate }}"
+			[modal]="true" [draggable]="false" [resizable]="false" class="p-fluid warehouse-dialog">
+			<ng-template pTemplate="content">
+				<div class="grid p-fluid">
+					<div class="col-12">
+						<!-- Warehouse Name -->
+						<div class="field">
+							<label for="name" class="block mb-2 font-bold">
+								{{ 'warehouse_name' | translate }} <span class="required-asterisk">*</span>
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-home"></i>
+								</span>
+								<input type="text" pInputText name="name" [(ngModel)]="warehouse.name" required
+									placeholder="{{ 'enter_warehouse_name' | translate }}"
+									[ngClass]="{'ng-invalid ng-dirty': submitted && !warehouse.name}" />
+							</div>
+							<small class="p-error" *ngIf="submitted && !warehouse.name">
+								{{ 'warehouse_name' | translate }} {{ 'is_required_label' | translate }}
+							</small>
+						</div>
+
+						<!-- Warehouse Description -->
+						<div class="field">
+							<label for="description" class="block mb-2 font-bold">
+								{{ 'warehouse_description' | translate }}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-align-left"></i>
+								</span>
+								<textarea pInputTextarea [(ngModel)]="warehouse.description" rows="3"
+									[autoResize]="true"
+									placeholder="{{ 'enter_warehouse_description' | translate }}"></textarea>
+							</div>
+						</div>
+
+						<!-- Location Fields -->
+						<div class="grid">
+							<!-- Country Field -->
+							<div class="field col-12 md:col-6">
+								<label for="country" class="block mb-2 font-bold">
+									{{ 'warehouse_country' | translate }}
+								</label>
+								<p-dropdown [(ngModel)]="warehouse.country"
+									(onChange)="onSelectedCountry(warehouse.country)" name="country"
+									[options]="countries" optionValue="name" optionLabel="name" [filter]="true"
+									filterBy="name" [showClear]="true"
+									placeholder="{{ 'select_country_option' | translate }}">
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="warehouse && warehouse.country"
+											class="flex align-items-center gap-2">
+											<i class="pi pi-globe"></i>
+											{{warehouse.country}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-globe"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+							</div>
+
+							<!-- City Field (shown when country is selected) -->
+							<div class="field col-12 md:col-6" *ngIf="warehouse.country">
+								<label for="city" class="block mb-2 font-bold">
+									{{ 'warehouse_city' | translate }}
+								</label>
+								<p-dropdown [(ngModel)]="warehouse.city" name="city" [options]="states"
+									optionLabel="name" optionValue="name" [filter]="true" [showClear]="true"
+									placeholder="{{ 'select_city_option' | translate }}">
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="warehouse && warehouse.city" class="flex align-items-center gap-2">
+											<i class="pi pi-map-marker"></i>
+											{{warehouse.city}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-map-marker"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+							</div>
+						</div>
+
+						<!-- Warehouse Address -->
+						<div class="field">
+							<label for="address" class="block mb-2 font-bold">
+								{{ 'warehouse_address' | translate }}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-map"></i>
+								</span>
+								<textarea pInputTextarea [(ngModel)]="warehouse.address" name="address" rows="3"
+									[autoResize]="true"
+									placeholder="{{ 'enter_warehouse_address' | translate }}"></textarea>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="required-note mt-3">
+					<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+						translate}}</small>
+				</div>
+			</ng-template>
+
+			<ng-template pTemplate="footer">
+				<div class="flex justify-content-between align-items-center w-full">
+					<button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+						class="p-button-text p-button-danger" (click)="hideWarehouseDialog()"></button>
+					<button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+						class="p-button-raised" (click)="saveWarehouse()"></button>
+				</div>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="supplierDialog" [style]="{width: '500px'}"
+			[breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'supplier_details' | translate }}"
+			[modal]="true" [draggable]="false" [resizable]="false" class="p-fluid supplier-dialog">
+			<ng-template pTemplate="content">
+				<div class="grid p-fluid">
+					<!-- Supplier Information Section -->
+					<div class="col-12">
+						<div class="field">
+							<label for="name" class="block mb-2 font-bold">
+								{{ 'supplier_name' | translate }} <span class="required-asterisk">*</span>
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-building"></i>
+								</span>
+								<input type="text" pInputText name="name" [(ngModel)]="supplier.name" required autofocus
+									[ngClass]="{'ng-invalid ng-dirty' : submitted && !supplier.name}"
+									placeholder="{{ 'enter_supplier_name' | translate }}" />
+							</div>
+							<small class="p-error" *ngIf="submitted && !supplier.name">
+								{{ 'supplier_name' | translate }} {{'is_required_label' | translate}}
+							</small>
+						</div>
+
+						<div class="field">
+							<label for="email" class="block mb-2 font-bold">
+								{{ 'supplier_email' | translate }}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-envelope"></i>
+								</span>
+								<input type="email" pInputText name="email" [(ngModel)]="supplier.email"
+									placeholder="{{ 'enter_supplier_email' | translate }}" />
+							</div>
+						</div>
+
+						<div class="grid">
+							<!-- Country Field -->
+							<div class="field col-12 md:col-6">
+								<label for="country" class="block mb-2 font-bold">
+									{{ 'supplier_country' | translate }}
+								</label>
+								<p-dropdown [(ngModel)]="supplier.country"
+									(onChange)="onSelectedCountry(supplier.country)" name="country"
+									[options]="countries" optionValue="name" optionLabel="name" [filter]="true"
+									filterBy="name" [showClear]="true"
+									placeholder="{{ 'select_country_option' | translate }}">
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="supplier && supplier.country"
+											class="flex align-items-center gap-2">
+											<i class="pi pi-globe"></i>
+											{{supplier.country}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-globe"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+							</div>
+
+							<!-- City Field (shown when country is selected) -->
+							<div class="field col-12 md:col-6" *ngIf="supplier.country">
+								<label for="city" class="block mb-2 font-bold">
+									{{ 'supplier_city' | translate }}
+								</label>
+								<p-dropdown [(ngModel)]="supplier.city" name="city" optionValue="name"
+									optionLabel="name" [filter]="true" filterBy="name" [options]="this.states"
+									[showClear]="true" placeholder="{{ 'select_city_option' | translate }}">
+									<ng-template pTemplate="selectedItem">
+										<span *ngIf="supplier && supplier.city" class="flex align-items-center gap-2">
+											<i class="pi pi-map-marker"></i>
+											{{supplier.city}}
+										</span>
+									</ng-template>
+									<ng-template let-option pTemplate="item">
+										<span class="flex align-items-center gap-2">
+											<i class="pi pi-map-marker"></i>
+											{{option.name}}
+										</span>
+									</ng-template>
+								</p-dropdown>
+							</div>
+						</div>
+
+						<div class="field">
+							<label for="address" class="block mb-2 font-bold">
+								{{ 'supplier_address' | translate }}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-home"></i>
+								</span>
+								<textarea rows="3" [(ngModel)]="supplier.address" name="address" [autoResize]="true"
+									pInputTextarea placeholder="{{ 'enter_supplier_address' | translate }}"></textarea>
+							</div>
+						</div>
+
+						<div class="field">
+							<label for="phoneNumber" class="block mb-2 font-bold">
+								{{ 'supplier_phone_number' | translate }}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-phone"></i>
+								</span>
+								<input type="tel" pInputText name="phoneNumber" [(ngModel)]="supplier.phoneNumber"
+									placeholder="{{ 'enter_supplier_phone' | translate }}" />
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="required-note mt-3">
+					<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+						translate}}</small>
+				</div>
+			</ng-template>
+
+			<ng-template pTemplate="footer">
+				<div class="flex justify-content-between align-items-center w-full">
+					<button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+						class="p-button-text p-button-danger" (click)="hideSupplierDialog()"></button>
+					<button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+						class="p-button-raised" (click)="saveSupplier()"></button>
+				</div>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="deleteProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+			[style]="{width:'450px'}">
+			<div class="flex align-items-center justify-content-center">
+				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+				<span *ngIf="product">{{'delete_confirmation_msg_with_param' | translate}}
+					<b>{{product.name}}</b>?</span>
+			</div>
+			<ng-template pTemplate="footer">
+				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+					(click)="deleteProductDialog = false"></button>
+				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+					(click)="confirmDelete()"></button>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="archiveProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+			[style]="{width:'450px'}">
+			<div class="flex align-items-center justify-content-center">
+				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+				<span *ngIf="product">{{'archive_confirmation_msg_with_param' | translate}}
+					<b>{{product.name}}</b>?</span>
+			</div>
+			<ng-template pTemplate="footer">
+				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+					(click)="archiveProductDialog = false"></button>
+				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+					(click)="confirmArchive()"></button>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="unArchiveProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+			[style]="{width:'450px'}">
+			<div class="flex align-items-center justify-content-center">
+				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+				<span *ngIf="product">{{'unarchive_confirmation_msg_with_param' | translate}}
+					<b>{{product.name}}</b>?</span>
+			</div>
+			<ng-template pTemplate="footer">
+				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+					(click)="unArchiveProductDialog = false"></button>
+				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+					(click)="confirmUnarchive()"></button>
+			</ng-template>
+		</p-dialog>
+
+		<p-dialog [(visible)]="notFoundProductDialog" header="{{'product_not_found_warning' | translate}}"
+			[modal]="true" [style]="{width:'450px'}">
+			<div class="flex align-items-center justify-content-center">
+				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+				<span *ngIf="product">{{'product_not_found_txt' | translate}}</span>
+			</div>
+			<ng-template pTemplate="footer">
+				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'cancel_button' | translate}}"
+					(click)="notFoundProductDialog = false"></button>
+				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'new_button' | translate}}"
+					(click)="openNew()"></button>
+			</ng-template>
+		</p-dialog>
+
+	</div>
+</div>

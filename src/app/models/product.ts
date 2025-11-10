@@ -16,6 +16,8 @@ export class Product {
   buyingPrice?: number;
   buyingDate?: Date;
   sellingPrice?: number;
+  costingMethod?: string;
+  standardCost?: number;
   inventoryStatus?: string;
   productImage?:string;
   category?: Category;

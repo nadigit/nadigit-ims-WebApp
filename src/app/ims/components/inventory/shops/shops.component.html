@@ -1,0 +1,933 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <h5>{{'shops_menu_title' | translate}}</h5>
+            <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'shops_page_description' | translate }}
+                    <!-- <span *ngIf="shops?.length" class="font-semibold">
+                        Currently showing {{ shops.length }} {{ shops.length === 1 ? 'shop' : 'shops' }}.
+                    </span> -->
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddShop" value="{{'create'|translate}}" icon="pi pi-plus"
+                        severity="success"></p-tag>
+                    <p-tag *ngIf="canEditShop" value="{{'edit'|translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteShop" value="{{'delete'|translate}}" icon="pi pi-trash"
+                        severity="danger"></p-tag>
+                    <p-tag value="{{'export'|translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                    <p-tag *ngIf="canReadCash" value="{{'cash_register'|translate}}" icon="pi pi-dollar"
+                        severity="help"></p-tag>
+                </div>
+            </div>
+
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button pButton pRipple *ngIf="canAddShop" label="{{'new_button' | translate}}"
+                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+                            pTooltip="{{'add_new_shop'|translate}}"></button>
+                        <button pButton pRipple *ngIf="canDeleteShop" label="{{'delete_button' | translate}}"
+                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedShops()"
+                            pTooltip="{{'delete_shop'|translate}}"
+                            [disabled]="!selectedShops || !selectedShops.length"></button>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="right">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+                </ng-template>
+            </p-toolbar>
+
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="shops" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['shopName','description','address','country','city']" [paginator]="true"
+                [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedShops" selectionMode="multiple" [rowHover]="true" dataKey="shopId">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{'shops_page_title' | translate}}</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="shopName">{{ 'shop_name' | translate }}<p-sortIcon
+                                field="shopName"></p-sortIcon></th>
+                        <th pSortableColumn="description">{{ 'shop_description' | translate }}<p-sortIcon
+                                field="description"></p-sortIcon></th>
+                        <th pSortableColumn="address">{{ 'shop_address' | translate }}<p-sortIcon
+                                field="address"></p-sortIcon></th>
+                        <th pSortableColumn="location">{{ 'shop_location' | translate }}<p-sortIcon
+                                field="location"></p-sortIcon></th>
+                        <th pSortableColumn="creationDate">{{ 'creation_date' | translate }}
+                            <p-columnFilter type="date" field="creationDate" display="menu" />
+                            <p-sortIcon field="creationDate"></p-sortIcon>
+                        </th>
+                        <th></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-shop>
+                    <tr [pSelectableRow]="shop" (click)="canReadShop ? showShopDetailsDialog(shop) : null">
+                        <td>
+                            <p-tableCheckbox [value]="shop" (click)="$event.stopPropagation()"></p-tableCheckbox>
+                        </td>
+
+                        <td>
+                            <span class="p-column-title">{{ 'shop_name' | translate }}</span>
+                            {{shop.shopName ? shop.shopName : 'N/A'}}
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'shop_description' | translate }}</span>
+                            {{shop.description ? shop.description : 'N/A'}}
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'shop_address' | translate }}</span>
+                            {{shop.address ? shop.address : 'N/A'}}
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'shop_location' | translate }}</span>
+                            {{ shop.country ? (shop.city + ', ' + (shop.country | countryTranslate)) : 'N/A'}}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'creation_date' | translate }}</span>
+                            {{ shop.creationDate ? (shop.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
+                        </td>
+                        <td>
+                            <div class="flex">
+                                <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditShop"
+                                    pTooltip="{{'update_shop'|translate}}" class="p-button-rounded p-button-info mr-2"
+                                    (click)="editShop(shop); $event.stopPropagation()"></button>
+                                <button pButton pRipple *ngIf="canDeleteShop" icon="pi pi-trash"
+                                    pTooltip="{{'delete_shop'|translate}}" class="p-button-rounded p-button-danger mr-2"
+                                    (click)="deleteShop(shop); $event.stopPropagation()"></button>
+                                <button pButton pRipple *ngIf="canReadCash && isAdmin" icon="pi pi-dollar"
+                                    class="p-button-rounded p-button-primary"
+                                    pTooltip="{{'cash_register_history'|translate}}"
+                                    (click)="openCashRegisterDialog(shop); $event.stopPropagation()"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_shops' | translate}} {{shops ? shops.length : 0 }}.
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_shops_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="shopDialog" [style]="{width: '500px'}" [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
+            header="{{ 'shop_details' | translate }}" [modal]="true" [draggable]="false" [resizable]="false"
+            class="p-fluid shop-dialog">
+            <ng-template pTemplate="content">
+                <div class="grid p-fluid">
+                    <div class="col-12">
+                        <!-- Shop Name -->
+                        <div class="field">
+                            <label for="name" class="block mb-2 font-bold">
+                                {{ 'shop_name' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-shopping-bag"></i>
+                                </span>
+                                <input type="text" pInputText name="name" [(ngModel)]="shop.shopName" required
+                                    placeholder="{{ 'enter_shop_name' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !shop.shopName}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !shop.shopName">
+                                {{ 'shop_name' | translate }} {{ 'is_required_label' | translate }}
+                            </small>
+                        </div>
+
+                        <!-- Shop Description -->
+                        <div class="field">
+                            <label for="description" class="block mb-2 font-bold">
+                                {{ 'shop_description' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-align-left"></i>
+                                </span>
+                                <textarea pInputTextarea [(ngModel)]="shop.description" rows="3" [autoResize]="true"
+                                    placeholder="{{ 'enter_shop_description' | translate }}"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Location Fields -->
+                        <div class="grid">
+                            <!-- Country Field -->
+                            <div class="field col-12 md:col-6">
+                                <label for="country" class="block mb-2 font-bold">
+                                    {{ 'shop_country' | translate }}
+                                </label>
+                                <p-dropdown [(ngModel)]="shop.country" (onChange)="onSelectedCountry(shop.country)"
+                                    name="country" [options]="countries" optionValue="name" optionLabel="translatedName"
+                                    [filter]="true" [filterFields]="['name', 'translatedName']"
+                                    [filterBy]="filterCountry" [showClear]="true"
+                                    placeholder="{{ 'select_country_option' | translate }}">
+
+                                    <ng-template pTemplate="selectedItem">
+                                        <span *ngIf="shop && shop.country" class="flex align-items-center gap-2">
+                                            <i class="pi pi-globe"></i>
+                                            {{ shop.country | countryTranslate }}
+                                        </span>
+                                    </ng-template>
+
+                                    <ng-template let-option pTemplate="item">
+                                        <span class="flex align-items-center gap-2">
+                                            <i class="pi pi-globe"></i>
+                                            {{ option.translatedName }}
+                                        </span>
+                                    </ng-template>
+                                </p-dropdown>
+                            </div>
+
+                            <!-- City Field (shown when country is selected) -->
+                            <div class="field col-12 md:col-6" *ngIf="shop.country">
+                                <label for="city" class="block mb-2 font-bold">
+                                    {{ 'shop_city' | translate }}
+                                </label>
+                                <p-dropdown [(ngModel)]="shop.city" name="city" [options]="states" optionLabel="name"
+                                    optionValue="name" [filter]="true" filterBy="name" [showClear]="true"
+                                    placeholder="{{ 'select_city_option' | translate }}">
+                                    <ng-template pTemplate="selectedItem">
+                                        <span *ngIf="shop && shop.city" class="flex align-items-center gap-2">
+                                            <i class="pi pi-map-marker"></i>
+                                            {{shop?.city? shop.city : ('select_city_option' | translate )}}
+                                        </span>
+                                    </ng-template>
+                                    <ng-template let-option pTemplate="item">
+                                        <span class="flex align-items-center gap-2">
+                                            <i class="pi pi-map-marker"></i>
+                                            {{option.name}}
+                                        </span>
+                                    </ng-template>
+                                </p-dropdown>
+                            </div>
+                        </div>
+
+                        <!-- Shop Address -->
+                        <div class="field">
+                            <label for="address" class="block mb-2 font-bold">
+                                {{ 'shop_address' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-map"></i>
+                                </span>
+                                <textarea pInputTextarea [(ngModel)]="shop.address" name="address" rows="3"
+                                    [autoResize]="true" placeholder="{{ 'enter_shop_address' | translate }}"></textarea>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="required-note mt-3">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                        translate}}</small>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <div class="flex justify-content-between align-items-center w-full">
+                    <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                        class="p-button-raised" (click)="saveShop()"></button>
+                </div>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="shopDetailsDialog" [style]="{width: '900px'}"
+            [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'shop_details' | translate }}" [modal]="true"
+            [draggable]="false" [resizable]="false" class="p-fluid shop-details-dialog"
+            [contentStyle]="{'max-height': '80vh', 'overflow-y': 'auto'}">
+
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center">
+                    <i class="pi pi-store mr-2 text-primary" style="font-size: 1.25rem"></i>
+                    <span class="text-xl font-medium">{{ 'shop_details' | translate }}</span>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="content">
+                <div class="grid p-fluid">
+                    <!-- Shop Basic Info Section -->
+                    <div class="col-12 md:col-5 pr-4">
+                        <div class="surface-card p-4 border-round shadow-2 mb-4">
+                            <h3 class="mt-0 mb-4 flex align-items-center">
+                                <i class="pi pi-info-circle mr-2 text-primary"></i>
+                                {{ 'basic_information' | translate }}
+                            </h3>
+
+                            <div class="field mb-4" *ngIf="selectedShop && selectedShop.shopName">
+                                <label class="block mb-2 font-medium text-900">
+                                    <i class="pi pi-home mr-1"></i>
+                                    {{ 'shop_name' | translate }}
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon">
+                                        <i class="pi pi-building"></i>
+                                    </span>
+                                    <input pInputText [value]="selectedShop.shopName" readonly class="w-full" />
+                                </div>
+                            </div>
+
+                            <div class="field mb-4" *ngIf="selectedShop.description">
+                                <label class="block mb-2 font-medium text-900">
+                                    <i class="pi pi-align-left mr-1"></i>
+                                    {{ 'shop_description' | translate }}
+                                </label>
+                                <textarea pInputTextarea [value]="selectedShop.description" rows="3" [autoResize]="true"
+                                    readonly class="w-full"></textarea>
+                            </div>
+
+                            <div class="field"
+                                *ngIf="selectedShop.address || selectedShop.city || selectedShop.country">
+                                <label class="block mb-2 font-medium text-900">
+                                    <i class="pi pi-map mr-1"></i>
+                                    {{ 'location' | translate }}
+                                </label>
+                                <div class="surface-100 p-3 border-round">
+                                    <div class="flex align-items-center mb-2" *ngIf="selectedShop.country">
+                                        <i class="pi pi-globe mr-2 text-primary"></i>
+                                        <span class="text-900">{{ (selectedShop.country | countryTranslate) || 'N/A'
+                                            }}</span>
+                                    </div>
+                                    <div class="flex align-items-center mb-2" *ngIf="selectedShop.city">
+                                        <i class="pi pi-map-marker mr-2 text-primary"></i>
+                                        <span class="text-900">{{ selectedShop.city || 'N/A' }}</span>
+                                    </div>
+                                    <div class="flex align-items-start" *ngIf="selectedShop.address">
+                                        <i class="pi pi-compass mr-2 text-primary mt-1"></i>
+                                        <span class="text-900">{{ selectedShop.address || 'N/A' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Shop Statistics Section -->
+                    <div class="col-12 md:col-7 pl-2">
+                        <div class="grid">
+                            <!-- Financial Overview Card -->
+                            <div class="col-12 md:col-6 pr-2">
+                                <p-card header="{{ 'financial_overview' | translate }}"
+                                    styleClass="shadow-2 border-round-lg h-full" [headerClass]="'bg-primary-reverse'">
+                                    <div class="flex flex-column gap-3">
+                                        <div
+                                            class="flex justify-content-between align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
+                                            <span class="font-medium flex align-items-center">
+                                                <i class="pi pi-money-bill mr-2 text-primary"></i>
+                                                {{ 'current_today_cash_register_amount' | translate }}
+                                            </span>
+                                            <strong class="text-xl"
+                                                [ngClass]="{'text-green-500': cashRegisterData?.totalBalance >= 0, 'text-red-500': cashRegisterData?.totalBalance < 0}">
+                                                {{ cashRegisterData?.totalBalance | currency:currency:'symbol':'1.2-2'
+                                                || 'N/A' }}
+                                            </strong>
+                                        </div>
+                                        <div
+                                            class="flex justify-content-between align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
+                                            <span class="font-medium flex align-items-center">
+                                                <i class="pi pi-chart-line mr-2 text-primary"></i>
+                                                {{ 'total_purchases' | translate }}
+                                            </span>
+                                            <strong class="text-xl">{{ purchaseStats?.count || 0 }}</strong>
+                                        </div>
+                                        <div
+                                            class="flex justify-content-between align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
+                                            <span class="font-medium flex align-items-center">
+                                                <i class="pi pi-chart-bar mr-2 text-primary"></i>
+                                                {{ 'total_expenses' | translate }}
+                                            </span>
+                                            <strong class="text-xl">{{ expenseStats?.count || 0 }}</strong>
+                                        </div>
+                                    </div>
+                                </p-card>
+                            </div>
+
+                            <!-- Organization Card -->
+                            <div class="col-12 md:col-6 pl-2">
+                                <p-card header="{{ 'organization' | translate }}"
+                                    styleClass="shadow-2 border-round-lg h-full" [headerClass]="'bg-primary-reverse'">
+                                    <div *ngIf="organizationData" class="flex flex-column gap-3">
+                                        <div
+                                            class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
+                                            <i class="pi pi-building mr-3 text-xl text-primary"></i>
+                                            <div>
+                                                <div class="text-sm text-600">{{ 'organization_name' | translate }}
+                                                </div>
+                                                <div class="font-medium">{{ organizationData.organizationName }}</div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
+                                            <i class="pi pi-id-card mr-3 text-xl text-primary"></i>
+                                            <div>
+                                                <div class="text-sm text-600">{{ 'organization_id' | translate }}</div>
+                                                <div class="font-medium">{{ organizationData.organizationId }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors"
+                                            *ngIf="organizationData.taxID">
+                                            <i class="pi pi-file mr-3 text-xl text-primary"></i>
+                                            <div>
+                                                <div class="text-sm text-600">{{ 'tax_id' | translate }}</div>
+                                                <div class="font-medium">{{ organizationData.taxID }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div *ngIf="!organizationData" class="text-center py-4 text-600">
+                                        <i class="pi pi-info-circle mr-2"></i>
+                                        {{ 'no_organization_assigned' | translate }}
+                                    </div>
+                                </p-card>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity Section -->
+                        <div class="col-12 mt-4">
+                            <p-tabView>
+                                <p-tabPanel [header]="'recent_purchases' | translate">
+                                    <div *ngIf="!loadingPurchases; else purchasesLoading">
+                                        <p-table [value]="recentPurchases || []" [rows]="5" [paginator]="true"
+                                            [showCurrentPageReport]="true"
+                                            styleClass="p-datatable-sm p-datatable-striped p-datatable-gridlines"
+                                            currentPageReportTemplate="{first} - {last} of {totalRecords}"
+                                            [rowsPerPageOptions]="[5,10,25]">
+                                            <ng-template pTemplate="header">
+                                                <tr>
+                                                    <th>{{ 'purchase_date' | translate }}
+                                                    </th>
+                                                    <th>{{ 'purchase_supplier' | translate }}
+                                                    </th>
+                                                    <th class="text-right">{{ 'purchase_total_amount'
+                                                        | translate }}</th>
+                                                    <!-- <th>{{ 'status' | translate }}</th> -->
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template pTemplate="body" let-purchase>
+                                                <tr class="hover:surface-50 transition-duration-150">
+                                                    <td>{{ purchase.dateOfPurchase | date:'dd/MM/yyyy' }}</td>
+                                                    <td>{{ purchase.supplier?.name || 'N/A' }}</td>
+                                                    <td class="text-right font-medium">
+                                                        {{ purchase.totalAmount | currency:currency:'symbol':'1.2-2' }}
+                                                    </td>
+                                                    <!-- <td>
+                                                        <p-tag [severity]="getPurchaseStatusSeverity(purchase.status)"
+                                                            [value]="purchase.status || 'N/A'">
+                                                        </p-tag>
+                                                    </td> -->
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template pTemplate="emptymessage">
+                                                <tr>
+                                                    <td colspan="4" class="text-center py-4">
+                                                        <i class="pi pi-inbox text-2xl block mb-2 text-400"></i>
+                                                        <span class="text-600">{{ 'no_purchases_found' | translate
+                                                            }}</span>
+                                                    </td>
+                                                </tr>
+                                            </ng-template>
+                                        </p-table>
+                                    </div>
+                                    <ng-template #purchasesLoading>
+                                        <div
+                                            class="flex flex-column align-items-center justify-content-center py-6 gap-3">
+                                            <i class="pi pi-spinner pi-spin text-2xl text-primary"></i>
+                                            <span class="text-600">{{ 'loading_purchases' | translate }}</span>
+                                        </div>
+                                    </ng-template>
+                                </p-tabPanel>
+
+                                <p-tabPanel [header]="'recent_expenses' | translate">
+                                    <div *ngIf="!loadingExpenses; else expensesLoading">
+                                        <p-table [value]="recentExpenses || []" [rows]="5" [paginator]="true"
+                                            [showCurrentPageReport]="true"
+                                            styleClass="p-datatable-sm p-datatable-striped p-datatable-gridlines"
+                                            currentPageReportTemplate="{first} - {last} of {totalRecords}"
+                                            [rowsPerPageOptions]="[5,10,25]">
+                                            <ng-template pTemplate="header">
+                                                <tr>
+                                                    <th>{{ 'expense_date' | translate }}</th>
+                                                    <th>{{ 'expense_purpose' | translate }}
+                                                    </th>
+                                                    <th class="text-right">{{ 'expense_amount' |
+                                                        translate }}</th>
+                                                    <th>{{ 'payment_method' | translate }}
+                                                    </th>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template pTemplate="body" let-expense>
+                                                <tr class="hover:surface-50 transition-duration-150">
+                                                    <td>{{ expense.dateOfExpense | date:'dd/MM/yyyy' }}</td>
+                                                    <td>{{ expense.purpose || 'N/A' }}</td>
+                                                    <td class="text-right font-medium">
+                                                        {{ expense.amount | currency:currency:'symbol':'1.2-2' }}
+                                                    </td>
+                                                    <td>
+                                                        <p-tag
+                                                            [severity]="getPaymentMethodSeverity(expense.paymentMethod)"
+                                                            [value]="'payment_method_' + expense.paymentMethod.toLowerCase() | translate">
+                                                        </p-tag>
+                                                    </td>
+                                                </tr>
+                                            </ng-template>
+                                            <ng-template pTemplate="emptymessage">
+                                                <tr>
+                                                    <td colspan="4" class="text-center py-4">
+                                                        <i class="pi pi-inbox text-2xl block mb-2 text-400"></i>
+                                                        <span class="text-600">{{ 'no_expenses_found' | translate
+                                                            }}</span>
+                                                    </td>
+                                                </tr>
+                                            </ng-template>
+                                        </p-table>
+                                    </div>
+                                    <ng-template #expensesLoading>
+                                        <div
+                                            class="flex flex-column align-items-center justify-content-center py-6 gap-3">
+                                            <i class="pi pi-spinner pi-spin text-2xl text-primary"></i>
+                                            <span class="text-600">{{ 'loading_expenses' | translate }}</span>
+                                        </div>
+                                    </ng-template>
+                                </p-tabPanel>
+                            </p-tabView>
+                        </div>
+                    </div>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <div class="flex justify-content-between align-items-center w-full">
+                    <div>
+                        <button pButton pRipple label="{{ 'update_shop' | translate }}" icon="pi pi-pencil"
+                            class="p-button-text p-button-sm" (click)="editShop(selectedShop)"></button>
+
+                        <!-- <button pButton pRipple label="{{ 'view_full_details' | translate }}" icon="pi pi-external-link"
+                            class="p-button-text p-button-sm" (click)="navigateToShopFullDetails()"></button> -->
+                    </div>
+
+                    <button pButton pRipple label="{{ 'close' | translate }}" icon="pi pi-times"
+                        class="p-button-outlined p-button-sm" (click)="hideShopDetailsDialog()"></button>
+                </div>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteShopDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="shop">{{'delete_confirmation_msg_with_param' | translate}} <b>{{shop.shopName}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+                    (click)="deleteShopDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteShopsDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
+                    (click)="deleteShopsDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{ 'yes_button' | translate }}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="cashRegisterDialog" [header]="'cash_register' | translate" [modal]="true"
+            [style]="{width: '90vw', maxWidth: '1200px', height: '90vh'}" [draggable]="false" [resizable]="false"
+            [closeOnEscape]="true" [breakpoints]="{'960px': '95vw', '640px': '100vw'}"
+            [contentStyle]="{'overflow-y': 'auto'}">
+
+            <!-- 🧭 HEADER -->
+            <ng-template pTemplate="header">
+                <div class="dialog-header">
+                    <h3 class="dialog-title">
+                        <i class="pi pi-wallet mr-2"></i>
+                        {{ 'cash_register' | translate }}:
+                        <span class="shop-name">{{ shop?.shopName }}</span>
+                    </h3>
+                    <div class="header-actions">
+                        <button pButton pRipple icon="pi pi-cog" class="p-button-rounded p-button-text p-button-plain"
+                            [pTooltip]="'settings' | translate" tooltipPosition="bottom"
+                            (click)="openSettingsDialog()"></button>
+
+                        <button pButton pRipple icon="pi pi-refresh"
+                            class="p-button-rounded p-button-text p-button-plain ml-2"
+                            [pTooltip]="'refresh' | translate" tooltipPosition="bottom"
+                            (click)="refreshData()"></button>
+                    </div>
+                </div>
+            </ng-template>
+
+            <!-- 💰 CONTENT -->
+            <ng-template pTemplate="content">
+                <!-- Current Balance Card -->
+                <div class="current-balance-card mb-5">
+                    <div class="balance-value">
+                        <span class="label">{{ 'current_today_cash_register_amount' | translate }}:</span>
+                        <span class="value">{{ cashRegister.totalBalance | number:'1.2-2' }}</span>
+                        <span class="currency">{{ currency }}</span>
+                    </div>
+                    <div class="balance-trend" *ngIf="dailyDifferenceTrend !== 0">
+                        <i class="pi"
+                            [ngClass]="{'pi-arrow-up text-green-500': dailyDifferenceTrend > 0, 'pi-arrow-down text-red-500': dailyDifferenceTrend < 0}"></i>
+                        <span>{{ dailyDifferenceTrend | number:'1.2-2' }} {{ currency }}</span>
+                        <span>({{ dailyDifferencePercentage | number:'1.2-2' }}%)</span>
+                    </div>
+                </div>
+                <!-- Date Range Filter -->
+                <div class="filter-section p-fluid mb-5">
+                    <div class="flex flex-column md:flex-row justify-content-between align-items-center gap-3">
+                        <div class="w-full md:w-auto">
+                            <label for="balance_date" class="block mb-2 font-medium">
+                                <i class="pi pi-filter mr-2"></i>
+                                {{ 'filter_by_balance_date_range' | translate }}
+                            </label>
+                            <div class="flex flex-column md:flex-row gap-3 mt-5">
+                                <div class="w-full p-float-label">
+                                    <p-calendar [(ngModel)]="startDate" inputId="start_date" [showIcon]="true"
+                                        iconDisplay="input" (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy"
+                                        [showOnFocus]="false" [maxDate]="endDate || today"
+                                        [placeholder]="'start_date' | translate" class="w-full">
+                                    </p-calendar>
+                                    <label for="start_date">{{ 'start_date' | translate }}</label>
+                                </div>
+                                <div class="w-full p-float-label">
+                                    <p-calendar [(ngModel)]="endDate" inputId="end_date" [showIcon]="true"
+                                        iconDisplay="input" (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy"
+                                        [showOnFocus]="false" [minDate]="startDate" [maxDate]="today"
+                                        [placeholder]="'end_date' | translate" class="w-full">
+                                    </p-calendar>
+                                    <label for="end_date">{{ 'end_date' | translate }}</label>
+                                </div>
+                                <button pButton type="button" label="{{ 'clear_filter' | translate }}"
+                                    icon="pi pi-times" class="p-button-outlined" (click)="clearDateFilter()"
+                                    [disabled]="!startDate && !endDate">
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="w-full md:w-auto me-3">
+                            <button pButton type="button" label="{{ 'export_to_excel' | translate }}"
+                                icon="pi pi-download" class="p-button-outlined p-button-help" (click)="exportToExcel()">
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <p-tabView>
+                    <!-- 🟢 TAB 1: Sessions -->
+                    <p-tabPanel header="{{ 'sessions' | translate }}">
+                        <div class="data-section">
+                            <p-table *ngIf="filteredSessions?.length; else noSessions" [value]="filteredSessions"
+                                [rows]="10" [paginator]="true" responsiveLayout="scroll"
+                                [rowsPerPageOptions]="[5,10,25,50]"
+                                styleClass="p-datatable-striped p-datatable-gridlines">
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th>{{ 'cashier' | translate }}</th>
+                                        <th>{{ 'opened_at' | translate }}</th>
+                                        <th>{{ 'closed_at' | translate }}</th>
+                                        <th>{{ 'opening_amount' | translate }}</th>
+                                        <th>{{ 'closing_amount' | translate }}</th>
+                                        <th>{{ 'declared_difference' | translate }}</th>
+                                        <th>{{ 'status' | translate }}</th>
+                                        <th>{{ 'actions' | translate }}</th>
+                                    </tr>
+                                </ng-template>
+                                <ng-template pTemplate="body" let-session>
+                                    <tr>
+                                        <td>{{ session.username || '—' }}</td>
+                                        <td>{{ session.openedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                                        <td>{{ session.closedAt ? (session.closedAt | date:'dd/MM/yyyy HH:mm') :
+                                            ('still_open' | translate) }}</td>
+                                        <td>{{ session.openingAmount | number:'1.2-2' }} {{ currency }}</td>
+                                        <td>{{ session.closingAmount || 0 | number:'1.2-2' }} {{ currency }}</td>
+                                        <td
+                                            [ngClass]="{'text-green-500': session.declaredDifference > 0, 'text-red-500': session.declaredDifference < 0}">
+                                            {{ session.declaredDifference | number:'1.2-2' }} {{ currency }}
+                                        </td>
+                                        <td>
+                                            <p-tag
+                                                [value]="session.closed ? ('closed' | translate) : ('open' | translate)"
+                                                [severity]="session.closed ? 'success' : 'warning'"></p-tag>
+                                        </td>
+                                        <td>
+                                            <button pButton icon="pi pi-eye" class="p-button-rounded p-button-text"
+                                                [pTooltip]="'view_movements' | translate"
+                                                (click)="viewSessionMovements(session)">
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                            <ng-template #noSessions>
+                                <div class="no-data-container">
+                                    <i class="pi pi-database no-data-icon"></i>
+                                    <h4>{{ 'no_data_available' | translate }}</h4>
+                                </div>
+                            </ng-template>
+                        </div>
+                    </p-tabPanel>
+
+                    <!-- 🟣 TAB 2: Movements -->
+                    <p-tabPanel header="{{ 'movements' | translate }}">
+                        <div class="data-section">
+                            <div class="flex justify-between items-center mb-3" *ngIf="isAdmin">
+                                <button pButton label="{{ 'new_deposit' | translate }}" icon="pi pi-plus"
+                                    class="p-button-sm p-button-success" (click)="openNewDepositDialog()">
+                                </button>
+                            </div>
+                            <p-table [value]="movements" [rows]="10" [paginator]="true" responsiveLayout="scroll"
+                                [rowsPerPageOptions]="[5,10,25,50]"
+                                styleClass="p-datatable-striped p-datatable-gridlines">
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th>{{ 'type' | translate }}</th>
+                                        <th>{{ 'amount' | translate }}</th>
+                                        <th>{{ 'reference' | translate }}</th>
+                                        <th>{{ 'performed_by' | translate }}</th>
+                                        <th>{{ 'timestamp' | translate }}</th>
+                                    </tr>
+                                </ng-template>
+                                <ng-template pTemplate="body" let-m>
+                                    <tr>
+                                        <td>{{ ("movement_" + m.type.toLowerCase()) | translate }}</td>
+                                        <td [ngClass]="{
+                                            'text-blue-600 font-semibold': m.type === 'DEPOSIT',
+                                            'text-green-600': m.type === 'ADJUSTMENT' && m.amount > 0,
+                                            'text-red-500': (m.type === 'ADJUSTMENT' && m.amount < 0) || 
+                                                            m.type === 'WITHDRAWAL' || 
+                                                            m.type === 'EXPENSE'
+                                        }">
+                                            {{ m.amount | number:'1.2-2' }} {{ currency }}
+                                        </td>
+                                        <td>{{ m.reference || 'N/A' }}</td>
+                                        <td>{{ m.performedByName }}</td>
+                                        <td>{{ m.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </div>
+                    </p-tabPanel>
+
+                    <!-- 🟠 TAB 3: Collections -->
+                    <p-tabPanel header="{{ 'collections' | translate }}">
+                        <div class="data-section">
+                            <div class="flex justify-between items-center mb-3">
+                                <!-- <h4 class="m-0">{{ 'cash_collections' | translate }}</h4> -->
+                                <button pButton label="{{ 'new_collection' | translate }}" icon="pi pi-plus"
+                                    class="p-button-sm p-button-success" (click)="openNewCollectionDialog()"
+                                    *ngIf="isAdmin"></button>
+                            </div>
+
+                            <p-table [value]="collections" [rows]="10" [paginator]="true" responsiveLayout="scroll"
+                                [rowsPerPageOptions]="[5,10,25,50]"
+                                styleClass="p-datatable-striped p-datatable-gridlines">
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th>{{ 'receipt_number' | translate }}</th>
+                                        <th>{{ 'collected_at' | translate }}</th>
+                                        <th>{{ 'amount_collected' | translate }}</th>
+                                        <th>{{ 'collected_by' | translate }}</th>
+                                        <th>{{ 'notes' | translate }}</th>
+                                    </tr>
+                                </ng-template>
+                                <ng-template pTemplate="body" let-c>
+                                    <tr>
+                                        <td>{{ c.receiptNumber }}</td>
+                                        <td>{{ c.collectedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                                        <td>{{ c.amountCollected | number:'1.2-2' }} {{ currency }}</td>
+                                        <td>{{ c.collectedByName }}</td>
+                                        <td>{{ c.notes || '—' }}</td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </div>
+
+                        <!-- New Collection Dialog -->
+                        <p-dialog header="{{ 'new_collection' | translate }}" [(visible)]="newCollectionDialogVisible"
+                            [modal]="true" [style]="{width: '450px'}" [closable]="true" [draggable]="false">
+
+                            <div class="p-fluid">
+                                <div class="field">
+                                    <label for="amount">{{ 'amount' | translate }} <span
+                                            class="required-asterisk">*</span></label>
+                                    <input pInputText type="number" [(ngModel)]="newCollection.amount"
+                                        placeholder="0.00" />
+                                </div>
+                                <div class="field">
+                                    <label for="notes">{{ 'notes' | translate }}</label>
+                                    <textarea pInputTextarea [(ngModel)]="newCollection.notes" rows="2"></textarea>
+                                </div>
+                            </div>
+
+                            <ng-template pTemplate="footer">
+                                <button pButton label="{{ 'cancel' | translate }}" icon="pi pi-times"
+                                    class="p-button-text" (click)="newCollectionDialogVisible = false"></button>
+                                <button pButton label="{{ 'confirm_collection' | translate }}" icon="pi pi-check"
+                                    class="p-button-primary" (click)="saveNewCollection()"></button>
+                            </ng-template>
+                        </p-dialog>
+                    </p-tabPanel>
+                </p-tabView>
+            </ng-template>
+
+            <!-- FOOTER -->
+            <ng-template pTemplate="footer">
+                <div class="footer-actions">
+                    <!-- <button pButton pRipple label="{{ 'print_report' | translate }}" icon="pi pi-print"
+                        class="p-button-outlined p-button-secondary mr-2" (click)="printReport()"></button> -->
+                    <button pButton pRipple label="{{ 'close' | translate }}" icon="pi pi-times"
+                        class="p-button-outlined" (click)="closeCashRegisterDialog()"></button>
+                </div>
+            </ng-template>
+
+        </p-dialog>
+
+
+        <p-dialog [(visible)]="cashRegisterSettingsDialog" [style]="{width: '450px', height: '60%'}"
+            header="{{ 'cash_register_details' | translate }}" [modal]="true" class="p-fluid ">
+            <ng-template pTemplate="content">
+                <div class="field">
+                    <label for="openingTime">{{ 'cash_register_opening_time' | translate }} <span
+                            class="required-asterisk">*</span></label>
+                    <p-calendar name="openingTime" inputId="calendar-timeonly" [readonlyInput]="true"
+                        [(ngModel)]="cashRegister.openingTime" ngDefaultControl [timeOnly]="true" required autofocus
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !cashRegister.openingTime}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !cashRegister.openingTime">{{
+                        'cash_register_opening_time' | translate }} {{
+                        'is_required_label' | translate }}</small>
+                </div>
+
+                <div class="field">
+                    <label for="closingTime">{{ 'cash_register_closing_time' | translate }} <span
+                            class="required-asterisk">*</span></label>
+                    <p-calendar name="closingTime" inputId="calendar-timeonly" [readonlyInput]="true"
+                        [(ngModel)]="cashRegister.closingTime" ngDefaultControl [timeOnly]="true" required autofocus
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !cashRegister.closingTime}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !cashRegister.closingTime">{{
+                        'cash_register_closing_time' | translate }} {{
+                        'is_required_label' | translate }}</small>
+                </div>
+
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                        translate}}</small>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                    class="p-button-text" (click)="hideSettingsDialog()"></button>
+                <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check" class="p-button-text"
+                    (click)="updateCashRegister()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="movementsDialogVisible" [header]="'session_movements' | translate" [modal]="true"
+            [style]="{width: '70vw', maxWidth: '1000px'}" [closable]="true">
+
+            <p-table [value]="selectedSessionMovements" responsiveLayout="scroll"
+                styleClass="p-datatable-striped p-datatable-gridlines">
+
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th>{{ 'type' | translate }}</th>
+                        <th>{{ 'amount' | translate }}</th>
+                        <th>{{ 'reference' | translate }}</th>
+                        <th>{{ 'performed_by' | translate }}</th>
+                        <th>{{ 'timestamp' | translate }}</th>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="body" let-m>
+                    <tr>
+                        <td>{{ ("movement_" + m.type.toLowerCase()) | translate }}</td>
+                        <td>{{ m.amount | number:'1.2-2' }} {{ currency }}</td>
+                        <td>{{ m.reference }}</td>
+                        <td>{{ m.performedByName }}</td>
+                        <td>{{ m.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            {{ 'no_movements_found' | translate }}
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-dialog>
+
+
+        <p-dialog header="{{ 'new_deposit' | translate }}" [(visible)]="newDepositDialogVisible" [modal]="true"
+            [style]="{width: '450px'}" [closable]="true" [draggable]="false">
+
+            <div class="p-fluid">
+                <div class="field">
+                    <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
+                    <input pInputText type="number" [(ngModel)]="newDeposit.amount" placeholder="0.00" />
+                </div>
+                <div class="field">
+                    <label for="notes">{{ 'notes' | translate }}</label>
+                    <textarea pInputTextarea [(ngModel)]="newDeposit.notes" rows="2"></textarea>
+                </div>
+            </div>
+
+            <ng-template pTemplate="footer">
+                <button pButton label="{{ 'cancel' | translate }}" icon="pi pi-times" class="p-button-text"
+                    (click)="newDepositDialogVisible = false"></button>
+                <button pButton label="{{ 'confirm_deposit' | translate }}" icon="pi pi-check" class="p-button-primary"
+                    (click)="saveNewDeposit()"></button>
+            </ng-template>
+        </p-dialog>
+
+    </div>
+</div>

@@ -2,7 +2,6 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
-import { environment } from 'src/environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +10,7 @@ export class OrderService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/orders/";
+  schema: string = "/api/orders/";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';
@@ -37,6 +36,10 @@ export class OrderService {
   getOrders() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
+  }
+  getOrder(orderId: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + orderId,{headers:headers});
   }
   getEligibleOrdersForReturn() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
@@ -67,7 +70,7 @@ export class OrderService {
 
   updateOrderStatus(id: any, order: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema+id+"/order_status" , order, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema+id+"/update-status" , order, {headers:headers});
   }
 
   processReturn(orderId: number, returnedItems: any, reason: string, notes: string | null): Observable<any> {
@@ -90,6 +93,11 @@ export class OrderService {
   getUnpaidOrdersByCustomer(id: any) {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema + "unpaid/" + id, {headers:headers});
+  }
+
+  getEligibleOrdersForDocsByType(docType: any) {
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort +this.schema + "eligible-financial-docs/" + docType, {headers:headers});
   }
 
 }

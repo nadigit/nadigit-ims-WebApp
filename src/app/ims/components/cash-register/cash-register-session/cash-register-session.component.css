@@ -1,0 +1,334 @@
+/* ==========================
+   Cash Register Session Dialog - Theme Compatible
+   ========================== */
+.p-dialog .p-dialog-header {
+  background: var(--surface-section);
+  font-weight: 600;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.p-dialog .p-dialog-content {
+  padding-top: 1rem;
+  background: var(--surface-ground);
+  color: var(--text-color);
+}
+
+button.p-button-secondary {
+  background-color: var(--surface-300) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-300) !important;
+}
+
+button.p-button-secondary:hover {
+  background-color: var(--surface-400) !important;
+  border-color: var(--surface-400) !important;
+}
+
+/* Dialog body layout */
+.p-dialog .p-fluid {
+  padding: 0.5rem 0.75rem;
+}
+
+/* Field spacing & labels */
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  font-weight: 500;
+  color: var(--text-color);
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+/* Inputs */
+input[pInputText],
+textarea[pInputTextarea],
+.p-inputtext,
+.p-inputtextarea {
+  width: 100%;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-border);
+  padding: 0.6rem;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  background: var(--surface-card);
+  color: var(--text-color);
+}
+
+input[pInputText]:focus,
+textarea[pInputTextarea]:focus,
+.p-inputtext:focus,
+.p-inputtextarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
+  outline: none;
+}
+
+input[pInputText]::placeholder,
+textarea[pInputTextarea]::placeholder,
+.p-inputtext::placeholder,
+.p-inputtextarea::placeholder {
+  color: var(--text-color-secondary);
+}
+
+/* Headings */
+h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+h4 {
+  color: var(--red-500);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Session info section */
+.session-info {
+  background-color: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 0.75rem;
+  color: var(--text-color);
+}
+
+.session-info p {
+  margin: 0.25rem 0;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.session-info strong {
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+/* Divider styling */
+p-divider {
+  margin: 1.25rem 0;
+}
+
+p-divider .p-divider {
+  border-color: var(--surface-border);
+}
+
+p-divider .p-divider-content {
+  background: var(--surface-ground);
+  color: var(--text-color);
+}
+
+/* Buttons */
+button[pButton] {
+  min-width: 160px;
+}
+
+/* Enhanced button theming */
+.p-button {
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.p-button-warning {
+  background: var(--orange-500);
+  border-color: var(--orange-500);
+}
+
+.p-button-warning:hover {
+  background: var(--orange-600);
+  border-color: var(--orange-600);
+}
+
+.p-button-success {
+  background: var(--green-500);
+  border-color: var(--green-500);
+}
+
+.p-button-success:hover {
+  background: var(--green-600);
+  border-color: var(--green-600);
+}
+
+.p-button-danger {
+  background: var(--red-500);
+  border-color: var(--red-500);
+}
+
+.p-button-danger:hover {
+  background: var(--red-600);
+  border-color: var(--red-600);
+}
+
+/* Spinner overlay */
+.overlay-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 180px;
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-border);
+}
+
+.overlay-spinner .p-progress-spinner {
+  width: 3rem;
+  height: 3rem;
+}
+
+.overlay-spinner .p-progress-spinner-circle {
+  stroke: var(--primary-color);
+}
+
+/* Text alignment helpers */
+.text-center {
+  text-align: center;
+}
+
+.text-gray-600 {
+  color: var(--text-color-secondary);
+}
+
+.text-green-700 {
+  color: var(--green-500);
+}
+
+.text-red-600 {
+  color: var(--red-500);
+}
+
+.text-blue-600 {
+  color: var(--primary-500);
+}
+
+/* Status indicators */
+.status-active {
+  color: var(--green-500);
+  font-weight: 600;
+}
+
+.status-inactive {
+  color: var(--red-500);
+  font-weight: 600;
+}
+
+.status-warning {
+  color: var(--orange-500);
+  font-weight: 600;
+}
+
+/* Utility flex classes */
+.flex {
+  display: flex;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+/* Additional spacing utilities */
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.ml-2 {
+  margin-left: 0.5rem;
+}
+
+.mr-2 {
+  margin-right: 0.5rem;
+}
+
+/* Card-like sections */
+.section-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-card h4 {
+  margin-top: 0;
+  text-align: left;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--surface-border);
+  padding-bottom: 0.5rem;
+}
+
+/* Form validation styles */
+.p-invalid {
+  border-color: var(--red-500) !important;
+}
+
+.p-invalid:focus {
+  box-shadow: 0 0 0 1px var(--red-500) !important;
+}
+
+.p-error {
+  color: var(--red-500);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .p-dialog .p-fluid {
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .field {
+    margin-bottom: 0.75rem;
+  }
+  
+  button[pButton] {
+    min-width: 120px;
+    width: 100%;
+  }
+  
+  .flex.gap-2 {
+    flex-direction: column;
+  }
+  
+  .flex.gap-2 > * {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Dark mode specific enhancements */
+@media (prefers-color-scheme: dark) {
+  .p-dialog .p-dialog-header {
+    border-bottom-color: var(--surface-700);
+  }
+  
+  .session-info {
+    background: var(--surface-800);
+  }
+  
+  .overlay-spinner {
+    background: var(--surface-800);
+  }
+}

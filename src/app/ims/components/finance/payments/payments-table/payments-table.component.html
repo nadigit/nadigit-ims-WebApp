@@ -1,0 +1,208 @@
+<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+  <div class="flex align-items-center mb-3">
+    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+  </div>
+  <p class="m-0 text-600">
+    {{ context === 'incoming'
+    ? ('sales_payments_page_description' | translate)
+    : ('purchase_payments_page_description' | translate) }}
+  </p>
+  <div class="flex mt-3 gap-2">
+    <p-tag *ngIf="canAddPayment" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+    <p-tag *ngIf="canEditPayment" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+    <p-tag *ngIf="canDeletePayment" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+  </div>
+</div>
+
+<p-toolbar styleClass="mb-4">
+  <ng-template pTemplate="left">
+    <div class="my-2">
+      <button pButton pRipple *ngIf="canAddPayment" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+        class="p-button-success mr-2" (click)="addPaymentEvent.emit()"
+        pTooltip="{{'add_new_payment'|translate}}"></button>
+      <button pButton pRipple *ngIf="canDeletePayment" label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+        class="p-button-danger" (click)="deleteSelectedEvent.emit()" pTooltip="{{'delete_payment'|translate}}"
+        [disabled]="!selectedPayments || !selectedPayments.length"></button>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="right">
+    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF" tooltipPosition="bottom"
+      (click)="exportPdf()"></button>
+    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success mr-2" pTooltip="XLS"
+      tooltipPosition="bottom"></button>
+  </ng-template>
+</p-toolbar>
+
+<p-table #dt [value]="payments" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
+  [totalRecords]="totalRecords" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [rowsPerPageOptions]="[10,20,50]"
+  [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"
+  currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
+  [(selection)]="selectedPayments" selectionMode="multiple" [rowHover]="true" dataKey="paymentId" [loading]="isLoading"
+  [globalFilterFields]="['transactionId','orderReference','customerFirstName','customerLastName','customerCompany','amount','paymentMethod','paymentDate']">
+
+  <ng-template pTemplate="caption">
+    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+      <h5 class="m-0">{{ 'payments_page_title' | translate }}</h5>
+      <span class="block mt-2 md:mt-0 p-input-icon-left">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" (input)="applyGlobalFilter($event)" placeholder="{{ 'search_label' | translate }}"
+          class="w-full sm:w-auto" />
+      </span>
+    </div>
+  </ng-template>
+
+
+  <!-- Table Header -->
+  <ng-template pTemplate="header" let-columns>
+    <tr>
+      <th style="width: 3rem">
+        <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+      </th>
+      <th *ngFor="let col of columns" pSortableColumn="{{col.field}}" class="text-center">
+        {{ col.header | translate }}
+        <p-sortIcon [field]="col.field"></p-sortIcon>
+      </th>
+      <th class="text-center">{{ 'actions' | translate }}</th>
+    </tr>
+  </ng-template>
+
+  <!-- Table Body -->
+  <ng-template pTemplate="body" let-payment let-columns="columns">
+    <tr [class.cursor-pointer]="canReadPayment" (click)="canReadPayment ? viewPaymentDetailsEvent.emit(payment) : null">
+      <td>
+        <p-tableCheckbox [value]="payment" [disabled]="!isPaymentNotSettled(payment)"
+          (click)="$event.stopPropagation()"></p-tableCheckbox>
+      </td>
+      <!-- Columns -->
+      <td *ngFor="let col of columns" class="text-center">
+        <!-- Transaction ID -->
+        <ng-container *ngIf="col.field === 'transactionId'">
+          <p-chip *ngIf="payment.transactionId" [label]="payment.transactionId"></p-chip>
+          <span *ngIf="!payment.transactionId" class="text-color-secondary">N/A</span>
+          <i *ngIf="!isPaymentNotSettled(payment)" class="pi pi-lock text-red-500 ml-2"
+            pTooltip="{{ 'payment_locked' | translate }}">
+          </i>
+        </ng-container>
+
+        <!-- Reference (orderReference or purchaseReference) -->
+        <ng-container *ngIf="col.field.toLowerCase().includes('reference')">
+          <span *ngIf="payment[col.field]; else noRef">
+            #{{ payment[col.field] }}
+          </span>
+          <ng-template #noRef>
+            <span class="text-color-secondary">N/A</span>
+          </ng-template>
+        </ng-container>
+
+
+        <!-- Payment Date -->
+        <ng-container *ngIf="col.field === 'paymentDate'">
+          {{ payment.paymentDate ? (payment.paymentDate | date:'dd/MM/yyyy') : 'N/A' }}
+        </ng-container>
+
+        <!-- Amount -->
+        <ng-container *ngIf="col.field === 'amount'" class="font-bold">
+          <span class="font-bold">
+            {{ payment[col.field] | currency:currency:'symbol':'1.2-2' }}
+          </span>
+        </ng-container>
+
+        <!-- Payment Status -->
+        <ng-container *ngIf="col.field === 'paymentStatus'">
+          <div class="text-center">
+            <ng-container *ngIf="payment?.paymentStatus; else noMethod">
+              <span [class]="'payment-badge payment-' + payment?.paymentStatus?.toLowerCase()">
+										{{ payment?.paymentStatus ? ('payment_status_' +
+										payment?.paymentStatus?.toLowerCase() | translate) : 'N/A' }}
+							</span>
+            </ng-container>
+            <ng-template #noMethod>
+              <span class="text-color-secondary">N/A</span>
+            </ng-template>
+          </div>
+        </ng-container>
+
+        <!-- Payment Method -->
+        <ng-container *ngIf="col.field === 'paymentMethod'">
+          <div class="text-center">
+            <ng-container *ngIf="payment?.paymentMethod; else noMethod">
+              <p-tag [value]="getPaymentMethodLabel(payment.paymentMethod) | translate"
+                [severity]="paymentMethodSeverityEvent.emit(payment.paymentMethod)"
+                [icon]="paymentMethodIconEvent.emit(payment.paymentMethod)">
+              </p-tag>
+            </ng-container>
+            <ng-template #noMethod>
+              <span class="text-color-secondary">N/A</span>
+            </ng-template>
+          </div>
+        </ng-container>
+
+        <!-- Other Fields -->
+        <ng-container *ngIf="col.field !== 'transactionId' && col.field !== 'paymentDate' && col.field !== 'amount' 
+        && col.field !== 'orderReference' && col.field !== 'purchaseReference' && col.field !== 'paymentMethod' && col.field !== 'paymentStatus'">
+          {{ payment[col.field] || 'N/A' }}
+        </ng-container>
+      </td>
+
+
+
+      <td>
+        <div class="flex gap-1">
+          <!-- Edit -->
+          <button pButton pRipple *ngIf="canEditPayment && isPaymentNotSettled(payment)" icon="pi pi-pencil"
+            class="p-button-rounded p-button-info p-button-sm" pTooltip="{{ 'update_payment' | translate }}"
+            (click)="editPaymentEvent.emit(payment); $event.stopPropagation()"></button>
+
+          <!-- Delete -->
+          <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-sm"
+            *ngIf="canDeletePayment && isPaymentNotSettled(payment) && !payment.hasReceipt"
+            (click)="deletePaymentEvent.emit(payment); $event.stopPropagation()"
+            pTooltip="{{'delete_payment' | translate}}">
+          </button>
+
+          <button pButton pRipple icon="pi pi-check-circle" class="p-button-rounded p-button-success p-button-sm" 
+          *ngIf="canConfirmPayment && isPaymentNotSettled(payment) &&
+          (payment.paymentMethod === 'Check' || payment.paymentMethod === 'BOE')"
+            (click)="confirmPaymentEvent.emit(payment); $event.stopPropagation()"
+            pTooltip="{{'confirm_payment' | translate}}">
+          </button>
+
+          <!-- View Receipt -->
+          <button *ngIf="payment.receiptNumber && payment.receiptStatus === 'ISSUED'" pButton pRipple
+            icon="pi pi-file-pdf" class="p-button-rounded p-button-success p-button-sm"
+            pTooltip="{{ 'view_receipt' | translate }}"
+            (click)="printReceiptEvent.emit(payment.receiptNumber); $event.stopPropagation()">
+          </button>
+
+          <!-- Generate Receipt -->
+          <button *ngIf="!payment.receiptNumber || payment.receiptStatus !== 'ISSUED'" pButton pRipple
+            icon="pi pi-file-pdf" class="p-button-rounded p-button-warning p-button-sm"
+            pTooltip="{{ 'generate_receipt' | translate }}"
+            (click)="generateReceiptEvent.emit(payment.paymentId); $event.stopPropagation()">
+          </button>
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="summary">
+    <div class="flex align-items-center justify-content-between">
+      {{ 'total_payments' | translate }}: {{ totalRecords ?? 0 }}
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="8">
+        <div class="flex flex-column align-items-center justify-content-center py-5">
+          <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">
+          <p class="mt-3 text-gray-600 font-medium text-lg">
+            {{ 'no_payments_found' | translate }}
+          </p>
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+</p-table>

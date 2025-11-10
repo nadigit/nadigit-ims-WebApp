@@ -42,7 +42,7 @@ export class AnalysisService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/analysis/profit";
+  schema: string = "/api/analysis/profit";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';

@@ -1,0 +1,108 @@
+<p-dialog header="{{'cash_register_session' | translate}}" [(visible)]="visible" [modal]="true"
+  [style]="{ width: '520px' }" [draggable]="false" [resizable]="false" [closable]="true" [dismissableMask]="true"
+  [baseZIndex]="11000" (onHide)="onDialogClose()">
+
+  <ng-container *ngIf="!isLoading; else loadingTemplate">
+
+    <!-- =================== OPEN REGISTER VIEW =================== -->
+    <ng-container *ngIf="!hasActiveSession; else activeSessionTemplate">
+      <div class="text-center mb-4">
+        <h3 class="font-semibold text-lg">{{"open_cash_register"|translate}}</h3>
+        <p class="text-sm text-gray-600">{{"enter_opening_balance_to_start_your_session"|translate}}.</p>
+      </div>
+
+      <div class="p-fluid">
+
+        <!-- Admin Shop Selection -->
+        <div class="field mb-3" style="position: relative;" *ngIf="isAdmin">
+          <label for="shopId">
+            {{ 'order_shop' | translate }} <span class="required-asterisk">*</span>
+          </label>
+
+          <p-dropdown id="shopId" name="shopId" [(ngModel)]="shopId" [options]="shops" optionLabel="shopName"
+            optionValue="shopId" [filter]="true"
+            filterBy="shopName" [showClear]="true" required autofocus (onChange)="onShopChange()">
+            <ng-template pTemplate="selectedItem">
+              <span class="product-badge">
+                {{ selectedShopName || ('select_shop_option' | translate) }}
+              </span>
+            </ng-template>
+            <ng-template let-option pTemplate="item">
+              <span class="product-badge">{{ option.shopName }}</span>
+            </ng-template>
+          </p-dropdown>
+
+          <small class="ng-dirty ng-invalid" *ngIf="submitted && !shopId">
+            {{ 'order_shop' | translate }} {{ 'is_required_label' | translate }}
+          </small>
+        </div>
+
+        <!-- Opening Amount -->
+        <div class="field mb-3">
+          <label for="openingAmount" class="font-medium">{{"opening_amount"|translate}}</label>
+          <input id="openingAmount" type="number" pInputText [(ngModel)]="openingAmount"
+            placeholder="{{'enter_opening_cash_amount'|translate}}" min="0" />
+        </div>
+
+        <!-- Notes -->
+        <div class="field mb-3">
+          <label for="notes" class="font-medium">{{'notes'|translate}} ({{'optional'|translate}})</label>
+          <textarea id="notes" pInputTextarea [(ngModel)]="notes" rows="3"
+            placeholder="{{'add_remarks_or_description'|translate}}"></textarea>
+        </div>
+
+        <div class="flex justify-content-center mt-4 gap-2">
+          <button pButton label="{{'open_register'|translate}}" icon="pi pi-check" class="p-button-success"
+            [disabled]="isLoading || openingAmount == null || openingAmount < 0" (click)="openSession()"></button>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- =================== ACTIVE SESSION VIEW =================== -->
+    <ng-template #activeSessionTemplate>
+      <div class="text-center mb-4">
+        <h3 class="font-semibold text-lg text-green-700">{{"active_cash_register"|translate}}</h3>
+        <p class="text-sm text-gray-600">{{"current_session_details_and_closing_options"|translate}}.</p>
+      </div>
+
+      <div class="p-fluid">
+        <div class="mb-3">
+          <p><strong>{{'user'|translate}}:</strong> {{ currentSession?.fullName || currentSession?.username }}</p>
+          <p><strong>{{'opened_at'|translate}}:</strong> {{ currentSession?.openedAt | date: 'short' }}</p>
+          <p><strong>{{'opening_amount'|translate}}:</strong> {{ currentSession?.openingAmount | number: '1.2-2' }}</p>
+          <p *ngIf="isAdmin && shopId"><strong>Shop:</strong> {{ selectedShopName }}</p>
+        </div>
+
+        <p-divider></p-divider>
+
+        <h4 class="text-center mb-3 text-red-600 font-medium">{{"close_cash_register"|translate}}</h4>
+
+        <div class="field mb-3">
+          <label for="closingAmount" class="font-medium">{{"closing_amount"|translate}}</label>
+          <input id="closingAmount" type="number" pInputText [(ngModel)]="closingAmount"
+            placeholder="{{'enter_total_at_closing'|translate}}" min="0" />
+        </div>
+
+        <div class="field mb-3">
+          <label for="notes" class="font-medium">{{'notes'|translate}} ({{'optional'|translate}})</label>
+          <textarea id="notes" pInputTextarea [(ngModel)]="notes" rows="3"
+            placeholder="{{'add_remarks_or_description'|translate}}"></textarea>
+        </div>
+
+        <div class="flex justify-content-center mt-4 gap-2">
+          <button pButton label="{{'close_register'|translate}}" icon="pi pi-lock" class="p-button-danger"
+            [disabled]="isLoading || closingAmount == null || closingAmount < 0" (click)="closeSession()"></button>
+        </div>
+      </div>
+    </ng-template>
+
+  </ng-container>
+
+  <!-- =================== LOADING TEMPLATE =================== -->
+  <ng-template #loadingTemplate>
+    <div class="flex justify-content-center align-items-center" style="min-height: 220px;">
+      <p-progressSpinner strokeWidth="3" styleClass="overlay-spinner"></p-progressSpinner>
+    </div>
+  </ng-template>
+
+</p-dialog>

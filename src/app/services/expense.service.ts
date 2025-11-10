@@ -9,7 +9,7 @@ export class ExpenseService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/expenses/";
+  schema: string = "/api/expenses/";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';  

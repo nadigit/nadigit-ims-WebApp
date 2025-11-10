@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Default values if not set
 export ANGULAR_API_PROTOCOL="${ANGULAR_API_PROTOCOL:-http}"

@@ -33,8 +33,8 @@ function initializeKeycloak(keycloak: KeycloakService) {
         initOptions: {
             onLoad: 'login-required',  // automatically checks login state
             checkLoginIframe: false,  // iframe to monitor login session
-            silentCheckSsoRedirectUri:
-                window.location.origin + '/assets/keycloak/silent-check-sso.html',
+            // silentCheckSsoRedirectUri:
+            //     window.location.origin + '/assets/keycloak/silent-check-sso.html',
             // You can enable token refresh handling
         }
         // initOptions: {
@@ -75,7 +75,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
     providers: [
         MessageService,
         TranslateService,
-        { provide: LocationStrategy, useClass: HashLocationStrategy },
+        // { provide: LocationStrategy, useClass: HashLocationStrategy },
         {provide : APP_INITIALIZER, deps : [KeycloakService],useFactory : initializeKeycloak, multi : true}
     ],
     bootstrap: [AppComponent]

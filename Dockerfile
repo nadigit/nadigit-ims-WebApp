@@ -1,5 +1,5 @@
 # Stage 1: Compile and Build Angular codebase
-FROM node:latest as build
+FROM node:18 AS build
 
 WORKDIR /app
 COPY . /app/
@@ -8,7 +8,7 @@ RUN npm install
 RUN npm run build
 
 # Stage 2: Serve app with nginx server
-FROM nginx:latest
+FROM nginx:alpine
 
 # Copy Angular build output
 COPY --from=build /app/dist/ims-webapp/ /usr/share/nginx/html

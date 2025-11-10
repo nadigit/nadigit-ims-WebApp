@@ -1,11 +1,14 @@
-import { DailyBalance } from "./dailyBalance";
+import { CashMovement } from "./cashMovement";
+import { CashRegisterSession } from "./cashRegisterSession";
 import { Shop } from "./shop";
 
 export interface CashRegister {
-    id?: number;
+    cashRegisterId?: number;
     shop?: Shop;
     totalBalance?: number;
     openingTime?: string | Date; // Opening time in HH:mm format
     closingTime?: string | Date; // Closing time in HH:mm format
-    dailyBalances?: DailyBalance[];
+    sessions?: CashRegisterSession[];
+    movements?: CashMovement[];
+    creationDate?: Date;
 }

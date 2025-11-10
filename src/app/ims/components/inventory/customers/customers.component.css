@@ -1,0 +1,672 @@
+/* Header Styles */
+.enhanced-dialog .dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1.5rem 2rem;
+    background: var(--surface-ground);
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.enhanced-dialog .customer-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    flex: 1;
+}
+
+.enhanced-dialog .customer-avatar {
+    flex-shrink: 0;
+}
+
+.enhanced-dialog .customer-avatar-img {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 3px solid var(--surface-border);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.enhanced-dialog .customer-avatar-img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.enhanced-dialog .customer-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.enhanced-dialog .customer-title-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.enhanced-dialog .customer-name {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.2;
+}
+
+.enhanced-dialog .customer-status-indicators {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.enhanced-dialog .status-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+}
+
+.enhanced-dialog .customer-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.enhanced-dialog .customer-meta-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.enhanced-dialog .meta-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: var(--primary-color-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.enhanced-dialog .meta-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.enhanced-dialog .meta-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-color-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.enhanced-dialog .meta-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.enhanced-dialog .header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.enhanced-dialog .action-btn {
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.enhanced-dialog .action-btn:hover {
+    transform: translateY(-1px);
+    background-color: var(--surface-hover) !important;
+    border-color: var(--surface-border);
+}
+
+/* Summary Card Styles */
+.enhanced-dialog .summary-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid var(--surface-border);
+    overflow: hidden;
+    height: 100%;
+    background: var(--surface-card);
+}
+
+.enhanced-dialog .card-header {
+    padding: 1.25rem 1.5rem;
+    background: var(--primary-color);
+    color: var(--primary-color-text);
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.enhanced-dialog .card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+}
+
+.enhanced-dialog .card-title h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.enhanced-dialog .card-content {
+    padding: 1.5rem;
+}
+
+.enhanced-dialog .section-title {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--surface-border);
+    padding-bottom: 0.5rem;
+}
+
+/* Contact Information Styles */
+.enhanced-dialog .contact-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.enhanced-dialog .contact-item:last-child {
+    border-bottom: none;
+}
+
+.enhanced-dialog .contact-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color-secondary);
+    flex-shrink: 0;
+}
+
+.enhanced-dialog .contact-details {
+    flex: 1;
+}
+
+.enhanced-dialog .contact-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.enhanced-dialog .contact-link:hover {
+    color: var(--primary-600);
+    text-decoration: underline;
+}
+
+/* Statistics Styles */
+.enhanced-dialog .stats-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.enhanced-dialog .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--surface-hover);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+    transition: transform 0.2s ease;
+}
+
+.enhanced-dialog .stat-item:hover {
+    transform: translateX(4px);
+}
+
+.enhanced-dialog .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color-text);
+    flex-shrink: 0;
+}
+
+.enhanced-dialog .stat-content {
+    flex: 1;
+}
+
+.enhanced-dialog .stat-item .label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.enhanced-dialog .stat-item .value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* Enhanced TabView */
+.enhanced-dialog .enhanced-tabview .p-tabview-nav {
+    background: var(--surface-ground);
+    border: none;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.enhanced-dialog .enhanced-tabview .p-tabview-nav li .p-tabview-nav-link {
+    border: none;
+    background: transparent;
+    color: var(--text-color-secondary);
+    font-weight: 500;
+    padding: 1rem 1.5rem;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.enhanced-dialog .enhanced-tabview .p-tabview-nav li .p-tabview-nav-link:hover {
+    color: var(--primary-color);
+    background: var(--surface-hover);
+}
+
+.enhanced-dialog .enhanced-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    background: var(--surface-card);
+}
+
+.enhanced-dialog .tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding: 0 0.5rem;
+}
+
+.enhanced-dialog .tab-header h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.enhanced-dialog .product-count,
+.enhanced-dialog .total-purchases,
+.enhanced-dialog .total-amount {
+    background: var(--surface-hover);
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.enhanced-dialog .purchase-summary {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Product Info Styles */
+.enhanced-dialog .product-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.enhanced-dialog .product-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid var(--surface-border);
+}
+
+.enhanced-dialog .product-details {
+    flex: 1;
+}
+
+.enhanced-dialog .product-name {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+
+/* Special Cell Styles */
+.enhanced-dialog .id-cell,
+.enhanced-dialog .reference-cell {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.enhanced-dialog .price-cell {
+    font-weight: 600;
+    color: var(--green-600);
+}
+
+.enhanced-dialog .total-cell {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.enhanced-dialog .action-cells {
+    white-space: nowrap;
+}
+
+.enhanced-dialog .items-count,
+.enhanced-dialog .shop-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Empty State Styles */
+.enhanced-dialog .empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--text-color-secondary);
+    background: var(--surface-card);
+}
+
+.enhanced-dialog .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--surface-border);
+}
+
+.enhanced-dialog .empty-state p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Chart Card Styles */
+.enhanced-dialog .chart-card .p-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid var(--surface-border);
+    background: var(--surface-card);
+}
+
+.enhanced-dialog .chart-card .p-card-header {
+    background: var(--surface-ground);
+    border-bottom: 1px solid var(--surface-border);
+    padding: 1.25rem;
+}
+
+.enhanced-dialog .chart-card .p-card-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* Footer Styles */
+.enhanced-dialog .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 2rem;
+    border-top: 1px solid var(--surface-border);
+    background: var(--surface-ground);
+}
+
+.enhanced-dialog .contact-btn {
+    background: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color-text);
+}
+
+.enhanced-dialog .contact-btn:hover {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+}
+
+/* Animation for header elements */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.enhanced-dialog .customer-header {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+/* Focus states for accessibility */
+.enhanced-dialog .action-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+
+/* Empty Customer State Styles */
+.empty-customer-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60vh;
+    text-align: center;
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+.empty-state-card {
+    background: var(--surface-card);
+    border: 1px dashed var(--surface-border);
+    border-radius: 16px;
+    padding: 2.5rem 3rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.empty-state-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.empty-state-icon {
+    font-size: 3.5rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    animation: pulse 1.6s infinite;
+}
+
+.empty-state-card h3 {
+    margin: 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.empty-state-card p {
+    color: var(--text-color-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.fade-in {
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* Responsive Design */
+@media screen and (max-width: 960px) {
+    .enhanced-dialog .dialog-header {
+        padding: 1.25rem 1.5rem;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    
+    .enhanced-dialog .customer-header {
+        width: 100%;
+    }
+    
+    .enhanced-dialog .header-actions {
+        align-self: flex-end;
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .enhanced-dialog .customer-title-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .enhanced-dialog .customer-meta {
+        gap: 1rem;
+    }
+    
+    .enhanced-dialog .tab-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .enhanced-dialog .purchase-summary {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .enhanced-dialog .dialog-header {
+        padding: 1rem 1.25rem;
+    }
+    
+    .enhanced-dialog .customer-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .enhanced-dialog .customer-title-section {
+        align-items: center;
+        text-align: center;
+    }
+    
+    .enhanced-dialog .customer-meta {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+    }
+    
+    .enhanced-dialog .customer-meta-item {
+        justify-content: center;
+        text-align: center;
+    }
+    
+    .enhanced-dialog .header-actions {
+        justify-content: center;
+    }
+    
+    .enhanced-dialog .customer-name {
+        font-size: 1.5rem;
+    }
+    
+    .enhanced-dialog .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .enhanced-dialog .action-cells {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .enhanced-dialog .action-cells .p-button {
+        margin-left: 0 !important;
+    }
+    
+    .enhanced-dialog .dialog-footer {
+        padding: 1rem 1.25rem;
+        flex-direction: column;
+    }
+    
+    .enhanced-dialog .dialog-footer .p-button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Compact version for smaller dialogs */
+.enhanced-dialog.compact .dialog-header {
+    padding: 1rem 1.5rem;
+}
+
+.enhanced-dialog.compact .customer-name {
+    font-size: 1.5rem;
+}
+
+.enhanced-dialog.compact .customer-meta {
+    gap: 1rem;
+}
+
+.enhanced-dialog.compact .customer-meta-item {
+    padding: 0.25rem 0;
+}
+
+/* Print styles */
+@media print {
+    .enhanced-dialog .dialog-header {
+        background: white !important;
+        border-bottom: 2px solid #ccc;
+    }
+    
+    .enhanced-dialog .customer-name {
+        color: black !important;
+    }
+    
+    .enhanced-dialog .header-actions {
+        display: none;
+    }
+    
+    .enhanced-dialog .dialog-footer {
+        display: none;
+    }
+}

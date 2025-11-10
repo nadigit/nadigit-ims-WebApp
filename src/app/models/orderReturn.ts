@@ -6,6 +6,7 @@ import { ReturnItem } from "./returnItem";
 
 export class OrderReturn { 
   returnId?: number;
+  reference?: string;
   notes?: string;
   returnDate?: Date | string;
   order?: Order;

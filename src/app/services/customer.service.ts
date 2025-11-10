@@ -10,7 +10,7 @@ export class CustomerService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/customers/";
+  schema: string = "/api/customers/";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';

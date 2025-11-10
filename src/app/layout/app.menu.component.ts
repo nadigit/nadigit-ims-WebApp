@@ -28,25 +28,42 @@ export class AppMenuComponent implements OnInit {
 
   setupMenu(translations: any, userRoles: string[]) {
     const isAdmin = userRoles.includes('ADMIN');
-    
+
+    // --- Menu Items ---
     const inventoryItems = [
-      { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/pages/suppliers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/pages/customers'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/pages/warehouses'], roles: ['ADMIN'] },
-      { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/pages/shops'], roles: ['ADMIN'] },
-      { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/pages/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/pages/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/pages/orders'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['payments_menu_title'], icon: 'pi pi-fw pi-credit-card', routerLink: ['/pages/payments'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/pages/returns'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/pages/refunds'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pages/purchases'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
-      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/pages/expenses'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
-      { label: translations['financial_docs_menu_title'], icon: 'pi pi-fw pi-file', routerLink: ['/pages/financial-documents'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
+      { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/inventory/suppliers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/inventory/customers'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/inventory/warehouses'], roles: ['ADMIN'] },
+      { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/shops'], roles: ['ADMIN'] },
+      { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/inventory/purchases'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
     ];
-  
-    // Setup common structure for both admin and non-admin users
-    const commonMenu = [
+
+    const salesItems = [
+      { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/sales/orders'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/sales/returns'], roles: ['VENDOR', 'ADMIN'] },
+    ];
+
+    const financeItems = [
+      { label: translations['payments_menu_title'], icon: 'pi pi-fw pi-credit-card', routerLink: ['/finance/payments'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/finance/expenses'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/finance/refunds'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['financial_docs_menu_title'], icon: 'pi pi-fw pi-file', routerLink: ['/finance/financial-documents'], roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
+    ];
+
+    const administrationItems = [
+      { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/administration/users'], roles: ['ADMIN'] },
+      { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/administration/settings'], roles: ['ADMIN'] },
+    ];
+
+    const systemItems = [
+      { label: translations['system_info'], icon: 'pi pi-fw pi-info-circle', command: () => this.layoutService.triggerSystemInfoLoad() },
+      { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
+    ];
+
+    // --- Menu Structure ---
+    const menu: any[] = [
       {
         label: translations['home'],
         items: [
@@ -58,73 +75,49 @@ export class AppMenuComponent implements OnInit {
         icon: 'pi pi-fw pi-briefcase',
         items: inventoryItems
       },
-    ];
-
-    const systemInfo = [
       {
-        label: translations['system'], // Add "System" section title
-        items: [
-          { 
-            label: translations['system_info'], 
-            icon: 'pi pi-fw pi-info-circle', 
-            command: () => {
-              this.layoutService.triggerSystemInfoLoad();
-            }
-          },
-        ]
+        label: translations['sales'],
+        icon: 'pi pi-fw pi-shopping-cart',
+        items: salesItems
+      },
+      {
+        label: translations['finance'],
+        icon: 'pi pi-fw pi-dollar',
+        items: financeItems
       }
     ];
 
-    const logoutMenu = [
-      {
-          items: [
-              { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
-          ]
-      }
-    ];
-  
+    // Add administration section only for admins
     if (isAdmin) {
-      // Add admin-specific items
-      this.model = [
-        ...commonMenu,
-        {
-          label: translations['system_settings'],
-          items: [
-            { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/pages/users'], roles: ['ADMIN'] },
-            { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/pages/settings'], roles: ['ADMIN'] },
-          ]
-        },
-        ...systemInfo,
-        ...logoutMenu,
-      ];
-    } else {
-      // Non-admin menu remains the same as common, no need for additional check
-      this.model = [
-        ...commonMenu,
-        ...systemInfo,
-        ...logoutMenu, // Add logout at the end for non-admin
-      ];
+      menu.push({
+        label: translations['system_settings'],
+        icon: 'pi pi-fw pi-cog',
+        items: administrationItems
+      });
     }
-  
-    // Filter the model based on user roles
-    this.model = this.filterMenuItems(this.model, userRoles);
+
+    // Add system and logout at the end for all users
+    menu.push({
+      label: translations['system'],
+      icon: 'pi pi-fw pi-desktop',
+      items: systemItems
+    });
+
+    // Filter menu items by user roles
+    this.model = this.filterMenuItems(menu, userRoles);
   }
 
   filterMenuItems(model: any[], userRoles: string[]): any[] {
-    return model.map(menuItem => {
-      if (menuItem.items) {
-        menuItem.items = menuItem.items.filter(item => {
-          // Check if item.roles is defined and not empty
-          if (item.roles && item.roles.length > 0) {
-            return item.roles.some(role => userRoles.includes(role));
-          } else {
-            // If roles are not defined or empty, allow the item
-            return true;
-          }
-        });
-      }
-      return menuItem;
-    }).filter(menuItem => !menuItem.items || menuItem.items.length > 0);
+    return model
+      .map(menuItem => {
+        if (menuItem.items) {
+          menuItem.items = menuItem.items.filter(item => {
+            return !item.roles || item.roles.some(role => userRoles.includes(role));
+          });
+        }
+        return menuItem;
+      })
+      .filter(menuItem => !menuItem.items || menuItem.items.length > 0);
   }
 
   logOut() {

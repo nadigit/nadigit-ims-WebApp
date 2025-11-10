@@ -1,0 +1,640 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <h5>{{ 'purchases_menu_title' | translate }}</h5>
+            <p-toast></p-toast>
+
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'expenses_page_description' | translate }}
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canAddExpense" value="{{'create' | translate}}" icon="pi pi-plus"
+                        severity="success"></p-tag>
+                    <p-tag *ngIf="canEditExpense" value="{{'edit' | translate}}" icon="pi pi-pencil"
+                        severity="info"></p-tag>
+                    <p-tag *ngIf="canDeleteExpense" value="{{'delete' | translate}}" icon="pi pi-trash"
+                        severity="danger"></p-tag>
+                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+                </div>
+            </div>
+
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button pButton pRipple *ngIf="canAddExpense" label="{{ 'new_button' | translate }}"
+                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
+                            pTooltip="{{'add_new_expense'|translate}}"></button>
+                        <button pButton pRipple *ngIf="canDeleteExpense" label="{{ 'delete_button' | translate }}"
+                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedExpenses()"
+                            pTooltip="{{'delete_expense'|translate}}"
+                            [disabled]="!selectedExpenses || !selectedExpenses.length"></button>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="right">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
+                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
+                </ng-template>
+            </p-toolbar>
+
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="expenses" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['purpose','dateOfExpense','amount','shop.shopName']" [paginator]="true"
+                [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedExpenses" selectionMode="multiple" [rowHover]="true" dataKey="id">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{ 'expenses_page_title' | translate }}</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
+                                placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="id">{{ 'ID' | translate }} <p-sortIcon field="id"></p-sortIcon></th>
+                        <th pSortableColumn="dateOfExpense">{{ 'expense_date' | translate }}
+                            <p-sortIcon field="dateOfExpense"></p-sortIcon>
+                            <p-columnFilter type="date" field="dateOfExpense" display="menu" />
+                        </th>
+                        <th pSortableColumn="purpose">{{ 'expense_purpose' | translate }} <p-sortIcon
+                                field="purpose"></p-sortIcon></th>
+                        <th pSortableColumn="amount">{{ 'expense_amount' | translate }}<p-sortIcon
+                                field="amount"></p-sortIcon></th>
+                        <th pSortableColumn="shop">{{ 'expense_shop' | translate }}<p-sortIcon
+                                field="shop"></p-sortIcon></th>
+                        <th></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-expense>
+                    <tr [pSelectableRow]="expense" (click)="canReadExpense ? showExpenseDetails(expense) : null">
+                        <td>
+                            <p-tableCheckbox [value]="expense" (click)="$event.stopPropagation()"></p-tableCheckbox>
+                        </td>
+
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'ID' | translate }}</span>
+                            #{{expense.id ? expense.id : 'N/A'}}
+                            <i *ngIf="!isExpenseFinalized(expense)" class="pi pi-lock text-red-500 ml-2"
+                                pTooltip="{{ 'expense_locked' | translate }}">
+                            </i>
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'expense_date' | translate }}</span>
+                            {{ expense.dateOfExpense ? (expense.dateOfExpense | date: 'dd/MM/yyyy') : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'expense_purpose' | translate }}</span>
+                            {{ expense.purpose ? expense.purpose : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'expense_amount' | translate }}</span>
+                            {{ expense.amount ? (expense.amount| currency:currency:'symbol':'1.2-2') : 'N/A' }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'expense_shop' | translate }}</span>
+                            {{ expense.shop ? expense.shop.shopName : 'N/A' }}
+                        </td>
+                        <td>
+                            <div class="flex">
+                                <button pButton pRipple *ngIf="canEditExpense && isExpenseFinalized(expense)"
+                                    icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+                                    pTooltip="{{'update_expense'|translate}}"
+                                    (click)="editExpense(expense) ; $event.stopPropagation()"></button>
+                                <button pButton pRipple *ngIf="canDeleteExpense && isExpenseFinalized(expense)"
+                                    icon="pi pi-trash" class="p-button-rounded p-button-danger"
+                                    (click)="deleteExpense(expense) ; $event.stopPropagation()"
+                                    pTooltip="{{'delete_expense'|translate}}"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_expenses' | translate}} {{expenses ? expenses.length : 0 }}.
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_expenses_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="expenseDialog" [style]="{width: '450px', height: '100%'}"
+            header="{{ 'expense_details' | translate }}" [modal]="true" class="p-fluid ">
+            <ng-template pTemplate="content">
+                <div class="field">
+                    <label for="purpose">{{ 'expense_purpose' | translate }} <span
+                            class="required-asterisk">*</span></label>
+                    <input type="text" pInputText name="purpose" ngDefaultControl [(ngModel)]="expense.purpose" required
+                        autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !expense.purpose}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !expense.purpose">{{ 'expense_purpose' |
+                        translate }} {{'is_required_label' | translate}}</small>
+                </div>
+
+                <div class="field">
+                    <label for="dateOfExpense">{{ 'expense_date' | translate }} <span
+                            class="required-asterisk">*</span></label>
+                    <p-calendar [(ngModel)]="expense.dateOfExpense" ngDefaultControl name="dateOfExpense"
+                        inputId="dateOfExpense" dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
+                        [maxDate]="maxExpenseDate" appendTo="body" placeholder="{{ 'expense_date' | translate }}"
+                        required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !expense.dateOfExpense}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !expense.purpose">{{ 'expense_date' |
+                        translate }} {{'is_required_label' | translate}}</small>
+                </div>
+
+                <div class="field">
+                    <label for="amount">{{ 'expense_amount' | translate }} <span
+                            class="required-asterisk">*</span></label>
+                    <input type="number" pInputText name="amount" ngDefaultControl [(ngModel)]="expense.amount" required
+                        autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !expense.amount}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !expense.amount">{{ 'expense_amount' |
+                        translate }} {{'is_required_label' | translate}}</small>
+                </div>
+
+                <div class="field" style="position: relative;" *ngIf="isAdmin">
+                    <label for="shop">{{'expense_shop' | translate}} <span class="required-asterisk">*</span></label>
+                    <p-dropdown appendTo="body" [(ngModel)]="expense.shop" name="shop" inputId="shop" ngDefaultControl
+                        optionLabel="shopName" [options]="shops" [filter]="true" filterBy="shopName"
+                        placeholder="{{'select_shop_option' | translate}}" required autofocus
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !expense.shop}">
+                        <ng-template pTemplate="selectedItem">
+                            <span *ngIf="expense && expense.shop"
+                                [class]="'product-badge'">{{expense.shop.shopName}}</span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'product-badge'">{{option.shopName}}</span>
+                        </ng-template>
+                    </p-dropdown>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !expense.shop">{{'expense_shop' |
+                        translate}} {{'is_required_label' | translate}}</small>
+                </div>
+
+                <div class="field">
+                    <label for="paymentMethod">
+                        {{'payment_method' | translate}} <span class="required-asterisk">*</span>
+                    </label>
+                    <div class="flex flex-wrap gap-3">
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Cash" [(ngModel)]="expense.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod1"></p-radioButton>
+                            <label for="paymentMethod1" class="ml-2">{{'payment_method_cash' | translate}}</label>
+                        </div>
+
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Transfer" [(ngModel)]="expense.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod4"></p-radioButton>
+                            <label for="paymentMethod4" class="ml-2">{{'payment_method_transfer' | translate}}</label>
+                        </div>
+
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Card" [(ngModel)]="expense.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod2"></p-radioButton>
+                            <label for="paymentMethod2" class="ml-2">{{'payment_method_card' | translate}}</label>
+                        </div>
+
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Check" [(ngModel)]="expense.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod3"></p-radioButton>
+                            <label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
+                        </div>
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="BOE" [(ngModel)]="expense.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod5"></p-radioButton>
+                            <label for="paymentMethod5" class="ml-2">{{'payment_method_boe' | translate}}</label>
+                        </div>
+                    </div>
+
+                    <!-- Input for cheque number, displayed only if "Check" is selected -->
+                    <div *ngIf="expense.paymentMethod === 'Check'" class="mt-3">
+                        <label for="checkNumber">{{ 'check_number' | translate }}</label>
+                        <input type="text" id="checkNumber" [(ngModel)]="expense.checkNumber"
+                            placeholder="{{ 'enter_check_number' | translate }}" class="p-inputtext" />
+                    </div>
+                    <div *ngIf="expense.paymentMethod === 'Check'" class="mt-3">
+                        <label for="checkDateExpiration">{{ 'expiration_date' | translate }}</label>
+                        <p-calendar [(ngModel)]="expense.checkExpirationDate" [showIcon]="true"
+                            inputId="checkExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
+                            [style]="{flex: 1, minWidth: '250px', height: '40px'}"
+                            placeholder="{{ 'expiration_date' | translate }}" />
+                    </div>
+                    <div *ngIf="expense.paymentMethod === 'BOE'" class="mt-3">
+                        <label for="boeNumber">{{ 'boe_number' | translate }}</label>
+                        <input type="text" id="boeNumber" [(ngModel)]="expense.boeNumber"
+                            placeholder="{{ 'enter_boe_number' | translate }}" class="p-inputtext" />
+                    </div>
+                    <div *ngIf="expense.paymentMethod === 'BOE'" class="mt-3">
+                        <label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
+                        <p-calendar [(ngModel)]="expense.boeExpirationDate" [showIcon]="true"
+                            inputId="boeExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
+                            [style]="{flex: 1, minWidth: '250px', height: '40px'}"
+                            placeholder="{{ 'expiration_date' | translate }}" />
+                    </div>
+                </div>
+
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                        translate}}</small>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <div class="flex justify-content-between align-items-center w-full">
+                    <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+                        class="p-button-raised" (click)="saveExpense()"></button>
+                </div>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="expenseDetailsDialog" [style]="{width: '95vw', maxWidth: '1200px', height: '95vh'}"
+            header="{{'expense_details' | translate}}" [modal]="true"
+            class="p-fluid premium-expense-details-dialog premium-dialog-base" [draggable]="false" [resizable]="false">
+
+            <ng-template pTemplate="content">
+                <!-- Expense Header -->
+                <div class="premium-dialog-header expense-details-header"
+                    [ngClass]="'status-' + (selectedExpense?.status || '')?.toLowerCase()">
+                    <div class="flex align-items-center justify-content-between">
+                        <div class="flex align-items-center gap-3">
+                            <div class="header-icon expense-icon">
+                                <i class="pi pi-money-bill text-white"></i>
+                            </div>
+                            <div>
+                                <h2 class="m-0 text-white">#{{ selectedExpense?.id }}</h2>
+                                <p class="m-0 text-white opacity-80">
+                                    {{ selectedExpense?.purpose || 'N/A' }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="flex align-items-center gap-3 justify-content-end">
+                                <p-tag
+                                    [value]="'expense_status_' + (selectedExpense?.status || '')?.toLowerCase() | translate"
+                                    [severity]="getExpenseStatusSeverity(selectedExpense?.status)"
+                                    [icon]="getExpenseStatusIcon(selectedExpense?.status)" styleClass="text-sm">
+                                </p-tag>
+                                <p-tag
+                                    [value]="'payment_method_' + (selectedExpense?.paymentMethod || '')?.toLowerCase() | translate"
+                                    [severity]="getPaymentMethodSeverity(selectedExpense?.paymentMethod)"
+                                    [icon]="getPaymentMethodIcon(selectedExpense?.paymentMethod)" styleClass="text-sm">
+                                </p-tag>
+                            </div>
+                            <div class="text-white mt-1 font-bold text-xl">
+                                {{ selectedExpense?.amount | currency:currency:'symbol':'1.2-2' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid mt-4">
+                    <!-- Left Column - Expense Information -->
+                    <div class="col-12 md:col-7 md:pl-4">
+                        <!-- Basic Expense Info -->
+                        <div class="premium-details-section">
+                            <h4 class="section-title">
+                                <i class="pi pi-info-circle mr-2"></i>
+                                {{ 'expense_information' | translate }}
+                            </h4>
+
+                            <div class="premium-details-grid">
+                                <div class="detail-item">
+                                    <label>{{ 'purpose' | translate }}: </label>
+                                    <span class="premium-font-semibold">{{ selectedExpense?.purpose || 'N/A' }}</span>
+                                </div>
+
+                                <div class="detail-item">
+                                    <label>{{ 'expense_date' | translate }}: </label>
+                                    <span class="premium-font-semibold">{{ selectedExpense?.dateOfExpense |
+                                        date:'fullDate' }}</span>
+                                </div>
+
+                                <div class="detail-item">
+                                    <label>{{ 'expense_id' | translate }}: </label>
+                                    <span class="font-mono">#{{ selectedExpense?.id }}</span>
+                                </div>
+
+                                <div class="detail-item">
+                                    <label>{{ 'creation_date' | translate }}: </label>
+                                    <span>{{ selectedExpense?.creationDate | date:'shortDate' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="premium-details-section" *ngIf="selectedExpense?.description">
+                            <h4 class="section-title">
+                                <i class="pi pi-file mr-2"></i>
+                                {{ 'description' | translate }}
+                            </h4>
+                            <div class="notes-content">
+                                {{ selectedExpense?.description }}
+                            </div>
+                        </div>
+
+                        <!-- Payment Method Details -->
+                        <div class="premium-details-section" *ngIf="hasExpensePaymentMethodDetails()">
+                            <h4 class="section-title">
+                                <i class="pi pi-credit-card mr-2"></i>
+                                {{ 'payment_method_details' | translate }}
+                            </h4>
+
+                            <div class="premium-details-grid">
+                                <div class="detail-item" *ngIf="selectedExpense?.checkNumber">
+                                    <label>{{ 'check_number' | translate }}</label>
+                                    <span class="premium-font-semibold">{{ selectedExpense.checkNumber }}</span>
+                                </div>
+
+                                <div class="detail-item" *ngIf="selectedExpense?.checkExpirationDate">
+                                    <label>{{ 'check_expiration_date' | translate }}</label>
+                                    <span>{{ selectedExpense.checkExpirationDate | date:'shortDate' }}</span>
+                                </div>
+
+                                <div class="detail-item" *ngIf="selectedExpense?.boeNumber">
+                                    <label>{{ 'boe_number' | translate }}</label>
+                                    <span class="premium-font-semibold">{{ selectedExpense.boeNumber }}</span>
+                                </div>
+
+                                <div class="detail-item" *ngIf="selectedExpense?.boeExpirationDate">
+                                    <label>{{ 'boe_expiration_date' | translate }}</label>
+                                    <span>{{ selectedExpense.boeExpirationDate | date:'shortDate' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Receipt Section -->
+                        <div class="premium-details-section" *ngIf="selectedExpense?.receipt">
+                            <h4 class="section-title">
+                                <i class="pi pi-receipt mr-2"></i>
+                                {{ 'expense_receipt' | translate }}
+                            </h4>
+
+                            <div class="receipt-image-container">
+                                <img [src]="selectedExpense?.receipt"
+                                    [alt]="'receipt_for_' + selectedExpense?.purpose | translate" class="receipt-image"
+                                    (click)="previewReceipt(selectedExpense?.receipt)"
+                                    style="cursor: pointer; max-width: 300px; border-radius: 8px; border: 1px solid var(--surface-border);">
+                                <p class="text-sm premium-text-muted mt-2">
+                                    {{ 'click_to_preview' | translate }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Status History -->
+                        <div class="premium-details-section"
+                            *ngIf="selectedExpense?.approvalDate || selectedExpense?.reimbursementDate">
+                            <h4 class="section-title">
+                                <i class="pi pi-history mr-2"></i>
+                                {{ 'status_history' | translate }}
+                            </h4>
+
+                            <div class="premium-details-grid">
+                                <div class="detail-item" *ngIf="selectedExpense?.approvedBy">
+                                    <label>{{ 'approved_by' | translate }}</label>
+                                    <span>{{ selectedExpense.approvedBy }}</span>
+                                </div>
+
+                                <div class="detail-item" *ngIf="selectedExpense?.approvalDate">
+                                    <label>{{ 'approval_date' | translate }}</label>
+                                    <span>{{ selectedExpense.approvalDate | date:'medium' }}</span>
+                                </div>
+
+                                <div class="detail-item" *ngIf="selectedExpense?.reimbursedBy">
+                                    <label>{{ 'reimbursed_by' | translate }}</label>
+                                    <span>{{ selectedExpense.reimbursedBy }}</span>
+                                </div>
+
+                                <div class="detail-item" *ngIf="selectedExpense?.reimbursementDate">
+                                    <label>{{ 'reimbursement_date' | translate }}</label>
+                                    <span>{{ selectedExpense.reimbursementDate | date:'medium' }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Approval Notes -->
+                            <div class="mt-3" *ngIf="selectedExpense?.approvalNotes">
+                                <label class="premium-font-semibold">{{ 'approval_notes' | translate }}:</label>
+                                <p class="premium-text-muted mt-1">{{ selectedExpense.approvalNotes }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column - Summary & Actions -->
+                    <div class="col-12 md:col-5">
+                        <!-- Expense Summary -->
+                        <div class="premium-details-section">
+                            <h4 class="section-title">
+                                <i class="pi pi-chart-bar mr-2"></i>
+                                {{ 'expense_summary' | translate }}
+                            </h4>
+
+                            <div class="premium-summary-card expense-summary-card">
+                                <div class="summary-item">
+                                    <span>{{ 'expense_amount' | translate }}:</span>
+                                    <span class="premium-font-semibold text-primary">{{ selectedExpense?.amount |
+                                        number:'1.2-2' }} {{currency}}</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span>{{ 'payment_method' | translate }}:</span>
+                                    <span>{{ 'payment_method_' + (selectedExpense?.paymentMethod || '')?.toLowerCase() |
+                                        translate }}</span>
+                                </div>
+                                <div class="summary-divider"></div>
+                                <div class="summary-item">
+                                    <span>{{ 'receipt_attached' | translate }}:</span>
+                                    <span>
+                                        <i *ngIf="selectedExpense?.receipt" class="pi pi-check text-green-500"></i>
+                                        <i *ngIf="!selectedExpense?.receipt" class="pi pi-times text-red-500"></i>
+                                        {{ selectedExpense?.receipt ? ('yes' | translate) : ('no' | translate) }}
+                                    </span>
+                                </div>
+                                <div class="summary-total">
+                                    <span>{{ 'status' | translate }}:</span>
+                                    <span class="premium-status-badge"
+                                        [ngClass]="'status-' + (selectedExpense?.status || '')?.toLowerCase()">
+                                        {{ 'expense_status_' + (selectedExpense?.status || '')?.toLowerCase() |
+                                        translate }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Shop Information -->
+                        <div class="premium-details-section" *ngIf="selectedExpense?.shop">
+                            <h4 class="section-title">
+                                <i class="pi pi-building mr-2"></i>
+                                {{ 'shop_information' | translate }}
+                            </h4>
+
+                            <div class="premium-info-card shop-card">
+                                <div class="flex align-items-center gap-3 mb-3">
+                                    <i class="pi pi-store text-2xl text-primary"></i>
+                                    <div>
+                                        <div class="premium-font-semibold text-lg">{{ selectedExpense.shop.shopName }}
+                                        </div>
+                                        <div class="text-sm premium-text-muted">{{ selectedExpense.shop.shopType ||
+                                            'N/A' }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="grid">
+                                    <div class="col-12 mb-2" *ngIf="selectedExpense.shop.address">
+                                        <i class="pi pi-map-marker mr-2 premium-text-muted"></i>
+                                        <span class="text-sm">{{ selectedExpense.shop.address }}</span>
+                                    </div>
+                                    <div class="col-12 mb-2" *ngIf="selectedExpense.shop.phone">
+                                        <i class="pi pi-phone mr-2 premium-text-muted"></i>
+                                        <span class="text-sm">{{ selectedExpense.shop.phone }}</span>
+                                    </div>
+                                    <div class="col-12" *ngIf="selectedExpense.shop.email">
+                                        <i class="pi pi-envelope mr-2 premium-text-muted"></i>
+                                        <span class="text-sm">{{ selectedExpense.shop.email }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="premium-details-section">
+                            <h4 class="section-title">
+                                <i class="pi pi-bolt mr-2"></i>
+                                {{ 'quick_actions' | translate }}
+                            </h4>
+
+                            <div class="actions-grid">
+                                <button pButton pRipple icon="pi pi-print" [label]="'print_expense' | translate"
+                                    class="p-button-outlined p-button-help w-full mb-2"
+                                    (click)="printExpenseReceipt(selectedExpense)">
+                                </button>
+
+                                <button pButton pRipple icon="pi pi-file-pdf" [label]="'export_pdf' | translate"
+                                    class="p-button-outlined p-button-danger w-full mb-2"
+                                    (click)="exportExpenseToPDF(selectedExpense)">
+                                </button>
+
+                                <button pButton pRipple icon="pi pi-upload" [label]="'upload_receipt' | translate"
+                                    class="p-button-outlined p-button-warning w-full mb-2"
+                                    (click)="uploadReceipt(selectedExpense)">
+                                </button>
+
+                                <button pButton pRipple icon="pi pi-copy" [label]="'duplicate_expense' | translate"
+                                    class="p-button-outlined p-button-success w-full"
+                                    (click)="duplicateExpense(selectedExpense)">
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="premium-details-section">
+                            <h4 class="section-title">
+                                <i class="pi pi-info-circle mr-2"></i>
+                                {{ 'additional_information' | translate }}
+                            </h4>
+
+                            <div class="premium-info-card additional-info-card">
+                                <div class="mb-3">
+                                    <strong>{{ 'created_date' | translate }}:</strong>
+                                    <p>{{ selectedExpense?.creationDate | date:'medium' }}</p>
+                                </div>
+                                <div class="mb-3" *ngIf="selectedExpense?.lastUpdated">
+                                    <strong>{{ 'last_updated' | translate }}:</strong>
+                                    <p>{{ selectedExpense.lastUpdated | date:'medium' }}</p>
+                                </div>
+                                <div>
+                                    <strong>{{ 'expense_status' | translate }}:</strong>
+                                    <p>
+                                        <span class="premium-status-badge"
+                                            [ngClass]="'status-' + (selectedExpense?.status || '')?.toLowerCase()">
+                                            {{ 'expense_status_' + (selectedExpense?.status || '')?.toLowerCase() |
+                                            translate }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <div class="flex justify-content-between align-items-center w-full mt-3">
+                    <button pButton pRipple label="{{'close' | translate}}" icon="pi pi-times" class="p-button-text"
+                        (click)="hideExpenseDetailsDialog()">
+                    </button>
+
+                    <div class="flex gap-2">
+                        <button pButton pRipple *ngIf="canDeleteExpense && isExpenseFinalized(selectedExpense)"
+                            label="{{ 'delete_expense' | translate }}" icon="pi pi-trash" class="p-button-danger"
+                            (click)="deleteExpense(selectedExpense)">
+                        </button>
+
+                        <button pButton pRipple *ngIf="canEditExpense && isExpenseFinalized(selectedExpense)"
+                            label="{{ 'edit_expense' | translate }}" icon="pi pi-pencil" class="p-button-primary"
+                            (click)="editExpense(selectedExpense)">
+                        </button>
+
+                        <button pButton pRipple label="{{ 'refresh' | translate }}" icon="pi pi-refresh"
+                            class="p-button-outlined p-button-secondary" (click)="refreshExpenseDetails()">
+                        </button>
+                    </div>
+                </div>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteExpenseDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="expense">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>{{expense.name}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteExpenseDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteExpensesDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteExpensesDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+    </div>
+</div>

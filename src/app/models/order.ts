@@ -10,6 +10,7 @@ export class Order {
   reference?: string;
   orderStatus?: string;
   orderDate?: Date;
+  expiryDate?: Date;
   processingDate?: Date;
   deliveryDate?: Date;
   cancelDate?: Date;
@@ -33,4 +34,5 @@ export class Order {
   payments?: Array<Payment>;
   itemCount?: number;
   returns?: Array<OrderReturn>;
+  hasInvoice?: boolean;
 }

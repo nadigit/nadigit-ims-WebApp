@@ -2,6 +2,8 @@
 .product-badge,
 .payment-badge,
 .return-badge,
+.refund-badge,
+.purchase-badge,
 .order-badge {
     border-radius: var(--border-radius);
     padding: .25em .5rem;
@@ -102,6 +104,28 @@
     }
 }
 
+.purchase-badge {
+    &.purchase-canceled {
+        background: #FFCDD2;
+        color: #C63737;
+    }
+
+    &.purchase-pending {
+        background: #FEEDAF;
+        color: #8A5340;
+    }
+
+    &.purchase-approved {
+        background: #bce8fb;
+        color: #447a8c;
+    }
+
+    &.purchase-received {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+}
+
 .return-badge {
     &.return-canceled {
         background: #FFCDD2;
@@ -150,13 +174,60 @@
         color: #3c774b;
     }
 
+    &.payment-settled {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+
     &.payment-refunded {
         background: #ECCFFF;
         color: #694382;
     }
 
+    &.payment-partial-refund {
+        background: #ECCFFF;
+        color: #694382;
+    }
+
     &.payment-failed {
-        background: #ebc3dd;
-        color: #82437f;
+        background: #efa7af;
+        color: #C63737;
+    }
+}
+
+.refund-badge {
+    &.refund-unpaid {
+        background: #efa7af;
+        color: #C63737;
+    }
+
+    &.refund-pending {
+        background: #FEEDAF;
+        color: #8A5340;
+    }
+
+    &.refund-partially_paid {
+        background: #bce8fb;
+        color: #447a8c;
+    }
+
+    &.refund-paid {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+
+    &.refund-settled {
+        background: #b9faaf;
+        color: #3c774b;
+    }   
+
+    &.refund-partial-refund {
+        background: #ECCFFF;
+        color: #694382;
+    }
+
+    &.refund-failed {
+        background: #efa7af;
+        color: #C63737;
     }
 }

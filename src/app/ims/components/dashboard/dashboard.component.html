@@ -1,6 +1,7 @@
 <div class="card flex justify-content-center" *ngIf="isLoading">
     <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
 </div>
+
 <div class="grid" *ngIf="!isLoading">
     <div class="col-12 lg:col-6 xl:col-3">
         <div class="card mb-0" *ngIf="orders">
@@ -195,7 +196,7 @@
                                         <div class="metric-tile costs-tile">
                                             <div class="metric-label">{{'total_costs' | translate}}</div>
                                             <div class="metric-value text-red-600">-{{profitData.totalCosts +
-                                                profitData.totalRefunds + profitData.totalExpenses + profitData.totalPurchases | currency: currency}}</div>
+                                                profitData.totalRefunds + profitData.totalExpenses | currency: currency}}</div>
                                         </div>
                                     </div>
                                     <div class="p-col-12 p-md-4">
@@ -259,14 +260,6 @@
                                                         <span class="breakdown-label">{{'expenses' | translate}}</span>
                                                         <span
                                                             class="breakdown-value text-red-600">-{{profitData.totalExpenses
-                                                            | currency: currency}}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="p-col-12">
-                                                    <div class="breakdown-item">
-                                                        <span class="breakdown-label">{{'purchases' | translate}}</span>
-                                                        <span
-                                                            class="breakdown-value text-red-600">-{{profitData.totalPurchases
                                                             | currency: currency}}</span>
                                                     </div>
                                                 </div>
@@ -384,7 +377,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <!-- <div class="card">
             <div class="flex align-items-center justify-content-between mb-4">
                 <h5>{{'dashboard_notifications_header' | translate}}</h5>
             </div>
@@ -467,7 +460,7 @@
                 </div>
             </ng-template>
 
-        </div>
+        </div> -->
 
     </div>
 
@@ -477,7 +470,7 @@
             <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
         </div>
 
-        <div class="card" *ngIf="products && isAdmin">
+        <div class="card" *ngIf="(products?.length > 0) && isAdmin">
             <h5>{{'dashboard_inventory_overview_header' | translate}}</h5>
             <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
         </div>
@@ -486,9 +479,6 @@
             <h5>{{'dashboard_monthly_statistics_header' | translate}}</h5>
             <p-chart type="bar" [data]="barData" [options]="barOptions"></p-chart>
         </div> -->
-
-
-        
 
     </div>
 

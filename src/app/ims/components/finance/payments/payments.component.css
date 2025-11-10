@@ -1,0 +1,85 @@
+.p-dialog .p-dialog-content {
+  background: var(--surface-ground);
+  color: var(--text-color);
+}
+
+.p-dialog .p-dialog-header {
+   background: var(--surface-section);
+   color: var(--text-color);
+   border-bottom: 1px solid var(--surface-border);
+}
+
+/* ================= Global Payment Styles ================= */
+.product-badge {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--text-color);
+}
+
+.p-dropdown-item .flex {
+  width: 100%;
+  gap: 1rem;
+  color: var(--text-color);
+}
+
+.amount-helper {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
+/* Form validation */
+.ng-invalid.ng-dirty + small {
+  color: var(--red-500);
+  display: block;
+  margin-top: 0.25rem;
+}
+
+/* Payment method warning */
+.payment-method-warning {
+  border: 1px solid var(--orange-500);
+  border-radius: var(--border-radius);
+  padding: 0.5rem;
+  background-color: color-mix(in srgb, var(--orange-500) 10%, transparent);
+  color: var(--text-color);
+}
+
+.p-message-warn {
+  border-left: 4px solid var(--orange-500);
+  background-color: color-mix(in srgb, var(--orange-500) 10%, transparent);
+}
+
+.p-message-warn .p-message-icon {
+  color: var(--orange-500);
+}
+
+.p-message-warn .p-message-text {
+  color: var(--text-color);
+}
+
+/* Dropdown theming */
+.p-dropdown {
+  background: var(--surface-card);
+  border-color: var(--surface-border);
+  color: var(--text-color);
+}
+
+.p-dropdown .p-dropdown-label {
+  color: var(--text-color);
+}
+
+.p-dropdown-panel {
+  background: var(--surface-card);
+  border-color: var(--surface-border);
+}
+
+.p-dropdown-panel .p-dropdown-item {
+  color: var(--text-color);
+}
+
+.p-dropdown-panel .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover {
+  background: var(--surface-hover);
+  color: var(--text-color);
+}

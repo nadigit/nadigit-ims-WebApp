@@ -24,4 +24,5 @@ export class Organization {
     shops?: Array<Shop>;
     creationDate?: Date;
     defaultLocale?: string;
+    costingMethod?: string;
 } 

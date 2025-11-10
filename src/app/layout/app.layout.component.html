@@ -5,6 +5,56 @@
   </div>
   <div class="layout-main-container">
     <div class="layout-main">
+      <p-toast></p-toast>
+
+      <!-- Cash Register Status Section -->
+      <div class="cash-register-section mb-4" *ngIf="(isAdmin || isVendor) && shops?.length > 0">
+
+        <!-- No active session -->
+        <div *ngIf="!isCashRegisterOpen && (isAdmin || isVendor)" class="cash-register-card p-4 border-round-lg">
+          <div class="flex align-items-center justify-content-between">
+            <div class="flex align-items-center">
+              <div class="status-indicator warning mr-3">
+                <i class="pi pi-exclamation-triangle text-yellow-500"></i>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold mb-1">{{"cash_register_closed" | translate }}</h3>
+                <p class="text-color-secondary m-0">{{"no_active_cash_register_session" | translate }}</p>
+              </div>
+            </div>
+            <button pButton label="{{'open_session'| translate}}" icon="pi pi-cash" class="p-button-warning"
+              (click)="showCashRegisterDialog = true"></button>
+          </div>
+        </div>
+
+        <!-- Active session -->
+        <div *ngIf="isCashRegisterOpen && (isAdmin || isVendor)" class="cash-register-card p-4 border-round-lg">
+          <div class="flex align-items-center justify-content-between">
+            <div class="flex align-items-center">
+              <div class="status-indicator success mr-3">
+                <i class="pi pi-lock-open text-green-500"></i>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold mb-1">{{"cash_register_active" | translate }}</h3>
+                <p class="text-color-secondary m-0">
+                  {{"session_is_currently_open" | translate}}
+                  <span *ngIf="isAdmin && currentSession?.shop">{{ currentSession.shop.shopName }}</span>
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button pButton label="{{'manage_session'|translate}}" icon="pi pi-cog" class="p-button-success"
+                (click)="showCashRegisterDialog = true"></button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <app-cash-register-session [(visible)]="showCashRegisterDialog" (sessionOpened)="onSessionOpened($event)"
+        (sessionClosed)="onSessionClosed()" (dialogClosed)="onCashRegisterDialogClosed()">
+      </app-cash-register-session>
+
       <router-outlet></router-outlet>
     </div>
     <app-footer></app-footer>
@@ -13,139 +63,227 @@
   <div class="layout-mask"></div>
 </div>
 
-<p-dialog 
-  header="{{ 'about_nadigit_ims' | translate }}" 
-  [(visible)]="layoutService.showSystemInfoDialog" 
-  [modal]="true"
-  [style]="{width: '750px'}" 
-  [closable]="true" 
-  [dismissableMask]="true"
-  [breakpoints]="{'960px': '80vw', '640px': '95vw'}"
-  [draggable]="false"
->
-  <div class="system-info-container p-4">
-    <!-- Header with logo and system name -->
-    <div class="system-header mb-5 text-center">
-      <img 
-        src="assets/app-logo/nadigitims-logo.png" 
-        alt="Nadigit IMS Logo" 
-        class="logo-img mb-3"
-        style="height: 70px;"
-      >
-      <h2 class="m-0 text-primary font-bold text-2xl">{{layoutService.systemInfo?.appName || 'Nadigit IMS'}}</h2>
-      <p class="text-lg text-color-secondary m-0 mt-2">{{ 'inventory_management_system' | translate }}</p>
-      <p class="text-sm text-color-secondary mt-2 inline-block px-3 py-1 rounded-full">
-        {{ 'version' | translate }} {{layoutService.systemInfo?.appVersion || 'Loading...'}}
-      </p>
-      <p-divider styleClass="my-3"></p-divider>
+<p-dialog header="{{ 'about_nadigit_ims' | translate }}" [(visible)]="layoutService.showSystemInfoDialog" [modal]="true"
+  [style]="{width: '800px'}" [closable]="true" [dismissableMask]="true"
+  [breakpoints]="{'960px': '90vw', '640px': '95vw'}" [draggable]="false" [styleClass]="'system-info-dialog'">
+
+  <div class="system-info-container">
+    <!-- Hero Header with gradient -->
+    <div class="system-hero text-center p-6 border-round-xl surface-gradient">
+      <div class="logo-container mb-4">
+        <img src="assets/app-logo/nadigitims-logo.png" alt="Nadigit IMS Logo" class="logo-img animate-pulse"
+          style="height: 80px;">
+      </div>
+      <h1 class="text-white m-0 font-bold text-3xl">{{layoutService.systemInfo?.appName || 'Nadigit IMS'}}</h1>
+      <p class="text-white-alpha-90 text-lg m-0 mt-2">{{ 'inventory_management_system' | translate }}</p>
+
+      <!-- Version Badge -->
+      <div class="version-badge inline-flex align-items-center px-4 py-2 mt-3 border-round-xl bg-white-alpha-20">
+        <i class="pi pi-tag mr-2 text-white"></i>
+        <span class="text-white font-semibold">
+          {{ 'version' | translate }} {{layoutService.systemInfo?.appVersion || 'Loading...'}}
+        </span>
+      </div>
     </div>
 
-    <!-- Main content grid -->
-    <div class="grid">
-      <!-- Left column -->
-      <div class="col-12 md:col-6 pr-0 md:pr-3">
-        <!-- Support Information Card -->
-        <div class="contact-card p-4 border-round-lg surface-card shadow-2 mb-4">
-          <h3 class="mt-0 mb-4 flex align-items-center text-xl">
-            <i class="pi pi-info-circle mr-2 text-primary"></i>
-            {{ 'support_information' | translate }}
-          </h3>
-          
-          <div class="support-item mb-4">
-            <div class="flex align-items-start">
-              <i class="pi pi-globe text-primary mt-1 mr-3"></i>
+    <!-- Main Content -->
+    <div class="p-5">
+      <!-- Quick Stats Row -->
+      <div class="grid mb-5">
+        <div class="col-12 md:col-4">
+          <div
+            class="stat-card text-center p-3 border-round-lg surface-card shadow-1 hover:shadow-2 transition-all transition-duration-300">
+            <i class="pi pi-shield text-blue-500 text-2xl mb-2"></i>
+            <p class="font-bold text-lg m-0 text-900">{{ 'license_status' | translate }}</p>
+            <p-tag *ngIf="daysUntilExpiration !== null" [severity]="getLicenseSeverity(daysUntilExpiration)"
+              [value]="getLicenseStatusText(daysUntilExpiration)" class="mt-2">
+            </p-tag>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+          <div
+            class="stat-card text-center p-3 border-round-lg surface-card shadow-1 hover:shadow-2 transition-all transition-duration-300">
+            <i class="pi pi-calendar text-green-500 text-2xl mb-2"></i>
+            <p class="font-bold text-lg m-0 text-900">{{ 'expires_in' | translate }}</p>
+            <p class="text-700 font-semibold text-xl m-0 mt-1">
+              {{daysUntilExpiration > 0 ? daysUntilExpiration + ' ' + ('days' | translate) : ('expired' | translate)}}
+            </p>
+          </div>
+        </div>
+
+        <div class="col-12 md:col-4">
+          <div
+            class="stat-card text-center p-3 border-round-lg surface-card shadow-1 hover:shadow-2 transition-all transition-duration-300">
+            <i class="pi pi-clock text-orange-500 text-2xl mb-2"></i>
+            <p class="font-bold text-lg m-0 text-900">{{ 'last_updated' | translate }}</p>
+            <p class="text-700 font-semibold text-sm m-0 mt-1">
+              {{layoutService.systemInfo?.lastUpdateDate || 'N/A'}}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Support & License Section -->
+      <div class="grid">
+        <!-- Support Information -->
+        <div class="col-12 md:col-6 pr-0 md:pr-3">
+          <div class="support-card p-4 border-round-xl surface-card shadow-1 h-full">
+            <div class="card-header flex align-items-center mb-4">
+              <div class="icon-container bg-blue-100 p-3 border-round-lg mr-3">
+                <i class="pi pi-microphone text-blue-600 text-xl"></i>
+              </div>
               <div>
-                <p class="font-semibold mb-1 text-sm">{{ 'website' | translate }}</p>
-                <a *ngIf="layoutService.systemInfo?.supportWebsite; else loadingTxt"
-                  [href]="layoutService.systemInfo.supportWebsite" 
-                  target="_blank"
-                  class="text-color-secondary no-underline hover:underline hover:text-primary">
-                  {{layoutService.systemInfo.supportWebsite}}
-                </a>
+                <h3 class="m-0 text-900">{{ 'support_contact' | translate }}</h3>
+                <p class="text-600 m-0 mt-1 text-sm">{{ 'we_are_here_to_help' | translate }}</p>
               </div>
             </div>
-          </div>
-          
-          <div class="support-item mb-4">
-            <div class="flex align-items-start">
-              <i class="pi pi-envelope text-primary mt-1 mr-3"></i>
-              <div>
-                <p class="font-semibold mb-1 text-sm">{{ 'email' | translate }}</p>
-                <a *ngIf="layoutService.systemInfo?.supportEmail; else loadingTxt"
-                  [href]="'mailto:' + layoutService.systemInfo.supportEmail"
-                  class="text-color-secondary no-underline hover:underline hover:text-primary">
-                  {{layoutService.systemInfo.supportEmail}}
-                </a>
+
+            <div class="space-y-4">
+              <!-- Website -->
+              <div
+                class="contact-item flex align-items-center p-3 border-round-lg hover:surface-hover transition-colors mt-2">
+                <i class="pi pi-globe text-blue-500 text-lg mr-3"></i>
+                <div class="flex-1">
+                  <p class="font-semibold text-sm mb-1 text-700">{{ 'website' | translate }}</p>
+                  <a *ngIf="layoutService.systemInfo?.supportWebsite; else loadingTxt"
+                    [href]="layoutService.systemInfo.supportWebsite" target="_blank"
+                    class="text-primary no-underline hover:underline font-medium">
+                    {{ getDomainName(layoutService.systemInfo.supportWebsite) }}
+                  </a>
+                </div>
+                <i class="pi pi-external-link text-400"></i>
               </div>
-            </div>
-          </div>
-          
-          <div class="support-item">
-            <div class="flex align-items-start">
-              <i class="pi pi-phone text-primary mt-1 mr-3"></i>
-              <div>
-                <p class="font-semibold mb-1 text-sm">{{ 'phone' | translate }}</p>
-                <p *ngIf="layoutService.systemInfo?.supportPhone; else loadingTxt" 
-                  class="text-color-secondary m-0">
-                  {{layoutService.systemInfo.supportPhone}}
-                </p>
+
+              <!-- Email -->
+              <div
+                class="contact-item flex align-items-center p-3 border-round-lg hover:surface-hover transition-colors mt-2">
+                <i class="pi pi-envelope text-red-500 text-lg mr-3"></i>
+                <div class="flex-1">
+                  <p class="font-semibold text-sm mb-1 text-700">{{ 'email' | translate }}</p>
+                  <a *ngIf="layoutService.systemInfo?.supportEmail; else loadingTxt"
+                    [href]="'mailto:' + layoutService.systemInfo.supportEmail"
+                    class="text-primary no-underline hover:underline font-medium">
+                    {{ layoutService.systemInfo.supportEmail }}
+                  </a>
+                </div>
+                <i class="pi pi-copy text-400 cursor-pointer" pTooltip="{{ 'copy_email' | translate }}"
+                  (click)="copyToClipboard(layoutService.systemInfo.supportEmail)"></i>
+              </div>
+
+              <!-- Phone -->
+              <div
+                class="contact-item flex align-items-center p-3 border-round-lg hover:surface-hover transition-colors mt-2">
+                <i class="pi pi-phone text-green-500 text-lg mr-3"></i>
+                <div class="flex-1">
+                  <p class="font-semibold text-sm mb-1 text-700">{{ 'phone' | translate }}</p>
+                  <p *ngIf="layoutService.systemInfo?.supportPhone; else loadingTxt" class="text-700 font-medium m-0">
+                    {{ layoutService.systemInfo.supportPhone }}
+                  </p>
+                </div>
+                <i class="pi pi-copy text-400 cursor-pointer" pTooltip="{{ 'copy_phone' | translate }}"
+                  (click)="copyToClipboard(layoutService.systemInfo.supportPhone)"></i>
+              </div>
+
+              <!-- License Info -->
+              <div class="license-info mt-4 pt-4 border-top-1 surface-border">
+                <div class="flex align-items-center justify-content-between mb-2">
+                  <div>
+                    <p class="text-sm text-600 mb-1">
+                      {{ 'license_expires' | translate }}: 
+                      <span class="font-semibold text-900 m-0">
+                        {{ layoutService.systemInfo?.licenseExpiresAt || 'Loading...' }}
+                      </span>
+                    </p>
+
+                  </div>
+                  <p-button *ngIf="daysUntilExpiration <= 30 && daysUntilExpiration > 0" icon="pi pi-refresh"
+                    [label]="'renew_license' | translate" styleClass="p-button-sm p-button-warning">
+                  </p-button>
+                </div>
+
+                <!-- 🔥 Smart progress bar -->
+                <p-progressBar *ngIf="licenseProgress !== null" [value]="licenseProgress" [showValue]="false"
+                  [style]="{ height: '10px' }" [styleClass]="licenseProgressColor">
+                </p-progressBar>
+
+                <!-- Status text -->
+                <div class="text-sm mt-2 text-center" [ngClass]="{
+         'text-green-600': daysUntilExpiration > 30,
+         'text-orange-500': daysUntilExpiration <= 30 && daysUntilExpiration > 7,
+         'text-red-600': daysUntilExpiration <= 7
+       }">
+                  {{ daysUntilExpiration > 0
+                  ? ('days_remaining' | translate: { days: daysUntilExpiration })
+                  : ('license_expired' | translate) }}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- License Information Card -->
-        <div class="license-card p-4 border-round-lg surface-card shadow-2">
-          <h3 class="mt-0 mb-4 flex align-items-center text-xl">
-            <i class="pi pi-key mr-2 text-primary"></i>
-            {{ 'license_information' | translate }}
-          </h3>
-          
-          <div class="license-detail mb-4">
-            <p class="text-sm text-color-secondary mb-1">{{ 'license_expiration_date' | translate }}</p>
-            <div class="flex align-items-center">
-              <p class="font-semibold m-0 text-lg">
-                {{layoutService.systemInfo?.licenseExpiresAt || 'Loading...'}}
-              </p>
-              <span *ngIf="daysUntilExpiration !== null" 
-                [class.text-green-500]="daysUntilExpiration > 30"
-                [class.text-yellow-500]="daysUntilExpiration <= 30 && daysUntilExpiration > 0"
-                [class.text-red-500]="daysUntilExpiration <= 0" 
-                class="ml-3 text-sm bg-surface-300 px-2 py-1 rounded-full">
-                {{daysUntilExpiration > 0 ? 
-                  ('days_remaining' | translate:{ days: daysUntilExpiration }) : 
-                  ('expired' | translate)}}
-              </span>
+
+        <!-- Features & License -->
+        <div class="col-12 md:col-6 pl-0 md:pl-3">
+          <div class="features-card p-4 border-round-xl surface-card shadow-1 h-full">
+            <div class="card-header flex align-items-center mb-4">
+              <div class="icon-container bg-green-100 p-3 border-round-lg mr-3">
+                <i class="pi pi-star text-green-600 text-xl"></i>
+              </div>
+              <div>
+                <h3 class="m-0 text-900">{{ 'key_features' | translate }}</h3>
+                <p class="text-600 m-0 mt-1 text-sm">{{ 'powerful_inventory_tools' | translate }}</p>
+              </div>
+            </div>
+
+            <div class="grid">
+              <div *ngFor="let key of featureKeys; let i = index" class="col-12 md:col-6 mb-3">
+                <div class="feature-item flex align-items-center p-2">
+                  <div class="feature-icon bg-primary-100 p-2 border-round-lg mr-3">
+                    <i class="pi pi-check text-primary-600 text-sm"></i>
+                  </div>
+                  <span class="text-sm font-medium text-900">{{ key | translate }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right column -->
-      <div class="col-12 md:col-6 pl-0 md:pl-3">
-        <!-- System Features Card -->
-        <div class="features-card p-4 border-round-lg surface-card shadow-2 h-full">
-          <h3 class="mt-0 mb-4 flex align-items-center text-xl">
-            <i class="pi pi-star mr-2 text-primary"></i>
-            {{ 'system_features' | translate }}
-          </h3>
-          
-          <div class="grid">
-            <div *ngFor="let key of featureKeys" class="col-12 md:col-6 mb-3">
-              <div class="feature-item flex align-items-center p-2 hover:surface-hover transition-colors transition-duration-150 rounded">
-                <i class="pi pi-check-circle text-green-500 mr-3"></i>
-                <span>{{ key | translate }}</span>
-              </div>
+      <!-- System Status -->
+      <div class="system-status mt-4 p-4 border-round-xl surface-card shadow-1">
+        <div class="flex align-items-center justify-content-between">
+          <div class="flex align-items-center">
+            <i class="pi pi-server text-2xl mr-3 text-primary"></i>
+            <div>
+              <p class="font-semibold text-lg m-0 text-900">{{ 'system_status' | translate }}</p>
+              <p class="text-600 m-0 text-sm">{{ 'all_systems_operational' | translate }}</p>
             </div>
           </div>
+          <p-tag [value]="'OPERATIONAL' | translate" severity="success" class="font-bold"></p-tag>
         </div>
       </div>
     </div>
 
     <!-- Footer -->
-    <div class="text-center text-sm text-color-secondary mt-5 pt-3 border-top-1 border-surface-border">
-      <p class="m-0">
-        <i class="pi pi-copyright"></i> 
+    <div class="system-footer text-center p-4 border-round-bottom-xl surface-ground">
+      <div class="flex align-items-center justify-content-center gap-4 mb-2">
+        <a href="https://nadigit.com/solutions/nadigit-ims" target="_blank"
+          class="text-600 hover:text-primary transition-colors">
+          <i class="pi pi-book text-lg"></i>
+          <span class="ml-1 text-sm">{{ 'documentation' | translate }}</span>
+        </a>
+        <a href="https://nadigit.com/contact-us" target="_blank" class="text-600 hover:text-primary transition-colors">
+          <i class="pi pi-question-circle text-lg"></i>
+          <span class="ml-1 text-sm">{{ 'help_center' | translate }}</span>
+        </a>
+        <a href="https://nadigit.com/contact-us" target="_blank" class="text-600 hover:text-primary transition-colors">
+          <i class="pi pi-comments text-lg"></i>
+          <span class="ml-1 text-sm">{{ 'feedback' | translate }}</span>
+        </a>
+      </div>
+      <p class="text-600 text-sm m-0">
+        <i class="pi pi-copyright"></i>
         {{ 'nadigit_rights_reserved' | translate:{ year: currentYear } }}
       </p>
     </div>

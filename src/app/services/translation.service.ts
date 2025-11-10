@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import moment from 'moment';
+import 'moment/locale/fr';
+import 'moment/locale/es';
+import 'moment/locale/ar';
 
 @Injectable({
   providedIn: 'root'
@@ -18,7 +22,9 @@ export class TranslationService {
       localStorage.setItem('preferredLanguage', lang);
       document.documentElement.lang = lang;
       document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
-      
+
+      // Update Moment locale whenever language changes
+      moment.locale(lang);
     } else {
       console.error(`Language "${lang}" not supported.`);
     }
@@ -27,7 +33,7 @@ export class TranslationService {
   public supportedLanguages = [
     { label: 'English', value: 'en' },
     { label: 'Français', value: 'fr' },
-    { label: 'Español', value: 'sp' },
+    { label: 'Español', value: 'es' },
     { label: 'الْعَرَبِيَّةُ', value: 'ar' }
   ]; // Your supported languages
 
@@ -53,5 +59,11 @@ export class TranslationService {
     // Use dynamic import to load the JSON file based on the language
     const translations = await import(`../../assets/i18n/${lang}.json`);
     return translations;
+  }
+
+  public relativeTime(date: string | Date): string {
+    if (!date) return '';
+    const lang = this.currentLang.getValue() || 'en';
+    return moment(date).locale(lang).fromNow();
   }
 }

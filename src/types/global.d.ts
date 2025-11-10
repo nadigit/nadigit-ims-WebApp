@@ -5,5 +5,7 @@ interface Window {
         apiProtocol: string;
         apiHost: string;
         apiPort: string;
+        kcRealm: string;
+        kcClientId: string;
     };
 }

@@ -1,0 +1,129 @@
+.required-asterisk {
+    color: red;
+    /* Makes the asterisk red */
+    margin-left: 2px;
+    /* Adds a small space between text and asterisk */
+}
+
+.required-note {
+    margin-top: 1rem;
+    color: #666;
+    /* Optional: style to match your app's design */
+}
+
+.add-wrapper {
+    position: absolute;
+    top: 0;
+    /* Position at top */
+    right: 0;
+    /* Position at right */
+    /* transform: translateX(-50%); Center horizontally */
+}
+
+.add-wrapper a {
+    text-decoration: none;
+    /* Remove underline from link */
+    cursor: pointer;
+    /* Indicate clickable element */
+}
+
+.amount-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.amount-label {
+  font-weight: 500;
+  color: #6c757d;
+  margin-right: 0.5rem;
+}
+
+.amount-value {
+  text-align: right;
+  font-family: monospace;
+}
+
+.original-amount {
+  grid-column: span 2;
+  text-decoration: line-through;
+  opacity: 0.7;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px dashed #e9ecef;
+}
+
+.refund-amount {
+  color: #dc3545;
+}
+
+.net-amount {
+  font-weight: bold;
+  color: #007bff;
+  padding-top: 0.25rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.single-amount {
+  font-weight: bold;
+}
+
+.payment-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.payment-label {
+  font-weight: 500;
+  color: #6c757d;
+  margin-right: 0.5rem;
+}
+
+.payment-value {
+  text-align: right;
+  font-family: monospace;
+}
+
+.payment-amount {
+  grid-column: span 2;
+  padding-bottom: 0.25rem;
+}
+
+.refund-amount {
+  color: #dc3545;
+  padding-bottom: 0.25rem;
+}
+
+.net-paid {
+  font-weight: bold;
+  color: #28a745;
+  padding-top: 0.25rem;
+  border-top: 1px solid #dee2e6;
+}
+
+
+/* payment section */
+.single-payment {
+  font-weight: bold;
+  color: #28a745;
+}
+
+/* .product-badge {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+} */
+
+.p-dropdown-item .flex {
+  width: 100%;
+  gap: 1rem;
+}
+
+.amount-helper {
+  color: #6c757d;
+  font-size: 0.875rem;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}

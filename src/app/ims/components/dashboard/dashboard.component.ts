@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MenuItem, SelectItem } from 'primeng/api';
+import { MenuItem, MessageService, SelectItem } from 'primeng/api';
 
-import { Subscription, debounceTime, forkJoin } from 'rxjs';
+import { Subscription, debounceTime, firstValueFrom, forkJoin } from 'rxjs';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { OrderService } from 'src/app/services/order.service';
 import { Order } from 'src/app/models/order';
@@ -11,14 +11,14 @@ import { CustomerService } from 'src/app/services/customer.service';
 import { Customer } from 'src/app/models/customer';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
-import { Notification } from 'src/app/models/notification';
 import moment from 'moment';
-import { NotificationService } from 'src/app/services/notification.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { PurchaseService } from 'src/app/services/purchase.service';
 import { ExpenseService } from 'src/app/services/expense.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AnalysisService, ProfitAnalysis, ProfitPeriod, Shop } from 'src/app/services/analysis.service';
+import { CashRegisterService } from 'src/app/services/cash-register.service';
+import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
 
 @Component({
     styleUrls: ['./dashboard.component.css'],
@@ -98,16 +98,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     outOfStockProducts: any[] = [];
     lowStockProducts: any[] = [];
 
-    recentNotifications: Notification[] = [];
-    olderNotifications: Notification[] = [];
-    recentPage: number = 0;
-    pageSize: number = 10;
-    loadMoreVisible: boolean = true;
-    displayedNotificationIds: Set<number> = new Set<number>();
 
     userRoles: any;
     isAdmin: boolean = false;
-
+    isVendor: boolean = false;
     pieData: any;
     pieOptions: any;
 
@@ -118,6 +112,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     isLoading = true;
     profitPeriods: SelectItem[];
 
+
     constructor(private orderService: OrderService,
         private productService: ProductService,
         private purchaseService: PurchaseService,
@@ -127,15 +122,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
         public layoutService: LayoutService,
         private translate: TranslateService,
         private translateService: TranslationService,
-        private notificationService: NotificationService,
         private configService: AppConfigurationService,
         public keycloakService: KeycloakService,
+        private cashRegisterService: CashRegisterService,
+        public messageService: MessageService,
     ) {
         this.subscription = this.layoutService.configUpdate$
             .pipe(debounceTime(25))
             .subscribe((config) => {
                 this.initChart();
             });
+
     }
 
     async ngOnInit() {
@@ -220,10 +217,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
             }
         });
 
-        this.loadRecentNotifications();
-
 
     }
+
 
     calculateIndicatorPosition(): string {
         if (!this.profitData?.totalRevenue) return '50%';
@@ -257,7 +253,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     async initProfitChart(): Promise<void> {
-        const translations = await this.translate.get(['financial_overview', 'revenue', 'product_costs', 'refunds', 'expenses', 'purchases', 'profit_net']).toPromise();
+        const translations = await this.translate.get(['financial_overview', 'revenue', 'product_costs', 'refunds', 'expenses', 'profit_net']).toPromise();
 
         this.profitChartOptions = {
             responsive: true,
@@ -357,12 +353,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
                     data: [-data.totalExpenses],
                     backgroundColor: '#9966ff',
                     borderColor: '#9966ff'
-                },
-                {
-                    label: translations['purchases'],
-                    data: [-data.totalPurchases],
-                    backgroundColor: '#36a2eb',
-                    borderColor: '#36a2eb'
                 },
                 {
                     label: translations['profit_margin'],
@@ -582,9 +572,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
     }
 
+
     private async setUserRoles() {
         this.userRoles = await this.keycloakService.getUserRoles();
         this.isAdmin = this.userRoles.includes('ADMIN');
+        this.isVendor = this.userRoles.includes('VENDOR');
     }
 
     getOrders() {
@@ -669,37 +661,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.deliveredOrders = this.todayOrders.filter(order => order.orderStatus === 'Delivered');
     }
 
-    loadRecentNotifications() {
-        this.notificationService.getRecentNotifications(this.recentPage, this.pageSize).subscribe(
-            data => {
-                const today = moment().startOf('day');
-
-                // Filter and add notifications to recentNotifications
-                const newRecentNotifications = data.content.filter((notification: any) =>
-                    moment(notification.creationDate).isSameOrAfter(today) && !this.displayedNotificationIds.has(notification.id)
-                );
-
-                this.recentNotifications = this.recentNotifications.concat(newRecentNotifications);
-                newRecentNotifications.forEach(notification => this.displayedNotificationIds.add(notification.id));
-
-                // Filter and add notifications to olderNotifications
-                const newOlderNotifications = data.content.filter((notification: any) =>
-                    moment(notification.creationDate).isBefore(today) && !this.displayedNotificationIds.has(notification.id)
-                );
-
-                this.olderNotifications = this.olderNotifications.concat(newOlderNotifications);
-                newOlderNotifications.forEach(notification => this.displayedNotificationIds.add(notification.id));
-
-                if (!data.last) {
-                    this.recentPage++;
-                } else {
-                    this.loadMoreVisible = false;
-                }
-                console.log(this.recentNotifications)
-            },
-            error => console.error(error)
-        );
-    }
 
 
     calculatePercentages(productQuantityMap: Map<number, number>): void {
@@ -763,27 +724,4 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
 
-    getCustomMessage(notification: Notification): string {
-        let notificationTitles = ["product in low stock", "product is out of stock"]
-
-        if (notificationTitles.includes(notification.title)) {
-            // Extract product name
-            const productNameMatch = notification.message.match(/\(([^)]+)\)/);
-            return productNameMatch ? productNameMatch[1] : null;
-        }
-        return notification.message;
-    }
-
-    // async onGetCurrecy() {
-    //     await (await this.configService.getConfigurationValue('currency'))
-    //         .subscribe({
-    //             next: (response: any) => {
-    //                 this.currency = response;
-    //                 console.log(this.currency)
-    //             },
-    //             error: (err: any) => {
-    //                 console.log(err)
-    //             }
-    //         })
-    // }
 }

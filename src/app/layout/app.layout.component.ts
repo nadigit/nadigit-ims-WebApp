@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, Renderer2, ViewChild } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { filter, Subscription } from 'rxjs';
+import { filter, firstValueFrom, Subscription } from 'rxjs';
 import { LayoutService } from "./service/app.layout.service";
 import { AppSidebarComponent } from "./app.sidebar.component";
 import { AppTopBarComponent } from './app.topbar.component';
@@ -8,10 +8,16 @@ import { KeycloakService } from 'keycloak-angular';
 import { KeycloakProfile } from 'keycloak-js';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
+import { CashRegisterService } from '../services/cash-register.service';
+import { MessageService } from 'primeng/api';
+import { CashRegisterSession } from '../models/cashRegisterSession';
+import { Shop } from '../models/shop';
+import { ShopService } from '../services/shop.service';
 
 @Component({
     selector: 'app-layout',
-    templateUrl: './app.layout.component.html'
+    templateUrl: './app.layout.component.html',
+    styleUrl: './app.layout.component.css'
 })
 export class AppLayoutComponent implements OnDestroy, OnInit {
 
@@ -27,6 +33,19 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     currentYear = new Date().getFullYear();
     daysUntilExpiration: number | null = null;
+    showCashRegisterDialog = false;
+    isAdmin: boolean = false;
+    isVendor: boolean = false;
+    isWarehouseman: boolean = false;
+    userRoles: any;
+    isCashRegisterOpen = false;
+    currentSession: any;
+
+    shops: Shop[] = [];
+
+    licenseProgress: number | null = null;
+    licenseProgressColor: string = 'bg-green-500';
+
 
     featureKeys: string[] = [
         'feature_1',
@@ -60,9 +79,11 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     constructor(public layoutService: LayoutService,
         public renderer: Renderer2,
         public router: Router,
-        public keycloakService: KeycloakService,
         private translate: TranslateService,
-        private translateService: TranslationService,
+        public keycloakService: KeycloakService,
+        private cashRegisterService: CashRegisterService,
+        private messageService: MessageService,
+        private shopService: ShopService,
     ) {
 
         this.overlayMenuOpenSubscription = this.layoutService.overlayOpen$.subscribe(() => {
@@ -100,46 +121,106 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             });
     }
     ngOnInit(): void {
-
         if (this.keycloakService.isTokenExpired()) {
             this.login();
         }
+
+        this.loadCashRegisterSession();
 
         this.layoutService.systemInfoLoaded$.subscribe(() => {
             this.calculateDaysUntilExpiration();
         });
 
+        this.setUserRoles();
+        this.onGetAllShops();
+    }
+
+    async loadCashRegisterSession(shopId?: number): Promise<void> {
+        try {
+            // For admins, load session of selected shop; otherwise user's shop
+            const session$ = shopId
+                ? await this.cashRegisterService.getCurrentSessionByShop(shopId)
+                : await this.cashRegisterService.getCurrentSession();
+
+            this.currentSession = await firstValueFrom(session$);
+            this.isCashRegisterOpen = !!this.currentSession;
+
+            if (this.currentSession) {
+                this.cashRegisterService.setCurrentSession(this.currentSession);
+            }
+
+        } catch (err) {
+            console.error('❌ Error loading cash register session:', err);
+            this.isCashRegisterOpen = false;
+        }
+    }
+
+
+    promptToOpenRegister() {
+        this.messageService.add({
+            severity: 'warn',
+            summary: 'Cash Register Closed',
+            detail: 'Please open your cash register before processing sales.',
+            life: 4000
+        });
+
+        this.showCashRegisterDialog = true;
     }
 
     calculateDaysUntilExpiration() {
         console.log('Calculating days until license expiration...');
-        console.log('License expiration date:', this.layoutService.systemInfo?.licenseExpiresAt);
-        if (!this.layoutService.systemInfo?.licenseExpiresAt) return;
+        const expiresAtStr = this.layoutService.systemInfo?.licenseExpiresAt;
+        if (!expiresAtStr) return;
 
         try {
-            const expirationDate = new Date(this.layoutService.systemInfo.licenseExpiresAt);
+            const expirationDate = new Date(expiresAtStr);
             const today = new Date();
             const diffTime = expirationDate.getTime() - today.getTime();
+
             if (diffTime < 0) {
                 console.warn('License has already expired.');
                 this.daysUntilExpiration = 0;
+                this.licenseProgress = 100;
+                this.licenseProgressColor = 'bg-red-500';
                 return;
             }
+
             if (isNaN(diffTime)) {
-                console.error('Invalid expiration date:', this.layoutService.systemInfo.licenseExpiresAt);
+                console.error('Invalid expiration date:', expiresAtStr);
                 this.daysUntilExpiration = null;
+                this.licenseProgress = null;
                 return;
             }
-            console.log('Expiration date:', expirationDate);
-            console.log('Current date:', today);
-            console.log('Difference in milliseconds:', diffTime);
-            console.log('Difference in days:', Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-            // Calculate days until expiration
+
             this.daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            console.log(`Days until license expiration: ${this.daysUntilExpiration}`);
+
+            // 🧮 Dynamically calculate progress:
+            //   - If license started 1 year ago → assume ~365 days
+            //   - Otherwise estimate from remaining days
+            // If backend provides start date: use it for accuracy
+            const startDate = this.layoutService.systemInfo?.licenseStartAt
+                ? new Date(this.layoutService.systemInfo.licenseStartAt)
+                : new Date(expirationDate.getTime() - 365 * 24 * 60 * 60 * 1000); // assume 1 year license
+
+            const totalDays = Math.ceil((expirationDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            const usedDays = totalDays - this.daysUntilExpiration;
+            this.licenseProgress = Math.min(100, Math.max(0, (usedDays / totalDays) * 100));
+
+            // 🎨 Adjust color based on time left
+            if (this.daysUntilExpiration > 30) {
+                this.licenseProgressColor = 'bg-green-500';
+            } else if (this.daysUntilExpiration > 7) {
+                this.licenseProgressColor = 'bg-orange-500';
+            } else {
+                this.licenseProgressColor = 'bg-red-500';
+            }
+
+            console.log(`Days until expiration: ${this.daysUntilExpiration}, Progress: ${this.licenseProgress}%`);
+
         } catch (e) {
             console.error('Error calculating license expiration:', e);
             this.daysUntilExpiration = null;
+            this.licenseProgress = null;
         }
     }
 
@@ -214,5 +295,79 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     logOut() {
         this.keycloakService.logout(window.location.origin)
     }
+
+    onSessionOpened(session: any): void {
+        this.isCashRegisterOpen = true;
+        this.currentSession = session;
+        this.cashRegisterService.setCurrentSession(session);
+    }
+
+    onSessionClosed(): void {
+        this.isCashRegisterOpen = false;
+        this.currentSession = null;
+        // this.cashRegisterService.clearCurrentSession?.();
+    }
+
+    private async setUserRoles() {
+        this.userRoles = await this.keycloakService.getUserRoles();
+        this.isAdmin = this.userRoles.includes('ADMIN');
+        this.isVendor = this.userRoles.includes('VENDOR');
+        this.isWarehouseman = this.userRoles.includes('WAREHOUSEMAN');
+    }
+
+    onCashRegisterDialogClosed(): void {
+        console.log('🟡 Cash register dialog closed by user');
+        this.showCashRegisterDialog = false;
+    }
+
+    onCashRegisterOpened(session: CashRegisterSession): void {
+        console.log('✅ Cash register opened:', session);
+        this.isCashRegisterOpen = true;
+        this.showCashRegisterDialog = false; // hide after open
+    }
+
+    onCashRegisterClosed(session: CashRegisterSession): void {
+        console.log('🔴 Cash register closed:', session);
+        this.isCashRegisterOpen = false;
+    }
+
+    async onGetAllShops() {
+        await (await this.shopService.getShops())
+            .subscribe({
+                next: (response: any) => {
+                    this.shops = response;
+                },
+                error: (err: any) => {
+                    console.log(err)
+                }
+            })
+    }
+
+    getLicenseSeverity(days: number): string {
+        if (days > 30) return 'success';
+        if (days > 0) return 'warning';
+        return 'danger';
+    }
+
+    getLicenseStatusText(days: number): string {
+        if (days > 30) return this.translate.instant('active');
+        if (days > 0) return this.translate.instant('expiring_soon');
+        return this.translate.instant('expired');
+    }
+
+    getDomainName(url: string): string {
+        return url?.replace(/^https?:\/\//, '').replace(/\/.*$/, '') || '';
+    }
+
+    async copyToClipboard(text: string): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(text);
+            // Show success message (you can use a toast service)
+            console.log('Copied to clipboard:', text);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    }
+
 
 }

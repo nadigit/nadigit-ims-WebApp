@@ -9,7 +9,7 @@ import { environment } from 'src/environments/environment';
 export class ShopService {
   jwt: string | undefined;
   // host2:string= environment.apiUrl;
-  schema: string = '/organizations/shops';
+  schema: string = '/api/organizations/shops';
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';

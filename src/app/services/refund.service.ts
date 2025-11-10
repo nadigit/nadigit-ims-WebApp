@@ -10,7 +10,7 @@ export class RefundService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/refunds/";
+  schema: string = "/api/refunds/";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';  

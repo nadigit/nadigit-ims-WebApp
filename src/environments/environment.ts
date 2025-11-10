@@ -14,10 +14,10 @@ export const environment = {
   },
   keycloak: {
     authority: `${window.__env.apiProtocol}://${window.__env.kcHost}:${window.__env.kcPort}`,
-    redirectUri: `${window.__env.apiProtocol}://${window.__env.apiHost}:${window.__env.apiPort}/realms/Nadigit_ims/protocol/openid-connect/callback`,
+    redirectUri: `${window.__env.apiProtocol}://${window.__env.apiHost}:${window.__env.apiPort}/realms/${window.__env.kcRealm}/protocol/openid-connect/callback`,
     postLogoutRedirectUri: `${window.__env.apiProtocol}://${window.__env.apiHost}:${window.__env.apiPort}/logout`,
-    realm: 'Nadigit_ims',
-    clientId: 'nadigit-ims-web-app',
+    realm: `${window.__env.kcRealm}`,
+    clientId: `${window.__env.kcClientId}`,
   },
   idleConfig: { idle: 10, timeout: 60, ping: 10 },
 };

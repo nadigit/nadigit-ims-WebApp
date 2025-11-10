@@ -10,7 +10,7 @@ export class WarehouseService {
 
   jwt: any;
   // host2:string= environment.apiUrl;
-  schema: string = "/organizations/warehouses";
+  schema: string = "/api/organizations/warehouses";
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';
