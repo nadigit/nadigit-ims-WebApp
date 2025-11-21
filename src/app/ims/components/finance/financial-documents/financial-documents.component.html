@@ -291,24 +291,7 @@
 						<h4 class="mt-3 mb-2">{{ 'document_information' | translate }}</h4>
 					</div>
 
-					<div class="col-12 md:col-12">
-						<div class="field">
-							<label for="docType">{{'document_type' | translate}} <span
-									class="required-asterisk">*</span></label>
-							<p-dropdown [options]="docTypes" [(ngModel)]="financialDoc.docType" optionLabel="label"
-								optionValue="value" placeholder="{{'select_document_type' | translate}}" appendTo="body"
-								[showClear]="true" (onChange)="onDocTypeChange($event.value)">
-								<ng-template let-option pTemplate="item">
-									<i class="pi pi-file mr-2"></i>{{option.label}}
-								</ng-template>
-							</p-dropdown>
-							<small class="p-error" *ngIf="submitted && !financialDoc.docType">
-								{{'document_type' | translate}} {{'is_required_label' | translate}}
-							</small>
-						</div>
-					</div>
-
-					<!-- <div class="col-12 md:col-6" *ngIf="financialDoc.docType">
+					<div class="col-12 md:col-6" *ngIf="financialDoc.docType">
 						<div class="field">
 							<label for="docTitle">{{'document_title' | translate}}</label>
 							<div class="p-inputgroup">
@@ -317,7 +300,7 @@
 									placeholder="{{ 'enter_document_title' | translate }}" />
 							</div>
 						</div>
-					</div> -->
+					</div>
 
 					<div class="col-12">
 						<div class="field">

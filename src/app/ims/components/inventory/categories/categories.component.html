@@ -199,18 +199,43 @@
                             </div>
                         </div> -->
 
-                        <div class="field mt-3">
+                        <!-- Costing Method -->
+                        <div class="field">
                             <label for="costingMethod" class="block mb-2 font-bold">
-                                {{ 'costing_method' | translate }}
+                                {{ 'category_costing_method' | translate }}
                             </label>
-                            <p-dropdown [(ngModel)]="category.costingMethod" name="costingMethod"
-                                inputId="costingMethod" [options]="costingMethods" optionLabel="label"
-                                optionValue="value" placeholder="{{ 'select_costing_method' | translate }}">
-                                <ng-template let-method pTemplate="item">
-                                    <span>{{ method.label }}</span>
-                                </ng-template>
+
+                            <p-dropdown appendTo="body" [(ngModel)]="category.costingMethod" name="costingMethod"
+                                [options]="costingMethods" optionLabel="label" optionValue="value"
+                                placeholder="{{ 'inherit_costing_method' | translate }}" [showClear]="true"
+                                [disabled]="!isAdmin && category?.categoryId"
+                                >
                             </p-dropdown>
+
+                            <small class="text-color-secondary">
+                                {{ 'costing_method_inheritance_help' | translate }}
+                            </small>
                         </div>
+
+                        <!-- Effective Costing Method (Read Only Info) -->
+                        <!-- <div class="field col-12 md:col-8 mt-2">
+                            <label class="block mb-1 font-bold">
+                                {{ 'effective_costing_method' | translate }}
+                            </label>
+
+                            <div class="p-2 border-round flex align-items-center gap-2" [ngClass]="{
+         'bg-primary-50 text-primary-700': category.costingMethod,
+         'bg-teal-50 text-teal-700': !category.costingMethod && category.costingMethod !== 'NONE',
+         'bg-yellow-50 text-yellow-700': isCostingMethodNone
+       }">
+                                <i class="pi pi-info-circle"></i>
+                                <span>{{ effectiveCostingMethodLabel }}</span>
+                            </div>
+
+                            <small class="text-color-secondary">
+                                {{ 'effective_costing_method_explanation' | translate }}
+                            </small>
+                        </div> -->
                     </div>
                 </div>
 

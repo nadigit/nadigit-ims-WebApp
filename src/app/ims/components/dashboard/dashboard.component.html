@@ -1,33 +1,38 @@
+<!-- Loading Indicator -->
 <div class="card flex justify-content-center" *ngIf="isLoading">
     <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
 </div>
 
+<!-- Main Dashboard Content -->
 <div class="grid" *ngIf="!isLoading">
+    
+    <!-- First Row - Key Metrics -->
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="orders">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
                     <span class="block text-500 font-medium mb-3">{{'orders_menu_title' | translate}}</span>
-                    <div class="text-900 font-medium text-xl" *ngIf="orders">{{ orders.length }}</div>
+                    <div class="text-900 font-medium text-xl">{{ orders?.page?.totalElements || 0 }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-blue-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
                     <i class="pi pi-shopping-cart text-blue-500 text-xl"></i>
                 </div>
             </div>
-            <span class="text-green-500 font-medium">{{ todayOrders.length }} </span>
+            <span class="text-green-500 font-medium">{{ todayOrders?.length || 0 }} </span>
             <span class="text-500"> {{'dashboard_new_orders_today_txt' | translate}} </span>
         </div>
     </div>
+
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="todayRevenue !== null && todayRevenue !== undefined">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
                     <span class="block text-500 font-medium mb-3">
                         {{ 'dashboard_today_revenue_header' | translate }}
                     </span>
                     <div class="text-900 font-medium text-xl">
-                        {{ currency || '' }} {{ todayRevenue ?? '0.00' }}
+                        {{ currency || '' }} {{ todayRevenue | number:'1.2-2' }}
                     </div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
@@ -35,61 +40,58 @@
                     <i class="pi pi-dollar text-orange-500 text-xl"></i>
                 </div>
             </div>
-
             <span class="text-green-500 font-medium">
-                {{ currency || '' }} {{ yesterdayRevenue ?? '0.00' }}
+                {{ currency || '' }} {{ yesterdayRevenue | number:'1.2-2' }}
             </span>
-
-            <span class="text-500"
-                *ngIf="revenueDifferencePercentage !== null && revenueDifferencePercentage !== undefined">
+            <span class="text-500">
                 {{ 'dashboard_since_yesterday_txt' | translate }}
                 (%{{ revenueDifferencePercentage | number: '1.2-2' }}
                 {{ 'dashboard_revenue_percentage_difference_txt' | translate }})
             </span>
         </div>
-
     </div>
+
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="customers">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
                     <span class="block text-500 font-medium mb-3">{{'customers_menu_title' | translate}} </span>
-                    <div class="text-900 font-medium text-xl">{{ customers.length }}</div>
+                    <div class="text-900 font-medium text-xl">{{ customers?.length || 0 }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-cyan-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
                     <i class="pi pi-users text-cyan-500 text-xl"></i>
                 </div>
             </div>
-            <span class="text-green-500 font-medium">{{ todayCustomers.length }} </span>
+            <span class="text-green-500 font-medium">{{ todayCustomers?.length || 0 }} </span>
             <span class="text-500"> {{'dashboard_customers_newly_registered_txt' | translate}}</span>
         </div>
     </div>
+
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="products">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
                     <span class="block text-500 font-medium mb-3">{{'products_menu_title' | translate}}</span>
-                    <div class="text-900 font-medium text-xl">{{ products.length }}</div>
+                    <div class="text-900 font-medium text-xl">{{ products?.length || 0 }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-purple-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
                     <i class="pi pi-database text-purple-500 text-xl"></i>
                 </div>
             </div>
-            <span class="text-green-500 font-medium">{{ lastWeekProducts.length }} </span>
+            <span class="text-green-500 font-medium">{{ lastWeekProducts?.length || 0 }} </span>
             <span class="text-500">{{'dashboard_products_added_last_week_txt' | translate}}</span>
         </div>
     </div>
-    <!-- Second Line -->
 
+    <!-- Second Row - Status Metrics -->
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="lowStockProducts">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_lowstock_header' |
-                        translate}}</span>
-                    <div class="text-900 font-medium text-xl">{{ lowStockProducts.length }}</div>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_lowstock_header' | translate}}</span>
+                    <div class="text-900 font-medium text-xl">{{ lowStockProducts?.length || 0 }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
@@ -98,13 +100,13 @@
             </div>
         </div>
     </div>
+
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="outOfStockProducts">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_outofstock_header' |
-                        translate}}</span>
-                    <div class="text-900 font-medium text-xl">{{ outOfStockProducts.length }}</div>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_products_outofstock_header' | translate}}</span>
+                    <div class="text-900 font-medium text-xl">{{ outOfStockProducts?.length || 0 }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-pink-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
@@ -113,13 +115,13 @@
             </div>
         </div>
     </div>
+
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="deliveredOrders">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_delivered_today_header' |
-                        translate}}</span>
-                    <div class="text-900 font-medium text-xl">{{ deliveredOrders.length }}</div>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_delivered_today_header' | translate}}</span>
+                    <div class="text-900 font-medium text-xl">{{ deliveredOrders?.length || 0 }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-green-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
@@ -128,13 +130,13 @@
             </div>
         </div>
     </div>
+
     <div class="col-12 lg:col-6 xl:col-3">
-        <div class="card mb-0" *ngIf="canceledOrders">
+        <div class="card mb-0">
             <div class="flex justify-content-between mb-3">
                 <div>
-                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_canceled_today_header' |
-                        translate}}</span>
-                    <div class="text-900 font-medium text-xl">{{ canceledOrders.length }}</div>
+                    <span class="block text-500 font-medium mb-3">{{'dashboard_orders_canceled_today_header' | translate}}</span>
+                    <div class="text-900 font-medium text-xl">{{ canceledOrders?.length || 0 }}</div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-pink-100 border-round"
                     [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
@@ -144,12 +146,12 @@
         </div>
     </div>
 
+    <!-- Profit Analysis Section - Admin Only -->
     <div class="col-12" *ngIf="isAdmin">
         <div class="p-grid p-fluid profit-dashboard">
             <div class="p-col-12">
                 <p-card header="{{'profit_analysis_dashboard' | translate}}">
                     <div class="p-grid p-formgrid">
-
                         <div class="p-field p-col-12 p-md-6 mt-4" style="position: relative;">
                             <label class="mt-4" for="period">{{'period' | translate}}</label>
                             <p-dropdown [options]="profitPeriods" [(ngModel)]="selectedPeriod"
@@ -165,14 +167,15 @@
                         </div>
                     </div>
 
+                    <!-- Profit Loading State -->
                     <p-progressSpinner *ngIf="profitLoading" styleClass="w-4rem h-4rem"></p-progressSpinner>
 
-                    <p-message *ngIf="error" severity="error" text="{{error}}"></p-message>
+                    <!-- Profit Error State -->
+                    <p-message *ngIf="error" severity="error" [text]="error"></p-message>
 
+                    <!-- Profit Data Content -->
                     <div *ngIf="profitData && !profitLoading" class="p-grid p-mt-4">
-
-
-                        <div class="p-col-12 p-lg-8">
+                        <div class="p-col-12 p-lg-8 chart-container">
                             <div>
                                 <p-chart type="bar" [data]="profitChartData" [options]="profitChartOptions"></p-chart>
                             </div>
@@ -188,28 +191,26 @@
                                     <div class="p-col-12 p-md-4">
                                         <div class="metric-tile revenue-tile">
                                             <div class="metric-label">{{'revenue' | translate}}</div>
-                                            <div class="metric-value text-green-600">{{profitData.totalRevenue |
-                                                currency: currency}}</div>
+                                            <div class="metric-value text-green-600">{{profitData.totalRevenue | currency: (currency || 'USD')}}</div>
                                         </div>
                                     </div>
                                     <div class="p-col-12 p-md-4">
                                         <div class="metric-tile costs-tile">
                                             <div class="metric-label">{{'total_costs' | translate}}</div>
-                                            <div class="metric-value text-red-600">-{{profitData.totalCosts +
-                                                profitData.totalRefunds + profitData.totalExpenses | currency: currency}}</div>
+                                            <div class="metric-value text-red-600">-{{(profitData.totalCosts + profitData.totalRefunds + profitData.totalExpenses) | currency: (currency || 'USD')}}</div>
                                         </div>
                                     </div>
                                     <div class="p-col-12 p-md-4">
                                         <div class="metric-tile" [ngClass]="{
-              'profit-tile': profitData.netProfit >= 0,
-              'loss-tile': profitData.netProfit < 0
-            }">
+                                            'profit-tile': profitData.netProfit >= 0,
+                                            'loss-tile': profitData.netProfit < 0
+                                        }">
                                             <div class="metric-label">{{'net_profit' | translate}}</div>
                                             <div class="metric-value" [ngClass]="{
-                'text-green-600': profitData.netProfit >= 0,
-                'text-red-600': profitData.netProfit < 0
-              }">
-                                                {{profitData.netProfit | currency: currency}}
+                                                'text-green-600': profitData.netProfit >= 0,
+                                                'text-red-600': profitData.netProfit < 0
+                                            }">
+                                                {{profitData.netProfit | currency: (currency || 'USD')}}
                                             </div>
                                         </div>
                                     </div>
@@ -223,11 +224,8 @@
                                             <div class="p-grid">
                                                 <div class="p-col-12">
                                                     <div class="breakdown-item">
-                                                        <span class="breakdown-label">{{'gross_revenue' |
-                                                            translate}}</span>
-                                                        <span
-                                                            class="breakdown-value text-green-600">{{profitData.totalRevenue
-                                                            | currency: currency}}</span>
+                                                        <span class="breakdown-label">{{'gross_revenue' | translate}}</span>
+                                                        <span class="breakdown-value text-green-600">{{profitData.totalRevenue | currency: (currency || 'USD')}}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -240,27 +238,20 @@
                                             <div class="p-grid">
                                                 <div class="p-col-12">
                                                     <div class="breakdown-item">
-                                                        <span class="breakdown-label">{{'product_costs' |
-                                                            translate}}</span>
-                                                        <span
-                                                            class="breakdown-value text-red-600">-{{profitData.totalCosts
-                                                            | currency: currency}}</span>
+                                                        <span class="breakdown-label">{{'product_costs' | translate}}</span>
+                                                        <span class="breakdown-value text-red-600">-{{profitData.totalCosts | currency: (currency || 'USD')}}</span>
                                                     </div>
                                                 </div>
                                                 <div class="p-col-12">
                                                     <div class="breakdown-item">
                                                         <span class="breakdown-label">{{'refunds' | translate}}</span>
-                                                        <span
-                                                            class="breakdown-value text-red-600">-{{profitData.totalRefunds
-                                                            | currency: currency}}</span>
+                                                        <span class="breakdown-value text-red-600">-{{profitData.totalRefunds | currency: (currency || 'USD')}}</span>
                                                     </div>
                                                 </div>
                                                 <div class="p-col-12">
                                                     <div class="breakdown-item">
                                                         <span class="breakdown-label">{{'expenses' | translate}}</span>
-                                                        <span
-                                                            class="breakdown-value text-red-600">-{{profitData.totalExpenses
-                                                            | currency: currency}}</span>
+                                                        <span class="breakdown-value text-red-600">-{{profitData.totalExpenses | currency: (currency || 'USD')}}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -270,23 +261,21 @@
 
                                 <!-- Profit Margin Indicator -->
                                 <div class="p-mt-4" *ngIf="profitData.totalRevenue > 0">
-                                    <!-- Progress bar that handles negative values -->
                                     <div class="profit-margin-bar">
                                         <div class="bar-container">
                                             <div class="negative-track" *ngIf="profitData.netProfit < 0"></div>
                                             <div class="positive-track" *ngIf="profitData.netProfit >= 0"></div>
                                             <div class="indicator" [style.left]="calculateIndicatorPosition()"
                                                 [ngClass]="{
-             'positive': profitData.netProfit >= 0,
-             'negative': profitData.netProfit < 0
-           }">
-                                                <span class="indicator-value">{{calculateProfitMargin() |
-                                                    number:'1.0-2'}}%</span>
+                                                    'positive': profitData.netProfit >= 0,
+                                                    'negative': profitData.netProfit < 0
+                                                }">
+                                                <span class="indicator-value">{{calculateProfitMargin() | number:'1.0-2'}}%</span>
                                             </div>
                                         </div>
                                         <div class="p-d-flex p-jc-between p-mt-2">
                                             <span>{{'profit_margin' | translate}} : </span>
-                                            <span>{{profitData.netProfit | currency: currency}}</span>
+                                            <span>{{profitData.netProfit | currency: (currency || 'USD')}}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -298,29 +287,28 @@
         </div>
     </div>
 
-
+    <!-- Left Column - Recent Products & Best Sellers -->
     <div class="col-12 xl:col-6">
+        <!-- Recent Products Card -->
         <div class="card">
             <h5>{{'dashboard_recent_products_header' | translate}}</h5>
-            <p-table [value]="recentOrderedProducts" [paginator]="true" [rows]="5" responsiveLayout="scroll">
+            <p-table [value]="recentOrderedProducts" [paginator]="true" [rows]="5" [lazy]="true" responsiveLayout="scroll">
                 <ng-template pTemplate="header">
                     <tr>
                         <th>{{'product_image' | translate}}</th>
-                        <th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon field="name"></p-sortIcon>
-                        </th>
-                        <th pSortableColumn="reference">{{'product_reference' | translate}} <p-sortIcon
-                                field="reference"></p-sortIcon></th>
+                        <th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon field="name"></p-sortIcon></th>
+                        <th pSortableColumn="reference">{{'product_reference' | translate}} <p-sortIcon field="reference"></p-sortIcon></th>
                         <th>{{'view_label' | translate}}</th>
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-product>
                     <tr>
                         <td style="width: 15%; min-width: 5rem;">
-                            <img src="{{product.productImage ? product.productImage : 'assets/core-images/no-image.png'}}"
-                                [ngClass]="{'shadow-4': product.productImage}" alt="{{product.name}}" width="50">
+                            <img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+                                [ngClass]="{'shadow-4': product.productImage}" [alt]="product.name" width="50" loading="lazy">
                         </td>
                         <td style="width: 35%; min-width: 7rem;">{{product.name}}</td>
-                        <td style="width: 35%; min-width: 8rem;">{{product.reference }}</td>
+                        <td style="width: 35%; min-width: 8rem;">{{product.reference}}</td>
                         <td style="width: 15%;">
                             <button pButton pRipple type="button" icon="pi pi-search"
                                 class="p-button p-component p-button-text p-button-icon-only"
@@ -331,7 +319,7 @@
                 <ng-template pTemplate="emptymessage">
                     <tr>
                         <td colspan="4" class="text-center">
-                            <img src="assets/core-images/no_data_found.png" alt="No data found" width="150" />
+                            <img src="assets/core-images/no_data_found.png" alt="No data found" width="150" loading="lazy" />
                             <div>No data found</div>
                         </td>
                     </tr>
@@ -339,20 +327,20 @@
             </p-table>
         </div>
 
+        <!-- Best Selling Products Card -->
         <div class="card">
             <div class="flex justify-content-between align-items-center mb-5">
                 <h5>{{'dashboard_products_best_selling_header' | translate}}</h5>
             </div>
             <ul class="list-none p-0 m-0" *ngIf="productPercentages && productPercentages.length > 0">
                 <li class="flex flex-column md:flex-row md:align-items-center md:justify-content-between mb-4"
-                    *ngFor="let productPercentage of productPercentages">
+                    *ngFor="let productPercentage of productPercentages; trackBy: trackByProductId">
                     <div>
                         <span class="text-900 font-medium mr-2 mb-1 md:mb-0">{{ productPercentage.product.name }}</span>
-                        <div class="mt-1 text-600">{{ productPercentage.product.category.categoryName }}</div>
+                        <div class="mt-1 text-600">{{ productPercentage.product.category?.categoryName }}</div>
                     </div>
                     <div class="mt-2 md:mt-0 flex align-items-center">
-                        <div class="surface-300 border-round overflow-hidden w-10rem lg:w-6rem"
-                            [ngStyle]="{ height: '8px' }">
+                        <div class="surface-300 border-round overflow-hidden w-10rem lg:w-6rem" [ngStyle]="{ height: '8px' }">
                             <div class="h-full" [style.width.%]="productPercentage.percentage"
                                 [class.bg-purple-500]="productPercentage.percentage >= 70"
                                 [class.bg-pink-500]="productPercentage.percentage < 70 && productPercentage.percentage > 50"
@@ -364,122 +352,40 @@
                             [class.text-pink-500]="productPercentage.percentage < 70 && productPercentage.percentage > 50"
                             [class.text-green-500]="productPercentage.percentage <= 50 && productPercentage.percentage > 30"
                             [class.text-cyan-500]="productPercentage.percentage <= 30">
-                            %{{ productPercentage.percentage }}
+                            %{{ productPercentage.percentage | number:'1.0-2' }}
                         </span>
                     </div>
                 </li>
             </ul>
 
-            <!-- If there is no data, show an image -->
-            <div class="text-center" *ngIf="productPercentages && productPercentages.length === 0">
-                <img src="assets/core-images/no_data_found.png" alt="No data found" width="150" />
+            <!-- Empty State -->
+            <div class="text-center" *ngIf="!productPercentages || productPercentages.length === 0">
+                <img src="assets/core-images/no_data_found.png" alt="No data found" width="150" loading="lazy" />
                 <div>No data found</div>
             </div>
         </div>
-
-        <!-- <div class="card">
-            <div class="flex align-items-center justify-content-between mb-4">
-                <h5>{{'dashboard_notifications_header' | translate}}</h5>
-            </div>
-            <div *ngIf="(recentNotifications?.length || olderNotifications?.length); else noNotifications">
-                <ng-container *ngIf="recentNotifications?.length">
-
-                    <span *ngIf="recentNotifications?.length"
-                        class="block text-600 font-medium mb-3">{{'dashboard_notifications_today_txt' |
-                        translate}}</span>
-                    <ul class="p-0 mx-0 mt-0 mb-4 list-none">
-                        <li *ngFor="let notification of recentNotifications"
-                            class="flex align-items-center py-2 border-bottom-1 surface-border">
-                            <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
-                                [class.bg-orange-100]="notification.severity === 'Warning'"
-                                [class.bg-pink-100]="notification.severity === 'Error'"
-                                [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
-                                <i [ngSwitch]="notification.entity">
-                                    <i *ngSwitchCase="'Products'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
-                                    <i *ngSwitchCase="'Orders'" class="pi pi-dollar text-xl text-blue-500"></i>
-                                    <i *ngSwitchCase="'Customers'" class="pi pi-user text-xl text-blue-500"></i>
-                                    <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
-                                </i>
-                            </div>
-                            <div>
-                                <span class="text-900 line-height-3">{{ getCustomMessage(notification) }}
-                                    <span *ngIf="notification.title == 'product is out of stock'">
-                                        {{'notif_product_out_of_stock' | translate}} </span>
-                                    <span *ngIf="notification.title == 'product in low stock'">
-                                        {{'notif_product_low_stock' | translate}} </span>
-
-                                    <br>
-                                    <span class="text-400" style="font-size: smaller;">{{notification.creationDate |
-                                        date:'dd/MM/yyyy'}}</span>
-                                </span>
-                            </div>
-
-                        </li>
-                    </ul>
-                </ng-container>
-
-                <ng-container *ngIf="olderNotifications?.length">
-
-                    <span *ngIf="olderNotifications.length"
-                        class="block text-600 font-medium mb-3">{{'dashboard_notifications_older_txt' |
-                        translate}}</span>
-                    <ul class="p-0 m-0 list-none">
-                        <li *ngFor="let notification of olderNotifications"
-                            class="flex align-items-center py-2 border-bottom-1 surface-border">
-                            <div class="w-3rem h-3rem flex align-items-center justify-content-center border-circle mr-3 flex-shrink-0"
-                                [class.bg-orange-100]="notification.severity === 'Warning'"
-                                [class.bg-pink-100]="notification.severity === 'Error'"
-                                [class.bg-blue-100]="notification.severity !== 'Warning' && notification.severity !== 'Error'">
-                                <i [ngSwitch]="notification.entity">
-                                    <i *ngSwitchCase="'Products'" class="pi pi-shopping-cart text-xl text-blue-500"></i>
-                                    <i *ngSwitchCase="'Orders'" class="pi pi-shopping-bag text-xl text-blue-500"></i>
-                                    <i *ngSwitchCase="'Customers'" class="pi pi-dollar text-xl text-blue-500"></i>
-                                    <i *ngSwitchDefault class="pi pi-info-circle text-xl text-blue-500"></i>
-                                </i>
-                            </div>
-                            <div>
-                                <span class="text-900 line-height-3">{{ getCustomMessage(notification) }}
-                                    <span *ngIf="notification.title == 'product is out of stock'">
-                                        {{'notif_product_out_of_stock' | translate}} </span>
-                                    <span *ngIf="notification.title == 'product in low stock'">
-                                        {{'notif_product_low_stock' | translate}} </span>
-
-                                    <br>
-                                    <span class="text-400" style="font-size: smaller;">{{notification.creationDate |
-                                        date:'dd/MM/yyyy'}}</span>
-                                </span>
-                            </div>
-                        </li>
-                    </ul>
-                </ng-container>
-            </div>
-            <ng-template #noNotifications>
-                <div class="text-center mt-4 text-600 font-medium">
-                    <img src="assets/core-images/no_data_found.png" alt="No notifications" width="150" class="mb-2">
-                    <div>{{ 'no_notifications_available_txt' | translate }}</div>
-                </div>
-            </ng-template>
-
-        </div> -->
-
     </div>
 
+    <!-- Right Column - Charts -->
     <div class="col-12 xl:col-6">
-        <div class="card" *ngIf="orders">
+        <!-- Sales Overview Chart -->
+        <div class="card chart-container">
             <h5>{{'dashboard_sales_overview_header' | translate}}</h5>
-            <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
+            <p-chart type="line" [data]="chartData" [options]="chartOptions" *ngIf="chartData"></p-chart>
+            <div *ngIf="!chartData" class="text-center p-4">
+                <p-progressSpinner styleClass="w-4rem h-4rem"></p-progressSpinner>
+                <div class="mt-2">Loading chart...</div>
+            </div>
         </div>
 
-        <div class="card" *ngIf="(products?.length > 0) && isAdmin">
+        <!-- Inventory Overview Chart -->
+        <div class="card chart-container" *ngIf="isAdmin && products?.length > 0">
             <h5>{{'dashboard_inventory_overview_header' | translate}}</h5>
-            <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
+            <p-chart type="pie" [data]="pieData" [options]="pieOptions" *ngIf="pieData"></p-chart>
+            <div *ngIf="!pieData" class="text-center p-4">
+                <p-progressSpinner styleClass="w-4rem h-4rem"></p-progressSpinner>
+                <div class="mt-2">Loading chart...</div>
+            </div>
         </div>
-
-        <!-- <div class="card" >
-            <h5>{{'dashboard_monthly_statistics_header' | translate}}</h5>
-            <p-chart type="bar" [data]="barData" [options]="barOptions"></p-chart>
-        </div> -->
-
     </div>
-
 </div>

@@ -65,19 +65,9 @@ export class SettingsComponent implements OnInit {
   existingImageFile: any = null; // Add this
 
 
-  availableLocales: any[] = [
-    { label: 'English', value: 'en' },
-    { label: 'Arabic', value: 'ar' },
-    { label: 'French', value: 'fr' },
-    { label: 'Spanish', value: 'es' }
-  ];
+  availableLocales: any[] = [];
 
-  costingMethods = [
-  { label: 'FIFO', value: 'FIFO' },
-  { label: 'Weighted Average', value: 'WEIGHTED_AVERAGE' },
-  { label: 'Standard Cost', value: 'STANDARD_COST' },
-  { label: 'None', value: 'NONE' }
-];
+  costingMethods: any[] = [];
 
   constructor(
     private messageService: MessageService,
@@ -139,6 +129,21 @@ export class SettingsComponent implements OnInit {
     this.loadConfigs();
 
     this.activeItem = this.menuItems[0];
+
+    this.costingMethods = [
+      { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
+      { label: this.translate.instant('costing_method_lifo'), value: 'LIFO' },
+      { label: this.translate.instant('costing_method_weighted_average'), value: 'WEIGHTED_AVERAGE' },
+      { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
+      { label: this.translate.instant('costing_method_none'), value: 'NONE' }
+    ];
+
+    this.availableLocales = [
+      { label: 'English', value: 'en' },
+      { label: 'الْعَرَبِيَّةُ', value: 'ar' },
+      { label: 'Français', value: 'fr' },
+      { label: 'Español', value: 'es' }
+    ];
 
   }
 
@@ -220,7 +225,7 @@ export class SettingsComponent implements OnInit {
     }
   }
 
-  
+
 
   async updateConfig(config: AppConfiguration): Promise<void> {
     console.log(config);

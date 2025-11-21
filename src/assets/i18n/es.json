@@ -1825,6 +1825,7 @@
   "product_standard_cost": "Costo Estándar",
   "product_standard_cost_required": "El costo estándar es obligatorio para el método Costo Estándar",
   "effective_standard_cost": "Costo Estándar Efectivo",
-  "effective_standard_cost_explanation": "Este costo se utiliza para calcular el costo real de las ventas."
-
+  "effective_standard_cost_explanation": "Este costo se utiliza para calcular el costo real de las ventas.",
+  "select_due_date": "Seleccionar fecha de vencimiento",
+  "category_costing_method": "Método de valorización"
 }

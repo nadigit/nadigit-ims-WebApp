@@ -1,0 +1,425 @@
+<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+  <div class="flex align-items-center mb-3">
+    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+  </div>
+  <p class="m-0 text-600">
+    {{ 'orders_page_description' | translate }}
+    <!-- <span *ngIf="customers?.length" class="font-semibold">
+                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
+                    </span> -->
+  </p>
+  <div class="flex mt-3 gap-2">
+    <p-tag *ngIf="canAddOrder" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
+    <p-tag *ngIf="canEditOrder" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
+    <p-tag *ngIf="canDeleteOrder" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
+    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+    <p-tag *ngIf="canProcessOrder" value="{{'process' | translate}}" icon="pi pi-cog" severity="help"></p-tag>
+  </div>
+</div>
+
+
+
+<div class="card flex justify-content-center" *ngIf="isLoading">
+  <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+</div>
+
+<div class="grid" *ngIf="!isLoading && isAdmin">
+  <div class="col-12 lg:col-6 xl:col-3">
+    <div class="card mb-0" *ngIf="totalRecords">
+      <div class="flex justify-content-between mb-3">
+        <div>
+          <span class="block text-500 font-medium mb-3">{{'total_orders' |
+            translate}}</span>
+          <div class="text-900 font-medium text-xl" *ngIf="totalRecords">{{ totalRecords }}</div>
+        </div>
+        <div class="flex align-items-center justify-content-center bg-blue-100 border-round"
+          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+          <i class="pi pi-shopping-cart text-blue-500 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 lg:col-6 xl:col-3">
+    <div class="card mb-0">
+      <div class="flex justify-content-between mb-3">
+        <div>
+          <span class="block text-500 font-medium mb-3">{{'order_total_amount' |
+            translate}}
+          </span>
+          <div class="text-900 font-medium text-xl"> {{totalAmount |
+            currency:currency:'symbol':'1.2-2'}}</div>
+        </div>
+        <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
+          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+          <i class="pi pi-money-bill text-orange-500 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 lg:col-6 xl:col-3">
+    <div class="card mb-0">
+      <div class="flex justify-content-between mb-3">
+        <div>
+          <span class="block text-500 font-medium mb-3">{{'order_total_paid' |
+            translate}}
+          </span>
+          <div class="text-900 font-medium text-xl">{{ totalPaid |
+            currency:currency:'symbol':'1.2-2' }}</div>
+        </div>
+        <div class="flex align-items-center justify-content-center bg-cyan-100 border-round"
+          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+          <i class="pi pi-check-circle text-cyan-500 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 lg:col-6 xl:col-3">
+    <div class="card mb-0">
+      <div class="flex justify-content-between mb-3">
+        <div>
+          <span class="block text-500 font-medium mb-3">{{'order_remaining_balance' |
+            translate}}</span>
+          <div class="text-900 font-medium text-xl">{{ remainingBalance |
+            currency:currency:'symbol':'1.2-2' }}</div>
+        </div>
+        <div class="flex align-items-center justify-content-center bg-purple-100 border-round"
+          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+          <i class="pi pi-clock text-purple-500 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p-toolbar styleClass="mb-4">
+  <ng-template pTemplate="left">
+    <div class="my-2">
+      <button pButton pRipple *ngIf="canAddOrder" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+        class="p-button-success mr-2" (click)="addOrderEvent.emit()" pTooltip="{{'add_new_order'|translate}}"></button>
+      <button pButton pRipple *ngIf="canDeleteOrder" label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+        class="p-button-danger" (click)="deleteSelectedOrdersEvent.emit()" pTooltip="{{'delete_order'|translate}}"
+        [disabled]="!selectedOrders || !selectedOrders.length"></button>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="right">
+    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF" tooltipPosition="bottom"
+      (click)="exportPdf()"></button>
+    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success mr-2" pTooltip="XLS"
+      tooltipPosition="bottom"></button>
+  </ng-template>
+</p-toolbar>
+
+
+
+<p-table #dt [value]="orders" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
+  [paginator]="true" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords"
+  [rowsPerPageOptions]="[10,20,50]" [loading]="isLoading"
+  [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"
+  currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
+  [(selection)]="selectedOrders" selectionMode="multiple" [rowHover]="true" dataKey="orderId"
+  [expandedRowKeys]="expandedRows" [filterDelay]="0"
+  [globalFilterFields]="['reference','customer.firstName','customer.lastName','customer.companyName','shop.shopName','orderStatus','paymentStatus', 'orderDate']"
+  >
+
+  <ng-template pTemplate="caption">
+    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+      <h5 class="m-0">{{ 'orders_page_title' | translate }}</h5>
+      <span class="block mt-2 md:mt-0 p-input-icon-left">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" (input)="applyGlobalFilter($event)" placeholder="{{ 'search_label' | translate }}"
+          class="w-full sm:w-auto" />
+      </span>
+    </div>
+  </ng-template>
+  <ng-template pTemplate="header">
+    <tr>
+      <th style="width: 3rem">
+        <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+      </th>
+      <th style="width: 3rem"></th>
+      <th pSortableColumn="reference">{{ 'order_reference' | translate }} <p-sortIcon field="reference"></p-sortIcon>
+      </th>
+      <th pSortableColumn="orderDate">{{ 'order_date' | translate }}
+        <p-columnFilter type="date" field="orderDate" display="menu" />
+        <p-sortIcon field="orderDate"></p-sortIcon>
+      </th>
+      <th style="min-width: 12rem">
+        <div class="flex justify-content-between align-items-center">
+          {{ 'order_status' | translate }}
+          <p-columnFilter field="orderStatus" matchMode="equals" display="menu">
+            <ng-template pTemplate="filter" let-value let-filter="filterCallback">
+              <p-dropdown [ngModel]="value" [options]="statuses" (onChange)="filter($event.value)"
+                placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
+                <ng-template let-option pTemplate="item">
+                  <span [class]="'order-badge order-' + option.label.toLowerCase()">
+                    {{'order_status_'+option.label.toLowerCase() | translate}}</span>
+                </ng-template>
+              </p-dropdown>
+            </ng-template>
+          </p-columnFilter>
+          <p-sortIcon field="orderStatus"></p-sortIcon>
+        </div>
+      </th>
+      <th pSortableColumn="totalAmount">{{ 'order_total_amount' | translate }} <p-sortIcon
+          field="totalAmount"></p-sortIcon>
+      </th>
+      <th pSortableColumn="totalPaid">{{ 'order_total_paid' | translate }} <p-sortIcon field="totalPaid"></p-sortIcon>
+      </th>
+      <th style="min-width: 12rem">
+        <div class="flex justify-content-between align-items-center">
+          {{ 'order_payment_status' | translate }}
+          <p-columnFilter field="paymentStatus" matchMode="equals" display="menu">
+            <ng-template pTemplate="filter" let-value let-filter="filterCallback">
+              <p-dropdown [ngModel]="value" [options]="paymentStatuses" (onChange)="filter($event.value)"
+                placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
+                <ng-template let-option pTemplate="item">
+                  <span [class]="'payment-badge payment-' + option.label.toLowerCase()">
+                    {{'order_payment_status_'+option.label.toLowerCase() |
+                    translate}}</span>
+                </ng-template>
+              </p-dropdown>
+            </ng-template>
+          </p-columnFilter>
+          <p-sortIcon field="paymentStatus"></p-sortIcon>
+        </div>
+      </th>
+      <th pSortableColumn="customer">
+        {{ 'order_customer' | translate }}
+        <p-sortIcon field="customer"></p-sortIcon>
+        <p-columnFilter field="customerId" matchMode="equals" display="menu">
+          <ng-template pTemplate="filter" let-value let-filter="filterCallback">
+            <p-dropdown [ngModel]="value" [options]="customers" (onChange)="filter($event.value)"
+              placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}"
+              [optionLabel]="getCustomerDisplayName">
+              <ng-template let-option pTemplate="item">
+                <!-- Display the appropriate name based on customer type -->
+                <span>{{ getCustomerDisplayName(option) }}</span>
+              </ng-template>
+              <ng-template pTemplate="selectedItem" let-selected>
+                <!-- Show selected item with appropriate name -->
+                <span *ngIf="selected">{{ getCustomerDisplayName(selected) }}</span>
+              </ng-template>
+            </p-dropdown>
+          </ng-template>
+        </p-columnFilter>
+      </th>
+      <th *ngIf="isAdmin" pSortableColumn="shop">{{ 'order_shop' | translate }}
+        <p-sortIcon field="shop"></p-sortIcon>
+        <p-columnFilter field="shopName" matchMode="equals" display="menu">
+          <ng-template pTemplate="filter" let-value let-filter="filterCallback">
+            <p-dropdown [ngModel]="value" [options]="shops" (onChange)="filter($event.value)"
+              placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}" optionLabel="shopName">
+              <ng-template let-option pTemplate="item">
+                <span>{{ option.shopName}}</span>
+              </ng-template>
+              <ng-template pTemplate="selectedItem" let-selected>
+                <span *ngIf="selected">{{ selected.shopName }}</span>
+              </ng-template>
+            </p-dropdown>
+          </ng-template>
+        </p-columnFilter>
+      </th>
+      <th></th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-order let-expanded="expanded">
+    <tr (click)="canProcessOrder ? processOrderEvent.emit(order) : null">
+      <td>
+        <p-tableCheckbox [value]="order" (click)="$event.stopPropagation()"></p-tableCheckbox>
+      </td>
+
+      <td>
+        <button type="button" pButton pRipple class="p-button-text p-button-rounded p-button-plain"
+          [icon]="isRowExpanded(order.orderId) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+          (click)="toggleRow(order.orderId); $event.stopPropagation()"></button>
+      </td>
+
+      <td style="min-width:10rem;">
+        <span class="p-column-title">{{ 'order_reference' | translate }}</span>
+        #{{ order.reference ? order.reference : 'N/A'}}
+        <span *ngIf="isReturnedStatus(order.orderStatus)" class="ml-2" [pTooltip]="getReturnTooltip(order.orderStatus) | translate"
+          tooltipPosition="top">
+          <i class="pi pi-undo" [ngClass]="{
+      'text-yellow-500': order.orderStatus === 'Partial_Return',
+      'text-red-500': order.orderStatus === 'Returned'
+    }"></i>
+        </span>
+      </td>
+      <td style="min-width:10rem;">
+        <span class="p-column-title">{{ 'order_date' | translate }}</span>
+        {{ order.orderDate | date: 'dd/MM/yyyy' }}
+      </td>
+      <td style="min-width:10rem;">
+        <span [class]="'order-badge order-' + order.orderStatus.toLowerCase()">{{order.orderStatus ?
+          ('order_status_'+order.orderStatus.toLowerCase() | translate) : 'N/A'}}</span>
+      </td>
+      <td style="min-width:12rem;" class="font-bold">
+        <span class="p-column-title">{{ 'order_total_amount' | translate }}</span>
+
+        <div *ngIf="hasReturns(order); else originalAmount" class="amount-container">
+          <!-- Original Amount -->
+          <div class="original-amount">
+            <span class="amount-label">{{ 'original_amount' | translate }}:</span>
+            <span class="amount-value">{{order.totalAmount |
+              currency:currency:'symbol':'1.2-2'}}</span>
+          </div>
+
+          <!-- Refund Amount -->
+          <div class="refund-amount">
+            <span class="amount-label">{{ 'refunded_amount' | translate }}:</span>
+            <span class="amount-value">-{{getTotalRefundedAmount?.(order) |
+              currency:currency:'symbol':'1.2-2'}}</span>
+          </div>
+
+          <!-- Net Amount -->
+          <div class="net-amount">
+            <span class="amount-label">{{ 'net_amount' | translate }}:</span>
+            <span class="amount-value">{{getNetAmount(order) |
+              currency:currency:'symbol':'1.2-2'}}</span>
+          </div>
+        </div>
+
+        <ng-template #originalAmount>
+          <div class="single-amount">
+            {{order.totalAmount | currency:currency:'symbol':'1.2-2'}}
+          </div>
+        </ng-template>
+      </td>
+      <td style="min-width:12rem;" class="font-bold">
+        <span class="p-column-title">{{ 'order_total_paid' | translate }}</span>
+
+        <div *ngIf="hasRefunds(order); else simplePaid" class="payment-container">
+          <!-- Original Payment (totalPaid) -->
+          <div class="payment-amount">
+            <span class="payment-label">{{ 'original_payment' | translate }}:</span>
+            <span class="payment-value">{{order.totalPaid |
+              currency:currency:'symbol':'1.2-2'}}</span>
+          </div>
+
+          <!-- Refund Amount (totalRefunded) -->
+          <div class="refund-amount">
+            <span class="payment-label">{{ 'total_refunds' | translate }}:</span>
+            <span class="payment-value">-{{order.totalRefunded |
+              currency:currency:'symbol':'1.2-2'}}</span>
+          </div>
+
+          <!-- Net Paid (totalPaid - totalRefunded) -->
+          <div class="net-paid">
+            <span class="payment-label">{{ 'net_paid' | translate }}:</span>
+            <span class="payment-value">{{order.totalPaid - order.totalRefunded |
+              currency:currency:'symbol':'1.2-2'}}</span>
+          </div>
+        </div>
+
+        <ng-template #simplePaid>
+          <div class="single-payment">
+            {{order.totalPaid | currency:currency:'symbol':'1.2-2'}}
+          </div>
+        </ng-template>
+      </td>
+      <td style="min-width:10rem;">
+        <span [class]="'payment-badge payment-' + order.paymentStatus.toLowerCase()">{{order.paymentStatus
+          ?
+          ('order_payment_status_'+order.paymentStatus.toLowerCase() | translate) : 'N/A'}}</span>
+      </td>
+      <td style="min-width:10rem;">
+        <span class="p-column-title">{{ 'order_customer' | translate }}</span>
+        {{
+        order.customer
+        ? (order.customer.customerType === 'Company'
+        ? order.customer.companyName
+        : (order.customer.firstName + ' ' + order.customer.lastName))
+        : 'N/A'
+        }}
+      </td>
+      <td style="min-width:10rem;" *ngIf="isAdmin">
+        <span class="p-column-title">{{ 'order_shop' | translate }}</span>
+        {{ order.shop ? order.shop.shopName : 'N/A' }}
+      </td>
+      <td>
+        <div class="flex">
+          <button pButton pRipple *ngIf="order.orderStatus ==='Ordered' && canCancelOrder" icon="pi pi-times"
+            class="p-button-rounded p-button-warning mr-2"
+            (click)="cancelOrderEvent.emit(order); $event.stopPropagation()"
+            pTooltip="{{'cancel_order'|translate}}"></button>
+          <button pButton pRipple
+            *ngIf="(order.orderStatus ==='Ordered' || order.orderStatus ==='Processing') && canEditOrder"
+            icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+            (click)="editOrderEvent.emit(order); $event.stopPropagation()" pTooltip="{{'update_order'|translate}}"></button>
+          <button pButton pRipple *ngIf="canDeleteOrder" icon="pi pi-trash"
+            class="p-button-rounded p-button-danger mr-2" pTooltip="{{'delete_order'|translate}}"
+            (click)="deleteOrderEvent.emit(order); $event.stopPropagation()"></button>
+          <button pButton pRipple *ngIf="canProcessOrder" icon="pi pi-cog" class="p-button-rounded p-button mr-2"
+            (click)="processOrderEvent.emit(order); $event.stopPropagation()"
+            pTooltip="{{'order_processing'|translate}}"></button>
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="rowexpansion" let-order>
+    <tr>
+      <td colspan="10">
+        <div class="p-3">
+          <p-table [value]="order.orderItems" dataKey="orderItemId" responsiveLayout="scroll">
+            <ng-template pTemplate="header">
+    <tr>
+      <th>{{ 'product_image' | translate }}</th>
+      <th>{{ 'product_name' | translate }}</th>
+      <th>{{ 'order_items_quantity' | translate }}</th>
+      <th>{{ 'order_items_price' | translate }}</th>
+      <th style="width: 4rem"></th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-orderItem>
+    <tr>
+      <td><img
+          [src]="orderItem.product.productImage ? orderItem.product.productImage : 'assets/core-images/no-image.png'"
+          [alt]="orderItem.product.name" width="60" [ngClass]="{'shadow-4': orderItem.product?.productImage}" /></td>
+      <td>{{orderItem.product.name ? orderItem.product.name : 'N/A'}}</td>
+      <td>{{orderItem.quantity ? orderItem.quantity : 'N/A'}}</td>
+      <td>
+        <ng-container *ngIf="orderItem.subTotal !== null && orderItem.subTotal !== undefined; else notAvailable">
+          {{ orderItem.subTotal | currency:currency:'symbol':'1.2-2' }}
+        </ng-container>
+        <ng-template #notAvailable>N/A</ng-template>
+      </td>
+      <td>
+        <p-button type="button" icon="pi pi-eye" (click)="viewProductDetailsEvent.emit(orderItem.product)">
+        </p-button>
+      </td>
+    </tr>
+
+  </ng-template>
+
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="10">{{ 'no_products_msg' | translate }}</td>
+    </tr>
+  </ng-template>
+
+</p-table>
+</div>
+</td>
+</tr>
+</ng-template>
+<ng-template pTemplate="summary">
+  <div class="flex align-items-center justify-content-between">
+    {{'total_orders' | translate}} {{totalRecords ? totalRecords : 0 }}.
+  </div>
+</ng-template>
+<ng-template pTemplate="emptymessage">
+  <tr>
+    <td colspan="12">
+      <div class="flex flex-column align-items-center justify-content-center py-5">
+        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">
+        <p class="mt-3 text-gray-600 font-medium text-lg">
+          {{ 'no_orders_found' | translate }}
+        </p>
+      </div>
+    </td>
+  </tr>
+</ng-template>
+</p-table>

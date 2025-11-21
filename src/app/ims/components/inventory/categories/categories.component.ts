@@ -109,6 +109,7 @@ export class CategoriesComponent implements OnInit {
     ];
     this.costingMethods = [
       { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
+      { label: this.translate.instant('costing_method_lifo'), value: 'LIFO' },
       { label: this.translate.instant('costing_method_weighted_average'), value: 'WEIGHTED_AVERAGE' },
       { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
       { label: this.translate.instant('costing_method_none'), value: 'NONE' }
@@ -139,6 +140,7 @@ export class CategoriesComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+
 
   }
 

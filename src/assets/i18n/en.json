@@ -1823,13 +1823,16 @@
   "costing_method_inherited_from_category": "{{method}} (inherited from category)",
   "costing_method_inherited_from_organization": "{{method}} (inherited from organization)",
   "costing_method_none_fallback": "No method defined (fallback: NONE)",
-
   "costing_method_inheritance_help": "The effective costing method is determined by the product, category, or organization hierarchy.",
-
   "product_standard_cost": "Standard Cost",
   "product_standard_cost_required": "Standard Cost is required for STANDARD COST method",
   "effective_standard_cost": "Effective Standard Cost",
-  "effective_standard_cost_explanation": "This cost is used to calculate the actual cost of sales."
+  "effective_standard_cost_explanation": "This cost is used to calculate the actual cost of sales.",
+  "select_due_date": "Select Due Date",
+  "category_costing_method": "Costing Method",
+
+  "copy_email": "Copy Email",
+  "copy_phone": "Copy Phone"
 }
 
 

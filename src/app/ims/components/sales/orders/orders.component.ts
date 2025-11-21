@@ -1,5 +1,5 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
-import { MessageService, SelectItem, MenuItem } from 'primeng/api';
+import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
 import { OrderService } from 'src/app/services/order.service';
@@ -46,6 +46,11 @@ export class FilterProductsPipe implements PipeTransform {
     // Your filtering logic here
     return source.filter(product => !selectedProducts.includes(product));
   }
+}
+
+interface LazyLoadEventExt extends LazyLoadEvent {
+  globalFilter?: string;
+  filters?: { [field: string]: any };
 }
 
 @Component({
@@ -258,6 +263,32 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   // initialInvoiceItems = [{ description: '', quantity: 1, unitPrice: 0 }];
   // taxRates = [{ label: '0%', value: 0 }, { label: '5%', value: 5 }, { label: '10%', value: 10 }, { label: '18%', value: 18 }];
 
+  // Lazy loading properties
+  totalRecords: number = 0;
+  totalAmount: number = 0;
+  totalPaid: number = 0;
+  remainingBalance: number = 0;
+
+  lazyLoading: boolean = true;
+  first: number = 0;
+  rows: number = 20;
+  pageSize: number = 20;
+  globalFilter: string = '';
+  filters: any = {};
+  // lastLazyLoadEvent: any = null;
+  lastLazyLoadEvent: LazyLoadEventExt = {
+    first: 0,
+    rows: 20,
+    sortField: 'orderDate',
+    sortOrder: -1,
+    globalFilter: '',
+    filters: {}
+  };
+  lastSortField: string = 'orderDate';
+  lastSortOrder: number = -1; // DESC by default
+  lastGlobalFilter: string = '';
+  @ViewChild('dt') dt!: Table;
+
 
   @ViewChild('filter') filter!: ElementRef;
 
@@ -331,7 +362,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.onGetAllProducts(),
       this.onGetAllCustomers(),
       this.onGetAllShops(),
-      this.onGetAllOrders(),
+      // this.onGetAllOrders(),
       this.getSourceProducts(),
       this.getTargetProducts(),
       this.initializePickList(),
@@ -346,6 +377,141 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+
+    // Load first page of orders
+    await this.loadOrders();
+    this.scanning = false;
+  }
+
+
+  onLazyLoad(event: LazyLoadEvent) {
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
+
+    this.updateLastLazyLoadEvent(extendedEvent);
+    this.loadOrders();
+  }
+
+
+  loadOrders() {
+  const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+  const page = first! / rows!;
+  const size = rows!;
+  const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+  const processedFilters = this.processFilters(filters);
+
+  console.log('Loading orders with parameters:', {
+    page,
+    size,
+    sortField,
+    direction,
+    globalFilter,
+    filters: processedFilters
+  });
+
+  this.orderService.getOrdersPaginated(
+    page,
+    size,
+    globalFilter || '',
+    sortField!,
+    direction,
+    processedFilters
+  ).subscribe({
+    next: (res: any) => {
+      console.log('Paginated orders response:', res);
+      // Assign the paginated orders
+      this.orders = res.page.content.map((o: any) => ({
+        ...o,
+        orderDate: o.orderDate ? new Date(o.orderDate) : null,
+        creationDate: o.creationDate ? new Date(o.creationDate) : null,
+        deliveryDate: o.deliveryDate ? new Date(o.deliveryDate) : null,
+        completeDate: o.completeDate ? new Date(o.completeDate) : null,
+        cancelDate: o.cancelDate ? new Date(o.cancelDate) : null,
+        processingDate: o.processingDate ? new Date(o.processingDate) : null,
+        expiryDate: o.expiryDate ? new Date(o.expiryDate) : null,
+        returnDate: o.returnDate ? new Date(o.returnDate) : null,
+        productDetails: o.orderItems
+          ?.map((item: any) => `${item.product.name} (Ref: ${item.product.reference})`)
+          .join(', ') || ''
+      }));
+
+      // Assign totals from backend
+      this.totalRecords = res.totalOrders;
+      this.totalAmount = res.totalAmount;
+      this.totalPaid = res.totalPaid;
+      this.remainingBalance = res.remainingBalance;
+
+      // Load returns if any
+      for (let order of this.orders) {
+        if (this.hasReturns(order)) {
+          this.loadOrderReturns(order);
+        }
+      }
+
+      this.isLoading = false;
+    },
+    error: (err: any) => {
+      console.error(err);
+      this.isLoading = false;
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_orders'),
+        life: 3000
+      });
+    }
+  });
+}
+
+
+  private updateLastLazyLoadEvent(event: LazyLoadEvent) {
+    this.lastLazyLoadEvent = {
+      first: event.first ?? this.lastLazyLoadEvent.first,
+      rows: event.rows ?? this.lastLazyLoadEvent.rows,
+      sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
+      sortOrder: event.sortOrder ?? this.lastLazyLoadEvent.sortOrder,
+      globalFilter: event.globalFilter ?? this.globalFilter,
+      filters: event.filters ?? this.lastLazyLoadEvent.filters
+    };
+
+    // Store sorting for future reloads
+    this.globalFilter = this.lastLazyLoadEvent.globalFilter as string;
+  }
+
+  private processFilters(filters: any): any {
+    if (!filters) return {};
+
+    const processedFilters: any = {};
+
+    // Process orderStatus filter
+    if (filters['orderStatus'] && filters['orderStatus'].value) {
+      processedFilters.orderStatus = filters['orderStatus'].value;
+    }
+
+    // Process paymentStatus filter
+    if (filters['paymentStatus'] && filters['paymentStatus'].value) {
+      processedFilters.paymentStatus = filters['paymentStatus'].value;
+    }
+
+    // Process customerId filter
+    if (filters['customerId'] && filters['customerId'].value) {
+      processedFilters.customerId = filters['customerId'].value.customerId;
+    }
+
+    // Process shopName filter
+    if (filters['shopName'] && filters['shopName'].value) {
+      processedFilters.shopName = filters['shopName'].value.shopName;
+    }
+
+    // Process orderDate filter
+    if (filters['orderDate'] && filters['orderDate'].value) {
+      processedFilters.orderDate = filters['orderDate'].value;
+    }
+
+    return processedFilters;
   }
 
   initializePaymentMethods(): void {
@@ -521,14 +687,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
-  // togglePaymentSection(): void {
-  //   this.showPaymentSection = !this.showPaymentSection;
-  //   if (this.showPaymentSection) {
-  //     this.payment.amount = this.calculateTotalAmount();
-  //     this.payment.paymentDate = new Date();
-  //     this.payment.paymentMethod = 'Cash';
-  //   }
-  // }
 
   togglePaymentSection(): void {
     this.showPaymentSection = !this.showPaymentSection;
@@ -594,8 +752,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   getReturnTooltip(status: string): string {
     switch (status) {
-      case 'Returned': return this.translate.instant('fully_returned_tooltip');
-      case 'Partial_Return': return this.translate.instant('partially_returned_tooltip');
+      case 'Returned': return 'fully_returned_tooltip';
+      case 'Partial_Return': return 'partially_returned_tooltip';
       default: return '';
     }
   }
@@ -635,10 +793,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   getTotalRefundedAmount(order: Order): number {
+
+    if (!this.orderReturnsMap) return 0;      // <---- FIX 1
+    if (!order?.orderId) return 0;
+
     if (!this.orderReturnsMap.has(order.orderId)) return 0;
 
     const returns = this.orderReturnsMap.get(order.orderId);
-    return returns?.reduce((sum, ret) => sum + (ret.totalRefundableAmount || 0), 0) || 0;
+
+    return returns?.reduce(
+      (sum, ret) => sum + (ret.totalRefundableAmount || 0), 0
+    ) || 0;
   }
 
   getNetAmount(order: Order): number {
@@ -700,6 +865,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   async editOrder(order: Order) {
+    this.scanning = false;
     if (!this.canEditOrder) return;
     this.order = { ...order };
     this.discountType = this.order.discountType as "Amount" | "Percentage";
@@ -821,6 +987,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.initializePaymentMethods();
     this.initializePickList();
     this.orderDialog = true;
+    this.scanning = true;
   }
 
 
@@ -925,8 +1092,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         }
       }
 
+
       this.orderDialog = false;
-      // this.resetForms();
+      this.resetForms();
 
     } catch (error) {
       console.error('Error in saveOrder:', error);
@@ -1132,10 +1300,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       boeExpirationDate: null,
       notes: ''
     };
+    this.scanning = false;
     this.submitted = false;
-    this.onGetAllOrders().then(() => {
-      console.log('Orders refreshed after payment');
-    });
+    this.loadOrders();
   }
 
   saveCustomer() {
@@ -1196,14 +1363,22 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.shop = {};
   }
 
+  onGlobalFilter(event: { globalFilter: string }) {
+    this.scanning = false;
+    this.globalFilter = event.globalFilter;
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      globalFilter: this.globalFilter
+    };
+
+    this.onLazyLoad(lazyEvent);
   }
 
-  onFilter(dv: DataView, event: Event) {
-    dv.filter((event.target as HTMLInputElement).value);
-  }
+  // onFilter(dv: DataView, event: Event) {
+  //   dv.filter((event.target as HTMLInputElement).value);
+  // }
 
   clear(table: Table) {
     table.clear();
@@ -1343,96 +1518,92 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       })
   }
 
-  async onGetAllOrders() {
-    try {
-      const response = await this.orderService.getOrders().toPromise();
-      this.orders = response as Order[];
+  //   async onGetAllOrders() {
+  //   try {
+  //     const response = await this.orderService.getOrders().toPromise();
+  //     this.orders = response as Order[];
 
-      this.orders.forEach((productOrder: any) => {
-        // Convert dates only if they are not null or undefined
-        if (productOrder.deliveryDate) {
-          productOrder.deliveryDate = new Date(productOrder.deliveryDate);
-        }
-        if (productOrder.expiryDate) {
-          productOrder.expiryDate = new Date(productOrder.expiryDate);
-        }
-        if (productOrder.orderDate) {
-          productOrder.orderDate = new Date(productOrder.orderDate);
-        }
-        if (productOrder.completeDate) {
-          productOrder.completeDate = new Date(productOrder.completeDate);
-        }
-        if (productOrder.cancelDate) {
-          productOrder.cancelDate = new Date(productOrder.cancelDate);
-        }
-        if (productOrder.returnDate) {
-          productOrder.returnDate = new Date(productOrder.returnDate);
-        }
-        if (productOrder.processingDate) {
-          productOrder.processingDate = new Date(productOrder.processingDate);
-        }
-        if (productOrder.checkExpirationDate) {
-          productOrder.checkExpirationDate = new Date(productOrder.checkExpirationDate);
-        }
-        if (productOrder.boeExpirationDate) {
-          productOrder.boeExpirationDate = new Date(productOrder.boeExpirationDate);
-        }
-        // Add a computed field for product names
-        productOrder.productDetails = productOrder.orderItems
-          .map((item: any) => `${item.product.name} (Ref: ${item.product.reference})`)
-          .join(', ');
-      });
+  //     this.orders.forEach((productOrder: any) => {
+  //       // Convert dates only if they are not null or undefined
+  //       if (productOrder.deliveryDate) {
+  //         productOrder.deliveryDate = new Date(productOrder.deliveryDate);
+  //       }
+  //       if (productOrder.expiryDate) {
+  //         productOrder.expiryDate = new Date(productOrder.expiryDate);
+  //       }
+  //       if (productOrder.orderDate) {
+  //         productOrder.orderDate = new Date(productOrder.orderDate);
+  //       }
+  //       if (productOrder.completeDate) {
+  //         productOrder.completeDate = new Date(productOrder.completeDate);
+  //       }
+  //       if (productOrder.cancelDate) {
+  //         productOrder.cancelDate = new Date(productOrder.cancelDate);
+  //       }
+  //       if (productOrder.returnDate) {
+  //         productOrder.returnDate = new Date(productOrder.returnDate);
+  //       }
+  //       if (productOrder.processingDate) {
+  //         productOrder.processingDate = new Date(productOrder.processingDate);
+  //       }
+  //       if (productOrder.checkExpirationDate) {
+  //         productOrder.checkExpirationDate = new Date(productOrder.checkExpirationDate);
+  //       }
+  //       if (productOrder.boeExpirationDate) {
+  //         productOrder.boeExpirationDate = new Date(productOrder.boeExpirationDate);
+  //       }
+  //       // Add a computed field for product names
+  //       productOrder.productDetails = productOrder.orderItems
+  //         .map((item: any) => `${item.product.name} (Ref: ${item.product.reference})`)
+  //         .join(', ');
+  //     });
 
-      // Order the orders by orderDate in descending order
-      this.orders.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
+  //     // Order the orders by orderDate in descending order
+  //     this.orders.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
 
-      console.log(this.orders)
-      this.orders.forEach(o => {
-        if (this.hasReturns(o)) {
-          this.loadOrderReturns(o);   // 🔸 now the map is filled before the table shows
-        }
-      });
-      this.isLoading = false;
-    } catch (error) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_while_getting_orders'),
-        life: 3000
-      });
-    }
-  }
+  //     console.log(this.orders)
+  //     this.orders.forEach(o => {
+  //       if (this.hasReturns(o)) {
+  //         this.loadOrderReturns(o);   // 🔸 now the map is filled before the table shows
+  //       }
+  //     });
+  //     this.isLoading = false;
+  //   } catch (error) {
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: this.translate.instant('error'),
+  //       detail: this.translate.instant('error_while_getting_orders'),
+  //       life: 3000
+  //     });
+  //   }
+  // }
 
   async onDeleteOrder(id: any) {
-    await this.orderService.deleteOrder(id)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllOrders();
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_deleting_order'),
-            life: 3000
-          });
-          console.log(err)
-        },
-      })
+    this.orderService.deleteOrder(id).subscribe({
+      next: () => {
+        this.loadOrders();     // ⬅️ clean reload using cached lazy params
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_deleting_order'),
+          life: 3000
+        });
+      }
+    });
   }
 
 
-  async updateOrder(id: any, order: any): Promise<any> {
-    console.log(order)
+  async updateOrder(id: any, order: any): Promise<Order> {
     order.products = this.targetProducts;
-    await this.orderService.updateOrder(id, order)
-      .subscribe({
+
+    return new Promise((resolve, reject) => {
+      this.orderService.updateOrder(id, order).subscribe({
         next: (response: any) => {
-          console.log(response);
-          this.onGetAllOrders();
+          this.loadOrders();     // ⬅️ reload with same page + same sorting
           this.onGetAllProducts();
-          return true;
+          resolve(response);
         },
         error: (err: any) => {
           this.messageService.add({
@@ -1441,9 +1612,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
             detail: this.translate.instant('error_while_updating_order'),
             life: 3000
           });
-          return false;
-        },
-      })
+          reject(err);
+        }
+      });
+    });
   }
 
   async addOrder(order: any): Promise<Order> {
@@ -1453,23 +1625,33 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.orderService.saveOrder(order).subscribe({
         next: (response: any) => {
           console.log('Order saved successfully:', response);
-          this.onGetAllOrders();
+
+          if (this.dt) {
+            this.dt.first = 0; // reset paginator
+          }
+
+          // Reload first page with SAME filters & sorting
+          this.loadOrders();
+
           this.onGetAllProducts();
-          resolve(response); // Resolve with the saved order
+          resolve(response);
         },
         error: (err: any) => {
           console.error('Error saving order:', err);
+
           this.messageService.add({
             severity: 'error',
             summary: this.translate.instant('error'),
             detail: this.translate.instant('error_while_adding_order'),
             life: 3000
           });
-          reject(err); // Reject the promise on error
+
+          reject(err);
         }
       });
     });
   }
+
 
   async addCustomer(data: any): Promise<any> {
     await this.customerService.saveCustomer(data)
@@ -1657,8 +1839,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       const response = await this.orderService.updateOrderStatus(id, order).toPromise();
       console.log(response);
 
-      await this.onGetAllOrders(); // Wait for updated orders
-      this.cdr.detectChanges(); // Manually trigger change detection
+      this.loadOrders();
       return true;
     } catch (error) {
       this.messageService.add({
@@ -1825,13 +2006,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       // Update the existing events with the corresponding date from the order
       await this.editOrderStatus(order.orderId, order);
       this.syncEventDates(this.events);
+      this.loadOrders();
       this.messageService.add({
         severity: 'success',
         summary: this.translate.instant('successful'),
         detail: this.translate.instant('order_canceled'),
         life: 3000
       });
-      this.cdr.detectChanges(); // Detect changes to update the UI
+      // this.cdr.detectChanges();
 
     } catch (error) {
       this.messageService.add({
@@ -1868,7 +2050,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         detail: this.translate.instant('order_canceled'),
         life: 3000
       });
-      this.cdr.detectChanges(); // Detect changes to update the UI
+      this.loadOrders();
 
     } catch (error) {
       this.messageService.add({
@@ -1885,47 +2067,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       // If percentage, convert it to an amount
       this.order.discount = Math.min(this.order.discount, 100); // Ensure percentage does not exceed 100%
     }
-    // Additional logic for handling the discount input can go here
   }
-
-  // calculateTotalAmount(): number {
-  //   let total = 0;
-
-  //   // Calculate the total based on product quantities and prices
-  //   for (const product of this.targetProducts) {
-  //     total += product.orderItemQuantity * product.orderItemPricePerUnit;
-  //   }
-
-  //   // Apply discount
-  //   if (this.discountType === 'Percentage') {
-  //     // Calculate discount as a percentage
-  //     total -= total * (this.order.discount / 100);
-  //   } else {
-  //     // Calculate discount as a fixed amount
-  //     total -= this.order.discount;
-  //   }
-
-  //   // Ensure the total is not below zero after applying the discount
-  //   if (total < 0) {
-  //     total = 0;
-  //   }
-
-  //   // Apply tax if enabled
-  //   if (this.taxEnabled) {
-  //     total += this.calculateTax(total); // Pass the discounted total to calculate tax
-  //   }
-
-  //   // Add transport amount to the total
-  //   total += this.order.transportAmount;
-
-  //   // Ensure the final total is not below zero
-  //   if (total < 0) {
-  //     total = 0;
-  //   }
-
-  //   // Return the final total
-  //   return total;
-  // }
 
   calculateTotalAmount(): number {
     const subtotal = this.getSubtotal();
@@ -1937,11 +2079,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     return taxableAmount + taxAmount + transportAmount;
   }
 
-  // calculateTax(totalWithoutTax: number): number {
-  //   // Calculate tax based on the total amount after discount
-  //   console.log(totalWithoutTax)
-  //   return this.taxEnabled ? totalWithoutTax * this.taxRate : 0;
-  // }
 
   calculateTax(amount: number): number {
     if (!this.taxEnabled) return 0;
@@ -1988,8 +2125,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
     return total;
   }
-
-
 
 
   searchProductByBarcode(barcode: string): Product | undefined {

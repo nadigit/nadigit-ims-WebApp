@@ -1827,5 +1827,7 @@
   "product_standard_cost": "التكلفة القياسية",
   "product_standard_cost_required": "يجب تحديد التكلفة القياسية لطريقة التكلفة القياسية",
   "effective_standard_cost": "التكلفة القياسية الفعلية",
-  "effective_standard_cost_explanation": "يتم استخدام هذه التكلفة لحساب التكلفة الفعلية للمبيعات."
+  "effective_standard_cost_explanation": "يتم استخدام هذه التكلفة لحساب التكلفة الفعلية للمبيعات.",
+  "select_due_date": "اختر تاريخ الاستحقاق",
+  "category_costing_method": "طريقة احتساب التكلفة"
 }

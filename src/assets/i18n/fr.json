@@ -1845,5 +1845,7 @@
   "product_standard_cost": "Coût standard",
   "product_standard_cost_required": "Le coût standard est requis pour la méthode Coût Standard",
   "effective_standard_cost": "Coût standard effectif",
-  "effective_standard_cost_explanation": "Ce coût est utilisé pour calculer le coût réel des ventes."
+  "effective_standard_cost_explanation": "Ce coût est utilisé pour calculer le coût réel des ventes.",
+  "select_due_date": "Sélectionner la date d'échéance",
+  "category_costing_method": "Méthode de valorisation"
 }
