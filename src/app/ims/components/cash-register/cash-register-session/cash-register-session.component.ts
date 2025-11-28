@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { MessageService } from 'primeng/api';
@@ -6,14 +6,17 @@ import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
 import { Shop } from 'src/app/models/shop';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { ShopService } from 'src/app/services/shop.service';
+import { Subscription } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-cash-register-session',
   templateUrl: './cash-register-session.component.html',
   styleUrl: './cash-register-session.component.css'
 })
-export class CashRegisterSessionComponent implements OnInit {
+export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestroy {
   @Input() visible: boolean = false;
+  @Input() shopId: number | null = null; // Allow parent to set shopId
   @Output() visibleChange = new EventEmitter<boolean>(); // for two-way binding [(visible)]
   @Output() dialogClosed = new EventEmitter<void>();     // new event to notify parent
 
@@ -29,10 +32,12 @@ export class CashRegisterSessionComponent implements OnInit {
   isLoading = false;
   hasActiveSession = false;
   profile: any;
-  shopId: any;
   shops: Shop[] = [];
   userRoles: any;
   isAdmin: boolean = false;
+  
+  private subscriptions: Subscription[] = [];
+  private loadingSession = false; // Prevent concurrent loads
 
 
   constructor(
@@ -44,6 +49,11 @@ export class CashRegisterSessionComponent implements OnInit {
   ) { }
 
   async ngOnInit(): Promise<void> {
+    // Only initialize if dialog is visible
+    if (!this.visible) {
+      return;
+    }
+
     this.isLoading = true;
 
     try {
@@ -52,12 +62,16 @@ export class CashRegisterSessionComponent implements OnInit {
 
       await this.setUserRoles();
 
-      if (this.isAdmin) {
+      // If shopId is provided via @Input, use it; otherwise use user's shop or load all shops for admin
+      if (this.shopId) {
+        // ShopId provided by parent component
+        await this.loadCurrentSession();
+      } else if (this.isAdmin) {
         this.loadAllShops();
       } else {
         this.shopId = profile?.attributes?.['shop']?.[0];
         if (this.shopId) {
-          this.loadCurrentSession();
+          await this.loadCurrentSession();
         }
       }
     } catch (error) {
@@ -65,6 +79,16 @@ export class CashRegisterSessionComponent implements OnInit {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  ngOnDestroy(): void {
+    // Clean up all subscriptions
+    this.subscriptions.forEach(sub => {
+      if (sub && !sub.closed) {
+        sub.unsubscribe();
+      }
+    });
+    this.subscriptions = [];
   }
 
   get selectedShopName(): string {
@@ -89,25 +113,67 @@ export class CashRegisterSessionComponent implements OnInit {
 
 
   async loadCurrentSession(): Promise<void> {
-    if (!this.shopId) return;
+    if (!this.shopId || this.loadingSession) {
+      return; // Prevent concurrent loads
+    }
+
+    this.loadingSession = true;
     this.isLoading = true;
 
     try {
       const session$ = await this.cashRegisterService.getCurrentSessionByShop(this.shopId);
-      session$.subscribe({
-        next: (session) => {
-          this.currentSession = session || undefined;
-          this.hasActiveSession = !!(session && !session.closed);
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.error('❌ Failed to load session:', err);
-          this.isLoading = false;
+      const session = await firstValueFrom(session$);
+      
+      this.currentSession = session || undefined;
+      this.hasActiveSession = !!(session && !session.closed);
+      this.isLoading = false;
+      this.loadingSession = false;
+    } catch (error) {
+      console.error('❌ Failed to load session:', error);
+      this.currentSession = null;
+      this.hasActiveSession = false;
+      this.isLoading = false;
+      this.loadingSession = false;
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only load session when dialog becomes visible and shopId is available
+    if (changes['visible'] && changes['visible'].currentValue === true && !changes['visible'].previousValue) {
+      // Dialog just opened
+      if (this.shopId) {
+        this.loadCurrentSession();
+      } else if (!this.profile) {
+        // Initialize if not already done
+        this.ngOnInit();
+      }
+    }
+
+    // If shopId is changed from parent, reload the session (only if dialog is visible)
+    if (changes['shopId'] && !changes['shopId'].firstChange && this.shopId && this.visible) {
+      this.currentSession = null;
+      this.hasActiveSession = false;
+      this.openingAmount = null;
+      this.closingAmount = null;
+      this.notes = '';
+      this.loadCurrentSession();
+    }
+
+    // If dialog is closed, reset state
+    if (changes['visible'] && changes['visible'].currentValue === false) {
+      this.currentSession = null;
+      this.hasActiveSession = false;
+      this.openingAmount = null;
+      this.closingAmount = null;
+      this.notes = '';
+      // Clean up subscriptions when dialog closes
+      this.subscriptions.forEach(sub => {
+        if (sub && !sub.closed) {
+          sub.unsubscribe();
         }
       });
-    } catch (error) {
-      console.error('❌ Unexpected error while loading session:', error);
-      this.isLoading = false;
+      this.subscriptions = [];
+      this.loadingSession = false;
     }
   }
 

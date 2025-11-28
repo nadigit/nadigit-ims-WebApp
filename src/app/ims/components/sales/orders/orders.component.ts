@@ -1,7 +1,6 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
 import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
-import { DataView } from 'primeng/dataview';
 import { OrderService } from 'src/app/services/order.service';
 import { Product } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
@@ -18,15 +17,16 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
-import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
 import { PaymentService } from 'src/app/services/payment.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { getPaymentMethodLabel, getPaymentMethodSeverity, getPaymentStatusSeverity } from 'src/app/shared/payment-utils';
+import { getMeasureUnit, getQuantitySeverity } from 'src/app/shared/product-utils';
+import { AngularFireStorage } from '@angular/fire/compat/storage';
 
 interface EventItem {
   status?: string;
@@ -209,6 +209,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   scanning: boolean = true;
 
+  private latestProductSuggestionToken = 0;
+
   TaxEnabledOptions: any[] = [];
 
   taxEnabled: boolean = false;
@@ -269,13 +271,22 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   totalPaid: number = 0;
   remainingBalance: number = 0;
 
+  filteredProducts: Product[] = [];
+  productSuggestions: Product[] = [];
+  productSuggestionsLoading: boolean = false;
+  productSearch: string = '';
+  selectedProduct: Product | null = null;
+  categories: any[] = [];
+  selectedCategory: any = null;
+  quickProducts: Product[] = [];
+  filteredCategories: any[] = [];
+
   lazyLoading: boolean = true;
   first: number = 0;
   rows: number = 20;
   pageSize: number = 20;
   globalFilter: string = '';
   filters: any = {};
-  // lastLazyLoadEvent: any = null;
   lastLazyLoadEvent: LazyLoadEventExt = {
     first: 0,
     rows: 20,
@@ -284,13 +295,21 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     globalFilter: '',
     filters: {}
   };
+  lastProductsLazyLoadEvent: LazyLoadEventExt = {
+    first: 0,
+    rows: 20,
+    sortField: 'creationDate',
+    sortOrder: -1,
+    globalFilter: '',
+    filters: {}
+  };
   lastSortField: string = 'orderDate';
   lastSortOrder: number = -1; // DESC by default
   lastGlobalFilter: string = '';
   @ViewChild('dt') dt!: Table;
-
-
   @ViewChild('filter') filter!: ElementRef;
+
+  
 
   constructor(private messageService: MessageService,
     private orderService: OrderService,
@@ -308,6 +327,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private categoryService: CategoryService,
     public organizationService: OrganizationService,
     private financialDocService: FinancialDocumentsService,
+    private storage: AngularFireStorage,
+    
   ) {
     this.loadTaxRate();
 
@@ -359,13 +380,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
     // Load data
     await Promise.all([
-      this.onGetAllProducts(),
       this.onGetAllCustomers(),
       this.onGetAllShops(),
-      // this.onGetAllOrders(),
-      this.getSourceProducts(),
-      this.getTargetProducts(),
-      this.initializePickList(),
       this.setUserRoles(),
       this.checkPermissions(),
       this.onGetOrganization(),
@@ -396,30 +412,30 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
 
   loadOrders() {
-  const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
 
-  const page = first! / rows!;
-  const size = rows!;
-  const direction = sortOrder === -1 ? 'ASC' : 'DESC';
-  const processedFilters = this.processFilters(filters);
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    const filterPayload = filters ? { ...filters } : {};
 
-  console.log('Loading orders with parameters:', {
-    page,
-    size,
-    sortField,
-    direction,
-    globalFilter,
-    filters: processedFilters
-  });
+    console.log('Loading orders with parameters:', {
+      page,
+      size,
+      sortField,
+      direction,
+      globalFilter,
+      filters: filterPayload
+    });
 
-  this.orderService.getOrdersPaginated(
-    page,
-    size,
-    globalFilter || '',
-    sortField!,
-    direction,
-    processedFilters
-  ).subscribe({
+    this.orderService.getOrdersPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      filterPayload
+    ).subscribe({
     next: (res: any) => {
       console.log('Paginated orders response:', res);
       // Assign the paginated orders
@@ -481,37 +497,31 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.globalFilter = this.lastLazyLoadEvent.globalFilter as string;
   }
 
-  private processFilters(filters: any): any {
-    if (!filters) return {};
+  private updateLastProductsLazyLoadEvent(event: LazyLoadEvent) {
+    this.lastProductsLazyLoadEvent = {
+      first: event.first ?? this.lastProductsLazyLoadEvent.first,
+      rows: event.rows ?? this.lastProductsLazyLoadEvent.rows,
+      sortField: event.sortField ?? this.lastProductsLazyLoadEvent.sortField,
+      sortOrder: event.sortOrder ?? this.lastProductsLazyLoadEvent.sortOrder,
+      globalFilter: event.globalFilter ?? this.lastProductsLazyLoadEvent.globalFilter,
+      filters: event.filters ?? this.lastProductsLazyLoadEvent.filters
+    };
+  }
 
-    const processedFilters: any = {};
+  private updateProductsFilter(field: string, value: any): void {
+    const currentFilters = { ...(this.lastProductsLazyLoadEvent.filters || {}) };
 
-    // Process orderStatus filter
-    if (filters['orderStatus'] && filters['orderStatus'].value) {
-      processedFilters.orderStatus = filters['orderStatus'].value;
+    if (value === undefined || value === null || value === '') {
+      delete currentFilters[field];
+    } else {
+      currentFilters[field] = { value };
     }
 
-    // Process paymentStatus filter
-    if (filters['paymentStatus'] && filters['paymentStatus'].value) {
-      processedFilters.paymentStatus = filters['paymentStatus'].value;
-    }
-
-    // Process customerId filter
-    if (filters['customerId'] && filters['customerId'].value) {
-      processedFilters.customerId = filters['customerId'].value.customerId;
-    }
-
-    // Process shopName filter
-    if (filters['shopName'] && filters['shopName'].value) {
-      processedFilters.shopName = filters['shopName'].value.shopName;
-    }
-
-    // Process orderDate filter
-    if (filters['orderDate'] && filters['orderDate'].value) {
-      processedFilters.orderDate = filters['orderDate'].value;
-    }
-
-    return processedFilters;
+    this.lastProductsLazyLoadEvent = {
+      ...this.lastProductsLazyLoadEvent,
+      first: 0,
+      filters: currentFilters
+    };
   }
 
   initializePaymentMethods(): void {
@@ -868,6 +878,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.scanning = false;
     if (!this.canEditOrder) return;
     this.order = { ...order };
+    this.onGetAllCustomers(),
+    this.onGetAllShops(),
     this.discountType = this.order.discountType as "Amount" | "Percentage";
     console.log(this.discountType);
     this.orderItems = this.order.orderItems.map(item => {
@@ -884,6 +896,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
     this.showPaymentSection = false;
     await this.onGetProductsCategories();
+    this.getSourceProducts();
+    this.getTargetProducts();
     this.initializePickList();
     this.initializePaymentMethods();
     await this.onGetQuickProducts();
@@ -983,8 +997,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.submitted = false;
     this.showPaymentSection = false;
     this.payment = new Payment();
-    this.onGetAllProducts();
+    this.loadProducts();
+    this.onGetAllCustomers(),
+    this.onGetAllShops(),
     this.initializePaymentMethods();
+    this.getSourceProducts(),
+    this.getTargetProducts(),
     this.initializePickList();
     this.orderDialog = true;
     this.scanning = true;
@@ -1384,26 +1402,92 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     table.clear();
   }
 
+  onLazyLoadProducts(event: LazyLoadEvent) {
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
 
-  async onGetAllProducts() {
-    await this.productService.getProducts()
-      .subscribe({
-        next: (response: any) => {
-          this.products = response;
-          this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
-          console.log(this.products);
-          this.cdr.markForCheck();
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_products'),
-            life: 3000
-          });
-        }
-      })
+    this.updateLastProductsLazyLoadEvent(extendedEvent);
+    this.loadProducts();
   }
+
+
+
+  loadProducts() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastProductsLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    const productFilters = filters ? { ...filters } : {};
+
+    console.log('Loading products with parameters:', {
+      page,
+      size,
+      sortField,
+      direction,
+      globalFilter,
+      filters: productFilters
+    });
+
+    this.productService.getProductsPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      productFilters
+    ).subscribe({
+      next: (res: any) => {
+        console.log('Paginated products response:', res);
+        // Assign the paginated orders
+        this.products = res.page.content.map((p: any) => ({
+          ...p,
+          creationDate: p.creationDate ? new Date(p.creationDate) : null,
+          archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
+          buyingDate: p.buyingDate ? new Date(p.buyingDate) : null,
+        }));
+
+        this.filteredProducts = this.selectedCategory ? [...this.products] : [];
+
+        // Assign totals from backend
+        this.totalRecords = res.totalProducts;
+
+        this.isLoading = false;
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_orders'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+  // async onGetAllProducts() {
+  //   await this.productService.getProducts()
+  //     .subscribe({
+  //       next: (response: any) => {
+  //         this.products = response;
+  //         this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
+  //         console.log(this.products);
+  //         this.cdr.markForCheck();
+  //       },
+  //       error: (err: any) => {
+  //         this.messageService.add({
+  //           severity: 'error',
+  //           summary: this.translate.instant('error'),
+  //           detail: this.translate.instant('error_while_getting_products'),
+  //           life: 3000
+  //         });
+  //       }
+  //     })
+  // }
 
   async onGetQuickProducts() {
     await this.productService.getQuickProducts()
@@ -1518,65 +1602,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       })
   }
 
-  //   async onGetAllOrders() {
-  //   try {
-  //     const response = await this.orderService.getOrders().toPromise();
-  //     this.orders = response as Order[];
-
-  //     this.orders.forEach((productOrder: any) => {
-  //       // Convert dates only if they are not null or undefined
-  //       if (productOrder.deliveryDate) {
-  //         productOrder.deliveryDate = new Date(productOrder.deliveryDate);
-  //       }
-  //       if (productOrder.expiryDate) {
-  //         productOrder.expiryDate = new Date(productOrder.expiryDate);
-  //       }
-  //       if (productOrder.orderDate) {
-  //         productOrder.orderDate = new Date(productOrder.orderDate);
-  //       }
-  //       if (productOrder.completeDate) {
-  //         productOrder.completeDate = new Date(productOrder.completeDate);
-  //       }
-  //       if (productOrder.cancelDate) {
-  //         productOrder.cancelDate = new Date(productOrder.cancelDate);
-  //       }
-  //       if (productOrder.returnDate) {
-  //         productOrder.returnDate = new Date(productOrder.returnDate);
-  //       }
-  //       if (productOrder.processingDate) {
-  //         productOrder.processingDate = new Date(productOrder.processingDate);
-  //       }
-  //       if (productOrder.checkExpirationDate) {
-  //         productOrder.checkExpirationDate = new Date(productOrder.checkExpirationDate);
-  //       }
-  //       if (productOrder.boeExpirationDate) {
-  //         productOrder.boeExpirationDate = new Date(productOrder.boeExpirationDate);
-  //       }
-  //       // Add a computed field for product names
-  //       productOrder.productDetails = productOrder.orderItems
-  //         .map((item: any) => `${item.product.name} (Ref: ${item.product.reference})`)
-  //         .join(', ');
-  //     });
-
-  //     // Order the orders by orderDate in descending order
-  //     this.orders.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
-
-  //     console.log(this.orders)
-  //     this.orders.forEach(o => {
-  //       if (this.hasReturns(o)) {
-  //         this.loadOrderReturns(o);   // 🔸 now the map is filled before the table shows
-  //       }
-  //     });
-  //     this.isLoading = false;
-  //   } catch (error) {
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: this.translate.instant('error'),
-  //       detail: this.translate.instant('error_while_getting_orders'),
-  //       life: 3000
-  //     });
-  //   }
-  // }
 
   async onDeleteOrder(id: any) {
     this.orderService.deleteOrder(id).subscribe({
@@ -1602,7 +1627,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.orderService.updateOrder(id, order).subscribe({
         next: (response: any) => {
           this.loadOrders();     // ⬅️ reload with same page + same sorting
-          this.onGetAllProducts();
+          this.loadProducts();
           resolve(response);
         },
         error: (err: any) => {
@@ -1633,7 +1658,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           // Reload first page with SAME filters & sorting
           this.loadOrders();
 
-          this.onGetAllProducts();
+          this.loadProducts();
           resolve(response);
         },
         error: (err: any) => {
@@ -2217,22 +2242,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  filteredProducts: Product[] = [];
-  productSearch: string = '';
-  selectedProduct: Product | null = null;
-  categories: any[] = [];
-  selectedCategory: any = null;
-  quickProducts: Product[] = [];
-  filteredCategories: any[] = [];
+
 
   filterByCategory(): void {
-    if (!this.selectedCategory) {
+    if (!this.selectedCategory?.categoryId) {
       this.filteredProducts = [];
-    } else {
-      this.filteredProducts = this.products.filter(product =>
-        product.category?.categoryId === this.selectedCategory.categoryId
-      );
+      this.updateProductsFilter('categoryId', null);
+      return;
     }
+
+    this.filteredProducts = [];
+    this.updateProductsFilter('categoryId', this.selectedCategory.categoryId);
+    this.isLoading = true;
+    this.loadProducts();
   }
 
   filterCategories(event: any): void {
@@ -2248,21 +2270,80 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   clearCategoryFilter(): void {
     this.selectedCategory = null;
-    this.filteredProducts = [...this.products]; // Show all products again
+    this.filteredProducts = [];
+    this.updateProductsFilter('categoryId', null);
+    this.isLoading = true;
+    this.loadProducts();
   }
 
   filterProducts(event: any): void {
-    const query = (event.query || '').toLowerCase();
+    const query = (event?.query || '').trim();
+    const requestToken = ++this.latestProductSuggestionToken;
 
-    if (!query) {
-      this.filteredProducts = [...this.sourceProducts];
-      return;
+    this.productSuggestionsLoading = true;
+
+    this.productService.searchProductsForOrder(query).subscribe({
+      next: (response: any) => {
+        if (requestToken !== this.latestProductSuggestionToken) {
+          return;
+        }
+
+        const matchingProducts = this.normalizeProductSearchResponse(response);
+        this.productSuggestions = this.prepareProductSuggestions(matchingProducts);
+        this.productSuggestionsLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Error while searching products for autocomplete:', error);
+
+        if (requestToken !== this.latestProductSuggestionToken) {
+          return;
+        }
+
+        this.productSuggestions = [];
+        this.productSuggestionsLoading = false;
+
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_products'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+  private normalizeProductSearchResponse(response: any): Product[] {
+    if (!response) {
+      return [];
     }
 
-    this.filteredProducts = this.sourceProducts.filter(product =>
-      product.name?.toLowerCase().includes(query) ||
-      product.reference?.toLowerCase().includes(query) ||
-      product.category?.categoryName?.toLowerCase().includes(query)
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response.page?.content && Array.isArray(response.page.content)) {
+      return response.page.content;
+    }
+
+    if (Array.isArray(response.content)) {
+      return response.content;
+    }
+
+    if (Array.isArray(response.items)) {
+      return response.items;
+    }
+
+    return [];
+  }
+
+  private prepareProductSuggestions(products: Product[]): Product[] {
+    const selectedProductIds = new Set(
+      this.targetProducts.map(product => product.productId)
+    );
+
+    return products.filter(product =>
+      (product?.quantityAvailable ?? 0) > 0 &&
+      !selectedProductIds.has(product.productId)
     );
   }
 
@@ -2568,11 +2649,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.productDetailDialog = true;
   }
 
+  getMeasureUnit(product: Product): string {
+    return getMeasureUnit(product.measureUnit, product.quantityAvailable);
+  }
+
   getQuantitySeverity(quantity: number): string {
-    if (quantity === undefined || quantity === null) return 'info';
-    if (quantity <= 0) return 'danger';
-    if (quantity < this.lowStockThreshold) return 'warning';
-    return 'success';
+    return getQuantitySeverity(quantity, this.lowStockThreshold);
   }
 
   async getLowStockThreshold(): Promise<number> {
@@ -2589,18 +2671,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       threshold = 10; // fallback value
       return threshold;
     }
-  }
-
-  getMeasureUnit(product: Product): string {
-    if (!product.measureUnit) return 'UNIT'; // fallback
-
-    const pluralizable = ['UNIT', 'PIECE', 'BOX', 'METER'];
-
-    if (product.quantityAvailable > 1 && pluralizable.includes(product.measureUnit)) {
-      return `${product.measureUnit}_plural`;
-    }
-
-    return product.measureUnit;
   }
 
   displayAttributeValue(attr: any): string {
@@ -2775,7 +2845,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
             detail: this.translate.instant('product_deleted'),
             life: 3000
           });
-          this.onGetAllProducts();
+          this.loadProducts();
         },
         error: (err: any) => {
           this.messageService.add({
@@ -2800,7 +2870,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
             detail: this.translate.instant('product_archived'),
             life: 3000
           });
-          this.onGetAllProducts();
+          this.loadProducts();
         },
         error: (err: any) => {
           this.messageService.add({
@@ -2828,5 +2898,184 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     await this.onArchiveProduct(this.product.productId);
     this.product = {};
     this.selectedProduct = {};
+  }
+
+    async saveProduct() {
+      this.submitted = true;
+  
+      if (
+        this.product.name &&
+        this.product.reference &&
+        this.product.buyingPrice &&
+        this.product.sellingPrice &&
+        this.product.category &&
+        this.product.supplier
+      ) {
+        if (this.isAdmin && !this.product.warehouse) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('warehouse_required'),
+            life: 3000,
+          });
+          return;
+        }
+  
+        // 🔍 Check for duplicate product with same reference in the same warehouse
+        const isDuplicate = this.products.some(p =>
+          p.reference === this.product.reference &&
+          p.warehouse?.warehouseId === this.product.warehouse?.warehouseId &&
+          p.productId !== this.product.productId // exclude current product if updating
+        );
+  
+        if (isDuplicate) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('product_already_exists_in_warehouse'),
+            life: 4000,
+          });
+          return;
+        }
+  
+        // 📦 Upload product image if any (only if it's a new file)
+        if (this.uploadedFile && this.uploadedFile !== this.existingImageFile) {
+          this.isSaving = true; // Show saving indicator
+  
+          try {
+            const filePath = `images/${Date.now()}_${this.uploadedFile.name}`;
+            const fileRef = this.storage.ref(filePath);
+            const task = this.storage.upload(filePath, this.uploadedFile);
+  
+            // Show upload progress
+            task.percentageChanges().subscribe(percentage => {
+              this.uploadProgress = percentage;
+            });
+  
+            await lastValueFrom(task.snapshotChanges());
+            const url = await lastValueFrom(fileRef.getDownloadURL());
+            this.product.productImage = url;
+  
+            // Add to recent images
+            this.addToRecentImages(url);
+  
+          } catch (error) {
+            console.error('Error uploading file:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_uploading_image'),
+              life: 3000,
+            });
+            this.isSaving = false;
+            return;
+          } finally {
+            this.uploadedFile = null;
+            this.uploadProgress = 0;
+          }
+        }
+  
+        // Clean attributes before saving
+        if (this.product.attributes && this.product.attributes.length > 0) {
+          this.product.attributes.forEach(attr => {
+            // strip transient field if it still exists
+            delete attr.value;
+  
+            // optionally normalize booleans (Angular checkboxes can send null)
+            if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
+              attr.booleanValue = false;
+            }
+          });
+        }
+  
+        // ✏️ Update or add product
+        if (this.product.productId) {
+          this.updateProduct(this.product.productId, this.product)
+            ? this.messageService.add({
+              severity: 'success',
+              summary: this.translate.instant('successful'),
+              detail: this.translate.instant('product_updated'),
+              life: 3000,
+            })
+            : this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_updating_product'),
+              life: 3000,
+            });
+        } else {
+          this.addProduct(this.product);
+        }
+  
+        // ✅ Reset and close dialog
+        this.productDialog = false;
+        this.product = {};
+      } else {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('please_fill_required_fields'),
+          life: 3100,
+        });
+        return;
+      }
+    }
+
+      addToRecentImages(imageUrl: string): void {
+    // Keep only the 6 most recent images
+    this.recentProductImages = [imageUrl, ...this.recentProductImages].slice(0, 6);
+
+    // You might want to persist this to local storage
+    localStorage.setItem('recentProductImages', JSON.stringify(this.recentProductImages));
+  }
+
+    async updateProduct(id: any, product: any): Promise<any> {
+    console.log(product)
+    await this.productService.updateProduct(id, product)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.loadProducts();
+          return true;
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_product'),
+            life: 3000
+          });
+          console.log(err);
+          return false;
+        },
+      })
+  }
+
+  async addProduct(data: any): Promise<any> {
+    console.log(data);
+    await this.productService.saveProduct(data)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.loadProducts();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_added'),
+            life: 3000
+          });
+          return true;
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_product'),
+            life: 3000
+          });
+          console.log(err);
+          return false;
+        },
+      })
   }
 }

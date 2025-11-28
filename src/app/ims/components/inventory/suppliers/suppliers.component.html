@@ -130,7 +130,14 @@
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'supplier_address' | translate }}</span>
-                            {{ supplier.country ? (supplier.city + ', ' + (supplier.country | countryTranslate)) : 'N/A'
+                            {{
+                                (supplier.city && supplier.country)
+                                ? (supplier.city + ', ' + (supplier.country | countryTranslate))
+                                : supplier.city
+                                ? supplier.city
+                                : supplier.country
+                                ? (supplier.country | countryTranslate)
+                                : 'N/A'
                             }}
                         </td>
                         <td style="min-width:10rem;">
@@ -478,8 +485,17 @@
                                             <i class="pi pi-globe"></i>
                                         </div>
                                         <div class="contact-details">
-                                            <span>{{supplier.city}} {{supplier.country ? ', ' + (supplier.country |
-                                                countryTranslate) : ''}}</span>
+                                            <span>
+                                                {{
+                                                supplier.city && supplier.country
+                                                ? (supplier.city + ', ' + (supplier.country | countryTranslate))
+                                                : supplier.city
+                                                ? supplier.city
+                                                : supplier.country
+                                                ? (supplier.country | countryTranslate)
+                                                : 'N/A'
+                                                }}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

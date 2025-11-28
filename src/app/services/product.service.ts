@@ -73,4 +73,99 @@ export class ProductService {
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/price-history', { headers: headers });
   }
 
+  getProductsPaginated(
+    page: number,
+    size: number,
+    globalFilter: string = '',
+    sortBy: string = 'creationDate',
+    direction: string = 'DESC',
+    filters?: { [field: string]: any }
+  ) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+
+    let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`;
+
+    // Global filter
+    if (globalFilter) {
+      url += `&search=${encodeURIComponent(globalFilter)}`;
+    }
+
+    // Process column filters - map PrimeNG field names to backend parameter names
+    if (filters) {
+      Object.keys(filters).forEach(field => {
+        const f = filters[field];
+
+        if (!f || f.value == null || f.value === '') return;  // Skip empty values
+
+        let value = f.value;
+        let backendParamName = field;
+
+        // Map PrimeNG field names to backend parameter names
+        switch (field) {
+          case 'categoryId':
+            backendParamName = 'categoryId';
+            // value should already be the enum string value from the dropdown
+            if (value && typeof value === 'object' && value.categoryId) {
+              value = value.categoryId;
+            }
+            break;
+
+          case 'supplierId':
+            backendParamName = 'supplierId';
+            // value should already be the enum string value from the dropdown
+            if (value && typeof value === 'object' && value.supplierId) {
+              value = value.supplierId;
+            }
+            break;
+
+          case 'warehouseId':
+            backendParamName = 'warehouseId';
+            // Extract customerId from the customer object
+            if (value && typeof value === 'object' && value.warehouseId) {
+              value = value.warehouseId;
+            }
+            break;
+
+          case 'creationDate':
+            backendParamName = 'creationDate';
+            // Convert date objects to yyyy-MM-dd
+            if (value instanceof Date) {
+              value = value.toISOString().split('T')[0];
+            }
+            break;
+
+          default:
+            // For any other fields, use as-is
+            break;
+        }
+
+        // Skip empty values after processing
+        if (value == null || value === '') return;
+
+        url += `&${encodeURIComponent(backendParamName)}=${encodeURIComponent(value)}`;
+      });
+    }
+
+    console.log('Final URL with filters:', url);
+    return this.http.get(url, { headers });
+  }
+
+  searchProductsForPurchase(searchTerm: string = '',) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}search-for-purchases`;
+    if (searchTerm) {
+      url += `?search=${encodeURIComponent(searchTerm)}`;
+    }
+    return this.http.get(url, { headers });
+  }
+
+    searchProductsForOrder(searchTerm: string = '',) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}search-for-orders`;
+    if (searchTerm) {
+      url += `?search=${encodeURIComponent(searchTerm)}`;
+    }
+    return this.http.get(url, { headers });
+  }
+
 }

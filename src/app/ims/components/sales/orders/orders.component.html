@@ -19,7 +19,8 @@
 				[expandedRows]="expandedRows" [hasReturns]="hasReturns" [hasRefunds]="hasRefunds"
 				[getTotalRefundedAmount]="getTotalRefundedAmount" [getNetAmount]="getNetAmount"
 				(onGlobalFilter)="onGlobalFilter($event)" (lazyLoadEvent)="onLazyLoad($event)"
-				[customers]="customers" [shops]="shops" [statuses]="statuses" [paymentStatuses]="paymentStatuses"></app-orders-table>
+				[customers]="customers" [shops]="shops" [statuses]="statuses" [paymentStatuses]="paymentStatuses"
+				(exportPdfEvent)="exportPdf()" (exportExcelEvent)="exportExcel()"></app-orders-table>
 		</div>
 
 		<app-product-details [(visible)]="productDetailDialog" [product]="selectedProduct" [canEdit]="canEditProduct"
@@ -113,7 +114,8 @@
 										<i class="pi pi-search"></i>
 										{{ 'search_products' | translate }}
 									</label>
-									<p-autoComplete [(ngModel)]="selectedProduct" [suggestions]="filteredProducts"
+									<p-autoComplete [(ngModel)]="selectedProduct" [suggestions]="productSuggestions"
+										[loading]="productSuggestionsLoading"
 										(completeMethod)="filterProducts($event)" [minLength]="1" [field]="'name'"
 										placeholder="{{ 'search_products_placeholder' | translate }}" [dropdown]="true"
 										(onSelect)="onProductSelect($event)" [forceSelection]="true">

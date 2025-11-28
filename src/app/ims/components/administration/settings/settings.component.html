@@ -51,16 +51,40 @@
         </div>
       </div>
 
+      <!-- Global Parameters / Settings -->
       <div class="grid" *ngIf="activeItem?.icon == 'pi pi-fw pi-sliders-h' && !isLoading">
         <div class="col-12">
           <div class="card">
-            <div class="surface-section">
-              <div class="text-500 mb-5">{{ 'administration_description_txt' | translate }}</div>
+            <div class="surface-section p-4">
+
+              <!-- Header -->
+              <div class="flex align-items-center justify-content-between mb-4">
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-sliders-h text-primary text-2xl"></i>
+                  <div class="flex flex-column">
+                    <span class="text-xl font-bold">{{ 'global_parameters' | translate }}</span>
+                    <small class="text-600">{{ 'administration_description_txt' | translate }}</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Settings list -->
               <ul class="list-none p-0 m-0">
                 <li *ngFor="let config of configs; trackBy: trackByConfig"
-                  class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
-                  <div class="text-500 w-6 md:w-4 font-medium">{{ config.key | translate }}</div>
-                  <div class="text-900 w-full md:w-6 md:flex-order-0 flex-order-1">
+                  class="flex flex-column md:flex-row align-items-start md:align-items-center py-3 px-2 border-top-1 surface-border gap-3">
+
+                  <!-- Label & key -->
+                  <div class="w-12 md:w-4">
+                    <div class="text-900 font-semibold mb-1">
+                      {{ config.key | translate }}
+                    </div>
+                    <div class="text-500 text-xs">
+                      {{ ('settings_' + config.key + '_hint') | translate : {} }}
+                    </div>
+                  </div>
+
+                  <!-- Value / editor -->
+                  <div class="text-900 w-12 md:w-6 md:flex-order-0 flex-order-1">
                     <ng-container *ngIf="!config.isEditing; else editModeTemplate">
                       <!-- Display the value and units for lowStockThreshold -->
                       <span *ngIf="config.key === 'lowStockThreshold'">
@@ -74,10 +98,6 @@
                         {{ config.value }} {{ appConfigCurrency.value }}
                       </span>
 
-                      <span *ngIf="config.key === 'invoiceFormat'">
-                        {{ getPrintingFormatLabel(config.value) }}
-                      </span>
-
                       <span *ngIf="config.key === 'returnWindow'">
                         {{ config.value }} {{ 'days' | translate }}
                       </span>
@@ -89,16 +109,23 @@
                       <!-- Display the value for other keys -->
                       <span *ngIf="config.key !== 'lowStockThreshold' && 
                         config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' && 
-                        config.key !== 'invoiceFormat' && config.key !== 'returnWindow' && 
-                        config.key !== 'refundWindow' && config.key !== 'app.timezone'">
+                        config.key !== 'returnWindow' && 
+                        config.key !== 'refundWindow' && 
+                        config.key !== 'app.timezone' &&
+                        config.key !== 'autoOrderComplete'">
                         {{ config.value }}
                       </span>
 
+                      <!-- Auto order completion (active/inactive as Enabled/Disabled) -->
+                      <span *ngIf="config.key === 'autoOrderComplete'">
+                        {{ config.value === 'active' ? ('enabled' | translate) : ('disabled' | translate) }}
+                      </span>
                       <!-- Timezone display -->
                       <span *ngIf="config.key === 'app.timezone'">{{ config.value }}</span>
 
                     </ng-container>
 
+                    <!-- Edit mode -->
                     <ng-template #editModeTemplate>
                       <!-- For low stock threshold -->
                       <div *ngIf="config.key == 'lowStockThreshold'">
@@ -123,12 +150,6 @@
                         appConfigCurrency.value }}
                       </div>
 
-                      <!-- For currency selection -->
-                      <div *ngIf="config.key == 'invoiceFormat'">
-                        <p-dropdown [options]="printingFormats" [(ngModel)]="config.value" optionValue="value"
-                          optionLabel="label" placeholder="{{ 'select_currency_option' | translate }}"></p-dropdown>
-                      </div>
-
                       <div *ngIf="config.key == 'returnWindow'">
                         <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{'days'
                         |translate}}
@@ -137,6 +158,16 @@
                       <div *ngIf="config.key == 'refundWindow'">
                         <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{'days'
                         |translate}}
+                      </div>
+
+                      <!-- Auto order completion as enabled/disabled dropdown -->
+                      <div *ngIf="config.key == 'autoOrderComplete'">
+                        <p-dropdown [(ngModel)]="config.value"
+                          [options]="autoOrderOptions"
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="{{ 'enabled' | translate }}">
+                        </p-dropdown>
                       </div>
 
                       <!-- Edit mode for timezone -->
@@ -149,9 +180,16 @@
                     </ng-template>
                   </div>
 
-                  <div class="w-6 md:w-2 flex justify-content-end">
-                    <p-button (click)="toggleEditMode(config)" icon="pi pi-{{ config.isEditing ? 'check' : 'pencil' }}"
-                      [rounded]="true" [outlined]="true"></p-button>
+                  <!-- Action button -->
+                  <div class="w-12 md:w-2 flex justify-content-end align-items-center mt-2 md:mt-0">
+                    <p-button
+                      (click)="toggleEditMode(config)"
+                      icon="pi pi-{{ config.isEditing ? 'check' : 'pencil' }}"
+                      [rounded]="true"
+                      [outlined]="true"
+                      [label]="config.isEditing ? ('save_button' | translate) : ''"
+                      styleClass="p-button-sm">
+                    </p-button>
                   </div>
                 </li>
               </ul>

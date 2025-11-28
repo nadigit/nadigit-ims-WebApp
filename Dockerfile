@@ -18,6 +18,9 @@ COPY env.template.js /usr/share/nginx/html/assets/env.template.js
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy the nginx configuration file
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
 

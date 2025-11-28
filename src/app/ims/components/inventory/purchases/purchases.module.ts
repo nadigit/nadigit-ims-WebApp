@@ -25,6 +25,7 @@ import { PickListModule } from 'primeng/picklist';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
 import { TimelineModule } from 'primeng/timeline';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 @NgModule({
     imports: [
@@ -51,7 +52,8 @@ import { TimelineModule } from 'primeng/timeline';
         PickListModule,
         SelectButtonModule,
         TagModule,
-        TimelineModule
+        TimelineModule,
+        SharedModule
     ],
     declarations: [PurchasesComponent],
     providers: [ReportingService],

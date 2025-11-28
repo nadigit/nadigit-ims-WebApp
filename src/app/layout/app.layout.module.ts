@@ -26,7 +26,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { ChipModule } from 'primeng/chip';
-import { CashRegisterSessionComponent } from '../ims/components/cash-register/cash-register-session/cash-register-session.component';
+import { CashRegisterSessionModule } from '../ims/components/cash-register/cash-register-session/cash-register-session.module';
 import { ToastModule } from 'primeng/toast';
 import { DropdownModule } from 'primeng/dropdown';
 import { TagModule } from 'primeng/tag';
@@ -40,8 +40,7 @@ import { ProgressBarModule } from 'primeng/progressbar';
         AppFooterComponent,
         AppMenuComponent,
         AppSidebarComponent,
-        AppLayoutComponent,
-        CashRegisterSessionComponent
+        AppLayoutComponent
     ],
     imports: [
         BrowserModule,
@@ -68,8 +67,9 @@ import { ProgressBarModule } from 'primeng/progressbar';
         ToastModule,
         DropdownModule,
         TagModule,
-        ProgressBarModule
+        ProgressBarModule,
+        CashRegisterSessionModule
     ],
-    exports: [AppLayoutComponent, CashRegisterSessionComponent]
+    exports: [AppLayoutComponent]
 })
 export class AppLayoutModule { }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Country, State } from 'country-state-city';
@@ -19,7 +19,7 @@ import { Expense } from 'src/app/models/expense';
 import { LocationService } from 'src/app/services/location.service';
 import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
 import { CashMovement } from 'src/app/models/cashMovement';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout, catchError, of } from 'rxjs';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { CashCollection } from 'src/app/models/cashCollection';
 
@@ -89,6 +89,7 @@ export class ShopsComponent implements OnInit {
 
   shopDetailsDialog: boolean = false;
   loading: boolean = false;
+  loadingShopDetails: boolean = false;
   loadingPurchases: boolean = false;
   loadingExpenses: boolean = false;
   cashRegisterData: any;
@@ -97,6 +98,7 @@ export class ShopsComponent implements OnInit {
   expenseStats: any;
   recentPurchases: Purchase[] = [];
   recentExpenses: Expense[] = [];
+  shopStats: any = {};
 
   dailyDifferenceTrend: number = 0;
   dailyDifferencePercentage: number = 0;
@@ -108,6 +110,17 @@ export class ShopsComponent implements OnInit {
 
   movementsDialogVisible = false;
   selectedSessionMovements: CashMovement[] = [];
+  
+  // Cash Register Statistics
+  cashRegisterStats: any = {};
+  loadingCashRegister: boolean = false;
+  loadingMovements: boolean = false; // specific loading flag for movements tab
+  filteredMovements: CashMovement[] = [];
+  movementTypeOptions: string[] = []; // for movements filter dropdown
+  filteredCollections: CashCollection[] = [];
+  movementSearchTerm: string = '';
+  collectionSearchTerm: string = '';
+  selectedMovementTypeFilter: string | null = null;
   newCollectionDialogVisible = false;
 
   newCollection = {
@@ -121,6 +134,8 @@ export class ShopsComponent implements OnInit {
   newDepositDialogVisible = false;
   newDeposit = { amount: null, notes: '' };
 
+  showCashRegisterSessionDialog = false;
+
 
   constructor(private messageService: MessageService,
     private shopService: ShopService,
@@ -132,7 +147,9 @@ export class ShopsComponent implements OnInit {
     private permissionService: PermissionService,
     private configService: AppConfigurationService,
     private cashRegisterService: CashRegisterService,
-    public keycloakService: KeycloakService,) { }
+    public keycloakService: KeycloakService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone) { }
 
   async ngOnInit() {
     const defaultStartDate = new Date();
@@ -243,31 +260,251 @@ export class ShopsComponent implements OnInit {
 
   async loadSessions(): Promise<void> {
     try {
+      console.log('📥 Loading sessions for shop:', this.shop.shopId);
       const sessions$ = this.cashRegisterService.getSessionsByShop(this.shop.shopId);
       this.sessions = await firstValueFrom(sessions$);
       this.filteredSessions = [...this.sessions];
+      console.log('✅ Loaded sessions:', this.sessions.length);
     } catch (error) {
       console.error('❌ Failed to load sessions:', error);
+      this.sessions = [];
+      this.filteredSessions = [];
+      throw error; // Re-throw to be caught by refreshData
     }
   }
 
   async loadMovements(): Promise<void> {
     try {
+      console.log('📥 Loading movements for shop:', this.shop.shopId);
       const movements$ = this.cashRegisterService.getMovementsByShop(this.shop.shopId);
       this.movements = await firstValueFrom(movements$);
-      console.log('Loaded movements:', this.movements);
+      this.filteredMovements = [...this.movements];
+
+      // Build unique movement type options once, for the dropdown
+      const types = new Set<string>();
+      this.movements.forEach(m => {
+        if (m.type) types.add(m.type);
+      });
+      this.movementTypeOptions = Array.from(types);
+
+      console.log('✅ Loaded movements:', this.movements.length, 'types:', this.movementTypeOptions);
     } catch (error) {
       console.error('❌ Failed to load movements:', error);
+      this.movements = [];
+      this.filteredMovements = [];
+    } finally {
+      this.loadingMovements = false;
     }
   }
 
   async loadCollections(): Promise<void> {
     try {
+      console.log('📥 Loading collections for shop:', this.shop.shopId);
       const collections$ = this.cashRegisterService.getCollectionsByShop(this.shop.shopId);
       this.collections = await firstValueFrom(collections$);
+      this.filteredCollections = [...this.collections];
+      console.log('✅ Loaded collections:', this.collections.length);
     } catch (error) {
       console.error('❌ Failed to load collections:', error);
+      this.collections = [];
+      this.filteredCollections = [];
+      throw error; // Re-throw to be caught by refreshData
     }
+  }
+
+  calculateCashRegisterStats(): void {
+    // Session Statistics
+    const openSessions = this.sessions.filter(s => !s.closed);
+    const closedSessions = this.sessions.filter(s => s.closed);
+    const todaySessions = this.sessions.filter(s => {
+      const sessionDate = new Date(s.openedAt || '');
+      const today = new Date();
+      return sessionDate.toDateString() === today.toDateString();
+    });
+
+    // Movement Statistics
+    const deposits = this.movements.filter(m => m.type === 'DEPOSIT');
+    const withdrawals = this.movements.filter(m => m.type === 'WITHDRAWAL');
+    const adjustments = this.movements.filter(m => m.type === 'ADJUSTMENT');
+    const expenses = this.movements.filter(m => m.type === 'EXPENSE');
+    
+    const totalDeposits = deposits.reduce((sum, m) => sum + (m.amount || 0), 0);
+    const totalWithdrawals = withdrawals.reduce((sum, m) => sum + (m.amount || 0), 0);
+    const totalAdjustments = adjustments.reduce((sum, m) => sum + (m.amount || 0), 0);
+    const totalExpenses = expenses.reduce((sum, m) => sum + (m.amount || 0), 0);
+
+    // Collection Statistics
+    const totalCollections = this.collections.reduce((sum, c) => sum + (c.amountCollected || 0), 0);
+    const todayCollections = this.collections.filter(c => {
+      const collectionDate = new Date(c.collectedAt || '');
+      const today = new Date();
+      return collectionDate.toDateString() === today.toDateString();
+    });
+    const totalTodayCollections = todayCollections.reduce((sum, c) => sum + (c.amountCollected || 0), 0);
+
+    // Session Performance
+    const avgSessionDuration = closedSessions.length > 0
+      ? closedSessions.reduce((sum, s) => {
+          if (s.openedAt && s.closedAt) {
+            const opened = new Date(s.openedAt);
+            const closed = new Date(s.closedAt);
+            return sum + (closed.getTime() - opened.getTime());
+          }
+          return sum;
+        }, 0) / closedSessions.length / (1000 * 60 * 60) // Convert to hours
+      : 0;
+
+    const avgOpeningAmount = this.sessions.length > 0
+      ? this.sessions.reduce((sum, s) => sum + (s.openingAmount || 0), 0) / this.sessions.length
+      : 0;
+
+    const avgClosingAmount = closedSessions.length > 0
+      ? closedSessions.reduce((sum, s) => sum + (s.closingAmount || 0), 0) / closedSessions.length
+      : 0;
+
+    // Calculate differences
+    const totalDifferences = closedSessions.reduce((sum, s) => sum + (s.declaredDifference || 0), 0);
+    const avgDifference = closedSessions.length > 0 ? totalDifferences / closedSessions.length : 0;
+
+    // Recent activity (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentMovements = this.movements.filter(m => {
+      const movementDate = new Date(m.timestamp || '');
+      return movementDate >= sevenDaysAgo;
+    });
+    const recentCollections = this.collections.filter(c => {
+      const collectionDate = new Date(c.collectedAt || '');
+      return collectionDate >= sevenDaysAgo;
+    });
+
+    this.cashRegisterStats = {
+      // Sessions
+      totalSessions: this.sessions.length,
+      openSessions: openSessions.length,
+      closedSessions: closedSessions.length,
+      todaySessions: todaySessions.length,
+      avgSessionDuration: avgSessionDuration,
+      avgOpeningAmount: avgOpeningAmount,
+      avgClosingAmount: avgClosingAmount,
+      avgDifference: avgDifference,
+      
+      // Movements
+      totalMovements: this.movements.length,
+      totalDeposits: totalDeposits,
+      totalWithdrawals: totalWithdrawals,
+      totalAdjustments: totalAdjustments,
+      totalExpenses: totalExpenses,
+      depositsCount: deposits.length,
+      withdrawalsCount: withdrawals.length,
+      adjustmentsCount: adjustments.length,
+      expensesCount: expenses.length,
+      netMovements: totalDeposits - totalWithdrawals - totalExpenses + totalAdjustments,
+      
+      // Collections
+      totalCollections: totalCollections,
+      collectionsCount: this.collections.length,
+      todayCollections: totalTodayCollections,
+      todayCollectionsCount: todayCollections.length,
+      avgCollectionAmount: this.collections.length > 0 ? totalCollections / this.collections.length : 0,
+      
+      // Recent Activity
+      recentMovementsCount: recentMovements.length,
+      recentCollectionsCount: recentCollections.length,
+      
+      // Performance Metrics
+      cashFlow: (totalDeposits + totalCollections) - (totalWithdrawals + totalExpenses),
+      efficiency: closedSessions.length > 0 ? ((closedSessions.filter(s => (s.declaredDifference || 0) === 0).length / closedSessions.length) * 100) : 0
+    };
+  }
+
+  filterMovements(): void {
+    let filtered = [...this.movements];
+
+    // Filter by search term
+    if (this.movementSearchTerm) {
+      const searchLower = this.movementSearchTerm.toLowerCase();
+      filtered = filtered.filter(m => 
+        m.reference?.toLowerCase().includes(searchLower) ||
+        m.performedByName?.toLowerCase().includes(searchLower) ||
+        m.type?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Filter by type
+    if (this.selectedMovementTypeFilter) {
+      filtered = filtered.filter(m => m.type === this.selectedMovementTypeFilter);
+    }
+
+    this.filteredMovements = filtered;
+  }
+
+  filterCollections(): void {
+    let filtered = [...this.collections];
+
+    // Filter by search term
+    if (this.collectionSearchTerm) {
+      const searchLower = this.collectionSearchTerm.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.receiptNumber?.toLowerCase().includes(searchLower) ||
+        c.collectedByName?.toLowerCase().includes(searchLower) ||
+        c.notes?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    this.filteredCollections = filtered;
+  }
+
+  clearMovementFilters(): void {
+    this.movementSearchTerm = '';
+    this.selectedMovementTypeFilter = null;
+    this.filteredMovements = [...this.movements];
+  }
+
+  clearCollectionFilters(): void {
+    this.collectionSearchTerm = '';
+    this.filteredCollections = [...this.collections];
+  }
+
+  // getMovementTypes(): string[] {
+  //   const types = new Set<string>();
+  //   this.movements.forEach(m => {
+  //     if (m.type) types.add(m.type);
+  //   });
+  //   return Array.from(types);
+  // }
+
+  exportCashRegisterData(): void {
+    const exportData = {
+      sessions: this.filteredSessions.map(s => ({
+        cashier: s.username || 'N/A',
+        openedAt: s.openedAt ? new Date(s.openedAt).toLocaleString() : 'N/A',
+        closedAt: s.closedAt ? new Date(s.closedAt).toLocaleString() : 'Still Open',
+        openingAmount: s.openingAmount || 0,
+        closingAmount: s.closingAmount || 0,
+        declaredDifference: s.declaredDifference || 0,
+        status: s.closed ? 'Closed' : 'Open'
+      })),
+      movements: this.filteredMovements.map(m => ({
+        type: m.type || 'N/A',
+        amount: m.amount || 0,
+        reference: m.reference || 'N/A',
+        performedBy: m.performedByName || 'N/A',
+        timestamp: m.timestamp ? new Date(m.timestamp).toLocaleString() : 'N/A'
+      })),
+      collections: this.filteredCollections.map(c => ({
+        receiptNumber: c.receiptNumber || 'N/A',
+        collectedAt: c.collectedAt ? new Date(c.collectedAt).toLocaleString() : 'N/A',
+        amountCollected: c.amountCollected || 0,
+        collectedBy: c.collectedByName || 'N/A',
+        notes: c.notes || 'N/A'
+      }))
+    };
+
+    this.reportingService.exportExcel(
+      exportData.sessions.concat(exportData.movements as any).concat(exportData.collections as any),
+      `cash_register_${this.shop.shopName}_${new Date().toISOString().slice(0, 10)}`
+    );
   }
 
   async viewSessionMovements(session: CashRegisterSession): Promise<void> {
@@ -439,9 +676,46 @@ export class ShopsComponent implements OnInit {
     };
 
     this.shopDetailsDialog = true;
+    this.loadingShopDetails = true;
 
-    await this.loadShopDetails();
-    console.log('Shop details loaded:', this.selectedShop);
+    try {
+      await this.loadShopDetails();
+      this.calculateShopStats();
+      console.log('Shop details loaded:', this.selectedShop);
+    } catch (error) {
+      console.error('Error loading shop details:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_shop_details'),
+        life: 3000
+      });
+    } finally {
+      this.loadingShopDetails = false;
+    }
+  }
+
+  calculateShopStats(): void {
+    const totalPurchases = this.purchaseStats?.total || 0;
+    const totalExpenses = this.expenseStats?.total || 0;
+    const cashBalance = this.cashRegisterData?.totalBalance || 0;
+    const purchaseCount = this.purchaseStats?.count || 0;
+    const expenseCount = this.expenseStats?.count || 0;
+    const recentPurchasesTotal = this.recentPurchases?.reduce((sum, p) => sum + (p.totalAmount || 0), 0) || 0;
+    const recentExpensesTotal = this.recentExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+
+    this.shopStats = {
+      cashBalance: cashBalance,
+      totalPurchases: totalPurchases,
+      totalExpenses: totalExpenses,
+      purchaseCount: purchaseCount,
+      expenseCount: expenseCount,
+      netCashFlow: cashBalance - totalExpenses,
+      recentPurchasesTotal: recentPurchasesTotal,
+      recentExpensesTotal: recentExpensesTotal,
+      averagePurchaseAmount: purchaseCount > 0 ? totalPurchases / purchaseCount : 0,
+      averageExpenseAmount: expenseCount > 0 ? totalExpenses / expenseCount : 0
+    };
   }
 
   hideShopDetailsDialog(): void {
@@ -452,6 +726,26 @@ export class ShopsComponent implements OnInit {
     this.expenseStats = null;
     this.recentPurchases = [];
     this.recentExpenses = [];
+    this.shopStats = {};
+  }
+
+  refreshShopDetails(): void {
+    if (this.selectedShop?.shopId) {
+      this.loadingShopDetails = true;
+      this.loadShopDetails().then(() => {
+        this.calculateShopStats();
+        this.loadingShopDetails = false;
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('success'),
+          detail: this.translate.instant('data_refreshed'),
+          life: 2000
+        });
+      }).catch(error => {
+        console.error('Error refreshing shop details:', error);
+        this.loadingShopDetails = false;
+      });
+    }
   }
 
   deleteShop(shop: Shop) {
@@ -646,10 +940,10 @@ export class ShopsComponent implements OnInit {
     return date;
   }
 
-  async onGetShopCashRegister() {
+  async onGetShopCashRegister(): Promise<void> {
     try {
       const response = await (this.shopService.getCashRegister(this.shop.shopId)).toPromise();
-      this.cashRegister = response;
+      this.cashRegister = response || {};
 
       // Convert time strings to Date objects
       if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
@@ -663,19 +957,12 @@ export class ShopsComponent implements OnInit {
 
       this.filterByDateRange();
       this.calculateTotalsAndTrends();
-
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('cash_register_data_refreshed')
-      });
     } catch (err) {
-      console.error(err);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_loading_cash_register_data')
-      });
+      console.error('Error loading cash register:', err);
+      // Initialize empty cash register if load fails
+      this.cashRegister = {};
+      // Don't show error message here - let the caller handle it
+      throw err;
     }
   }
 
@@ -776,24 +1063,151 @@ export class ShopsComponent implements OnInit {
     );
   }
 
-  async openCashRegisterDialog(shop: any) {
-    this.cashRegister = {};
+  openCashRegisterDialog(shop: any): void {
+    if (!shop?.shopId) {
+      console.error('Cannot open cash register dialog: shop ID is missing');
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: 'Shop ID is missing',
+        life: 3000
+      });
+      return;
+    }
+
+    console.log('🔄 Opening cash register dialog for shop:', shop.shopId);
+
+    // Set shop first
     this.shop = shop;
 
-    // Reset filters
+    // Reset all data and filters
+    this.cashRegister = {};
     this.startDate = null;
     this.endDate = null;
+    this.movementSearchTerm = '';
+    this.collectionSearchTerm = '';
+    this.selectedMovementTypeFilter = null;
+    
+    // Initialize empty arrays
+    this.sessions = [];
+    this.filteredSessions = [];
+    this.movements = [];
+    this.filteredMovements = [];
+    this.collections = [];
+    this.filteredCollections = [];
+    
+    // Initialize stats with default values
+    this.cashRegisterStats = {
+      totalSessions: 0,
+      openSessions: 0,
+      closedSessions: 0,
+      todaySessions: 0,
+      avgSessionDuration: 0,
+      totalDeposits: 0,
+      totalWithdrawals: 0,
+      totalCollections: 0,
+      cashFlow: 0
+    };
 
-    // Parallel loading of both data sources
-    await Promise.all([
-      // this.fetchCashRegisterData(shop.shopId),
-      this.refreshData(),
-      this.onGetShopCashRegister()
-    ]);
+    // Set loading state
+    this.loadingCashRegister = true;
 
+    // Open dialog IMMEDIATELY - no async operations blocking this
     this.cashRegisterDialog = true;
+    
+    // Force change detection to ensure dialog opens
+    this.cdr.detectChanges();
+
+    // Load data asynchronously AFTER dialog is opened
+    this.loadCashRegisterDialogData();
   }
 
+  private async loadCashRegisterDialogData(): Promise<void> {
+    if (!this.shop?.shopId) {
+      this.loadingCashRegister = false;
+      this.cdr.detectChanges();
+      return;
+    }
+
+    try {
+      // Load data in parallel
+      await Promise.allSettled([
+        this.refreshData(false),
+        this.onGetShopCashRegister()
+      ]);
+      
+      console.log('✅ Cash register data loaded');
+    } catch (error) {
+      console.error('❌ Error loading cash register data:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_cash_register_data'),
+        life: 3000
+      });
+    } finally {
+      // Always clear global loading state (sessions + collections)
+      console.log('🔓 Clearing loading state - before:', this.loadingCashRegister);
+      this.loadingCashRegister = false;
+      console.log('🔓 Clearing loading state - after:', this.loadingCashRegister);
+
+      // Ensure UI updates
+      this.ngZone.run(() => {
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
+      });
+
+      console.log('🔓 Loading complete');
+    }
+  }
+
+  /**
+   * Called when the Movements tab is opened.
+   * Loads movements lazily and uses its own spinner, without affecting the main dialog loader.
+   */
+  async onMovementsTabOpen(): Promise<void> {
+    console.log('📑 Movements tab opened');
+    if (this.movements && this.movements.length > 0) {
+      return; // already loaded
+    }
+    await this.loadMovements();
+  }
+
+  openCashRegisterSessionDialog(): void {
+    this.showCashRegisterSessionDialog = true;
+  }
+
+  onSessionOpened(session: CashRegisterSession): void {
+    console.log('✅ Cash register session opened:', session);
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('success'),
+      detail: this.translate.instant('cash_register_opened'),
+      life: 3000
+    });
+    // Refresh data (which includes sessions) - manage loading state since dialog is already open
+    if (this.cashRegisterDialog) {
+      this.refreshData(true);
+    }
+  }
+
+  onSessionClosed(session: CashRegisterSession): void {
+    console.log('🔴 Cash register session closed:', session);
+    this.messageService.add({
+      severity: 'info',
+      summary: this.translate.instant('info'),
+      detail: this.translate.instant('cash_register_closed'),
+      life: 3000
+    });
+    // Refresh data (which includes sessions) - manage loading state since dialog is already open
+    if (this.cashRegisterDialog) {
+      this.refreshData(true);
+    }
+  }
+
+  onCashRegisterSessionDialogClosed(): void {
+    this.showCashRegisterSessionDialog = false;
+  }
 
   // async fetchCashRegisterData(shopId: number): Promise<void> {
   //   try {
@@ -878,10 +1292,48 @@ export class ShopsComponent implements OnInit {
   //   }
   // }
 
-  refreshData(): void {
-    this.loadSessions();
-    this.loadCollections();
-    this.loadMovements();
+  async refreshData(manageLoadingState: boolean = false): Promise<void> {
+    if (!this.shop?.shopId) {
+      console.warn('⚠️ Cannot refresh data: shop ID is missing');
+      return;
+    }
+    
+    console.log('🔄 Refreshing cash register data for shop:', this.shop.shopId);
+    
+    if (manageLoadingState) {
+      this.loadingCashRegister = true;
+    }
+    
+    try {
+      // Use allSettled to ensure all calls complete even if some fail
+      const results = await Promise.allSettled([
+        this.loadSessions(),
+        this.loadCollections(),
+        this.loadMovements()
+      ]);
+      
+      // Check for any failures
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.warn('⚠️ Some data loading failed:', failures);
+      }
+      
+      // Calculate stats once after all data is loaded (even if some failed)
+      this.calculateCashRegisterStats();
+      console.log('✅ Cash register stats calculated');
+      
+      if (manageLoadingState) {
+        this.loadingCashRegister = false;
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing cash register data:', error);
+      if (manageLoadingState) {
+        this.loadingCashRegister = false;
+      }
+      // Initialize empty stats on error
+      this.cashRegisterStats = {};
+      // Don't re-throw - let allSettled handle it
+    }
   }
 
   calculateTotalDailyDifference(balances: DailyBalance[]) {
@@ -956,7 +1408,9 @@ export class ShopsComponent implements OnInit {
       });
 
       // refresh the cash register data to reflect new balance
-      this.refreshData();
+      if (this.cashRegisterDialog) {
+        this.refreshData(true);
+      }
 
     } catch (error) {
       console.error('❌ Error performing collection:', error);
@@ -984,7 +1438,9 @@ export class ShopsComponent implements OnInit {
     next: () => {
       this.messageService.add({ severity: 'success', summary: this.translate.instant('success'), detail: this.translate.instant('deposit_added') });
       this.newDepositDialogVisible = false;
-      this.refreshData();
+      if (this.cashRegisterDialog) {
+        this.refreshData(true);
+      }
     },
     error: (err) => {
       this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_adding_deposit') });

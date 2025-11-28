@@ -118,25 +118,67 @@ export class OrderService {
     }
 
     // Process column filters - map PrimeNG field names to backend parameter names
+    const normalizeFilter = (filter: any) => {
+      if (!filter) {
+        return null;
+      }
+
+      if (Array.isArray(filter)) {
+        return filter.find(meta => meta && meta.value !== undefined && meta.value !== null && meta.value !== '');
+      }
+
+      return filter;
+    };
+
     if (filters) {
       Object.keys(filters).forEach(field => {
-        const f = filters[field];
+        const filterMeta = normalizeFilter(filters[field]);
 
-        if (!f || f.value == null || f.value === '') return;  // Skip empty values
+        if (!filterMeta || filterMeta.value == null || filterMeta.value === '') {
+          return;  // Skip empty values
+        }
 
-        let value = f.value;
+        let value = filterMeta.value;
         let backendParamName = field;
 
         // Map PrimeNG field names to backend parameter names
         switch (field) {
           case 'orderStatus':
             backendParamName = 'orderStatus';
-            // value should already be the enum string value from the dropdown
+            // Extract value if it's an object (dropdown might pass full object)
+            if (value && typeof value === 'object') {
+              // Try to extract the value property first
+              if (value.value !== undefined && value.value !== null) {
+                value = value.value;
+              } else if (value.label !== undefined && value.label !== null) {
+                // Fallback: use label if value property doesn't exist
+                value = value.label;
+              } else {
+                // If object has no value/label, try to stringify or use first property
+                value = String(value);
+              }
+            }
+            // Ensure value is a string
+            if (value !== null && value !== undefined) {
+              value = String(value).trim();
+            }
+            console.log('Processed orderStatus filter:', { 
+              original: filterMeta.value, 
+              processed: value, 
+              originalType: typeof filterMeta.value,
+              processedType: typeof value 
+            });
             break;
 
           case 'paymentStatus':
             backendParamName = 'paymentStatus';
-            // value should already be the enum string value from the dropdown
+            // Extract value if it's an object (dropdown might pass full object)
+            if (value && typeof value === 'object' && value.value) {
+              value = value.value;
+            } else if (value && typeof value === 'object' && value.label) {
+              // Fallback: use label if value property doesn't exist
+              value = value.label;
+            }
             break;
 
           case 'customerId':
@@ -157,10 +199,34 @@ export class OrderService {
 
           case 'orderDate':
             backendParamName = 'orderDate';
-            // Convert date objects to yyyy-MM-dd
+            // Convert date objects to yyyy-MM-dd (ISO format for LocalDate)
             if (value instanceof Date) {
-              value = value.toISOString().split('T')[0];
+              // Use local date components to avoid timezone issues
+              const year = value.getFullYear();
+              const month = String(value.getMonth() + 1).padStart(2, '0');
+              const day = String(value.getDate()).padStart(2, '0');
+              value = `${year}-${month}-${day}`;
+            } else if (value && typeof value === 'string') {
+              // If it's already a string, try to parse and format it
+              try {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                  // Use local date components to avoid timezone issues
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const day = String(date.getDate()).padStart(2, '0');
+                  value = `${year}-${month}-${day}`;
+                }
+              } catch (e) {
+                // If parsing fails, check if it's already in yyyy-MM-dd format
+                const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!isoDateRegex.test(value)) {
+                  console.warn('Date filter value is not in expected format:', value);
+                }
+                // Use as-is if it matches the expected format
+              }
             }
+            console.log('Processed orderDate filter:', { original: filterMeta.value, processed: value });
             break;
 
           default:

@@ -276,208 +276,363 @@
 			</ng-template>
 		</p-dialog>
 
-		<p-dialog [(visible)]="warehouseDetailsDialog" [style]="{width: '90%', height: '95vh'}"
-			[breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'warehouse_details' | translate }}"
+		<p-dialog [(visible)]="warehouseDetailsDialog" [style]="{width: '95%', height: '95vh'}"
+			[breakpoints]="{'960px': '95vw', '640px': '98vw'}" [header]="selectedWarehouse?.name || ('warehouse_details' | translate)"
 			[modal]="true" [draggable]="false" [resizable]="true" class="p-fluid warehouse-details-dialog"
-			[contentStyle]="{'max-height': '80vh'}">
+			[contentStyle]="{'max-height': '85vh', 'overflow-y': 'auto'}">
+
+			<ng-template pTemplate="header">
+				<div class="flex align-items-center justify-content-between w-full">
+					<div class="flex align-items-center gap-2">
+						<i class="pi pi-warehouse text-2xl text-primary"></i>
+						<span class="text-xl font-bold">{{ selectedWarehouse?.name || ('warehouse_details' | translate) }}</span>
+					</div>
+					<div class="flex gap-2">
+						<button pButton pRipple icon="pi pi-refresh" 
+							class="p-button-rounded p-button-text p-button-plain"
+							[pTooltip]="'refresh' | translate" tooltipPosition="bottom"
+							(click)="refreshWarehouseDetails()"
+							[disabled]="loadingWarehouseDetails"></button>
+						<button pButton pRipple icon="pi pi-file-excel" 
+							class="p-button-rounded p-button-text p-button-plain"
+							[pTooltip]="'export_to_excel' | translate" tooltipPosition="bottom"
+							(click)="exportWarehouseProducts()"
+							[disabled]="!filteredWarehouseProducts || filteredWarehouseProducts.length === 0"></button>
+					</div>
+				</div>
+			</ng-template>
 
 			<ng-template pTemplate="content">
-				<div class="grid p-fluid">
-					<!-- Warehouse Basic Info Section -->
-					<div class="col-12 md:col-5 pr-4">
-						<div class="surface-card p-4 border-round shadow-2 mb-4">
-							<h3 class="mt-0 mb-4 flex align-items-center">
-								<i class="pi pi-info-circle mr-2 text-primary"></i>
-								{{ 'basic_information' | translate }}
-							</h3>
+				<!-- Loading State -->
+				<div *ngIf="loadingWarehouseDetails" class="flex justify-content-center align-items-center py-8">
+					<p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+				</div>
 
-							<div class="field mb-4" *ngIf="selectedWarehouse && selectedWarehouse.name">
-								<label class="block mb-2 font-medium text-900">
-									<i class="pi pi-home mr-1"></i>
-									{{ 'warehouse_name' | translate }}
-								</label>
-								<div class="p-inputgroup">
-									<span class="p-inputgroup-addon">
-										<i class="pi pi-building"></i>
-									</span>
-									<input pInputText [value]="selectedWarehouse.name" readonly class="w-full" />
+				<!-- Content -->
+				<div *ngIf="!loadingWarehouseDetails" class="grid p-fluid">
+					<!-- Left Column: Basic Info & Alerts -->
+					<div class="col-12 lg:col-4 pr-3">
+						<!-- Basic Information Card -->
+						<p-card styleClass="shadow-2 border-round-lg mb-3">
+							<ng-template pTemplate="header">
+								<div class="flex align-items-center gap-2 p-3">
+									<i class="pi pi-info-circle text-primary text-xl"></i>
+									<span class="font-bold text-lg">{{ 'basic_information' | translate }}</span>
 								</div>
-							</div>
-
-							<div class="field mb-4" *ngIf="selectedWarehouse.description">
-								<label class="block mb-2 font-medium text-900">
-									<i class="pi pi-align-left mr-1"></i>
-									{{ 'warehouse_description' | translate }}
-								</label>
-								<textarea pInputTextarea [value]="selectedWarehouse.description" rows="3"
-									[autoResize]="true" readonly class="w-full"></textarea>
-							</div>
-
-							<div class="field"
-								*ngIf="selectedWarehouse.address || selectedWarehouse.city || selectedWarehouse.country">
-								<label class="block mb-2 font-medium text-900">
-									<i class="pi pi-map mr-1"></i>
-									{{ 'location' | translate }}
-								</label>
-								<div class="surface-100 p-3 border-round">
-									<div class="flex align-items-center mb-2" *ngIf="selectedWarehouse.country">
-										<i class="pi pi-globe mr-2 text-primary"></i>
-										<span class="text-900">{{ (selectedWarehouse.country | countryTranslate) ||
-											'N/A' }}</span>
-									</div>
-									<div class="flex align-items-center mb-2" *ngIf="selectedWarehouse.city">
-										<i class="pi pi-map-marker mr-2 text-primary"></i>
-										<span class="text-900">{{ selectedWarehouse.city || 'N/A' }}</span>
-									</div>
-									<div class="flex align-items-start" *ngIf="selectedWarehouse.address">
-										<i class="pi pi-compass mr-2 text-primary mt-1"></i>
-										<span class="text-900">{{ selectedWarehouse.address || 'N/A' }}</span>
+							</ng-template>
+							<div class="flex flex-column gap-3">
+								<div *ngIf="selectedWarehouse?.name" class="field">
+									<label class="block mb-2 font-medium text-600">
+										<i class="pi pi-home mr-1"></i>
+										{{ 'warehouse_name' | translate }}
+									</label>
+									<div class="p-inputgroup">
+										<span class="p-inputgroup-addon">
+											<i class="pi pi-building"></i>
+										</span>
+										<input pInputText [value]="selectedWarehouse.name" readonly class="w-full" />
 									</div>
 								</div>
+
+								<div *ngIf="selectedWarehouse?.description" class="field">
+									<label class="block mb-2 font-medium text-600">
+										<i class="pi pi-align-left mr-1"></i>
+										{{ 'warehouse_description' | translate }}
+									</label>
+									<textarea pInputTextarea [value]="selectedWarehouse.description" rows="3"
+										[autoResize]="true" readonly class="w-full"></textarea>
+								</div>
+
+								<div *ngIf="selectedWarehouse?.address || selectedWarehouse?.city || selectedWarehouse?.country" class="field">
+									<label class="block mb-2 font-medium text-600">
+										<i class="pi pi-map mr-1"></i>
+										{{ 'location' | translate }}
+									</label>
+									<div class="surface-100 p-3 border-round">
+										<div class="flex align-items-center mb-2" *ngIf="selectedWarehouse.country">
+											<i class="pi pi-globe mr-2 text-primary"></i>
+											<span class="text-900 font-medium">{{ (selectedWarehouse.country | countryTranslate) || 'N/A' }}</span>
+										</div>
+										<div class="flex align-items-center mb-2" *ngIf="selectedWarehouse.city">
+											<i class="pi pi-map-marker mr-2 text-primary"></i>
+											<span class="text-900 font-medium">{{ selectedWarehouse.city || 'N/A' }}</span>
+										</div>
+										<div class="flex align-items-start" *ngIf="selectedWarehouse.address">
+											<i class="pi pi-compass mr-2 text-primary mt-1"></i>
+											<span class="text-900">{{ selectedWarehouse.address || 'N/A' }}</span>
+										</div>
+									</div>
+								</div>
+
+								<div *ngIf="selectedWarehouse?.creationDate" class="field">
+									<label class="block mb-2 font-medium text-600">
+										<i class="pi pi-calendar mr-1"></i>
+										{{ 'creation_date' | translate }}
+									</label>
+									<div class="p-inputgroup">
+										<span class="p-inputgroup-addon">
+											<i class="pi pi-clock"></i>
+										</span>
+										<input pInputText [value]="(selectedWarehouse.creationDate | date:'dd/MM/yyyy') || 'N/A'" readonly class="w-full" />
+									</div>
+								</div>
 							</div>
-						</div>
+						</p-card>
+
+						<!-- Alerts Card -->
+						<p-card *ngIf="warehouseStats?.lowStockCount > 0 || warehouseStats?.outOfStockCount > 0"
+							styleClass="shadow-2 border-round-lg mb-3">
+							<ng-template pTemplate="header">
+								<div class="flex align-items-center gap-2 p-3">
+									<i class="pi pi-exclamation-triangle text-orange-500 text-xl"></i>
+									<span class="font-bold text-lg">{{ 'alerts' | translate }}</span>
+								</div>
+							</ng-template>
+							<div class="flex flex-column gap-3">
+								<div *ngIf="warehouseStats?.outOfStockCount > 0"
+									class="p-3 border-round surface-red-50 border-left-3 border-red-500">
+									<div class="flex align-items-center justify-content-between">
+										<div class="flex align-items-center gap-2">
+											<i class="pi pi-times-circle text-red-500 text-xl"></i>
+											<span class="font-medium text-900">{{ 'out_of_stock_products' | translate }}</span>
+										</div>
+										<p-tag [value]="warehouseStats.outOfStockCount.toString()" severity="danger"></p-tag>
+									</div>
+								</div>
+								<div *ngIf="warehouseStats?.lowStockCount > 0"
+									class="p-3 border-round surface-orange-50 border-left-3 border-orange-500">
+									<div class="flex align-items-center justify-content-between">
+										<div class="flex align-items-center gap-2">
+											<i class="pi pi-exclamation-circle text-orange-500 text-xl"></i>
+											<span class="font-medium text-900">{{ 'low_stock_products' | translate }}</span>
+										</div>
+										<p-tag [value]="warehouseStats.lowStockCount.toString()" severity="warning"></p-tag>
+									</div>
+								</div>
+							</div>
+						</p-card>
+
+						<!-- Category Distribution Card -->
+						<p-card *ngIf="warehouseStats?.categoryDistribution && warehouseStats.categoryDistribution.length > 0"
+							styleClass="shadow-2 border-round-lg">
+							<ng-template pTemplate="header">
+								<div class="flex align-items-center gap-2 p-3">
+									<i class="pi pi-chart-pie text-primary text-xl"></i>
+									<span class="font-bold text-lg">{{ 'categories_distribution' | translate }}</span>
+								</div>
+							</ng-template>
+							<div class="flex flex-column gap-2">
+								<div *ngFor="let cat of warehouseStats.categoryDistribution"
+									class="flex align-items-center justify-content-between p-2 surface-50 border-round">
+									<div class="flex align-items-center gap-2">
+										<i class="pi pi-folder text-primary"></i>
+										<span class="font-medium">{{ cat.name }}</span>
+									</div>
+									<p-tag [value]="cat.count.toString()" severity="info"></p-tag>
+								</div>
+							</div>
+						</p-card>
 					</div>
 
-					<!-- Warehouse Statistics Section -->
-					<div class="col-12 md:col-7 pl-2">
-						<div class="grid">
-							<div class="col-12 md:col-6 pr-2" *ngIf="warehouseStats">
-								<p-card header="{{ 'inventory_summary' | translate }}"
-									styleClass="shadow-2 border-round-lg">
-									<div class="flex flex-column gap-3">
-										<div
-											class="flex justify-content-between align-items-center p-2 surface-50 border-round">
-											<span class="font-medium">
-												<i class="pi pi-box mr-2"></i>
-												{{ 'total_products' | translate }}
-											</span>
-											<strong class="text-xl">{{ warehouseStats?.totalProducts || 0 }}</strong>
-										</div>
-										<div
-											class="flex justify-content-between align-items-center p-2 surface-50 border-round">
-											<span class="font-medium">
-												<i class="pi pi-chart-bar mr-2"></i>
-												{{ 'total_quantity' | translate }}
-											</span>
-											<strong class="text-xl">{{ warehouseStats?.totalQuantity || 0 }}</strong>
-										</div>
-										<div
-											class="flex justify-content-between align-items-center p-2 surface-50 border-round">
-											<span class="font-medium">
-												<i class="pi pi-money-bill mr-2"></i>
-												{{ 'total_value' | translate }}
-											</span>
-											<strong class="text-xl">
-												{{ warehouseStats?.totalValue | currency:currency:'symbol':'1.2-2' }}
-											</strong>
-										</div>
+					<!-- Right Column: Statistics & Products -->
+					<div class="col-12 lg:col-8 pl-3">
+						<!-- Statistics Cards Row -->
+						<div class="grid mb-3">
+							<div class="col-12 md:col-4">
+								<p-card styleClass="shadow-2 border-round-lg h-full">
+									<div class="flex flex-column align-items-center text-center p-3">
+										<i class="pi pi-box text-4xl text-primary mb-2"></i>
+										<div class="text-2xl font-bold text-900 mb-1">{{ warehouseStats?.totalProducts || 0 }}</div>
+										<div class="text-600">{{ 'total_products' | translate }}</div>
 									</div>
 								</p-card>
 							</div>
-
-							<div class="col-12 md:col-6 pl-2" *ngIf="inventoryStatuses && inventoryStatuses.length">
-								<p-card header="{{ 'inventory_status' | translate }}"
-									styleClass="shadow-2 border-round-lg">
-									<div class="flex flex-column gap-3">
-										<div *ngFor="let status of inventoryStatuses"
-											class="flex justify-content-between align-items-center p-2 surface-50 border-round">
-											<span class="font-medium">
-												<i [class]="'mr-2 ' + getStatusIcon(status.value)"></i>
-												{{ status.label | translate }}
-											</span>
-											<strong class="text-xl">{{ getStatusCount(status.value) }}</strong>
+							<div class="col-12 md:col-4">
+								<p-card styleClass="shadow-2 border-round-lg h-full">
+									<div class="flex flex-column align-items-center text-center p-3">
+										<i class="pi pi-chart-bar text-4xl text-green-500 mb-2"></i>
+										<div class="text-2xl font-bold text-900 mb-1">{{ warehouseStats?.totalQuantity || 0 }}</div>
+										<div class="text-600">{{ 'total_quantity' | translate }}</div>
+									</div>
+								</p-card>
+							</div>
+							<div class="col-12 md:col-4">
+								<p-card styleClass="shadow-2 border-round-lg h-full">
+									<div class="flex flex-column align-items-center text-center p-3">
+										<i class="pi pi-money-bill text-4xl text-blue-500 mb-2"></i>
+										<div class="text-xl font-bold text-900 mb-1">
+											{{ warehouseStats?.totalValue | currency:currency:'symbol':'1.2-2' }}
 										</div>
+										<div class="text-600">{{ 'total_value' | translate }}</div>
 									</div>
 								</p-card>
 							</div>
 						</div>
 
-						<!-- Product List Section -->
-						<div class="col-12 mt-4" *ngIf="warehouseProducts && warehouseProducts.length">
-							<p-card header="{{ 'products_in_stock' | translate }}"
-								styleClass="shadow-2 border-round-lg">
-								<p-table [value]="warehouseProducts" [paginator]="true" [rows]="20"
-									[showCurrentPageReport]="true" styleClass="p-datatable-sm"
-									currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-									[rowsPerPageOptions]="[20,50,100]">
-									<ng-template pTemplate="header">
-										<tr>
-											<th>{{ 'product' | translate }}</th>
-											<th>{{ 'reference' | translate }}</th>
-											<th>{{ 'quantity' | translate }}</th>
-											<th>{{ 'status' | translate }}</th>
-											<th style="width: 150px" class="text-center">{{'actions' | translate}}</th>
-										</tr>
-									</ng-template>
-									<ng-template pTemplate="body" let-product>
-										<tr>
-											<td>
-												<div class="flex align-items-center gap-2">
-													<img [src]="product.productImage || 'assets/core-images/no-image.png'"
-														[alt]="product.name" width="40" class="border-round shadow-1">
-													<span>{{ product.name }}</span>
-												</div>
-											</td>
-											<td>{{ product.reference }}</td>
-											<td>
-												<p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
-													[value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
-													[icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
-												</p-tag>
-											</td>
-											<td>
-												<span
-													[class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{'product_'+product.inventoryStatus.toLowerCase()
-													| translate}}
-												</span>
-											</td>
-											<td class="text-center">
-												<!-- View -->
-												<button pButton pRipple icon="pi pi-eye" *ngIf="canReadProduct"
-													class="p-button-sm p-button-rounded p-button-text"
-													(click)="viewProductDetails(product)">
-												</button>
-
-												<!-- Edit -->
-												<button pButton pRipple icon="pi pi-pencil" *ngIf="canEditProduct"
-													class="p-button-sm p-button-rounded p-button-text p-button-success ml-1"
-													(click)="editProduct(product)">
-												</button>
-
-												<!-- Delete -->
-												<button pButton pRipple icon="pi pi-trash"
-													*ngIf="canDeleteProduct && product.deletable"
-													class="p-button-sm p-button-rounded p-button-text p-button-danger ml-1"
-													(click)="deleteProduct(product)">
-												</button>
-
-												<!-- Archive -->
-												<button pButton pRipple icon="pi pi-folder"
-													*ngIf="canDeleteProduct && !product.deletable"
-													class="p-button-sm p-button-rounded p-button-text p-button-warning ml-1"
-													(click)="archiveProduct(product)">
-												</button>
-											</td>
-										</tr>
-									</ng-template>
-									<ng-template pTemplate="emptymessage">
-										<tr>
-											<td colspan="4" class="text-center py-4">
-												<i class="pi pi-inbox text-2xl block mb-2"></i>
-												{{ 'no_products_found' | translate }}
-											</td>
-										</tr>
-									</ng-template>
-								</p-table>
-							</p-card>
+						<!-- Inventory Status Cards -->
+						<div class="grid mb-3">
+							<div *ngFor="let status of inventoryStatuses" class="col-12 md:col-4">
+								<p-card styleClass="shadow-2 border-round-lg h-full">
+									<div class="flex align-items-center justify-content-between p-3">
+										<div class="flex align-items-center gap-2">
+											<i [class]="'text-2xl ' + getStatusIcon(status.value)"></i>
+											<span class="font-medium">{{ status.label | translate }}</span>
+										</div>
+										<div class="text-2xl font-bold">{{ getStatusCount(status.value) }}</div>
+									</div>
+								</p-card>
+							</div>
 						</div>
+
+						<!-- Top Products by Value -->
+						<p-card *ngIf="warehouseStats?.topProductsByValue && warehouseStats.topProductsByValue.length > 0"
+							styleClass="shadow-2 border-round-lg mb-3">
+							<ng-template pTemplate="header">
+								<div class="flex align-items-center gap-2 p-3">
+									<i class="pi pi-star text-primary text-xl"></i>
+									<span class="font-bold text-lg">{{ 'top_products_by_value' | translate }}</span>
+								</div>
+							</ng-template>
+							<div class="flex flex-column gap-2">
+								<div *ngFor="let product of warehouseStats.topProductsByValue; let i = index"
+									class="flex align-items-center justify-content-between p-2 surface-50 border-round">
+									<div class="flex align-items-center gap-2 flex-1">
+										<span class="font-bold text-primary">{{ i + 1 }}.</span>
+										<img [src]="product.productImage || 'assets/core-images/no-image.png'"
+											[alt]="product.name" width="30" height="30" class="border-round">
+										<span class="font-medium">{{ product.name }}</span>
+									</div>
+									<div class="text-right">
+										<div class="font-bold text-900">
+											{{ ((product.quantityAvailable || 0) * (product.buyingPrice || 0)) | currency:currency:'symbol':'1.2-2' }}
+										</div>
+										<small class="text-600">{{ product.quantityAvailable || 0 }} {{ 'units' | translate }}</small>
+									</div>
+								</div>
+							</div>
+						</p-card>
+
+						<!-- Products Table Section -->
+						<p-card styleClass="shadow-2 border-round-lg">
+							<ng-template pTemplate="header">
+								<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3 p-3">
+									<div class="flex align-items-center gap-2">
+										<i class="pi pi-list text-primary text-xl"></i>
+										<span class="font-bold text-lg">{{ 'products_in_stock' | translate }}</span>
+										<p-tag [value]="(filteredWarehouseProducts?.length || 0).toString()" severity="info"></p-tag>
+									</div>
+									<div class="flex gap-2 flex-wrap">
+										<span class="p-input-icon-left w-full md:w-auto">
+											<i class="pi pi-search"></i>
+											<input pInputText type="text" [(ngModel)]="productSearchTerm"
+												(ngModelChange)="filterProducts()"
+												[placeholder]="'search_products_placeholder' | translate" class="w-full" />
+										</span>
+										<p-dropdown [(ngModel)]="selectedCategoryFilter" [options]="getUniqueCategories()"
+											optionLabel="categoryName" [showClear]="true"
+											[placeholder]="'filter_by_category' | translate"
+											(onChange)="filterProducts()" (onClear)="filterProducts()"
+											appendTo="body" styleClass="w-full md:w-auto">
+										</p-dropdown>
+										<p-dropdown [(ngModel)]="selectedStatusFilter" [options]="inventoryStatuses"
+											optionLabel="label" optionValue="value" [showClear]="true"
+											[placeholder]="'filter_by_status' | translate"
+											(onChange)="filterProducts()" (onClear)="filterProducts()"
+											appendTo="body" styleClass="w-full md:w-auto">
+										</p-dropdown>
+										<button pButton pRipple icon="pi pi-filter-slash" 
+											class="p-button-outlined p-button-sm"
+											(click)="clearProductFilters()"
+											[pTooltip]="'clear_filters' | translate"></button>
+									</div>
+								</div>
+							</ng-template>
+							<p-table [value]="filteredWarehouseProducts" [paginator]="true" [rows]="20"
+								[showCurrentPageReport]="true" styleClass="p-datatable-sm"
+								currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+								[rowsPerPageOptions]="[20,50,100]" [loading]="loadingWarehouseDetails">
+								<ng-template pTemplate="header">
+									<tr>
+										<th style="width: 200px">{{ 'product' | translate }}</th>
+										<th>{{ 'reference' | translate }}</th>
+										<th>{{ 'category' | translate }}</th>
+										<th>{{ 'quantity' | translate }}</th>
+										<th>{{ 'unit_price' | translate }}</th>
+										<th>{{ 'total_value' | translate }}</th>
+										<th>{{ 'status' | translate }}</th>
+										<th style="width: 150px" class="text-center">{{'actions' | translate}}</th>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="body" let-product>
+									<tr>
+										<td>
+											<div class="flex align-items-center gap-2">
+												<img [src]="product.productImage || 'assets/core-images/no-image.png'"
+													[alt]="product.name" width="40" height="40" class="border-round shadow-1">
+												<span class="font-medium">{{ product.name }}</span>
+											</div>
+										</td>
+										<td>
+											<p-tag [value]="product.reference || 'N/A'" severity="secondary"></p-tag>
+										</td>
+										<td>
+											<span class="text-600">{{ product.category?.categoryName || 'N/A' }}</span>
+										</td>
+										<td>
+											<p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
+												[value]="(product.quantityAvailable || 0) + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
+												[icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
+											</p-tag>
+										</td>
+										<td>
+											<span class="font-medium">{{ (product.buyingPrice || 0) | currency:currency:'symbol':'1.2-2' }}</span>
+										</td>
+										<td>
+											<span class="font-bold text-primary">
+												{{ ((product.quantityAvailable || 0) * (product.buyingPrice || 0)) | currency:currency:'symbol':'1.2-2' }}
+											</span>
+										</td>
+										<td>
+											<p-tag [severity]="product.inventoryStatus === 'INSTOCK' ? 'success' : (product.inventoryStatus === 'LOWSTOCK' ? 'warning' : 'danger')"
+												[value]="('product_' + product.inventoryStatus.toLowerCase() | translate)">
+											</p-tag>
+										</td>
+										<td class="text-center">
+											<button pButton pRipple icon="pi pi-eye" *ngIf="canReadProduct"
+												class="p-button-sm p-button-rounded p-button-text"
+												(click)="viewProductDetails(product)"
+												[pTooltip]="'view_details' | translate"></button>
+											<button pButton pRipple icon="pi pi-pencil" *ngIf="canEditProduct"
+												class="p-button-sm p-button-rounded p-button-text p-button-success ml-1"
+												(click)="editProduct(product)"
+												[pTooltip]="'edit' | translate"></button>
+										</td>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="emptymessage">
+									<tr>
+										<td colspan="8" class="text-center py-6">
+											<i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
+											<p class="text-600 font-medium">{{ 'no_products_found' | translate }}</p>
+										</td>
+									</tr>
+								</ng-template>
+							</p-table>
+						</p-card>
 					</div>
 				</div>
 			</ng-template>
 
 			<ng-template pTemplate="footer">
-				<button pButton pRipple label="{{ 'close' | translate }}" icon="pi pi-times" class="p-button-outlined"
-					(click)="hideWarehouseDetailsDialog()"></button>
+				<div class="flex justify-content-between align-items-center w-full">
+					<div class="text-600">
+						<small *ngIf="filteredWarehouseProducts && filteredWarehouseProducts.length > 0">
+							{{ 'showing' | translate }} {{ filteredWarehouseProducts.length }} {{ 'of' | translate }} {{ warehouseProducts.length }} {{ 'products' | translate }}
+						</small>
+					</div>
+					<button pButton pRipple label="{{ 'close' | translate }}" icon="pi pi-times" class="p-button-outlined"
+						(click)="hideWarehouseDetailsDialog()"></button>
+				</div>
 			</ng-template>
 		</p-dialog>
 

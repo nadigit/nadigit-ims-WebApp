@@ -17,7 +17,7 @@ import { PanelModule } from 'primeng/panel';
 import { MessagesModule } from 'primeng/messages';
 import { DropdownModule } from 'primeng/dropdown';
 import { ProgressBarModule } from 'primeng/progressbar';
-
+import { TagModule } from 'primeng/tag';
 
 @NgModule({
     imports: [
@@ -38,7 +38,8 @@ import { ProgressBarModule } from 'primeng/progressbar';
         PanelModule,
         MessagesModule,
         DropdownModule,
-        ProgressBarModule
+        ProgressBarModule,
+        TagModule
     ],
     declarations: [DashboardComponent]
 })

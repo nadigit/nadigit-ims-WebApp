@@ -25,6 +25,7 @@ import { CardModule } from 'primeng/card';
 import { TabViewModule } from 'primeng/tabview';
 import { TagModule } from 'primeng/tag';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { CashRegisterSessionModule } from 'src/app/ims/components/cash-register/cash-register-session/cash-register-session.module';
 
 
 @NgModule({
@@ -52,7 +53,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
         CardModule,
         TabViewModule,
         TagModule,
-        SharedModule
+        SharedModule,
+        CashRegisterSessionModule
     ],
     declarations: [ShopsComponent],
     providers: [ReportingService],

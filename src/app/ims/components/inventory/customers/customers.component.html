@@ -163,7 +163,14 @@
 
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'customer_address' | translate }}</span>
-                            {{ customer.country ? (customer.city + ', ' + (customer.country | countryTranslate)) : 'N/A'
+                            {{
+                                (customer.city && customer.country)
+                                ? (customer.city + ', ' + (customer.country | countryTranslate))
+                                : customer.city
+                                ? customer.city
+                                : customer.country
+                                ? (customer.country | countryTranslate)
+                                : 'N/A'
                             }}
                         </td>
 
@@ -673,8 +680,17 @@
                                             <i class="pi pi-globe"></i>
                                         </div>
                                         <div class="contact-details">
-                                            <span>{{customer.city}} {{customer.country ? ', ' + (customer.country |
-                                                countryTranslate) : ''}}</span>
+                                            <span>
+                                                {{
+                                                customer.city && customer.country
+                                                ? (customer.city + ', ' + (customer.country | countryTranslate))
+                                                : customer.city
+                                                ? customer.city
+                                                : customer.country
+                                                ? (customer.country | countryTranslate)
+                                                : 'N/A'
+                                                }}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

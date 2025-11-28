@@ -274,30 +274,52 @@
             </ng-template>
         </p-dialog>
 
-        <p-dialog [(visible)]="shopDetailsDialog" [style]="{width: '900px'}"
-            [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'shop_details' | translate }}" [modal]="true"
-            [draggable]="false" [resizable]="false" class="p-fluid shop-details-dialog"
-            [contentStyle]="{'max-height': '80vh', 'overflow-y': 'auto'}">
+        <p-dialog [(visible)]="shopDetailsDialog" [style]="{width: '95%', height: '95vh'}"
+            [breakpoints]="{'960px': '95vw', '640px': '98vw'}" [header]="selectedShop?.shopName || ('shop_details' | translate)"
+            [modal]="true" [draggable]="false" [resizable]="true" class="p-fluid shop-details-dialog"
+            [contentStyle]="{'max-height': '85vh', 'overflow-y': 'auto'}">
 
             <ng-template pTemplate="header">
-                <div class="flex align-items-center">
-                    <i class="pi pi-store mr-2 text-primary" style="font-size: 1.25rem"></i>
-                    <span class="text-xl font-medium">{{ 'shop_details' | translate }}</span>
+                <div class="flex align-items-center justify-content-between w-full">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-store text-2xl text-primary"></i>
+                        <span class="text-xl font-bold">{{ selectedShop?.shopName || ('shop_details' | translate) }}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button pButton pRipple icon="pi pi-refresh" 
+                            class="p-button-rounded p-button-text p-button-plain"
+                            [pTooltip]="'refresh' | translate" tooltipPosition="bottom"
+                            (click)="refreshShopDetails()"
+                            [disabled]="loadingShopDetails"></button>
+                        <button pButton pRipple *ngIf="canReadCash" icon="pi pi-wallet" 
+                            class="p-button-rounded p-button-text p-button-plain"
+                            [pTooltip]="'cash_register' | translate" tooltipPosition="bottom"
+                            (click)="openCashRegisterDialog(selectedShop)"></button>
+                    </div>
                 </div>
             </ng-template>
 
             <ng-template pTemplate="content">
-                <div class="grid p-fluid">
-                    <!-- Shop Basic Info Section -->
-                    <div class="col-12 md:col-5 pr-4">
-                        <div class="surface-card p-4 border-round shadow-2 mb-4">
-                            <h3 class="mt-0 mb-4 flex align-items-center">
-                                <i class="pi pi-info-circle mr-2 text-primary"></i>
-                                {{ 'basic_information' | translate }}
-                            </h3>
+                <!-- Loading State -->
+                <div *ngIf="loadingShopDetails" class="flex justify-content-center align-items-center py-8">
+                    <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                </div>
 
-                            <div class="field mb-4" *ngIf="selectedShop && selectedShop.shopName">
-                                <label class="block mb-2 font-medium text-900">
+                <!-- Content -->
+                <div *ngIf="!loadingShopDetails" class="grid p-fluid">
+                    <!-- Left Column: Basic Info & Organization -->
+                    <div class="col-12 lg:col-4 pr-3">
+                        <!-- Basic Information Card -->
+                        <p-card styleClass="shadow-2 border-round-lg mb-3">
+                            <ng-template pTemplate="header">
+                                <div class="flex align-items-center gap-2 p-3">
+                                    <i class="pi pi-info-circle text-primary text-xl"></i>
+                                    <span class="font-bold text-lg">{{ 'basic_information' | translate }}</span>
+                                </div>
+                            </ng-template>
+                            <div class="flex flex-column gap-3">
+                                <div *ngIf="selectedShop?.shopName" class="field">
+                                    <label class="block mb-2 font-medium text-600">
                                     <i class="pi pi-home mr-1"></i>
                                     {{ 'shop_name' | translate }}
                                 </label>
@@ -309,30 +331,28 @@
                                 </div>
                             </div>
 
-                            <div class="field mb-4" *ngIf="selectedShop.description">
-                                <label class="block mb-2 font-medium text-900">
+                                <div *ngIf="selectedShop?.description" class="field">
+                                    <label class="block mb-2 font-medium text-600">
                                     <i class="pi pi-align-left mr-1"></i>
                                     {{ 'shop_description' | translate }}
                                 </label>
-                                <textarea pInputTextarea [value]="selectedShop.description" rows="3" [autoResize]="true"
-                                    readonly class="w-full"></textarea>
+                                    <textarea pInputTextarea [value]="selectedShop.description" rows="3"
+                                        [autoResize]="true" readonly class="w-full"></textarea>
                             </div>
 
-                            <div class="field"
-                                *ngIf="selectedShop.address || selectedShop.city || selectedShop.country">
-                                <label class="block mb-2 font-medium text-900">
+                                <div *ngIf="selectedShop?.address || selectedShop?.city || selectedShop?.country" class="field">
+                                    <label class="block mb-2 font-medium text-600">
                                     <i class="pi pi-map mr-1"></i>
                                     {{ 'location' | translate }}
                                 </label>
                                 <div class="surface-100 p-3 border-round">
                                     <div class="flex align-items-center mb-2" *ngIf="selectedShop.country">
                                         <i class="pi pi-globe mr-2 text-primary"></i>
-                                        <span class="text-900">{{ (selectedShop.country | countryTranslate) || 'N/A'
-                                            }}</span>
+                                            <span class="text-900 font-medium">{{ (selectedShop.country | countryTranslate) || 'N/A' }}</span>
                                     </div>
                                     <div class="flex align-items-center mb-2" *ngIf="selectedShop.city">
                                         <i class="pi pi-map-marker mr-2 text-primary"></i>
-                                        <span class="text-900">{{ selectedShop.city || 'N/A' }}</span>
+                                            <span class="text-900 font-medium">{{ selectedShop.city || 'N/A' }}</span>
                                     </div>
                                     <div class="flex align-items-start" *ngIf="selectedShop.address">
                                         <i class="pi pi-compass mr-2 text-primary mt-1"></i>
@@ -340,136 +360,183 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <!-- Shop Statistics Section -->
-                    <div class="col-12 md:col-7 pl-2">
-                        <div class="grid">
-                            <!-- Financial Overview Card -->
-                            <div class="col-12 md:col-6 pr-2">
-                                <p-card header="{{ 'financial_overview' | translate }}"
-                                    styleClass="shadow-2 border-round-lg h-full" [headerClass]="'bg-primary-reverse'">
-                                    <div class="flex flex-column gap-3">
-                                        <div
-                                            class="flex justify-content-between align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
-                                            <span class="font-medium flex align-items-center">
-                                                <i class="pi pi-money-bill mr-2 text-primary"></i>
-                                                {{ 'current_today_cash_register_amount' | translate }}
+
+                                <div *ngIf="selectedShop?.creationDate" class="field">
+                                    <label class="block mb-2 font-medium text-600">
+                                        <i class="pi pi-calendar mr-1"></i>
+                                        {{ 'creation_date' | translate }}
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-clock"></i>
                                             </span>
-                                            <strong class="text-xl"
-                                                [ngClass]="{'text-green-500': cashRegisterData?.totalBalance >= 0, 'text-red-500': cashRegisterData?.totalBalance < 0}">
-                                                {{ cashRegisterData?.totalBalance | currency:currency:'symbol':'1.2-2'
-                                                || 'N/A' }}
-                                            </strong>
+                                        <input pInputText [value]="(selectedShop.creationDate | date:'dd/MM/yyyy') || 'N/A'" readonly class="w-full" />
                                         </div>
-                                        <div
-                                            class="flex justify-content-between align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
-                                            <span class="font-medium flex align-items-center">
-                                                <i class="pi pi-chart-line mr-2 text-primary"></i>
-                                                {{ 'total_purchases' | translate }}
-                                            </span>
-                                            <strong class="text-xl">{{ purchaseStats?.count || 0 }}</strong>
-                                        </div>
-                                        <div
-                                            class="flex justify-content-between align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
-                                            <span class="font-medium flex align-items-center">
-                                                <i class="pi pi-chart-bar mr-2 text-primary"></i>
-                                                {{ 'total_expenses' | translate }}
-                                            </span>
-                                            <strong class="text-xl">{{ expenseStats?.count || 0 }}</strong>
                                         </div>
                                     </div>
                                 </p-card>
-                            </div>
 
                             <!-- Organization Card -->
-                            <div class="col-12 md:col-6 pl-2">
-                                <p-card header="{{ 'organization' | translate }}"
-                                    styleClass="shadow-2 border-round-lg h-full" [headerClass]="'bg-primary-reverse'">
+                        <p-card styleClass="shadow-2 border-round-lg">
+                            <ng-template pTemplate="header">
+                                <div class="flex align-items-center gap-2 p-3">
+                                    <i class="pi pi-building text-primary text-xl"></i>
+                                    <span class="font-bold text-lg">{{ 'organization' | translate }}</span>
+                                </div>
+                            </ng-template>
                                     <div *ngIf="organizationData" class="flex flex-column gap-3">
-                                        <div
-                                            class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
+                                <div class="flex align-items-center p-3 surface-50 border-round">
                                             <i class="pi pi-building mr-3 text-xl text-primary"></i>
-                                            <div>
-                                                <div class="text-sm text-600">{{ 'organization_name' | translate }}
+                                    <div class="flex-1">
+                                        <div class="text-sm text-600 mb-1">{{ 'organization_name' | translate }}</div>
+                                        <div class="font-medium text-900">{{ organizationData.organizationName }}</div>
                                                 </div>
-                                                <div class="font-medium">{{ organizationData.organizationName }}</div>
                                             </div>
-                                        </div>
-                                        <div
-                                            class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors">
+                                <div class="flex align-items-center p-3 surface-50 border-round">
                                             <i class="pi pi-id-card mr-3 text-xl text-primary"></i>
-                                            <div>
-                                                <div class="text-sm text-600">{{ 'organization_id' | translate }}</div>
-                                                <div class="font-medium">{{ organizationData.organizationId }}</div>
+                                    <div class="flex-1">
+                                        <div class="text-sm text-600 mb-1">{{ 'organization_id' | translate }}</div>
+                                        <div class="font-medium text-900">{{ organizationData.organizationId }}</div>
                                             </div>
                                         </div>
-                                        <div class="flex align-items-center p-3 surface-50 border-round hover:surface-100 transition-duration-150 transition-colors"
-                                            *ngIf="organizationData.taxID">
+                                <div class="flex align-items-center p-3 surface-50 border-round" *ngIf="organizationData.taxID">
                                             <i class="pi pi-file mr-3 text-xl text-primary"></i>
-                                            <div>
-                                                <div class="text-sm text-600">{{ 'tax_id' | translate }}</div>
-                                                <div class="font-medium">{{ organizationData.taxID }}</div>
+                                    <div class="flex-1">
+                                        <div class="text-sm text-600 mb-1">{{ 'tax_id' | translate }}</div>
+                                        <div class="font-medium text-900">{{ organizationData.taxID }}</div>
                                             </div>
                                         </div>
                                     </div>
                                     <div *ngIf="!organizationData" class="text-center py-4 text-600">
-                                        <i class="pi pi-info-circle mr-2"></i>
-                                        {{ 'no_organization_assigned' | translate }}
+                                <i class="pi pi-info-circle text-2xl block mb-2"></i>
+                                <span>{{ 'no_organization_assigned' | translate }}</span>
+                            </div>
+                        </p-card>
+                    </div>
+
+                    <!-- Right Column: Statistics & Activity -->
+                    <div class="col-12 lg:col-8 pl-3">
+                        <!-- Statistics Cards Row -->
+                        <div class="grid mb-3">
+                            <div class="col-12 md:col-4">
+                                <p-card styleClass="shadow-2 border-round-lg h-full">
+                                    <div class="flex flex-column align-items-center text-center p-3">
+                                        <i class="pi pi-money-bill text-4xl mb-2"
+                                            [ngClass]="{'text-green-500': shopStats?.cashBalance >= 0, 'text-red-500': shopStats?.cashBalance < 0}"></i>
+                                        <div class="text-xl font-bold mb-1"
+                                            [ngClass]="{'text-green-500': shopStats?.cashBalance >= 0, 'text-red-500': shopStats?.cashBalance < 0}">
+                                            {{ shopStats?.cashBalance | currency:currency:'symbol':'1.2-2' || 'N/A' }}
+                                        </div>
+                                        <div class="text-600">{{ 'cash_balance' | translate }}</div>
+                                    </div>
+                                </p-card>
+                            </div>
+                            <div class="col-12 md:col-4">
+                                <p-card styleClass="shadow-2 border-round-lg h-full">
+                                    <div class="flex flex-column align-items-center text-center p-3">
+                                        <i class="pi pi-shopping-cart text-4xl text-blue-500 mb-2"></i>
+                                        <div class="text-2xl font-bold text-900 mb-1">{{ shopStats?.purchaseCount || 0 }}</div>
+                                        <div class="text-600">{{ 'total_purchases' | translate }}</div>
+                                        <div class="text-sm text-500 mt-1">
+                                            {{ shopStats?.totalPurchases | currency:currency:'symbol':'1.2-2' || '0.00' }}
+                                        </div>
+                                    </div>
+                                </p-card>
+                            </div>
+                            <div class="col-12 md:col-4">
+                                <p-card styleClass="shadow-2 border-round-lg h-full">
+                                    <div class="flex flex-column align-items-center text-center p-3">
+                                        <i class="pi pi-chart-line text-4xl text-orange-500 mb-2"></i>
+                                        <div class="text-2xl font-bold text-900 mb-1">{{ shopStats?.expenseCount || 0 }}</div>
+                                        <div class="text-600">{{ 'total_expenses' | translate }}</div>
+                                        <div class="text-sm text-500 mt-1">
+                                            {{ shopStats?.totalExpenses | currency:currency:'symbol':'1.2-2' || '0.00' }}
+                                        </div>
+                                    </div>
+                                </p-card>
+                            </div>
+                        </div>
+
+                        <!-- Additional Stats Row -->
+                        <div class="grid mb-3">
+                            <div class="col-12 md:col-6">
+                                <p-card styleClass="shadow-2 border-round-lg h-full">
+                                    <div class="flex align-items-center justify-content-between p-3">
+                                        <div class="flex align-items-center gap-2">
+                                            <i class="pi pi-wallet text-2xl text-primary"></i>
+                                            <span class="font-medium">{{ 'net_cash_flow' | translate }}</span>
+                                        </div>
+                                        <div class="text-xl font-bold"
+                                            [ngClass]="{'text-green-500': shopStats?.netCashFlow >= 0, 'text-red-500': shopStats?.netCashFlow < 0}">
+                                            {{ shopStats?.netCashFlow | currency:currency:'symbol':'1.2-2' || '0.00' }}
+                                        </div>
+                                    </div>
+                                </p-card>
+                            </div>
+                            <div class="col-12 md:col-6">
+                                <p-card styleClass="shadow-2 border-round-lg h-full">
+                                    <div class="flex align-items-center justify-content-between p-3">
+                                        <div class="flex align-items-center gap-2">
+                                            <i class="pi pi-calculator text-2xl text-primary"></i>
+                                            <span class="font-medium">{{ 'average_purchase' | translate }}</span>
+                                        </div>
+                                        <div class="text-xl font-bold text-900">
+                                            {{ shopStats?.averagePurchaseAmount | currency:currency:'symbol':'1.2-2' || '0.00' }}
+                                        </div>
                                     </div>
                                 </p-card>
                             </div>
                         </div>
 
                         <!-- Recent Activity Section -->
-                        <div class="col-12 mt-4">
+                        <p-card styleClass="shadow-2 border-round-lg">
+                            <ng-template pTemplate="header">
+                                <div class="flex align-items-center gap-2 p-3">
+                                    <i class="pi pi-history text-primary text-xl"></i>
+                                    <span class="font-bold text-lg">{{ 'recent_activity' | translate }}</span>
+                                </div>
+                            </ng-template>
                             <p-tabView>
                                 <p-tabPanel [header]="'recent_purchases' | translate">
                                     <div *ngIf="!loadingPurchases; else purchasesLoading">
-                                        <p-table [value]="recentPurchases || []" [rows]="5" [paginator]="true"
+                                        <p-table [value]="recentPurchases || []" [rows]="10" [paginator]="true"
                                             [showCurrentPageReport]="true"
                                             styleClass="p-datatable-sm p-datatable-striped p-datatable-gridlines"
                                             currentPageReportTemplate="{first} - {last} of {totalRecords}"
                                             [rowsPerPageOptions]="[5,10,25]">
                                             <ng-template pTemplate="header">
                                                 <tr>
-                                                    <th>{{ 'purchase_date' | translate }}
-                                                    </th>
-                                                    <th>{{ 'purchase_supplier' | translate }}
-                                                    </th>
-                                                    <th class="text-right">{{ 'purchase_total_amount'
-                                                        | translate }}</th>
-                                                    <!-- <th>{{ 'status' | translate }}</th> -->
+                                                    <th>{{ 'purchase_date' | translate }}</th>
+                                                    <th>{{ 'purchase_supplier' | translate }}</th>
+                                                    <th class="text-right">{{ 'purchase_total_amount' | translate }}</th>
                                                 </tr>
                                             </ng-template>
                                             <ng-template pTemplate="body" let-purchase>
                                                 <tr class="hover:surface-50 transition-duration-150">
                                                     <td>{{ purchase.dateOfPurchase | date:'dd/MM/yyyy' }}</td>
-                                                    <td>{{ purchase.supplier?.name || 'N/A' }}</td>
-                                                    <td class="text-right font-medium">
+                                                    <td>
+                                                        <div class="flex align-items-center gap-2">
+                                                            <i class="pi pi-truck text-primary"></i>
+                                                            <span>{{ purchase.supplier?.name || 'N/A' }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-right font-medium text-primary">
                                                         {{ purchase.totalAmount | currency:currency:'symbol':'1.2-2' }}
                                                     </td>
-                                                    <!-- <td>
-                                                        <p-tag [severity]="getPurchaseStatusSeverity(purchase.status)"
-                                                            [value]="purchase.status || 'N/A'">
-                                                        </p-tag>
-                                                    </td> -->
                                                 </tr>
                                             </ng-template>
                                             <ng-template pTemplate="emptymessage">
                                                 <tr>
-                                                    <td colspan="4" class="text-center py-4">
-                                                        <i class="pi pi-inbox text-2xl block mb-2 text-400"></i>
-                                                        <span class="text-600">{{ 'no_purchases_found' | translate
-                                                            }}</span>
+                                                    <td colspan="3" class="text-center py-6">
+                                                        <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
+                                                        <p class="text-600 font-medium">{{ 'no_purchases_found' | translate }}</p>
                                                     </td>
                                                 </tr>
                                             </ng-template>
                                         </p-table>
                                     </div>
                                     <ng-template #purchasesLoading>
-                                        <div
-                                            class="flex flex-column align-items-center justify-content-center py-6 gap-3">
+                                        <div class="flex flex-column align-items-center justify-content-center py-6 gap-3">
                                             <i class="pi pi-spinner pi-spin text-2xl text-primary"></i>
                                             <span class="text-600">{{ 'loading_purchases' | translate }}</span>
                                         </div>
@@ -478,7 +545,7 @@
 
                                 <p-tabPanel [header]="'recent_expenses' | translate">
                                     <div *ngIf="!loadingExpenses; else expensesLoading">
-                                        <p-table [value]="recentExpenses || []" [rows]="5" [paginator]="true"
+                                        <p-table [value]="recentExpenses || []" [rows]="10" [paginator]="true"
                                             [showCurrentPageReport]="true"
                                             styleClass="p-datatable-sm p-datatable-striped p-datatable-gridlines"
                                             currentPageReportTemplate="{first} - {last} of {totalRecords}"
@@ -486,24 +553,25 @@
                                             <ng-template pTemplate="header">
                                                 <tr>
                                                     <th>{{ 'expense_date' | translate }}</th>
-                                                    <th>{{ 'expense_purpose' | translate }}
-                                                    </th>
-                                                    <th class="text-right">{{ 'expense_amount' |
-                                                        translate }}</th>
-                                                    <th>{{ 'payment_method' | translate }}
-                                                    </th>
+                                                    <th>{{ 'expense_purpose' | translate }}</th>
+                                                    <th class="text-right">{{ 'expense_amount' | translate }}</th>
+                                                    <th>{{ 'payment_method' | translate }}</th>
                                                 </tr>
                                             </ng-template>
                                             <ng-template pTemplate="body" let-expense>
                                                 <tr class="hover:surface-50 transition-duration-150">
                                                     <td>{{ expense.dateOfExpense | date:'dd/MM/yyyy' }}</td>
-                                                    <td>{{ expense.purpose || 'N/A' }}</td>
-                                                    <td class="text-right font-medium">
+                                                    <td>
+                                                        <div class="flex align-items-center gap-2">
+                                                            <i class="pi pi-tag text-orange-500"></i>
+                                                            <span>{{ expense.purpose || 'N/A' }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-right font-medium text-orange-500">
                                                         {{ expense.amount | currency:currency:'symbol':'1.2-2' }}
                                                     </td>
                                                     <td>
-                                                        <p-tag
-                                                            [severity]="getPaymentMethodSeverity(expense.paymentMethod)"
+                                                        <p-tag [severity]="getPaymentMethodSeverity(expense.paymentMethod)"
                                                             [value]="'payment_method_' + expense.paymentMethod.toLowerCase() | translate">
                                                         </p-tag>
                                                     </td>
@@ -511,39 +579,33 @@
                                             </ng-template>
                                             <ng-template pTemplate="emptymessage">
                                                 <tr>
-                                                    <td colspan="4" class="text-center py-4">
-                                                        <i class="pi pi-inbox text-2xl block mb-2 text-400"></i>
-                                                        <span class="text-600">{{ 'no_expenses_found' | translate
-                                                            }}</span>
+                                                    <td colspan="4" class="text-center py-6">
+                                                        <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
+                                                        <p class="text-600 font-medium">{{ 'no_expenses_found' | translate }}</p>
                                                     </td>
                                                 </tr>
                                             </ng-template>
                                         </p-table>
                                     </div>
                                     <ng-template #expensesLoading>
-                                        <div
-                                            class="flex flex-column align-items-center justify-content-center py-6 gap-3">
+                                        <div class="flex flex-column align-items-center justify-content-center py-6 gap-3">
                                             <i class="pi pi-spinner pi-spin text-2xl text-primary"></i>
                                             <span class="text-600">{{ 'loading_expenses' | translate }}</span>
                                         </div>
                                     </ng-template>
                                 </p-tabPanel>
                             </p-tabView>
-                        </div>
+                        </p-card>
                     </div>
                 </div>
             </ng-template>
 
             <ng-template pTemplate="footer">
                 <div class="flex justify-content-between align-items-center w-full">
-                    <div>
-                        <button pButton pRipple label="{{ 'update_shop' | translate }}" icon="pi pi-pencil"
+                    <div class="flex gap-2">
+                        <button pButton pRipple *ngIf="canEditShop" label="{{ 'update_shop' | translate }}" icon="pi pi-pencil"
                             class="p-button-text p-button-sm" (click)="editShop(selectedShop)"></button>
-
-                        <!-- <button pButton pRipple label="{{ 'view_full_details' | translate }}" icon="pi pi-external-link"
-                            class="p-button-text p-button-sm" (click)="navigateToShopFullDetails()"></button> -->
                     </div>
-
                     <button pButton pRipple label="{{ 'close' | translate }}" icon="pi pi-times"
                         class="p-button-outlined p-button-sm" (click)="hideShopDetailsDialog()"></button>
                 </div>
@@ -579,157 +641,376 @@
         </p-dialog>
 
         <p-dialog [(visible)]="cashRegisterDialog" [header]="'cash_register' | translate" [modal]="true"
-            [style]="{width: '90vw', maxWidth: '1200px', height: '90vh'}" [draggable]="false" [resizable]="false"
-            [closeOnEscape]="true" [breakpoints]="{'960px': '95vw', '640px': '100vw'}"
-            [contentStyle]="{'overflow-y': 'auto'}">
+            [style]="{width: '95%', height: '95vh'}" [draggable]="false" [resizable]="true"
+            [closeOnEscape]="true" [breakpoints]="{'960px': '95vw', '640px': '98vw'}"
+            [contentStyle]="{'max-height': '85vh', 'overflow-y': 'auto'}" class="p-fluid cash-register-dialog">
 
-            <!-- 🧭 HEADER -->
+            <!-- Enhanced Header -->
             <ng-template pTemplate="header">
-                <div class="dialog-header">
-                    <h3 class="dialog-title">
-                        <i class="pi pi-wallet mr-2"></i>
-                        {{ 'cash_register' | translate }}:
-                        <span class="shop-name">{{ shop?.shopName }}</span>
-                    </h3>
-                    <div class="header-actions">
-                        <button pButton pRipple icon="pi pi-cog" class="p-button-rounded p-button-text p-button-plain"
+                <div class="flex align-items-center justify-content-between w-full">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-wallet text-2xl text-primary"></i>
+                        <span class="text-xl font-bold">{{ 'cash_register' | translate }}</span>
+                        <span class="text-600">- {{ shop?.shopName }}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button pButton pRipple icon="pi pi-power-off" 
+                            class="p-button-rounded p-button-text p-button-plain"
+                            [pTooltip]="'open_close_session' | translate" tooltipPosition="bottom"
+                            (click)="openCashRegisterSessionDialog()"></button>
+                        <button pButton pRipple icon="pi pi-cog" 
+                            class="p-button-rounded p-button-text p-button-plain"
                             [pTooltip]="'settings' | translate" tooltipPosition="bottom"
                             (click)="openSettingsDialog()"></button>
-
                         <button pButton pRipple icon="pi pi-refresh"
-                            class="p-button-rounded p-button-text p-button-plain ml-2"
+                            class="p-button-rounded p-button-text p-button-plain"
                             [pTooltip]="'refresh' | translate" tooltipPosition="bottom"
-                            (click)="refreshData()"></button>
+                            (click)="refreshData()"
+                            [disabled]="loadingCashRegister"></button>
+                        <button pButton pRipple icon="pi pi-file-excel"
+                            class="p-button-rounded p-button-text p-button-plain"
+                            [pTooltip]="'export_to_excel' | translate" tooltipPosition="bottom"
+                            (click)="exportCashRegisterData()"></button>
                     </div>
                 </div>
             </ng-template>
 
-            <!-- 💰 CONTENT -->
+            <!-- Enhanced Content -->
             <ng-template pTemplate="content">
+                <!-- Loading State -->
+                <div *ngIf="loadingCashRegister" class="flex justify-content-center align-items-center py-8">
+                    <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                </div>
+
+                <!-- Content -->
+                <div *ngIf="!loadingCashRegister" class="grid p-fluid">
+                    <!-- Left Column: Statistics & Quick Insights -->
+                    <div class="col-12 lg:col-4 pr-3">
                 <!-- Current Balance Card -->
-                <div class="current-balance-card mb-5">
-                    <div class="balance-value">
-                        <span class="label">{{ 'current_today_cash_register_amount' | translate }}:</span>
-                        <span class="value">{{ cashRegister.totalBalance | number:'1.2-2' }}</span>
-                        <span class="currency">{{ currency }}</span>
+                        <p-card styleClass="shadow-2 border-round-lg mb-3">
+                            <div class="flex flex-column align-items-center text-center p-4">
+                                <i class="pi pi-wallet text-5xl text-primary mb-3"></i>
+                                <div class="text-600 font-medium mb-2">{{ 'current_balance' | translate }}</div>
+                                <div class="text-3xl font-bold text-900 mb-2">
+                                    {{ (cashRegisterData?.totalBalance || cashRegister?.totalBalance || 0) | currency:currency:'symbol':'1.2-2' }}
                     </div>
-                    <div class="balance-trend" *ngIf="dailyDifferenceTrend !== 0">
+                                <div class="flex align-items-center gap-2 mt-2" *ngIf="dailyDifferenceTrend !== 0">
                         <i class="pi"
                             [ngClass]="{'pi-arrow-up text-green-500': dailyDifferenceTrend > 0, 'pi-arrow-down text-red-500': dailyDifferenceTrend < 0}"></i>
-                        <span>{{ dailyDifferenceTrend | number:'1.2-2' }} {{ currency }}</span>
-                        <span>({{ dailyDifferencePercentage | number:'1.2-2' }}%)</span>
+                                    <span [ngClass]="{'text-green-500': dailyDifferenceTrend > 0, 'text-red-500': dailyDifferenceTrend < 0}"
+                                        class="font-semibold">
+                                        {{ dailyDifferenceTrend | number:'1.2-2' }} {{ currency }}
+                                        ({{ dailyDifferencePercentage | number:'1.2-2' }}%)
+                                    </span>
                     </div>
                 </div>
-                <!-- Date Range Filter -->
-                <div class="filter-section p-fluid mb-5">
-                    <div class="flex flex-column md:flex-row justify-content-between align-items-center gap-3">
-                        <div class="w-full md:w-auto">
-                            <label for="balance_date" class="block mb-2 font-medium">
-                                <i class="pi pi-filter mr-2"></i>
-                                {{ 'filter_by_balance_date_range' | translate }}
-                            </label>
-                            <div class="flex flex-column md:flex-row gap-3 mt-5">
-                                <div class="w-full p-float-label">
+                        </p-card>
+
+                        <!-- Session Statistics -->
+                        <p-card styleClass="shadow-2 border-round-lg mb-3">
+                            <ng-template pTemplate="header">
+                                <div class="flex align-items-center gap-2 p-3">
+                                    <i class="pi pi-calendar text-primary text-xl"></i>
+                                    <span class="font-bold text-lg">{{ 'session_statistics' | translate }}</span>
+                                </div>
+                            </ng-template>
+                            <div class="flex flex-column gap-3">
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-list text-primary"></i>
+                                        <span class="font-medium">{{ 'total_sessions' | translate }}</span>
+                                    </div>
+                                    <span class="font-bold text-xl">{{ cashRegisterStats?.totalSessions || 0 }}</span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-unlock text-green-500"></i>
+                                        <span class="font-medium">{{ 'open_sessions' | translate }}</span>
+                                    </div>
+                                    <p-tag [value]="(cashRegisterStats?.openSessions || 0).toString()" severity="warning"></p-tag>
+                                </div>
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-lock text-blue-500"></i>
+                                        <span class="font-medium">{{ 'closed_sessions' | translate }}</span>
+                                    </div>
+                                    <p-tag [value]="(cashRegisterStats?.closedSessions || 0).toString()" severity="success"></p-tag>
+                                </div>
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-clock text-orange-500"></i>
+                                        <span class="font-medium">{{ 'today_sessions' | translate }}</span>
+                                    </div>
+                                    <span class="font-bold">{{ cashRegisterStats?.todaySessions || 0 }}</span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-chart-line text-purple-500"></i>
+                                        <span class="font-medium">{{ 'avg_session_duration' | translate }}</span>
+                                    </div>
+                                    <span class="font-bold">{{ (cashRegisterStats?.avgSessionDuration || 0) | number:'1.1-1' }}h</span>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- Financial Summary -->
+                        <p-card styleClass="shadow-2 border-round-lg">
+                            <ng-template pTemplate="header">
+                                <div class="flex align-items-center gap-2 p-3">
+                                    <i class="pi pi-chart-bar text-primary text-xl"></i>
+                                    <span class="font-bold text-lg">{{ 'financial_summary' | translate }}</span>
+                                </div>
+                            </ng-template>
+                            <div class="flex flex-column gap-3">
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-arrow-down text-green-500"></i>
+                                        <span class="font-medium">{{ 'total_deposits' | translate }}</span>
+                                    </div>
+                                    <span class="font-bold text-green-500">
+                                        {{ (cashRegisterStats?.totalDeposits || 0) | currency:currency:'symbol':'1.2-2' }}
+                                    </span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-arrow-up text-red-500"></i>
+                                        <span class="font-medium">{{ 'total_withdrawals' | translate }}</span>
+                                    </div>
+                                    <span class="font-bold text-red-500">
+                                        {{ (cashRegisterStats?.totalWithdrawals || 0) | currency:currency:'symbol':'1.2-2' }}
+                                    </span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-money-bill text-blue-500"></i>
+                                        <span class="font-medium">{{ 'total_collections' | translate }}</span>
+                                    </div>
+                                    <span class="font-bold text-blue-500">
+                                        {{ (cashRegisterStats?.totalCollections || 0) | currency:currency:'symbol':'1.2-2' }}
+                                    </span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-calculator text-primary"></i>
+                                        <span class="font-medium">{{ 'net_cash_flow' | translate }}</span>
+                                    </div>
+                                    <span class="font-bold text-xl"
+                                        [ngClass]="{'text-green-500': (cashRegisterStats?.cashFlow || 0) >= 0, 'text-red-500': (cashRegisterStats?.cashFlow || 0) < 0}">
+                                        {{ (cashRegisterStats?.cashFlow || 0) | currency:currency:'symbol':'1.2-2' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </p-card>
+                    </div>
+
+                    <!-- Right Column: Tabs with Data -->
+                    <div class="col-12 lg:col-8 pl-3">
+                        <!-- Enhanced Date Range Filter -->
+                        <p-card styleClass="shadow-2 border-round-lg mb-3">
+                            <div class="flex flex-column gap-3 p-3">
+                                <!-- Header -->
+                                <div class="flex align-items-center justify-content-between">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-calendar text-primary text-xl"></i>
+                                        <div class="flex flex-column">
+                                            <span class="font-bold text-lg">{{ 'date_range' | translate }}</span>
+                                            <small class="text-600">
+                                                {{ 'filter_cash_register_by_period' | translate }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pickers -->
+                                <div class="grid">
+                                    <div class="col-12 md:col-5">
+                                        <span class="text-600 text-sm mb-1 block">{{ 'start_date' | translate }}</span>
                                     <p-calendar [(ngModel)]="startDate" inputId="start_date" [showIcon]="true"
                                         iconDisplay="input" (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy"
                                         [showOnFocus]="false" [maxDate]="endDate || today"
-                                        [placeholder]="'start_date' | translate" class="w-full">
+                                            styleClass="w-full">
                                     </p-calendar>
-                                    <label for="start_date">{{ 'start_date' | translate }}</label>
                                 </div>
-                                <div class="w-full p-float-label">
+                                    <div class="col-12 md:col-5">
+                                        <span class="text-600 text-sm mb-1 block">{{ 'end_date' | translate }}</span>
                                     <p-calendar [(ngModel)]="endDate" inputId="end_date" [showIcon]="true"
                                         iconDisplay="input" (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy"
                                         [showOnFocus]="false" [minDate]="startDate" [maxDate]="today"
-                                        [placeholder]="'end_date' | translate" class="w-full">
+                                            styleClass="w-full">
                                     </p-calendar>
-                                    <label for="end_date">{{ 'end_date' | translate }}</label>
                                 </div>
-                                <button pButton type="button" label="{{ 'clear_filter' | translate }}"
-                                    icon="pi pi-times" class="p-button-outlined" (click)="clearDateFilter()"
+                                    <div class="col-12 md:col-2 flex align-items-end">
+                                        <button pButton type="button" icon="pi pi-times" 
+                                            class="p-button-outlined p-button-sm w-full"
+                                            [pTooltip]="'clear_filter' | translate"
+                                            (click)="clearDateFilter()"
                                     [disabled]="!startDate && !endDate">
                                 </button>
                             </div>
                         </div>
 
-                        <div class="w-full md:w-auto me-3">
-                            <button pButton type="button" label="{{ 'export_to_excel' | translate }}"
-                                icon="pi pi-download" class="p-button-outlined p-button-help" (click)="exportToExcel()">
-                            </button>
+                                <!-- Active range summary -->
+                                <div class="flex align-items-center gap-2" *ngIf="startDate || endDate">
+                                    <i class="pi pi-filter text-primary"></i>
+                                    <span class="text-600 text-sm">
+                                        {{ 'current_range' | translate }}:
+                                        <strong>
+                                            {{ startDate ? (startDate | date:'dd/MM/yyyy') : ('start_date' | translate) }}
+                                            &nbsp;→&nbsp;
+                                            {{ endDate ? (endDate | date:'dd/MM/yyyy') : ('end_date' | translate) }}
+                                        </strong>
+                                    </span>
                         </div>
                     </div>
-                </div>
+                        </p-card>
 
                 <p-tabView>
-                    <!-- 🟢 TAB 1: Sessions -->
-                    <p-tabPanel header="{{ 'sessions' | translate }}">
-                        <div class="data-section">
-                            <p-table *ngIf="filteredSessions?.length; else noSessions" [value]="filteredSessions"
+                            <!-- TAB 1: Sessions -->
+                            <p-tabPanel [header]="'sessions' | translate">
+                                <p-card styleClass="shadow-2 border-round-lg">
+                                    <p-table *ngIf="filteredSessions?.length; else noSessions" 
+                                        [value]="filteredSessions"
                                 [rows]="10" [paginator]="true" responsiveLayout="scroll"
                                 [rowsPerPageOptions]="[5,10,25,50]"
-                                styleClass="p-datatable-striped p-datatable-gridlines">
+                                        styleClass="p-datatable-sm p-datatable-striped">
+                                        <ng-template pTemplate="caption">
+                                            <div class="flex justify-content-between align-items-center mb-3">
+                                                <div class="flex align-items-center gap-2">
+                                                    <i class="pi pi-calendar text-primary"></i>
+                                                    <span class="font-bold">{{ 'sessions' | translate }}</span>
+                                                    <p-tag [value]="filteredSessions.length.toString()" severity="info"></p-tag>
+                                                </div>
+                                            </div>
+                                        </ng-template>
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th>{{ 'cashier' | translate }}</th>
                                         <th>{{ 'opened_at' | translate }}</th>
                                         <th>{{ 'closed_at' | translate }}</th>
-                                        <th>{{ 'opening_amount' | translate }}</th>
-                                        <th>{{ 'closing_amount' | translate }}</th>
-                                        <th>{{ 'declared_difference' | translate }}</th>
+                                                <th class="text-right">{{ 'opening_amount' | translate }}</th>
+                                                <th class="text-right">{{ 'closing_amount' | translate }}</th>
+                                                <th class="text-right">{{ 'declared_difference' | translate }}</th>
                                         <th>{{ 'status' | translate }}</th>
-                                        <th>{{ 'actions' | translate }}</th>
+                                                <th class="text-center">{{ 'actions' | translate }}</th>
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="body" let-session>
                                     <tr>
-                                        <td>{{ session.username || '—' }}</td>
-                                        <td>{{ session.openedAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                                        <td>{{ session.closedAt ? (session.closedAt | date:'dd/MM/yyyy HH:mm') :
-                                            ('still_open' | translate) }}</td>
-                                        <td>{{ session.openingAmount | number:'1.2-2' }} {{ currency }}</td>
-                                        <td>{{ session.closingAmount || 0 | number:'1.2-2' }} {{ currency }}</td>
-                                        <td
-                                            [ngClass]="{'text-green-500': session.declaredDifference > 0, 'text-red-500': session.declaredDifference < 0}">
-                                            {{ session.declaredDifference | number:'1.2-2' }} {{ currency }}
+                                                <td>
+                                                    <div class="flex align-items-center gap-2">
+                                                        <i class="pi pi-user text-primary"></i>
+                                                        <span class="font-medium">{{ session.username || session.fullName || '—' }}</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="flex flex-column">
+                                                        <span class="font-medium">{{ session.openedAt | date:'dd/MM/yyyy' }}</span>
+                                                        <small class="text-600">{{ session.openedAt | date:'HH:mm' }}</small>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="flex flex-column" *ngIf="session.closedAt; else stillOpen">
+                                                        <span class="font-medium">{{ session.closedAt | date:'dd/MM/yyyy' }}</span>
+                                                        <small class="text-600">{{ session.closedAt | date:'HH:mm' }}</small>
+                                                    </div>
+                                                    <ng-template #stillOpen>
+                                                        <p-tag [value]="'still_open' | translate" severity="warning"></p-tag>
+                                                    </ng-template>
+                                                </td>
+                                                <td class="text-right font-medium">
+                                                    {{ (session.openingAmount || 0) | currency:currency:'symbol':'1.2-2' }}
+                                                </td>
+                                                <td class="text-right font-medium">
+                                                    {{ (session.closingAmount || 0) | currency:currency:'symbol':'1.2-2' }}
+                                                </td>
+                                                <td class="text-right font-bold"
+                                                    [ngClass]="{'text-green-500': (session.declaredDifference || 0) > 0, 'text-red-500': (session.declaredDifference || 0) < 0, 'text-600': (session.declaredDifference || 0) === 0}">
+                                                    {{ (session.declaredDifference || 0) | currency:currency:'symbol':'1.2-2' }}
                                         </td>
                                         <td>
                                             <p-tag
                                                 [value]="session.closed ? ('closed' | translate) : ('open' | translate)"
                                                 [severity]="session.closed ? 'success' : 'warning'"></p-tag>
                                         </td>
-                                        <td>
-                                            <button pButton icon="pi pi-eye" class="p-button-rounded p-button-text"
+                                                <td class="text-center">
+                                                    <button pButton icon="pi pi-eye" 
+                                                        class="p-button-sm p-button-rounded p-button-text"
                                                 [pTooltip]="'view_movements' | translate"
                                                 (click)="viewSessionMovements(session)">
                                             </button>
                                         </td>
                                     </tr>
                                 </ng-template>
+                                        <ng-template pTemplate="summary">
+                                            <div class="flex justify-content-between align-items-center">
+                                                <span class="font-medium">{{ 'total_sessions' | translate }}: {{ filteredSessions.length }}</span>
+                                                <div class="flex gap-3">
+                                                    <span class="text-600">{{ 'open' | translate }}: {{ cashRegisterStats?.openSessions || 0 }}</span>
+                                                    <span class="text-600">{{ 'closed' | translate }}: {{ cashRegisterStats?.closedSessions || 0 }}</span>
+                                                </div>
+                                            </div>
+                                        </ng-template>
                             </p-table>
                             <ng-template #noSessions>
-                                <div class="no-data-container">
-                                    <i class="pi pi-database no-data-icon"></i>
-                                    <h4>{{ 'no_data_available' | translate }}</h4>
+                                        <div class="text-center py-8">
+                                            <i class="pi pi-calendar text-4xl text-400 block mb-3"></i>
+                                            <p class="text-600 font-medium">{{ 'no_sessions_found' | translate }}</p>
                                 </div>
                             </ng-template>
-                        </div>
+                                </p-card>
                     </p-tabPanel>
 
-                    <!-- 🟣 TAB 2: Movements -->
-                    <p-tabPanel header="{{ 'movements' | translate }}">
-                        <div class="data-section">
-                            <div class="flex justify-between items-center mb-3" *ngIf="isAdmin">
-                                <button pButton label="{{ 'new_deposit' | translate }}" icon="pi pi-plus"
-                                    class="p-button-sm p-button-success" (click)="openNewDepositDialog()">
+                            <!-- TAB 2: Movements -->
+                            <p-tabPanel [header]="'movements' | translate" (onOpen)="onMovementsTabOpen()">
+                                <p-card styleClass="shadow-2 border-round-lg">
+                                    <ng-template pTemplate="header">
+                                        <div class="flex justify-content-between align-items-center p-3">
+                                            <div class="flex align-items-center gap-2">
+                                                <i class="pi pi-exchange text-primary text-xl"></i>
+                                                <span class="font-bold text-lg">{{ 'movements' | translate }}</span>
+                                                <p-tag [value]="filteredMovements.length.toString()" severity="info"></p-tag>
+                                            </div>
+                                            <div class="flex align-items-center">
+                                                <button *ngIf="isAdmin"
+                                                    pButton
+                                                    type="button"
+                                                    icon="pi pi-plus"
+                                                    label="{{ 'new_deposit' | translate }}"
+                                                    class="p-button-sm p-button-success"
+                                                    [pTooltip]="'new_deposit' | translate"
+                                                    tooltipPosition="left"
+                                                    (click)="openNewDepositDialog()">
                                 </button>
                             </div>
-                            <p-table [value]="movements" [rows]="10" [paginator]="true" responsiveLayout="scroll"
-                                [rowsPerPageOptions]="[5,10,25,50]"
-                                styleClass="p-datatable-striped p-datatable-gridlines">
+                                        </div>
+                                    </ng-template>
+                                    <div class="flex flex-column md:flex-row gap-3 mb-3 p-3 border-bottom-1 surface-border">
+                                        <span class="p-input-icon-left flex-1">
+                                            <i class="pi pi-search"></i>
+                                            <input pInputText type="text" [(ngModel)]="movementSearchTerm"
+                                                (ngModelChange)="filterMovements()"
+                                                [placeholder]="'search_movements' | translate" class="w-full" />
+                                        </span>
+                                        <p-dropdown [(ngModel)]="selectedMovementTypeFilter" 
+                                            [options]="movementTypeOptions"
+                                            [showClear]="true"
+                                            [placeholder]="'filter_by_type' | translate"
+                                            (onChange)="filterMovements()" (onClear)="filterMovements()"
+                                            appendTo="body" styleClass="w-full md:w-auto">
+                                        </p-dropdown>
+                                        <button pButton icon="pi pi-filter-slash" 
+                                            class="p-button-outlined p-button-sm"
+                                            (click)="clearMovementFilters()"
+                                            [pTooltip]="'clear_filters' | translate"></button>
+                                    </div>
+                                    <!-- Movements Table -->
+                                    <p-table [value]="filteredMovements" [rows]="10" [paginator]="true" 
+                                        responsiveLayout="scroll" [rowsPerPageOptions]="[5,10,25,50]"
+                                        styleClass="p-datatable-sm p-datatable-striped">
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th>{{ 'type' | translate }}</th>
-                                        <th>{{ 'amount' | translate }}</th>
+                                                <th class="text-right">{{ 'amount' | translate }}</th>
                                         <th>{{ 'reference' | translate }}</th>
                                         <th>{{ 'performed_by' | translate }}</th>
                                         <th>{{ 'timestamp' | translate }}</th>
@@ -737,58 +1018,168 @@
                                 </ng-template>
                                 <ng-template pTemplate="body" let-m>
                                     <tr>
-                                        <td>{{ ("movement_" + m.type.toLowerCase()) | translate }}</td>
-                                        <td [ngClass]="{
-                                            'text-blue-600 font-semibold': m.type === 'DEPOSIT',
-                                            'text-green-600': m.type === 'ADJUSTMENT' && m.amount > 0,
-                                            'text-red-500': (m.type === 'ADJUSTMENT' && m.amount < 0) || 
-                                                            m.type === 'WITHDRAWAL' || 
-                                                            m.type === 'EXPENSE'
-                                        }">
-                                            {{ m.amount | number:'1.2-2' }} {{ currency }}
+                                                <td>
+                                                    <div class="flex align-items-center gap-2">
+                                                        <i [class]="m.type === 'DEPOSIT' ? 'pi pi-arrow-down text-green-500' : 
+                                                                   (m.type === 'WITHDRAWAL' ? 'pi pi-arrow-up text-red-500' : 
+                                                                   (m.type === 'EXPENSE' ? 'pi pi-minus-circle text-orange-500' : 
+                                                                   'pi pi-adjust text-blue-500'))"></i>
+                                                        <p-tag [value]="('movement_' + (m.type || '').toLowerCase()) | translate"
+                                                            [severity]="m.type === 'DEPOSIT' ? 'success' : 
+                                                                       (m.type === 'WITHDRAWAL' ? 'danger' : 
+                                                                       (m.type === 'EXPENSE' ? 'warning' : 'info'))">
+                                                        </p-tag>
+                                                    </div>
+                                                </td>
+                                                <td class="text-right font-bold"
+                                                    [ngClass]="{
+                                                        'text-green-500': m.type === 'DEPOSIT',
+                                                        'text-red-500': m.type === 'WITHDRAWAL' || m.type === 'EXPENSE',
+                                                        'text-blue-500': m.type === 'ADJUSTMENT' && (m.amount || 0) > 0,
+                                                        'text-orange-500': m.type === 'ADJUSTMENT' && (m.amount || 0) < 0
+                                                    }">
+                                                    {{ (m.amount || 0) | currency:currency:'symbol':'1.2-2' }}
                                         </td>
-                                        <td>{{ m.reference || 'N/A' }}</td>
-                                        <td>{{ m.performedByName }}</td>
-                                        <td>{{ m.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
+                                                <td>
+                                                    <p-tag *ngIf="m.reference" [value]="m.reference" severity="secondary"></p-tag>
+                                                    <span *ngIf="!m.reference" class="text-600">N/A</span>
+                                                </td>
+                                                <td>
+                                                    <div class="flex align-items-center gap-2">
+                                                        <i class="pi pi-user text-600"></i>
+                                                        <span>{{ m.performedByName || 'N/A' }}</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="flex flex-column">
+                                                        <span class="font-medium">{{ m.timestamp | date:'dd/MM/yyyy' }}</span>
+                                                        <small class="text-600">{{ m.timestamp | date:'HH:mm' }}</small>
+                                                    </div>
+                                                </td>
                                     </tr>
                                 </ng-template>
-                            </p-table>
+                                        <ng-template pTemplate="emptymessage">
+                                            <tr>
+                                                <td colspan="5" class="text-center py-8">
+                                                    <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
+                                                    <p class="text-600 font-medium">{{ 'no_movements_found' | translate }}</p>
+                                                </td>
+                                            </tr>
+                                        </ng-template>
+                                        <ng-template pTemplate="summary">
+                                            <div class="flex justify-content-between align-items-center">
+                                                <span class="font-medium">{{ 'total_movements' | translate }}: {{ filteredMovements.length }}</span>
+                                                <div class="flex gap-3">
+                                                    <span class="text-green-500 font-semibold">
+                                                        {{ 'deposits' | translate }}: {{ cashRegisterStats?.depositsCount || 0 }}
+                                                    </span>
+                                                    <span class="text-red-500 font-semibold">
+                                                        {{ 'withdrawals' | translate }}: {{ cashRegisterStats?.withdrawalsCount || 0 }}
+                                                    </span>
                         </div>
+                                            </div>
+                                        </ng-template>
+                                    </p-table>
+                                </p-card>
                     </p-tabPanel>
 
-                    <!-- 🟠 TAB 3: Collections -->
-                    <p-tabPanel header="{{ 'collections' | translate }}">
-                        <div class="data-section">
-                            <div class="flex justify-between items-center mb-3">
-                                <!-- <h4 class="m-0">{{ 'cash_collections' | translate }}</h4> -->
-                                <button pButton label="{{ 'new_collection' | translate }}" icon="pi pi-plus"
-                                    class="p-button-sm p-button-success" (click)="openNewCollectionDialog()"
-                                    *ngIf="isAdmin"></button>
+                            <!-- TAB 3: Collections -->
+                            <p-tabPanel [header]="'collections' | translate">
+                                <p-card styleClass="shadow-2 border-round-lg">
+                                    <ng-template pTemplate="header">
+                                        <div class="flex justify-content-between align-items-center p-3">
+                                            <div class="flex align-items-center gap-2">
+                                                <i class="pi pi-money-bill text-primary text-xl"></i>
+                                                <span class="font-bold text-lg">{{ 'collections' | translate }}</span>
+                                                <p-tag [value]="filteredCollections.length.toString()" severity="info"></p-tag>
                             </div>
-
-                            <p-table [value]="collections" [rows]="10" [paginator]="true" responsiveLayout="scroll"
-                                [rowsPerPageOptions]="[5,10,25,50]"
-                                styleClass="p-datatable-striped p-datatable-gridlines">
+                                            <div class="flex align-items-center">
+                                                <button *ngIf="isAdmin"
+                                                    pButton
+                                                    type="button"
+                                                    icon="pi pi-plus"
+                                                    label="{{ 'new_collection' | translate }}"
+                                                    class="p-button-sm p-button-success"
+                                                    [pTooltip]="'new_collection' | translate"
+                                                    tooltipPosition="left"
+                                                    (click)="openNewCollectionDialog()">
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </ng-template>
+                                    <div class="flex gap-3 mb-3 p-3 border-bottom-1 surface-border">
+                                        <span class="p-input-icon-left flex-1">
+                                            <i class="pi pi-search"></i>
+                                            <input pInputText type="text" [(ngModel)]="collectionSearchTerm"
+                                                (ngModelChange)="filterCollections()"
+                                                [placeholder]="'search_collections' | translate" class="w-full" />
+                                        </span>
+                                        <button pButton icon="pi pi-filter-slash" 
+                                            class="p-button-outlined p-button-sm"
+                                            (click)="clearCollectionFilters()"
+                                            [pTooltip]="'clear_filters' | translate"></button>
+                                    </div>
+                                    <p-table [value]="filteredCollections" [rows]="10" [paginator]="true" 
+                                        responsiveLayout="scroll" [rowsPerPageOptions]="[5,10,25,50]"
+                                        styleClass="p-datatable-sm p-datatable-striped">
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th>{{ 'receipt_number' | translate }}</th>
                                         <th>{{ 'collected_at' | translate }}</th>
-                                        <th>{{ 'amount_collected' | translate }}</th>
+                                                <th class="text-right">{{ 'amount_collected' | translate }}</th>
                                         <th>{{ 'collected_by' | translate }}</th>
                                         <th>{{ 'notes' | translate }}</th>
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="body" let-c>
                                     <tr>
-                                        <td>{{ c.receiptNumber }}</td>
-                                        <td>{{ c.collectedAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                                        <td>{{ c.amountCollected | number:'1.2-2' }} {{ currency }}</td>
-                                        <td>{{ c.collectedByName }}</td>
-                                        <td>{{ c.notes || '—' }}</td>
+                                                <td>
+                                                    <div class="flex align-items-center gap-2">
+                                                        <i class="pi pi-file text-primary"></i>
+                                                        <span class="font-medium">{{ c.receiptNumber || 'N/A' }}</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="flex flex-column">
+                                                        <span class="font-medium">{{ c.collectedAt | date:'dd/MM/yyyy' }}</span>
+                                                        <small class="text-600">{{ c.collectedAt | date:'HH:mm' }}</small>
+                                                    </div>
+                                                </td>
+                                                <td class="text-right font-bold text-blue-500">
+                                                    {{ (c.amountCollected || 0) | currency:currency:'symbol':'1.2-2' }}
+                                                </td>
+                                                <td>
+                                                    <div class="flex align-items-center gap-2">
+                                                        <i class="pi pi-user text-600"></i>
+                                                        <span>{{ c.collectedByName || 'N/A' }}</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span *ngIf="c.notes" class="text-600">{{ c.notes }}</span>
+                                                    <span *ngIf="!c.notes" class="text-400">—</span>
+                                                </td>
                                     </tr>
                                 </ng-template>
-                            </p-table>
+                                        <ng-template pTemplate="emptymessage">
+                                            <tr>
+                                                <td colspan="5" class="text-center py-8">
+                                                    <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
+                                                    <p class="text-600 font-medium">{{ 'no_collections_found' | translate }}</p>
+                                                </td>
+                                            </tr>
+                                        </ng-template>
+                                        <ng-template pTemplate="summary">
+                                            <div class="flex justify-content-between align-items-center">
+                                                <span class="font-medium">{{ 'total_collections' | translate }}: {{ filteredCollections.length }}</span>
+                                                <span class="font-bold text-blue-500">
+                                                    {{ 'total_amount' | translate }}: {{ (cashRegisterStats?.totalCollections || 0) | currency:currency:'symbol':'1.2-2' }}
+                                                </span>
                         </div>
+                                        </ng-template>
+                                    </p-table>
+                                </p-card>
+                            </p-tabPanel>
+                        </p-tabView>
 
                         <!-- New Collection Dialog -->
                         <p-dialog header="{{ 'new_collection' | translate }}" [(visible)]="newCollectionDialogVisible"
@@ -814,8 +1205,8 @@
                                     class="p-button-primary" (click)="saveNewCollection()"></button>
                             </ng-template>
                         </p-dialog>
-                    </p-tabPanel>
-                </p-tabView>
+                    </div>
+                </div>
             </ng-template>
 
             <!-- FOOTER -->
@@ -928,6 +1319,15 @@
                     (click)="saveNewDeposit()"></button>
             </ng-template>
         </p-dialog>
+
+        <!-- Cash Register Session Dialog -->
+        <app-cash-register-session 
+            [(visible)]="showCashRegisterSessionDialog" 
+            [shopId]="shop?.shopId"
+            (sessionOpened)="onSessionOpened($event)"
+            (sessionClosed)="onSessionClosed($event)"
+            (dialogClosed)="onCashRegisterSessionDialogClosed()">
+        </app-cash-register-session>
 
     </div>
 </div>

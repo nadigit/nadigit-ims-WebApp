@@ -1,5 +1,5 @@
-import { Component, HostListener, OnInit } from '@angular/core';
-import { MessageService, SelectItem, MenuItem, TreeNode, ConfirmationService } from 'primeng/api';
+import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { MessageService, SelectItem, MenuItem, TreeNode, ConfirmationService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
 import { Product } from 'src/app/models/product';
@@ -22,7 +22,13 @@ import { KeycloakService } from 'keycloak-angular';
 import { DialogService } from 'primeng/dynamicdialog';
 import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
 import { UploadEvent } from 'src/app/models/uploadEvent';
+import { calculateProfit, getMeasureUnit, getProfitClass, getQuantitySeverity } from 'src/app/shared/product-utils';
 
+
+interface LazyLoadEventExt extends LazyLoadEvent {
+  globalFilter?: string;
+  filters?: { [field: string]: any };
+}
 
 @Component({
   templateUrl: './products.component.html',
@@ -72,6 +78,8 @@ export class ProductsComponent implements OnInit {
 
   products: Product[] = [];
 
+  selectedProducts: Product[] = [];
+
   product: Product = {};
 
   archivedProduct: Product = {};
@@ -100,8 +108,6 @@ export class ProductsComponent implements OnInit {
 
   valSwitch: boolean = false;
 
-  sortOptions: SelectItem[] = [];
-
   sortOrder: number = 0;
 
   sortField: string = '';
@@ -114,7 +120,6 @@ export class ProductsComponent implements OnInit {
 
   menuItems: MenuItem[] = [];
 
-  items: MenuItem[] | undefined;
 
   imageURL: any;
 
@@ -154,7 +159,7 @@ export class ProductsComponent implements OnInit {
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
   canReadProduct: boolean = false;
-
+  canArchiveProduct: boolean = false;
   canAddWarehouse: boolean = false;
   canAddCategory: boolean = false;
   canAddSupplier: boolean = false;
@@ -176,6 +181,28 @@ export class ProductsComponent implements OnInit {
   effectiveCostingMethodLabel = '';
   isCostingMethodNone: boolean = false;
 
+
+  //lazy loading
+  totalRecords: number = 0;
+  lazyLoading: boolean = true;
+  first: number = 0;
+  rows: number = 20;
+  pageSize: number = 20;
+  globalFilter: string = '';
+  filters: any = {};
+  lastLazyLoadEvent: LazyLoadEventExt = {
+    first: 0,
+    rows: 20,
+    sortField: 'creationDate',
+    sortOrder: -1,
+    globalFilter: '',
+    filters: {}
+  };
+  lastSortField: string = 'creationDate';
+  lastSortOrder: number = -1; // DESC by default
+  lastGlobalFilter: string = '';
+  @ViewChild('dt') dt!: Table;
+  @ViewChild('filter') filter!: ElementRef;
 
 
   constructor(private messageService: MessageService,
@@ -228,12 +255,6 @@ export class ProductsComponent implements OnInit {
     });
     this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => {
       this.translations = translations;
-      this.sortOptions = [
-        { label: translations['descending_price'], value: '!sellingPrice' },
-        { label: translations['ascending_price'], value: 'sellingPrice' },
-        { label: translations['availability_desc'], value: 'inventoryStatus' }, // Descending availability
-        { label: translations['availability_asc'], value: '!inventoryStatus' }
-      ];
       this.printOptions = [
         {
           label: translations['standard_label'],
@@ -253,7 +274,8 @@ export class ProductsComponent implements OnInit {
       ];
 
     });
-    this.onGetAllProducts();
+    // this.onGetAllProducts();
+    await this.loadProducts();
     this.onGetAllCategories();
     this.onGetAllWarehouses();
     this.onGetAllSuppliers();
@@ -345,30 +367,7 @@ export class ProductsComponent implements OnInit {
     this.isCostingMethodNone = true;
   }
 
-  buildMenuItems(product: any) {
-    this.items = [
-      {
-        label: this.translations['edit_button'],
-        icon: 'pi pi-fw pi-pencil',
-        command: () => this.editProduct(product),
-      },
-      {
-        label: product.deletable
-          ? this.translations['delete_button']
-          : this.translations['archive_button'],
-        icon: product.deletable
-          ? 'pi pi-fw pi-trash'
-          : 'pi pi-fw pi-folder',
-        command: () => {
-          if (product.deletable) {
-            this.deleteProduct(product);
-          } else {
-            this.archiveProduct(product);
-          }
-        },
-      },
-    ];
-  }
+  
 
   async checkPermissions() {
     const profile = await this.keycloakService.loadUserProfile();
@@ -379,7 +378,7 @@ export class ProductsComponent implements OnInit {
     this.canEditProduct = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteProduct = this.permissionService.canDelete(this.Ressource);
     this.canReadProduct = this.permissionService.canRead(this.Ressource);
-
+    this.canArchiveProduct = this.permissionService.canArchive(this.Ressource);
     this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
     this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
     this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
@@ -985,9 +984,9 @@ export class ProductsComponent implements OnInit {
   }
 
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
-  }
+  // onGlobalFilter(table: Table, event: Event) {
+  //   table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  // }
 
   onFilter(dv: DataView, event: Event) {
     dv.filter((event.target as HTMLInputElement).value);
@@ -1476,9 +1475,9 @@ export class ProductsComponent implements OnInit {
   }
 
   // Add a method to toggle the editable state
-  toggleEditMode() {
-    this.isEditMode = !this.isEditMode;
-  }
+  // toggleEditMode() {
+  //   this.isEditMode = !this.isEditMode;
+  // }
 
   onChangeCountry() {
     this.supplier.city = undefined;
@@ -1501,14 +1500,11 @@ export class ProductsComponent implements OnInit {
   }
 
   getProfitClass(product: any): string {
-    const profit = this.calculateProfit(product);
-    return profit >= 0.3 ? 'text-green-500 font-semibold' :
-      profit >= 0.1 ? 'text-blue-500' : 'text-orange-500';
+    return getProfitClass(product);
   }
 
   calculateProfit(product: Product): number {
-    if (!product.sellingPrice || !product.buyingPrice) return 0;
-    return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
+    return calculateProfit(product);
   }
 
   private parseAttributeValue(attr: any): any {
@@ -1521,22 +1517,11 @@ export class ProductsComponent implements OnInit {
   }
 
   getMeasureUnit(product: Product): string {
-    if (!product.measureUnit) return 'UNIT'; // fallback
-
-    const pluralizable = ['UNIT', 'PIECE', 'BOX', 'METER'];
-
-    if (product.quantityAvailable > 1 && pluralizable.includes(product.measureUnit)) {
-      return `${product.measureUnit}_plural`;
-    }
-
-    return product.measureUnit;
+    return getMeasureUnit(product.measureUnit, product.quantityAvailable);
   }
 
   getQuantitySeverity(quantity: number): string {
-    if (quantity === undefined || quantity === null) return 'info';
-    if (quantity <= 0) return 'danger';
-    if (quantity < this.lowStockThreshold) return 'warning';
-    return 'success';
+    return getQuantitySeverity(quantity, this.lowStockThreshold);
   }
 
   async getLowStockThreshold(): Promise<number> {
@@ -1654,4 +1639,125 @@ export class ProductsComponent implements OnInit {
     });
   }
 
+  onLazyLoad(event: LazyLoadEvent) {
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
+
+    this.updateLastLazyLoadEvent(extendedEvent);
+    this.loadProducts();
+  }
+
+
+
+  loadProducts() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    const processedFilters = this.processFilters(filters);
+
+    console.log('Loading products with parameters:', {
+      page,
+      size,
+      sortField,
+      direction,
+      globalFilter,
+      filters: processedFilters
+    });
+
+    this.productService.getProductsPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      processedFilters
+    ).subscribe({
+      next: (res: any) => {
+        console.log('Paginated products response:', res);
+        // Assign the paginated orders
+        this.products = res.page.content.map((p: any) => ({
+          ...p,
+          creationDate: p.creationDate ? new Date(p.creationDate) : null,
+          archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
+          buyingDate: p.buyingDate ? new Date(p.buyingDate) : null,
+        }));
+
+        // Assign totals from backend
+        this.totalRecords = res.totalProducts;
+
+        this.isLoading = false;
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_orders'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+
+  private updateLastLazyLoadEvent(event: LazyLoadEvent) {
+    this.lastLazyLoadEvent = {
+      first: event.first ?? this.lastLazyLoadEvent.first,
+      rows: event.rows ?? this.lastLazyLoadEvent.rows,
+      sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
+      sortOrder: event.sortOrder ?? this.lastLazyLoadEvent.sortOrder,
+      globalFilter: event.globalFilter ?? this.globalFilter,
+      filters: event.filters ?? this.lastLazyLoadEvent.filters
+    };
+
+    // Store sorting for future reloads
+    this.globalFilter = this.lastLazyLoadEvent.globalFilter as string;
+  }
+
+  private processFilters(filters: any): any {
+    if (!filters) return {};
+
+    const processedFilters: any = {};
+
+    // Process categoryId filter
+    if (filters['categoryId'] && filters['categoryId'].value) {
+      processedFilters.categoryId = filters['categoryId'].value;
+    }
+
+    // Process supplierId filter
+    if (filters['supplierId'] && filters['supplierId'].value) {
+      processedFilters.supplierId = filters['supplierId'].value;
+    }
+
+    // Process warehouseId filter
+    if (filters['warehouseId'] && filters['warehouseId'].value) {
+      processedFilters.warehouseId = filters['warehouseId'].value;
+    }
+
+    // Process creationDate filter
+    if (filters['creationDate'] && filters['creationDate'].value) {
+      processedFilters.creationDate = filters['creationDate'].value;
+    }
+
+    return processedFilters;
+  }
+
+
+  onGlobalFilter(event: { globalFilter: string }) {
+    this.scanning = false;
+    this.globalFilter = event.globalFilter;
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      globalFilter: this.globalFilter
+    };
+
+    this.onLazyLoad(lazyEvent);
+  }
 }

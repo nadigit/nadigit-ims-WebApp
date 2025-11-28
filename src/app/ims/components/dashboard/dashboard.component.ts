@@ -55,7 +55,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   lastWeekProducts: Product[] = [];
   shops: Shop[] = [];
   todayCustomers?: Customer[] = [];
-
+  totalProducts = 0;
 
 
   // Metrics
@@ -104,6 +104,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   currency = 'USD';
   userRoles: string[] = [];
   productPercentages: any[] = [];
+
+  // Dashboard refresh
+  refreshDashboardLoading: boolean = false;
 
   // Private properties for performance optimization
   private destroy$ = new Subject<void>();
@@ -401,15 +404,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ==================== SERVICE METHODS WITH CACHING ====================
 
   getOrders() {
-      const cacheKey = 'orders';
-      const cached = this.getCachedData(cacheKey);
-      if (cached) return of(cached);
-  
-      return this.orderService.getOrdersPaginated(0, 20, '', 'orderDate', 'DESC').pipe(
-        map((res: any) => res?.content ?? []),   // ← This makes sure you ALWAYS return an array
-        catchError(() => of([]))
-      );
-    }
+    const cacheKey = 'orders';
+    const cached = this.getCachedData(cacheKey);
+    if (cached) return of(cached);
+
+    return this.orderService.getOrdersPaginated(0, 20, '', 'orderDate', 'DESC').pipe(
+      map((res: any) => res?.content ?? []),   // ← This makes sure you ALWAYS return an array
+      catchError(() => of([]))
+    );
+  }
 
   getTodayOrders() {
     const cacheKey = 'today-orders';
@@ -482,7 +485,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const cached = this.getCachedData(cacheKey);
     if (cached) return of(cached);
 
-    return this.productService.getProducts().pipe(
+    return this.productService.getProductsPaginated(0, 20, '', 'creationDate', 'DESC').pipe(
+      map((res: any) => {
+        this.totalProducts = res?.totalProducts ?? 0;
+        return res?.page?.content ?? [];
+      }),
       catchError(() => of([]))
     );
   }
@@ -757,17 +764,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
       };
 
       this.chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
+            position: 'top',
             labels: {
-              color: textColor
+              color: textColor,
+              padding: 15,
+              font: {
+                size: 12
+              }
             }
+          },
+          tooltip: {
+            enabled: true
           }
         },
         scales: {
           x: {
             ticks: {
-              color: textColorSecondary
+              color: textColorSecondary,
+              font: {
+                size: 11
+              }
             },
             grid: {
               color: surfaceBorder,
@@ -776,7 +796,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
           },
           y: {
             ticks: {
-              color: textColorSecondary
+              color: textColorSecondary,
+              font: {
+                size: 11
+              }
             },
             grid: {
               color: surfaceBorder,
@@ -810,12 +833,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
       };
 
       this.pieOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
+            position: 'bottom',
             labels: {
               usePointStyle: true,
-              color: textColor
+              color: textColor,
+              padding: 15,
+              font: {
+                size: 12
+              }
             }
+          },
+          tooltip: {
+            enabled: true
           }
         }
       };
@@ -1000,6 +1033,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return (this.profitData.netProfit / this.profitData.totalRevenue) * 100;
     }
     return 0;
+  }
+
+  async refreshDashboard(): Promise<void> {
+    this.refreshDashboardLoading = true;
+    this.cache.clear(); // Clear cache to force fresh data
+    this.cdr.markForCheck();
+    
+    try {
+      // Reload all data
+      await this.loadTodayMetrics();
+      this.loadSecondaryData();
+      this.loadAnalyticsData();
+      
+      this.refreshDashboardLoading = false;
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('dashboard_refreshed') || 'Dashboard refreshed successfully',
+        life: 2000
+      });
+      this.cdr.markForCheck();
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+      this.refreshDashboardLoading = false;
+      this.cdr.markForCheck();
+    }
   }
 
   trackByProductId(index: number, item: any): number {

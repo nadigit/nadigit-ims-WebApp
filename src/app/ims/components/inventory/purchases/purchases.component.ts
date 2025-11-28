@@ -16,6 +16,9 @@ import { ProductService } from 'src/app/services/product.service';
 import { Product } from 'src/app/models/product';
 import { PurchaseItem } from 'src/app/models/purchaseItem';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { calculateProfit, displayAttributeValue, getLowStockThreshold, getMeasureUnit, getQuantitySeverity } from 'src/app/shared/product-utils';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { AngularFireStorage } from '@angular/fire/compat/storage';
 
 @Component({
   templateUrl: './purchases.component.html',
@@ -100,6 +103,29 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   selectedPurchase: Purchase = null;
   purchaseEvents: any[] = [];
 
+  searchProductInput: string = "";
+  searchTimeout: any;
+  selectedProduct: Product | null = null;
+  productDetailDialog: boolean = false;
+  canEditProduct: boolean = false;
+  canDeleteProduct: boolean = false;
+  canArchiveProduct: boolean = false;
+  canReadProduct: boolean = false;
+  lowStockThreshold;
+  productDialog: boolean = false;
+  deleteProductDialog: boolean = false;
+  archiveProductDialog: boolean = false;
+  imagePreviewUrl: string | null = null;
+  isImageLoading: boolean = false;
+  isDragOver: boolean = false;
+  imageZoomDialog: boolean = false;
+  recentProductImages: string[] = [];
+  isSaving: boolean = false;
+  uploadProgress: number = 0;
+  existingImageFile: any = null;
+  imageURL: any;
+  uploadedFile: File | null = null;
+
   constructor(private messageService: MessageService,
     private purchaseService: PurchaseService,
     private reportingService: ReportingService,
@@ -111,12 +137,14 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     private supplierService: SupplierService,
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
+    private storage: AngularFireStorage,
     private productService: ProductService) {
     this.loadTaxRate();
   }
 
   async ngOnInit() {
     this.isLoading = true;
+    this.lowStockThreshold = await this.getLowStockThreshold();
     this.maxPurchaseDate = new Date(); // Today's date
     this.maxPurchaseDate.setHours(23, 59, 59, 999); // Include entire current day
     this.configService.currency$.subscribe(currency => {
@@ -127,13 +155,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     });
     this.initializeTranslations();
     this.onGetAllPurchases();
-    this.onGetAllShops();
-    this.onGetAllProducts();
-    this.onGetAllSuppliers();
-    this.getSourceProducts(),
-      this.getTargetProducts(),
-      this.initializePickList(),
-      await this.checkPermissions();
+    await this.checkPermissions();
     await this.setUserRoles();
     this.cols = [
       { field: 'id', header: this.translateService.instant('ID') },
@@ -379,7 +401,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     return this.expandedRows[id] === true;
   }
 
-  refreshPurchaseDetails(){
+  refreshPurchaseDetails() {
     console.log("refresh purchase")
   }
 
@@ -600,6 +622,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.canReadPurchase = this.permissionService.canRead(this.Ressource);
     this.canProcessPurchase = this.permissionService.canProcess(this.Ressource);
     this.canCancelPurchase = this.permissionService.canCancel(this.Ressource);
+    this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
+    this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
+    this.canArchiveProduct = this.permissionService.canArchive('PRODUCTS');
+    this.canReadProduct = this.permissionService.canRead('PRODUCTS');
   }
 
   deleteSelectedPurchases() {
@@ -622,8 +648,9 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         pricePerUnit: item.buyingPrice,
       };
     });
-    this.purchaseDialog = true;
+    this.loadProductsForPicker();
     this.initializePickList();
+    this.purchaseDialog = true;
 
     // Add the new fields directly to the order object
     this.purchase.purchaseItems.forEach(item => {
@@ -661,13 +688,15 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   openNew() {
     if (!this.canAddPurchase) return;
     this.purchase = {};
+    this.onGetAllShops();
+    this.onGetAllSuppliers();
     this.purchase.dateOfPurchase = new Date();
     this.purchase.discount = 0;
     this.purchase.taxEnabled = false;
     this.submitted = false;
     this.targetProducts = [];
     this.purchaseItems = [];
-    this.onGetAllProducts();
+    this.loadProductsForPicker();
     this.initializePickList();
     this.purchaseDialog = true;
   }
@@ -886,7 +915,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllPurchases();
-          this.onGetAllProducts();
+          this.loadProductsForPicker();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -913,7 +942,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
       next: (response: any) => {
         console.log(response);
         this.onGetAllPurchases();
-        this.onGetAllProducts();
+        this.loadProductsForPicker();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
@@ -937,29 +966,33 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
 
 
-  async onGetAllProducts() {
-    await this.productService.getProducts()
-      .subscribe({
-        next: (response: any) => {
-          this.products = response;
-          this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
-          console.log(this.products);
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_products'),
-            life: 3000
-          });
-          console.log(err)
-        },
-        complete: () => {
-          // Set loading to false after data is fully loaded
-          this.isLoading = false;
-        }
-      })
-  }
+  // async onGetAllProducts() {
+  //   await this.productService.getProducts()
+  //     .subscribe({
+  //       next: (response: any) => {
+  //         this.products = response;
+  //         this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
+  //         console.log(this.products);
+  //       },
+  //       error: (err: any) => {
+  //         this.messageService.add({
+  //           severity: 'error',
+  //           summary: this.translate.instant('error'),
+  //           detail: this.translate.instant('error_while_getting_products'),
+  //           life: 3000
+  //         });
+  //         console.log(err)
+  //       },
+  //       complete: () => {
+  //         // Set loading to false after data is fully loaded
+  //         this.isLoading = false;
+  //       }
+  //     })
+  // }
+
+
+
+
 
   exportPdf() {
     this.reportingService.exportPdf(this.exportColumns, this.purchases, 'purchases')
@@ -984,8 +1017,446 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.reportingService.exportExcel(modifiedPurchases, 'purchases');
   }
 
+  loadProductsForPicker(search: string = "") {
+    this.productService.searchProductsForPurchase(search).subscribe({
+      next: (products: Product[]) => {
+        // Remove items that are already selected in target
+        this.sourceProducts = (products || []).filter(
+          p => !this.targetProducts.some(t => t.productId === p.productId)
+        );
+      }
+    });
+  }
 
+  onSearchProducts(event: any) {
+    const search = event.target.value;
+
+    clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(() => {
+      this.loadProductsForPicker(search);
+    }, 300);
+  }
+
+  viewProductDetails(product: Product) {
+    if (!product) return;
+    this.selectedProduct = product;
+    this.productDetailDialog = true;
+  }
+
+  getMeasureUnit(product: Product): string {
+    return getMeasureUnit(product.measureUnit, product.quantityAvailable);
+  }
+
+  getQuantitySeverity(quantity: number): string {
+    return getQuantitySeverity(quantity, this.lowStockThreshold);
+  }
+
+  async getLowStockThreshold(): Promise<number> {
+    let threshold: any;
+    try {
+      const value = await firstValueFrom(await this.configService.getConfiguration('lowStockThreshold'));
+
+      threshold = (value !== undefined && value !== null)
+        ? Number(value.value)
+        : 10;
+      return threshold;
+    } catch (error) {
+      console.error('Error fetching low stock threshold:', error);
+      threshold = 10; // fallback value
+      return threshold;
+    }
+  }
+
+  displayAttributeValue(attr: any): string {
+    return displayAttributeValue(attr);
+  }
+
+  calculateProfit(product: Product): number {
+    return calculateProfit(product);
+  }
+
+  editProduct(product: Product) {
+    if (!this.canEditProduct) return;
+    this.selectedProduct = product;
+    this.product = { ...product };
+    this.loadProductsForPicker();
+    this.initializePickList();
+    this.onGetAllShops();
+    this.onGetAllSuppliers();
+    this.productDialog = true;
+    this.scanning = false;
+  }
+
+  deleteProduct(product: Product) {
+    if (!this.canDeleteProduct) return;
+    this.deleteProductDialog = true;
+    this.product = { ...product };
+  }
+
+  archiveProduct(product: Product) {
+    if (!this.canDeleteProduct) return;
+    this.archiveProductDialog = true;
+    this.product = { ...product };
+    this.productDialog = false;
+  }
+
+  async confirmArchive() {
+    if (!this.canDeleteProduct) return;
+    this.archiveProductDialog = false;
+    await this.onArchiveProduct(this.product.productId);
+    this.product = {};
+    this.selectedProduct = {};
+  }
+
+  async confirmProductDelete() {
+    if (!this.canDeleteProduct) return;
+    this.deleteProductDialog = false;
+    await this.onDeleteProduct(this.product.productId);
+    this.product = {};
+  }
+
+  hideProductDialog() {
+    this.productDialog = false;
+    this.scanning = true;
+    this.submitted = false;
+  }
+
+  async onDeleteProduct(id: any) {
+    await this.productService.deleteProduct(id)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_deleted'),
+            life: 3000
+          });
+          this.loadProductsForPicker();
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_product'),
+            life: 3000
+          });
+          console.log(err);
+        },
+      })
+  }
+
+  async onArchiveProduct(id: any) {
+    await this.productService.deactivateProduct(id)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_archived'),
+            life: 3000
+          });
+          this.loadProductsForPicker();
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_archiving_product'),
+            life: 3000
+          });
+          console.log(err);
+        },
+      })
+  }
+
+  async onFileUpload(event: any): Promise<void> {
+    const file = event.files[0];
+
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('invalid_image_format'),
+        life: 3000,
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5000000) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('image_too_large'),
+        life: 3000,
+      });
+      return;
+    }
+
+    // Show loading state
+    this.isImageLoading = true;
+
+    // Create preview
+    this.imagePreviewUrl = URL.createObjectURL(file);
+
+    // Store the file for upload
+    this.uploadedFile = file;
+
+    // Auto-hide loading after a brief moment (image load event will handle it)
+    setTimeout(() => {
+      if (this.isImageLoading) this.isImageLoading = false;
+    }, 2000);
+  }
+
+  // Drag and drop handlers
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      const file = event.dataTransfer.files[0];
+
+      // Create a mock event object for the fileUpload method
+      this.onFileUpload({ files: [file] });
+    }
+  }
+
+  // Image error handler
+  onImageError(): void {
+    this.isImageLoading = false;
+    this.messageService.add({
+      severity: 'error',
+      summary: this.translate.instant('error'),
+      detail: this.translate.instant('image_load_error'),
+      life: 3000,
+    });
+
+    // Fallback to default image
+    this.imagePreviewUrl = null;
+    this.product.productImage = 'assets/core-images/no-image.png';
+  }
+
+  // Zoom image
+  zoomImage(): void {
+    this.imageZoomDialog = true;
+  }
+
+  // Select recent image
+  selectRecentImage(imageUrl: string): void {
+    this.product.productImage = imageUrl;
+    this.imagePreviewUrl = null;
+    this.uploadedFile = null;
+  }
+
+  // Enhanced editImage method
+  editImage(): void {
+    this.product.productImage = null;
+    this.imagePreviewUrl = null;
+    this.uploadedFile = null;
+  }
+
+  // Enhanced removeImage method
+  removeImage(): void {
+    this.product.productImage = null;
+    this.imagePreviewUrl = null;
+    this.uploadedFile = null;
+  }
+
+  async saveProduct() {
+    this.submitted = true;
+
+    if (
+      this.product.name &&
+      this.product.reference &&
+      this.product.buyingPrice &&
+      this.product.sellingPrice &&
+      this.product.category &&
+      this.product.supplier
+    ) {
+      if (this.isAdmin && !this.product.warehouse) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('warehouse_required'),
+          life: 3000,
+        });
+        return;
+      }
+
+      // 🔍 Check for duplicate product with same reference in the same warehouse
+      const isDuplicate = this.products.some(p =>
+        p.reference === this.product.reference &&
+        p.warehouse?.warehouseId === this.product.warehouse?.warehouseId &&
+        p.productId !== this.product.productId // exclude current product if updating
+      );
+
+      if (isDuplicate) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('product_already_exists_in_warehouse'),
+          life: 4000,
+        });
+        return;
+      }
+
+      // 📦 Upload product image if any (only if it's a new file)
+      if (this.uploadedFile && this.uploadedFile !== this.existingImageFile) {
+        this.isSaving = true; // Show saving indicator
+
+        try {
+          const filePath = `images/${Date.now()}_${this.uploadedFile.name}`;
+          const fileRef = this.storage.ref(filePath);
+          const task = this.storage.upload(filePath, this.uploadedFile);
+
+          // Show upload progress
+          task.percentageChanges().subscribe(percentage => {
+            this.uploadProgress = percentage;
+          });
+
+          await lastValueFrom(task.snapshotChanges());
+          const url = await lastValueFrom(fileRef.getDownloadURL());
+          this.product.productImage = url;
+
+          // Add to recent images
+          this.addToRecentImages(url);
+
+        } catch (error) {
+          console.error('Error uploading file:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_uploading_image'),
+            life: 3000,
+          });
+          this.isSaving = false;
+          return;
+        } finally {
+          this.uploadedFile = null;
+          this.uploadProgress = 0;
+        }
+      }
+
+      // Clean attributes before saving
+      if (this.product.attributes && this.product.attributes.length > 0) {
+        this.product.attributes.forEach(attr => {
+          // strip transient field if it still exists
+          delete attr.value;
+
+          // optionally normalize booleans (Angular checkboxes can send null)
+          if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
+            attr.booleanValue = false;
+          }
+        });
+      }
+
+      // ✏️ Update or add product
+      if (this.product.productId) {
+        this.updateProduct(this.product.productId, this.product)
+          ? this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_updated'),
+            life: 3000,
+          })
+          : this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_product'),
+            life: 3000,
+          });
+      } else {
+        this.addProduct(this.product);
+      }
+
+      // ✅ Reset and close dialog
+      this.productDialog = false;
+      this.product = {};
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3100,
+      });
+      return;
+    }
+  }
+
+  addToRecentImages(imageUrl: string): void {
+    // Keep only the 6 most recent images
+    this.recentProductImages = [imageUrl, ...this.recentProductImages].slice(0, 6);
+
+    // You might want to persist this to local storage
+    localStorage.setItem('recentProductImages', JSON.stringify(this.recentProductImages));
+  }
+
+  async updateProduct(id: any, product: any): Promise<any> {
+    console.log(product)
+    await this.productService.updateProduct(id, product)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.loadProductsForPicker();
+          return true;
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_updating_product'),
+            life: 3000
+          });
+          console.log(err);
+          return false;
+        },
+      })
+  }
+
+  async addProduct(data: any): Promise<any> {
+    console.log(data);
+    await this.productService.saveProduct(data)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.loadProductsForPicker();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_added'),
+            life: 3000
+          });
+          return true;
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_adding_product'),
+            life: 3000
+          });
+          console.log(err);
+          return false;
+        },
+      })
+  }
 
 }
-
-

@@ -61,6 +61,8 @@ export class OrdersTableComponent {
   @Output() deleteSelectedOrdersEvent = new EventEmitter<LazyLoadEvent>();
   @Output() selectedOrdersChange = new EventEmitter<Payment[]>();
   @Output() viewProductDetailsEvent = new EventEmitter<Product>();
+  @Output() exportPdfEvent = new EventEmitter<void>();
+  @Output() exportExcelEvent = new EventEmitter<void>();
 
   constructor() { }
 

@@ -36,7 +36,7 @@ export class PermissionService {
         if (rolePermissions) {
           // Initialize permissions if not already done
           if (!combinedPermissions[resource]) {
-            combinedPermissions[resource] = { create: false, read: false, update: false, delete: false, process: false, cash_read: false, history_read: false, products_read: false, issue: false, confirm: false, cancel: false };
+            combinedPermissions[resource] = { create: false, read: false, update: false, delete: false, process: false, cash_read: false, history_read: false, products_read: false, issue: false, confirm: false, cancel: false, archive: false };
           }
   
           combinedPermissions[resource].create ||= rolePermissions.create;
@@ -50,6 +50,7 @@ export class PermissionService {
           combinedPermissions[resource].issue ||= rolePermissions.issue;
           combinedPermissions[resource].confirm ||= rolePermissions.confirm;
           combinedPermissions[resource].cancel ||= rolePermissions.cancel;
+          combinedPermissions[resource].archive ||= rolePermissions.archive;
         }
       });
     });
@@ -105,5 +106,9 @@ export class PermissionService {
 
   canCancel(resource: string): boolean{
     return this.permissions[resource]?.cancel ?? false;
+  }
+
+  canArchive(resource: string): boolean{
+    return this.permissions[resource]?.archive ?? false;
   }
 }

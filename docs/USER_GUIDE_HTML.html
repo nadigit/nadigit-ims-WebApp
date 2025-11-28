@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nadigit IMS - User Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin: -20px -20px 30px -20px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .toc h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #495057;
+            text-decoration: none;
+            padding: 5px 10px;
+            display: block;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .toc a:hover {
+            background: #e9ecef;
+            color: #667eea;
+        }
+
+        .toc ul ul {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        section {
+            margin: 40px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        h3 {
+            color: #495057;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+
+        h4 {
+            color: #6c757d;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin: 15px 0;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .feature-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .step-box {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .tip-box {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+
+        .tip-box::before {
+            content: "💡 Tip: ";
+            font-weight: bold;
+        }
+
+        .warning-box {
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #dc3545;
+        }
+
+        .warning-box::before {
+            content: "⚠️ Warning: ";
+            font-weight: bold;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        .badge-admin {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-vendor {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-warehouse {
+            background: #17a2b8;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 50%;
+            text-decoration: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .back-to-top:hover {
+            background: #764ba2;
+        }
+
+        @media print {
+            .toc, .back-to-top {
+                display: none;
+            }
+            section {
+                page-break-inside: avoid;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+            .container {
+                padding: 10px;
+            }
+            section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Nadigit IMS</h1>
+            <p>Complete User Guide</p>
+        </header>
+
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#introduction">1. Introduction</a></li>
+                <li><a href="#getting-started">2. Getting Started</a></li>
+                <li><a href="#dashboard">3. Dashboard</a></li>
+                <li><a href="#inventory">4. Inventory Management</a>
+                    <ul>
+                        <li><a href="#products">4.1 Products</a></li>
+                        <li><a href="#categories">4.2 Categories</a></li>
+                        <li><a href="#suppliers">4.3 Suppliers</a></li>
+                        <li><a href="#customers">4.4 Customers</a></li>
+                        <li><a href="#warehouses">4.5 Warehouses</a></li>
+                        <li><a href="#shops">4.6 Shops</a></li>
+                        <li><a href="#purchases">4.7 Purchases</a></li>
+                    </ul>
+                </li>
+                <li><a href="#sales">5. Sales Management</a>
+                    <ul>
+                        <li><a href="#orders">5.1 Orders</a></li>
+                        <li><a href="#returns">5.2 Returns</a></li>
+                    </ul>
+                </li>
+                <li><a href="#finance">6. Finance Management</a>
+                    <ul>
+                        <li><a href="#payments">6.1 Payments</a></li>
+                        <li><a href="#expenses">6.2 Expenses</a></li>
+                        <li><a href="#refunds">6.3 Refunds</a></li>
+                        <li><a href="#financial-docs">6.4 Financial Documents</a></li>
+                    </ul>
+                </li>
+                <li><a href="#cash-register">7. Cash Register Management</a></li>
+                <li><a href="#administration">8. Administration</a>
+                    <ul>
+                        <li><a href="#users">8.1 Users</a></li>
+                        <li><a href="#settings">8.2 Settings</a></li>
+                    </ul>
+                </li>
+                <li><a href="#notifications">9. Notifications</a></li>
+                <li><a href="#profile">10. Profile Management</a></li>
+                <li><a href="#tips">11. Tips & Best Practices</a></li>
+            </ul>
+        </div>
+
+        <section id="introduction">
+            <h2>1. Introduction</h2>
+            <p><strong>Nadigit IMS</strong> (Inventory Management System) is a comprehensive business management solution designed to streamline your inventory, sales, finance, and administrative operations. This system provides real-time tracking, multi-shop and multi-warehouse support, role-based access control, and powerful reporting capabilities.</p>
+            
+            <div class="feature-box">
+                <h3>Key Features</h3>
+                <ul>
+                    <li><strong>Multi-shop and Multi-warehouse Support</strong>: Manage multiple locations from a single platform</li>
+                    <li><strong>Real-time Inventory Tracking</strong>: Monitor stock levels and receive alerts for low stock</li>
+                    <li><strong>Sales & Order Management</strong>: Complete order lifecycle from creation to delivery</li>
+                    <li><strong>Financial Management</strong>: Track payments, expenses, refunds, and generate financial documents</li>
+                    <li><strong>Cash Register Management</strong>: Manage cash register sessions, movements, and collections</li>
+                    <li><strong>Role-based Access Control</strong>: Secure access with ADMIN, VENDOR, WAREHOUSEMAN, ACCOUNTANT, and AUDITOR roles</li>
+                    <li><strong>Multi-language Support</strong>: Available in English, French, Spanish, and Arabic</li>
+                    <li><strong>Multi-currency Support</strong>: Handle transactions in different currencies</li>
+                    <li><strong>Barcode Scanning</strong>: Quick product lookup using barcode scanners</li>
+                    <li><strong>Advanced Reporting</strong>: Export data to Excel and PDF formats</li>
+                    <li><strong>Mobile-friendly Interface</strong>: Access your system from any device</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="getting-started">
+            <h2>2. Getting Started</h2>
+            
+            <h3>Logging In</h3>
+            <div class="step-box">
+                <ol>
+                    <li>Navigate to the login page</li>
+                    <li>Enter your username and password</li>
+                    <li>Click <strong>Login</strong> to access the system</li>
+                </ol>
+            </div>
+
+            <h3>Understanding Your Role</h3>
+            <p>Your access to features depends on your assigned role:</p>
+            <table>
+                <tr>
+                    <th>Role</th>
+                    <th>Access Level</th>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-admin">ADMIN</span></td>
+                    <td>Full system access to all features</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-vendor">VENDOR</span></td>
+                    <td>Access to sales, orders, customers, payments, and refunds</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-warehouse">WAREHOUSEMAN</span></td>
+                    <td>Access to inventory, products, suppliers, warehouses, and purchases</td>
+                </tr>
+                <tr>
+                    <td><span class="badge">ACCOUNTANT</span></td>
+                    <td>Read-only access to financial documents and reports</td>
+                </tr>
+                <tr>
+                    <td><span class="badge">AUDITOR</span></td>
+                    <td>Read-only access for auditing purposes</td>
+                </tr>
+            </table>
+
+            <h3>Navigation</h3>
+            <ul>
+                <li><strong>Sidebar Menu</strong>: Access all main modules from the left sidebar</li>
+                <li><strong>Top Bar</strong>: Access notifications, settings, and profile</li>
+                <li><strong>Dashboard</strong>: View key metrics and quick overview</li>
+            </ul>
+        </section>
+
+        <section id="dashboard">
+            <h2>3. Dashboard</h2>
+            <p>The dashboard provides a comprehensive overview of your business operations at a glance.</p>
+
+            <h3>Key Metrics</h3>
+            <ul>
+                <li><strong>Total Orders</strong>: Number of orders in the system</li>
+                <li><strong>Today's Revenue</strong>: Revenue generated today with comparison to yesterday</li>
+                <li><strong>Total Customers</strong>: Number of registered customers</li>
+                <li><strong>Total Products</strong>: Number of products in inventory</li>
+            </ul>
+
+            <h3>Charts & Analytics</h3>
+            <ul>
+                <li><strong>Revenue Trends</strong>: Visual representation of revenue over time</li>
+                <li><strong>Order Status Distribution</strong>: Pie chart showing order status breakdown</li>
+                <li><strong>Top Products</strong>: Best-selling products</li>
+                <li><strong>Recent Activity</strong>: Latest orders, purchases, and system events</li>
+            </ul>
+
+            <h3>Quick Actions</h3>
+            <ul>
+                <li>Refresh dashboard data</li>
+                <li>Navigate to specific modules</li>
+                <li>View detailed reports</li>
+            </ul>
+        </section>
+
+        <section id="inventory">
+            <h2>4. Inventory Management</h2>
+
+            <section id="products">
+                <h3>4.1 Products</h3>
+                <p>Products are the core of your inventory management system.</p>
+
+                <h4>Viewing Products</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Navigate to <strong>Inventory</strong> → <strong>Products</strong></li>
+                        <li>Use the search bar to find specific products</li>
+                        <li>Filter by category, warehouse, or stock status</li>
+                        <li>Click on a product to view detailed information</li>
+                    </ol>
+                </div>
+
+                <h4>Adding a New Product</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Click the <strong>New</strong> button in the products toolbar</li>
+                        <li>Fill in the product details:
+                            <ul>
+                                <li><strong>Name</strong>: Product name</li>
+                                <li><strong>Description</strong>: Product description</li>
+                                <li><strong>Category</strong>: Select from existing categories</li>
+                                <li><strong>SKU/Barcode</strong>: Unique product identifier</li>
+                                <li><strong>Price</strong>: Selling price</li>
+                                <li><strong>Cost</strong>: Purchase cost</li>
+                                <li><strong>Stock Quantity</strong>: Initial stock level</li>
+                                <li><strong>Warehouse</strong>: Select warehouse location</li>
+                                <li><strong>Images</strong>: Upload product images</li>
+                            </ul>
+                        </li>
+                        <li>Click <strong>Save</strong> to create the product</li>
+                    </ol>
+                </div>
+
+                <div class="tip-box">
+                    Use barcode scanners for quick product lookup when creating orders!
+                </div>
+            </section>
+
+            <section id="categories">
+                <h3>4.2 Categories</h3>
+                <p>Organize your products using categories for better management.</p>
+
+                <h4>Creating a Category</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Navigate to <strong>Inventory</strong> → <strong>Categories</strong></li>
+                        <li>Click <strong>New</strong></li>
+                        <li>Enter category name and description</li>
+                        <li>Optionally assign a parent category for hierarchical structure</li>
+                        <li>Click <strong>Save</strong></li>
+                    </ol>
+                </div>
+            </section>
+
+            <section id="suppliers">
+                <h3>4.3 Suppliers</h3>
+                <p>Manage your supplier relationships and track purchase history.</p>
+
+                <h4>Adding a Supplier</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Navigate to <strong>Inventory</strong> → <strong>Suppliers</strong></li>
+                        <li>Click <strong>New</strong></li>
+                        <li>Enter supplier information:
+                            <ul>
+                                <li>Company name</li>
+                                <li>Contact person</li>
+                                <li>Email and phone</li>
+                                <li>Address</li>
+                                <li>Payment terms</li>
+                            </ul>
+                        </li>
+                        <li>Click <strong>Save</strong></li>
+                    </ol>
+                </div>
+            </section>
+
+            <section id="customers">
+                <h3>4.4 Customers</h3>
+                <p>Manage your customer database and track purchase history.</p>
+
+                <h4>Adding a Customer</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Navigate to <strong>Inventory</strong> → <strong>Customers</strong></li>
+                        <li>Click <strong>New</strong></li>
+                        <li>Fill in customer details (name, email, phone, address)</li>
+                        <li>Click <strong>Save</strong></li>
+                    </ol>
+                </div>
+            </section>
+
+            <section id="warehouses">
+                <h3>4.5 Warehouses</h3>
+                <p>Manage multiple warehouse locations for inventory storage. <span class="badge badge-admin">Admin Only</span></p>
+            </section>
+
+            <section id="shops">
+                <h3>4.6 Shops</h3>
+                <p>Manage retail shop locations and their cash registers. <span class="badge badge-admin">Admin Only</span></p>
+            </section>
+
+            <section id="purchases">
+                <h3>4.7 Purchases</h3>
+                <p>Track purchases from suppliers and manage inventory intake.</p>
+
+                <h4>Creating a Purchase Order</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Navigate to <strong>Inventory</strong> → <strong>Purchases</strong></li>
+                        <li>Click <strong>New</strong></li>
+                        <li>Select supplier from the dropdown</li>
+                        <li>Add products to the purchase</li>
+                        <li>Review totals (including tax if applicable)</li>
+                        <li>Click <strong>Save</strong></li>
+                    </ol>
+                </div>
+            </section>
+        </section>
+
+        <section id="sales">
+            <h2>5. Sales Management</h2>
+
+            <section id="orders">
+                <h3>5.1 Orders</h3>
+                <p>Manage customer orders from creation to delivery and completion.</p>
+
+                <h4>Creating a New Order</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Navigate to <strong>Sales</strong> → <strong>Orders</strong></li>
+                        <li>Click <strong>New</strong></li>
+                        <li>Select customer (or create new customer)</li>
+                        <li>Select shop location</li>
+                        <li>Add products to the order</li>
+                        <li>Configure order settings (tax, discount, transport)</li>
+                        <li>Review order summary</li>
+                        <li>Click <strong>Save</strong> to create the order</li>
+                    </ol>
+                </div>
+
+                <h4>Order Statuses</h4>
+                <ul>
+                    <li><strong>Ordered</strong>: Order has been created</li>
+                    <li><strong>Processing</strong>: Order is being prepared</li>
+                    <li><strong>Delivered</strong>: Order has been delivered to customer</li>
+                    <li><strong>Completed</strong>: Order is fully completed</li>
+                    <li><strong>Return_Pending</strong>: Return request is pending</li>
+                    <li><strong>Returned</strong>: Order has been returned</li>
+                    <li><strong>Canceled</strong>: Order has been canceled</li>
+                </ul>
+            </section>
+
+            <section id="returns">
+                <h3>5.2 Returns</h3>
+                <p>Manage product returns and refunds.</p>
+
+                <h4>Processing a Return</h4>
+                <div class="step-box">
+                    <ol>
+                        <li>Navigate to <strong>Sales</strong> → <strong>Returns</strong></li>
+                        <li>Click <strong>New</strong> or select an existing return request</li>
+                        <li>Select the original order</li>
+                        <li>Choose items to return</li>
+                        <li>Enter return details (reason, notes, date)</li>
+                        <li>Review refund amount (if applicable)</li>
+                        <li>Click <strong>Save</strong> to process</li>
+                    </ol>
+                </div>
+            </section>
+        </section>
+
+        <section id="finance">
+            <h2>6. Finance Management</h2>
+
+            <section id="payments">
+                <h3>6.1 Payments</h3>
+                <p>Track and manage customer payments for orders.</p>
+            </section>
+
+            <section id="expenses">
+                <h3>6.2 Expenses</h3>
+                <p>Track business expenses and costs.</p>
+            </section>
+
+            <section id="refunds">
+                <h3>6.3 Refunds</h3>
+                <p>Manage refunds for returned products.</p>
+            </section>
+
+            <section id="financial-docs">
+                <h3>6.4 Financial Documents</h3>
+                <p>View and manage financial documents. <span class="badge">Accountants & Auditors</span></p>
+            </section>
+        </section>
+
+        <section id="cash-register">
+            <h2>7. Cash Register Management</h2>
+            <p>Manage cash register sessions, movements, and collections for retail shops.</p>
+
+            <h3>Opening a Cash Register Session</h3>
+            <div class="step-box">
+                <ol>
+                    <li>Navigate to <strong>Inventory</strong> → <strong>Shops</strong></li>
+                    <li>Select a shop</li>
+                    <li>Click <strong>Cash Register Details</strong></li>
+                    <li>Click <strong>Open Session</strong></li>
+                    <li>Enter opening cash amount and notes</li>
+                    <li>Click <strong>Open</strong> to start the session</li>
+                </ol>
+            </div>
+
+            <h3>Closing a Cash Register Session</h3>
+            <div class="step-box">
+                <ol>
+                    <li>Open the cash register details</li>
+                    <li>Find the active session</li>
+                    <li>Click <strong>Close Session</strong></li>
+                    <li>Enter closing amount and any discrepancies</li>
+                    <li>Click <strong>Close</strong> to end the session</li>
+                </ol>
+            </div>
+        </section>
+
+        <section id="administration">
+            <h2>8. Administration</h2>
+            <p class="badge badge-admin">Admin Only</p>
+
+            <section id="users">
+                <h3>8.1 Users</h3>
+                <p>Manage system users and their roles.</p>
+            </section>
+
+            <section id="settings">
+                <h3>8.2 Settings</h3>
+                <p>Configure system-wide settings.</p>
+
+                <h4>Available Settings</h4>
+                <ul>
+                    <li><strong>Low Stock Threshold</strong>: Minimum quantity before low stock alert</li>
+                    <li><strong>Currency</strong>: System default currency</li>
+                    <li><strong>Tax Rate</strong>: Default tax percentage</li>
+                    <li><strong>Cash Register Default Opening Balance</strong>: Default opening amount</li>
+                    <li><strong>Auto Order Complete</strong>: Automatically mark orders as complete</li>
+                    <li><strong>Return Window</strong>: Number of days allowed for returns</li>
+                    <li><strong>Refund Window</strong>: Number of days allowed for refunds</li>
+                    <li><strong>Timezone</strong>: System timezone</li>
+                </ul>
+            </section>
+        </section>
+
+        <section id="notifications">
+            <h2>9. Notifications</h2>
+            <p>Stay informed about important system events and alerts.</p>
+
+            <h3>Accessing Notifications</h3>
+            <div class="step-box">
+                <ol>
+                    <li>Click the <strong>bell icon</strong> in the top bar</li>
+                    <li>View notification sidebar</li>
+                </ol>
+            </div>
+
+            <h3>Notification Types</h3>
+            <ul>
+                <li><strong>Priority Alerts</strong>: Critical notifications requiring attention</li>
+                <li><strong>Today's Notifications</strong>: Recent notifications from today</li>
+                <li><strong>Older Notifications</strong>: Historical notifications</li>
+            </ul>
+
+            <div class="tip-box">
+                Non-admin users see only stock-related notifications (low stock and out of stock alerts).
+            </div>
+        </section>
+
+        <section id="profile">
+            <h2>10. Profile Management</h2>
+            <p>Manage your user profile and account settings.</p>
+
+            <h3>Accessing Profile</h3>
+            <div class="step-box">
+                <ol>
+                    <li>Click your <strong>profile icon</strong> in the top bar</li>
+                    <li>Select <strong>Profile</strong> from the menu</li>
+                </ol>
+            </div>
+        </section>
+
+        <section id="tips">
+            <h2>11. Tips & Best Practices</h2>
+
+            <h3>Inventory Management</h3>
+            <ul>
+                <li>Regular stock checks to verify physical stock against system records</li>
+                <li>Set appropriate thresholds based on sales velocity</li>
+                <li>Use categories to organize products</li>
+                <li>Maintain up-to-date supplier information</li>
+                <li>Track purchase costs for accurate profit analysis</li>
+            </ul>
+
+            <h3>Sales Management</h3>
+            <ul>
+                <li>Update order status promptly as orders progress</li>
+                <li>Record payments immediately</li>
+                <li>Process returns within the configured return window</li>
+                <li>Use order notes for customer communication</li>
+                <li>Generate invoices promptly after order completion</li>
+            </ul>
+
+            <h3>Cash Register</h3>
+            <ul>
+                <li>Open and close cash register sessions daily</li>
+                <li>Count cash carefully when opening and closing</li>
+                <li>Document any discrepancies with notes</li>
+                <li>Schedule regular cash collections for security</li>
+            </ul>
+
+            <h3>Security</h3>
+            <ul>
+                <li>Use strong, unique passwords</li>
+                <li>Assign appropriate roles to users</li>
+                <li>Review user access and activity regularly</li>
+                <li>Always log out when finished</li>
+            </ul>
+        </section>
+
+        <footer style="margin-top: 50px; padding: 20px; text-align: center; border-top: 2px solid #e9ecef; color: #6c757d;">
+            <p><strong>© 2024-2025 Nadigit. All rights reserved.</strong></p>
+            <p>This user guide is updated regularly. Check for the latest version in your system documentation.</p>
+        </footer>
+    </div>
+
+    <a href="#" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">↑</a>
+
+    <script>
+        // Show/hide back to top button
+        window.addEventListener('scroll', function() {
+            const backToTop = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                backToTop.style.display = 'block';
+            } else {
+                backToTop.style.display = 'none';
+            }
+        });
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

@@ -20,6 +20,7 @@
                         "outputPath": "dist/ims-webapp",
                         "index": "src/index.html",
                         "main": "src/main.ts",
+                        "baseHref": "/webconsole/",
                         "polyfills": [
                             "zone.js"
                         ],
@@ -63,6 +64,9 @@
                 },
                 "serve": {
                     "builder": "@angular-devkit/build-angular:dev-server",
+                    "options": {
+                        "servePath": "/webconsole/"
+                    },
                     "configurations": {
                         "production": {
                             "buildTarget": "ims-webapp:build:production"

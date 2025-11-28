@@ -48,13 +48,14 @@ export class SettingsComponent implements OnInit {
   configs: AppConfiguration[] = [];
   appConfigCurrency: any = null;
   taxPercentage: number;
+
+  autoOrderCompleteChecked: boolean = false;
+  timezones: any[] = Intl.supportedValuesOf('timeZone').map(tz => ({ label: tz, value: tz }));
   isLoading: boolean = true;
   selectedLogo: File | null = null;
   selectedLogoUrl: string | null = null;
   logoImageUrl: string | undefined; // Declare the logoImageUrl property
   imageLoading: boolean = true;
-  autoOrderCompleteChecked: boolean = false;
-  timezones: any[] = Intl.supportedValuesOf('timeZone').map(tz => ({ label: tz, value: tz }));
   imagePreviewUrl: string | null = null;
   isImageLoading: boolean = false;
   isDragOver: boolean = false;
@@ -68,6 +69,7 @@ export class SettingsComponent implements OnInit {
   availableLocales: any[] = [];
 
   costingMethods: any[] = [];
+  autoOrderOptions: any[] = [];
 
   constructor(
     private messageService: MessageService,
@@ -75,7 +77,8 @@ export class SettingsComponent implements OnInit {
     private appConfigService: AppConfigurationService,
     private translate: TranslateService,
     private locationService: LocationService,
-    private translateService: TranslationService,) {
+    private translateService: TranslationService,
+  ) {
 
     this.organizationSteps = [
       {
@@ -143,6 +146,12 @@ export class SettingsComponent implements OnInit {
       { label: 'الْعَرَبِيَّةُ', value: 'ar' },
       { label: 'Français', value: 'fr' },
       { label: 'Español', value: 'es' }
+    ];
+
+    // Options for auto order completion (enabled / disabled)
+    this.autoOrderOptions = [
+      { label: this.translate.instant('enabled'), value: 'active' },
+      { label: this.translate.instant('disabled'), value: 'inactive' }
     ];
 
   }

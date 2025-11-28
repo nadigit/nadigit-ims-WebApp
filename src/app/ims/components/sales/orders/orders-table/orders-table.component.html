@@ -13,7 +13,7 @@
     <p-tag *ngIf="canAddOrder" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
     <p-tag *ngIf="canEditOrder" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
     <p-tag *ngIf="canDeleteOrder" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
-    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
+    <!-- <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag> -->
     <p-tag *ngIf="canProcessOrder" value="{{'process' | translate}}" icon="pi pi-cog" severity="help"></p-tag>
   </div>
 </div>
@@ -105,8 +105,8 @@
 
   <ng-template pTemplate="right">
     <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF" tooltipPosition="bottom"
-      (click)="exportPdf()"></button>
-    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success mr-2" pTooltip="XLS"
+      (click)="exportPdfEvent.emit()"></button>
+    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcelEvent.emit()" class="p-button-success mr-2" pTooltip="XLS"
       tooltipPosition="bottom"></button>
   </ng-template>
 </p-toolbar>
@@ -114,8 +114,8 @@
 
 
 <p-table #dt [value]="orders" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
-  [paginator]="true" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords"
-  [rowsPerPageOptions]="[10,20,50]" [loading]="isLoading"
+  [paginator]="true" [rowsPerPageOptions]="[10,20,50]" 
+  [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords" [loading]="isLoading"
   [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"
   currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
   [(selection)]="selectedOrders" selectionMode="multiple" [rowHover]="true" dataKey="orderId"
@@ -142,7 +142,7 @@
       <th pSortableColumn="reference">{{ 'order_reference' | translate }} <p-sortIcon field="reference"></p-sortIcon>
       </th>
       <th pSortableColumn="orderDate">{{ 'order_date' | translate }}
-        <p-columnFilter type="date" field="orderDate" display="menu" />
+        <p-columnFilter type="date" field="orderDate" matchMode="equals" display="menu" />
         <p-sortIcon field="orderDate"></p-sortIcon>
       </th>
       <th style="min-width: 12rem">
@@ -150,8 +150,9 @@
           {{ 'order_status' | translate }}
           <p-columnFilter field="orderStatus" matchMode="equals" display="menu">
             <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-              <p-dropdown [ngModel]="value" [options]="statuses" (onChange)="filter($event.value)"
-                placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
+              <p-dropdown [(ngModel)]="value" [options]="statuses" optionLabel="label" optionValue="value"
+                (onChange)="filter($event.value)" (onClear)="filter(null)" appendTo="body"
+                [showClear]="true" placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
                 <ng-template let-option pTemplate="item">
                   <span [class]="'order-badge order-' + option.label.toLowerCase()">
                     {{'order_status_'+option.label.toLowerCase() | translate}}</span>
@@ -172,8 +173,9 @@
           {{ 'order_payment_status' | translate }}
           <p-columnFilter field="paymentStatus" matchMode="equals" display="menu">
             <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-              <p-dropdown [ngModel]="value" [options]="paymentStatuses" (onChange)="filter($event.value)"
-                placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
+              <p-dropdown [(ngModel)]="value" [options]="paymentStatuses" optionLabel="label" optionValue="value"
+                (onChange)="filter($event.value)" (onClear)="filter(null)" appendTo="body"
+                [showClear]="true" placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
                 <ng-template let-option pTemplate="item">
                   <span [class]="'payment-badge payment-' + option.label.toLowerCase()">
                     {{'order_payment_status_'+option.label.toLowerCase() |
@@ -190,9 +192,9 @@
         <p-sortIcon field="customer"></p-sortIcon>
         <p-columnFilter field="customerId" matchMode="equals" display="menu">
           <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-            <p-dropdown [ngModel]="value" [options]="customers" (onChange)="filter($event.value)"
-              placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}"
-              [optionLabel]="getCustomerDisplayName">
+            <p-dropdown [(ngModel)]="value" [options]="customers" (onChange)="filter($event.value)"
+              (onClear)="filter(null)" appendTo="body" [showClear]="true"
+              placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
               <ng-template let-option pTemplate="item">
                 <!-- Display the appropriate name based on customer type -->
                 <span>{{ getCustomerDisplayName(option) }}</span>
@@ -209,8 +211,9 @@
         <p-sortIcon field="shop"></p-sortIcon>
         <p-columnFilter field="shopName" matchMode="equals" display="menu">
           <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-            <p-dropdown [ngModel]="value" [options]="shops" (onChange)="filter($event.value)"
-              placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}" optionLabel="shopName">
+            <p-dropdown [(ngModel)]="value" [options]="shops" optionLabel="shopName" optionValue="shopName"
+              (onChange)="filter($event.value)" (onClear)="filter(null)" appendTo="body"
+              [showClear]="true" placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
               <ng-template let-option pTemplate="item">
                 <span>{{ option.shopName}}</span>
               </ng-template>

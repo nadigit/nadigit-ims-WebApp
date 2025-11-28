@@ -11,6 +11,7 @@ import { TranslationService } from '../services/translation.service';
 import { Router } from '@angular/router';
 import { TieredMenu } from 'primeng/tieredmenu';
 import { MessageService } from 'primeng/api';
+import { AppConfigurationService } from '../services/app-configuration.service';
 
 
 @Component({
@@ -53,6 +54,14 @@ export class AppTopBarComponent implements OnInit {
   hasMoreNotifications = true;
   selectedNotification: any = null;
   notificationDialogVisible = false;
+  searchTerm: string = '';
+  filteredRecentNotifications: Notification[] = [];
+  filteredOlderNotifications: Notification[] = [];
+  filteredPriorityNotifications: Notification[] = [];
+  currency: string = '';
+
+  // Permissions
+  isAdminUser: boolean = false;
 
   @ViewChild('menubutton') menuButton!: ElementRef;
 
@@ -67,6 +76,7 @@ export class AppTopBarComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private confirmationService: ConfirmationService,
+    private configService: AppConfigurationService,
     private router: Router) {
 
   }
@@ -77,8 +87,19 @@ export class AppTopBarComponent implements OnInit {
     this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => {
       this.setupMenu(translations);
     });
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+        console.log('Currency:', currency);
+      }
+    });
     this.profile = await this.keycloakService.loadUserProfile();
     console.log(this.profile)
+
+    // Determine if current user is admin (can see all notifications)
+    const roles = this.keycloakService.getUserRoles?.() || [];
+    this.isAdminUser = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN');
+    console.log('Topbar user roles:', roles, 'isAdminUser:', this.isAdminUser);
     // this.items = [
     //     {
     //         label: 'Settings',
@@ -93,6 +114,10 @@ export class AppTopBarComponent implements OnInit {
     // ];
     this.loadRecentNotifications();
     this.loadNotificationSummary();
+    // Initialize filtered arrays
+    this.filteredRecentNotifications = [];
+    this.filteredOlderNotifications = [];
+    this.filteredPriorityNotifications = [];
   }
 
   setupMenu(translations: any) {
@@ -120,6 +145,13 @@ export class AppTopBarComponent implements OnInit {
   showNotifications() {
     this.notificationVisible = true;
     this.loadNotificationSummary();
+    this.filterNotifications(); // Apply filters when opening
+
+    // If there is nothing to show yet but more pages are available,
+    // automatically load older notifications to avoid an empty sidebar.
+    if (!this.hasFilteredNotifications && this.hasMoreNotifications) {
+      this.loadMoreNotifications();
+    }
   }
 
   onNotificationsHide() {
@@ -183,10 +215,88 @@ export class AppTopBarComponent implements OnInit {
   }
 
   applyFilters() {
-    // Implement filtering logic based on activeFilter
-    // This would filter your recentNotifications and olderNotifications arrays
-    // For now, we'll just reload all notifications
-    this.loadRecentNotifications();
+    this.filterNotifications();
+  }
+
+  filterNotifications() {
+    // Base collections
+    let allRecent = [...this.recentNotifications];
+    let allOlder = [...this.olderNotifications];
+
+    // Non-admin users: restrict to stock-related notifications only
+    if (!this.isAdminUser) {
+      const stockTitles = ['product in low stock', 'product is out of stock'];
+      allRecent = allRecent.filter(n => stockTitles.includes(n.title));
+      allOlder = allOlder.filter(n => stockTitles.includes(n.title));
+    }
+
+    // Update priority notifications first
+    const allPriority = [...allRecent, ...allOlder]
+      .filter(n => n.priority === 'high')
+      .sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime());
+
+    let filteredRecent = [...allRecent];
+    let filteredOlder = [...allOlder];
+    let filteredPriority = [...allPriority];
+
+    // Apply active filter
+    if (this.activeFilter !== 'all') {
+      filteredRecent = filteredRecent.filter(n => this.matchesFilter(n, this.activeFilter));
+      filteredOlder = filteredOlder.filter(n => this.matchesFilter(n, this.activeFilter));
+      filteredPriority = filteredPriority.filter(n => this.matchesFilter(n, this.activeFilter));
+    }
+
+    // Apply search term
+    if (this.searchTerm && this.searchTerm.trim()) {
+      const searchLower = this.searchTerm.toLowerCase().trim();
+      filteredRecent = filteredRecent.filter(n => 
+        this.getNotificationMessage(n).toLowerCase().includes(searchLower) ||
+        this.getNotificationTitle(n).toLowerCase().includes(searchLower) ||
+        (n.message && n.message.toLowerCase().includes(searchLower))
+      );
+      filteredOlder = filteredOlder.filter(n => 
+        this.getNotificationMessage(n).toLowerCase().includes(searchLower) ||
+        this.getNotificationTitle(n).toLowerCase().includes(searchLower) ||
+        (n.message && n.message.toLowerCase().includes(searchLower))
+      );
+      filteredPriority = filteredPriority.filter(n => 
+        this.getNotificationMessage(n).toLowerCase().includes(searchLower) ||
+        this.getNotificationTitle(n).toLowerCase().includes(searchLower) ||
+        (n.message && n.message.toLowerCase().includes(searchLower))
+      );
+    }
+
+    this.filteredRecentNotifications = filteredRecent;
+    this.filteredOlderNotifications = filteredOlder;
+    this.filteredPriorityNotifications = filteredPriority;
+  }
+
+  matchesFilter(notification: any, filterType: string): boolean {
+    switch (filterType) {
+      case 'unread':
+        return !notification.read;
+      case 'priority':
+        return notification.priority === 'high';
+      case 'system':
+        return notification.type === 'system';
+      case 'inventory':
+        return notification.type === 'inventory' || notification.category === 'inventory';
+      case 'orders':
+        return notification.type === 'order' || notification.category === 'orders';
+      case 'financial':
+        return notification.type === 'financial' || notification.category === 'financial';
+      default:
+        return true;
+    }
+  }
+
+  onSearchChange() {
+    this.filterNotifications();
+  }
+
+  clearSearch() {
+    this.searchTerm = '';
+    this.filterNotifications();
   }
 
   getNotificationBadgeClass(): string {
@@ -234,9 +344,11 @@ export class AppTopBarComponent implements OnInit {
     const titleMap: { [key: string]: string } = {
       'product in low stock': 'low_stock_alert',
       'product is out of stock': 'out_of_stock_alert',
-      'new order': 'new_order_received',
+      'order created': 'new_order_received',
       'payment received': 'payment_received',
       'purchase created': 'purchase_created',
+      'session opened': 'session_opened',
+      'session closed': 'session_closed',
       'system update': 'system_update',
       'inventory audit': 'inventory_audit'
     };
@@ -244,10 +356,32 @@ export class AppTopBarComponent implements OnInit {
     return titleMap[notification.title] || notification.title;
   }
 
+  getNotificationCategoryKey(notification: any): string {
+    if (!notification?.category) {
+      return '';
+    }
+    const raw = String(notification.category).toLowerCase();
+
+    const map: { [key: string]: string } = {
+      'inventory': 'inventory',
+      'orders': 'orders',
+      'order': 'orders',
+      'financial': 'financial',
+      'finance': 'financial',
+      'system': 'system',
+      'session': 'sessions',
+      'sessions': 'sessions',
+      'cash': 'financial',
+      'cash_register': 'financial'
+    };
+
+    return map[raw] || raw;
+  }
+
   getNotificationMessage(notification: any): string {
     // Handle product stock notifications
     if (['product in low stock', 'product is out of stock'].includes(notification.title)) {
-      const productName = notification.message.match(/\(([^)]+)\)/)?.[1];
+      const productName = notification.message?.match(/\(([^)]+)\)/)?.[1];
       return this.translate.instant(
         notification.title === 'product in low stock' ?
           'product_x_is_running_low' :
@@ -257,15 +391,89 @@ export class AppTopBarComponent implements OnInit {
     }
 
     // Handle purchase created notification
-    if (notification.title === 'purchase_created') {
-      // Extract dynamic fields from backend message
-      const regex = /Purchase (.+) created successfully\. Amount: \$([\d.]+), Items: (\d+), Supplier: (.+)/;
-      const matches = notification.message.match(regex);
+    if (notification.title === 'purchase created') {
+      // Extract dynamic fields from backend message.
+      // We are lenient on currency so we can re-render it using the configured system currency.
+      const regex = /Purchase\s+(.+)\s+created successfully\. Amount:\s*([^\s,]+)[^,]*,\s*Items:\s*(\d+),\s*Supplier:\s*(.+)/i;
+      const matches = notification.message?.match(regex);
       if (matches) {
-        const [_, reference, amount, itemCount, supplier] = matches;
+        const [_, reference, rawAmount, itemCount, supplier] = matches;
+        const amount = rawAmount.replace(/[^0-9.,-]/g, '');
         return this.translate.instant(
           'purchase_x_created_successfully',
-          { reference, amount, itemCount, supplier }
+          {
+            reference,
+            amount,
+            itemCount,
+            supplier,
+            currency: this.currency
+          }
+        );
+      }
+    }
+
+    // Handle new order notification (sales order)
+    if (notification.title === 'order created') {
+      // Example backend message (for reference):
+      // "Order SO-001 created successfully. Amount: 1500, Items: 5, Customer: ACME Corp"
+      const regex = /Order\s+(.+)\s+created successfully\. Amount:\s*([^\s,]+)[^,]*,\s*Items:\s*(\d+),\s*Customer:\s*(.+)/i;
+      const matches = notification.message?.match(regex);
+      if (matches) {
+        const [_, reference, rawAmount, itemCount, customer] = matches;
+        const amount = rawAmount.replace(/[^0-9.,-]/g, '');
+        return this.translate.instant(
+          'order_x_created_successfully',
+          {
+            reference,
+            amount,
+            itemCount,
+            customer,
+            currency: this.currency
+          }
+        );
+      }
+    }
+
+    // Handle cash register session opened notification
+    if (notification.title === 'session opened') {
+      // Example backend message:
+      // "Session 1 opened at 25-11-2025 21:25:00 by admin. Opening amount: $200.00"
+      const regex = /Session\s+(\d+)\s+opened at\s+(.+?)\s+by\s+(.+?)\. Opening amount:\s*([^\s,]+)[^,]*/i;
+      const matches = notification.message?.match(regex);
+      if (matches) {
+        const [_, sessionNumber, dateTime, user, rawAmount] = matches;
+        const amount = rawAmount.replace(/[^0-9.,-]/g, '');
+        return this.translate.instant(
+          'session_x_opened_message',
+          {
+            sessionNumber,
+            dateTime,
+            user,
+            amount,
+            currency: this.currency
+          }
+        );
+      }
+    }
+
+    // Handle cash register session closed notification
+    if (notification.title === 'session closed') {
+      // Example backend message (hypothetical):
+      // "Session 1 closed at 25-11-2025 22:15:00 by admin. Closing amount: $220.00"
+      const regex = /Session\s+(\d+)\s+closed at\s+(.+?)\s+by\s+(.+?)\. Closing amount:\s*([^\s,]+)[^,]*/i;
+      const matches = notification.message?.match(regex);
+      if (matches) {
+        const [_, sessionNumber, dateTime, user, rawAmount] = matches;
+        const amount = rawAmount.replace(/[^0-9.,-]/g, '');
+        return this.translate.instant(
+          'session_x_closed_message',
+          {
+            sessionNumber,
+            dateTime,
+            user,
+            amount,
+            currency: this.currency
+          }
         );
       }
     }
@@ -358,6 +566,7 @@ export class AppTopBarComponent implements OnInit {
         this.olderNotifications.forEach(n => n.read = true);
         this.totalUnreadCount = 0;
         this.updateAllFilterCounts();
+        this.filterNotifications(); // Refresh filtered arrays
         this.notificationService.showSuccess('all_notifications_marked_as_read');
       },
       (error: any) => {
@@ -376,10 +585,12 @@ export class AppTopBarComponent implements OnInit {
 
   executeNotificationAction(notification: any) {
     const actionMap: { [key: string]: () => void } = {
-      'product in low stock': () => this.router.navigate(['/pages/products']),
-      'product is out of stock': () => this.router.navigate(['/pages/products']),
-      'new order': () => this.router.navigate(['/pages/orders']),
-      'payment received': () => this.router.navigate(['/pages/payments']),
+      'product in low stock': () => this.router.navigate(['/inventory/products']),
+      'product is out of stock': () => this.router.navigate(['/inventory/products']),
+      'new order': () => this.router.navigate(['/sales/orders']),
+      'payment received': () => this.router.navigate(['/finance/sales-payments']),
+      'purchase created': () => this.router.navigate(['/inventory/purchases']),
+      'inventory audit': () => this.router.navigate(['/inventory/warehouses']),
     };
 
     const action = actionMap[notification.title];
@@ -474,6 +685,9 @@ export class AppTopBarComponent implements OnInit {
             this.updateFilterCountsAfterRead();
           }
 
+          // Refresh filtered arrays
+          this.filterNotifications();
+
           this.notificationService.showSuccess(this.translate.instant('notification_deleted_successfully'));
         },
         (error: any) => {
@@ -501,6 +715,12 @@ export class AppTopBarComponent implements OnInit {
     return this.recentNotifications.length > 0 || this.olderNotifications.length > 0;
   }
 
+  get hasFilteredNotifications(): boolean {
+    return this.filteredPriorityNotifications.length > 0 || 
+           this.filteredRecentNotifications.length > 0 || 
+           this.filteredOlderNotifications.length > 0;
+  }
+
   openNotificationSettings() {
     // Implement notification settings dialog
     console.log('Open notification settings');
@@ -508,7 +728,7 @@ export class AppTopBarComponent implements OnInit {
 
 
   logOut() {
-    this.keycloakService.logout(window.location.origin)
+    this.keycloakService.logout(window.location.origin + '/webconsole')
   }
 
   loadRecentNotifications() {
@@ -538,9 +758,12 @@ export class AppTopBarComponent implements OnInit {
           this.loadMoreVisible = false;
         }
 
-        // Update unread count
-        this.totalUnreadCount = this.recentNotifications.filter(n => !n.read).length +
-          this.olderNotifications.filter(n => !n.read).length;
+        // Apply role-based and UI filters after loading
+        this.filterNotifications();
+
+        // Update unread count using filtered lists so non-admins see their own counts
+        this.totalUnreadCount = this.filteredRecentNotifications.filter(n => !n.read).length +
+          this.filteredOlderNotifications.filter(n => !n.read).length;
 
         console.log('Recent notifications loaded:', data);
       },
@@ -572,9 +795,12 @@ export class AppTopBarComponent implements OnInit {
         this.notificationsPage++;
         this.loadingMore = false;
 
-        // Update unread count
-        this.totalUnreadCount = this.recentNotifications.filter(n => !n.read).length +
-          this.olderNotifications.filter(n => !n.read).length;
+        // Apply role-based and UI filters after loading more
+        this.filterNotifications();
+
+        // Update unread count using filtered lists
+        this.totalUnreadCount = this.filteredRecentNotifications.filter(n => !n.read).length +
+          this.filteredOlderNotifications.filter(n => !n.read).length;
       },
       (error: any) => {
         console.error('Error loading more notifications:', error);
@@ -588,6 +814,9 @@ export class AppTopBarComponent implements OnInit {
       () => {
         this.recentNotifications = [];
         this.olderNotifications = [];
+        this.filteredRecentNotifications = [];
+        this.filteredOlderNotifications = [];
+        this.filteredPriorityNotifications = [];
         this.totalUnreadCount = 0;
         this.updateAllFilterCounts();
         this.notificationService.showSuccess('all_notifications_cleared');

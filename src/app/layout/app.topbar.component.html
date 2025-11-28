@@ -63,6 +63,22 @@
             </div>
         </div>
 
+        <!-- Search Bar -->
+        <div class="notification-search px-4 py-3 border-bottom-1 surface-border">
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-search"></i>
+                <input pInputText type="text" [(ngModel)]="searchTerm" 
+                    (ngModelChange)="onSearchChange()"
+                    [placeholder]="'search_notifications' | translate" 
+                    class="w-full" />
+                <button *ngIf="searchTerm" pButton pRipple icon="pi pi-times" 
+                    class="p-button-text p-button-sm p-button-rounded"
+                    (click)="clearSearch()"
+                    style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);">
+                </button>
+            </span>
+        </div>
+
         <!-- Notification Filters -->
         <div class="notification-filters px-4 py-3 border-bottom-1 surface-border">
             <div class="flex flex-wrap gap-2">
@@ -78,13 +94,15 @@
         <!-- Notification Content -->
         <div class="notification-content flex-1 overflow-auto">
             <!-- Priority Notifications -->
-            <div *ngIf="hasPriorityNotifications" class="priority-section">
+            <div *ngIf="filteredPriorityNotifications.length > 0" class="priority-section">
                 <div class="section-header px-4 py-3 surface-100">
                     <i class="pi pi-exclamation-triangle mr-2 text-red-500"></i>
                     <span class="font-semibold text-900">{{ 'priority_alerts' | translate }}</span>
+                    <p-tag [value]="filteredPriorityNotifications.length.toString()" severity="danger" 
+                        styleClass="ml-2"></p-tag>
                 </div>
                 <div class="notification-list">
-                    <div *ngFor="let notification of priorityNotifications"
+                    <div *ngFor="let notification of filteredPriorityNotifications"
                         class="notification-item priority p-3 border-bottom-1 surface-border"
                         [class.unread]="!notification.read" (click)="handleNotificationClick(notification)">
                         <div class="flex align-items-start gap-3">
@@ -107,11 +125,13 @@
                                         {{ getRelativeTime(notification.creationDate) | translate}}
                                     </span>
                                     <div class="flex gap-1">
-                                        <button *ngIf="hasAction(notification)" pButton icon="pi pi-play"
-                                            class="p-button-text p-button-sm"
+                                        <button *ngIf="hasAction(notification)" pButton icon="pi pi-arrow-right"
+                                            class="p-button-text p-button-sm p-button-rounded"
+                                            [pTooltip]="'go_to_action' | translate"
                                             (click)="executeNotificationAction(notification); $event.stopPropagation()">
                                         </button>
-                                        <button pButton icon="pi pi-ellipsis-v" class="p-button-text p-button-sm"
+                                        <button pButton icon="pi pi-ellipsis-v" class="p-button-text p-button-sm p-button-rounded"
+                                            [pTooltip]="'more_options' | translate"
                                             (click)="showNotificationMenu(notification, $event); $event.stopPropagation()">
                                         </button>
                                     </div>
@@ -123,13 +143,15 @@
             </div>
 
             <!-- Today's Notifications -->
-            <div *ngIf="recentNotifications.length > 0" class="recent-section">
+            <div *ngIf="filteredRecentNotifications.length > 0" class="recent-section">
                 <div class="section-header px-4 py-3 surface-100">
                     <i class="pi pi-bell mr-2 text-primary"></i>
                     <span class="font-semibold text-900">{{ 'today' | translate }}</span>
+                    <p-tag [value]="filteredRecentNotifications.length.toString()" severity="info" 
+                        styleClass="ml-2"></p-tag>
                 </div>
                 <div class="notification-list">
-                    <div *ngFor="let notification of recentNotifications"
+                    <div *ngFor="let notification of filteredRecentNotifications"
                         class="notification-item p-3 border-bottom-1 surface-border" [class.unread]="!notification.read"
                         (click)="handleNotificationClick(notification)">
                         <div class="flex align-items-start gap-3">
@@ -138,10 +160,14 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex align-items-center justify-content-between mb-1">
-                                    <span class="font-semibold text-900">{{ getNotificationTitle(notification) |
-                                        translate }}</span>
-                                    <p-tag *ngIf="notification.category" [value]="notification.category | translate"
-                                        styleClass="text-xs"></p-tag>
+                                    <span class="font-semibold text-900">
+                                        {{ getNotificationTitle(notification) | translate }}
+                                    </span>
+                                    <p-tag
+                                        *ngIf="notification.category"
+                                        [value]="getNotificationCategoryKey(notification) | translate"
+                                        styleClass="text-xs">
+                                    </p-tag>
                                 </div>
                                 <p class="text-700 m-0 mb-2 line-height-3">{{ getNotificationMessage(notification) }}
                                 </p>
@@ -161,13 +187,15 @@
             </div>
 
             <!-- Older Notifications -->
-            <div *ngIf="olderNotifications.length > 0" class="older-section">
+            <div *ngIf="filteredOlderNotifications.length > 0" class="older-section">
                 <div class="section-header px-4 py-3 surface-100">
                     <i class="pi pi-history mr-2 text-600"></i>
                     <span class="font-semibold text-900">{{ 'older' | translate }}</span>
+                    <p-tag [value]="filteredOlderNotifications.length.toString()" severity="secondary" 
+                        styleClass="ml-2"></p-tag>
                 </div>
                 <div class="notification-list">
-                    <div *ngFor="let notification of olderNotifications"
+                    <div *ngFor="let notification of filteredOlderNotifications"
                         class="notification-item p-3 border-bottom-1 surface-border" [class.unread]="!notification.read"
                         (click)="handleNotificationClick(notification)">
                         <div class="flex align-items-start gap-3">
@@ -176,10 +204,14 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex align-items-center justify-content-between mb-1">
-                                    <span class="font-semibold text-900">{{ getNotificationTitle(notification) |
-                                        translate }}</span>
-                                    <p-tag *ngIf="notification.category" [value]="notification.category"
-                                        styleClass="text-xs"></p-tag>
+                                    <span class="font-semibold text-900">
+                                        {{ getNotificationTitle(notification) | translate }}
+                                    </span>
+                                    <p-tag
+                                        *ngIf="notification.category"
+                                        [value]="getNotificationCategoryKey(notification) | translate"
+                                        styleClass="text-xs">
+                                    </p-tag>
                                 </div>
                                 <p class="text-700 m-0 mb-2 line-height-3">{{ getNotificationMessage(notification) }}
                                 </p>
@@ -199,13 +231,23 @@
             </div>
 
             <!-- Empty State -->
-            <div *ngIf="!hasNotifications" class="empty-state text-center py-8">
-                <i class="pi pi-bell text-400 text-6xl mb-3"></i>
-                <h4 class="text-600 mb-2">{{ 'no_notifications' | translate }}</h4>
-                <p class="text-500 mb-4">{{ 'no_new_notifications' | translate }}</p>
-                <!-- <button pButton icon="pi pi-cog" [label]="'configure_notifications' | translate"
-                    class="p-button-outlined" (click)="openNotificationSettings()">
-                </button> -->
+            <div *ngIf="!hasFilteredNotifications" class="empty-state text-center py-8 px-4">
+                <div *ngIf="searchTerm || activeFilter !== 'all'" class="flex flex-column align-items-center gap-3">
+                    <i class="pi pi-search text-400 text-6xl"></i>
+                    <h4 class="text-600 mb-2">{{ 'no_notifications_found' | translate }}</h4>
+                    <p class="text-500 mb-4">{{ 'try_different_search_or_filter' | translate }}</p>
+                    <button pButton icon="pi pi-filter-slash" [label]="'clear_filters' | translate"
+                        class="p-button-outlined p-button-sm" (click)="clearSearch(); toggleFilter('all')">
+                    </button>
+                </div>
+                <div *ngIf="!searchTerm && activeFilter === 'all'" class="flex flex-column align-items-center gap-3">
+                    <i class="pi pi-bell text-400 text-6xl"></i>
+                    <h4 class="text-600 mb-2">{{ 'no_notifications' | translate }}</h4>
+                    <p class="text-500 mb-4">{{ 'no_new_notifications' | translate }}</p>
+                    <button pButton icon="pi pi-refresh" [label]="'refresh' | translate"
+                        class="p-button-outlined p-button-sm" (click)="loadRecentNotifications(); loadNotificationSummary()">
+                    </button>
+                </div>
             </div>
         </div>
 

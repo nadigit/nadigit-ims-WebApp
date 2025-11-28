@@ -288,12 +288,12 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     async login() {
         await this.keycloakService.login({
-            redirectUri: window.location.origin
+            redirectUri: window.location.origin + '/webconsole'
         });
     }
 
     logOut() {
-        this.keycloakService.logout(window.location.origin)
+        this.keycloakService.logout(window.location.origin + '/webconsole')
     }
 
     onSessionOpened(session: any): void {

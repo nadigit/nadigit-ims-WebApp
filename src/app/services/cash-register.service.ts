@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
-import { BehaviorSubject, from, Observable, switchMap } from 'rxjs';
+import { BehaviorSubject, from, Observable, switchMap, timeout, catchError, of } from 'rxjs';
 import { CashRegisterSession } from '../models/cashRegisterSession';
 import { CashMovement } from '../models/cashMovement';
 import { CashCollection } from '../models/cashCollection';
@@ -11,7 +11,6 @@ import { CashCollection } from '../models/cashCollection';
 })
 export class CashRegisterService {
 
-  private jwt: string | null = null;
   private schema = '/api/cash-registers/';
   private apiProtocol: string = (window as any).__env.apiProtocol || 'http';
   private apiHost: string = (window as any).__env.apiHost || 'localhost';
@@ -29,10 +28,26 @@ export class CashRegisterService {
    * Ensures JWT token is loaded before making any request
    */
   private async ensureTokenLoaded(): Promise<string> {
-    if (!this.jwt) {
-      this.jwt = await this.keycloakService.getToken();
+    const isLoggedIn = await this.keycloakService.isLoggedIn();
+
+    if (!isLoggedIn) {
+      // Force the user back to login; this throws to stop the original request
+      // Use current href to preserve the /webconsole path
+      await this.keycloakService.login({ redirectUri: window.location.href });
+      throw new Error('User not authenticated');
     }
-    return this.jwt;
+
+    try {
+      // Refresh token if it is close to expiring (within the next 30s)
+      await this.keycloakService.updateToken(30);
+    } catch (refreshError) {
+      console.error('Failed to refresh Keycloak token, redirecting to login', refreshError);
+      // Use current href to preserve the /webconsole path
+      await this.keycloakService.login({ redirectUri: window.location.href });
+      throw refreshError;
+    }
+
+    return await this.keycloakService.getToken();
   }
 
   private async getAuthHeaders(): Promise<HttpHeaders> {
@@ -116,13 +131,6 @@ export class CashRegisterService {
     this.currentSessionSubject.next(session);
   }
 
-  /**
-   * Clear cached token (for logout or token refresh)
-   */
-  clearToken(): void {
-    this.jwt = null;
-  }
-
   getSessionsByShop(shopId: number): Observable<CashRegisterSession[]> {
     return from(this.getAuthHeaders()).pipe(
       switchMap(headers =>
@@ -130,7 +138,12 @@ export class CashRegisterService {
           `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}shops/${shopId}/sessions`,
           { headers }
         )
-      )
+      ),
+      timeout(8000), // Add timeout to the HTTP request
+      catchError(error => {
+        console.error('Error loading sessions:', error);
+        return of([]); // Return empty array on error
+      })
     );
   }
 
@@ -151,7 +164,12 @@ export class CashRegisterService {
           `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}shops/${shopId}/movements`,
           { headers }
         )
-      )
+      ),
+      timeout(8000), // Add timeout to the HTTP request
+      catchError(error => {
+        console.error('Error loading movements:', error);
+        return of([]); // Return empty array on error
+      })
     );
   }
   getCollectionsByShop(shopId: number): Observable<CashCollection[]> {
@@ -161,7 +179,12 @@ export class CashRegisterService {
           `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}shops/${shopId}/collections`,
           { headers }
         )
-      )
+      ),
+      timeout(8000), // Add timeout to the HTTP request
+      catchError(error => {
+        console.error('Error loading collections:', error);
+        return of([]); // Return empty array on error
+      })
     );
   }
 
