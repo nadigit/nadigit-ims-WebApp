@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PurchasesRoutingModule } from './purchases-routing.module';
 import { PurchasesComponent } from './purchases.component';
+import { PurchaseDetailsPageComponent } from './purchase-details-page/purchase-details-page.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -26,6 +27,9 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
 import { TimelineModule } from 'primeng/timeline';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { AccordionModule } from 'primeng/accordion';
+import { ChipModule } from 'primeng/chip';
+import { BadgeModule } from 'primeng/badge';
 
 @NgModule({
     imports: [
@@ -53,9 +57,12 @@ import { SharedModule } from 'src/app/shared/shared.module';
         SelectButtonModule,
         TagModule,
         TimelineModule,
-        SharedModule
+        SharedModule,
+        AccordionModule,
+        ChipModule,
+        BadgeModule
     ],
-    declarations: [PurchasesComponent],
+    declarations: [PurchasesComponent, PurchaseDetailsPageComponent],
     providers: [ReportingService],
 })
 export class PurchasesModule { }

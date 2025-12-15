@@ -38,6 +38,10 @@ export class ProductService {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, { headers: headers });
   }
+  getProduct(id: number) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
+  }
   deactivateProduct(id: any) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/deactivate', { headers: headers })

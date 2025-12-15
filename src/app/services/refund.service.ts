@@ -47,4 +47,9 @@ export class RefundService {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
   }
+  getRefund(id: any) {
+    this.loadToken(); // Ensure token is loaded before making the request
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
+  }
 }

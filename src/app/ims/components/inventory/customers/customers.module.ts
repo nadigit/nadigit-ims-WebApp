@@ -28,6 +28,7 @@ import { ChartModule } from 'primeng/chart';
 import { TabViewModule } from 'primeng/tabview';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { CustomerDetailsComponent } from './customer-details/customer-details.component';
 
 
 @NgModule({
@@ -60,7 +61,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
         ProgressBarModule,
         SharedModule
     ],
-    declarations: [CustomersComponent, AbsolutePipe],
+    declarations: [CustomersComponent, AbsolutePipe, CustomerDetailsComponent],
     exports:[AbsolutePipe],
     providers: [ReportingService]
 })

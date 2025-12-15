@@ -1,4 +1,5 @@
 import { Component, EventEmitter, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Warehouse } from 'src/app/models/warehouse';
@@ -73,20 +74,6 @@ export class WarehousesComponent implements OnInit {
 
   currency: any;
 
-  warehouseDetailsDialog: boolean = false;
-  selectedWarehouse: Warehouse = {};
-  warehouseProducts: Product[] = [];
-  filteredWarehouseProducts: Product[] = [];
-  warehouseStats: any = {};
-  loadingWarehouseDetails: boolean = false;
-  productSearchTerm: string = '';
-  selectedCategoryFilter: Category | null = null;
-  selectedStatusFilter: string | null = null;
-  inventoryStatuses = [
-    { label: 'in_stock', value: 'INSTOCK' },
-    { label: 'low_stock', value: 'LOWSTOCK' },
-    { label: 'out_of_stock', value: 'OUTOFSTOCK' }
-  ];
 
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
@@ -119,7 +106,8 @@ export class WarehousesComponent implements OnInit {
     private locationService: LocationService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-    public keycloakService: KeycloakService,) {
+    public keycloakService: KeycloakService,
+    private router: Router) {
     this.setUserRoles();
 
     this.measureUnits = [
@@ -245,163 +233,11 @@ export class WarehousesComponent implements OnInit {
     this.warehouseDialog = true;
   }
 
-  showWarehouseDetailsDialog(warehouse: Warehouse) {
-    this.selectedWarehouse = { ...warehouse };
-    this.loadWarehouseDetails(warehouse.warehouseId);
-    this.warehouseDetailsDialog = true;
+  openWarehouseDetails(warehouse: Warehouse) {
+    if (!this.canReadWarehouse) return;
+    this.router.navigate(['/inventory/warehouses', warehouse.warehouseId]);
   }
 
-  loadWarehouseDetails(warehouseId: number) {
-    this.loadingWarehouseDetails = true;
-    // Load products in this warehouse
-    this.warehouseService.getProductsByWarehouse(warehouseId).subscribe({
-      next: (products: Product[]) => {
-        this.warehouseProducts = products;
-        this.filteredWarehouseProducts = [...products];
-        this.calculateWarehouseStats();
-        this.loadingWarehouseDetails = false;
-      },
-      error: (error) => {
-        console.error('Error loading warehouse details:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_loading_warehouse_details'),
-          life: 3000
-        });
-        this.loadingWarehouseDetails = false;
-      }
-    });
-  }
-
-  calculateWarehouseStats() {
-    const lowStockProducts = this.warehouseProducts.filter(p => 
-      p.inventoryStatus === 'LOWSTOCK' || (p.quantityAvailable || 0) <= (this.lowStockThreshold || 10)
-    );
-    
-    const outOfStockProducts = this.warehouseProducts.filter(p => 
-      p.inventoryStatus === 'OUTOFSTOCK' || (p.quantityAvailable || 0) === 0
-    );
-
-    // Calculate category distribution
-    const categoryMap = new Map<string, number>();
-    this.warehouseProducts.forEach(p => {
-      const categoryName = p.category?.categoryName || 'Uncategorized';
-      categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + 1);
-    });
-
-    // Get top products by value
-    const topProductsByValue = [...this.warehouseProducts]
-      .sort((a, b) => {
-        const valueA = (a.quantityAvailable || 0) * (a.buyingPrice || 0);
-        const valueB = (b.quantityAvailable || 0) * (b.buyingPrice || 0);
-        return valueB - valueA;
-      })
-      .slice(0, 5);
-
-    this.warehouseStats = {
-      totalProducts: this.warehouseProducts.length,
-      totalQuantity: this.warehouseProducts.reduce((sum, p) => sum + (p.quantityAvailable || 0), 0),
-      totalValue: this.warehouseProducts.reduce((sum, p) => sum + ((p.quantityAvailable || 0) * (p.buyingPrice || 0)), 0),
-      lowStockCount: lowStockProducts.length,
-      outOfStockCount: outOfStockProducts.length,
-      categoryDistribution: Array.from(categoryMap.entries()).map(([name, count]) => ({ name, count })),
-      topProductsByValue: topProductsByValue,
-      averageValue: this.warehouseProducts.length > 0 
-        ? this.warehouseProducts.reduce((sum, p) => sum + ((p.quantityAvailable || 0) * (p.buyingPrice || 0)), 0) / this.warehouseProducts.length
-        : 0
-    };
-  }
-
-  filterProducts(): void {
-    let filtered = [...this.warehouseProducts];
-
-    // Filter by search term
-    if (this.productSearchTerm) {
-      const searchLower = this.productSearchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name?.toLowerCase().includes(searchLower) ||
-        p.reference?.toLowerCase().includes(searchLower) ||
-        p.category?.categoryName?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Filter by category
-    if (this.selectedCategoryFilter) {
-      filtered = filtered.filter(p => 
-        p.category?.categoryId === this.selectedCategoryFilter.categoryId
-      );
-    }
-
-    // Filter by status
-    if (this.selectedStatusFilter) {
-      filtered = filtered.filter(p => p.inventoryStatus === this.selectedStatusFilter);
-    }
-
-    this.filteredWarehouseProducts = filtered;
-  }
-
-  clearProductFilters(): void {
-    this.productSearchTerm = '';
-    this.selectedCategoryFilter = null;
-    this.selectedStatusFilter = null;
-    this.filteredWarehouseProducts = [...this.warehouseProducts];
-  }
-
-  getUniqueCategories(): Category[] {
-    const categoryMap = new Map<number, Category>();
-    this.warehouseProducts.forEach(p => {
-      if (p.category && !categoryMap.has(p.category.categoryId)) {
-        categoryMap.set(p.category.categoryId, p.category);
-      }
-    });
-    return Array.from(categoryMap.values());
-  }
-
-  exportWarehouseProducts(): void {
-    const exportData = this.filteredWarehouseProducts.map(p => ({
-      name: p.name,
-      reference: p.reference,
-      category: p.category?.categoryName || 'N/A',
-      quantity: p.quantityAvailable || 0,
-      status: p.inventoryStatus,
-      buyingPrice: p.buyingPrice || 0,
-      sellingPrice: p.sellingPrice || 0,
-      value: (p.quantityAvailable || 0) * (p.buyingPrice || 0)
-    }));
-
-    this.reportingService.exportExcel(
-      exportData,
-      `warehouse_${this.selectedWarehouse.name}_products`
-    );
-  }
-
-  // Get count for each inventory status
-  getStatusCount(status: string): number {
-    return this.warehouseProducts.filter(p => p.inventoryStatus === status).length;
-  }
-
-  // Hide dialog
-  hideWarehouseDetailsDialog() {
-    this.warehouseDetailsDialog = false;
-    this.selectedWarehouse = {};
-    this.warehouseProducts = [];
-    this.filteredWarehouseProducts = [];
-    this.warehouseStats = {};
-    this.clearProductFilters();
-  }
-
-  refreshWarehouseDetails(): void {
-    if (this.selectedWarehouse?.warehouseId) {
-      this.loadWarehouseDetails(this.selectedWarehouse.warehouseId);
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('success'),
-        detail: this.translate.instant('data_refreshed'),
-        life: 2000
-      });
-    }
-  }
 
   saveWarehouse() {
     this.submitted = true;
@@ -622,8 +458,7 @@ export class WarehousesComponent implements OnInit {
   }
 
   viewProductDetails(product: Product) {
-    this.selectedProduct = product;
-    this.productDetailDialog = true;
+    this.router.navigate(['/inventory/products', product.productId]);
   }
 
   // Convert attribute value for display
@@ -695,22 +530,7 @@ export class WarehousesComponent implements OnInit {
         return;
       }
 
-      // 🔍 Check for duplicate product with same reference in the same warehouse
-      const isDuplicate = this.warehouseProducts.some((p: any) =>
-        p.reference === this.selectedProduct.reference &&
-        p.warehouse?.warehouseId === this.selectedProduct.warehouse?.warehouseId &&
-        p.productId !== this.selectedProduct.productId // exclude current product if updating
-      );
-
-      if (isDuplicate) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('product_already_exists_in_warehouse'),
-          life: 4000,
-        });
-        return;
-      }
+      // Note: Duplicate product validation is handled by the backend
 
       // 📦 Upload product image if any
       if (this.uploadedFile) {
@@ -803,7 +623,7 @@ export class WarehousesComponent implements OnInit {
             detail: this.translate.instant('product_deleted'),
             life: 3000
           });
-          await this.loadWarehouseDetails(this.selectedWarehouse.warehouseId);
+          this.onGetAllWarehouses();
         },
         error: (err: any) => {
           this.messageService.add({
@@ -823,7 +643,7 @@ export class WarehousesComponent implements OnInit {
       .subscribe({
         next: async (response: any) => {
           console.log(response);
-          await this.loadWarehouseDetails(this.selectedWarehouse.warehouseId);
+          this.onGetAllWarehouses();
           return true;
         },
         error: (err: any) => {

@@ -1,0 +1,7 @@
+/* Reconciliation Component Styles */
+
+.p-dialog .p-dialog-content {
+  background: var(--surface-ground);
+  color: var(--text-color);
+}
+

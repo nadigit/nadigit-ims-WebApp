@@ -1,4 +1,5 @@
 import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, TreeNode, ConfirmationService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
@@ -216,7 +217,8 @@ export class ProductsComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-    public keycloakService: KeycloakService,) {
+    public keycloakService: KeycloakService,
+    private router: Router) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -385,9 +387,7 @@ export class ProductsComponent implements OnInit {
   }
 
   showProductDetails(product: Product) {
-    this.selectedProduct = product;
-    this.prepareProfitChart();
-    this.productDetailDialog = true;
+    this.router.navigate(['/inventory/products', product.productId]);
     this.deactivateScanning();
   }
 
@@ -1120,7 +1120,9 @@ export class ProductsComponent implements OnInit {
     await this.productService.getProducts()
       .subscribe({
         next: (response: any) => {
-          this.products = response;
+          // Ensure response is always an array
+          const productsArray = Array.isArray(response) ? response : (response?.content || response?.page?.content || []);
+          this.products = productsArray;
           this.products.forEach((product: any) => (product.creationDate = new Date(<Date>product.creationDate)));
           this.filteredProducts = [...this.products];
           this.applyFilters();
@@ -1199,7 +1201,8 @@ export class ProductsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           console.log(response);
-          this.onGetAllProducts();
+          // Reload products using lazy loading method to maintain table state
+          this.loadProducts();
           return true;
         },
         error: (err: any) => {
@@ -1221,7 +1224,8 @@ export class ProductsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           console.log(response);
-          this.onGetAllProducts();
+          // Reload products using lazy loading method to maintain table state
+          this.loadProducts();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),

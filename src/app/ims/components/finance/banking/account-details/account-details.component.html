@@ -1,0 +1,277 @@
+<div class="grid" *ngIf="!isLoading && account">
+    <div class="col-12">
+        <!-- Account Header -->
+        <div class="card px-6 py-6 mb-4">
+            <div class="flex justify-content-between align-items-start">
+                <div class="flex-1">
+                    <h2 class="m-0 mb-2">{{account.accountName}}</h2>
+                    <p class="text-600 m-0 mb-2">
+                        <i class="pi pi-building mr-2"></i>{{account.bank?.name}}
+                    </p>
+                    <div class="flex gap-3 align-items-center">
+                        <p-tag [value]="('account_type_' + account.accountType.toLowerCase()) | translate"
+                            severity="info"></p-tag>
+                        <p-tag [value]="(account.active ? 'active' : 'inactive') | translate"
+                            [severity]="account.active ? 'success' : 'danger'"></p-tag>
+                        <span class="text-600" *ngIf="account.accountNumber">
+                            {{'account_number' | translate}}: {{account.accountNumber | slice:0:4}}****{{account.accountNumber | slice:-4}}
+                        </span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-600 mb-2">{{'current_balance' | translate}}</div>
+                    <div [ngClass]="getBalanceColor(account.currentBalance || 0)" class="text-4xl font-bold">
+                        {{formatBalance(account.currentBalance || 0)}}
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button *ngIf="canRecordTransaction" pButton pRipple 
+                            [label]="'record_transaction' | translate" icon="pi pi-plus"
+                            class="p-button-raised" (click)="recordTransaction()"></button>
+                        <button *ngIf="canReconcile" pButton pRipple 
+                            [label]="'reconcile' | translate" icon="pi pi-check-circle"
+                            class="p-button-outlined" (click)="openReconcile()"></button>
+                        <button pButton pRipple 
+                            [label]="'recalculate_balance' | translate" icon="pi pi-refresh"
+                            class="p-button-outlined" (click)="recalculateBalance()"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid mb-4">
+            <div class="col-12 md:col-3">
+                <div class="card">
+                    <div class="text-600 mb-2">{{'total_deposits' | translate}}</div>
+                    <div class="text-green-600 text-2xl font-bold">
+                        {{formatBalance(summary?.totalDeposits || 0)}}
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 md:col-3">
+                <div class="card">
+                    <div class="text-600 mb-2">{{'total_withdrawals' | translate}}</div>
+                    <div class="text-red-600 text-2xl font-bold">
+                        {{formatBalance(summary?.totalWithdrawals || 0)}}
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 md:col-3">
+                <div class="card">
+                    <div class="text-600 mb-2">{{'net_change' | translate}}</div>
+                    <div [ngClass]="getBalanceColor((summary?.totalDeposits || 0) - (summary?.totalWithdrawals || 0))" 
+                        class="text-2xl font-bold">
+                        {{formatBalance((summary?.totalDeposits || 0) - (summary?.totalWithdrawals || 0))}}
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 md:col-3">
+                <div class="card">
+                    <div class="text-600 mb-2">{{'unreconciled_transactions' | translate}}</div>
+                    <div class="text-orange-600 text-2xl font-bold">
+                        {{unreconciledCount}}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card px-6 py-4 mb-4">
+            <div class="flex gap-2 flex-wrap">
+                <p-calendar [(ngModel)]="dateRange" selectionMode="range" 
+                    [placeholder]="'select_date_range' | translate"
+                    dateFormat="yy-mm-dd" [showIcon]="true"
+                    (onSelect)="onDateRangeChange()"
+                    styleClass="w-20rem"></p-calendar>
+                <p-dropdown [options]="[
+                    {label: ('all_types' | translate), value: undefined},
+                    {label: ('transaction_type_deposit' | translate), value: 'DEPOSIT'},
+                    {label: ('transaction_type_withdrawal' | translate), value: 'WITHDRAWAL'},
+                    {label: ('transaction_type_transfer_in' | translate), value: 'TRANSFER_IN'},
+                    {label: ('transaction_type_transfer_out' | translate), value: 'TRANSFER_OUT'},
+                    {label: ('transaction_type_payment' | translate), value: 'PAYMENT'},
+                    {label: ('transaction_type_receipt' | translate), value: 'RECEIPT'}
+                ]" [(ngModel)]="transactionTypeFilter" 
+                    [placeholder]="'filter_by_type' | translate"
+                    optionLabel="label" optionValue="value" [showClear]="true"
+                    (onChange)="onFilterChange()"
+                    styleClass="w-15rem"></p-dropdown>
+                <p-selectButton [options]="[
+                    {label: ('all' | translate), value: undefined},
+                    {label: ('reconciled' | translate), value: true},
+                    {label: ('unreconciled' | translate), value: false}
+                ]" [(ngModel)]="reconciledFilter" (onChange)="onFilterChange()"
+                    optionLabel="label" optionValue="value"></p-selectButton>
+                <button *ngIf="canReconcile && selectedTransactions.length > 0" 
+                    pButton pRipple [label]="'reconcile_selected' | translate"
+                    icon="pi pi-check-circle" class="p-button-success"
+                    (click)="reconcileSelected()"></button>
+            </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="card px-6 py-6">
+            <h5 class="mb-4">{{'transactions' | translate}}</h5>
+            <p-table [value]="transactions" [(selection)]="selectedTransactions"
+                [lazy]="true" (onLazyLoad)="loadTransactions($event)"
+                [paginator]="true" [rows]="pageSize" [totalRecords]="totalRecords"
+                [loading]="transactionsLoading"
+                [rowsPerPageOptions]="[20, 50, 100]"
+                dataKey="transactionId"
+                [responsive]="true" styleClass="p-datatable-gridlines">
+                
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem" *ngIf="canReconcile">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="transactionDate">
+                            {{'date' | translate}} <p-sortIcon field="transactionDate"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="type">
+                            {{'type' | translate}} <p-sortIcon field="type"></p-sortIcon>
+                        </th>
+                        <th>{{'description' | translate}}</th>
+                        <th>{{'reference' | translate}}</th>
+                        <th pSortableColumn="amount">
+                            {{'amount' | translate}} <p-sortIcon field="amount"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="balanceAfter">
+                            {{'balance_after' | translate}} <p-sortIcon field="balanceAfter"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="reconciled">
+                            {{'reconciled' | translate}} <p-sortIcon field="reconciled"></p-sortIcon>
+                        </th>
+                        <th>{{'actions' | translate}}</th>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="body" let-transaction>
+                    <tr>
+                        <td *ngIf="canReconcile">
+                            <p-tableCheckbox [value]="transaction" 
+                                *ngIf="!transaction.reconciled"></p-tableCheckbox>
+                        </td>
+                        <td>{{formatDate(transaction.transactionDate)}}</td>
+                        <td>
+                            <p-tag [value]="getTransactionTypeLabel(transaction.type)"
+                                [severity]="getTransactionTypeSeverity(transaction.type)"
+                                [icon]="getTransactionTypeIcon(transaction.type)"></p-tag>
+                        </td>
+                        <td>{{transaction.description || '-'}}</td>
+                        <td>{{transaction.reference || '-'}}</td>
+                        <td>
+                            <span [ngClass]="getTransactionTypeSeverity(transaction.type) === 'success' ? 'text-green-600' : 'text-red-600'"
+                                class="font-bold">
+                                {{getTransactionTypeSeverity(transaction.type) === 'success' ? '+' : '-'}}
+                                {{formatBalance(transaction.amount)}}
+                            </span>
+                        </td>
+                        <td [ngClass]="getBalanceColor(transaction.balanceAfter || 0)" class="font-semibold">
+                            {{formatBalance(transaction.balanceAfter || 0)}}
+                        </td>
+                        <td>
+                            <p-tag [value]="(transaction.reconciled ? 'reconciled' : 'unreconciled') | translate"
+                                [severity]="transaction.reconciled ? 'success' : 'warning'"></p-tag>
+                        </td>
+                        <td>
+                            <div class="flex gap-2">
+                                <button pButton pRipple icon="pi pi-eye" 
+                                    class="p-button-rounded p-button-text p-button-info"
+                                    (click)="viewTransactionDetails(transaction)"
+                                    [pTooltip]="'view_details' | translate"></button>
+                                <button *ngIf="canReconcile && !transaction.reconciled" 
+                                    pButton pRipple icon="pi pi-check-circle" 
+                                    class="p-button-rounded p-button-text p-button-success"
+                                    (click)="reconcileTransaction(transaction)"
+                                    [pTooltip]="'reconcile' | translate"></button>
+                                <button pButton pRipple icon="pi pi-undo" 
+                                    class="p-button-rounded p-button-text p-button-warning"
+                                    (click)="reverseTransaction(transaction)"
+                                    [pTooltip]="'reverse_transaction' | translate"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td [attr.colspan]="canReconcile ? 9 : 8" class="text-center">
+                            {{'no_transactions_found' | translate}}
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction Details Dialog -->
+<p-dialog [(visible)]="transactionDetailsDialog" [style]="{width: '700px'}" 
+    [header]="'transaction_details' | translate" [modal]="true"
+    *ngIf="selectedTransaction">
+    
+    <ng-template pTemplate="content">
+        <div class="grid">
+            <div class="col-12 md:col-6">
+                <strong>{{'type' | translate}}:</strong>
+                <p>
+                    <p-tag [value]="getTransactionTypeLabel(selectedTransaction.type)"
+                        [severity]="getTransactionTypeSeverity(selectedTransaction.type)"></p-tag>
+                </p>
+            </div>
+            <div class="col-12 md:col-6">
+                <strong>{{'amount' | translate}}:</strong>
+                <p [ngClass]="getTransactionTypeSeverity(selectedTransaction.type) === 'success' ? 'text-green-600' : 'text-red-600'"
+                    class="font-bold text-xl">
+                    {{getTransactionTypeSeverity(selectedTransaction.type) === 'success' ? '+' : '-'}}
+                    {{formatBalance(selectedTransaction.amount)}}
+                </p>
+            </div>
+            <div class="col-12 md:col-6">
+                <strong>{{'transaction_date' | translate}}:</strong>
+                <p>{{formatDate(selectedTransaction.transactionDate)}}</p>
+            </div>
+            <div class="col-12 md:col-6">
+                <strong>{{'recorded_date' | translate}}:</strong>
+                <p>{{selectedTransaction.recordedDate ? formatDate(selectedTransaction.recordedDate) : '-'}}</p>
+            </div>
+            <div class="col-12">
+                <strong>{{'description' | translate}}:</strong>
+                <p>{{selectedTransaction.description || '-'}}</p>
+            </div>
+            <div class="col-12 md:col-6">
+                <strong>{{'reference' | translate}}:</strong>
+                <p>{{selectedTransaction.reference || '-'}}</p>
+            </div>
+            <div class="col-12 md:col-6">
+                <strong>{{'reconciled' | translate}}:</strong>
+                <p>
+                    <p-tag [value]="(selectedTransaction.reconciled ? 'reconciled' : 'unreconciled') | translate"
+                        [severity]="selectedTransaction.reconciled ? 'success' : 'warning'"></p-tag>
+                </p>
+            </div>
+            <div class="col-12 md:col-6" *ngIf="selectedTransaction.balanceBefore !== undefined">
+                <strong>{{'balance_before' | translate}}:</strong>
+                <p>{{formatBalance(selectedTransaction.balanceBefore)}}</p>
+            </div>
+            <div class="col-12 md:col-6" *ngIf="selectedTransaction.balanceAfter !== undefined">
+                <strong>{{'balance_after' | translate}}:</strong>
+                <p [ngClass]="getBalanceColor(selectedTransaction.balanceAfter)" class="font-bold">
+                    {{formatBalance(selectedTransaction.balanceAfter)}}
+                </p>
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template pTemplate="footer">
+        <button pButton pRipple [label]="'close' | translate" icon="pi pi-times"
+            class="p-button-text" (click)="transactionDetailsDialog = false"></button>
+        <button *ngIf="canReconcile && !selectedTransaction.reconciled" 
+            pButton pRipple [label]="'reconcile' | translate" icon="pi pi-check-circle"
+            class="p-button-success" (click)="reconcileTransaction(selectedTransaction); transactionDetailsDialog = false"></button>
+    </ng-template>
+</p-dialog>
+
+<p-toast></p-toast>
+

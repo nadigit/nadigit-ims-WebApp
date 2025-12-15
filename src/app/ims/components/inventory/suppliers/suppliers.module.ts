@@ -29,6 +29,7 @@ import { CardModule } from 'primeng/card';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { GalleriaModule } from 'primeng/galleria';
 import { ImageModule } from 'primeng/image';
+import { SupplierDetailsComponent } from './supplier-details/supplier-details.component';
 
 
 
@@ -63,7 +64,7 @@ import { ImageModule } from 'primeng/image';
         GalleriaModule,
         ImageModule
     ],
-    declarations: [SuppliersComponent],
+    declarations: [SuppliersComponent, SupplierDetailsComponent],
     providers: [ReportingService],
 })
 export class SuppliersModule { }

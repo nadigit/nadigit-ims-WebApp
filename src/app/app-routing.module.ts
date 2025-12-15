@@ -29,6 +29,14 @@ import { AuthGuard } from './guards/auth.guard';
                         data: { roles: ['ADMIN', 'VENDOR'] }
                     },
 
+                    // POS Section
+                    {
+                        path: 'pos',
+                        loadChildren: () => import('./ims/components/pos/pos.module').then(m => m.PosModule),
+                        canActivate: [AuthGuard],
+                        data: { roles: ['ADMIN', 'VENDOR'] }
+                    },
+
                     // Finance Section
                     {
                         path: 'finance',

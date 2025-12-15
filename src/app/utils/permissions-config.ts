@@ -138,6 +138,65 @@ export const PermissionsConfig = {
         },
         
     },
+    STOCK_MOVEMENTS: {
+        ADMIN: {
+            read: true,
+        },
+        WAREHOUSEMAN: {
+            read: true,
+        },
+        VENDOR: {
+            read: true,
+        },
+        AUDITOR: {
+            read: true,
+        },
+        ACCOUNTANT: {
+            read: true,
+        },
+    },
+    WAREHOUSE_TRANSFERS: {
+        ADMIN: {
+            read: true,
+            create: true,
+            update: true,
+            delete: true,
+            process: true,
+            cancel: true,
+        },
+        WAREHOUSEMAN: {
+            read: true,
+            create: false,
+            update: false,
+            delete: false,
+            process: false,
+            cancel: false,
+        },
+        VENDOR: {
+            read: true,
+            create: false,
+            update: false,
+            delete: false,
+            process: false,
+            cancel: false,
+        },
+        AUDITOR: {
+            read: true,
+            create: false,
+            update: false,
+            delete: false,
+            process: false,
+            cancel: false,
+        },
+        ACCOUNTANT: {
+            read: true,
+            create: false,
+            update: false,
+            delete: false,
+            process: false,
+            cancel: false,
+        },
+    },
     RETURNS: {
         ADMIN: {
             create: true,
@@ -561,5 +620,69 @@ export const PermissionsConfig = {
             issue: true,
             cancel: true,
         },
-    }
+    },
+    BANK_ACCOUNTS: {
+        ADMIN: {
+            create: true,
+            read: true,
+            update: true,
+            delete: true,
+        },
+        WAREHOUSEMAN: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        VENDOR: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        AUDITOR: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+    },
+    BANKS: {
+        ADMIN: {
+            create: true,
+            read: true,
+            update: true,
+            delete: true,
+        },
+        WAREHOUSEMAN: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        VENDOR: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        AUDITOR: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+        ACCOUNTANT: {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+        },
+    },
 };

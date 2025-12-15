@@ -36,6 +36,8 @@ import { DynamicDialogModule } from 'primeng/dynamicdialog';
 import { ChipModule } from 'primeng/chip';
 import { TagModule } from 'primeng/tag';
 import { TabViewModule } from 'primeng/tabview';
+import { ReturnDetailsPageComponent } from './return-details-page/return-details-page.component';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 @NgModule({
@@ -74,9 +76,10 @@ import { TabViewModule } from 'primeng/tabview';
         DynamicDialogModule,
         ChipModule,
         TagModule,
-        TabViewModule
+        TabViewModule,
+        SharedModule
     ],
-    declarations: [ReturnsComponent, FilterProductsPipe],
+    declarations: [ReturnsComponent, FilterProductsPipe, ReturnDetailsPageComponent],
     providers: [ReportingService]
 })
 export class ReturnsModule { }

@@ -1,4 +1,5 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
@@ -49,8 +50,6 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   returnDialog: boolean = false;
 
   detailsDialog: boolean = false;
-
-  returnDetailsDialog: boolean = false;
 
   deleteReturnDialog: boolean = false;
 
@@ -182,6 +181,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     private permissionService: PermissionService,
     private financialDocService: FinancialDocumentsService,
     public keycloakService: KeycloakService,
+    private router: Router
   ) {
     this.loadTaxRate();
   }
@@ -1024,8 +1024,8 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   openReturnDetailsDialog(returnData: OrderReturn): void {
-    this.return = { ...returnData };
-    this.returnDetailsDialog = true;
+    if (!returnData || !returnData.returnId) return;
+    this.router.navigate(['/sales/returns', returnData.returnId]);
   }
 
   getReturnReasonLabel(reason: string): string {

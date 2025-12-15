@@ -1,0 +1,192 @@
+.premium-payment-details-page {
+  padding: 0;
+}
+
+.premium-payment-details-page .payment-details-header {
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  color: var(--primary-color-text);
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 2rem;
+  transition: background 0.3s ease;
+}
+
+/* Status-specific header colors */
+.premium-payment-details-page .payment-details-header.status-completed {
+  background: linear-gradient(135deg, #b9faaf 0%, #5fd476 100%);
+  color: #3c774b;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-payment-details-page .payment-details-header.status-pending {
+  background: linear-gradient(135deg, #FFF9C4 0%, #FFEB3B 100%);
+  color: #827717;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-payment-details-page .payment-details-header.status-failed {
+  background: linear-gradient(135deg, #FFCDD2 0%, #F78D8D 100%);
+  color: #C63737;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-payment-details-page .payment-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.premium-payment-details-page .details-section {
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--surface-border);
+}
+
+.premium-payment-details-page .section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.premium-payment-details-page .details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.premium-payment-details-page .detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.premium-payment-details-page .detail-item label {
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  font-size: 0.9rem;
+}
+
+.premium-payment-details-page .detail-item span {
+  color: var(--text-color);
+}
+
+.premium-payment-details-page .customer-card {
+  background: var(--surface-ground);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  border: 1px solid var(--surface-border);
+}
+
+.premium-payment-details-page .customer-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color-text);
+}
+
+.premium-payment-details-page .notes-content {
+  background: var(--surface-ground);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  border-left: 4px solid var(--purple-500);
+  font-style: italic;
+  color: var(--text-color);
+}
+
+.premium-payment-details-page .order-card {
+  background: var(--surface-ground);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  border: 1px solid var(--surface-border);
+}
+
+.premium-payment-details-page .order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.premium-payment-details-page .order-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.premium-payment-details-page .order-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.premium-payment-details-page .order-item.total {
+  border-top: 2px solid var(--surface-border);
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+.premium-payment-details-page .receipt-card {
+  background: var(--surface-ground);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  border: 1px solid var(--surface-border);
+}
+
+.premium-payment-details-page .no-order {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-border);
+}
+
+.premium-payment-details-page .actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.premium-payment-details-page .audit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.premium-payment-details-page .audit-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.premium-payment-details-page .audit-item:last-child {
+  border-bottom: none;
+}
+
+.premium-payment-details-page .audit-item label {
+  font-weight: 600;
+  color: var(--text-color-secondary);
+}
+
+.premium-payment-details-page .audit-item span {
+  color: var(--text-color);
+}
+

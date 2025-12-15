@@ -1,0 +1,223 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+
+            <!-- Loading State -->
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <!-- Content -->
+            <div *ngIf="!isLoading && product">
+                <!-- Header -->
+                <div class="flex align-items-center justify-content-between mb-4">
+                    <div class="flex align-items-center gap-3">
+                        <button pButton pRipple icon="pi pi-arrow-left" 
+                            class="p-button-text p-button-plain"
+                            [pTooltip]="'back' | translate" tooltipPosition="bottom"
+                            (click)="goBack()"></button>
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-box text-3xl text-primary"></i>
+                            <div>
+                                <h2 class="m-0 text-900">{{ product.name }}</h2>
+                                <p class="m-0 text-600 text-sm">{{ product.reference }}</p>
+                            </div>
+                            <span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
+                                {{'product_'+product.inventoryStatus.toLowerCase() | translate}}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <p-splitButton icon="pi pi-print" [label]="'print_label' | translate"
+                            styleClass="p-button-outlined" [model]="printOptions" appendTo="body"
+                            (onClick)="productService.printLabel(product,'DEFAULT')">
+                        </p-splitButton>
+                        <button pButton pRipple icon="pi pi-pencil" 
+                            [label]="'edit' | translate" 
+                            *ngIf="canEdit"
+                            (click)="editProduct()"></button>
+                        <button pButton pRipple icon="pi pi-trash" 
+                            [label]="'delete_product' | translate" 
+                            *ngIf="canDelete && product.deletable"
+                            class="p-button-danger"
+                            (click)="deleteProduct()"></button>
+                        <button pButton pRipple icon="pi pi-folder" 
+                            [label]="'archive_product' | translate" 
+                            *ngIf="canDelete && !product.deletable"
+                            class="p-button-warning"
+                            (click)="archiveProduct()"></button>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <!-- Left Column - Product Visuals -->
+                    <div class="col-12 md:col-5">
+                        <div class="sticky top-0">
+                            <div class="product-image-container border-round surface-card p-4 shadow-2 mb-4">
+                                <p-galleria [value]="[product.productImage || 'assets/core-images/no-image.png']"
+                                    [containerStyle]="{'max-width': '100%'}" [showThumbnails]="false"
+                                    [showItemNavigators]="true" [circular]="true" [autoPlay]="false"
+                                    [transitionInterval]="3000">
+                                    <ng-template pTemplate="item" let-item>
+                                        <img [src]="item" [alt]="product.name" class="w-full border-round"
+                                            style="max-height: 400px; object-fit: contain;" />
+                                    </ng-template>
+                                </p-galleria>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column - Product Details -->
+                    <div class="col-12 md:col-7">
+                        <div class="surface-card p-4 border-round shadow-1 mb-4">
+                            <div class="grid">
+                                <div class="col-6">
+                                    <div class="text-600 mb-1">{{'product_category' | translate}}</div>
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-folder text-primary"></i>
+                                        <span class="font-medium">{{product.category?.categoryName || 'N/A'}}</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-600 mb-1">{{'product_supplier' | translate}}</div>
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-truck text-primary"></i>
+                                        <span class="font-medium">{{product.supplier?.name || 'N/A'}}</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-600 mb-1">{{'product_warehouse' | translate}}</div>
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-home text-primary"></i>
+                                        <span class="font-medium">{{product.warehouse?.name || 'N/A'}}</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-600 mb-1">{{'creation_date' | translate}}</div>
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-calendar text-primary"></i>
+                                        <span class="font-medium">{{product.creationDate | date:'shortDate'}}</span>
+                                    </div>
+                                </div>
+                                <div class="col-6" *ngFor="let attr of product.attributes">
+                                    <div class="text-600 mb-1">{{ attr.attributeName }}</div>
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-tag text-primary"></i>
+                                        <span class="font-medium">{{ displayAttributeValue(attr) || 'N/A'}}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p-divider></p-divider>
+
+                            <div class="grid">
+                                <div class="col-12 md:col-4">
+                                    <div class="stat-card p-3 border-round surface-ground">
+                                        <div class="text-600 mb-1">{{'product_quantity' | translate}}</div>
+                                        <div class="text-900 font-bold text-xl">
+                                            <p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
+                                                [value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
+                                                [icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
+                                            </p-tag>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-4">
+                                    <div class="stat-card p-3 border-round surface-ground">
+                                        <div class="text-600 mb-1">{{'product_buying_price' | translate}}</div>
+                                        <div class="text-900 font-bold text-xl">{{product.buyingPrice | currency:currency}}</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-4">
+                                    <div class="stat-card p-3 border-round surface-ground">
+                                        <div class="text-600 mb-1">{{'product_selling_price' | translate}}</div>
+                                        <div class="text-900 font-bold text-xl">{{product.sellingPrice | currency:currency}}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description Section -->
+                        <div class="surface-card p-4 border-round shadow-1 mb-4">
+                            <h4 class="mt-0 mb-3">{{'product_description' | translate}}</h4>
+                            <p class="m-0" [innerHTML]="product.description || ('no_description_available' | translate)"></p>
+                        </div>
+
+                        <!-- Profit Analysis (Admin Only) -->
+                        <div class="surface-card p-4 border-round shadow-1 mb-4" *ngIf="isAdmin">
+                            <h4 class="mt-0 mb-3">{{'profit_analysis' | translate}}</h4>
+                            <div class="grid">
+                                <div class="col-12 md:col-6">
+                                    <p-chart type="doughnut" [data]="profitChartData" [options]="chartOptions"></p-chart>
+                                </div>
+                                <div class="col-12 md:col-6">
+                                    <div class="grid">
+                                        <div class="col-6">
+                                            <div class="text-600 mb-1">{{'profit_margin' | translate}}</div>
+                                            <div class="text-900 font-bold text-xl">
+                                                {{calculateProfit(product) | percent:'1.2-2'}}
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-600 mb-1">{{'profit_value' | translate}}</div>
+                                            <div class="text-900 font-bold text-xl">
+                                                {{(product.sellingPrice - product.buyingPrice) | currency:currency}}
+                                            </div>
+                                        </div>
+                                        <div class="col-12 mt-3">
+                                            <p-progressBar [value]="calculateProfit(product) * 100" [showValue]="false"
+                                                [style]="{'height': '6px'}"></p-progressBar>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Price History Section -->
+                        <div class="surface-card p-4 border-round shadow-1" *ngIf="productPriceHistory.length > 0">
+                            <h4 class="mt-0 mb-3">{{ 'price_history' | translate }}</h4>
+
+                            <p-table [value]="productPriceHistory" [paginator]="true" [rows]="5"
+                                [rowsPerPageOptions]="[5,10,20]" sortMode="multiple" responsiveLayout="scroll"
+                                class="p-datatable-sm">
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th pSortableColumn="effectiveDate">{{ 'effective_date' | translate }}
+                                            <p-sortIcon field="effectiveDate"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="buyingPrice">{{ 'buying_price' | translate }}
+                                            <p-sortIcon field="buyingPrice"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="sellingPrice">{{ 'selling_price' | translate }}
+                                            <p-sortIcon field="sellingPrice"></p-sortIcon>
+                                        </th>
+                                        <th>{{ 'changed_by' | translate }}</th>
+                                        <th>{{ 'reason' | translate }}</th>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="body" let-history>
+                                    <tr>
+                                        <td>{{ history.effectiveDate | date:'short' }}</td>
+                                        <td [ngClass]="{'text-green-600': history.buyingPrice < product.buyingPrice,
+                                        'text-red-500': history.buyingPrice > product.buyingPrice}">
+                                            {{ history.buyingPrice | currency:currency }}
+                                        </td>
+                                        <td [ngClass]="{'text-green-600': history.sellingPrice > product.sellingPrice,
+                                        'text-red-500': history.sellingPrice < product.sellingPrice}">
+                                            {{ history.sellingPrice | currency:currency }}
+                                        </td>
+                                        <td>{{ history.changedBy || 'System' }}</td>
+                                        <td>{{ (history.changeReason | translate) || '-' }}</td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

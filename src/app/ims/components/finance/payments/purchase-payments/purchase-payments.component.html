@@ -1,0 +1,301 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <h5>{{'purchase_payments' | translate}}</h5>
+            <p-toast></p-toast>
+
+            <app-payments-table [payments]="payments" [context]="'outgoing'"
+                [cols]="cols" (lazyLoadEvent)="onLazyLoad($event)" [canReadPayment]="canReadPayment"
+                [totalRecords]="totalRecords" [canEditPayment]="canEditPayment"
+                [canDeletePayment]="canDeletePayment" (editPaymentEvent)="editPayment($event)"
+                [canAddPayment]="canAddPayment" [currency]="currency" 
+                [canConfirmPayment]="canConfirmPayment" (confirmPaymentEvent)="openConfirmPayment($event)" 
+                (deletePaymentEvent)="deletePayment($event)" (printReceiptEvent)="printReceipt($event)"
+                (generateReceiptEvent)="generateReceipt($event)" (addPaymentEvent)="openNew()"
+                (onGlobalFilter)="onGlobalFilter($event)" (viewPaymentDetailsEvent)="viewPaymentDetails($event)"
+                [(selectedPayments)]="selectedPayments"
+                (deleteSelectedEvent)="deleteSelectedPayments()"
+                (paymentMethodIconEvent)="getPaymentMethodIcon($event)"
+                (paymentMethodSeverityEvent)="getPaymentMethodSeverity($event)">
+            </app-payments-table>
+        </div>
+
+        <p-dialog [(visible)]="paymentDialog" [style]="{width: '80%'}" header="{{ 'payment_details' | translate }}"
+            [modal]="true" class="p-fluid">
+
+            <ng-template pTemplate="content">
+                <!-- Supplier -->
+                <div class="field" style="position: relative;">
+                    <label for="supplier">
+                        {{ 'payment_supplier' | translate }} <span class="required-asterisk">*</span>
+                    </label>
+
+                    <p-dropdown [(ngModel)]="payment.supplier" name="supplier" inputId="supplier" id="supplier"
+                        ngDefaultControl [optionLabel]="name" [options]="suppliers" required autofocus
+                        placeholder="{{ 'select_supplier_option' | translate }}" [filter]="true"
+                        [disabled]="payment.paymentId" filterBy="name,email,phoneNumber"
+                        (onChange)="onSupplierSelect($event.value)"
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.supplier}">
+
+                        <ng-template pTemplate="selectedItem">
+                            <span *ngIf="payment && payment.supplier" [class]="'product-badge'">
+                                {{ payment.supplier.name }}
+                            </span>
+                        </ng-template>
+
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'product-badge'">
+                                {{ option.name }}
+                            </span>
+                        </ng-template>
+                    </p-dropdown>
+
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !payment.supplier">
+                        {{'payment_supplier' | translate}} {{'is_required_label' | translate}}
+                    </small>
+                </div>
+
+                <!-- Purchase -->
+                <div class="field" style="position: relative;">
+                    <label for="purchase">
+                        {{ 'payment_purchase' | translate }} <span class="required-asterisk">*</span>
+                    </label>
+
+                    <p-dropdown [(ngModel)]="payment.purchase" name="purchase" inputId="purchase"
+                        [options]="unpaidPurchases" optionLabel="reference" required
+                        placeholder="{{ 'select_purchase_option' | translate }}" [filter]="true"
+                        (onChange)="onPurchaseSelect($event.value)" [disabled]="payment.paymentId"
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.purchase}">
+                        <ng-template pTemplate="selectedItem">
+                            <span *ngIf="payment && payment.purchase" [class]="'product-badge'">
+                                #{{payment.purchase.reference}} -
+                                {{payment.purchase.totalAmount | currency:currency:'symbol':'1.2-2'}} ({{
+                                'payment_paid_amount' | translate }}: {{payment.purchase.totalPaid |
+                                currency:currency:'symbol':'1.2-2'}})
+                            </span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                            <div class="flex justify-content-between">
+                                <span>#{{option.reference}}</span>
+                                <span>{{ 'payment_total' | translate }}: {{option.totalAmount |
+                                    currency:currency:'symbol':'1.2-2'}}</span>
+                                <span>{{ 'payment_paid_amount' | translate }}: {{option.totalPaid |
+                                    currency:currency:'symbol':'1.2-2'}}</span>
+                                <span>{{ 'payment_due_amount' | translate }}: {{(option.totalAmount -
+                                    option.totalPaid)
+                                    | currency:currency:'symbol':'1.2-2'}}</span>
+                            </div>
+                        </ng-template>
+                    </p-dropdown>
+
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !payment.purchase">
+                        {{'payment_purchase' | translate}} {{'is_required_label' | translate}}
+                    </small>
+                </div>
+
+                <!-- Amount -->
+                <div class="field">
+                    <label for="amount">
+                        {{ 'payment_amount' | translate }}
+                        <span class="required-asterisk">*</span>
+                        <span class="amount-helper">
+                            ({{ payment.paymentId ? 'Can update up to' : 'Max can add' }}:
+                            {{maxPaymentAmount | currency:currency:'symbol':'1.2-2'}})
+                        </span>
+                    </label>
+                    <input type="number" pInputText [(ngModel)]="payment.amount" name="amount" [min]="0.01"
+                        [max]="maxPaymentAmount" [step]="0.01" [disabled]="maxPaymentAmount <= 0"
+                        [ngClass]="{'ng-invalid ng-dirty': submitted && (!payment.amount || payment.amount <= 0 || payment.amount > maxPaymentAmount)}" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !payment.amount">
+                        {{ 'payment_amount' | translate }} {{ 'is_required_label' | translate }}
+                    </small>
+                    <small class="ng-dirty ng-invalid"
+                        *ngIf="submitted && payment.amount && (payment.amount <= 0 || payment.amount > maxPaymentAmount)">
+                        {{ 'payment_amount_must_be_between' | translate }} 0 {{ 'and' | translate }} {{maxPaymentAmount
+                        | currency:currency:'symbol':'1.2-2'}}
+                    </small>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="field">
+                    <label for="paymentMethod">
+                        {{'payment_method' | translate}} <span class="required-asterisk">*</span>
+                    </label>
+                    <div class="flex flex-wrap gap-3">
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Cash" [(ngModel)]="payment.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod1"></p-radioButton>
+                            <label for="paymentMethod1" class="ml-2">{{'payment_method_cash' | translate}}</label>
+                        </div>
+
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Transfer" [(ngModel)]="payment.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod4"></p-radioButton>
+                            <label for="paymentMethod4" class="ml-2">{{'payment_method_transfer' | translate}}</label>
+                        </div>
+
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Card" [(ngModel)]="payment.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod2"></p-radioButton>
+                            <label for="paymentMethod2" class="ml-2">{{'payment_method_card' | translate}}</label>
+                        </div>
+
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="Check" [(ngModel)]="payment.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod3"></p-radioButton>
+                            <label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
+                        </div>
+
+                        <div class="flex align-items-center">
+                            <p-radioButton name="paymentMethod" value="BOE" [(ngModel)]="payment.paymentMethod"
+                                ngDefaultControl inputId="paymentMethod5"></p-radioButton>
+                            <label for="paymentMethod5" class="ml-2">{{'payment_method_boe' | translate}}</label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <!-- Input for cheque number, displayed only if "Check" is selected -->
+                        <div *ngIf="payment.paymentMethod === 'Check'" class="field">
+                            <label for="checkNumber">{{ 'check_number' | translate }}</label>
+                            <input type="text" id="checkNumber" [(ngModel)]="payment.checkNumber"
+                                placeholder="{{ 'enter_check_number' | translate }}" class="p-inputtext" />
+                        </div>
+                        <div *ngIf="payment.paymentMethod === 'Check'" class="field">
+                            <label for="checkExpirationDate">{{ 'expiration_date' | translate }}</label>
+                            <p-calendar [(ngModel)]="payment.checkExpirationDate" [showIcon]="true"
+                                inputId="checkExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
+                                placeholder="{{ 'expiration_date' | translate }}" appendTo="body" />
+                        </div>
+                        <div *ngIf="payment.paymentMethod === 'BOE'" class="field">
+                            <label for="boeNumber">{{ 'boe_number' | translate }}</label>
+                            <input type="text" id="boeNumber" [(ngModel)]="payment.boeNumber"
+                                placeholder="{{ 'enter_boe_number' | translate }}" class="p-inputtext" />
+                        </div>
+                        <div *ngIf="payment.paymentMethod === 'BOE'" class="field">
+                            <label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
+                            <p-calendar [(ngModel)]="payment.boeExpirationDate" [showIcon]="true"
+                                inputId="boeExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
+                                placeholder="{{ 'expiration_date' | translate }}" appendTo="body" />
+                        </div>
+                        <!-- Bank Account Selector for Transfer, Check, or BOE -->
+                        <div *ngIf="payment.paymentMethod === 'Transfer' || payment.paymentMethod === 'Check' || payment.paymentMethod === 'BOE'" class="field">
+                            <label for="bankAccount">
+                                {{ 'select_bank_account' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <p-dropdown [(ngModel)]="selectedBankAccount" [options]="bankAccounts" 
+                                optionLabel="accountName" [filter]="true" filterBy="accountName,bank.name"
+                                placeholder="{{ 'select_bank_account' | translate }}" 
+                                [showClear]="true" styleClass="w-full"
+                                [ngClass]="{'ng-invalid ng-dirty': submitted && (payment.paymentMethod === 'Transfer' || payment.paymentMethod === 'Check' || payment.paymentMethod === 'BOE') && !selectedBankAccount}">
+                                <ng-template let-account pTemplate="item">
+                                    <div class="flex align-items-center justify-content-between">
+                                        <div>
+                                            <div class="font-semibold">{{ account.accountName }}</div>
+                                            <div class="text-sm text-gray-500">{{ account.bank?.name }}</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="font-semibold">{{ account.currentBalance | currency:currency:'symbol':'1.2-2' }}</div>
+                                            <div class="text-xs text-gray-500">{{ account.accountType }}</div>
+                                        </div>
+                                    </div>
+                                </ng-template>
+                                <ng-template let-account pTemplate="selectedItem">
+                                    <div class="flex align-items-center">
+                                        <span class="font-semibold">{{ account?.accountName }}</span>
+                                        <span class="ml-2 text-sm text-gray-500">({{ account?.bank?.name }})</span>
+                                    </div>
+                                </ng-template>
+                            </p-dropdown>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="paymentDate">{{ 'payment_date' | translate }}</label>
+                    <p-calendar [(ngModel)]="payment.paymentDate" ngDefaultControl name="paymentDate"
+                        inputId="paymentDate" dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
+                        placeholder="{{ 'payment_date' | translate }}" required autofocus appendTo="body"
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !payment.paymentDate}"
+                        (onSelect)="checkCashRegisterStatus()" [maxDate]="maxPaymentDate"></p-calendar>
+
+                    <div *ngIf="showCashRegisterWarning" class="p-message p-message-warn mt-2">
+                        <div class="p-message-wrapper">
+                            <span class="p-message-icon pi pi-exclamation-triangle"></span>
+                            <div class="p-message-text">
+                                {{ 'cash_register_closed_warning' | translate }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="field">
+                    <label for="notes">{{ 'payment_notes' | translate }}</label>
+                    <textarea rows="3" pInputTextarea [(ngModel)]="payment.notes" name="notes"></textarea>
+                </div>
+
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span>
+                        {{ 'fields_marked_with_asterisk_required' | translate }}
+                    </small>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <div class="flex justify-content-between align-items-center w-full">
+                    <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+                        class="p-button-raised" (click)="savePayment()"></button>
+                </div>
+            </ng-template>
+        </p-dialog>
+
+        <!-- Payment Details View Dialog -->
+
+        <p-dialog [(visible)]="confirmPaymentDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="payment">{{'confirm_payment_msg' | translate}}
+                    <b>{{payment.transactionId}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="confirmPaymentDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmPayment()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deletePaymentDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="payment">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>{{payment.transactionId}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deletePaymentDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deletePaymentsDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deletePaymentsDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+    </div>
+</div>
+

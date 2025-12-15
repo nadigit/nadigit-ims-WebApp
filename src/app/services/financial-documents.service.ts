@@ -46,6 +46,12 @@ export class FinancialDocumentsService {
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, { headers: headers });
   }
 
+  getFinancialDoc(id: any) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
+  }
+
   cancelFinancialDoc(docId: any) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + docId + '/cancel', { headers: headers })

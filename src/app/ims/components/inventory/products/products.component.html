@@ -490,12 +490,6 @@
 			</ng-template>
 		</p-dialog>
 
-		<app-product-details [(visible)]="productDetailDialog" [product]="selectedProduct" [canEdit]="canEditProduct"
-			[canDelete]="canDeleteProduct" [isAdmin]="isAdmin" [currency]="currency"
-			[getQuantitySeverityFn]="getQuantitySeverity" [getMeasureUnitFn]="getMeasureUnit"
-			[displayAttributeValueFn]="displayAttributeValue" [calculateProfitFn]="calculateProfit"
-			(onEdit)="editProduct($event)" (onDelete)="deleteProduct($event)" (onArchive)="archiveProduct($event)">
-		</app-product-details>
 
 		<p-dialog [(visible)]="archivedProductsDialog" [modal]="true"
 			[style]="{width: '90vw', maxWidth: '1400px', height: '90vh'}"

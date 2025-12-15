@@ -18,8 +18,8 @@ export class WarehouseService {
 
   constructor(private http: HttpClient, public keycloakService: KeycloakService) { }
 
-  loadToken() {
-    this.jwt = this.keycloakService.getToken();
+  async loadToken() {
+    this.jwt = await this.keycloakService.getToken();
   }
 
   saveWarehouse(data: any) {

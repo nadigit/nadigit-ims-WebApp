@@ -1,4 +1,5 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { PurchaseService } from 'src/app/services/purchase.service';
@@ -99,9 +100,6 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   isAdmin: boolean = false;
   maxPurchaseDate: any;
 
-  purchaseDetailsDialog: boolean = false;
-  selectedPurchase: Purchase = null;
-  purchaseEvents: any[] = [];
 
   searchProductInput: string = "";
   searchTimeout: any;
@@ -138,7 +136,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
     private storage: AngularFireStorage,
-    private productService: ProductService) {
+    private productService: ProductService,
+    private router: Router) {
     this.loadTaxRate();
   }
 
@@ -401,51 +400,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     return this.expandedRows[id] === true;
   }
 
-  refreshPurchaseDetails() {
-    console.log("refresh purchase")
-  }
-
   showPurchaseDetails(purchase: any) {
-    this.selectedPurchase = purchase;
-    this.scanning = false;
-    this.purchaseDetailsDialog = true;
-    this.generatePurchaseEvents();
-  }
-
-  hidePurchaseDetailsDialog() {
-    this.purchaseDetailsDialog = false;
-    this.selectedPurchase = null;
-    this.scanning = true;
-  }
-
-  generatePurchaseEvents() {
-    this.purchaseEvents = [
-      {
-        status: 'PENDING',
-        date: this.selectedPurchase?.dateOfPurchase,
-        icon: 'pi pi-shopping-cart',
-        button: 'Process Purchase'
-      },
-      {
-        status: 'APPROVED',
-        date: this.selectedPurchase?.approvedDate,
-        icon: 'pi pi-box',
-        button: 'Mark as Received'
-      },
-      {
-        status: 'RECEIVED',
-        date: this.selectedPurchase?.receivedDate,
-        icon: 'pi pi-check-circle',
-        button: 'Complete Purchase'
-      },
-      {
-        status: 'COMPLETED',
-        date: this.selectedPurchase?.completionDate,
-        icon: 'pi pi-flag-fill',
-        button: null
-      }
-    ].filter(event => event.date != null || event.status === 'PENDING');
-    console.log("EVENTS:", this.purchaseEvents);
+    this.router.navigate(['/inventory/purchases', purchase.purchaseId]);
   }
 
   getPurchaseStatusSeverity(status: string): string {
@@ -470,61 +426,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     return iconMap[status] || 'pi pi-question-circle';
   }
 
-  getPurchaseActionButtonIcon(status: string): string {
-    const iconMap: { [key: string]: string } = {
-      'PENDING': 'pi pi-arrow-right',
-      'APPROVED': 'pi pi-check',
-      'RECEIVED': 'pi pi-flag',
-      'CANCELED': 'pi pi-check-circle'
-    };
-    return iconMap[status] || 'pi pi-arrow-right';
-  }
-
-  getPurchaseActionButtonSeverity(status: string): string {
-    const severityMap: { [key: string]: string } = {
-      'PENDING': 'primary',
-      'APPROVED': 'warning',
-      'RECEIVED': 'success',
-      'CANCELED': 'help'
-    };
-    return severityMap[status] || 'primary';
-  }
-
-  showPurchaseEventButton(event: any): boolean {
-    const statusOrder = ['PENDING', 'APPROVED', 'RECEIVED', 'COMPLETED'];
-    const currentStatusIndex = statusOrder.indexOf(this.selectedPurchase?.purchaseStatus);
-    const eventStatusIndex = statusOrder.indexOf(event.status);
-    return eventStatusIndex === currentStatusIndex && event.button !== null;
-  }
-
-  getPurchaseStatusDescription(status: string): string {
-    const descriptions: { [key: string]: string } = {
-      'PENDING': this.translate.instant('purchase_status_pending_description'),
-      'APPROVED': this.translate.instant('purchase_status_approved_description'),
-      'RECEIVED': this.translate.instant('purchase_status_received_description'),
-      'COMPLETED': this.translate.instant('purchase_status_completed_description'),
-      'CANCELED': this.translate.instant('purchase_status_canceled_description')
-    };
-    return descriptions[status] || this.translate.instant('status_description_not_available');
-  }
-
-  updatePurchaseStatus() {
-    const currentStatus = this.selectedPurchase?.purchaseStatus;
-    const statusOrder = ['PENDING', 'APPROVED', 'RECEIVED', 'COMPLETED'];
-    const currentIndex = statusOrder.indexOf(currentStatus);
-
-    if (currentIndex < statusOrder.length - 1) {
-      const nextStatus = statusOrder[currentIndex + 1];
-      this.selectedPurchase.purchaseStatus = nextStatus;
-      this.updatePurchaseStatusInBackend(this.selectedPurchase);
-    }
-  }
 
   updatePurchaseStatusInBackend(purchase: Purchase) {
     this.purchaseService.updatePurchaseStatus(purchase.purchaseId, purchase).subscribe({
       next: (updatedPurchase) => {
-        this.selectedPurchase = updatedPurchase; // si dialog ouvert
-        this.generatePurchaseEvents();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('success'),
@@ -539,8 +444,6 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         });
       }
     });
-
-    console.log('Update purchase status to:', purchase.purchaseStatus);
   }
 
   async cancelPurchase(purchase: Purchase) {
@@ -592,18 +495,6 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     console.log('Update stock from purchase:', purchase);
   }
 
-  getPurchaseSubtotal(): number {
-    return this.selectedPurchase?.purchaseItems?.reduce((sum: number, item: any) =>
-      sum + (item.totalCost || 0), 0) || 0;
-  }
-
-  isPurchaseEventActive(event: any): boolean {
-    const statusPurchase = ['PENDING', 'APPROVED', 'RECEIVED', 'COMPLETED', 'CANCELED', 'RETURNED', 'PARTIAL_RETURN', 'RETURN_PENDING'];
-    const currentStatusIndex = statusPurchase.indexOf(this.selectedPurchase?.purchaseStatus);
-    const eventStatusIndex = statusPurchase.indexOf(event.status);
-    console.log(eventStatusIndex);
-    return eventStatusIndex <= currentStatusIndex;
-  }
 
 
   private async setUserRoles() {
@@ -1039,8 +930,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   viewProductDetails(product: Product) {
     if (!product) return;
-    this.selectedProduct = product;
-    this.productDetailDialog = true;
+    this.router.navigate(['/inventory/products', product.productId]);
   }
 
   getMeasureUnit(product: Product): string {

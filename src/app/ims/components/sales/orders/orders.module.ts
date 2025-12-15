@@ -42,6 +42,7 @@ import { AutoCompleteModule } from 'primeng/autocomplete';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { OrdersTableComponent } from './orders-table/orders-table.component';
+import { OrderDetailsPageComponent } from './order-details-page/order-details-page.component';
 
 @NgModule({
     imports: [
@@ -85,7 +86,7 @@ import { OrdersTableComponent } from './orders-table/orders-table.component';
         InputSwitchModule,
         SharedModule
     ],
-    declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent],
+    declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent],
     providers: [ReportingService]
 })
 export class OrdersModule { }

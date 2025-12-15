@@ -1,0 +1,1870 @@
+<div class="pos-container" *ngIf="!loading; else loadingTpl">
+  <!-- Modern Lock Screen -->
+  <div class="pos-lock-overlay" *ngIf="isLocked">
+    <div class="pos-lock-dialog">
+      <div class="text-center mb-5">
+        <div class="lock-icon-wrapper mb-3">
+          <i class="pi pi-lock text-6xl text-primary"></i>
+        </div>
+        <h2 class="m-0 mb-2 text-2xl font-bold">{{ 'pos_locked' | translate }}</h2>
+        <p class="text-600 mb-4">{{ 'enter_pin_to_unlock' | translate }}</p>
+      </div>
+      <div class="pos-pin-input mb-4">
+        <p-password
+          [(ngModel)]="lockPinInput"
+          [feedback]="false"
+          [toggleMask]="true"
+          (onSubmit)="unlockPos()"
+          [placeholder]="'enter_pin' | translate"
+          [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem', 'letter-spacing': '0.5rem' }"
+          autofocus
+          [promptLabel]="''">
+        </p-password>
+      </div>
+      <button
+        pButton
+        [label]="'unlock' | translate"
+        icon="pi pi-unlock"
+        (click)="unlockPos()"
+        class="w-full p-button-lg p-button-raised">
+      </button>
+      <div class="text-center mt-4 text-600 text-sm">
+        {{ 'press_enter_to_unlock' | translate }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Modern Header with Glass Effect -->
+  <div class="pos-header glass-effect flex align-items-center justify-content-between surface-card border-round shadow-sm">
+    <div class="flex align-items-center gap-3">
+      <div class="pos-brand">
+        <i class="pi pi-shopping-cart text-primary"></i>
+        <h2 class="m-0 font-bold">{{ 'pos_title' | translate }}</h2>
+      </div>
+      
+      <!-- Tab Navigation -->
+      <div class="pos-tab-navigation">
+        <button
+          type="button"
+          class="pos-tab-btn"
+          [class.active]="activeTab === 'sales'"
+          (click)="activeTab = 'sales'">
+          <i class="pi pi-shopping-cart"></i>
+          <span>{{ 'sales' | translate }}</span>
+        </button>
+        <button
+          type="button"
+          class="pos-tab-btn"
+          [class.active]="activeTab === 'returns'"
+          (click)="activeTab = 'returns'">
+          <i class="pi pi-undo"></i>
+          <span>{{ 'returns_refunds' | translate }}</span>
+        </button>
+      </div>
+      <div class="flex align-items-center gap-1">
+        <!-- Session Status -->
+        <div class="pos-session-status" *ngIf="session">
+          <p-tag 
+            severity="success" 
+            [value]="'session_open' | translate"
+            icon="pi pi-check-circle">
+          </p-tag>
+          <div class="pos-session-info ml-2">
+            <small class="text-600 text-xs">
+              {{ 'started' | translate }}: {{ session.startedAt | date:'short' }}
+            </small>
+            <small class="text-600 text-xs block">
+              {{ 'duration' | translate }}: {{ getSessionDuration() }}
+            </small>
+          </div>
+        </div>
+        <p-tag 
+          *ngIf="!session" 
+          severity="danger" 
+          [value]="'session_closed' | translate"
+          icon="pi pi-times-circle">
+        </p-tag>
+        
+        <!-- Connection Status with Animation -->
+        <p-tag
+          [severity]="onlineStatus === 'online' ? 'success' : (onlineStatus === 'checking' ? 'warning' : 'danger')"
+          [value]="onlineStatus === 'online' ? ('online' | translate) : (onlineStatus === 'checking' ? ('checking' | translate) : ('offline' | translate))"
+          [icon]="onlineStatus === 'online' ? 'pi pi-wifi' : 'pi pi-cloud'"
+          [pTooltip]="onlineStatus === 'offline' ? ('working_locally' | translate) : ''">
+          <i *ngIf="onlineStatus === 'checking'" class="pi pi-spin pi-spinner ml-2"></i>
+        </p-tag>
+        
+        <!-- Pending Sync Notification -->
+        <p-button
+          *ngIf="pendingSalesCount > 0"
+          icon="pi pi-cloud-upload"
+          [badge]="pendingSalesCount.toString()"
+          badgeSeverity="warning"
+          class="p-button-text p-button-sm"
+          (click)="syncPendingSales()"
+          [pTooltip]="'pending_sales_to_sync' | translate">
+        </p-button>
+      </div>
+    </div>
+    
+    <div class="flex align-items-center gap-3">
+      <!-- Shop Selector -->
+      <div class="pos-shop-selector">
+        <p-dropdown
+          [options]="shops"
+          optionLabel="shopName"
+          optionValue="shopId"
+          [(ngModel)]="shopId"
+          (onChange)="onShopChange()"
+          [placeholder]="'select_shop' | translate"
+          [disabled]="isLocked"
+          styleClass="w-10rem"
+          appendTo="body">
+          <ng-template pTemplate="selectedItem">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-store"></i>
+              <span>{{ getSelectedShopName() }}</span>
+            </div>
+          </ng-template>
+          <ng-template let-shop pTemplate="item">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-store"></i>
+              <span>{{ shop.shopName }}</span>
+            </div>
+          </ng-template>
+        </p-dropdown>
+      </div>
+      
+      <!-- User & Cart Info -->
+      <div class="flex align-items-center gap-2">
+        <div class="pos-user-info">
+          <div class="flex align-items-center gap-1">
+            <i class="pi pi-user text-600 text-sm"></i>
+            <span class="text-600 text-sm">{{ session?.username || 'Guest' }}</span>
+            <button
+              pButton
+              icon="pi pi-sign-out"
+              class="p-button-text p-button-sm"
+              (click)="switchCashier()"
+              [disabled]="isLocked || !session"
+              [pTooltip]="'switch_cashier' | translate">
+            </button>
+          </div>
+        </div>
+        
+        <!-- Cart Summary -->
+        <div class="pos-cart-summary" (click)="scrollToCart(); $event.stopPropagation()">
+          <div class="flex align-items-center gap-1 cursor-pointer">
+            <i class="pi pi-shopping-cart text-primary"></i>
+            <div class="text-right">
+              <div class="text-600 text-sm">{{ 'total' | translate }}</div>
+              <div class="font-bold text-lg">{{ formatCurrency(cartTotal) }}</div>
+              <small class="text-500">{{ cart?.items?.length || 0 }} {{ 'items' | translate }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex align-items-center gap-2">
+        <!-- PWA Actions -->
+        <p-speedDial
+          *ngIf="canInstallPwa || updateAvailable"
+          [model]="pwaActions"
+          direction="down"
+          [radius]="80"
+          type="quarter-circle"
+          buttonClassName="p-button-success"
+          [disabled]="isLocked">
+        </p-speedDial>
+        
+        <!-- Fullscreen Toggle -->
+        <button
+          pButton
+          [icon]="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
+          (click)="toggleFullscreen()"
+          class="p-button-rounded p-button-text"
+          [disabled]="isLocked"
+          [pTooltip]="isFullscreen ? ('exit_fullscreen' | translate) : ('enter_fullscreen' | translate)">
+        </button>
+        
+        <!-- Lock Button -->
+        <button
+          pButton
+          icon="pi pi-lock"
+          (click)="lockPos()"
+          class="p-button-rounded p-button-text p-button-warning"
+          [disabled]="isLocked"
+          [pTooltip]="'lock_pos' | translate">
+        </button>
+        
+        <!-- Session Management -->
+        <button
+          *ngIf="!session"
+          pButton
+          [label]="'open_session' | translate"
+          icon="pi pi-play"
+          (click)="showOpenSessionDialog()"
+          class="p-button-success"
+          [disabled]="isLocked || !shopId">
+        </button>
+        
+        <div *ngIf="session" class="flex align-items-center gap-2">
+          <button
+            pButton
+            icon="pi pi-refresh"
+            (click)="refreshSessionManually()"
+            class="p-button-rounded p-button-text p-button-sm"
+            [disabled]="isLocked || loading"
+            [pTooltip]="'refresh_session' | translate">
+          </button>
+          <button
+            pButton
+            [label]="'close_session' | translate"
+            icon="pi pi-stop"
+            (click)="showCloseSessionDialog()"
+            class="p-button-danger"
+            [disabled]="isLocked">
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Session Warning -->
+  <div *ngIf="!session && !loading" class="pos-no-session-warning card mb-4 border-round-lg" style="background: #fff3cd; border: 2px solid #ffc107;">
+    <div class="flex align-items-center justify-content-between">
+      <div class="flex align-items-center gap-3">
+        <i class="pi pi-exclamation-triangle text-warning text-3xl"></i>
+        <div>
+          <h3 class="m-0 mb-1">{{ 'no_active_session' | translate }}</h3>
+          <p class="m-0 text-600">{{ 'please_open_session_to_start_processing_sales' | translate }}</p>
+        </div>
+      </div>
+      <button
+        pButton
+        [label]="'open_session' | translate"
+        icon="pi pi-play"
+        class="p-button-success"
+        (click)="showOpenSessionDialog()"
+        [disabled]="!shopId">
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <!-- Sales Tab -->
+  <div class="grid" [class.pos-disabled]="!session" *ngIf="activeTab === 'sales'">
+    <!-- Left Panel - Products -->
+    <div class="col-12 lg:col-5 xl:col-4">
+      <!-- Barcode Scanner -->
+      <div class="card mb-4 border-round-lg shadow-sm">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <h3 class="m-0 flex align-items-center gap-2">
+            <i class="pi pi-barcode text-primary"></i>
+            {{ 'barcode_scan' | translate }}
+          </h3>
+          <button
+            pButton
+            icon="pi pi-camera"
+            class="p-button-rounded p-button-sm p-button-outlined"
+            (click)="startBarcodeScanner()"
+            [pTooltip]="'scan_with_camera' | translate">
+          </button>
+        </div>
+        <div class="pos-barcode-input">
+          <input
+            #barcodeInputRef
+            type="text"
+            pInputText
+            [(ngModel)]="barcodeInput"
+            (keyup.enter)="onBarcodeEnter()"
+            [placeholder]="'scan_barcode_or_type' | translate"
+            [disabled]="isLocked"
+            class="w-full text-center text-xl"
+            style="letter-spacing: 2px">
+          <div class="pos-scanner-feedback mt-2" *ngIf="lastScanResult">
+            <p-message severity="success" [text]="lastScanResult"></p-message>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Search -->
+      <div class="card mb-4 border-round-lg shadow-sm">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <h3 class="m-0 flex align-items-center gap-2">
+            <i class="pi pi-search text-primary"></i>
+            {{ 'search_products' | translate }}
+          </h3>
+          <div class="flex align-items-center gap-2">
+            <button
+              pButton
+              [icon]="productViewMode === 'grid' ? 'pi pi-list' : 'pi pi-th-large'"
+              class="p-button-rounded p-button-sm p-button-text"
+              (click)="toggleProductView()"
+              [pTooltip]="productViewMode === 'grid' ? ('list_view' | translate) : ('grid_view' | translate)">
+            </button>
+          </div>
+        </div>
+        
+        <div class="pos-search-wrapper mb-3">
+          <p-autoComplete
+            [(ngModel)]="searchQuery"
+            [suggestions]="searchSuggestions"
+            [loading]="productsLoading"
+            (completeMethod)="onSearchChange($event)"
+            [placeholder]="'search_products_placeholder' | translate"
+            [minLength]="1"
+            [delay]="200"
+            [dropdown]="true"
+            (onSelect)="onProductSelect($event)"
+            [forceSelection]="false"
+            [autoHighlight]="true"
+            styleClass="w-full"
+            [style]="{ width: '100%' }">
+            <ng-template let-product pTemplate="item">
+              <div class="flex align-items-center gap-2" style="min-height: 50px;">
+                <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-suggestion-image" />
+                <div class="flex flex-column flex-1" style="min-width: 0;">
+                  <span class="font-semibold text-sm truncate">{{ product.name }}</span>
+                  <small class="text-600 text-xs">{{ product.reference }} • {{ formatCurrency(product.sellingPrice) }}</small>
+                </div>
+              </div>
+            </ng-template>
+            <ng-template let-product pTemplate="selectedItem">
+              <span>{{ product?.name || searchQuery }}</span>
+            </ng-template>
+          </p-autoComplete>
+        </div>
+
+        <!-- Search Results -->
+        <div class="pos-search-results" *ngIf="searchResults.length > 0">
+          <div *ngIf="productViewMode === 'grid'" class="grid pos-product-grid">
+            <div class="col-4 md:col-3" *ngFor="let product of searchResults">
+              <div class="pos-product-card" (click)="addToCart(product)">
+                <div class="pos-product-image-container">
+                  <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-product-image" />
+                  <div class="pos-product-overlay">
+                    <button 
+                      pButton 
+                      icon="pi pi-plus" 
+                      class="p-button-rounded p-button-sm pos-add-btn p-button-success"
+                      (click)="addToCart(product); $event.stopPropagation()">
+                    </button>
+                  </div>
+                  <p-tag
+                    *ngIf="product.quantityAvailable <= 0"
+                    value="Out of Stock"
+                    severity="danger"
+                    styleClass="pos-stock-badge">
+                  </p-tag>
+                </div>
+                <div class="pos-product-info">
+                  <div class="pos-product-name truncate">{{ product.name }}</div>
+                  <div class="pos-product-price">{{ formatCurrency(product.sellingPrice) }}</div>
+                  <div class="flex justify-content-between align-items-center mt-2">
+                    <p-tag
+                      [value]="product.quantityAvailable"
+                      [severity]="product.quantityAvailable <= 0 ? 'danger' : (product.quantityAvailable < 5 ? 'warning' : 'success')"
+                      styleClass="pos-stock-tag">
+                    </p-tag>
+                    <i 
+                      class="pi pi-shopping-cart text-500 cursor-pointer hover:text-primary transition-colors"
+                      (click)="addToCart(product); $event.stopPropagation()">
+                    </i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="productViewMode === 'list'">
+            <p-virtualScroller
+              [value]="searchResults"
+              [itemSize]="60"
+              styleClass="pos-virtual-list"
+              [style]="{ height: '300px' }">
+              <ng-template let-product pTemplate="item">
+                <div class="pos-search-list-item" (click)="addToCart(product)">
+                  <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-product-thumb" />
+                  <div class="flex-1 ml-3">
+                    <div class="font-semibold truncate">{{ product.name }}</div>
+                    <small class="text-600">{{ product.reference }}</small>
+                  </div>
+                  <div class="text-right mr-3">
+                    <div class="font-bold">{{ formatCurrency(product.sellingPrice) }}</div>
+                    <p-tag
+                      [value]="product.quantityAvailable"
+                      [severity]="product.quantityAvailable <= 0 ? 'danger' : (product.quantityAvailable < 5 ? 'warning' : 'success')"
+                      styleClass="mt-1 text-xs">
+                    </p-tag>
+                  </div>
+                  <button 
+                    pButton 
+                    icon="pi pi-plus" 
+                    class="p-button-rounded p-button-sm p-button-success"
+                    (click)="addToCart(product); $event.stopPropagation()">
+                  </button>
+                </div>
+              </ng-template>
+            </p-virtualScroller>
+          </div>
+        </div>
+        
+        <div *ngIf="!productsLoading && searchQuery && searchResults.length === 0" 
+             class="text-center py-6">
+          <i class="pi pi-search text-400 text-5xl mb-3"></i>
+          <p class="text-600">{{ 'no_products_found' | translate }}</p>
+        </div>
+      </div>
+
+      <!-- Quick Products -->
+      <div class="card border-round-lg shadow-sm">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <h3 class="m-0 flex align-items-center gap-2">
+            <i class="pi pi-bolt text-primary"></i>
+            {{ 'quick_products' | translate }}
+          </h3>
+          <div class="flex align-items-center gap-2">
+            <p-autoComplete
+              [(ngModel)]="selectedCategory"
+              [suggestions]="filteredCategories"
+              field="categoryName"
+              [placeholder]="'all_categories' | translate"
+              [dropdown]="true"
+              [forceSelection]="true"
+              (completeMethod)="filterCategories($event)"
+              (onSelect)="onCategorySelect()"
+              (onClear)="clearCategoryFilter()"
+              styleClass="w-10rem"
+              [showClear]="true"
+              appendTo="body">
+            </p-autoComplete>
+          </div>
+        </div>
+        
+        <div class="pos-quick-products">
+          <div *ngIf="productViewMode === 'grid'" class="grid">
+            <div class="col-4 md:col-3" *ngFor="let product of filteredQuickProducts">
+              <div class="pos-quick-product-card" (click)="addToCart(product)">
+                <div class="pos-quick-image">
+                  <img [src]="getProductImageUrl(product)" [alt]="product.name" />
+                  <div class="pos-quick-overlay">
+                    <span class="pos-quick-add">+</span>
+                  </div>
+                </div>
+                <div class="pos-quick-info">
+                  <div class="pos-quick-name truncate">{{ product.name }}</div>
+                  <div class="pos-quick-price">{{ formatCurrency(product.sellingPrice) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="productViewMode === 'list'">
+            <div class="pos-quick-list">
+              <div *ngFor="let product of filteredQuickProducts" 
+                   class="pos-quick-list-item"
+                   (click)="addToCart(product)">
+                <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-quick-thumb" />
+                <div class="flex-1 ml-3">
+                  <div class="font-semibold truncate">{{ product.name }}</div>
+                  <small class="text-600">{{ product.reference }}</small>
+                </div>
+                <div class="text-right mr-3">
+                  <div class="font-bold">{{ formatCurrency(product.sellingPrice) }}</div>
+                  <p-tag
+                    [value]="product.quantityAvailable"
+                    [severity]="product.quantityAvailable <= 0 ? 'danger' : (product.quantityAvailable < 5 ? 'warning' : 'success')"
+                    styleClass="mt-1 text-xs">
+                  </p-tag>
+                </div>
+                <button 
+                  pButton 
+                  icon="pi pi-plus" 
+                  class="p-button-rounded p-button-sm p-button-success"
+                  (click)="addToCart(product); $event.stopPropagation()">
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div *ngIf="filteredQuickProducts.length === 0" class="text-center py-6">
+          <i class="pi pi-inbox text-400 text-5xl mb-3"></i>
+          <p class="text-600">{{ 'no_products_found' | translate }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel - Cart & Checkout -->
+    <div class="col-12 lg:col-7 xl:col-8">
+      <!-- Cart Header -->
+      <div class="card mb-4 border-round-lg shadow-sm">
+        <div class="flex align-items-center justify-content-between mb-4">
+          <div>
+            <h3 class="m-0 flex align-items-center gap-2">
+              <i class="pi pi-shopping-cart text-primary"></i>
+              {{ 'cart' | translate }}
+              <p-tag *ngIf="cart" [value]="cart.items.length" severity="info" rounded></p-tag>
+            </h3>
+            <small *ngIf="cart" class="text-600">
+              #{{ cart.cartId }} • {{ cart.customerName || ( 'walk_in_customer' | translate ) }}
+            </small>
+          </div>
+          
+          <div class="flex align-items-center gap-2">
+            <!-- Customer Selector -->
+            <p-autoComplete
+              [suggestions]="customerSuggestions"
+              (completeMethod)="searchCustomers($event)"
+              [(ngModel)]="selectedCustomer"
+              [placeholder]="'search_customer' | translate"
+              field="fullName"
+              (onSelect)="onCustomerSelect($event)"
+              [dropdown]="true"
+              [minLength]="0"
+              [delay]="200"
+              [lazy]="false"
+              styleClass="w-full"
+              [style]="{ width: '100%', minWidth: '200px' }">
+              <ng-template let-customer pTemplate="item">
+                <div class="flex align-items-center gap-3">
+                  <i class="pi pi-user"></i>
+                  <div>
+                    <div>{{ customer.fullName }}</div>
+                    <small class="text-600">{{ customer.phone || customer.email }}</small>
+                  </div>
+                </div>
+              </ng-template>
+              <ng-template pTemplate="selectedItem">
+                <div class="flex align-items-center gap-2" *ngIf="selectedCustomer">
+                  <i class="pi pi-user"></i>
+                  <span>{{ selectedCustomer.fullName }}</span>
+                </div>
+                <span *ngIf="!selectedCustomer">{{ 'walk_in_customer' | translate }}</span>
+              </ng-template>
+            </p-autoComplete>
+            
+            <!-- Cart Actions -->
+            <p-splitButton
+              [label]="'actions' | translate"
+              icon="pi pi-ellipsis-v"
+              [model]="cartActions"
+              (onClick)="openHoldCarts()"
+              styleClass="p-button-text">
+            </p-splitButton>
+          </div>
+        </div>
+
+        <!-- Cart Items -->
+        <div class="pos-cart-items" *ngIf="cart && cart.items && cart.items.length > 0">
+          <div class="pos-cart-item" *ngFor="let item of cart.items; let i = index">
+            <div class="pos-cart-item-image">
+              <img [src]="getCartItemImage(item)" [alt]="item.productName" />
+            </div>
+            <div class="pos-cart-item-details">
+              <div class="font-semibold truncate">{{ item.productName }}</div>
+              <small class="text-600">{{ item.productReference }}</small>
+              <div class="flex align-items-center gap-2 mt-1">
+                <p-tag
+                  [value]="'stock' | translate"
+                  [severity]="item.quantityAvailable <= 0 ? 'danger' : (item.quantityAvailable < 5 ? 'warning' : 'success')"
+                  styleClass="text-xs">
+                </p-tag>
+                <span class="text-500 text-sm">{{ item.quantityAvailable }} {{ 'available' | translate }}</span>
+              </div>
+            </div>
+            <div class="pos-cart-item-quantity">
+              <div class="flex align-items-center gap-1">
+                <button
+                  pButton
+                  icon="pi pi-minus"
+                  class="p-button-rounded p-button-text p-button-sm"
+                  (click)="updateQuantity(item, item.quantity - 1)"
+                  [disabled]="item.quantity <= 1">
+                </button>
+                <input
+                  type="number"
+                  [(ngModel)]="item.quantity"
+                  (change)="onQuantityChange(item, item.quantity)"
+                  [min]="1"
+                  [max]="item.quantityAvailable"
+                  class="pos-quantity-input" />
+                <button
+                  pButton
+                  icon="pi pi-plus"
+                  class="p-button-rounded p-button-text p-button-sm"
+                  (click)="updateQuantity(item, item.quantity + 1)"
+                  [disabled]="item.quantity >= item.quantityAvailable">
+                </button>
+              </div>
+            </div>
+            <div class="pos-cart-item-price">
+              <div class="font-bold">{{ formatCurrency(item.subtotal) }}</div>
+              <small class="text-600">{{ formatCurrency(item.pricePerUnit) }} {{ 'each' | translate }}</small>
+            </div>
+            <div class="pos-cart-item-actions">
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-rounded p-button-text p-button-danger"
+                (click)="removeItem(item)"
+                [pTooltip]="'remove_item' | translate">
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Empty Cart -->
+        <div *ngIf="!cart || cart.items.length === 0" class="text-center py-8">
+          <i class="pi pi-shopping-cart text-400 text-6xl mb-4"></i>
+          <h4 class="text-600 mb-2">{{ 'cart_empty' | translate }}</h4>
+          <p class="text-500">{{ 'add_products_to_cart' | translate }}</p>
+        </div>
+      </div>
+
+      <!-- Order Summary & Checkout -->
+      <div class="card border-round-lg shadow-sm pos-order-summary-card">
+        <div class="grid">
+          <!-- Order Summary -->
+          <div class="col-12 lg:col-7">
+            <div class="pos-order-summary-header">
+              <div class="flex align-items-center gap-2 mb-3">
+                <i class="pi pi-receipt text-primary text-2xl"></i>
+                <h4 class="mt-0 mb-0">{{ 'order_summary' | translate }}</h4>
+              </div>
+            </div>
+            
+            <div class="pos-order-summary">
+              <!-- Subtotal Section -->
+              <div class="pos-summary-section">
+                <div class="pos-summary-item">
+                  <div class="flex align-items-center justify-content-between w-full">
+                    <div class="flex align-items-center gap-2">
+                      <i class="pi pi-shopping-bag text-600"></i>
+                      <span class="pos-summary-label">{{ 'subtotal' | translate }}</span>
+                    </div>
+                    <span class="pos-summary-value">{{ formatCurrency(cart?.subtotal || 0) }}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Discount Section -->
+              <div class="pos-summary-section pos-summary-section-interactive">
+                <div class="pos-summary-item">
+                  <div class="flex align-items-center justify-content-between w-full">
+                    <div class="flex align-items-center gap-2">
+                      <i class="pi pi-tag text-orange-500"></i>
+                      <span class="pos-summary-label">{{ 'discount' | translate }}</span>
+                    </div>
+                    <div class="flex align-items-center gap-2">
+                      <p-inputNumber
+                        [(ngModel)]="discountAmount"
+                        [min]="0"
+                        [max]="cart?.subtotal || 0"
+                        mode="currency"
+                        [currency]="currency"
+                        (onInput)="applyDiscount($event.value, 'Amount')"
+                        styleClass="pos-discount-input">
+                      </p-inputNumber>
+                      <p-dropdown
+                        [options]="discountTypes"
+                        [(ngModel)]="discountType"
+                        (onChange)="applyDiscount(discountAmount, discountType)"
+                        styleClass="pos-discount-type">
+                      </p-dropdown>
+                    </div>
+                  </div>
+                  <div class="pos-discount-amount" *ngIf="cart?.discountAmount > 0">
+                    <span class="text-orange-500 font-semibold">-{{ formatCurrency(cart?.discountAmount || 0) }}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Tax Section -->
+              <div class="pos-summary-section pos-summary-section-interactive">
+                <div class="pos-summary-item">
+                  <div class="flex align-items-center justify-content-between w-full">
+                    <div class="flex align-items-center gap-2">
+                      <i class="pi pi-percentage text-blue-500"></i>
+                      <span class="pos-summary-label">{{ 'tax' | translate }}</span>
+                    </div>
+                    <div class="flex align-items-center gap-2">
+                      <p-inputSwitch
+                        [(ngModel)]="taxEnabled"
+                        (onChange)="onTaxSwitchChange()"
+                        [disabled]="!cart || cartSaving">
+                      </p-inputSwitch>
+                      <span class="pos-summary-value" *ngIf="cart?.taxAmount > 0">{{ formatCurrency(cart?.taxAmount || 0) }}</span>
+                      <span class="text-500" *ngIf="cart?.taxAmount === 0">{{ formatCurrency(0) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Total Section - Enhanced -->
+              <div class="pos-summary-total-section">
+                <div class="pos-summary-divider"></div>
+                <div class="pos-summary-total">
+                  <div class="flex align-items-center gap-2">
+                    <i class="pi pi-wallet text-primary text-xl"></i>
+                    <span class="pos-total-label">{{ 'total' | translate }}</span>
+                  </div>
+                  <span class="pos-total-amount">{{ formatCurrency(cartTotal) }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Order Notes - Enhanced -->
+            <div class="pos-notes-section">
+              <div class="flex align-items-center gap-2 mb-2">
+                <i class="pi pi-file-edit text-600"></i>
+                <label class="pos-notes-label">{{ 'notes' | translate }}</label>
+              </div>
+              <textarea
+                rows="3"
+                pInputTextarea
+                [(ngModel)]="orderNotes"
+                [placeholder]="'add_order_notes' | translate"
+                class="pos-notes-textarea">
+              </textarea>
+            </div>
+          </div>
+          
+          <!-- Checkout Panel -->
+          <div class="col-12 lg:col-5">
+            <div class="pos-checkout-panel">
+              <h4 class="mt-0 mb-2">{{ 'payment' | translate }}</h4>
+              
+              <!-- Quick Amount Buttons -->
+              <div class="mb-2">
+                <label class="block text-600 mb-1 text-sm">{{ 'quick_amounts' | translate }}</label>
+                <div class="grid">
+                  <div class="col-4" *ngFor="let amount of quickAmounts">
+                    <button
+                      pButton
+                      [label]="formatQuickAmount(amount)"
+                      class="p-button-outlined w-full pos-quick-amount-btn"
+                      (click)="addPayment(amount)">
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Payment Methods -->
+              <div class="mb-2">
+                <label class="block text-600 mb-1 text-sm">{{ 'payment_method' | translate }}</label>
+                <div class="pos-payment-methods">
+                  <div *ngFor="let method of paymentMethods" class="pos-payment-method">
+                    <p-radioButton
+                      [name]="'paymentMethod'"
+                      [value]="method.value"
+                      [(ngModel)]="selectedPaymentMethod"
+                      [inputId]="method.value">
+                    </p-radioButton>
+                    <label [for]="method.value" class="ml-2 cursor-pointer">
+                      <i [class]="method.icon" class="mr-2"></i>
+                      {{ method.label | translate }}
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Payment Amount -->
+              <div class="mb-3">
+                <label class="block text-600 mb-1 text-sm">{{ 'amount_paid' | translate }}</label>
+                <div class="pos-amount-display mb-2">
+                <p-inputNumber
+                  [(ngModel)]="paymentAmount"
+                  [min]="0"
+                  mode="currency"
+                  [currency]="currency"
+                  [maxFractionDigits]="2"
+                  styleClass="w-full text-2xl text-center"
+                    [inputStyle]="{ 'text-align': 'center', 'font-weight': '700' }"
+                    [readonly]="true">
+                </p-inputNumber>
+                </div>
+                
+                <!-- Digital Number Pad -->
+                <div class="pos-number-pad">
+                  <div class="pos-numpad-row">
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('7')">7</button>
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('8')">8</button>
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('9')">9</button>
+                    <button type="button" class="pos-numpad-btn pos-numpad-btn-clear" (click)="clearPaymentAmount()">
+                      <i class="pi pi-times"></i>
+                    </button>
+                  </div>
+                  <div class="pos-numpad-row">
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('4')">4</button>
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('5')">5</button>
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('6')">6</button>
+                    <button type="button" class="pos-numpad-btn pos-numpad-btn-backspace" (click)="backspacePaymentAmount()">
+                      <i class="pi pi-arrow-left"></i>
+                    </button>
+                  </div>
+                  <div class="pos-numpad-row">
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('1')">1</button>
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('2')">2</button>
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('3')">3</button>
+                    <button type="button" class="pos-numpad-btn pos-numpad-btn-enter" (click)="setPaymentToTotal()" [disabled]="!cart || cart.items.length === 0">
+                      <i class="pi pi-check"></i>
+                    </button>
+                  </div>
+                  <div class="pos-numpad-row">
+                    <button type="button" class="pos-numpad-btn pos-numpad-btn-zero" (click)="numpadInput('0')">0</button>
+                    <button type="button" class="pos-numpad-btn" (click)="numpadInput('.')">.</button>
+                    <button type="button" class="pos-numpad-btn pos-numpad-btn-00" (click)="numpadInput('00')">00</button>
+                    <button type="button" class="pos-numpad-btn pos-numpad-btn-exact" (click)="setPaymentToTotal()" [disabled]="!cart || cart.items.length === 0">
+                      <i class="pi pi-dollar"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Change Calculation -->
+              <div class="pos-change-calc mb-2" *ngIf="paymentAmount > 0">
+                <div class="flex justify-content-between text-600">
+                  <span>{{ 'change' | translate }}</span>
+                  <span class="font-bold" [ngClass]="{'text-green-500': paymentAmount >= cartTotal, 'text-red-500': paymentAmount < cartTotal}">
+                    {{ formatCurrency(paymentAmount - cartTotal) }}
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Checkout Button -->
+              <button
+                pButton
+                [label]="(!cart || cart.items.length === 0) ? ('add_products_to_checkout' | translate) : ('complete_checkout' | translate)"
+                [icon]="(!cart || cart.items.length === 0) ? 'pi pi-shopping-cart' : 'pi pi-credit-card'"
+                (click)="openCheckout()"
+                [disabled]="!cart || cart.items.length === 0 || cartSaving"
+                [class]="'w-full p-button-lg p-button-raised shadow-lg ' + ((!cart || cart.items.length === 0) ? 'p-button-secondary' : 'p-button-success')"
+                style="height: 3.5rem">
+              </button>
+              
+              <!-- Split Payment Option -->
+              <div class="text-center mt-2">
+                <button
+                  pButton
+                  label="Split Payment"
+                  icon="pi pi-money-bill"
+                  class="p-button-text p-button-sm"
+                  (click)="openSplitPayment()">
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Returns & Refunds Tab -->
+  <div class="grid" [class.pos-disabled]="!session" *ngIf="activeTab === 'returns'">
+    <div class="col-12">
+      <div class="card border-round-lg shadow-sm mb-4">
+        <div class="pos-returns-header mb-4">
+          <div class="flex align-items-center gap-2 mb-3">
+            <i class="pi pi-undo text-orange-500 text-2xl"></i>
+            <h3 class="mt-0 mb-0">{{ 'returns_refunds' | translate }}</h3>
+          </div>
+          <p class="text-600 m-0">{{ 'search_order_to_process_return' | translate }}</p>
+        </div>
+
+        <!-- Order Search -->
+        <div class="pos-return-search mb-4">
+          <label class="block text-600 mb-2 font-semibold">
+            <i class="pi pi-search mr-2"></i>
+            {{ 'search_order' | translate }}
+          </label>
+          <p-autoComplete
+            [(ngModel)]="selectedOrderForReturn"
+            [suggestions]="returnOrderSuggestions"
+            (completeMethod)="searchOrdersForReturn($event)"
+            (onSelect)="onOrderSelectForReturn($event)"
+            [minLength]="2"
+            [placeholder]="'search_by_order_reference_customer_name' | translate"
+            [dropdown]="true"
+            [forceSelection]="false"
+            field="reference"
+            styleClass="w-full">
+            <ng-template let-order pTemplate="item">
+              <div class="pos-order-suggestion">
+                <div class="flex align-items-center justify-content-between">
+                  <div>
+                    <div class="font-semibold">{{ order.reference }}</div>
+                    <small class="text-600">
+                      {{ order.customer?.firstName }} {{ order.customer?.lastName }} • 
+                      {{ formatCurrency(order.totalAmount || 0) }} • 
+                      {{ order.orderDate | date:'short' }}
+                    </small>
+                  </div>
+                  <i class="pi pi-arrow-right text-600"></i>
+                </div>
+              </div>
+            </ng-template>
+          </p-autoComplete>
+        </div>
+
+        <!-- Selected Order Info -->
+        <div class="pos-selected-order-info" *ngIf="selectedOrderForReturn">
+          <div class="pos-order-card">
+            <div class="flex align-items-center justify-content-between mb-3">
+              <div>
+                <h4 class="mt-0 mb-1">{{ selectedOrderForReturn.reference }}</h4>
+                <p class="text-600 m-0">
+                  {{ selectedOrderForReturn.customer?.firstName }} {{ selectedOrderForReturn.customer?.lastName }}
+                </p>
+              </div>
+              <div class="text-right">
+                <div class="text-2xl font-bold text-primary">
+                  {{ formatCurrency(selectedOrderForReturn.totalAmount || 0) }}
+                </div>
+                <small class="text-600">{{ selectedOrderForReturn.orderDate | date:'short' }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Dialog for Resume Cart -->
+  <p-dialog
+    [(visible)]="confirmResumeDialog"
+    [header]="'confirm_label' | translate"
+    [modal]="true"
+    [style]="{ width: '450px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="flex align-items-center justify-content-center">
+      <i class="pi pi-exclamation-triangle mr-3 text-warning" style="font-size: 2rem"></i>
+      <span [innerHTML]="confirmResumeMessage"></span>
+    </div>
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'no_button' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="confirmResumeDialog = false">
+      </button>
+      <button
+        pButton
+        [label]="'yes_button' | translate"
+        icon="pi pi-check"
+        class="p-button-success"
+        (click)="confirmResumeCallback && confirmResumeCallback()">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- View Cart Dialog (Read-Only) -->
+  <p-dialog
+    [(visible)]="viewCartDialog"
+    [header]="'view_cart' | translate"
+    [modal]="true"
+    [style]="{ width: '90vw', maxWidth: '700px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="pos-view-cart-content" *ngIf="viewedCart">
+      <!-- Cart Header Info -->
+      <div class="pos-view-cart-header mb-4">
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="flex align-items-center gap-2 mb-2">
+              <i class="pi pi-shopping-cart text-primary"></i>
+              <div>
+                <div class="font-semibold text-lg">#{{ viewedCart.cartId }}</div>
+                <small class="text-600">
+                  {{ viewedCart.customerName || ('walk_in_customer' | translate) }}
+                </small>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 md:col-6 text-right">
+            <div class="text-600 mb-1">{{ 'created_at' | translate }}</div>
+            <div class="font-semibold">{{ viewedCart.createdAt | date:'short' }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cart Items -->
+      <div class="pos-view-cart-items mb-4" *ngIf="viewedCart.items && viewedCart.items.length > 0">
+        <h4 class="mb-3">{{ 'items' | translate }} ({{ viewedCart.items.length }})</h4>
+        <div class="pos-view-cart-item" *ngFor="let item of viewedCart.items">
+          <div class="flex align-items-center gap-3">
+            <div class="pos-view-item-image">
+              <img [src]="getCartItemImage(item)" [alt]="item.productName" />
+            </div>
+            <div class="flex-1">
+              <div class="font-semibold">{{ item.productName }}</div>
+              <small class="text-600">{{ item.productReference }}</small>
+              <div class="flex align-items-center gap-2 mt-1">
+                <span class="text-600">{{ 'quantity' | translate }}: {{ item.quantity }}</span>
+                <span class="text-600">•</span>
+                <span class="text-600">{{ formatCurrency(item.pricePerUnit) }} {{ 'each' | translate }}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="font-bold text-lg">{{ formatCurrency(item.subtotal) }}</div>
+              <small class="text-600">
+                <p-tag
+                  [value]="item.quantityAvailable"
+                  [severity]="item.quantityAvailable <= 0 ? 'danger' : (item.quantityAvailable < 5 ? 'warning' : 'success')"
+                  styleClass="text-xs">
+                </p-tag>
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cart Summary -->
+      <div class="pos-view-cart-summary">
+        <div class="pos-summary-item">
+          <span>{{ 'subtotal' | translate }}</span>
+          <span class="font-semibold">{{ formatCurrency(viewedCart.subtotal) }}</span>
+        </div>
+        <div class="pos-summary-item" *ngIf="viewedCart.discountAmount > 0">
+          <span>{{ 'discount' | translate }}</span>
+          <span class="font-semibold text-red-500">-{{ formatCurrency(viewedCart.discountAmount) }}</span>
+        </div>
+        <div class="pos-summary-item" *ngIf="viewedCart.taxAmount > 0">
+          <span>{{ 'tax' | translate }}</span>
+          <span class="font-semibold">{{ formatCurrency(viewedCart.taxAmount) }}</span>
+        </div>
+        <div class="pos-summary-item pos-total-item">
+          <span class="font-bold text-lg">{{ 'total' | translate }}</span>
+          <span class="font-bold text-lg text-primary">{{ formatCurrency(viewedCart.totalAmount) }}</span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="pos-view-cart-notes mt-4" *ngIf="viewedCart.notes">
+        <div class="text-600 mb-2">{{ 'notes' | translate }}</div>
+        <div class="pos-notes-content">{{ viewedCart.notes }}</div>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'close' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="viewCartDialog = false">
+      </button>
+      <button
+        pButton
+        [label]="'resume_cart' | translate"
+        icon="pi pi-refresh"
+        class="p-button-success"
+        (click)="viewCartDialog = false; resumeCart(viewedCart!)"
+        *ngIf="viewedCart">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Hold Carts Dialog -->
+  <p-dialog
+    [(visible)]="holdCartsDialog"
+    [header]="'hold_carts' | translate"
+    [modal]="true"
+    [style]="{ width: '90vw', maxWidth: '800px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="pos-hold-carts-list" *ngIf="holdCarts && holdCarts.length > 0">
+      <div class="pos-hold-cart-item" *ngFor="let cart of holdCarts; trackBy: trackByCartId">
+        <div class="pos-hold-cart-header">
+          <div class="flex align-items-center gap-2">
+            <i class="pi pi-shopping-cart text-primary"></i>
+            <div>
+              <div class="font-semibold">#{{ cart.cartId }}</div>
+              <small class="text-600">
+                {{ cart.customerName || ('walk_in_customer' | translate) }} • 
+                {{ cart.createdAt | date:'short' }}
+              </small>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-bold text-lg text-primary">{{ formatCurrency(cart.totalAmount) }}</div>
+            <small class="text-600">{{ cart.items?.length || 0 }} {{ 'items' | translate }}</small>
+          </div>
+        </div>
+        
+        <div class="pos-hold-cart-items mt-3" *ngIf="cart.items && cart.items.length > 0">
+          <div class="pos-hold-cart-item-row" *ngFor="let item of cart.items">
+            <div class="flex align-items-center gap-2">
+              <span class="font-semibold">{{ item.productName }}</span>
+              <span class="text-600">x{{ item.quantity }}</span>
+            </div>
+            <span class="font-bold">{{ formatCurrency(item.subtotal) }}</span>
+          </div>
+        </div>
+        
+        <div class="pos-hold-cart-actions mt-3 flex gap-2">
+          <button
+            pButton
+            [label]="'resume_cart' | translate"
+            icon="pi pi-refresh"
+            class="p-button-success flex-1"
+            (click)="resumeCart(cart); $event.stopPropagation()"
+            [disabled]="cartSaving">
+          </button>
+          <button
+            pButton
+            [label]="'view' | translate"
+            icon="pi pi-eye"
+            class="p-button-outlined flex-1"
+            (click)="viewHoldCart(cart); $event.stopPropagation()"
+            [disabled]="cartSaving">
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="text-center py-6" *ngIf="!holdCarts || holdCarts.length === 0">
+      <i class="pi pi-inbox text-400 text-6xl mb-3"></i>
+      <h4 class="text-600 mb-2">{{ 'no_hold_carts' | translate }}</h4>
+      <p class="text-500">{{ 'no_carts_on_hold' | translate }}</p>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'close' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="holdCartsDialog = false">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Checkout Dialog -->
+  <p-dialog
+    [(visible)]="checkoutDialog"
+    [header]="'checkout' | translate"
+    [modal]="true"
+    [style]="{ width: '90vw', maxWidth: '600px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="pos-checkout-content">
+      <div class="mb-4">
+        <h4 class="mb-3">{{ 'payment_details' | translate }}</h4>
+        
+        <!-- Payment Lines -->
+        <div class="pos-payment-lines mb-3" *ngIf="checkoutPayments && checkoutPayments.length > 0">
+          <div class="pos-payment-line" *ngFor="let payment of checkoutPayments; let i = index">
+            <div class="flex align-items-center justify-content-between">
+              <div>
+                <span class="font-semibold">{{ payment.method | translate }}</span>
+                <span class="text-600 ml-2">{{ formatCurrency(payment.amount) }}</span>
+              </div>
+              <button
+                pButton
+                icon="pi pi-times"
+                class="p-button-rounded p-button-text p-button-danger p-button-sm"
+                (click)="removePaymentLine(i)"
+                *ngIf="checkoutPayments.length > 1">
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Add Payment Line -->
+        <button
+          pButton
+          [label]="'add_payment' | translate"
+          icon="pi pi-plus"
+          class="p-button-outlined w-full mb-3"
+          (click)="addPaymentLine()">
+        </button>
+        
+        <!-- Total -->
+        <div class="pos-checkout-total mb-4">
+          <div class="flex justify-content-between align-items-center">
+            <span class="font-bold text-lg">{{ 'total' | translate }}</span>
+            <span class="font-bold text-2xl text-primary">{{ formatCurrency(cartTotal) }}</span>
+          </div>
+          <div class="flex justify-content-between align-items-center mt-2" *ngIf="totalPaid > 0">
+            <span class="text-600">{{ 'total_paid' | translate }}</span>
+            <span class="font-semibold">{{ formatCurrency(totalPaid) }}</span>
+          </div>
+          <div class="flex justify-content-between align-items-center mt-2" *ngIf="changeAmount > 0">
+            <span class="text-600">{{ 'change' | translate }}</span>
+            <span class="font-semibold text-green-500">{{ formatCurrency(changeAmount) }}</span>
+          </div>
+        </div>
+        
+        <!-- Notes -->
+        <div class="mb-4">
+          <label class="block text-600 mb-2">{{ 'notes' | translate }}</label>
+          <textarea
+            [(ngModel)]="checkoutNotes"
+            pInputTextarea
+            [rows]="3"
+            [placeholder]="'add_order_notes' | translate"
+            class="w-full">
+          </textarea>
+        </div>
+        
+        <!-- Print Receipt -->
+        <div class="mb-4">
+          <p-checkbox
+            [(ngModel)]="printReceipt"
+            [binary]="true"
+            [inputId]="'printReceipt'">
+          </p-checkbox>
+          <label [for]="'printReceipt'" class="ml-2 cursor-pointer">
+            {{ 'print_receipt' | translate }}
+          </label>
+        </div>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'cancel' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="checkoutDialog = false">
+      </button>
+      <button
+        pButton
+        [label]="'complete_checkout' | translate"
+        icon="pi pi-check"
+        class="p-button-success"
+        (click)="completeCheckout()"
+        [disabled]="cartSaving || totalPaid < cartTotal">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Receipt Dialog -->
+  <p-dialog
+    [(visible)]="receiptDialog"
+    [header]="'receipt' | translate"
+    [modal]="true"
+    [style]="{ width: '90vw', maxWidth: '500px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="pos-receipt-content" *ngIf="lastReceipt">
+      <div class="text-center mb-4">
+        <h3>{{ lastReceipt.shopName }}</h3>
+        <p class="text-600">{{ lastReceipt.shopAddress }}</p>
+      </div>
+      
+      <div class="pos-receipt-details mb-4">
+        <div class="flex justify-content-between mb-2">
+          <span class="text-600">{{ 'receipt_number' | translate }}</span>
+          <span class="font-semibold">{{ lastReceipt.receiptNumber }}</span>
+        </div>
+        <div class="flex justify-content-between mb-2">
+          <span class="text-600">{{ 'date' | translate }}</span>
+          <span>{{ lastReceipt.transactionDate | date:'short' }}</span>
+        </div>
+        <div class="flex justify-content-between mb-2">
+          <span class="text-600">{{ 'cashier' | translate }}</span>
+          <span>{{ lastReceipt.cashierName }}</span>
+        </div>
+        <div class="flex justify-content-between mb-2">
+          <span class="text-600">{{ 'customer' | translate }}</span>
+          <span>{{ lastReceipt.customerName }}</span>
+        </div>
+      </div>
+      
+      <div class="pos-receipt-items mb-4">
+        <div class="pos-receipt-item" *ngFor="let item of lastReceipt.items">
+          <div class="flex justify-content-between mb-1">
+            <span>{{ item.productName }} x{{ item.quantity }}</span>
+            <span class="font-semibold">{{ formatCurrency(item.subtotal) }}</span>
+          </div>
+          <small class="text-600">{{ formatCurrency(item.pricePerUnit) }} {{ 'each' | translate }}</small>
+        </div>
+      </div>
+      
+      <div class="pos-receipt-summary mb-4">
+        <div class="flex justify-content-between mb-2">
+          <span class="text-600">{{ 'subtotal' | translate }}</span>
+          <span>{{ formatCurrency(lastReceipt.subtotal) }}</span>
+        </div>
+        <div class="flex justify-content-between mb-2" *ngIf="lastReceipt.discountAmount > 0">
+          <span class="text-600">{{ 'discount' | translate }}</span>
+          <span>-{{ formatCurrency(lastReceipt.discountAmount) }}</span>
+        </div>
+        <div class="flex justify-content-between mb-2" *ngIf="lastReceipt.taxAmount > 0">
+          <span class="text-600">{{ 'tax' | translate }}</span>
+          <span>{{ formatCurrency(lastReceipt.taxAmount) }}</span>
+        </div>
+        <div class="flex justify-content-between font-bold text-lg pt-2 border-top-1">
+          <span>{{ 'total' | translate }}</span>
+          <span>{{ formatCurrency(lastReceipt.totalAmount) }}</span>
+        </div>
+      </div>
+      
+      <div class="pos-receipt-payments mb-4">
+        <div class="pos-receipt-payment" *ngFor="let payment of lastReceipt.payments">
+          <div class="flex justify-content-between">
+            <span>{{ payment.method | translate }}</span>
+            <span class="font-semibold">{{ formatCurrency(payment.amount) }}</span>
+          </div>
+        </div>
+        <div class="flex justify-content-between mt-2" *ngIf="lastReceipt.change > 0">
+          <span class="text-600">{{ 'change' | translate }}</span>
+          <span class="font-semibold text-green-500">{{ formatCurrency(lastReceipt.change) }}</span>
+        </div>
+      </div>
+      
+      <div class="text-center text-600 text-sm" *ngIf="lastReceipt.footerMessage">
+        <p>{{ lastReceipt.footerMessage }}</p>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'close' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="closeReceiptDialog()">
+      </button>
+      <button
+        pButton
+        [label]="'print' | translate"
+        icon="pi pi-print"
+        class="p-button-success"
+        (click)="printReceiptDialog()"
+        *ngIf="lastReceipt">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Open Session Dialog -->
+  <p-dialog
+    [(visible)]="openSessionDialog"
+    [header]="'open_session' | translate"
+    [modal]="true"
+    [style]="{ width: '500px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="flex flex-column gap-4">
+      <div class="text-center">
+        <i class="pi pi-play-circle text-primary text-5xl mb-3"></i>
+        <p class="text-600 mb-4">{{ 'open_new_pos_session' | translate }}</p>
+      </div>
+      
+      <div class="field">
+        <label class="block text-600 mb-2 font-medium">{{ 'shop' | translate }}</label>
+        <p-dropdown
+          [options]="shops"
+          optionLabel="shopName"
+          optionValue="shopId"
+          [(ngModel)]="shopId"
+          [placeholder]="'select_shop' | translate"
+          styleClass="w-full"
+          [disabled]="true">
+        </p-dropdown>
+      </div>
+      
+      <div class="field">
+        <label class="block text-600 mb-2 font-medium">
+          {{ 'cash_register_session_id' | translate }}
+          <small class="text-500">({{ 'optional' | translate }})</small>
+        </label>
+        <p-inputNumber
+          [(ngModel)]="sessionCashRegisterId"
+          [placeholder]="'enter_cash_register_session_id' | translate"
+          [min]="0"
+          styleClass="w-full">
+        </p-inputNumber>
+        <small class="text-500">{{ 'link_to_cash_register_session' | translate }}</small>
+      </div>
+      
+      <div class="field">
+        <label class="block text-600 mb-2 font-medium">
+          {{ 'notes' | translate }}
+          <small class="text-500">({{ 'optional' | translate }})</small>
+        </label>
+        <textarea
+          [(ngModel)]="sessionNotes"
+          pInputTextarea
+          [rows]="3"
+          [placeholder]="'add_session_notes' | translate"
+          styleClass="w-full">
+        </textarea>
+      </div>
+      
+      <div class="pos-session-info-card p-3 border-round surface-ground">
+        <div class="flex align-items-center gap-2 mb-2">
+          <i class="pi pi-info-circle text-primary"></i>
+          <span class="font-semibold">{{ 'session_info' | translate }}</span>
+        </div>
+        <ul class="text-600 text-sm m-0 pl-3">
+          <li>{{ 'session_will_track_all_transactions' | translate }}</li>
+          <li>{{ 'you_can_close_session_anytime' | translate }}</li>
+          <li>{{ 'ensure_no_active_carts_before_closing' | translate }}</li>
+        </ul>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'cancel' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="openSessionDialog = false">
+      </button>
+      <button
+        pButton
+        [label]="'open_session' | translate"
+        icon="pi pi-play"
+        class="p-button-success"
+        (click)="openSession()"
+        [disabled]="loading || !shopId">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Close Session Dialog -->
+  <p-dialog
+    [(visible)]="closeSessionDialog"
+    [header]="'close_session' | translate"
+    [modal]="true"
+    [style]="{ width: '500px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="flex flex-column gap-4">
+      <div class="text-center">
+        <i class="pi pi-stop-circle text-danger text-5xl mb-3"></i>
+        <p class="text-600 mb-4">{{ 'close_current_pos_session' | translate }}</p>
+      </div>
+      
+      <div *ngIf="session" class="pos-session-summary p-3 border-round surface-ground">
+        <h4 class="mt-0 mb-3">{{ 'session_summary' | translate }}</h4>
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="text-600 text-sm mb-1">{{ 'session_id' | translate }}</div>
+            <div class="font-semibold">#{{ session.sessionId }}</div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="text-600 text-sm mb-1">{{ 'started_at' | translate }}</div>
+            <div class="font-semibold">{{ session.startedAt | date:'short' }}</div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="text-600 text-sm mb-1">{{ 'duration' | translate }}</div>
+            <div class="font-semibold">{{ getSessionDuration() }}</div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="text-600 text-sm mb-1">{{ 'cashier' | translate }}</div>
+            <div class="font-semibold">{{ session.username || 'N/A' }}</div>
+          </div>
+          <div class="col-12" *ngIf="session.totalTransactions > 0">
+            <p-divider></p-divider>
+            <div class="grid">
+              <div class="col-12 md:col-4">
+                <div class="text-600 text-sm mb-1">{{ 'transactions' | translate }}</div>
+                <div class="font-bold text-lg text-primary">{{ session.totalTransactions }}</div>
+              </div>
+              <div class="col-12 md:col-4">
+                <div class="text-600 text-sm mb-1">{{ 'total_sales' | translate }}</div>
+                <div class="font-bold text-lg text-primary">{{ formatCurrency(session.totalSales || 0) }}</div>
+              </div>
+              <div class="col-12 md:col-4">
+                <div class="text-600 text-sm mb-1">{{ 'cash_sales' | translate }}</div>
+                <div class="font-bold text-lg text-green-500">{{ formatCurrency(session.totalCashSales || 0) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="field">
+        <label class="block text-600 mb-2 font-medium">
+          {{ 'notes' | translate }}
+          <small class="text-500">({{ 'optional' | translate }})</small>
+        </label>
+        <textarea
+          [(ngModel)]="closingSessionNotes"
+          pInputTextarea
+          [rows]="3"
+          [placeholder]="'add_closing_notes' | translate"
+          styleClass="w-full">
+        </textarea>
+      </div>
+      
+      <div class="pos-warning-card p-3 border-round" style="background: #fff3cd; border: 1px solid #ffc107;">
+        <div class="flex align-items-center gap-2 mb-2">
+          <i class="pi pi-exclamation-triangle text-warning"></i>
+          <span class="font-semibold">{{ 'warning' | translate }}</span>
+        </div>
+        <ul class="text-600 text-sm m-0 pl-3">
+          <li>{{ 'ensure_all_transactions_are_completed' | translate }}</li>
+          <li>{{ 'no_active_carts_allowed_when_closing' | translate }}</li>
+          <li>{{ 'session_cannot_be_reopened' | translate }}</li>
+        </ul>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'cancel' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="closeSessionDialog = false">
+      </button>
+      <button
+        pButton
+        [label]="'close_session' | translate"
+        icon="pi pi-stop"
+        class="p-button-danger"
+        (click)="closeSession()"
+        [disabled]="loading || (cart && cart.items && cart.items.length > 0)">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Switch Cashier Dialog -->
+  <p-dialog
+    [(visible)]="switchCashierDialog"
+    [header]="'switch_cashier' | translate"
+    [modal]="true"
+    [style]="{ width: '450px' }"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="flex flex-column gap-4">
+      <div class="text-center">
+        <i class="pi pi-user-edit text-primary text-5xl mb-3"></i>
+        <p class="text-600 mb-4">{{ 'enter_cashier_pin' | translate }}</p>
+      </div>
+      
+      <div class="pos-pin-input">
+        <p-password
+          [(ngModel)]="switchCashierPin"
+          [feedback]="false"
+          [toggleMask]="true"
+          (onSubmit)="confirmSwitchCashier()"
+          [placeholder]="'enter_pin' | translate"
+          [inputStyle]="{ 'text-align': 'center', 'font-size': '1.25rem', 'letter-spacing': '0.3rem' }"
+          autofocus
+          [promptLabel]="''">
+        </p-password>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'cancel' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="switchCashierDialog = false; switchCashierPin = ''">
+      </button>
+      <button
+        pButton
+        [label]="'switch' | translate"
+        icon="pi pi-sign-out"
+        class="p-button-primary"
+        (click)="confirmSwitchCashier()"
+        [disabled]="!switchCashierPin || switchCashierPin.length < 4">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Return Dialog -->
+  <p-dialog
+    [(visible)]="returnDialog"
+    [header]="'process_return' | translate"
+    [modal]="true"
+    [style]="{width: '90vw', maxWidth: '1200px'}"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="pos-return-dialog-content">
+      <div class="grid">
+        <!-- Return Items -->
+        <div class="col-12 lg:col-8">
+          <div class="pos-return-items-section">
+            <h4 class="mb-3 flex align-items-center gap-2">
+              <i class="pi pi-shopping-bag text-primary"></i>
+              {{ 'select_items_to_return' | translate }}
+            </h4>
+            <div class="pos-return-items-list">
+              <div class="pos-return-item-card" *ngFor="let item of returnItems">
+                <div class="flex align-items-center gap-3 mb-3">
+                  <div class="pos-return-item-image">
+                    <img [src]="item.product?.productImage || 'assets/core-images/no-image.png'" 
+                         [alt]="item.product?.name || item.productName"
+                         *ngIf="item.product?.productImage || item.productImage">
+                    <i class="pi pi-image text-4xl text-400" *ngIf="!item.product?.productImage && !item.productImage"></i>
+                  </div>
+                  <div class="flex-1">
+                    <div class="font-semibold mb-1">{{ item.product?.name || item.productName }}</div>
+                    <div class="text-600 text-sm mb-2">
+                      {{ 'quantity' | translate }}: {{ item.quantity }} • 
+                      {{ formatCurrency(item.unitPrice || item.sellingPrice || 0) }} {{ 'per_unit' | translate }}
+                    </div>
+                    <div class="flex align-items-center gap-2">
+                      <label class="text-sm font-semibold">{{ 'return_quantity' | translate }}:</label>
+                      <p-inputNumber
+                        [(ngModel)]="item.returnQuantity"
+                        [min]="0"
+                        [max]="item.quantity"
+                        (onInput)="calculateReturnItemRefund(item)"
+                        styleClass="w-8rem">
+                      </p-inputNumber>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-2xl font-bold text-orange-500">
+                      {{ formatCurrency(item.refundAmount || 0) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="grid mb-2">
+                  <div class="col-12 md:col-6">
+                    <label class="block text-600 mb-1 text-sm">{{ 'reason' | translate }}</label>
+                    <p-dropdown
+                      [(ngModel)]="item.returnReason"
+                      [options]="returnReasons"
+                      optionLabel="label"
+                      optionValue="value"
+                      styleClass="w-full">
+                    </p-dropdown>
+                  </div>
+                  <div class="col-12 md:col-6">
+                    <label class="block text-600 mb-1 text-sm">{{ 'condition' | translate }}</label>
+                    <p-dropdown
+                      [(ngModel)]="item.condition"
+                      [options]="itemConditions"
+                      optionLabel="label"
+                      optionValue="value"
+                      styleClass="w-full">
+                    </p-dropdown>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Return Summary -->
+        <div class="col-12 lg:col-4">
+          <div class="pos-return-summary-card">
+            <h4 class="mb-3 flex align-items-center gap-2">
+              <i class="pi pi-receipt text-primary"></i>
+              {{ 'return_summary' | translate }}
+            </h4>
+            <div class="pos-return-summary">
+              <div class="pos-summary-item">
+                <span>{{ 'total_refund_amount' | translate }}</span>
+                <span class="font-bold text-2xl text-orange-500">
+                  {{ formatCurrency(getTotalReturnAmount()) }}
+                </span>
+              </div>
+            </div>
+            <div class="mt-4">
+              <button
+                pButton
+                [label]="'process_return' | translate"
+                icon="pi pi-check"
+                class="w-full p-button-lg p-button-success"
+                (click)="processReturn()"
+                [disabled]="getTotalReturnAmount() === 0">
+              </button>
+              <button
+                pButton
+                [label]="'cancel' | translate"
+                icon="pi pi-times"
+                class="w-full p-button-text mt-2"
+                (click)="cancelReturn()">
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </p-dialog>
+
+  <!-- Refund Dialog -->
+  <p-dialog
+    [(visible)]="refundDialog"
+    [header]="'process_refund' | translate"
+    [modal]="true"
+    [style]="{width: '90vw', maxWidth: '600px'}"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="pos-dialog">
+    <div class="pos-refund-dialog-content">
+      <div class="pos-refund-summary mb-4">
+        <div class="pos-summary-section">
+          <div class="pos-summary-item">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-wallet text-primary"></i>
+              <span class="pos-summary-label">{{ 'refund_amount' | translate }}</span>
+            </div>
+            <span class="pos-summary-value text-2xl text-orange-500">
+              {{ formatCurrency(refundAmount) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pos-refund-form">
+        <div class="field mb-3">
+          <label class="block text-600 mb-2 font-semibold">
+            <i class="pi pi-credit-card mr-2"></i>
+            {{ 'refund_method' | translate }}
+          </label>
+          <div class="pos-payment-methods">
+            <div *ngFor="let method of paymentMethods" class="pos-payment-method">
+              <p-radioButton
+                [inputId]="'refund-' + method.value"
+                [value]="method.value"
+                [(ngModel)]="refundMethod"
+                [name]="'refundMethod'">
+              </p-radioButton>
+              <label [for]="'refund-' + method.value" class="ml-2 cursor-pointer">
+                <i [class]="method.icon"></i>
+                <span>{{ method.label }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="field mb-3">
+          <label class="block text-600 mb-2 font-semibold">
+            <i class="pi pi-file-edit mr-2"></i>
+            {{ 'notes' | translate }}
+          </label>
+          <textarea
+            pInputTextarea
+            [(ngModel)]="refundNotes"
+            [placeholder]="'add_refund_notes' | translate"
+            rows="3"
+            styleClass="w-full">
+          </textarea>
+        </div>
+      </div>
+    </div>
+    <ng-template pTemplate="footer">
+      <button
+        pButton
+        [label]="'cancel' | translate"
+        icon="pi pi-times"
+        class="p-button-text"
+        (click)="cancelRefund()">
+      </button>
+      <button
+        pButton
+        [label]="'process_refund' | translate"
+        icon="pi pi-check"
+        class="p-button-success"
+        (click)="processRefund()"
+        [disabled]="refundAmount <= 0">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Barcode Scanner Dialog -->
+  <p-dialog
+    [(visible)]="scannerDialog"
+    [modal]="true"
+    [style]="{ width: '90vw', maxWidth: '600px' }"
+    [header]="'barcode_scanner' | translate"
+    [draggable]="false"
+    [resizable]="false"
+    (onHide)="closeScanner()"
+    styleClass="pos-scanner-dialog">
+    <div class="pos-scanner-content">
+      <div *ngIf="!hasPermission" class="text-center p-4">
+        <i class="pi pi-exclamation-triangle text-4xl text-orange-500 mb-3"></i>
+        <p class="text-lg mb-3">{{ 'camera_permission_required' | translate }}</p>
+        <p-button
+          label="{{ 'request_camera_access' | translate }}"
+          icon="pi pi-camera"
+          (onClick)="requestCameraPermission()">
+        </p-button>
+      </div>
+
+      <div *ngIf="hasPermission && availableDevices.length === 0" class="text-center p-4">
+        <i class="pi pi-times-circle text-4xl text-red-500 mb-3"></i>
+        <p class="text-lg">{{ 'no_camera_found' | translate }}</p>
+      </div>
+
+      <div *ngIf="hasPermission && availableDevices.length > 0" class="pos-scanner-wrapper">
+        <!-- Camera Device Selector -->
+        <div *ngIf="availableDevices.length > 1" class="mb-3">
+          <label class="block text-sm font-medium mb-2">{{ 'select_camera' | translate }}</label>
+          <p-dropdown
+            [options]="availableDevices"
+            [(ngModel)]="currentDevice"
+            optionLabel="label"
+            [showClear]="false"
+            placeholder="{{ 'select_camera' | translate }}"
+            (onChange)="onDeviceSelectChange($event.value?.deviceId || '')"
+            class="w-full">
+            <ng-template let-device pTemplate="selectedItem">
+              <span>{{ device.label || ('camera' | translate) + ' ' + (availableDevices.indexOf(device) + 1) }}</span>
+            </ng-template>
+            <ng-template let-device pTemplate="item">
+              <div>{{ device.label || ('camera' | translate) + ' ' + (availableDevices.indexOf(device) + 1) }}</div>
+            </ng-template>
+          </p-dropdown>
+        </div>
+
+        <!-- Scanner Component -->
+        <div class="pos-scanner-viewport" *ngIf="scannerEnabled && currentDeviceId">
+          <zxing-scanner
+            [enable]="scannerEnabled"
+            [device]="currentDeviceId"
+            (scanSuccess)="onScanSuccess($event)"
+            (scanError)="onScanError($event)"
+            (camerasFound)="onCamerasFound($event)"
+            [formats]="['EAN_13', 'EAN_8', 'CODE_128', 'CODE_39', 'ITF', 'QR_CODE', 'DATA_MATRIX']"
+            [tryHarder]="true">
+          </zxing-scanner>
+        </div>
+
+        <!-- Scan Result Feedback -->
+        <div *ngIf="lastScanResult" class="mt-3">
+          <p-message severity="success" [text]="('barcode_scanned' | translate) + ': ' + lastScanResult"></p-message>
+        </div>
+      </div>
+    </div>
+
+    <ng-template pTemplate="footer">
+      <p-button
+        [label]="'close' | translate"
+        icon="pi pi-times"
+        (onClick)="closeScanner()"
+        styleClass="p-button-text">
+      </p-button>
+    </ng-template>
+  </p-dialog>
+
+</div>
+
+<ng-template #loadingTpl>
+  <div class="pos-loading-screen">
+    <div class="pos-loading-content">
+      <p-progressSpinner styleClass="w-16rem h-16rem" strokeWidth="4" fill="transparent"></p-progressSpinner>
+      <h3 class="mt-4">{{ 'loading_pos' | translate }}</h3>
+      <p class="text-600">{{ 'please_wait' | translate }}</p>
+    </div>
+  </div>
+</ng-template>

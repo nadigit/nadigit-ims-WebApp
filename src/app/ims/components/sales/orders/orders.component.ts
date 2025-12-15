@@ -1,4 +1,5 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { OrderService } from 'src/app/services/order.service';
@@ -70,7 +71,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   orderDialog: boolean = false;
 
-  detailsDialog: boolean = false;
 
   customerDialog: boolean = false;
 
@@ -328,7 +328,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     public organizationService: OrganizationService,
     private financialDocService: FinancialDocumentsService,
     private storage: AngularFireStorage,
-    
+    private router: Router
   ) {
     this.loadTaxRate();
 
@@ -975,10 +975,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.shopDialog = false;
   }
 
-  hideDetailsDialog() {
-    this.detailsDialog = false;
-
-  }
   hideOrderReturnDialog() {
     this.orderReturnDialog = false;
   }
@@ -1791,71 +1787,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   }
 
-  async showOrderStatus(order) {
-    this.orderReturns = [];
-    this.orderPayments = [];
-    this.order = { ...order };
-    this.images = [];
-    await this.onGetOrderPayments(this.order.orderId);
-    await this.onGetAllOrderReturn(this.order.orderId);
-    console.log(order);
-
-    this.order.orderItems.forEach(item => {
-      this.images.push(item.product?.productImage ?? 'assets/core-images/no-image.png');
-    });
-
-    // Initialize originalEvents if not already initialized
-    if (!this.originalEvents || this.originalEvents.length === 0) {
-      this.originalEvents = [...this.events];
-    }
-
-    // Find the index of the current status
-    const currentStatusIndex = this.originalEvents.findIndex(event => event.status === this.order.orderStatus);
-
-    // Filter events up to the current status
-    const filteredEvents = this.originalEvents.slice(0, currentStatusIndex + 1);
-
-    // Conditional filtering based on order status
-    switch (this.order.orderStatus) {
-      case 'Return_Pending':
-      case 'Processing':
-        this.events = filteredEvents.filter(
-          event => !['Canceled'].includes(event.status)
-        );
-        break;
-      case 'Canceled':
-        this.events = filteredEvents.filter(
-          event => !['Processing', 'Delivered', 'Completed', 'Return_Pending', 'Returned', 'Partial_Return'].includes(event.status)
-        );
-        break;
-      case 'Delivered':
-        this.events = filteredEvents.filter(
-          event => !['Canceled'].includes(event.status)
-        );
-        break;
-      case 'Completed':
-        this.events = filteredEvents.filter(
-          event => !['Partial_Return', 'Returned', 'Return_Pending', 'Canceled'].includes(event.status)
-        );
-        break;
-      case 'Returned':
-        this.events = filteredEvents.filter(
-          event => !['Partial_Return', 'Canceled'].includes(event.status)
-        );
-        break;
-      case 'Partial_Return':
-        this.events = filteredEvents.filter(
-          event => !['Returned', 'Canceled'].includes(event.status)
-        );
-        break;
-      default:
-        this.events = filteredEvents;
-        break;
-    }
-
-    this.syncEventDates(this.events);
-
-    this.detailsDialog = true;
+  showOrderStatus(order) {
+    if (!order || !order.orderId) return;
+    this.router.navigate(['/sales/orders', order.orderId]);
   }
 
 
@@ -2645,8 +2579,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   viewProductDetails(product: Product) {
     if (!product) return;
-    this.selectedProduct = product;
-    this.productDetailDialog = true;
+    this.router.navigate(['/inventory/products', product.productId]);
   }
 
   getMeasureUnit(product: Product): string {

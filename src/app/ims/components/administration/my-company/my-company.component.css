@@ -1,0 +1,173 @@
+::ng-deep .setting-card {
+  border-radius: 12px;
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+::ng-deep .setting-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+::ng-deep .p-card .p-card-header {
+  background: #f9fafc;
+  border-bottom: 1px solid #eee;
+  border-radius: 12px 12px 0 0;
+}
+
+::ng-deep .p-organizationchart .p-organizationchart-node-content {
+  border-radius: 10px;
+  padding: 1rem;
+  font-weight: 500;
+}
+
+::ng-deep .p-organizationchart .p-organizationchart-line-down {
+  border-color: #007ad9;
+}
+
+::ng-deep .p-organizationchart .p-organizationchart-line-right,
+::ng-deep .p-organizationchart .p-organizationchart-line-left {
+  border-color: #ccc;
+}
+
+:host ::ng-deep {
+    .organization-dialog {
+        .p-dialog-content {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .logo-image {
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 640px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .upload-container {
+            transition: all 0.3s ease;
+            
+            &:hover {
+                border-color: var(--primary-color);
+                background-color: rgba(0, 122, 217, 0.05);
+            }
+        }
+        
+        .logo-section.has-logo {
+            background-color: #f8f9fa;
+            border: 1px dashed #dee2e6;
+        }
+        
+        .image-actions {
+            z-index: 10;
+        }
+        
+        .edit-button {
+            background-color: white !important;
+        }
+    }
+}
+
+.flag-icon {
+  border-radius: 2px;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+}
+
+.product-image-container {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.product-image-container:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 960px) {
+  .product-image-container {
+    margin-bottom: 1rem;
+  }
+}
+
+
+/* Drag and drop area */
+.drag-over {
+    border-color: var(--primary-color) !important;
+    background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+/* Image container */
+.image-wrapper {
+    position: relative;
+    min-height: 200px;
+}
+
+.image-wrapper.loading {
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 10;
+}
+
+.image-actions-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 5;
+}
+
+.image-wrapper:hover .image-actions-overlay {
+    opacity: 1;
+}
+
+/* Recent images */
+.recent-image-container {
+    transition: all 0.2s ease;
+}
+
+.recent-image-container:hover {
+    border-color: var(--primary-color);
+    transform: scale(1.05);
+}
+
+/* File info */
+.truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+

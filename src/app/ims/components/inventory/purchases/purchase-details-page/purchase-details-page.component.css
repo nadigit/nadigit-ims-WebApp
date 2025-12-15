@@ -1,0 +1,234 @@
+/* Purchase Details Page Styles */
+.purchase-details-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.purchase-details-header .purchase-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.purchase-details-header .purchase-icon i {
+    font-size: 2rem;
+}
+
+.details-section {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.purchase-summary-card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.summary-item:last-child {
+    border-bottom: none;
+}
+
+.summary-divider {
+    height: 2px;
+    background: var(--surface-border);
+    margin: 1rem 0;
+}
+
+.summary-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 0;
+    margin-top: 1rem;
+    border-top: 2px solid var(--surface-border);
+}
+
+.summary-total .total-amount {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.actions-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.supplier-card {
+    background: var(--surface-ground);
+    border: 1px solid var(--surface-border);
+}
+
+.audit-info {
+    background: var(--surface-ground);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.audit-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.audit-item label {
+    font-weight: 600;
+    color: var(--text-color-secondary);
+}
+
+.audit-item span {
+    color: var(--text-color);
+}
+
+/* Timeline styles */
+.timeline-container {
+    padding: 1rem 0;
+}
+
+.premium-timeline .timeline-marker {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface-ground);
+    border: 2px solid var(--surface-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.premium-timeline .timeline-marker.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.premium-timeline .timeline-marker .marker-icon {
+    color: var(--text-color);
+    font-size: 1.25rem;
+}
+
+.premium-timeline .timeline-marker.active .marker-icon {
+    color: white;
+}
+
+.timeline-card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.timeline-card.active {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.1);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.timeline-header h5 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.timeline-date {
+    color: var(--text-color-secondary);
+    font-size: 0.875rem;
+}
+
+.timeline-actions {
+    margin-top: 1rem;
+}
+
+/* Products table styles */
+.premium-products-table .product-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.premium-products-table .product-image {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.premium-products-table .product-name {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.premium-products-table .product-category {
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+}
+
+.quantity-tag {
+    font-weight: 600;
+}
+
+.summary-row,
+.summary-total {
+    background: var(--surface-ground);
+}
+
+.summary-total .footer-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+/* Status badges */
+.purchase-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.payment-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .purchase-details-header {
+        padding: 1.5rem;
+    }
+    
+    .purchase-details-header h2 {
+        font-size: 1.5rem;
+    }
+}
+

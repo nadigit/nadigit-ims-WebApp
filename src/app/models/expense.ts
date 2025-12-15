@@ -13,4 +13,13 @@ export class Expense {
     boeNumber?: string;
     boeExpirationDate?: Date | string;
     shop?:Shop;
+    status?: string;
+    description?: string;
+    lastUpdated?: Date | string;
+    submissionDate?: Date | string;
+    approvalDate?: Date | string;
+    approvedBy?: string;
+    reimbursementDate?: Date | string;
+    reimbursedBy?: string;
+    approvalNotes?: string;
 } 

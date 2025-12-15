@@ -1,0 +1,335 @@
+<div class="grid">
+	<div class="col-12">
+		<div class="card px-6 py-6">
+			<p-toast></p-toast>
+			<p-progressSpinner *ngIf="isLoading" styleClass="w-full"></p-progressSpinner>
+
+			<div *ngIf="!isLoading && return" class="premium-return-details-page">
+				<!-- Back Button -->
+				<div class="mb-4">
+					<button pButton pRipple icon="pi pi-arrow-left" label="{{ 'back' | translate }}" 
+						class="p-button-text" (click)="goBack()"></button>
+				</div>
+
+				<!-- Return Header -->
+				<div class="premium-dialog-header return-details-header"
+					[ngClass]="'status-' + (return?.returnStatus || '')?.toLowerCase()">
+					<div class="flex align-items-center justify-content-between">
+						<div class="flex align-items-center gap-3">
+							<div class="header-icon return-icon">
+								<i class="pi pi-undo text-white"></i>
+							</div>
+							<div>
+								<h2 class="m-0 text-white">#{{ return?.reference }}</h2>
+								<p class="m-0 text-white opacity-80">
+									{{ getCustomerDisplayName(return?.order?.customer) || 'N/A' }}
+								</p>
+							</div>
+						</div>
+						<div class="text-right">
+							<div class="flex align-items-center gap-3 justify-content-end">
+								<span *ngIf="return.returnStatus; else noStatus"
+									[class]="'return-badge return-' + return.returnStatus.toLowerCase()">
+									{{ ('return_status_' + return.returnStatus.toLowerCase()) | translate }}
+								</span>
+								<ng-template #noStatus>
+									<span class="return-badge">N/A</span>
+								</ng-template>
+							</div>
+							<div class="text-white mt-1 font-bold text-xl">
+								{{ return?.totalRefundableAmount | currency:currency:'symbol':'1.2-2' }}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="grid mt-4">
+					<!-- Left Panel - Return Timeline & Details -->
+					<div class="col-12 md:col-8 pl-4">
+						<!-- Return Items Section -->
+						<div class="premium-details-section">
+							<h4 class="section-title">
+								<i class="pi pi-box mr-2"></i>
+								{{ 'returned_items' | translate }} ({{return?.returnItems?.length || 0}})
+							</h4>
+
+							<p-table [value]="return?.returnItems" [scrollable]="true" scrollHeight="400px"
+								*ngIf="return?.returnItems?.length > 0" styleClass="premium-products-table">
+								<ng-template pTemplate="header">
+									<tr>
+										<th style="width: 30%">{{ 'product' | translate }}</th>
+										<th style="width: 12%">{{ 'quantity_returned' | translate }}</th>
+										<th style="width: 15%">{{ 'refund_amount_per_unit' | translate }}</th>
+										<th style="width: 15%">{{ 'refund_amount' | translate }}</th>
+										<th style="width: 14%">{{ 'item_condition' | translate }}</th>
+										<th style="width: 14%">{{ 'item_return_reason' | translate }}</th>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="body" let-item>
+									<tr>
+										<td>
+											<div class="product-info">
+												<img [src]="item.product?.productImage || 'assets/core-images/no-image.png'"
+													[alt]="item.product?.name" class="product-image">
+												<div class="product-details">
+													<div class="product-name">{{item.product?.name}}</div>
+													<div class="product-sku" *ngIf="item.product?.reference">
+														{{item.product?.reference}}
+													</div>
+													<div class="product-category">{{item.product?.category?.categoryName}}
+													</div>
+												</div>
+											</div>
+										</td>
+										<td>
+											<p-tag [severity]="getQuantitySeverity(item.returnedQuantity)"
+												[value]="item.returnedQuantity + ' ' + (getMeasureUnit(item.product, item.returnedQuantity) | translate)"
+												[icon]="item.returnedQuantity <= 0 ? 'pi pi-exclamation-triangle' : ''"></p-tag>
+										</td>
+										<td class="premium-font-semibold">
+											{{item.orderItem?.pricePerUnit | currency:currency:'symbol':'1.2-2'}}
+										</td>
+										<td class="premium-font-semibold text-primary">
+											{{item.refundAmount | currency:currency:'symbol':'1.2-2'}}
+										</td>
+										<td>
+											<p-tag [value]="'item_condition_' + item?.condition?.toLowerCase() | translate"
+												[severity]="getConditionSeverity(item.condition)">
+											</p-tag>
+										</td>
+										<td>
+											<span class="text-sm premium-text-muted">
+												{{item.reason? ('return_reason_' + item?.reason?.toLowerCase() | translate)
+												: 'N/A' }}
+											</span>
+										</td>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="footer">
+									<tr class="summary-total">
+										<td colspan="2"></td>
+										<td class="footer-label">{{ 'total_refund_amount' | translate }}:</td>
+										<td colspan="3" class="footer-value total">
+											{{return?.totalRefundableAmount | currency:currency:'symbol':'1.2-2'}}
+										</td>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="emptymessage">
+									<tr>
+										<td colspan="6" class="text-center py-4 premium-text-muted">
+											<i class="pi pi-inbox mr-2"></i>
+											{{ 'no_returned_items' | translate }}
+										</td>
+									</tr>
+								</ng-template>
+							</p-table>
+						</div>
+
+						<!-- Refunds History Section -->
+						<div class="premium-details-section" *ngIf="return?.refunds?.length > 0">
+							<h4 class="section-title">
+								<i class="pi pi-history mr-2"></i>
+								{{ 'refunds_history' | translate }} ({{return?.refunds?.length}})
+							</h4>
+
+							<div class="timeline-container">
+								<p-timeline [value]="return?.refunds" align="alternate" styleClass="premium-timeline">
+									<ng-template pTemplate="marker" let-refund>
+										<div class="timeline-marker" [ngClass]="{'active': isRefundActive(refund)}">
+											<i [class]="getRefundMethodIcon(refund.refundMethod) + ' marker-icon'"></i>
+											<div class="marker-tooltip">
+												{{ 'refund_status_' + refund.status?.toLowerCase() | translate }}
+											</div>
+										</div>
+									</ng-template>
+
+									<ng-template pTemplate="content" let-refund>
+										<div class="timeline-card" [ngClass]="{'active': isRefundActive(refund)}">
+											<div class="timeline-header">
+												<h5 class="m-0">
+													{{ 'refund_status_' + refund.status?.toLowerCase() | translate }}
+												</h5>
+												<span class="timeline-date">
+													{{ refund.refundDate | date:'shortDate' }}
+												</span>
+											</div>
+
+											<div class="timeline-content">
+												<div class="refund-details">
+													<div class="grid">
+														<div class="col-6">
+															<strong>{{ 'refund_amount' | translate }}:</strong>
+															<p class="premium-font-semibold text-primary">
+																{{ refund.amount | currency:currency:'symbol':'1.2-2' }}
+															</p>
+														</div>
+														<div class="col-6">
+															<strong>{{ 'refund_method' | translate }}:</strong>
+															<p>
+																<i
+																	[class]="getRefundMethodIcon(refund.refundMethod) + ' mr-2'"></i>
+																{{ "refund_method_" + refund?.refundMethod?.toLowerCase() |
+																translate }}
+															</p>
+														</div>
+														<div class="col-6">
+															<strong>{{ 'processed_by' | translate }}:</strong>
+															<p>{{ refund.processedBy || 'System' }}</p>
+														</div>
+														<div class="col-6">
+															<strong>{{ 'transaction_id' | translate }}:</strong>
+															<p class="font-mono">{{ refund.transactionId || 'N/A' }}</p>
+														</div>
+														<div class="col-12" *ngIf="refund.notes">
+															<strong>{{ 'notes' | translate }}:</strong>
+															<p class="premium-text-muted">{{ refund.notes }}</p>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+									</ng-template>
+								</p-timeline>
+							</div>
+						</div>
+					</div>
+
+					<!-- Right Panel - Return Summary & Quick Actions -->
+					<div class="col-12 md:col-4">
+						<!-- Return Summary -->
+						<div class="premium-details-section">
+							<h4 class="section-title">
+								<i class="pi pi-chart-bar mr-2"></i>
+								{{ 'return_summary' | translate }}
+							</h4>
+
+							<div class="premium-summary-card return-summary-card">
+								<div class="summary-item" *ngIf="return?.reference">
+									<span>{{ 'reference' | translate }}:</span>
+									<strong>#{{ return?.reference }}</strong>
+								</div>
+								<div class="summary-item" *ngIf="return?.returnDate">
+									<span>{{ 'return_date' | translate }}:</span>
+									<span>{{ return?.returnDate | date:'shortDate' }}</span>
+								</div>
+								<div class="summary-item" *ngIf="return?.order?.reference">
+									<span>{{ 'order_reference' | translate }}:</span>
+									<span>
+										<a (click)="viewOrder(return?.order)" class="order-link premium-font-semibold" style="cursor: pointer;">
+											#{{ return?.order?.reference }}
+										</a>
+									</span>
+								</div>
+								<div class="summary-item" *ngIf="return?.order?.customer">
+									<span>{{ 'customer' | translate }}:</span>
+									<span>{{ getCustomerDisplayName(return?.order?.customer) }}</span>
+								</div>
+								<div class="summary-item" *ngIf="return?.returnItems">
+									<span>{{ 'returned_items' | translate }}:</span>
+									<span>{{ return?.returnItems?.length || 0 }}</span>
+								</div>
+								<div class="summary-total" *ngIf="return?.totalRefundableAmount !== undefined">
+									<span>{{ 'total_refund_amount' | translate }}:</span>
+									<span class="premium-font-semibold text-primary">
+										{{ return?.totalRefundableAmount | currency:currency:'symbol':'1.2-2' }}
+									</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Quick Actions -->
+						<div class="premium-details-section">
+							<h4 class="section-title">
+								<i class="pi pi-bolt mr-2"></i>
+								{{ 'quick_actions' | translate }}
+							</h4>
+
+							<div class="actions-grid">
+								<button pButton pRipple icon="pi pi-print" [label]="'print_return_note' | translate"
+									*ngIf="return.returnStatus !== 'CANCELLED'"
+									class="p-button-outlined p-button-help w-full mb-2" (click)="printReturn()">
+								</button>
+
+								<button pButton pRipple icon="pi pi-eye" [label]="'view_order' | translate"
+									class="p-button-outlined p-button-info w-full mb-2" (click)="viewOrder(return?.order)">
+								</button>
+
+								<button pButton pRipple label="{{ 'refresh' | translate }}" icon="pi pi-refresh"
+									class="p-button-outlined p-button-secondary w-full" (click)="refreshReturnDetails()">
+								</button>
+							</div>
+						</div>
+
+						<!-- Order Information -->
+						<div class="premium-details-section" *ngIf="return?.order">
+							<h4 class="section-title">
+								<i class="pi pi-shopping-bag mr-2"></i>
+								{{ 'order_information' | translate }}
+							</h4>
+
+							<div class="premium-info-card order-card">
+								<div class="order-header">
+									<h5 class="m-0">#{{ return.order.reference }}</h5>
+									<p-tag value="{{ 'order' | translate }}" severity="info"></p-tag>
+								</div>
+
+								<div class="order-details">
+									<div class="order-item">
+										<span>{{ 'order_date' | translate }}:</span>
+										<span>{{ return.order.orderDate | date:'shortDate' }}</span>
+									</div>
+									<div class="order-item">
+										<span>{{ 'order_status' | translate }}:</span>
+										<span [class]="'order-badge order-' + return?.order?.orderStatus?.toLowerCase()">
+											{{ return?.order?.orderStatus ? ('order_status_' +
+											return?.order?.orderStatus?.toLowerCase() | translate) : 'N/A' }}
+										</span>
+									</div>
+									<div class="order-item">
+										<span>{{ 'total_amount' | translate }}:</span>
+										<span class="premium-font-semibold">{{ return.order.totalAmount |
+											currency:currency:'symbol':'1.2-2' }}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Additional Information -->
+						<div class="premium-details-section" *ngIf="return?.notes">
+							<h4 class="section-title">
+								<i class="pi pi-comment mr-2"></i>
+								{{ 'return_notes' | translate }}
+							</h4>
+
+							<div class="notes-content">
+								{{ return?.notes }}
+							</div>
+						</div>
+
+						<div class="premium-details-section" *ngIf="return?.createdBy || return?.creationDate">
+							<h4 class="section-title">
+								<i class="pi pi-history mr-2"></i>
+								{{ 'audit_information' | translate }}
+							</h4>
+
+							<div class="audit-info">
+								<div class="audit-item">
+									<label>{{ 'created_date' | translate }}</label>
+									<span>{{ return.creationDate | date:'short' }}</span>
+								</div>
+							</div>
+
+							<div class="audit-info">
+								<div class="audit-item">
+									<label>{{ 'created_by' | translate }}</label>
+									<span>{{ return.createdBy }}</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+

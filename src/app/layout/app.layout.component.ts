@@ -76,6 +76,8 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     @ViewChild(AppTopBarComponent) appTopbar!: AppTopBarComponent;
 
+    isPosRoute: boolean = false;
+
     constructor(public layoutService: LayoutService,
         public renderer: Renderer2,
         public router: Router,
@@ -85,6 +87,15 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         private messageService: MessageService,
         private shopService: ShopService,
     ) {
+
+        // Detect POS routes to hide sidebar/topbar
+        this.router.events.pipe(filter(event => event instanceof NavigationEnd))
+            .subscribe((event: NavigationEnd) => {
+                this.isPosRoute = event.url.startsWith('/pos');
+            });
+
+        // Check initial route
+        this.isPosRoute = this.router.url.startsWith('/pos');
 
         this.overlayMenuOpenSubscription = this.layoutService.overlayOpen$.subscribe(() => {
             if (!this.menuOutsideClickListener) {
@@ -120,19 +131,19 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
                 this.hideProfileMenu();
             });
     }
-    ngOnInit(): void {
+    async ngOnInit(): Promise<void> {
         if (this.keycloakService.isTokenExpired()) {
-            this.login();
+            await this.login();
         }
 
-        this.loadCashRegisterSession();
+        await this.loadCashRegisterSession();
 
         this.layoutService.systemInfoLoaded$.subscribe(() => {
             this.calculateDaysUntilExpiration();
         });
 
-        this.setUserRoles();
-        this.onGetAllShops();
+        await this.setUserRoles();
+        await this.onGetAllShops();
     }
 
     async loadCashRegisterSession(shopId?: number): Promise<void> {

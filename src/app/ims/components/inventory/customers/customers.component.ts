@@ -1,4 +1,5 @@
 import { Component, OnInit, Pipe, PipeTransform } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Customer } from 'src/app/models/customer';
@@ -62,7 +63,6 @@ export class CustomersComponent implements OnInit {
 
   states: any = null;
 
-  displayHistoryDialog: boolean = false;
 
   customerOrders: Order[] = [];
 
@@ -96,7 +96,8 @@ export class CustomersComponent implements OnInit {
     private translate: TranslateService,
     public keycloakService: KeycloakService,
     private translateService: TranslationService,
-    private permissionService: PermissionService,) { }
+    private permissionService: PermissionService,
+    private router: Router) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -328,7 +329,6 @@ export class CustomersComponent implements OnInit {
   hideDialog() {
     this.customerDialog = false;
     this.submitted = false;
-    this.displayHistoryDialog = false;
     this.selectedCountry = {};
   }
 
@@ -417,9 +417,7 @@ export class CustomersComponent implements OnInit {
       }
       this.customers = [...this.customers];
       this.customerDialog = false;
-      if (!this.displayHistoryDialog) {
-        this.customer = {};
-      }
+      this.customer = {};
     } catch (error) {
       this.messageService.add({
         severity: 'error',
@@ -561,14 +559,9 @@ export class CustomersComponent implements OnInit {
     );
   }
 
-  async openCustomerHistoryDialog(customer: Customer) {
+  openCustomerDetails(customer: Customer) {
     if (!this.canReadHistory) return;
-    this.customerOrders = [];
-    this.customer = { ...customer };
-    this.displayHistoryDialog = true;
-    await this.loadCustomerData();
-    //await this.getCustomerOrders(this.customer.customerId);
-    console.log(this.customerOrders);
+    this.router.navigate(['/inventory/customers', customer.customerId]);
   }
 
   async getCustomerOrders(id: any) {

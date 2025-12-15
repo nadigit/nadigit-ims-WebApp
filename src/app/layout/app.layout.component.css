@@ -120,3 +120,42 @@
 .system-footer a:hover {
   transform: translateY(-1px);
 }
+
+/* POS Fullscreen Mode */
+.pos-fullscreen {
+  margin-left: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  overflow: hidden !important;
+  justify-content: flex-start !important;
+}
+
+.pos-main {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  overflow: hidden !important;
+  flex: 0 0 100vh !important;
+}
+
+/* Hide footer in POS mode */
+.pos-fullscreen app-footer,
+.pos-fullscreen ~ app-footer {
+  display: none !important;
+}
+
+.layout-main-container.pos-fullscreen app-footer {
+  display: none !important;
+}
+
+/* Ensure body doesn't have constraints when POS is active */
+body:has(.pos-fullscreen) {
+  overflow: hidden !important;
+}
+
+html:has(.pos-fullscreen) {
+  overflow: hidden !important;
+}

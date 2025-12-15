@@ -18,4 +18,8 @@ export interface Refund {
   notes?: string;
   createdBy?: string;
   creationDate?: Date;
+  processingDate?: Date | string;
+  transactionId?: string;
+  customer?: any;
+  lastUpdated?: Date | string;
 }

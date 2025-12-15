@@ -27,6 +27,11 @@ import { ChipModule } from 'primeng/chip';
 import { SkeletonModule } from 'primeng/skeleton';
 import { PaymentsTableComponent } from './payments-table/payments-table.component';
 import { TabViewModule } from 'primeng/tabview';
+import { SalesPaymentsComponent } from './sales-payments/sales-payments.component';
+import { PurchasePaymentsComponent } from './purchase-payments/purchase-payments.component';
+import { SalesPaymentDetailsPageComponent } from './sales-payment-details-page/sales-payment-details-page.component';
+import { PurchasePaymentDetailsPageComponent } from './purchase-payment-details-page/purchase-payment-details-page.component';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 @NgModule({
@@ -55,9 +60,10 @@ import { TabViewModule } from 'primeng/tabview';
         TagModule,
         ChipModule,
         SkeletonModule,
-        TabViewModule
+        TabViewModule,
+        SharedModule
     ],
-    declarations: [PaymentsComponent, PaymentsTableComponent],
+    declarations: [PaymentsComponent, PaymentsTableComponent, SalesPaymentsComponent, PurchasePaymentsComponent, SalesPaymentDetailsPageComponent, PurchasePaymentDetailsPageComponent],
     providers: [ReportingService],
 })
 export class PaymentsModule { }

@@ -12,10 +12,10 @@ export interface FinancialDocument {
   origin?: string;           // e.g. "Online Store", "In-Store", etc.
   payment?: Payment;         // linked payment if any
   createdBy?: string;
-  createdAt?: string;         // ISO string (LocalDateTime from backend)
-  issuedAt?: string;
+  createdAt?: Date | string;         // ISO string (LocalDateTime from backend)
+  issuedAt?: Date | string;
   issuedBy?: string;
-  canceledAt?: string;
+  canceledAt?: Date | string;
   canceledBy?: string;
   fileUrl?: string;
   notes?: string;

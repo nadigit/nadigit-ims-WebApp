@@ -166,3 +166,62 @@
     color: var(--red-800) !important;
   }
 }
+
+/* Quick Actions Styling */
+.quick-action-btn {
+  min-height: 3rem;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Alert Center Styling - Left border only */
+.border-left-3 {
+  border: none !important;
+  border-left-width: 3px !important;
+  border-left-style: solid !important;
+}
+
+/* Override PrimeNG border utilities when combined with border-left-3 */
+.border-left-3.border-orange-500 {
+  border: none !important;
+  border-left: 3px solid var(--orange-500) !important;
+}
+
+.border-left-3.border-red-500 {
+  border: none !important;
+  border-left: 3px solid var(--red-500) !important;
+}
+
+/* Ensure p-card structure respects left border only */
+::ng-deep .p-card.border-left-3 {
+  border: none !important;
+}
+
+::ng-deep .p-card.border-left-3.border-orange-500 {
+  border-left: 3px solid var(--orange-500) !important;
+}
+
+::ng-deep .p-card.border-left-3.border-red-500 {
+  border-left: 3px solid var(--red-500) !important;
+}
+
+/* Enhanced KPI Cards */
+.p-card {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* Responsive adjustments for admin sections */
+@media (max-width: 768px) {
+  .quick-action-btn {
+    min-height: 2.5rem;
+    font-size: 0.875rem;
+  }
+}

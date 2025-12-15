@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CategoriesRoutingModule } from './categories-routing.module';
 import { CategoriesComponent } from './categories.component';
+import { CategoryDetailsComponent } from './category-details/category-details.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -23,6 +24,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
 import { ImageModule } from 'primeng/image';
 import { GalleriaModule } from 'primeng/galleria';
+import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
 import { SharedModule } from 'src/app/shared/shared.module';
 
 
@@ -51,9 +54,11 @@ import { SharedModule } from 'src/app/shared/shared.module';
         TagModule,
         ImageModule,
         GalleriaModule,
+        CardModule,
+        CheckboxModule,
         SharedModule
     ],
-    declarations: [CategoriesComponent],
+    declarations: [CategoriesComponent, CategoryDetailsComponent],
     providers: [ReportingService]
 })
 export class CategoriesModule { }

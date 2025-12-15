@@ -8,6 +8,7 @@ export class Purchase {
     purchaseId?: number;
     supplier?: Supplier;
     purpose?: string;
+    reference?: string;
     dateOfPurchase?: Date | string;
     approvedDate?: Date | string;
     receivedDate?: Date | string;

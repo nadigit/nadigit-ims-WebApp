@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
@@ -32,14 +33,6 @@ export class CategoriesComponent implements OnInit {
   categoryDialog: boolean = false;
 
   lowStockThreshold;
-
-  categoryProductsDialog: boolean = false;
-  loadingCategoryDetails: boolean = false;
-  filteredCategoryProducts: Product[] = [];
-  categoryStats: any = {};
-  productSearchTerm: string = '';
-  selectedWarehouseFilter: Warehouse | null = null;
-  selectedStatusFilter: string | null = null;
 
   deleteCategoryDialog: boolean = false;
 
@@ -98,7 +91,8 @@ export class CategoriesComponent implements OnInit {
     private configService: AppConfigurationService,
     private translate: TranslateService,
     private translateService: TranslationService,
-    private permissionService: PermissionService,) {
+    private permissionService: PermissionService,
+    private router: Router) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -230,185 +224,8 @@ export class CategoriesComponent implements OnInit {
     this.category.costingMethod = 'NONE';
   }
 
-  async openCategoryProductsDialog(category: Category) {
-    this.category = category;
-    this.categoryProductsDialog = true;
-    this.loadingCategoryDetails = true;
-    
-    try {
-      await this.onGetCategoryProducts();
-      this.filteredCategoryProducts = [...this.products];
-      this.calculateCategoryStats();
-    } catch (error) {
-      console.error('Error loading category products:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_loading_category_products'),
-        life: 3000
-      });
-    } finally {
-      this.loadingCategoryDetails = false;
-    }
-  }
-
-  calculateCategoryStats(): void {
-    const lowStockProducts = this.products.filter(p => 
-      p.inventoryStatus === 'LOWSTOCK' || (p.quantityAvailable || 0) > 0 && (p.quantityAvailable || 0) <= (this.lowStockThreshold || 10)
-    );
-    
-    const outOfStockProducts = this.products.filter(p => 
-      p.inventoryStatus === 'OUTOFSTOCK' || (p.quantityAvailable || 0) === 0
-    );
-
-    const inStockProducts = this.products.filter(p => 
-      (p.quantityAvailable || 0) > (this.lowStockThreshold || 10)
-    );
-
-    // Calculate warehouse distribution
-    const warehouseMap = new Map<string, number>();
-    this.products.forEach(p => {
-      const warehouseName = p.warehouse?.name || 'Unassigned';
-      warehouseMap.set(warehouseName, (warehouseMap.get(warehouseName) || 0) + 1);
-    });
-
-    // Get top products by value
-    const topProductsByValue = [...this.products]
-      .sort((a, b) => {
-        const valueA = (a.quantityAvailable || 0) * (a.buyingPrice || 0);
-        const valueB = (b.quantityAvailable || 0) * (b.buyingPrice || 0);
-        return valueB - valueA;
-      })
-      .slice(0, 5);
-
-    // Calculate profit metrics
-    const productsWithProfit = this.products.filter(p => p.buyingPrice && p.sellingPrice);
-    const averageProfit = productsWithProfit.length > 0
-      ? productsWithProfit.reduce((sum, p) => {
-          const profit = ((p.sellingPrice - p.buyingPrice) / p.buyingPrice) * 100;
-          return sum + profit;
-        }, 0) / productsWithProfit.length
-      : 0;
-
-    this.categoryStats = {
-      totalProducts: this.products.length,
-      totalQuantity: this.products.reduce((sum, p) => sum + (p.quantityAvailable || 0), 0),
-      totalValue: this.products.reduce((sum, p) => sum + ((p.quantityAvailable || 0) * (p.buyingPrice || 0)), 0),
-      totalSalesValue: this.products.reduce((sum, p) => sum + ((p.quantityAvailable || 0) * (p.sellingPrice || 0)), 0),
-      inStockCount: inStockProducts.length,
-      lowStockCount: lowStockProducts.length,
-      outOfStockCount: outOfStockProducts.length,
-      warehouseDistribution: Array.from(warehouseMap.entries()).map(([name, count]) => ({ name, count })),
-      topProductsByValue: topProductsByValue,
-      averageValue: this.products.length > 0 
-        ? this.products.reduce((sum, p) => sum + ((p.quantityAvailable || 0) * (p.buyingPrice || 0)), 0) / this.products.length
-        : 0,
-      averageProfit: averageProfit,
-      potentialProfit: this.products.reduce((sum, p) => {
-        if (p.quantityAvailable && p.buyingPrice && p.sellingPrice) {
-          return sum + ((p.quantityAvailable) * (p.sellingPrice - p.buyingPrice));
-        }
-        return sum;
-      }, 0)
-    };
-  }
-
-  filterCategoryProducts(): void {
-    let filtered = [...this.products];
-
-    // Filter by search term
-    if (this.productSearchTerm) {
-      const searchLower = this.productSearchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name?.toLowerCase().includes(searchLower) ||
-        p.reference?.toLowerCase().includes(searchLower) ||
-        p.supplier?.name?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Filter by warehouse
-    if (this.selectedWarehouseFilter) {
-      filtered = filtered.filter(p => 
-        p.warehouse?.warehouseId === this.selectedWarehouseFilter.warehouseId
-      );
-    }
-
-    // Filter by status
-    if (this.selectedStatusFilter) {
-      if (this.selectedStatusFilter === 'INSTOCK') {
-        filtered = filtered.filter(p => (p.quantityAvailable || 0) > (this.lowStockThreshold || 10));
-      } else if (this.selectedStatusFilter === 'LOWSTOCK') {
-        filtered = filtered.filter(p => (p.quantityAvailable || 0) > 0 && (p.quantityAvailable || 0) <= (this.lowStockThreshold || 10));
-      } else if (this.selectedStatusFilter === 'OUTOFSTOCK') {
-        filtered = filtered.filter(p => (p.quantityAvailable || 0) === 0);
-      }
-    }
-
-    this.filteredCategoryProducts = filtered;
-  }
-
-  clearCategoryProductFilters(): void {
-    this.productSearchTerm = '';
-    this.selectedWarehouseFilter = null;
-    this.selectedStatusFilter = null;
-    this.filteredCategoryProducts = [...this.products];
-  }
-
-  getUniqueWarehouses(): Warehouse[] {
-    const warehouseMap = new Map<number, Warehouse>();
-    this.products.forEach(p => {
-      if (p.warehouse && !warehouseMap.has(p.warehouse.warehouseId)) {
-        warehouseMap.set(p.warehouse.warehouseId, p.warehouse);
-      }
-    });
-    return Array.from(warehouseMap.values());
-  }
-
-  refreshCategoryDetails(): void {
-    if (this.category?.categoryId) {
-      this.loadingCategoryDetails = true;
-      this.onGetCategoryProducts().then(() => {
-        this.filteredCategoryProducts = [...this.products];
-        this.calculateCategoryStats();
-        this.loadingCategoryDetails = false;
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('success'),
-          detail: this.translate.instant('data_refreshed'),
-          life: 2000
-        });
-      }).catch(error => {
-        console.error('Error refreshing category details:', error);
-        this.loadingCategoryDetails = false;
-      });
-    }
-  }
-
-  exportCategoryProducts(): void {
-    const exportData = this.filteredCategoryProducts.map(p => ({
-      name: p.name,
-      reference: p.reference,
-      warehouse: p.warehouse?.name || 'N/A',
-      quantity: p.quantityAvailable || 0,
-      buyingPrice: p.buyingPrice || 0,
-      sellingPrice: p.sellingPrice || 0,
-      value: (p.quantityAvailable || 0) * (p.buyingPrice || 0),
-      status: p.inventoryStatus || 'N/A'
-    }));
-
-    this.reportingService.exportExcel(
-      exportData,
-      `category_${this.category.categoryName}_products`
-    );
-  }
-
-  hideCategoryProductsDialog() {
-    this.category = {};
-    this.products = [];
-    this.filteredCategoryProducts = [];
-    this.categoryStats = {};
-    this.clearCategoryProductFilters();
-    this.categoryProductsDialog = false;
+  openCategoryDetails(category: Category): void {
+    this.router.navigate(['/inventory/categories', category.categoryId]);
   }
 
   async saveCategory() {
@@ -651,8 +468,7 @@ export class CategoriesComponent implements OnInit {
   }
 
   viewProductDetails(product: Product) {
-    this.selectedProduct = product;
-    this.productDetailDialog = true;
+    this.router.navigate(['/inventory/products', product.productId]);
   }
 
   // Convert attribute value for display

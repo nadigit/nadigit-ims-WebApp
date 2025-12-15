@@ -1,0 +1,810 @@
+<div class="customer-details-page">
+    <p-progressSpinner *ngIf="isLoading" [style]="{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}"></p-progressSpinner>
+
+    <div *ngIf="!isLoading" class="page-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <button pButton pRipple icon="pi pi-arrow-left" label="{{ 'back' | translate }}"
+                    class="p-button-text p-button-plain back-button" (click)="goBack()">
+                </button>
+                <div class="customer-header">
+                    <div class="customer-avatar">
+                        <p-avatar [label]="getInitials(customer)"
+                            [style]="{'background-color': getCustomerColor(customer), 'color': '#ffffff'}"
+                            size="xlarge" shape="circle">
+                        </p-avatar>
+                    </div>
+                    <div class="customer-info">
+                        <div class="customer-title-section">
+                            <h1 class="customer-name">{{ getCustomerDisplayName(customer)?.toUpperCase() }}</h1>
+                            <div class="customer-status-indicators">
+                                <p-tag *ngIf="customer?.isActive !== false" value="{{ 'active' | translate }}"
+                                    severity="success" class="status-tag">
+                                </p-tag>
+                                <p-tag *ngIf="customer?.isPreferred" value="{{ 'preferred' | translate }}"
+                                    severity="info" class="status-tag">
+                                </p-tag>
+                            </div>
+                        </div>
+                        <div class="customer-meta">
+                            <span class="customer-id customer-meta-item" *ngIf="customer?.customerId">
+                                <i class="pi pi-id-card meta-icon"></i>
+                                <div class="meta-content">
+                                    <span class="meta-label">{{ 'customer_id' | translate }}</span>
+                                    <span class="meta-value">{{customer.customerId}}</span>
+                                </div>
+                            </span>
+                            <span class="customer-since customer-meta-item" *ngIf="customer?.creationDate">
+                                <i class="pi pi-calendar meta-icon"></i>
+                                <div class="meta-content">
+                                    <span class="meta-label">{{ 'customer_since' | translate }}</span>
+                                    <span class="meta-value">{{customer.creationDate | date:'dd/MM/yyyy'}}</span>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button pButton pRipple icon="pi pi-print"
+                        class="p-button-rounded p-button-text p-button-plain action-btn"
+                        [pTooltip]="'print_customer_details' | translate" tooltipPosition="bottom"
+                        (click)="printCustomerDetails()">
+                    </button>
+                    <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditCustomer"
+                        class="p-button-rounded p-button-text p-button-plain action-btn"
+                        [pTooltip]="'update_customer' | translate" tooltipPosition="bottom"
+                        (click)="editCustomer()">
+                    </button>
+                    <button pButton pRipple icon="pi pi-refresh"
+                        class="p-button-rounded p-button-text p-button-plain action-btn"
+                        [pTooltip]="'refresh_data' | translate" tooltipPosition="bottom" 
+                        (click)="refreshData()">
+                    </button>
+                    <button pButton pRipple icon="pi pi-envelope" *ngIf="customer?.email || customer?.phoneNumber"
+                        class="p-button-rounded p-button-raised contact-btn"
+                        [label]="'contact_customer' | translate"
+                        (click)="contactCustomer()">
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            <div *ngIf="!customer || isEmptyCustomer(customer)" class="empty-customer-state">
+                <div class="empty-state-card">
+                    <i class="pi pi-user-plus empty-state-icon"></i>
+                    <h3>{{ 'no_customer_data' | translate }}</h3>
+                    <p>{{ 'this_customer_was_recently_added' | translate }}</p>
+                    <button pButton pRipple icon="pi pi-pencil" label="{{ 'add_customer_information' | translate }}"
+                        class="p-button-rounded p-button-primary p-button-outlined"
+                        (click)="editCustomer()" *ngIf="canEditCustomer">
+                    </button>
+                </div>
+            </div>
+
+            <div *ngIf="customer && !isEmptyCustomer(customer)" class="grid p-fluid fade-in">
+                <!-- Customer Summary Section -->
+                <div class="col-12 md:col-4">
+                    <div class="summary-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="pi pi-info-circle"></i>
+                                <h4>{{ 'customer_information' | translate }}</h4>
+                            </div>
+                        </div>
+
+                        <div class="card-content">
+                            <div class="customer-contact"
+                                *ngIf="customer?.customerType || 
+                                customer?.email || customer?.phoneNumber || 
+                                customer?.address || customer?.city || 
+                                customer?.country || customer?.cin || customer?.ice">
+                                <h5 class="section-title">{{ 'contact_information' | translate }}</h5>
+                                <div class="contact-item" *ngIf="customer?.customerType">
+                                    <div class="contact-icon">
+                                        <i class="pi pi-user"></i>
+                                    </div>
+                                    <div class="contact-details">
+                                        <span>
+                                            {{
+                                            customer.customerType === 'Particular'
+                                            ? ('customer_type_particular' | translate)
+                                            : customer.customerType === 'Company'
+                                            ? ('customer_type_company' | translate)
+                                            : 'N/A'
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="contact-item" *ngIf="customer?.cin || customer?.ice">
+                                    <div class="contact-icon">
+                                        <i class="pi pi-id-card"></i>
+                                    </div>
+                                    <div class="contact-details">
+                                        <span>
+                                            {{
+                                            customer.customerType === 'Particular'
+                                            ? (('customer_cin' | translate) + ': ' + (customer.cin || 'N/A'))
+                                            : customer.customerType === 'Company'
+                                            ? (('customer_ice' | translate) + ': ' + (customer.ice || 'N/A'))
+                                            : 'N/A'
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="contact-item" *ngIf="customer?.email">
+                                    <div class="contact-icon">
+                                        <i class="pi pi-envelope"></i>
+                                    </div>
+                                    <div class="contact-details">
+                                        <a [href]="'mailto:' + customer.email"
+                                            class="contact-link">{{customer.email}}</a>
+                                    </div>
+                                </div>
+                                <div class="contact-item" *ngIf="customer?.phoneNumber">
+                                    <div class="contact-icon">
+                                        <i class="pi pi-phone"></i>
+                                    </div>
+                                    <div class="contact-details">
+                                        <a [href]="'tel:' + customer.phoneNumber"
+                                            class="contact-link">{{customer.phoneNumber}}</a>
+                                    </div>
+                                </div>
+                                <div class="contact-item" *ngIf="customer?.address">
+                                    <div class="contact-icon">
+                                        <i class="pi pi-map-marker"></i>
+                                    </div>
+                                    <div class="contact-details">
+                                        <span>{{customer.address}}</span>
+                                    </div>
+                                </div>
+                                <div class="contact-item" *ngIf="customer?.city || customer?.country">
+                                    <div class="contact-icon">
+                                        <i class="pi pi-globe"></i>
+                                    </div>
+                                    <div class="contact-details">
+                                        <span>
+                                            {{
+                                            customer.city && customer.country
+                                            ? (customer.city + ', ' + (customer.country | countryTranslate))
+                                            : customer.city
+                                            ? customer.city
+                                            : customer.country
+                                            ? (customer.country | countryTranslate)
+                                            : 'N/A'
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="customer-stats"
+                                *ngIf="customer?.totalOrders || customer?.totalAmount || customer?.totalPaid">
+                                <h5 class="section-title">{{ 'customer_statistics' | translate }}</h5>
+                                <div class="stats-grid">
+                                    <div class="stat-item" *ngIf="customerOrders.length > 0">
+                                        <div class="stat-icon">
+                                            <i class="pi pi-shopping-cart"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <span class="label">{{ 'total_orders' | translate }}</span>
+                                            <span class="value">{{customerOrders.length || 0}}</span>
+                                        </div>
+                                    </div>
+                                    <div class="stat-item" *ngIf="customer?.totalAmount">
+                                        <div class="stat-icon">
+                                            <i class="pi pi-money-bill"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <span class="label">{{ 'order_total_amount' | translate }}</span>
+                                            <span class="value">{{customer?.totalAmount |
+                                                currency:currency:'symbol':'1.2-2'}}</span>
+                                        </div>
+                                    </div>
+                                    <div class="stat-item" *ngIf="customer?.totalPaid">
+                                        <div class="stat-icon">
+                                            <i class="pi pi-wallet"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <span class="label">{{ 'order_total_paid' | translate }}</span>
+                                            <span class="value">
+                                                {{customer?.totalPaid |
+                                                currency:currency:'symbol':'1.2-2'}} (<span>{{ 'payment_completion' | translate }}: {{ getPaymentCompletionRate() |
+                                    percent }}</span>)
+                                                </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="stat-item" *ngIf="customer?.totalPaid && customer?.totalAmount">
+                                        <div class="stat-icon">
+                                            <i class="pi pi-check-circle"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <span class="label">{{ 'order_remaining_balance' | translate }}</span>
+                                            <span class="value">{{(customer?.totalAmount - customer?.totalPaid) |
+                                                currency:currency:'symbol':'1.2-2'}}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stat-item" *ngIf="getLastOrderDate()">
+                                        <div class="stat-icon">
+                                            <i class="pi pi-calendar"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <span class="label">{{ 'last_order' | translate }}</span>
+                                            <span class="value">{{getLastOrderDate() | date:'dd/MM/yyyy' ||
+                                                'N/A'}}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Tabs -->
+                <div class="col-12 md:col-8">
+                    <p-tabView class="enhanced-tabview">
+                        <p-tabPanel [header]="'orders_list' | translate">
+                            <p-table #ordersTable [value]="customerOrders" responsiveLayout="scroll" [rows]="10"
+                                [showCurrentPageReport]="true"
+                                currentPageReportTemplate="{first} - {last}/{totalRecords} {{'table_records' | translate}}"
+                                [rowHover]="true" dataKey="orderId" [rowsPerPageOptions]="[5,10,25,50]"
+                                [paginator]="true"
+                                [globalFilterFields]="['orderId', 'reference', 'totalAmount', 'orderStatus', 'orderDate', 'paymentStatus']">
+
+                                <ng-template pTemplate="caption">
+                                    <div class="flex align-items-center justify-content-between">
+                                        <span class="p-input-icon-left">
+                                            <i class="pi pi-search"></i>
+                                            <input pInputText type="text"
+                                                (input)="ordersTable.filterGlobal($event.target.value, 'contains')"
+                                                placeholder="{{'search_label' | translate}}" />
+                                        </span>
+                                    </div>
+                                </ng-template>
+
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th pSortableColumn="reference" style="width: 100px">
+                                            {{ 'order_reference' | translate }}
+                                            <p-sortIcon field="reference"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="orderDate" style="width: 120px">
+                                            {{ 'order_date' | translate }}
+                                            <p-sortIcon field="orderDate"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="totalAmount" style="width: 150px">
+                                            {{ 'order_total_amount' | translate }}
+                                            <p-sortIcon field="totalAmount"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="totalPaid" style="width: 150px">
+                                            {{ 'order_total_paid' | translate }}
+                                            <p-sortIcon field="totalPaid"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="orderStatus" style="width: 150px">
+                                            {{ 'order_status' | translate }}
+                                            <p-sortIcon field="orderStatus"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="paymentStatus" style="width: 150px">
+                                            {{ 'order_payment_status' | translate }}
+                                            <p-sortIcon field="paymentStatus"></p-sortIcon>
+                                        </th>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="body" let-order>
+                                    <tr>
+                                        <td>
+                                            <a (click)="viewOrderDetails(order)" class="order-link">#{{
+                                                order.reference }}</a>
+                                        </td>
+                                        <td>{{ order.orderDate | date: 'dd/MM/yyyy' }}</td>
+                                        <td class="price-cell">{{ order.totalAmount |
+                                            currency:currency:'symbol':'1.2-2' }}</td>
+                                        <td class="price-cell">
+                                            <span [ngClass]="{'paid-amount': order.totalPaid > 0}">
+                                                {{ order.totalPaid | currency:currency:'symbol':'1.2-2' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span [class]="'order-badge order-' + order.orderStatus.toLowerCase()">
+                                                {{order.orderStatus ?
+                                                ('order_status_'+order.orderStatus.toLowerCase() | translate) :
+                                                'N/A'}}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span
+                                                [class]="'payment-badge payment-' + order.paymentStatus.toLowerCase()">
+                                                {{order.paymentStatus ?
+                                                ('order_payment_status_'+order.paymentStatus.toLowerCase() |
+                                                translate) : 'N/A'}}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="emptymessage">
+                                    <tr>
+                                        <td colspan="6" class="text-center empty-state">
+                                            <i class="pi pi-search empty-icon"></i>
+                                            <h4>{{'no_orders_found' | translate}}</h4>
+                                        </td>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="footer">
+                                    <tr>
+                                        <td colspan="2" class="font-bold">{{'totals' | translate}}</td>
+                                        <td class="font-bold total-cell">{{ getTotalSpent() |
+                                            currency:currency:'symbol':'1.2-2' }}</td>
+                                        <td class="font-bold total-cell">{{ getTotalPaid() |
+                                            currency:currency:'symbol':'1.2-2' }}</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </p-tabPanel>
+
+                        <p-tabPanel [header]="'returns_history' | translate">
+                            <p-table #returnsTable [value]="customerReturns" responsiveLayout="scroll" [rows]="10"
+                                [showCurrentPageReport]="true"
+                                currentPageReportTemplate="{first} - {last}/{totalRecords} {{'table_records' | translate}}"
+                                [rowHover]="true" dataKey="returnId" [rowsPerPageOptions]="[5,10,25,50]"
+                                [paginator]="true"
+                                [globalFilterFields]="['returnId', 'reference', 'returnDate', 'totalRefundableAmount', 'returnStatus']">
+
+                                <ng-template pTemplate="caption">
+                                    <div class="flex align-items-center justify-content-between">
+                                        <span class="p-input-icon-left">
+                                            <i class="pi pi-search"></i>
+                                            <input pInputText type="text"
+                                                (input)="returnsTable.filterGlobal($event.target.value, 'contains')"
+                                                placeholder="{{'search_label' | translate}}" />
+                                        </span>
+                                    </div>
+                                </ng-template>
+
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th pSortableColumn="returnId" style="width: 100px">
+                                            {{ 'return_reference' | translate }}
+                                            <p-sortIcon field="returnId"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="returnDate" style="width: 120px">
+                                            {{ 'return_date' | translate }}
+                                            <p-sortIcon field="returnDate"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="totalRefundableAmount" style="width: 150px">
+                                            {{ 'refund_amount' | translate }}
+                                            <p-sortIcon field="totalRefundableAmount"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="returnStatus" style="width: 150px">
+                                            {{ 'return_status' | translate }}
+                                            <p-sortIcon field="returnStatus"></p-sortIcon>
+                                        </th>
+                                        <th style="width: 120px">
+                                            {{ 'items_count' | translate }}
+                                        </th>
+                                        <th style="width: 150px">
+                                            {{ 'related_order' | translate }}
+                                        </th>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="body" let-return>
+                                    <tr>
+                                        <td>
+                                            <a (click)="viewReturnDetails(return)" class="order-link">#{{ return.reference }}</a>
+                                        </td>
+                                        <td>{{ return.returnDate | date:'dd/MM/yyyy' }}</td>
+                                        <td>{{ return.totalRefundableAmount | currency:currency:'symbol':'1.2-2' }}
+                                        </td>
+                                        <td>
+                                            <span
+                                                [class]="'return-badge return-' + return.returnStatus.toLowerCase()">{{return.returnStatus
+                                                ?
+                                                ('return_status_'+return.returnStatus.toLowerCase() | translate) :
+                                                'N/A'}}</span>
+                                        </td>
+                                        <td>{{ return.returnItems?.length || 0 }}</td>
+                                        <td>
+                                            <a *ngIf="return.order" (click)="viewOrderDetails(return.order)" class="order-link">
+                                                #{{ return.order?.reference }}
+                                            </a>
+                                            <span *ngIf="!return.order">N/A</span>
+                                        </td>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="emptymessage">
+                                    <tr>
+                                        <td colspan="6" class="text-center empty-state">
+                                            <i class="pi pi-search empty-icon"></i>
+                                            <h4>{{'no_returns_found' | translate}}</h4>
+                                        </td>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="footer">
+                                    <tr>
+                                        <td colspan="2" class="font-bold">{{'totals' | translate}}</td>
+                                        <td class="font-bold">
+                                            {{ getTotalReturnsAmount() | currency:currency:'symbol':'1.2-2' }}
+                                        </td>
+                                        <td colspan="3"></td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </p-tabPanel>
+
+                        <p-tabPanel [header]="'payment_history' | translate">
+                            <p-table #paymentsTable [value]="customerPayments" responsiveLayout="scroll" [rows]="10"
+                                [showCurrentPageReport]="true"
+                                currentPageReportTemplate="{first} - {last}/{totalRecords} {{'table_records' | translate}}"
+                                [rowHover]="true" dataKey="paymentId" [rowsPerPageOptions]="[5,10,25,50]"
+                                [paginator]="true"
+                                [globalFilterFields]="['paymentId', 'transactionId', 'paymentDate', 'amount', 'paymentMethod', 'paymentStatus']">
+
+                                <ng-template pTemplate="caption">
+                                    <div class="flex align-items-center justify-content-between">
+                                        <span class="p-input-icon-left">
+                                            <i class="pi pi-search"></i>
+                                            <input pInputText type="text"
+                                                (input)="paymentsTable.filterGlobal($event.target.value, 'contains')"
+                                                placeholder="{{'search_label' | translate}}" />
+                                        </span>
+                                    </div>
+                                </ng-template>
+
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th pSortableColumn="transactionId" style="width: 100px">
+                                            {{ 'payment_transaction_id' | translate }}
+                                            <p-sortIcon field="transactionId"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="paymentDate" style="width: 120px">
+                                            {{ 'payment_date' | translate }}
+                                            <p-sortIcon field="paymentDate"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="amount" style="width: 150px">
+                                            {{ 'payment_amount' | translate }}
+                                            <p-sortIcon field="amount"></p-sortIcon>
+                                        </th>
+                                        <th pSortableColumn="paymentMethod" style="width: 150px">
+                                            {{ 'payment_method' | translate }}
+                                            <p-sortIcon field="paymentMethod"></p-sortIcon>
+                                        </th>
+                                        <th style="width: 150px">
+                                            {{ 'related_order' | translate }}
+                                        </th>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="body" let-payment>
+                                    <tr>
+                                        <td>
+                                            <a (click)="viewPaymentDetails(payment)" class="order-link">#{{ payment.transactionId }}</a>
+                                        </td>
+                                        <td>{{ payment.paymentDate | date:'dd/MM/yyyy' }}</td>
+                                        <td>{{ payment.amount | currency:currency:'symbol':'1.2-2' }}</td>
+                                        <td>
+                                            <p-tag
+                                                [value]="'payment_method_'+payment?.paymentMethod?.toLowerCase() | translate"
+                                                [severity]="getPaymentMethodSeverity(payment?.paymentMethod)"
+                                                [icon]="getPaymentMethodIcon(payment?.paymentMethod)">
+                                            </p-tag>
+                                        </td>
+                                        <td>
+                                            <a *ngIf="payment.order" (click)="viewOrderDetails(payment.order)"
+                                                class="order-link">
+                                                #{{ payment?.order?.reference }}
+                                            </a>
+                                            <span *ngIf="!payment.order">N/A</span>
+                                        </td>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="emptymessage">
+                                    <tr>
+                                        <td colspan="5" class="text-center empty-state">
+                                            <i class="pi pi-search empty-icon"></i>
+                                            <h4>{{'no_payments_found' | translate}}</h4>
+                                        </td>
+                                    </tr>
+                                </ng-template>
+
+                                <ng-template pTemplate="footer">
+                                    <tr>
+                                        <td colspan="2" class="font-bold">{{'totals' | translate}}</td>
+                                        <td class="font-bold">
+                                            {{ getTotalPaymentsAmount() | currency:currency:'symbol':'1.2-2' }}
+                                        </td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </p-tabPanel>
+
+                        <p-tabPanel [header]="'statistics' | translate">
+                            <div class="tab-header">
+                                <h3>{{ 'customer_statistics' | translate }}</h3>
+                            </div>
+                            <div class="grid stats-grid">
+                                <div class="col-12 md:col-6">
+                                    <p-card header="{{ 'monthly_spending' | translate }}" class="chart-card">
+                                        <p-chart type="bar" [data]="monthlySpendingChartData"
+                                            [options]="barChartOptions"></p-chart>
+                                    </p-card>
+                                </div>
+                                <div class="col-12 md:col-6">
+                                    <p-card header="{{ 'order_status_distribution' | translate }}" class="chart-card">
+                                        <p-chart type="doughnut" [data]="orderStatusChartData"
+                                            [options]="chartOptions"></p-chart>
+                                    </p-card>
+                                </div>
+                            </div>
+                        </p-tabPanel>
+                    </p-tabView>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Customer Dialog -->
+    <p-dialog [(visible)]="customerDialog" [style]="{width: '500px'}"
+        [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{'customer_details' | translate}}"
+        [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid customer-dialog">
+        <ng-template pTemplate="content">
+            <div class="grid p-fluid">
+                <div class="col-12">
+                    <!-- Customer Type Selection -->
+                    <div class="field card p-3 mb-3">
+                        <label for="customerType" class="block mb-2 font-bold">
+                            {{'customer_type' | translate}} <span class="required-asterisk">*</span>
+                        </label>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="flex align-items-center">
+                                <p-radioButton name="customerType" value="Particular"
+                                    [(ngModel)]="customer.customerType" inputId="customerType1" required
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !customer.customerType}">
+                                </p-radioButton>
+                                <label for="customerType1" class="ml-2 cursor-pointer">
+                                    <i class="pi pi-user mr-1"></i> {{'customer_type_particular' | translate}}
+                                </label>
+                            </div>
+                            <div class="flex align-items-center">
+                                <p-radioButton name="customerType" value="Company"
+                                    [(ngModel)]="customer.customerType" inputId="customerType2" required
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !customer.customerType}">
+                                </p-radioButton>
+                                <label for="customerType2" class="ml-2 cursor-pointer">
+                                    <i class="pi pi-building mr-1"></i> {{'customer_type_company' | translate}}
+                                </label>
+                            </div>
+                        </div>
+                        <small class="p-error block mt-1" *ngIf="submitted && !customer.customerType">
+                            {{'customer_type' | translate}} {{'is_required_label' | translate}}
+                        </small>
+                    </div>
+
+                    <!-- Particular Customer Fields -->
+                    <div *ngIf="customer.customerType === 'Particular'" class="grid">
+                        <div class="field col-12 md:col-6">
+                            <label for="firstName" class="block mb-2 font-bold">
+                                {{'customer_first_name' | translate}} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-user"></i>
+                                </span>
+                                <input type="text" pInputText name="firstName" [(ngModel)]="customer.firstName"
+                                    required placeholder="{{ 'enter_first_name' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !customer.firstName}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !customer.firstName">
+                                {{'customer_first_name' | translate}} {{'is_required_label' | translate}}
+                            </small>
+                        </div>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="lastName" class="block mb-2 font-bold">
+                                {{'customer_last_name' | translate}} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-user"></i>
+                                </span>
+                                <input type="text" pInputText name="lastName" [(ngModel)]="customer.lastName"
+                                    required placeholder="{{ 'enter_last_name' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !customer.lastName}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !customer.lastName">
+                                {{'customer_last_name' | translate}} {{'is_required_label' | translate}}
+                            </small>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="cin" class="block mb-2 font-bold">
+                                {{'customer_cin' | translate}} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-id-card"></i>
+                                </span>
+                                <input type="text" pInputText name="cin" [(ngModel)]="customer.cin" required
+                                    placeholder="{{ 'enter_cin' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !customer.cin}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !customer.cin">
+                                {{'customer_cin' | translate}} {{'is_required_label' | translate}}
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Company Customer Fields -->
+                    <div *ngIf="customer.customerType === 'Company'" class="grid">
+                        <div class="field col-12">
+                            <label for="companyName" class="block mb-2 font-bold">
+                                {{'customer_company_name' | translate}} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-building"></i>
+                                </span>
+                                <input type="text" pInputText name="companyName" [(ngModel)]="customer.companyName"
+                                    required placeholder="{{ 'enter_company_name' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !customer.companyName}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !customer.companyName">
+                                {{'customer_company_name' | translate}} {{'is_required_label' | translate}}
+                            </small>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="ice" class="block mb-2 font-bold">
+                                {{'customer_ice' | translate}} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-briefcase"></i>
+                                </span>
+                                <input type="text" pInputText name="ice" [(ngModel)]="customer.ice" required
+                                    placeholder="{{ 'enter_ice' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !customer.ice}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !customer.ice">
+                                {{'customer_ice' | translate}} {{'is_required_label' | translate}}
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Common Fields -->
+                    <div class="grid">
+                        <div class="field col-12">
+                            <label for="email" class="block mb-2 font-bold">
+                                {{'customer_email' | translate}}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-envelope"></i>
+                                </span>
+                                <input type="email" pInputText name="email" [(ngModel)]="customer.email"
+                                    placeholder="{{ 'enter_email' | translate }}" />
+                            </div>
+                        </div>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="country" class="block mb-2 font-bold">
+                                {{ 'customer_country' | translate }}
+                            </label>
+                            <p-dropdown [(ngModel)]="customer.country"
+                                (onChange)="onSelectedCountry(customer.country)" name="country"
+                                [options]="countries" optionValue="name" optionLabel="translatedName"
+                                [filter]="true" [filterFields]="['name', 'translatedName']"
+                                [filterBy]="filterCountry" [showClear]="true"
+                                placeholder="{{ 'select_country_option' | translate }}">
+
+                                <ng-template pTemplate="selectedItem">
+                                    <span *ngIf="customer && customer.country"
+                                        class="flex align-items-center gap-2">
+                                        <i class="pi pi-globe"></i>
+                                        {{ customer.country | countryTranslate }}
+                                    </span>
+                                </ng-template>
+
+                                <ng-template let-option pTemplate="item">
+                                    <span class="flex align-items-center gap-2">
+                                        <i class="pi pi-globe"></i>
+                                        {{ option.translatedName }}
+                                    </span>
+                                </ng-template>
+                            </p-dropdown>
+                        </div>
+
+                        <div class="field col-12 md:col-6" *ngIf="customer.country">
+                            <label for="city" class="block mb-2 font-bold">
+                                {{ 'customer_city' | translate }}
+                            </label>
+                            <p-dropdown [(ngModel)]="customer.city" name="city" optionValue="name"
+                                optionLabel="name" [filter]="true" filterBy="name" [options]="states"
+                                [showClear]="true" placeholder="{{ 'select_city_option' | translate }}">
+                                <ng-template pTemplate="selectedItem">
+                                    <span *ngIf="customer && customer.city" class="flex align-items-center gap-2">
+                                        <i class="pi pi-map-marker"></i>
+                                        {{customer.city}}
+                                    </span>
+                                </ng-template>
+                                <ng-template let-option pTemplate="item">
+                                    <span class="flex align-items-center gap-2">
+                                        <i class="pi pi-map-marker"></i>
+                                        {{option.name}}
+                                    </span>
+                                </ng-template>
+                            </p-dropdown>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="address" class="block mb-2 font-bold">
+                                {{'customer_address' | translate}}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-home"></i>
+                                </span>
+                                <textarea pInputTextarea [(ngModel)]="customer.address" rows="3" [autoResize]="true"
+                                    placeholder="{{ 'enter_address' | translate }}"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="zip" class="block mb-2 font-bold">
+                                {{'customer_zip' | translate}}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-map"></i>
+                                </span>
+                                <input type="text" pInputText name="zip" [(ngModel)]="customer.zip"
+                                    placeholder="{{ 'enter_zip' | translate }}" />
+                            </div>
+                        </div>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="phoneNumber" class="block mb-2 font-bold">
+                                {{'customer_phone_number' | translate}}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-phone"></i>
+                                </span>
+                                <input type="tel" pInputText name="phoneNumber" [(ngModel)]="customer.phoneNumber"
+                                    placeholder="{{ 'enter_phone' | translate }}" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="required-note mt-3">
+                <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
+                    translate}}</small>
+            </div>
+        </ng-template>
+
+        <ng-template pTemplate="footer">
+            <div class="flex justify-content-between align-items-center w-full">
+                <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                    class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                    class="p-button-raised" (click)="saveCustomer()"></button>
+            </div>
+        </ng-template>
+    </p-dialog>
+</div>
+

@@ -1,0 +1,18 @@
+/* Transaction Component Styles */
+
+.required-asterisk {
+  color: var(--red-500);
+}
+
+.p-dialog .p-dialog-content {
+  background: var(--surface-ground);
+  color: var(--text-color);
+}
+
+/* Form validation */
+.ng-invalid.ng-dirty + small {
+  color: var(--red-500);
+  display: block;
+  margin-top: 0.25rem;
+}
+

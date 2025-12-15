@@ -23,6 +23,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { CalendarModule } from 'primeng/calendar';
 import { TagModule } from 'primeng/tag';
 import { ChipModule } from 'primeng/chip';
+import { RefundDetailsPageComponent } from './refund-details-page/refund-details-page.component';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 
@@ -50,9 +52,10 @@ import { ChipModule } from 'primeng/chip';
         TooltipModule,
         CalendarModule,
         TagModule,
-        ChipModule
+        ChipModule,
+        SharedModule
     ],
-    declarations: [RefundsComponent],
+    declarations: [RefundsComponent, RefundDetailsPageComponent],
     providers: [ReportingService],
 })
 export class RefundsModule { }

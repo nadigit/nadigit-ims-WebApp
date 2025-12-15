@@ -4,7 +4,8 @@
 .return-badge,
 .refund-badge,
 .purchase-badge,
-.order-badge {
+.order-badge,
+.transfer-badge {
     border-radius: var(--border-radius);
     padding: .25em .5rem;
     text-transform: uppercase;
@@ -228,6 +229,28 @@
 
     &.refund-failed {
         background: #efa7af;
+        color: #C63737;
+    }
+}
+
+.transfer-badge {
+    &.transfer-pending {
+        background: #FEEDAF;
+        color: #8A5340;
+    }
+
+    &.transfer-in_transit {
+        background: #bce8fb;
+        color: #447a8c;
+    }
+
+    &.transfer-completed {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+
+    &.transfer-cancelled {
+        background: #FFCDD2;
         color: #C63737;
     }
 }

@@ -1,0 +1,147 @@
+/* Transfer Details Page Styles */
+.transfer-details-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.transfer-details-header .transfer-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.transfer-details-header .transfer-icon i {
+    font-size: 2rem;
+}
+
+.details-section {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.transfer-summary-card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.summary-item span:first-child {
+    color: var(--text-color-secondary);
+    font-weight: 500;
+}
+
+.summary-item strong {
+    color: var(--text-color);
+}
+
+/* Timeline styles */
+.premium-timeline .timeline-marker {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface-ground);
+    border: 2px solid var(--surface-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.premium-timeline .timeline-marker .marker-icon {
+    color: var(--text-color);
+    font-size: 1.25rem;
+}
+
+.timeline-card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.timeline-header h5 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.timeline-date {
+    color: var(--text-color-secondary);
+    font-size: 0.875rem;
+}
+
+.timeline-content {
+    color: var(--text-color);
+}
+
+/* Product image styles */
+.product-image-small {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* Status badges */
+.transfer-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.transfer-badge.transfer-pending {
+    background: var(--yellow-100);
+    color: var(--yellow-800);
+}
+
+.transfer-badge.transfer-in_transit {
+    background: var(--blue-100);
+    color: var(--blue-800);
+}
+
+.transfer-badge.transfer-completed {
+    background: var(--green-100);
+    color: var(--green-800);
+}
+
+.transfer-badge.transfer-cancelled {
+    background: var(--red-100);
+    color: var(--red-800);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .transfer-details-header {
+        padding: 1.5rem;
+    }
+    
+    .transfer-details-header h2 {
+        font-size: 1.5rem;
+    }
+}
+

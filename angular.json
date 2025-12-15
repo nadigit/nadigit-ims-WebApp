@@ -28,7 +28,12 @@
                         "inlineStyleLanguage": "scss",
                         "assets": [
                             "src/favicon.ico",
-                            "src/assets"
+                            "src/assets",
+                            {
+                                "glob": "pos-sw.js",
+                                "input": "src",
+                                "output": "/"
+                            }
                         ],
                         "styles": [
                             "src/styles.scss"
@@ -45,8 +50,8 @@
                                 },
                                 {
                                     "type": "anyComponentStyle",
-                                    "maximumWarning": "12kb",
-                                    "maximumError": "15kb"
+                                    "maximumWarning": "20kb",
+                                    "maximumError": "25kb"
                                 }
                             ],
                             "outputHashing": "all"

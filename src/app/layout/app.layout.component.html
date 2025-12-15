@@ -1,17 +1,18 @@
 <div class="layout-wrapper" [ngClass]="containerClass">
-  <app-topbar></app-topbar>
-  <div class="layout-sidebar">
+  <!-- Hide topbar and sidebar for POS routes -->
+  <app-topbar *ngIf="!isPosRoute"></app-topbar>
+  <div class="layout-sidebar" *ngIf="!isPosRoute">
     <app-sidebar></app-sidebar>
   </div>
-  <div class="layout-main-container">
-    <div class="layout-main">
+  <div class="layout-main-container" [ngClass]="{'pos-fullscreen': isPosRoute}">
+    <div class="layout-main" [ngClass]="{'pos-main': isPosRoute}">
       <p-toast></p-toast>
 
       <!-- Cash Register Status Section -->
-      <div class="cash-register-section mb-4" *ngIf="(isAdmin || isVendor) && shops?.length > 0">
+      <div class="cash-register-section mb-4" *ngIf="(isAdmin || isVendor) && !isPosRoute">
 
         <!-- No active session -->
-        <div *ngIf="!isCashRegisterOpen && (isAdmin || isVendor)" class="cash-register-card p-4 border-round-lg">
+        <div *ngIf="!isCashRegisterOpen" class="cash-register-card p-4 border-round-lg">
           <div class="flex align-items-center justify-content-between">
             <div class="flex align-items-center">
               <div class="status-indicator warning mr-3">
@@ -28,7 +29,7 @@
         </div>
 
         <!-- Active session -->
-        <div *ngIf="isCashRegisterOpen && (isAdmin || isVendor)" class="cash-register-card p-4 border-round-lg">
+        <div *ngIf="isCashRegisterOpen" class="cash-register-card p-4 border-round-lg">
           <div class="flex align-items-center justify-content-between">
             <div class="flex align-items-center">
               <div class="status-indicator success mr-3">
@@ -57,7 +58,7 @@
 
       <router-outlet></router-outlet>
     </div>
-    <app-footer></app-footer>
+    <app-footer *ngIf="!isPosRoute"></app-footer>
   </div>
   <app-config></app-config>
   <div class="layout-mask"></div>

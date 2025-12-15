@@ -19,18 +19,15 @@ import { DialogModule } from 'primeng/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { SplitButtonModule } from 'primeng/splitbutton';
-import { TabMenuModule } from 'primeng/tabmenu';
-import { StepsModule } from 'primeng/steps';
-import { PickListModule } from 'primeng/picklist';
-import { ChipModule } from 'primeng/chip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { OrganizationChartModule } from 'primeng/organizationchart';
 import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from '@angular/core';
-import { ImageModule } from 'primeng/image';
-import { InputSwitchModule } from 'primeng/inputswitch';
-import { TooltipModule } from 'primeng/tooltip';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { CardModule } from 'primeng/card';
+import { TabViewModule } from 'primeng/tabview';
+import { TagModule } from 'primeng/tag';
+import { CheckboxModule } from 'primeng/checkbox';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { TooltipModule } from 'primeng/tooltip';
 
 
 @NgModule({
@@ -53,17 +50,14 @@ import { CardModule } from 'primeng/card';
         DialogModule,
         TranslateModule,
         SplitButtonModule,
-        TabMenuModule,
-        StepsModule,
-        PickListModule,
-        ChipModule,
         ProgressSpinnerModule,
-        OrganizationChartModule,
-        ImageModule,
-        InputSwitchModule,
-        TooltipModule,
         SharedModule,
-        CardModule
+        CardModule,
+        TabViewModule,
+        TagModule,
+        CheckboxModule,
+        SelectButtonModule,
+        TooltipModule
     ],
     schemas: [
         CUSTOM_ELEMENTS_SCHEMA, // or NO_ERRORS_SCHEMA

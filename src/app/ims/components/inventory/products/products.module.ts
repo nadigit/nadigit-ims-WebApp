@@ -35,8 +35,8 @@ import { ChartModule } from 'primeng/chart';
 import { GalleriaModule } from 'primeng/galleria';
 import { SplitButtonModule } from 'primeng/splitbutton';
 import { FileSizePipe } from 'src/app/pipes/file-size.pipe';
-import { SharedModule } from 'src/app/shared/shared.module';
 import { ProductsTableComponent } from './products-table/products-table.component';
+import { ProductDetailsPageComponent } from './product-details/product-details-page.component';
 
 
 @NgModule({
@@ -74,9 +74,8 @@ import { ProductsTableComponent } from './products-table/products-table.componen
         ChartModule,
         GalleriaModule,
         SplitButtonModule,
-        SharedModule
     ],
-    declarations: [ProductsComponent, FileSizePipe, ProductsTableComponent],
+    declarations: [ProductsComponent, FileSizePipe, ProductsTableComponent, ProductDetailsPageComponent],
     providers: [ReportingService, DialogService]
 })
 export class ProductsModule { }

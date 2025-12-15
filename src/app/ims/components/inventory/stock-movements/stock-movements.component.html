@@ -1,0 +1,256 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <h5>{{ 'stock_movements_page_title' | translate }}</h5>
+            <p-toast></p-toast>
+
+            <!-- Page Description -->
+            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
+                <div class="flex align-items-center mb-3">
+                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+                </div>
+                <p class="m-0 text-600">
+                    {{ 'stock_movements_page_description' | translate }}
+                </p>
+                <div class="flex mt-3 gap-2">
+                    <p-tag *ngIf="canReadMovement" value="{{'view' | translate}}" icon="pi pi-eye"
+                        severity="help"></p-tag>
+                </div>
+            </div>
+
+            <!-- Filter Panel -->
+            <p-card styleClass="mb-3">
+                <div class="grid">
+                    <div class="col-12 md:col-3">
+                        <label class="block mb-2 font-bold">{{ 'product' | translate }}</label>
+                        <p-dropdown 
+                            [(ngModel)]="selectedProduct" 
+                            [options]="products" 
+                            optionLabel="label" 
+                            [filter]="true" 
+                            filterBy="label"
+                            [showClear]="true"
+                            placeholder="{{ 'select_product' | translate }}"
+                            appendTo="body"
+                            styleClass="w-full">
+                        </p-dropdown>
+                    </div>
+
+                    <div class="col-12 md:col-3">
+                        <label class="block mb-2 font-bold">{{ 'warehouse' | translate }}</label>
+                        <p-dropdown 
+                            [(ngModel)]="selectedWarehouse" 
+                            [options]="warehouses" 
+                            optionLabel="label" 
+                            [filter]="true" 
+                            filterBy="label"
+                            [showClear]="true"
+                            placeholder="{{ 'select_warehouse' | translate }}"
+                            appendTo="body"
+                            styleClass="w-full">
+                        </p-dropdown>
+                    </div>
+
+                    <div class="col-12 md:col-2">
+                        <label class="block mb-2 font-bold">{{ 'movement_type' | translate }}</label>
+                        <p-dropdown 
+                            [(ngModel)]="selectedMovementType" 
+                            [options]="movementTypeOptions" 
+                            optionLabel="label" 
+                            optionValue="value"
+                            [showClear]="true"
+                            placeholder="{{ 'select_movement_type' | translate }}"
+                            appendTo="body"
+                            styleClass="w-full">
+                        </p-dropdown>
+                    </div>
+
+                    <div class="col-12 md:col-2">
+                        <label class="block mb-2 font-bold">{{ 'start_date' | translate }}</label>
+                        <p-calendar 
+                            [(ngModel)]="startDate" 
+                            [showIcon]="true"
+                            dateFormat="dd/mm/yy"
+                            [showOnFocus]="false"
+                            placeholder="{{ 'start_date' | translate }}"
+                            appendTo="body"
+                            styleClass="w-full">
+                        </p-calendar>
+                    </div>
+
+                    <div class="col-12 md:col-2">
+                        <label class="block mb-2 font-bold">{{ 'end_date' | translate }}</label>
+                        <p-calendar 
+                            [(ngModel)]="endDate" 
+                            [showIcon]="true"
+                            dateFormat="dd/mm/yy"
+                            [showOnFocus]="false"
+                            [minDate]="startDate"
+                            placeholder="{{ 'end_date' | translate }}"
+                            appendTo="body"
+                            styleClass="w-full">
+                        </p-calendar>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mt-3">
+                    <button 
+                        pButton 
+                        type="button" 
+                        label="{{ 'filter' | translate }}" 
+                        icon="pi pi-filter"
+                        (click)="applyFilters()"
+                        class="p-button-primary">
+                    </button>
+                    <button 
+                        pButton 
+                        type="button" 
+                        label="{{ 'reset' | translate }}" 
+                        icon="pi pi-refresh"
+                        (click)="resetFilters()"
+                        class="p-button-outlined">
+                    </button>
+                </div>
+            </p-card>
+
+            <!-- Movements Table -->
+            <p-table 
+                #dt 
+                [value]="movements" 
+                [lazy]="true"
+                (onLazyLoad)="onLazyLoad($event)"
+                [loading]="isLoading"
+                [totalRecords]="totalRecords"
+                [rows]="pageSize"
+                [paginator]="true"
+                [rowsPerPageOptions]="pageSizeOptions"
+                [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
+                responsiveLayout="scroll"
+                [rowHover]="true"
+                sortField="movementDate"
+                [sortOrder]="-1"
+                dataKey="movementId">
+
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">{{ 'stock_movements_page_title' | translate }}</h5>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th pSortableColumn="movementDate" style="min-width: 10rem">
+                            {{ 'date' | translate }}
+                            <p-sortIcon field="movementDate"></p-sortIcon>
+                        </th>
+                        <th style="min-width: 12rem">{{ 'product' | translate }}</th>
+                        <th style="min-width: 10rem">{{ 'warehouse' | translate }}</th>
+                        <th pSortableColumn="movementType" style="min-width: 10rem">
+                            {{ 'movement_type' | translate }}
+                            <p-sortIcon field="movementType"></p-sortIcon>
+                        </th>
+                        <th style="min-width: 8rem" class="text-right">{{ 'quantity' | translate }}</th>
+                        <th style="min-width: 8rem" class="text-right">{{ 'previous_quantity' | translate }}</th>
+                        <th style="min-width: 8rem" class="text-right">{{ 'new_quantity' | translate }}</th>
+                        <th style="min-width: 10rem">{{ 'reference' | translate }}</th>
+                        <th style="min-width: 10rem">{{ 'source_document' | translate }}</th>
+                        <th style="min-width: 10rem">{{ 'performed_by' | translate }}</th>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="body" let-movement>
+                    <tr>
+                        <td>
+                            <span class="p-column-title">{{ 'date' | translate }}</span>
+                            {{ movement.movementDate ? (movement.movementDate | date:'dd/MM/yyyy HH:mm') : 'N/A' }}
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'product' | translate }}</span>
+                            <div class="flex align-items-center gap-2">
+                                <img 
+                                    *ngIf="movement.product?.productImage"
+                                    [src]="movement.product.productImage" 
+                                    [alt]="movement.product.name"
+                                    class="product-image-small border-round">
+                                <div>
+                                    <div class="font-bold">{{ movement.product?.name || 'N/A' }}</div>
+                                    <div class="text-600 text-sm">{{ movement.product?.reference || '' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'warehouse' | translate }}</span>
+                            {{ movement.warehouse?.name || 'N/A' }}
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'movement_type' | translate }}</span>
+                            <div class="flex align-items-center gap-2">
+                                <i [class]="getMovementTypeIcon(movement.movementType)"></i>
+                                <p-tag 
+                                    [value]="movement.movementType ? ('stock_movement_type_' + movement.movementType.toLowerCase() | translate) : 'N/A'"
+                                    [severity]="getMovementTypeSeverity(movement.movementType)">
+                                </p-tag>
+                            </div>
+                        </td>
+                        <td class="text-right">
+                            <span class="p-column-title">{{ 'quantity' | translate }}</span>
+                            <strong 
+                                [ngClass]="{
+                                    'text-green-500': (movement.movementType === 'PURCHASE' || movement.movementType === 'TRANSFER_IN' || movement.movementType === 'RETURN'),
+                                    'text-red-500': (movement.movementType === 'SALE' || movement.movementType === 'TRANSFER_OUT' || movement.movementType === 'DAMAGE' || movement.movementType === 'EXPIRY'),
+                                    'text-orange-500': movement.movementType === 'ADJUSTMENT'
+                                }">
+                                {{ getQuantityDisplay(movement) }}
+                            </strong>
+                        </td>
+                        <td class="text-right">
+                            <span class="p-column-title">{{ 'previous_quantity' | translate }}</span>
+                            {{ movement.previousQuantity ?? 'N/A' }}
+                        </td>
+                        <td class="text-right">
+                            <span class="p-column-title">{{ 'new_quantity' | translate }}</span>
+                            <strong>{{ movement.newQuantity ?? 'N/A' }}</strong>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'reference' | translate }}</span>
+                            {{ movement.reference || 'N/A' }}
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'source_document' | translate }}</span>
+                            <button 
+                                *ngIf="hasSourceDocument(movement)"
+                                pButton 
+                                pRipple
+                                type="button"
+                                [label]="movement.sourceDocumentType | translate"
+                                icon="pi pi-external-link"
+                                class="p-button-sm p-button-link"
+                                (click)="navigateToSourceDocument(movement)"
+                                pTooltip="{{ 'view_source_document' | translate }}">
+                            </button>
+                            <span *ngIf="!hasSourceDocument(movement)" class="text-600">-</span>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'performed_by' | translate }}</span>
+                            {{ movement.performedBy || ('system' | translate) }}
+                        </td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="10" class="text-center p-4">
+                            <div class="flex flex-column align-items-center justify-content-center">
+                                <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
+                                <h4>{{ 'no_movements_found' | translate }}</h4>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+    </div>
+</div>
+

@@ -1,0 +1,306 @@
+.premium-refund-details-page {
+  padding: 0;
+}
+
+.premium-refund-details-page .refund-details-header {
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  color: var(--primary-color-text);
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 2rem;
+  transition: background 0.3s ease;
+}
+
+/* Status-specific header colors */
+.premium-refund-details-page .refund-details-header.status-initiated {
+  background: linear-gradient(135deg, #bce8fb 0%, #6cc4e0 100%);
+  color: #447a8c;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-refund-details-page .refund-details-header.status-processing {
+  background: linear-gradient(135deg, #FFF9C4 0%, #FFEB3B 100%);
+  color: #827717;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-refund-details-page .refund-details-header.status-completed {
+  background: linear-gradient(135deg, #b9faaf 0%, #5fd476 100%);
+  color: #3c774b;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-refund-details-page .refund-details-header.status-failed {
+  background: linear-gradient(135deg, #FFCDD2 0%, #F78D8D 100%);
+  color: #C63737;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-refund-details-page .refund-details-header.status-canceled {
+  background: linear-gradient(135deg, #E0E0E0 0%, #BDBDBD 100%);
+  color: #616161;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.premium-refund-details-page .refund-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.premium-refund-details-page .premium-details-section {
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--surface-border);
+}
+
+.premium-refund-details-page .section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.premium-refund-details-page .premium-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.premium-refund-details-page .detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.premium-refund-details-page .detail-item label {
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  font-size: 0.9rem;
+}
+
+.premium-refund-details-page .detail-item span {
+  color: var(--text-color);
+}
+
+.premium-refund-details-page .premium-info-card {
+  background: var(--surface-ground);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  border: 1px solid var(--surface-border);
+}
+
+.premium-refund-details-page .customer-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.premium-refund-details-page .customer-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color-text);
+}
+
+.premium-refund-details-page .notes-content {
+  background: var(--surface-ground);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  border-left: 4px solid var(--purple-500);
+  font-style: italic;
+  color: var(--text-color);
+}
+
+.premium-refund-details-page .product-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.premium-refund-details-page .product-image {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: var(--border-radius);
+}
+
+.premium-refund-details-page .product-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.premium-refund-details-page .product-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.premium-refund-details-page .product-category {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.premium-refund-details-page .order-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.premium-refund-details-page .order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.premium-refund-details-page .order-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.premium-refund-details-page .order-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.premium-refund-details-page .receipt-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.premium-refund-details-page .no-order {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-border);
+}
+
+.premium-refund-details-page .premium-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.premium-refund-details-page .summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.premium-refund-details-page .summary-item:last-child {
+  border-bottom: none;
+}
+
+.premium-refund-details-page .summary-divider {
+  height: 1px;
+  background: var(--surface-border);
+  margin: 0.5rem 0;
+}
+
+.premium-refund-details-page .summary-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 0;
+  margin-top: 0.5rem;
+  border-top: 2px solid var(--surface-border);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.premium-refund-details-page .premium-status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.premium-refund-details-page .premium-status-badge.status-initiated {
+  background: #bce8fb;
+  color: #447a8c;
+}
+
+.premium-refund-details-page .premium-status-badge.status-processing {
+  background: #FFF9C4;
+  color: #827717;
+}
+
+.premium-refund-details-page .premium-status-badge.status-completed {
+  background: #b9faaf;
+  color: #3c774b;
+}
+
+.premium-refund-details-page .premium-status-badge.status-failed {
+  background: #FFCDD2;
+  color: #C63737;
+}
+
+.premium-refund-details-page .premium-status-badge.status-canceled {
+  background: #E0E0E0;
+  color: #616161;
+}
+
+.premium-refund-details-page .audit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.premium-refund-details-page .audit-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.premium-refund-details-page .audit-item:last-child {
+  border-bottom: none;
+}
+
+.premium-refund-details-page .audit-item label {
+  font-weight: 600;
+  color: var(--text-color-secondary);
+}
+
+.premium-refund-details-page .audit-item span {
+  color: var(--text-color);
+}
+
+.premium-refund-details-page .premium-products-table .summary-total {
+  background: var(--surface-ground);
+  font-weight: 600;
+}
+
+.premium-refund-details-page .premium-products-table .footer-label {
+  text-align: right;
+  padding-right: 1rem;
+}
+
+.premium-refund-details-page .premium-products-table .footer-value {
+  text-align: right;
+  font-weight: 600;
+}
+
+.premium-refund-details-page .premium-products-table .footer-value.total {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+

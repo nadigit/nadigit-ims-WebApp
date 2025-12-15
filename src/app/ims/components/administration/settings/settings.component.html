@@ -1,526 +1,489 @@
-<div class="grid">
-  <div class="col-12">
-    <div class="card px-6 py-6">
-      <h5>{{ 'settings_menu_title' | translate }}</h5>
-      <p-tabMenu [model]="menuItems" [activeItem]="activeItem"
-        (activeItemChange)="onActiveItemChange($event)"></p-tabMenu>
-      <br>
-      <p-toast></p-toast>
-
-      <div class="card flex justify-content-center" *ngIf="isLoading">
-        <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-      </div>
-
-      <div *ngIf="activeItem?.icon === 'pi pi-fw pi-sitemap' && !isLoading"
-        class="card justify-content-center overflow-x-auto overflow-y-auto" style="height: 100%;">
-        <span class="text-500">{{ 'organization_description_txt' | translate }}</span>
-        <div style="margin-top: 2rem;">
-          <p-organizationChart [value]="organizationStructure" selectionMode="multiple" [(selection)]="selectedNodes"
-            [collapsible]="true" (onNodeSelect)="openOrganizationDialog($event)">
-            <ng-template let-node pTemplate="organization">
-
-              <div class="p-2 text-center">
-                <div class="card flex justify-content-center" *ngIf="imageLoading">
-                  <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-                </div>
-                <p-image *ngIf="!imageLoading && logoImageUrl; else placeholderImage" [src]="logoImageUrl"
-                  [alt]="organization.organizationName" width="150" class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
-
-                <ng-template #placeholderImage>
-                  <img *ngIf="!imageLoading && !logoImageUrl" src="assets/app-logo/placeholder-image.jpg"
-                    alt="Placeholder" width="150" class="mt-0 mx-auto mb-5 block shadow-2">
-                </ng-template>
-                <div class="font-bold">{{ node.data.name }}</div>
-              </div>
-            </ng-template>
-            <ng-template let-node pTemplate="shops">
-              <div class="p-2 text-center">
-                <div class="font-bold">
-                  <a routerLink="/pages/shops">{{ node.data.name }}</a>
-                </div>
-              </div>
-            </ng-template>
-            <ng-template let-node pTemplate="warehouses">
-              <div class="p-2 text-center">
-                <div class="font-bold">
-                  <a routerLink="/pages/warehouses">{{ node.data.name }}</a>
-                </div>
-              </div>
-            </ng-template>
-          </p-organizationChart>
-        </div>
-      </div>
-
-      <!-- Global Parameters / Settings -->
-      <div class="grid" *ngIf="activeItem?.icon == 'pi pi-fw pi-sliders-h' && !isLoading">
-        <div class="col-12">
-          <div class="card">
-            <div class="surface-section p-4">
-
-              <!-- Header -->
-              <div class="flex align-items-center justify-content-between mb-4">
-                <div class="flex align-items-center gap-2">
-                  <i class="pi pi-sliders-h text-primary text-2xl"></i>
-                  <div class="flex flex-column">
-                    <span class="text-xl font-bold">{{ 'global_parameters' | translate }}</span>
-                    <small class="text-600">{{ 'administration_description_txt' | translate }}</small>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Settings list -->
-              <ul class="list-none p-0 m-0">
-                <li *ngFor="let config of configs; trackBy: trackByConfig"
-                  class="flex flex-column md:flex-row align-items-start md:align-items-center py-3 px-2 border-top-1 surface-border gap-3">
-
-                  <!-- Label & key -->
-                  <div class="w-12 md:w-4">
-                    <div class="text-900 font-semibold mb-1">
-                      {{ config.key | translate }}
-                    </div>
-                    <div class="text-500 text-xs">
-                      {{ ('settings_' + config.key + '_hint') | translate : {} }}
-                    </div>
-                  </div>
-
-                  <!-- Value / editor -->
-                  <div class="text-900 w-12 md:w-6 md:flex-order-0 flex-order-1">
-                    <ng-container *ngIf="!config.isEditing; else editModeTemplate">
-                      <!-- Display the value and units for lowStockThreshold -->
-                      <span *ngIf="config.key === 'lowStockThreshold'">
-                        {{ config.value }} {{ 'units' | translate }}
-                      </span>
-
-                      <!-- Display the value as a percentage if the key is 'tax' -->
-                      <span *ngIf="config.key === 'tax'">{{ (config.value * 100) | number: '1.0-2' }}%</span>
-
-                      <span *ngIf="config.key === 'cashRegDefaultOpeningBalance'">
-                        {{ config.value }} {{ appConfigCurrency.value }}
-                      </span>
-
-                      <span *ngIf="config.key === 'returnWindow'">
-                        {{ config.value }} {{ 'days' | translate }}
-                      </span>
-
-                      <span *ngIf="config.key === 'refundWindow'">
-                        {{ config.value }} {{ 'days' | translate }}
-                      </span>
-
-                      <!-- Display the value for other keys -->
-                      <span *ngIf="config.key !== 'lowStockThreshold' && 
-                        config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' && 
-                        config.key !== 'returnWindow' && 
-                        config.key !== 'refundWindow' && 
-                        config.key !== 'app.timezone' &&
-                        config.key !== 'autoOrderComplete'">
-                        {{ config.value }}
-                      </span>
-
-                      <!-- Auto order completion (active/inactive as Enabled/Disabled) -->
-                      <span *ngIf="config.key === 'autoOrderComplete'">
-                        {{ config.value === 'active' ? ('enabled' | translate) : ('disabled' | translate) }}
-                      </span>
-                      <!-- Timezone display -->
-                      <span *ngIf="config.key === 'app.timezone'">{{ config.value }}</span>
-
-                    </ng-container>
-
-                    <!-- Edit mode -->
-                    <ng-template #editModeTemplate>
-                      <!-- For low stock threshold -->
-                      <div *ngIf="config.key == 'lowStockThreshold'">
-                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{ 'units' |
-                        translate }}
-                      </div>
-
-                      <!-- For currency selection -->
-                      <div *ngIf="config.key == 'currency'">
-                        <p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol"
-                          optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}"></p-dropdown>
-                      </div>
-
-                      <!-- For tax as percentage -->
-                      <div *ngIf="config.key == 'tax'">
-                        <input [(ngModel)]="taxPercentage" type="number" pInputText class="form-control"
-                          (ngModelChange)="onTaxChange($event)" /> %
-                      </div>
-
-                      <div *ngIf="config.key == 'cashRegDefaultOpeningBalance'">
-                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{
-                        appConfigCurrency.value }}
-                      </div>
-
-                      <div *ngIf="config.key == 'returnWindow'">
-                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{'days'
-                        |translate}}
-                      </div>
-
-                      <div *ngIf="config.key == 'refundWindow'">
-                        <input [(ngModel)]="config.value" type="number" pInputText class="form-control" /> {{'days'
-                        |translate}}
-                      </div>
-
-                      <!-- Auto order completion as enabled/disabled dropdown -->
-                      <div *ngIf="config.key == 'autoOrderComplete'">
-                        <p-dropdown [(ngModel)]="config.value"
-                          [options]="autoOrderOptions"
-                          optionLabel="label"
-                          optionValue="value"
-                          placeholder="{{ 'enabled' | translate }}">
-                        </p-dropdown>
-                      </div>
-
-                      <!-- Edit mode for timezone -->
-                      <div *ngIf="config.key === 'app.timezone'">
-                        <p-dropdown [options]="timezones" [(ngModel)]="config.value" optionLabel="label"
-                          optionValue="value" placeholder="{{ 'select_timezone_option' | translate }}">
-                        </p-dropdown>
-                      </div>
-
-                    </ng-template>
-                  </div>
-
-                  <!-- Action button -->
-                  <div class="w-12 md:w-2 flex justify-content-end align-items-center mt-2 md:mt-0">
-                    <p-button
-                      (click)="toggleEditMode(config)"
-                      icon="pi pi-{{ config.isEditing ? 'check' : 'pencil' }}"
-                      [rounded]="true"
-                      [outlined]="true"
-                      [label]="config.isEditing ? ('save_button' | translate) : ''"
-                      styleClass="p-button-sm">
-                    </p-button>
-                  </div>
-                </li>
-              </ul>
+<div class="settings-page">
+  <div class="grid">
+    <div class="col-12">
+      <div class="card settings-card">
+        <!-- Page Header -->
+        <div class="settings-header mb-4">
+          <div class="flex align-items-center gap-3">
+            <div class="settings-icon-wrapper">
+              <i class="pi pi-sliders-h"></i>
+            </div>
+            <div>
+              <h2 class="m-0 text-2xl font-bold">{{ 'global_settings' | translate }}</h2>
+              <p class="text-600 m-0 mt-1">{{ 'manage_system_settings_and_banks' | translate }}</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <p-dialog [(visible)]="organizationDialog" [style]="{ width: '80%' }"
-        header="{{ 'organization_info_lbl' | translate }}" [modal]="true" class="p-fluid organization-dialog"
-        [draggable]="false" [resizable]="false">
-        <ng-template pTemplate="content">
-          <div class="organization-form-container">
-            <!-- Logo Section -->
-            <div class="logo-section mb-4" [ngClass]="{'has-logo': organization.logo}">
-              <div class="image-section card p-3" *ngIf="logoImageUrl || imagePreviewUrl; else upload_image">
-                <label for="logo" class="block mb-2 font-bold">{{'organization_logo' |
-                  translate}}</label>
-                <div class="image-container relative">
-                  <!-- Image with preview and loading state -->
-                  <div class="image-wrapper border-round overflow-hidden surface-ground"
-                    [ngClass]="{'loading': isImageLoading}">
-                    <p-image [src]="logoImageUrl || imagePreviewUrl" [alt]="organization.organizationName" width="100%"
-                      [preview]="true" class="block shadow-2 border-round" imageClass="w-full"
-                      (onLoad)="isImageLoading = false" (onError)="onImageError()">
-                    </p-image>
+        <p-toast></p-toast>
 
-                    <!-- Loading overlay -->
-                    <div class="loading-overlay flex align-items-center justify-content-center" *ngIf="isImageLoading">
-                      <p-progressSpinner strokeWidth="4" animationDuration=".5s" styleClass="w-2rem h-2rem"
-                        ariaLabel="image-loading">
-                      </p-progressSpinner>
-                    </div>
+        <!-- Loading Spinner -->
+        <div class="card flex justify-content-center" *ngIf="isLoading && isLoadingBanks">
+          <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+        </div>
 
-                    <!-- Image actions overlay -->
-                    <div class="image-actions-overlay flex align-items-center justify-content-center gap-2">
-                      <p-button icon="pi pi-search-plus" [text]="true" [rounded]="true" severity="secondary"
-                        (click)="zoomImage()" [tooltip]="'zoom_image_tooltip' | translate"></p-button>
-                      <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" severity="info" (click)="editImage()"
-                        [tooltip]="'edit_image_tooltip' | translate"></p-button>
-                      <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
-                        (click)="removeImage()" [tooltip]="'remove_image_tooltip' | translate"></p-button>
-                    </div>
-                  </div>
+        <!-- Tabbed Interface -->
+        <p-tabView *ngIf="!isLoading || !isLoadingBanks" class="enhanced-tabview" [(activeIndex)]="activeTabIndex">
+          
+          <!-- Global Settings Tab -->
+          <p-tabPanel>
+            <ng-template pTemplate="header">
+              <span class="flex align-items-center gap-2">
+                <i class="pi pi-cog"></i>
+                <span>{{ 'global_parameters' | translate }}</span>
+              </span>
+            </ng-template>
 
-                  <!-- File info -->
-                  <div class="file-info mt-2 text-sm text-color-secondary" *ngIf="uploadedFile">
-                    <div class="flex align-items-center">
-                      <i class="pi pi-file mr-1"></i>
-                      <span class="truncate">{{ uploadedFile.name }}</span>
-                    </div>
-                    <div>{{ uploadedFile.size | fileSize }}</div>
-                  </div>
-                </div>
-              </div>
-
-              <ng-template #upload_image>
-                <div class="field card p-3">
-                  <label for="logo" class="block mb-2 font-bold">{{'organization_logo' |
-                    translate}}</label>
-
-                  <!-- Drag and drop area -->
-                  <div class="upload-container border-2 surface-border border-dashed border-round p-4 text-center"
-                    (drop)="onDrop($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
-                    [ngClass]="{'drag-over': isDragOver}">
-
-                    <div class="upload-content">
-                      <i class="pi pi-cloud-upload text-4xl text-color-secondary mb-3"></i>
-                      <h4 class="mb-2">{{'drag_drop_title' | translate}}</h4>
-                      <p class="text-color-secondary text-sm mb-3">{{'drag_drop_subtitle' |
-                        translate}}</p>
-
-                      <p-fileUpload mode="basic" name="logo" accept="image/*" maxFileSize="5000000"
-                        (onSelect)="onFileUpload($event)" chooseLabel="{{'browse_files_button' | translate}}"
-                        chooseIcon="pi pi-folder-open" [auto]="true" [showUploadButton]="false"
-                        [showCancelButton]="false">
-                      </p-fileUpload>
-
-                      <small class="text-color-secondary block mt-2">{{'image_upload_hint' |
-                        translate}}</small>
+            <div class="settings-content" *ngIf="!isLoading">
+              <div class="settings-section">
+                <div class="section-header mb-4">
+                  <div class="flex align-items-center gap-2">
+                    <i class="pi pi-sliders-h text-primary text-xl"></i>
+                    <div>
+                      <h3 class="m-0 text-xl font-semibold">{{ 'global_parameters' | translate }}</h3>
+                      <small class="text-600">{{ 'administration_description_txt' | translate }}</small>
                     </div>
                   </div>
                 </div>
-              </ng-template>
-            </div>
 
-            <!-- Form Fields -->
-            <div class="form-grid">
-              <!-- Left Column -->
-              <div class="form-column">
-                <div class="field">
-                  <label for="organizationName" class="block mb-2 font-semibold">
-                    {{ 'organization_name' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="organizationName" ngDefaultControl
-                    [(ngModel)]="organization.organizationName" required autofocus
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.organizationName }"
-                    placeholder="{{ 'enter_organization_name' | translate }}" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.organizationName">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'organization_name' | translate }} {{
-                    'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="email" class="block mb-2 font-semibold">{{ 'customer_email' | translate }}</label>
-                  <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="organization.email"
-                    placeholder="{{ 'enter_email_address' | translate }}" />
-                </div>
-
-                <div class="field">
-                  <label for="phoneNumber" class="block mb-2 font-semibold">{{ 'customer_phone_number' | translate
-                    }}</label>
-                  <input type="tel" pInputText name="phoneNumber" ngDefaultControl
-                    [(ngModel)]="organization.phoneNumber" placeholder="{{ 'enter_phone_number' | translate }}" />
-                </div>
-
-                <div class="field">
-                  <label for="address" class="block mb-2 font-semibold">{{ 'address' | translate }}</label>
-                  <textarea rows="3" cols="20" [(ngModel)]="organization.address" name="address"
-                    placeholder="{{ 'enter_address' | translate }}" ngDefaultControl pInputTextarea></textarea>
-                </div>
-
-                <div class="field">
-                  <label for="country" class="block mb-2 font-semibold">{{ 'shop_country' | translate }}</label>
-                  <p-dropdown [(ngModel)]="organization.country" (onChange)="onSelectedCountry(organization.country)"
-                    name="country" inputId="country" ngDefaultControl [options]="countries"
-                    placeholder="{{ 'select_country_option' | translate }}" [filter]="true"
-                    [filterFields]="['name', 'translatedName']" [filterBy]="filterCountry" optionValue="name"
-                    optionLabel="translatedName" [showClear]="true">
-                    <ng-template pTemplate="selectedItem">
-                      <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country |
-                        countryTranslate }}</span>
-                    </ng-template>
-                    <ng-template let-option pTemplate="item">
-                      <span class="product-badge">{{ option.translatedName }}</span>
-                    </ng-template>
-                  </p-dropdown>
-                </div>
-
-                <div class="field" *ngIf="organization.country">
-                  <label for="city" class="block mb-2 font-semibold">{{ 'shop_city' | translate }}</label>
-                  <p-dropdown [(ngModel)]="organization.city" name="city" inputId="city" ngDefaultControl
-                    optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="states"
-                    placeholder="{{ 'select_city_option' | translate }}" [showClear]="true">
-                    <ng-template pTemplate="selectedItem">
-                      <span *ngIf="organization && organization.city" class="product-badge">{{ organization.city
-                        }}</span>
-                    </ng-template>
-                    <ng-template let-option pTemplate="item">
-                      <span class="product-badge">{{ option.name }}</span>
-                    </ng-template>
-                  </p-dropdown>
-                </div>
-
-                <div class="field">
-                  <label for="zip" class="block mb-2 font-semibold">
-                    {{ 'zip_code' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="zip" ngDefaultControl [(ngModel)]="organization.zip" required
-                    placeholder="{{ 'enter_zip_code' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.zip }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.zip">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'zip_code' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="website" class="block mb-2 font-semibold">
-                    {{ 'website' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <div class="p-inputgroup">
-                    <span class="p-inputgroup-addon">https://</span>
-                    <input type="text" pInputText name="website" ngDefaultControl [(ngModel)]="organization.website"
-                      required placeholder="{{ 'enter_website' | translate }}"
-                      [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.website }" />
-                  </div>
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.website">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'website' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-              </div>
-
-              <!-- Right Column -->
-              <div class="form-column">
-
-                <div class="field">
-                  <label for="taxId" class="block mb-2 font-semibold">
-                    {{ 'tax_id' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="taxId" ngDefaultControl [(ngModel)]="organization.taxId" required
-                    placeholder="{{ 'enter_tax_id' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.taxId }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.taxId">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'tax_id' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="commercialRegister" class="block mb-2 font-semibold">
-                    {{ 'commercial_register' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="commercialRegister" ngDefaultControl
-                    [(ngModel)]="organization.commercialRegister" required
-                    placeholder="{{ 'enter_commercial_register' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.commercialRegister }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.commercialRegister">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'commercial_register' | translate }} {{
-                    'is_required_label' | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="ice" class="block mb-2 font-semibold">
-                    {{ 'ice' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="ice" ngDefaultControl [(ngModel)]="organization.ice" required
-                    placeholder="{{ 'enter_ice_number' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.ice }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.ice">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'ice' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="bankAccountId" class="block mb-2 font-semibold">
-                    {{ 'bank_name' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="bankName" ngDefaultControl [(ngModel)]="organization.bankName"
-                    required placeholder="{{ 'enter_bank_name' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankName }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.bankName">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'bank_name' | translate }} {{ 'is_required_label'
-                    | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="bankAccountId" class="block mb-2 font-semibold">
-                    {{ 'bank_account_number' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="bankAccountId" ngDefaultControl
-                    [(ngModel)]="organization.bankAccountId" required
-                    placeholder="{{ 'enter_bank_account_number' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankAccountId }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.bankAccountId">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'bank_account_number' | translate }} {{
-                    'is_required_label'
-                    | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="bankSwift" class="block mb-2 font-semibold">
-                    {{ 'bank_swiftbic' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="bankSwift" ngDefaultControl [(ngModel)]="organization.bankSwift"
-                    required placeholder="{{ 'enter_bank_swiftbic' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankSwift }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.bankSwift">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'bank_swiftbic' | translate }} {{
-                    'is_required_label'
-                    | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="defaultLocale" class="block mb-2 font-semibold">
-                    {{ 'default_locale' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <p-dropdown [(ngModel)]="organization.defaultLocale" name="defaultLocale" inputId="defaultLocale"
-                    [options]="availableLocales" optionLabel="label" optionValue="value"
-                    placeholder="{{ 'select_locale_option' | translate }}" [showClear]="false">
-                    <ng-template let-locale pTemplate="item">
-                      <div class="flex align-items-center">
-                        <img [src]="'assets/flags/' + locale.value + '.svg'" [alt]="locale.label" class="mr-2 flag-icon"
-                          style="width: 20px">
-                        <span>{{ locale.label }}</span>
+                <!-- Settings Grid -->
+                <div class="settings-grid">
+                  <div *ngFor="let config of configs; trackBy: trackByConfig" class="setting-item">
+                    <div class="setting-card">
+                      <div class="setting-header">
+                        <div class="setting-info">
+                          <h4 class="setting-label">{{ config.key | translate }}</h4>
+                          <p class="setting-hint">{{ ('settings_' + config.key + '_hint') | translate : {} }}</p>
+                        </div>
+                        <div class="setting-actions">
+                          <p-button
+                            (click)="toggleEditMode(config)"
+                            [icon]="config.isEditing ? 'pi pi-check' : 'pi pi-pencil'"
+                            [rounded]="true"
+                            [outlined]="true"
+                            [label]="config.isEditing ? ('save_button' | translate) : ''"
+                            [class]="config.isEditing ? 'p-button-success' : 'p-button-secondary'"
+                            styleClass="p-button-sm">
+                          </p-button>
+                        </div>
                       </div>
-                    </ng-template>
-                  </p-dropdown>
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.defaultLocale">
-                    <i class="pi pi-exclamation-circle mr-1"></i>
-                    {{ 'default_locale' | translate }} {{ 'is_required_label' | translate }}
-                  </small>
-                </div>
 
-                <div class="field">
-                  <label for="costingMethod" class="block mb-2 font-semibold">
-                    {{ 'costing_method' | translate }}
-                  </label>
-                  <p-dropdown [(ngModel)]="organization.costingMethod" name="costingMethod" inputId="costingMethod"
-                    [options]="costingMethods" optionLabel="label" optionValue="value"
-                    placeholder="{{ 'select_costing_method' | translate }}">
-                    <ng-template let-method pTemplate="item">
-                      <span>{{ method.label }}</span>
-                    </ng-template>
-                  </p-dropdown>
+                      <div class="setting-value">
+                        <ng-container *ngIf="!config.isEditing; else editModeTemplate">
+                          <div class="value-display">
+                            <!-- Display the value and units for lowStockThreshold -->
+                            <span *ngIf="config.key === 'lowStockThreshold'" class="value-text">
+                              <span class="value-number">{{ config.value }}</span>
+                              <span class="value-unit">{{ 'units' | translate }}</span>
+                            </span>
+
+                            <!-- Display the value as a percentage if the key is 'tax' -->
+                            <span *ngIf="config.key === 'tax'" class="value-text">
+                              <span class="value-number">{{ (config.value * 100) | number: '1.0-2' }}</span>
+                              <span class="value-unit">%</span>
+                            </span>
+
+                            <span *ngIf="config.key === 'cashRegDefaultOpeningBalance'" class="value-text">
+                              <span class="value-number">{{ config.value }}</span>
+                              <span class="value-unit">{{ appConfigCurrency?.value }}</span>
+                            </span>
+
+                            <span *ngIf="config.key === 'returnWindow'" class="value-text">
+                              <span class="value-number">{{ config.value }}</span>
+                              <span class="value-unit">{{ 'days' | translate }}</span>
+                            </span>
+
+                            <span *ngIf="config.key === 'refundWindow'" class="value-text">
+                              <span class="value-number">{{ config.value }}</span>
+                              <span class="value-unit">{{ 'days' | translate }}</span>
+                            </span>
+
+                            <!-- Display the value for other keys -->
+                            <span *ngIf="config.key !== 'lowStockThreshold' && 
+                              config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' && 
+                              config.key !== 'returnWindow' && 
+                              config.key !== 'refundWindow' && 
+                              config.key !== 'app.timezone' &&
+                              config.key !== 'autoOrderComplete'" class="value-text">
+                              <span class="value-number">{{ config.value }}</span>
+                            </span>
+
+                            <!-- Auto order completion -->
+                            <span *ngIf="config.key === 'autoOrderComplete'" class="value-text">
+                              <p-tag [value]="config.value === 'active' ? ('enabled' | translate) : ('disabled' | translate)"
+                                [severity]="config.value === 'active' ? 'success' : 'danger'"></p-tag>
+                            </span>
+
+                            <!-- Timezone display -->
+                            <span *ngIf="config.key === 'app.timezone'" class="value-text">
+                              <span class="value-number">{{ config.value }}</span>
+                            </span>
+                          </div>
+                        </ng-container>
+
+                        <!-- Edit mode -->
+                        <ng-template #editModeTemplate>
+                          <div class="edit-container">
+                            <!-- For low stock threshold -->
+                            <div *ngIf="config.key == 'lowStockThreshold'" class="edit-field">
+                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+                              <span class="edit-unit">{{ 'units' | translate }}</span>
+                            </div>
+
+                            <!-- For currency selection -->
+                            <div *ngIf="config.key == 'currency'" class="edit-field">
+                              <p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol"
+                                optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}" class="w-full">
+                              </p-dropdown>
+                            </div>
+
+                            <!-- For tax as percentage -->
+                            <div *ngIf="config.key == 'tax'" class="edit-field">
+                              <input [(ngModel)]="taxPercentage" type="number" pInputText class="w-full"
+                                (ngModelChange)="onTaxChange($event)" />
+                              <span class="edit-unit">%</span>
+                            </div>
+
+                            <div *ngIf="config.key == 'cashRegDefaultOpeningBalance'" class="edit-field">
+                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+                              <span class="edit-unit">{{ appConfigCurrency?.value }}</span>
+                            </div>
+
+                            <div *ngIf="config.key == 'returnWindow'" class="edit-field">
+                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+                              <span class="edit-unit">{{'days' |translate}}</span>
+                            </div>
+
+                            <div *ngIf="config.key == 'refundWindow'" class="edit-field">
+                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+                              <span class="edit-unit">{{'days' |translate}}</span>
+                            </div>
+
+                            <!-- Auto order completion as enabled/disabled dropdown -->
+                            <div *ngIf="config.key == 'autoOrderComplete'" class="edit-field">
+                              <p-dropdown [(ngModel)]="config.value"
+                                [options]="autoOrderOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="{{ 'enabled' | translate }}" class="w-full">
+                              </p-dropdown>
+                            </div>
+
+                            <!-- Edit mode for timezone -->
+                            <div *ngIf="config.key === 'app.timezone'" class="edit-field">
+                              <p-dropdown [options]="timezones" [(ngModel)]="config.value" optionLabel="label"
+                                optionValue="value" placeholder="{{ 'select_timezone_option' | translate }}" class="w-full">
+                              </p-dropdown>
+                            </div>
+                          </div>
+                        </ng-template>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </ng-template>
+          </p-tabPanel>
 
-        <ng-template pTemplate="footer">
-          <div class="flex justify-content-between align-items-center w-full">
-            <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-              class="p-button-text p-button-danger" (click)="hideDialog()"></button>
-            <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-raised"
-              (click)="saveOrganization()"></button>
-          </div>
-        </ng-template>
-      </p-dialog>
+          <!-- Banks Management Tab -->
+          <p-tabPanel>
+            <ng-template pTemplate="header">
+              <span class="flex align-items-center gap-2">
+                <i class="pi pi-building"></i>
+                <span>{{ 'banks_management' | translate }}</span>
+              </span>
+            </ng-template>
 
-      <p-dialog [(visible)]="imageZoomDialog" [modal]="true" [style]="{width: '90vw', maxWidth: '1000px'}"
-        [draggable]="false" [resizable]="false" [closable]="true" [closeOnEscape]="true">
-        <ng-template pTemplate="header">
-          <span class="text-xl font-semibold">{{'image_preview' | translate}}</span>
-        </ng-template>
-        <ng-template pTemplate="content">
-          <div class="flex justify-content-center">
-            <img [src]="logoImageUrl || imagePreviewUrl" [alt]="organization.organizationName"
-              class="max-w-full max-h-30rem">
-          </div>
-        </ng-template>
-      </p-dialog>
+            <div class="banks-content" *ngIf="!isLoadingBanks">
+              <div class="banks-section">
+                <div class="section-header mb-4">
+                  <div class="flex align-items-center justify-content-between">
+                    <div class="flex align-items-center gap-2">
+                      <i class="pi pi-building text-primary text-xl"></i>
+                      <div>
+                        <h3 class="m-0 text-xl font-semibold">{{ 'banks_management' | translate }}</h3>
+                        <small class="text-600">{{ 'manage_bank_information' | translate }}</small>
+                      </div>
+                    </div>
+                    <button *ngIf="canAddBank" pButton pRipple icon="pi pi-plus" 
+                      [label]="'add_bank' | translate" class="p-button-raised"
+                      (click)="openNewBank()"></button>
+                  </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="flex gap-2 mb-4">
+                  <span class="p-input-icon-left flex-1">
+                    <i class="pi pi-search"></i>
+                    <input type="text" pInputText [(ngModel)]="globalFilter" 
+                      [placeholder]="'search' | translate" />
+                  </span>
+                  <p-selectButton [options]="[
+                    {label: ('all' | translate), value: undefined},
+                    {label: ('active' | translate), value: true},
+                    {label: ('inactive' | translate), value: false}
+                  ]" [(ngModel)]="activeFilter" (onChange)="onActiveFilterChange()"
+                    optionLabel="label" optionValue="value"></p-selectButton>
+                </div>
+
+                <!-- Banks Table -->
+                <p-table [value]="banks" [(selection)]="selectedBanks" 
+                  [paginator]="true" [rows]="20" [rowsPerPageOptions]="[20, 50, 100]"
+                  [globalFilterFields]="['name','code','country','city']"
+                  [loading]="isLoadingBanks" dataKey="bankId"
+                  [responsive]="true" styleClass="p-datatable-gridlines"
+                  [globalFilter]="globalFilter">
+                  
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th style="width: 3rem">
+                        <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                      </th>
+                      <th pSortableColumn="name">
+                        {{'bank_name' | translate}} <p-sortIcon field="name"></p-sortIcon>
+                      </th>
+                      <th pSortableColumn="code">
+                        {{'bank_code' | translate}} <p-sortIcon field="code"></p-sortIcon>
+                      </th>
+                      <th pSortableColumn="country">
+                        {{'country' | translate}} <p-sortIcon field="country"></p-sortIcon>
+                      </th>
+                      <th pSortableColumn="city">
+                        {{'city' | translate}} <p-sortIcon field="city"></p-sortIcon>
+                      </th>
+                      <th pSortableColumn="active">
+                        {{'status' | translate}} <p-sortIcon field="active"></p-sortIcon>
+                      </th>
+                      <th>{{'actions' | translate}}</th>
+                    </tr>
+                  </ng-template>
+
+                  <ng-template pTemplate="body" let-bank>
+                    <tr>
+                      <td>
+                        <p-tableCheckbox [value]="bank"></p-tableCheckbox>
+                      </td>
+                      <td>{{bank.name}}</td>
+                      <td>{{bank.code || '-'}}</td>
+                      <td>{{bank.country || '-'}}</td>
+                      <td>{{bank.city || '-'}}</td>
+                      <td>
+                        <p-tag [value]="(bank.active ? 'active' : 'inactive') | translate"
+                          [severity]="bank.active ? 'success' : 'danger'"></p-tag>
+                      </td>
+                      <td>
+                        <div class="flex gap-2">
+                          <button *ngIf="canReadBank" pButton pRipple icon="pi pi-eye" 
+                            class="p-button-rounded p-button-text p-button-info"
+                            (click)="viewBankDetails(bank)"
+                            [pTooltip]="'view_details' | translate"></button>
+                          <button *ngIf="canEditBank" pButton pRipple icon="pi pi-pencil" 
+                            class="p-button-rounded p-button-text p-button-warning"
+                            (click)="editBank(bank)"
+                            [pTooltip]="'edit' | translate"></button>
+                          <button *ngIf="canDeleteBank" pButton pRipple icon="pi pi-trash" 
+                            class="p-button-rounded p-button-text p-button-danger"
+                            (click)="deleteBank(bank)"
+                            [pTooltip]="'delete' | translate"></button>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-template>
+
+                  <ng-template pTemplate="emptymessage">
+                    <tr>
+                      <td colspan="7" class="text-center">
+                        {{'no_banks_found' | translate}}
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+
+                <!-- Bulk Actions -->
+                <div *ngIf="selectedBanks.length > 0" class="mt-3">
+                  <button pButton pRipple [label]="'delete_selected' | translate" 
+                    icon="pi pi-trash" class="p-button-danger p-button-outlined"
+                    (click)="deleteSelectedBanks()"></button>
+                </div>
+              </div>
+            </div>
+          </p-tabPanel>
+
+        </p-tabView>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- Bank Dialog -->
+<p-dialog [(visible)]="bankDialog" [style]="{width: '600px'}" 
+  [header]="(bank.bankId ? 'edit_bank' : 'add_bank') | translate"
+  [modal]="true" class="p-fluid">
+  
+  <ng-template pTemplate="content">
+    <div class="field">
+      <label for="name">
+        {{'bank_name' | translate}} <span class="required-asterisk">*</span>
+      </label>
+      <input id="name" type="text" pInputText [(ngModel)]="bank.name" 
+        [ngClass]="{'ng-invalid ng-dirty': submittedBank && !bank.name}" />
+      <small *ngIf="submittedBank && !bank.name" class="ng-dirty ng-invalid">
+        {{'bank_name' | translate}} {{'is_required_label' | translate}}
+      </small>
+    </div>
+
+    <div class="field">
+      <label for="code">{{'bank_code' | translate}}</label>
+      <input id="code" type="text" pInputText [(ngModel)]="bank.code" />
+    </div>
+
+    <div class="grid">
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="country">{{'country' | translate}}</label>
+          <input id="country" type="text" pInputText [(ngModel)]="bank.country" />
+        </div>
+      </div>
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="city">{{'city' | translate}}</label>
+          <input id="city" type="text" pInputText [(ngModel)]="bank.city" />
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="address">{{'address' | translate}}</label>
+      <textarea id="address" rows="2" pInputTextarea [(ngModel)]="bank.address"></textarea>
+    </div>
+
+    <div class="grid">
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="phoneNumber">{{'phone_number' | translate}}</label>
+          <input id="phoneNumber" type="text" pInputText [(ngModel)]="bank.phoneNumber" />
+        </div>
+      </div>
+      <div class="col-12 md:col-6">
+        <div class="field">
+          <label for="email">{{'email' | translate}}</label>
+          <input id="email" type="email" pInputText [(ngModel)]="bank.email" />
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="website">{{'website' | translate}}</label>
+      <input id="website" type="url" pInputText [(ngModel)]="bank.website" 
+        placeholder="https://example.com" />
+    </div>
+
+    <div class="field">
+      <label for="notes">{{'notes' | translate}}</label>
+      <textarea id="notes" rows="3" pInputTextarea [(ngModel)]="bank.notes"></textarea>
+    </div>
+
+    <div class="field">
+      <div class="flex align-items-center">
+        <p-checkbox [(ngModel)]="bank.active" inputId="active" 
+          [binary]="true"></p-checkbox>
+        <label for="active" class="ml-2">{{'active' | translate}}</label>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="hideBankDialog()"></button>
+    <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
+      class="p-button-raised" (click)="saveBank()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- Bank Details Dialog -->
+<p-dialog [(visible)]="bankDetailsDialog" [style]="{width: '700px'}" 
+  [header]="'bank_details' | translate" [modal]="true">
+  
+  <ng-template pTemplate="content">
+    <div class="grid">
+      <div class="col-12 md:col-6">
+        <strong>{{'bank_name' | translate}}:</strong>
+        <p>{{bank.name}}</p>
+      </div>
+      <div class="col-12 md:col-6">
+        <strong>{{'bank_code' | translate}}:</strong>
+        <p>{{bank.code || '-'}}</p>
+      </div>
+      <div class="col-12 md:col-6">
+        <strong>{{'country' | translate}}:</strong>
+        <p>{{bank.country || '-'}}</p>
+      </div>
+      <div class="col-12 md:col-6">
+        <strong>{{'city' | translate}}:</strong>
+        <p>{{bank.city || '-'}}</p>
+      </div>
+      <div class="col-12">
+        <strong>{{'address' | translate}}:</strong>
+        <p>{{bank.address || '-'}}</p>
+      </div>
+      <div class="col-12 md:col-6">
+        <strong>{{'phone_number' | translate}}:</strong>
+        <p>{{bank.phoneNumber || '-'}}</p>
+      </div>
+      <div class="col-12 md:col-6">
+        <strong>{{'email' | translate}}:</strong>
+        <p>{{bank.email || '-'}}</p>
+      </div>
+      <div class="col-12">
+        <strong>{{'website' | translate}}:</strong>
+        <p *ngIf="bank.website">
+          <a [href]="bank.website" target="_blank">{{bank.website}}</a>
+        </p>
+        <p *ngIf="!bank.website">-</p>
+      </div>
+      <div class="col-12">
+        <strong>{{'notes' | translate}}:</strong>
+        <p>{{bank.notes || '-'}}</p>
+      </div>
+      <div class="col-12">
+        <strong>{{'status' | translate}}:</strong>
+        <p-tag [value]="(bank.active ? 'active' : 'inactive') | translate"
+          [severity]="bank.active ? 'success' : 'danger'"></p-tag>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple [label]="'close' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="bankDetailsDialog = false"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- Delete Confirmation Dialogs -->
+<p-dialog [(visible)]="deleteBankDialog" [style]="{width: '450px'}" 
+  [header]="'confirm_label' | translate" [modal]="true">
+  <div class="flex align-items-center justify-content-center">
+    <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+    <span>{{'delete_bank_confirmation' | translate}}</span>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple [label]="'no_button' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="deleteBankDialog = false"></button>
+    <button pButton pRipple [label]="'yes_button' | translate" icon="pi pi-check"
+      class="p-button-text" (click)="confirmDeleteBank()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="deleteBanksDialog" [style]="{width: '450px'}" 
+  [header]="'confirm_label' | translate" [modal]="true">
+  <div class="flex align-items-center justify-content-center">
+    <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+    <span>{{'delete_selected_banks_confirmation' | translate}}</span>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple [label]="'no_button' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="deleteBanksDialog = false"></button>
+    <button pButton pRipple [label]="'yes_button' | translate" icon="pi pi-check"
+      class="p-button-text" (click)="confirmDeleteSelectedBanks()"></button>
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,18 @@
+.product-image-small {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: var(--border-radius);
+}
+
+.p-column-title {
+    font-weight: 600;
+}
+
+/* Responsive */
+@media screen and (max-width: 960px) {
+    .p-column-title {
+        display: none;
+    }
+}
+

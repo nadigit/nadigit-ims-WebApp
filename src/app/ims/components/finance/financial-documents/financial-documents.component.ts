@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { MessageService } from 'primeng/api';
@@ -26,7 +27,6 @@ export class FinancialDocumentsComponent implements OnInit {
 
   draftFinancialDocDialog: boolean = false;
 
-  financialDocDetailsDialog: boolean = false;
 
   deleteFinancialDocDialog: boolean = false;
 
@@ -82,7 +82,8 @@ export class FinancialDocumentsComponent implements OnInit {
     private translate: TranslateService,
     private organizationService: OrganizationService,
     private translateService: TranslationService,
-    private permissionService: PermissionService,) {
+    private permissionService: PermissionService,
+    private router: Router) {
     this.setUserRoles()
     this.loadOrganization();
   }
@@ -317,14 +318,9 @@ export class FinancialDocumentsComponent implements OnInit {
     this.getEligibleOrdersForDocType(selectedType);
   }
 
-  async viewFinancialDocDetailsDialog(financialDoc: FinancialDocument) {
-    this.financialDoc = financialDoc;
-    this.financialDocDetailsDialog = true;
-  }
-
-  hideFinancialDocDetailsDialog() {
-    this.financialDoc = {};
-    this.financialDocDetailsDialog = false;
+  viewFinancialDocDetailsDialog(financialDoc: FinancialDocument) {
+    if (!this.canReadFinancialDocs) return;
+    this.router.navigate(['/finance/financial-documents', financialDoc.financialDocId]);
   }
 
   async saveFinancialDoc() {

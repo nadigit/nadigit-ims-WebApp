@@ -22,7 +22,8 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
-
+import { ExpenseDetailsPageComponent } from './expense-details-page/expense-details-page.component';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 @NgModule({
@@ -47,9 +48,10 @@ import { TagModule } from 'primeng/tag';
         ProgressSpinnerModule,
         CalendarModule,
         TooltipModule,
-        TagModule
+        TagModule,
+        SharedModule
     ],
-    declarations: [ExpensesComponent],
+    declarations: [ExpensesComponent, ExpenseDetailsPageComponent],
     providers: [ReportingService],
 })
 export class ExpensesModule { }

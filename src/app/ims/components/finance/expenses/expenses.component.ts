@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { ExpenseService } from 'src/app/services/expense.service';
@@ -12,6 +13,10 @@ import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { getPaymentMethodIcon, getPaymentMethodSeverity } from 'src/app/shared/payment-utils';
+import { BankAccountService } from 'src/app/services/bank-account.service';
+import { BankAccount } from 'src/app/models/bank-account';
+import { BankTransaction } from 'src/app/models/bank-transaction';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   templateUrl: './expenses.component.html',
@@ -59,9 +64,9 @@ export class ExpensesComponent implements OnInit {
   userRoles: any;
   isAdmin: boolean = false;
   maxExpenseDate: any;
-  expenseDetailsDialog: boolean = false;
-  selectedExpense: any = null;
-  expenseEvents: any[] = [];
+  bankAccounts: BankAccount[] = [];
+  selectedBankAccount: BankAccount | null = null;
+
   constructor(private messageService: MessageService,
     private expenseService: ExpenseService,
     private configService: AppConfigurationService,
@@ -70,7 +75,9 @@ export class ExpensesComponent implements OnInit {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
-    private shopService: ShopService) { }
+    private shopService: ShopService,
+    private bankAccountService: BankAccountService,
+    private router: Router) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -87,6 +94,7 @@ export class ExpensesComponent implements OnInit {
     });
     this.onGetAllExpenses();
     this.onGetAllShops();
+    await this.loadBankAccounts();
     await this.checkPermissions();
     await this.setUserRoles();
     this.cols = [
@@ -153,6 +161,7 @@ export class ExpensesComponent implements OnInit {
   openNew() {
     if (!this.canAddExpense) return;
     this.expense = {};
+    this.selectedBankAccount = null;
     this.expense.dateOfExpense = new Date();
     this.expense.paymentMethod = 'Cash';
     this.submitted = false;
@@ -165,7 +174,7 @@ export class ExpensesComponent implements OnInit {
     return dateOfExpense.toDateString() === today.toDateString();
   }
 
-  saveExpense() {
+  async saveExpense() {
     this.submitted = true;
 
     if (!this.expense.paymentMethod) {
@@ -173,6 +182,17 @@ export class ExpensesComponent implements OnInit {
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('please_fill_required_fields')
+      });
+      return;
+    }
+
+    // 🔹 Validate bank account for Transfer, Check, or BOE
+    const requiresBankAccount = ['Transfer', 'Check', 'BOE'].includes(this.expense.paymentMethod);
+    if (requiresBankAccount && !this.selectedBankAccount) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('bank_account_required'),
       });
       return;
     }
@@ -246,14 +266,22 @@ export class ExpensesComponent implements OnInit {
     if (this.expense.purpose) {
       console.log(this.expense)
 
+      let savedExpense: Expense | null = null;
       if (this.expense.id) {
-        this.updateExpense(this.expense.id, this.expense)
+        savedExpense = await this.updateExpense(this.expense.id, this.expense);
       } else {
-        this.addExpense(this.expense)
+        savedExpense = await this.addExpense(this.expense);
       }
+
+      // 🔹 Record bank transaction if payment method requires it
+      if (requiresBankAccount && this.selectedBankAccount && savedExpense) {
+        await this.recordBankTransaction(savedExpense);
+      }
+
       this.expenses = [...this.expenses];
       this.expenseDialog = false;
       this.expense = {};
+      this.selectedBankAccount = null;
     }
     else {
       this.messageService.add({
@@ -338,57 +366,112 @@ export class ExpensesComponent implements OnInit {
     });
   }
 
-  async updateExpense(id: any, expense: any): Promise<any> {
-    console.log(expense)
-    await this.expenseService.updateExpense(id, expense)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllExpenses();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translateService.instant('successful'),
-            detail: this.translateService.instant('expense_updated'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translateService.instant('error'),
-            detail: this.translateService.instant('error_updating_expense'),
-            life: 3000
-          });
-          return false;
-        },
-      })
+  async loadBankAccounts() {
+    try {
+      const accounts$ = await this.bankAccountService.getBankAccounts(true);
+      this.bankAccounts = await firstValueFrom(accounts$);
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+    }
   }
 
-  async addExpense(data: any): Promise<any> {
-    await this.expenseService.saveExpense(data)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllExpenses();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translateService.instant('successful'),
-            detail: this.translateService.instant('expense_added'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translateService.instant('error'),
-            detail: this.translateService.instant('error_adding_expense'),
-            life: 3000
-          });
-          return false;
-        },
-      })
+  async updateExpense(id: any, expense: any): Promise<Expense | null> {
+    return new Promise((resolve) => {
+      this.expenseService.updateExpense(id, expense)
+        .subscribe({
+          next: (response: Expense) => {
+            this.onGetAllExpenses();
+            this.messageService.add({
+              severity: 'success',
+              summary: this.translateService.instant('successful'),
+              detail: this.translateService.instant('expense_updated'),
+              life: 3000
+            });
+            resolve(response);
+          },
+          error: (err: any) => {
+            console.error(err);
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translateService.instant('error'),
+              detail: this.translateService.instant('error_updating_expense'),
+              life: 3000
+            });
+            resolve(null);
+          },
+        });
+    });
+  }
+
+  async addExpense(data: any): Promise<Expense | null> {
+    return new Promise((resolve) => {
+      this.expenseService.saveExpense(data)
+        .subscribe({
+          next: (response: Expense) => {
+            this.onGetAllExpenses();
+            this.messageService.add({
+              severity: 'success',
+              summary: this.translateService.instant('successful'),
+              detail: this.translateService.instant('expense_added'),
+              life: 3000
+            });
+            resolve(response);
+          },
+          error: (err: any) => {
+            console.error(err);
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translateService.instant('error'),
+              detail: this.translateService.instant('error_adding_expense'),
+              life: 3000
+            });
+            resolve(null);
+          },
+        });
+    });
+  }
+
+  async recordBankTransaction(expense: Expense) {
+    if (!this.selectedBankAccount || !expense.id) return;
+
+    try {
+      // Format date to ISO string (YYYY-MM-DD)
+      const formatDateToString = (date: string | Date | undefined): string => {
+        if (!date) return new Date().toISOString().split('T')[0];
+        if (typeof date === 'string') return date.split('T')[0];
+        const d = date as Date;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const transaction: BankTransaction = {
+        account: this.selectedBankAccount,
+        type: 'PAYMENT',
+        amount: expense.amount || 0,
+        transactionDate: formatDateToString(expense.dateOfExpense),
+        description: `Expense: ${expense.purpose || 'N/A'}`,
+        reference: `EXP-${expense.id}`,
+        checkNumber: expense.checkNumber,
+        expense: { id: expense.id },
+        reconciled: false
+      };
+
+      const transaction$ = await this.bankAccountService.recordTransaction(
+        this.selectedBankAccount.accountId!,
+        transaction
+      );
+      await firstValueFrom(transaction$);
+    } catch (error) {
+      console.error('Error recording bank transaction:', error);
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('payment_saved_but_bank_transaction_failed'),
+        life: 5000,
+      });
+    }
   }
 
   exportPdf() {
@@ -415,44 +498,10 @@ export class ExpensesComponent implements OnInit {
   }
 
   showExpenseDetails(expense: any) {
-    this.selectedExpense = expense;
-    this.expenseDetailsDialog = true;
-    this.generateExpenseEvents();
+    if (!expense || !expense.id) return;
+    this.router.navigate(['/finance/expenses', expense.id]);
   }
 
-  hideExpenseDetailsDialog() {
-    this.expenseDetailsDialog = false;
-    this.selectedExpense = null;
-  }
-
-  generateExpenseEvents() {
-    this.expenseEvents = [
-      {
-        status: 'Recorded',
-        date: this.selectedExpense?.creationDate,
-        icon: 'pi pi-plus-circle',
-        button: 'Submit for Approval'
-      },
-      {
-        status: 'Pending',
-        date: this.selectedExpense?.submissionDate,
-        icon: 'pi pi-clock',
-        button: 'Approve Expense'
-      },
-      {
-        status: 'Approved',
-        date: this.selectedExpense?.approvalDate,
-        icon: 'pi pi-check-circle',
-        button: 'Mark as Reimbursed'
-      },
-      {
-        status: 'Reimbursed',
-        date: this.selectedExpense?.reimbursementDate,
-        icon: 'pi pi-flag-fill',
-        button: null
-      }
-    ].filter(event => event.date != null || event.status === 'Recorded');
-  }
 
   // Status methods
   getExpenseStatusSeverity(status: string): string {
@@ -497,65 +546,4 @@ export class ExpensesComponent implements OnInit {
     return severityMap[status] || 'primary';
   }
 
-  isExpenseEventActive(event: any): boolean {
-    const statusOrder = ['Recorded', 'Pending', 'Approved', 'Reimbursed'];
-    const currentStatusIndex = statusOrder.indexOf(this.selectedExpense?.status);
-    const eventStatusIndex = statusOrder.indexOf(event.status);
-    return eventStatusIndex <= currentStatusIndex;
-  }
-
-  showExpenseEventButton(event: any): boolean {
-    const statusOrder = ['Recorded', 'Pending', 'Approved', 'Reimbursed'];
-    const currentStatusIndex = statusOrder.indexOf(this.selectedExpense?.status);
-    const eventStatusIndex = statusOrder.indexOf(event.status);
-
-    return eventStatusIndex === currentStatusIndex && event.button !== null;
-  }
-
-  getExpenseStatusDescription(status: string): string {
-    const descriptions: { [key: string]: string } = {
-      'Recorded': this.translate.instant('expense_status_recorded_description'),
-      'Pending': this.translate.instant('expense_status_pending_description'),
-      'Approved': this.translate.instant('expense_status_approved_description'),
-      'Reimbursed': this.translate.instant('expense_status_reimbursed_description'),
-      'Rejected': this.translate.instant('expense_status_rejected_description')
-    };
-    return descriptions[status] || this.translate.instant('status_description_not_available');
-  }
-
-  // Quick action methods
-  printExpenseReceipt(expense: any) {
-    console.log('Print expense receipt:', expense);
-  }
-
-  exportExpenseToPDF(expense: any) {
-    console.log('Export expense to PDF:', expense);
-  }
-
-  uploadReceipt(expense: any) {
-    console.log('Upload receipt for expense:', expense);
-  }
-
-  duplicateExpense(expense: any) {
-    console.log('Duplicate expense:', expense);
-  }
-
-  previewReceipt(receiptUrl: string) {
-    // Implement receipt preview functionality
-    window.open(receiptUrl, '_blank');
-  }
-
-  getPaymentMethodSeverity(method: string): string {
-    return getPaymentMethodSeverity(method);
-  }
-
-  getPaymentMethodIcon(method: string): string {
-    return getPaymentMethodIcon(method);
-  }
-
-  hasExpensePaymentMethodDetails(): boolean {
-    return !!(this.selectedExpense?.checkNumber || this.selectedExpense?.boeNumber ||
-      this.selectedExpense?.checkExpirationDate ||
-      this.selectedExpense?.boeExpirationDate);
-  }
 }

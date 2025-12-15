@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FinancialDocumentsRoutingModule } from './financial-documents-routing.module';
 import { FinancialDocumentsComponent } from './financial-documents.component';
+import { FinancialDocumentDetailsPageComponent } from './financial-document-details-page/financial-document-details-page.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -53,10 +54,10 @@ import { ToggleButtonModule } from 'primeng/togglebutton';
         ImageModule,
         GalleriaModule,
         CalendarModule,
-        CheckboxModule,
-        ToggleButtonModule
+    CheckboxModule,
+    ToggleButtonModule
     ],
-    declarations: [FinancialDocumentsComponent],
+    declarations: [FinancialDocumentsComponent, FinancialDocumentDetailsPageComponent],
     providers: [ReportingService]
 })
 export class FinancialDocumentsModule { }

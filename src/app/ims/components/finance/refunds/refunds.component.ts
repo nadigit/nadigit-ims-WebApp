@@ -1,4 +1,5 @@
 import { Component, EventEmitter, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -81,10 +82,6 @@ export class RefundsComponent implements OnInit {
   refundStatuses: any[] = [];
   maxRefundDate: Date;
 
-  refundDetailsDialog: boolean = false;
-  selectedRefund: any = null;
-  refundEvents: any[] = [];
-
   constructor(private messageService: MessageService,
     private refundService: RefundService,
     private customerService: CustomerService,
@@ -94,7 +91,8 @@ export class RefundsComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-    public keycloakService: KeycloakService,) { }
+    public keycloakService: KeycloakService,
+    private router: Router) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -611,37 +609,8 @@ export class RefundsComponent implements OnInit {
 
 
   showRefundDetails(refund: any) {
-    this.selectedRefund = refund;
-    this.refundDetailsDialog = true;
-    this.generateRefundEvents();
-  }
-
-  hideRefundDetailsDialog() {
-    this.refundDetailsDialog = false;
-    this.selectedRefund = null;
-  }
-
-  generateRefundEvents() {
-    this.refundEvents = [
-      {
-        status: 'Initiated',
-        date: this.selectedRefund?.creationDate,
-        icon: 'pi pi-plus-circle',
-        button: 'Process Refund'
-      },
-      {
-        status: 'Processing',
-        date: this.selectedRefund?.processingDate,
-        icon: 'pi pi-spinner',
-        button: 'Complete Refund'
-      },
-      {
-        status: 'Completed',
-        date: this.selectedRefund?.refundDate,
-        icon: 'pi pi-check-circle',
-        button: null
-      }
-    ].filter(event => event.date != null || event.status === 'Initiated');
+    if (!refund || !refund.refundId) return;
+    this.router.navigate(['/finance/refunds', refund.refundId]);
   }
 
   // Status methods
@@ -667,70 +636,5 @@ export class RefundsComponent implements OnInit {
     return iconMap[status] || 'pi pi-question-circle';
   }
 
-  getRefundActionButtonIcon(status: string): string {
-    const iconMap: { [key: string]: string } = {
-      'Initiated': 'pi pi-arrow-right',
-      'Processing': 'pi pi-check',
-      'Completed': 'pi pi-flag'
-    };
-    return iconMap[status] || 'pi pi-arrow-right';
-  }
-
-  getRefundActionButtonSeverity(status: string): string {
-    const severityMap: { [key: string]: string } = {
-      'Initiated': 'primary',
-      'Processing': 'warning',
-      'Completed': 'success'
-    };
-    return severityMap[status] || 'primary';
-  }
-
-  isRefundEventActive(event: any): boolean {
-    const statusOrder = ['Initiated', 'Processing', 'Completed'];
-    const currentStatusIndex = statusOrder.indexOf(this.selectedRefund?.status);
-    const eventStatusIndex = statusOrder.indexOf(event.status);
-    return eventStatusIndex <= currentStatusIndex;
-  }
-
-  showRefundEventButton(event: any): boolean {
-    const statusOrder = ['Initiated', 'Processing', 'Completed'];
-    const currentStatusIndex = statusOrder.indexOf(this.selectedRefund?.status);
-    const eventStatusIndex = statusOrder.indexOf(event.status);
-
-    return eventStatusIndex === currentStatusIndex && event.button !== null;
-  }
-
-  getRefundStatusDescription(status: string): string {
-    const descriptions: { [key: string]: string } = {
-      'Initiated': this.translate.instant('refund_status_initiated_description'),
-      'Processing': this.translate.instant('refund_status_processing_description'),
-      'Completed': this.translate.instant('refund_status_completed_description'),
-      'Failed': this.translate.instant('refund_status_failed_description'),
-      'Canceled': this.translate.instant('refund_status_canceled_description')
-    };
-    return descriptions[status] || this.translate.instant('status_description_not_available');
-  }
-
-  printRefundReceipt(refund: any) {
-    console.log('Print refund receipt:', refund);
-  }
-
-  exportRefundToPDF(refund: any) {
-    console.log('Export refund to PDF:', refund);
-  }
-
-  processRefund(refund: any) {
-    console.log('Process refund:', refund);
-  }
-
-  duplicateRefund(refund: any) {
-    console.log('Duplicate refund:', refund);
-  }
-
-  hasRefundMethodDetails(): boolean {
-    return !!(this.selectedRefund?.checkNumber || this.selectedRefund?.boeNumber ||
-      this.selectedRefund?.checkExpirationDate ||
-      this.selectedRefund?.boeExpirationDate);
-  }
 
 }

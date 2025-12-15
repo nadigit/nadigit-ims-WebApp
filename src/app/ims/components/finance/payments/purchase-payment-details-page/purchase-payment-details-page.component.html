@@ -1,0 +1,273 @@
+<div class="grid">
+	<div class="col-12">
+		<div class="card px-6 py-6">
+			<p-toast></p-toast>
+			<p-progressSpinner *ngIf="isLoading" styleClass="w-full"></p-progressSpinner>
+
+			<div *ngIf="!isLoading && payment" class="premium-payment-details-page">
+				<!-- Back Button -->
+				<div class="mb-4">
+					<button pButton pRipple icon="pi pi-arrow-left" label="{{ 'back' | translate }}" 
+						class="p-button-text" (click)="goBack()"></button>
+				</div>
+
+				<!-- Payment Header with Status -->
+				<div class="payment-details-header" [ngClass]="'status-' + payment?.paymentStatus?.toLowerCase()">
+					<div class="flex align-items-center justify-content-between">
+						<div class="flex align-items-center gap-3">
+							<div class="payment-icon">
+								<i [class]="getPaymentMethodIcon(payment?.paymentMethod) + ' text-white'"></i>
+							</div>
+							<div>
+								<h2 class="m-0 text-white">{{ 'payment_details' | translate }}</h2>
+								<p class="m-0 text-white opacity-80">{{ payment?.transactionId || ('payment_reference' |
+									translate) }}</p>
+							</div>
+						</div>
+						<div class="text-right">
+							<p-tag [value]="('payment_status_' + payment?.paymentStatus.toLowerCase()) | translate"
+								[severity]="getPaymentStatusSeverity(payment?.paymentStatus)"
+								[icon]="getPaymentStatusIcon(payment?.paymentStatus)" styleClass="text-sm">
+							</p-tag>
+							<div class="text-white mt-1 font-bold text-xl">
+								{{ payment?.amount | currency:currency:'symbol':'1.2-2' }}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="grid mt-4">
+					<!-- Left Column - Payment Information -->
+					<div class="col-12 md:col-7 md:pl-4">
+						<!-- Basic Payment Info -->
+						<div class="details-section">
+							<h4 class="section-title">
+								<i class="pi pi-info-circle mr-2"></i>
+								{{ 'payment_information' | translate }}
+							</h4>
+
+							<div class="details-grid">
+								<div class="detail-item">
+									<label>{{ 'payment_method' | translate }}: </label>
+									<div class="flex align-items-center gap-2">
+										<p-tag
+											[value]="'payment_method_' + payment?.paymentMethod?.toLowerCase() | translate"
+											[severity]="getPaymentMethodSeverity(payment?.paymentMethod)"
+											[icon]="getPaymentMethodIcon(payment?.paymentMethod)">
+										</p-tag>
+									</div>
+								</div>
+
+								<div class="detail-item">
+									<label>{{ 'payment_date' | translate }}: </label>
+									<span class="font-semibold">{{ payment?.paymentDate | date:'fullDate' }}</span>
+								</div>
+
+								<div class="detail-item">
+									<label>{{ 'transaction_id' | translate }}: </label>
+									<span class="font-mono">{{ payment?.transactionId || 'N/A' }}</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Payment Method Specific Details -->
+						<div class="details-section" *ngIf="hasPaymentMethodDetails()">
+							<h4 class="section-title">
+								<i class="pi pi-credit-card mr-2"></i>
+								{{ 'payment_method_details' | translate }}
+							</h4>
+
+							<div class="details-grid">
+								<div class="detail-item" *ngIf="payment?.checkNumber">
+									<label>{{ 'check_number' | translate }}</label>
+									<span class="font-semibold">{{ payment.checkNumber }}</span>
+								</div>
+
+								<div class="detail-item" *ngIf="payment?.checkExpirationDate">
+									<label>{{ 'check_expiration_date' | translate }}</label>
+									<span>{{ payment.checkExpirationDate | date:'shortDate' }}</span>
+								</div>
+
+								<div class="detail-item" *ngIf="payment?.boeNumber">
+									<label>{{ 'boe_number' | translate }}</label>
+									<span class="font-semibold">{{ payment.boeNumber }}</span>
+								</div>
+
+								<div class="detail-item" *ngIf="payment?.boeExpirationDate">
+									<label>{{ 'boe_expiration_date' | translate }}</label>
+									<span>{{ payment.boeExpirationDate | date:'shortDate' }}</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Supplier Information -->
+						<div class="details-section" *ngIf="payment?.supplierId">
+							<h4 class="section-title">
+								<i class="pi pi-briefcase mr-2"></i>
+								{{ 'supplier_information' | translate }}
+							</h4>
+
+							<div class="customer-card">
+								<div class="flex align-items-center gap-3">
+									<div class="customer-avatar">
+										<i class="pi pi-briefcase text-2xl"></i>
+									</div>
+									<div class="flex-1">
+										<h5 class="m-0">
+											{{ payment?.supplierName }}
+										</h5>
+										<p class="m-0 text-600" *ngIf="payment?.supplierEmail">
+											<i class="pi pi-envelope mr-1"></i>
+											{{ payment.supplierEmail }}
+										</p>
+										<p class="m-0 text-600" *ngIf="payment?.supplierPhone">
+											<i class="pi pi-phone mr-1"></i>
+											{{ payment.supplierPhone }}
+										</p>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Notes -->
+						<div class="details-section" *ngIf="payment?.notes">
+							<h4 class="section-title">
+								<i class="pi pi-comment mr-2"></i>
+								{{ 'notes' | translate }}
+							</h4>
+							<div class="notes-content">
+								{{ payment.notes }}
+							</div>
+						</div>
+					</div>
+
+					<!-- Right Column - Purchase & Actions -->
+					<div class="col-12 md:col-5">
+						<!-- Purchase Information -->
+						<div class="details-section" *ngIf="payment?.purchaseId">
+							<h4 class="section-title">
+								<i class="pi pi-receipt mr-2"></i>
+								{{ 'purchase_information' | translate }}
+							</h4>
+
+							<div class="order-card" *ngIf="payment?.purchaseReference || payment?.purchase">
+								<div class="order-header">
+									<h5 class="m-0">#{{ payment.purchaseReference || payment.purchase?.reference }}</h5>
+									<p-tag value="{{ 'purchase' | translate }}" severity="warning"></p-tag>
+								</div>
+
+								<div class="order-details" *ngIf="payment?.purchase">
+									<div class="order-item">
+										<span>{{ 'purchase_date' | translate }}:</span>
+										<span>{{ payment.purchase.purchaseDate | date:'shortDate' }}</span>
+									</div>
+									<div class="order-item">
+										<span>{{ 'total_amount' | translate }}:</span>
+										<span class="font-semibold">
+											{{ payment.purchase.totalAmount | currency:currency:'symbol':'1.2-2' }}
+										</span>
+									</div>
+									<div class="order-item">
+										<span>{{ 'paid_amount' | translate }}:</span>
+										<span class="text-green-600">
+											{{ payment.purchase.totalPaid | currency:currency:'symbol':'1.2-2' }}
+										</span>
+									</div>
+									<div class="order-item total">
+										<span>{{ 'remaining_balance' | translate }}:</span>
+										<span class="font-bold"
+											[class.text-green-600]="getPurchaseRemainingBalance() <= 0"
+											[class.text-orange-600]="getPurchaseRemainingBalance() > 0">
+											{{ getPurchaseRemainingBalance() | currency:currency:'symbol':'1.2-2' }}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="no-order" *ngIf="!payment?.purchaseReference && !payment?.purchase">
+								<i class="pi pi-info-circle text-600"></i>
+								<span class="ml-2 text-600">{{ 'no_purchase_linked' | translate }}</span>
+							</div>
+						</div>
+
+						<!-- Receipt Information -->
+						<div class="details-section" *ngIf="payment?.receiptNumber">
+							<h4 class="section-title">
+								<i class="pi pi-file-pdf mr-2"></i>
+								{{ 'receipt_information' | translate }}
+							</h4>
+
+							<div class="receipt-card">
+								<div class="flex align-items-center justify-content-between">
+									<div>
+										<h6 class="m-0">#{{ payment.receiptNumber }}</h6>
+										<small class="text-600">{{ payment.receiptDate |
+											date:'shortDate' }}</small>
+									</div>
+									<p-tag [value]="payment.receiptStatus"
+										[severity]="getReceiptStatusSeverity(payment.receiptStatus)"
+										[icon]="getReceiptStatusIcon(payment.receiptStatus)">
+									</p-tag>
+								</div>
+							</div>
+						</div>
+
+						<!-- Quick Actions -->
+						<div class="details-section">
+							<h4 class="section-title">
+								<i class="pi pi-bolt mr-2"></i>
+								{{ 'quick_actions' | translate }}
+							</h4>
+
+							<div class="actions-grid">
+								<!-- Print Receipt -->
+								<button pButton pRipple *ngIf="payment?.receiptNumber" icon="pi pi-print"
+									[label]="'print_receipt' | translate"
+									class="p-button-outlined p-button-help w-full mb-2"
+									(click)="printReceipt(payment.receiptNumber)">
+								</button>
+
+								<!-- Generate Receipt -->
+								<button pButton pRipple *ngIf="!payment?.receiptNumber" icon="pi pi-file-pdf"
+									[label]="'generate_receipt' | translate"
+									class="p-button-outlined p-button-warning w-full mb-2"
+									(click)="generateReceipt(payment.paymentId)">
+								</button>
+
+								<!-- View Purchase -->
+								<button pButton pRipple *ngIf="payment?.purchaseId" icon="pi pi-external-link"
+									[label]="'view_purchase' | translate"
+									class="p-button-outlined p-button-secondary w-full mb-2"
+									(click)="viewPurchase(payment.purchaseId)">
+								</button>
+							</div>
+						</div>
+
+						<!-- Audit Information -->
+						<div class="details-section" *ngIf="payment?.createdBy">
+							<h4 class="section-title">
+								<i class="pi pi-history mr-2"></i>
+								{{ 'audit_information' | translate }}
+							</h4>
+
+							<div class="audit-info">
+								<div class="audit-item">
+									<label>{{ 'created_date' | translate }}</label>
+									<span>{{ payment.creationDate | date:'short' }}</span>
+								</div>
+							</div>
+
+							<div class="audit-info">
+								<div class="audit-item">
+									<label>{{ 'created_by' | translate }}</label>
+									<span>{{ payment.createdBy }}</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+

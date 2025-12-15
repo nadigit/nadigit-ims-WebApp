@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Country, State } from 'country-state-city';
@@ -87,9 +88,7 @@ export class ShopsComponent implements OnInit {
   cashRegisterSettingsDialog: boolean = false;
   currency: any = '';
 
-  shopDetailsDialog: boolean = false;
   loading: boolean = false;
-  loadingShopDetails: boolean = false;
   loadingPurchases: boolean = false;
   loadingExpenses: boolean = false;
   cashRegisterData: any;
@@ -149,7 +148,8 @@ export class ShopsComponent implements OnInit {
     private cashRegisterService: CashRegisterService,
     public keycloakService: KeycloakService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone) { }
+    private ngZone: NgZone,
+    private router: Router) { }
 
   async ngOnInit() {
     const defaultStartDate = new Date();
@@ -223,35 +223,10 @@ export class ShopsComponent implements OnInit {
     }
   }
 
-  async loadShopDetails(): Promise<void> {
-    this.loading = true;
-    console.log('Loading shop details for:', this.shop);
-    try {
-      await Promise.all([
-        this.loadCashRegisterData(),
-        this.loadOrganizationData(),
-        this.loadPurchaseStats(),
-        this.loadExpenseStats(),
-        this.loadRecentPurchases(),
-        this.loadRecentExpenses()
-      ]);
-    } catch (error) {
-      console.error('Error loading shop details:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_loading_shop_details'),
-        life: 3000
-      });
-    } finally {
-      this.loading = false;
-    }
-  }
-
   async loadCashRegisterData(): Promise<void> {
-    if (!this.selectedShop.shopId) return;
+    if (!this.shop.shopId) return;
     try {
-      this.cashRegisterData = await this.shopService.getCashRegister(this.selectedShop.shopId).toPromise();
+      this.cashRegisterData = await this.shopService.getCashRegister(this.shop.shopId).toPromise();
     } catch (error) {
       console.error('Error loading cash register:', error);
       this.cashRegisterData = null;
@@ -517,61 +492,6 @@ export class ShopsComponent implements OnInit {
     }
   }
 
-  async loadOrganizationData(): Promise<void> {
-    if (!this.selectedShop.shopId) return;
-    try {
-      this.organizationData = await this.shopService.fetchOrganizationData(this.selectedShop.shopId).toPromise();
-    } catch (error) {
-      console.error('Error loading organization:', error);
-      this.organizationData = null;
-    }
-  }
-
-  async loadPurchaseStats(): Promise<void> {
-    if (!this.selectedShop.shopId) return;
-    try {
-      this.purchaseStats = await this.shopService.fetchPurchaseStats(this.selectedShop.shopId).toPromise();
-    } catch (error) {
-      console.error('Error loading purchase stats:', error);
-      this.purchaseStats = { count: 0, total: 0 };
-    }
-  }
-
-  async loadExpenseStats(): Promise<void> {
-    if (!this.selectedShop.shopId) return;
-    try {
-      this.expenseStats = await this.shopService.fetchExpenseStats(this.selectedShop.shopId).toPromise();
-    } catch (error) {
-      console.error('Error loading expense stats:', error);
-      this.expenseStats = { count: 0, total: 0 };
-    }
-  }
-
-  async loadRecentPurchases(): Promise<void> {
-    if (!this.selectedShop.shopId) return;
-    this.loadingPurchases = true;
-    try {
-      this.recentPurchases = await this.shopService.fetchRecentPurchases(this.selectedShop.shopId).toPromise() as Purchase[];
-    } catch (error) {
-      console.error('Error loading recent purchases:', error);
-      this.recentPurchases = [];
-    } finally {
-      this.loadingPurchases = false;
-    }
-  }
-
-  async loadRecentExpenses(): Promise<void> {
-    if (!this.selectedShop.shopId) return;
-    this.loadingExpenses = true;
-    try {
-      this.recentExpenses = await this.shopService.fetchRecentExpenses(this.selectedShop.shopId).toPromise() as Expense[];
-    } catch (error) {
-      console.error('Error loading recent expenses:', error);
-      this.recentExpenses = [];
-    } finally {
-      this.loadingExpenses = false;
-    }
-  }
 
   // refreshData(): void {
   //   Promise.all([
@@ -667,86 +587,12 @@ export class ShopsComponent implements OnInit {
     }
   }
 
-  async showShopDetailsDialog(shop: Shop): Promise<void> {
-    console.log('Selected shop:', shop);
-
-    this.selectedShop = {
-      ...shop,
-      creationDate: shop.creationDate ? new Date(shop.creationDate) : null
-    };
-
-    this.shopDetailsDialog = true;
-    this.loadingShopDetails = true;
-
-    try {
-      await this.loadShopDetails();
-      this.calculateShopStats();
-      console.log('Shop details loaded:', this.selectedShop);
-    } catch (error) {
-      console.error('Error loading shop details:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_loading_shop_details'),
-        life: 3000
-      });
-    } finally {
-      this.loadingShopDetails = false;
+  openShopDetails(shop: Shop): void {
+    if (shop?.shopId) {
+      this.router.navigate(['/inventory/shops', shop.shopId]);
     }
   }
 
-  calculateShopStats(): void {
-    const totalPurchases = this.purchaseStats?.total || 0;
-    const totalExpenses = this.expenseStats?.total || 0;
-    const cashBalance = this.cashRegisterData?.totalBalance || 0;
-    const purchaseCount = this.purchaseStats?.count || 0;
-    const expenseCount = this.expenseStats?.count || 0;
-    const recentPurchasesTotal = this.recentPurchases?.reduce((sum, p) => sum + (p.totalAmount || 0), 0) || 0;
-    const recentExpensesTotal = this.recentExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
-
-    this.shopStats = {
-      cashBalance: cashBalance,
-      totalPurchases: totalPurchases,
-      totalExpenses: totalExpenses,
-      purchaseCount: purchaseCount,
-      expenseCount: expenseCount,
-      netCashFlow: cashBalance - totalExpenses,
-      recentPurchasesTotal: recentPurchasesTotal,
-      recentExpensesTotal: recentExpensesTotal,
-      averagePurchaseAmount: purchaseCount > 0 ? totalPurchases / purchaseCount : 0,
-      averageExpenseAmount: expenseCount > 0 ? totalExpenses / expenseCount : 0
-    };
-  }
-
-  hideShopDetailsDialog(): void {
-    this.shopDetailsDialog = false;
-    this.cashRegisterData = null;
-    this.organizationData = null;
-    this.purchaseStats = null;
-    this.expenseStats = null;
-    this.recentPurchases = [];
-    this.recentExpenses = [];
-    this.shopStats = {};
-  }
-
-  refreshShopDetails(): void {
-    if (this.selectedShop?.shopId) {
-      this.loadingShopDetails = true;
-      this.loadShopDetails().then(() => {
-        this.calculateShopStats();
-        this.loadingShopDetails = false;
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('success'),
-          detail: this.translate.instant('data_refreshed'),
-          life: 2000
-        });
-      }).catch(error => {
-        console.error('Error refreshing shop details:', error);
-        this.loadingShopDetails = false;
-      });
-    }
-  }
 
   deleteShop(shop: Shop) {
     this.deleteShopDialog = true;

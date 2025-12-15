@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { MenuItem, MessageService, SelectItem } from 'primeng/api';
 
-import { Subject, Subscription, catchError, debounceTime, firstValueFrom, forkJoin, of, takeUntil, map } from 'rxjs';
+import { Subject, Subscription, catchError, debounceTime, firstValueFrom, forkJoin, of, takeUntil, map, from, switchMap, timeout } from 'rxjs';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { OrderService } from 'src/app/services/order.service';
 import { ProductService } from 'src/app/services/product.service';
@@ -16,6 +16,9 @@ import { AnalysisService, ProfitAnalysis, ProfitPeriod, Shop } from 'src/app/ser
 import { Order } from 'src/app/models/order';
 import { Product } from 'src/app/models/product';
 import { Customer } from 'src/app/models/customer';
+import { WarehouseTransferService } from 'src/app/services/warehouse-transfer.service';
+import { PaymentService } from 'src/app/services/payment.service';
+import { WarehouseService } from 'src/app/services/warehouse.service';
 
 
 // Utility function for memoization
@@ -79,14 +82,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
 
   // Charts
-  chartData: any;
-  chartOptions: any;
-  pieData: any;
-  pieOptions: any;
-  barData: any;
-  barOptions: any;
-  profitChartData: any;
-  profitChartOptions: any;
+  chartData: any = null;
+  chartOptions: any = null;
+  pieData: any = null;
+  pieOptions: any = null;
+  barData: any = null;
+  barOptions: any = null;
+  profitChartData: any = null;
+  profitChartOptions: any = null;
+  chartsInitialized = false; // Flag to prevent multiple initializations
+  chartDataReady = false; // Flag to indicate chart data is ready for rendering
+  pieDataReady = false; // Flag to indicate pie chart data is ready for rendering
+  chartRenderReady = false; // Flag to defer actual chart DOM rendering
+  pieChartRenderReady = false; // Flag to defer actual pie chart DOM rendering
 
   // Product status
   outOfStockProducts: any[] = [];
@@ -97,6 +105,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Warehouse
   warehouseProductCounts: { [key: string]: number } = {};
 
+  // Admin-specific metrics
+  totalStockValue = 0;
+  unpaidReceivables = 0;
+  unpaidPayables = 0;
+  pendingTransfers = 0;
+  overdueTransfers = 0;
+  totalExpensesMTD = 0;
+  totalPurchasesMTD = 0;
+  grossMarginPercentage = 0;
+  topCustomersByRevenue: any[] = [];
+  criticalAlerts: any[] = [];
+  isWarehouseman = false;
+
+  // Vendor-specific metrics
+  vendorTodaySales = 0;
+  vendorPendingPayments = 0;
+  vendorUnpaidOrders = 0;
+  vendorTopSellingProducts: any[] = [];
+  vendorRecentCustomers: Customer[] = [];
+
+  // Warehouseman-specific metrics
+  warehouseTotalProducts = 0;
+  warehouseLowStockCount = 0;
+  warehouseOutOfStockCount = 0;
+  warehousePendingTransfers = 0;
+  warehouseRecentMovements: any[] = [];
+  assignedWarehouse: any = null;
 
   // Profit analysis
   profitData: any;
@@ -129,7 +164,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private purchaseService: PurchaseService,
     private analysisService: AnalysisService,
     private expenseService: ExpenseService,
+    private warehouseService: WarehouseService,
     private customerService: CustomerService,
+    private warehouseTransferService: WarehouseTransferService,
+    private paymentService: PaymentService,
     public layoutService: LayoutService,
     private translate: TranslateService,
     private translateService: TranslationService,
@@ -150,26 +188,63 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.cdr.markForCheck();
 
-    try {
-      // Load critical data first for initial render
-      await this.loadCriticalData();
+    // Set a maximum timeout - always show dashboard after 5 seconds even if data isn't loaded
+    const maxTimeout = setTimeout(() => {
+      if (this.isLoading) {
+        console.warn('Dashboard loading timeout - showing dashboard with available data');
+        this.isLoading = false;
+        this.cdr.markForCheck();
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Dashboard',
+          detail: 'Dashboard loaded. Some data may still be loading.',
+          life: 3000
+        });
+      }
+    }, 5000);
 
-      // Load secondary data after initial render
-      this.loadSecondaryData();
+    try {
+      // Load critical data first for initial render with timeout
+      // Use Promise.race to ensure we don't hang forever
+      await Promise.race([
+        this.loadCriticalData(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Critical data loading timeout')), 8000)
+        )
+      ]);
+
+      clearTimeout(maxTimeout);
 
       // Setup reactive subscriptions
       this.setupSubscriptions();
 
-      // Load heavy components with delay
-      setTimeout(() => {
-        this.loadHeavyComponents();
-        this.isLoading = false;
-      }, 500);
-
-    } catch (error) {
-      console.error('Error initializing dashboard:', error);
+      // Hide loading spinner immediately after critical data loads
+      // This allows users to see the dashboard while heavy data loads in background
       this.isLoading = false;
       this.cdr.markForCheck();
+
+      // Load secondary data after initial render (non-blocking)
+      this.loadSecondaryData();
+
+      // Load heavy components with delay (non-blocking)
+      setTimeout(() => {
+        this.loadHeavyComponents();
+      }, 300);
+
+    } catch (error) {
+      clearTimeout(maxTimeout);
+      console.error('Error initializing dashboard:', error);
+      // Always ensure loading is set to false, even on error or timeout
+      this.isLoading = false;
+      this.cdr.markForCheck();
+      
+      // Show error message to user
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Dashboard Loading',
+        detail: 'Some data may still be loading. Please refresh if needed.',
+        life: 3000
+      });
     }
   }
 
@@ -189,10 +264,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ==================== CRITICAL DATA LOADING ====================
 
   private async loadCriticalData() {
-    await this.setUserRoles();
-    await this.loadUserPreferences();
-    await this.loadTodayMetrics();
-    await this.loadTranslations();
+    try {
+      await this.setUserRoles();
+    } catch (error) {
+      console.error('Error setting user roles:', error);
+    }
+    
+    try {
+      await this.loadUserPreferences();
+    } catch (error) {
+      console.error('Error loading user preferences:', error);
+    }
+    
+    try {
+      await this.loadTodayMetrics();
+    } catch (error) {
+      console.error('Error loading today metrics:', error);
+      // Set defaults to prevent undefined errors
+      this.todayOrders = [];
+      this.todayCustomers = [];
+      this.todayRevenue = 0;
+    }
+    
+    try {
+      await this.loadTranslations();
+    } catch (error) {
+      console.error('Error loading translations:', error);
+    }
   }
 
   private async loadUserPreferences() {
@@ -216,39 +314,77 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private async loadTodayMetrics() {
     try {
+      // Use firstValueFrom instead of deprecated toPromise()
+      // Add timeout to prevent hanging
       const [todayOrders, todayCustomers] = await Promise.all([
-        this.getTodayOrders().toPromise() as Promise<Order[] | undefined>,
-        this.getTodayCustomers().toPromise() as Promise<Customer[] | undefined>
+        firstValueFrom(
+          this.getTodayOrders().pipe(
+            timeout(8000),
+            catchError(err => {
+              console.error('Error loading today orders:', err);
+              return of([]);
+            })
+          )
+        ),
+        firstValueFrom(
+          this.getTodayCustomers().pipe(
+            timeout(8000),
+            catchError(err => {
+              console.error('Error loading today customers:', err);
+              return of([]);
+            })
+          )
+        )
       ]);
 
-      this.todayOrders = todayOrders || [];
-      this.todayCustomers = todayCustomers || [];
+      this.todayOrders = (todayOrders as Order[]) || [];
+      this.todayCustomers = (todayCustomers as Customer[]) || [];
       this.todayRevenue = this.calculateRevenue(this.todayOrders);
       this.categorizeOrdersByStatus();
 
     } catch (error) {
       console.error('Error loading today metrics:', error);
+      // Set defaults to prevent undefined errors
+      this.todayOrders = [];
+      this.todayCustomers = [];
+      this.todayRevenue = 0;
     }
   }
 
   private async loadTranslations() {
     try {
-      const translations = await this.translate
-        .getTranslation(this.translateService.getPreferredLanguage())
-        .toPromise();
+      const translations = await firstValueFrom(
+        this.translate.getTranslation(this.translateService.getPreferredLanguage()).pipe(
+          timeout(5000),
+          catchError(err => {
+            console.error('Error loading translations:', err);
+            return of({}); // Return empty object on error
+          })
+        )
+      );
 
       this.profitPeriods = [
-        { label: translations['Today'], value: 'TODAY' },
-        { label: translations['Yesterday'], value: 'YESTERDAY' },
-        { label: translations['This Week'], value: 'WEEK' },
-        { label: translations['This Month'], value: 'MONTH' },
-        { label: translations['Last 6 Months'], value: 'LAST_SIX_MONTHS' },
-        { label: translations['This Year'], value: 'YEAR' },
-        { label: translations['Last 12 Months'], value: 'LAST_12_MONTHS' }
+        { label: translations['Today'] || 'Today', value: 'TODAY' },
+        { label: translations['Yesterday'] || 'Yesterday', value: 'YESTERDAY' },
+        { label: translations['This Week'] || 'This Week', value: 'WEEK' },
+        { label: translations['This Month'] || 'This Month', value: 'MONTH' },
+        { label: translations['Last 6 Months'] || 'Last 6 Months', value: 'LAST_SIX_MONTHS' },
+        { label: translations['This Year'] || 'This Year', value: 'YEAR' },
+        { label: translations['Last 12 Months'] || 'Last 12 Months', value: 'LAST_12_MONTHS' }
       ];
 
     } catch (error) {
       console.error('Error loading translations:', error);
+      // Set default profit periods
+      this.profitPeriods = [
+        { label: 'Today', value: 'TODAY' },
+        { label: 'Yesterday', value: 'YESTERDAY' },
+        { label: 'This Week', value: 'WEEK' },
+        { label: 'This Month', value: 'MONTH' },
+        { label: 'Last 6 Months', value: 'LAST_SIX_MONTHS' },
+        { label: 'This Year', value: 'YEAR' },
+        { label: 'Last 12 Months', value: 'LAST_12_MONTHS' }
+      ];
     }
   }
 
@@ -295,9 +431,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ==================== HEAVY COMPONENTS LOADING ====================
 
   private loadHeavyComponents() {
-    this.loadAnalyticsData();
+    this.loadAnalyticsData(); // Charts will be initialized inside loadAnalyticsData after data loads
     this.loadShops();
-    this.initChartsLazily();
+    // Removed initChartsLazily() - charts now initialize after data is loaded
+    if (this.isAdmin) {
+      this.loadAdminMetrics();
+    } else if (this.isVendor) {
+      this.loadVendorMetrics();
+    } else if (this.isWarehouseman) {
+      this.loadWarehousemanMetrics();
+    }
   }
 
   private loadAnalyticsData() {
@@ -333,6 +476,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.updateProductStatus();
         this.updateWarehouseProductCounts();
+        
+        // DON'T initialize charts automatically - let them load on demand when user scrolls
+        // This prevents blocking the dashboard
+        // Charts will be initialized lazily when they come into view
+        
         this.cdr.markForCheck();
       });
   }
@@ -374,6 +522,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
     this.isVendor = this.userRoles.includes('VENDOR');
+    this.isWarehouseman = this.userRoles.includes('WAREHOUSEMAN');
   }
 
   // Memoized calculations
@@ -420,7 +569,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (cached) return of(cached);
 
     return this.orderService.getTodayOrders().pipe(
-      catchError(() => of([]))
+      timeout(8000), // 8 second timeout
+      catchError((error) => {
+        console.error('Error loading today orders:', error);
+        return of([]);
+      })
     );
   }
 
@@ -520,7 +673,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (cached) return of(cached);
 
     return this.customerService.getTodayCustomers().pipe(
-      catchError(() => of([]))
+      timeout(8000), // 8 second timeout
+      catchError((error) => {
+        console.error('Error loading today customers:', error);
+        return of([]);
+      })
     );
   }
 
@@ -610,34 +767,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ==================== CHART METHODS ====================
 
-  private initChartsLazily() {
-    // Use Intersection Observer for lazy chart initialization
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            this.initChart();
-            this.initProfitChart();
-            observer.unobserve(entry.target);
-          }
-        });
-      });
-
-      // Observe chart containers
-      setTimeout(() => {
-        const chartElements = document.querySelectorAll('.chart-container');
-        chartElements.forEach(el => observer.observe(el));
-      }, 1000);
-    } else {
-      // Fallback for browsers without IntersectionObserver
-      setTimeout(() => {
-        this.initChart();
-        this.initProfitChart();
-      }, 1000);
-    }
-  }
+  // Removed initChartsLazily() - charts now initialize directly after data loads
+  // This prevents race conditions and IntersectionObserver issues
 
   async initProfitChart(): Promise<void> {
+    // Only initialize profit chart options, actual data will be loaded when profit data is available
     try {
       const translations = await this.translate.get([
         'financial_overview', 'revenue', 'product_costs', 'refunds',
@@ -655,7 +789,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           legend: { position: 'top' },
           title: {
             display: true,
-            text: translations['profit_analysis'],
+            text: translations['profit_analysis'] || 'Profit Analysis',
             font: { size: 16 }
           },
           tooltip: {
@@ -678,15 +812,86 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.cdr.markForCheck();
     } catch (error) {
       console.error('Error initializing profit chart:', error);
+      // Set default options even if translation fails
+      this.profitChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { stacked: false },
+          y: { stacked: true }
+        },
+        plugins: {
+          legend: { position: 'top' }
+        }
+      };
+      this.cdr.markForCheck();
     }
   }
 
 
   async initChart() {
+    // Guard: Don't initialize if data is not ready or already initialized
+    if (this.chartsInitialized && this.chartData && this.chartDataReady) {
+      return; // Already initialized
+    }
+    
+    // Strict check: ensure all required data exists and is valid
+    if (!this.ordersStatistics || !Array.isArray(this.ordersStatistics) ||
+        !this.purchasesStatistics || !Array.isArray(this.purchasesStatistics) ||
+        !this.expensesStatistics || !Array.isArray(this.expensesStatistics)) {
+      console.warn('Chart data not ready, skipping initialization', {
+        ordersStats: !!this.ordersStatistics,
+        purchasesStats: !!this.purchasesStatistics,
+        expensesStats: !!this.expensesStatistics
+      });
+      // Set empty data to prevent hanging
+      this.chartData = { labels: [], datasets: [] };
+      this.chartOptions = { responsive: true, maintainAspectRatio: false };
+      this.chartDataReady = true;
+      return;
+    }
+    
+    // Initialize chart data directly but in a non-blocking way
+    // Use setTimeout to defer to next event loop cycle
+    return new Promise<void>((resolve) => {
+      // Use a small delay to prevent blocking
+      setTimeout(() => {
+        this.initializeChartData().then(() => resolve()).catch(() => resolve());
+      }, 100);
+    });
+  }
+  
+  private async initPieChart(): Promise<void> {
+    // Pie chart data is initialized in initChart() method
+    // This method exists for consistency and future extensibility
+    if (this.pieDataReady && this.pieData) {
+      return; // Already initialized
+    }
+    
+    // Pie chart initialization happens in initChart() when warehouse data is processed
+    // This is a placeholder for future separate initialization if needed
+    return Promise.resolve();
+  }
+  
+  private async initializeChartData(): Promise<void> {
+
     try {
-      const translations = await this.translate.get([
-        'orders_menu_title', 'purchases_menu_title', 'expenses_menu_title'
-      ]).toPromise();
+      // Use firstValueFrom with timeout to prevent hanging
+      const translations = await firstValueFrom(
+        this.translate.get([
+          'orders_menu_title', 'purchases_menu_title', 'expenses_menu_title'
+        ]).pipe(
+          timeout(5000),
+          catchError(err => {
+            console.error('Error loading chart translations:', err);
+            return of({
+              'orders_menu_title': 'Orders',
+              'purchases_menu_title': 'Purchases',
+              'expenses_menu_title': 'Expenses'
+            });
+          })
+        )
+      );
 
       const documentStyle = getComputedStyle(document.documentElement);
       const textColor = documentStyle.getPropertyValue('--text-color');
@@ -714,6 +919,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const mapDataToLast12Months = (statistics) => {
         const monthlyData = new Array(12).fill(0); // Initialize array with 12 zeros
 
+        if (!statistics || !Array.isArray(statistics)) {
+          return monthlyData;
+        }
+
         statistics.forEach(item => {
           const year = item[0]; // Year from the data
           const month = item[1] - 1; // Month from the data (convert to 0-based index)
@@ -737,121 +946,191 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const expensesData = mapDataToLast12Months(this.expensesStatistics);
 
       // Prepare datasets for the top 5 products
-      const datasets = this.top5Products.map((product: any, index: number) => {
+      const datasets = (this.top5Products || []).map((product: any, index: number) => {
+        if (!product || !product.productId) {
+          console.warn('Invalid product in top5Products:', product);
+          return null;
+        }
+        
         const salesData = []; // Initialize sales data array for 12 months
+        let totalSales = 0;
         for (let i = 11; i >= 0; i--) {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const year = date.getFullYear();
           const month = date.getMonth();
-          salesData.push(this.getProductSalesForMonth(product.productId, year, month));
+          const sales = this.getProductSalesForMonth(product.productId, year, month);
+          salesData.push(sales);
+          totalSales += sales;
         }
 
         const color = colors[index % colors.length]; // Rotate through predefined colors
 
         return {
-          label: product.name,
+          label: product.name || `Product ${index + 1}`,
           data: salesData,
           fill: false,
-          backgroundColor: color, // Rotate through 6 colors
+          backgroundColor: color,
           borderColor: color,
           tension: .4
         };
-      });
+      }).filter(dataset => dataset !== null); // Filter out null datasets
+      
+      console.log('Datasets created:', datasets.length, 'Total sales across all products:', 
+        datasets.reduce((sum, ds) => sum + ds.data.reduce((a: number, b: number) => a + b, 0), 0));
 
-      this.chartData = {
-        labels: months,
-        datasets: datasets
-      };
+      // Only set chart data if we have valid data
+      console.log('Chart initialization - months:', months.length, 'datasets:', datasets.length, 'top5Products:', this.top5Products?.length);
+      console.log('Orders available for chart:', this.orders?.length);
+      
+      // Always set chart data if we have months and datasets, even if all values are zero
+      // This allows the chart to render and show "no sales" visually
+      if (months.length > 0 && datasets.length > 0) {
+        this.chartData = {
+          labels: months,
+          datasets: datasets
+        };
+        
+        console.log('Chart data set successfully:', {
+          labelsCount: this.chartData.labels.length,
+          datasetsCount: this.chartData.datasets.length,
+          sampleData: datasets[0]?.data?.slice(0, 3) // Show first 3 months of first product
+        });
 
-      this.chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              color: textColor,
-              padding: 15,
-              font: {
-                size: 12
-              }
-            }
-          },
-          tooltip: {
-            enabled: true
-          }
-        },
-        scales: {
-          x: {
-            ticks: {
-              color: textColorSecondary,
-              font: {
-                size: 11
-              }
-            },
-            grid: {
-              color: surfaceBorder,
-              drawBorder: false
-            }
-          },
-          y: {
-            ticks: {
-              color: textColorSecondary,
-              font: {
-                size: 11
+        this.chartOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: textColor,
+                padding: 15,
+                font: {
+                  size: 12
+                }
               }
             },
-            grid: {
-              color: surfaceBorder,
-              drawBorder: false
+            tooltip: {
+              enabled: true
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                color: textColorSecondary,
+                font: {
+                  size: 11
+                }
+              },
+              grid: {
+                color: surfaceBorder,
+                drawBorder: false
+              }
+            },
+            y: {
+              ticks: {
+                color: textColorSecondary,
+                font: {
+                  size: 11
+                }
+              },
+              grid: {
+                color: surfaceBorder,
+                drawBorder: false
+              }
             }
           }
-        }
-      };
+        };
+      } else {
+        // Set empty chart if no data
+        console.warn('No chart data available - months:', months.length, 'datasets:', datasets.length, 'top5Products:', this.top5Products?.length);
+        // Still create chart structure even if no datasets, so we can show a message
+        this.chartData = { labels: months, datasets: [] }; // Keep months for empty state
+        this.chartOptions = { responsive: true, maintainAspectRatio: false };
+      }
 
+      // Only create pie chart if we have warehouse data
       const warehouseNames = Object.keys(this.warehouseProductCounts);
-      const warehouseLabels = warehouseNames.map(name => name);
-      const warehouseData = warehouseNames.map(name => this.warehouseProductCounts[name]);
+      console.log('Pie chart - warehouse names:', warehouseNames.length, 'products:', this.products?.length);
+      
+      if (warehouseNames.length > 0) {
+        const warehouseLabels = warehouseNames.map(name => name);
+        const warehouseData = warehouseNames.map(name => this.warehouseProductCounts[name]);
 
-
-      this.pieData = {
-        labels: warehouseLabels,
-        datasets: [
-          {
-            data: warehouseData,
-            backgroundColor: [
-              documentStyle.getPropertyValue('--indigo-500'),
-              documentStyle.getPropertyValue('--purple-500'),
-              documentStyle.getPropertyValue('--teal-500')
-            ],
-            hoverBackgroundColor: [
-              documentStyle.getPropertyValue('--indigo-400'),
-              documentStyle.getPropertyValue('--purple-400'),
-              documentStyle.getPropertyValue('--teal-400')
-            ]
-          }]
-      };
-
-      this.pieOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              usePointStyle: true,
-              color: textColor,
-              padding: 15,
-              font: {
-                size: 12
+        this.pieData = {
+          labels: warehouseLabels,
+          datasets: [
+            {
+              data: warehouseData,
+              backgroundColor: [
+                documentStyle.getPropertyValue('--indigo-500'),
+                documentStyle.getPropertyValue('--purple-500'),
+                documentStyle.getPropertyValue('--teal-500'),
+                documentStyle.getPropertyValue('--orange-500'),
+                documentStyle.getPropertyValue('--pink-500')
+              ],
+              hoverBackgroundColor: [
+                documentStyle.getPropertyValue('--indigo-400'),
+                documentStyle.getPropertyValue('--purple-400'),
+                documentStyle.getPropertyValue('--teal-400'),
+                documentStyle.getPropertyValue('--orange-400'),
+                documentStyle.getPropertyValue('--pink-400')
+              ]
+            }]
+        };
+        
+        this.pieOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                color: textColor,
+                padding: 15,
+                font: {
+                  size: 12
+                }
               }
+            },
+            tooltip: {
+              enabled: true
             }
-          },
-          tooltip: {
-            enabled: true
           }
-        }
-      };
+        };
+        
+        // NOTE: pieChartRenderReady will be set separately after a delay to prevent blocking
+        this.pieDataReady = true;
+        console.log('Pie chart data set successfully:', {
+          labelsCount: this.pieData.labels.length,
+          dataCount: this.pieData.datasets[0].data.length
+        });
+      } else {
+        // Set empty pie data if no warehouses
+        this.pieData = {
+          labels: [],
+          datasets: [{
+            data: [],
+            backgroundColor: [],
+            hoverBackgroundColor: []
+          }]
+        };
+        this.pieOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        };
+        // NOTE: pieChartRenderReady will be set separately after a delay to prevent blocking
+        this.pieDataReady = true; // Mark as ready even if empty
+        console.warn('No warehouse data available for pie chart');
+      }
+      
+      // Pie options are set in the if/else blocks above, no need to set again here
 
       // Ensure data arrays are filled for the last 12 months
 
@@ -911,9 +1190,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       };
 
+      // Mark chart data as ready only after everything is set
+      // NOTE: chartRenderReady will be set separately after a delay to prevent blocking
+      this.chartDataReady = true;
       this.cdr.markForCheck();
     } catch (error) {
       console.error('Error initializing charts:', error);
+      // Set empty chart data to prevent hanging
+      this.chartData = { labels: [], datasets: [] };
+      this.chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false
+      };
+      this.chartDataReady = true; // Still mark as ready so spinner doesn't show forever
+      this.cdr.markForCheck();
     }
   }
 
@@ -1038,6 +1328,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   async refreshDashboard(): Promise<void> {
     this.refreshDashboardLoading = true;
     this.cache.clear(); // Clear cache to force fresh data
+    this.chartsInitialized = false; // Reset chart initialization flag
+    this.chartDataReady = false; // Reset chart data ready flag
+    this.pieDataReady = false; // Reset pie chart data ready flag
+    this.chartRenderReady = false; // Reset chart render ready flag
+    this.pieChartRenderReady = false; // Reset pie chart render ready flag
+    this.chartData = null; // Clear chart data to force re-initialization
+    this.pieData = null;
+    this.barData = null;
     this.cdr.markForCheck();
     
     try {
@@ -1045,6 +1343,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       await this.loadTodayMetrics();
       this.loadSecondaryData();
       this.loadAnalyticsData();
+      if (this.isAdmin) {
+        this.loadAdminMetrics();
+      } else if (this.isVendor) {
+        this.loadVendorMetrics();
+      } else if (this.isWarehouseman) {
+        this.loadWarehousemanMetrics();
+      }
       
       this.refreshDashboardLoading = false;
       this.messageService.add({
@@ -1063,6 +1368,613 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   trackByProductId(index: number, item: any): number {
     return item.product?.productId || index;
+  }
+
+  // ==================== ADMIN-SPECIFIC METHODS ====================
+
+  private loadAdminMetrics() {
+    forkJoin({
+      transfers: this.getPendingTransfers(),
+      payments: this.getUnpaidPayments(),
+      purchases: this.getMonthlyPurchases(),
+      expenses: this.getMonthlyExpenses()
+    })
+      .pipe(
+        timeout(15000), // 15 second timeout to prevent hanging
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error loading admin metrics:', error);
+          // Return empty data structure to prevent dashboard from breaking
+          return of({
+            transfers: [],
+            payments: { incoming: [], outgoing: [] },
+            purchases: [],
+            expenses: []
+          });
+        })
+      )
+      .subscribe((data: any) => {
+        try {
+          this.calculateAdminMetrics(data);
+          this.calculateStockValue();
+          this.calculateUnpaidBalances(data);
+          this.calculateGrossMargin();
+          this.calculateTopCustomers();
+          this.buildCriticalAlerts();
+          this.cdr.markForCheck();
+        } catch (error) {
+          console.error('Error calculating admin metrics:', error);
+          // Don't break the dashboard if calculations fail
+        }
+      });
+  }
+
+  private getPendingTransfers() {
+    const cacheKey = 'pending-transfers';
+    const cached = this.getCachedData(cacheKey);
+    if (cached) return of(cached);
+
+    // Convert Promise<Observable<...>> -> Observable<...> for use with forkJoin
+    return from(
+      this.warehouseTransferService.searchTransfers(0, 100, undefined, undefined, 'PENDING')
+    ).pipe(
+      switchMap(res$ => res$),
+      timeout(10000), // 10 second timeout per request
+      map((res: any) => res?.content ?? []),
+      catchError((error) => {
+        console.error('Error loading pending transfers:', error);
+        return of([]); // Return empty array on error
+      })
+    );
+  }
+
+  private getUnpaidPayments() {
+    const cacheKey = 'unpaid-payments';
+    const cached = this.getCachedData(cacheKey);
+    if (cached) return of(cached);
+
+    // Get incoming payments (receivables) and outgoing payments (payables)
+    return forkJoin({
+      incoming: this.paymentService.getPayments('incoming', 0, 100).pipe(
+        map((res: any) => res?.content ?? []),
+        catchError(() => of([]))
+      ),
+      outgoing: this.paymentService.getPayments('outgoing', 0, 100).pipe(
+        map((res: any) => res?.content ?? []),
+        catchError(() => of([]))
+      )
+    });
+  }
+
+  private getMonthlyPurchases() {
+    return this.purchaseService.getMonthlyOrders().pipe(
+      catchError(() => of([]))
+    );
+  }
+
+  private getMonthlyExpenses() {
+    return this.expenseService.getMonthlyOrders().pipe(
+      catchError(() => of([]))
+    );
+  }
+
+  private calculateAdminMetrics(data: any) {
+    // Calculate pending transfers
+    const transfers = Array.isArray(data.transfers) ? data.transfers : (data.transfers?.content ?? []);
+    this.pendingTransfers = transfers.length;
+
+    // Calculate overdue transfers (pending for more than 3 days)
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    this.overdueTransfers = transfers.filter((t: any) => {
+      const creationDate = new Date(t.creationDate || t.transferDate);
+      return creationDate < threeDaysAgo;
+    }).length;
+
+    // Calculate MTD expenses and purchases
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    this.totalExpensesMTD = (data.expenses || []).reduce((sum: number, exp: any) => {
+      const expDate = new Date(exp[0], exp[1] - 1, 1);
+      if (expDate >= startOfMonth) {
+        return sum + (exp[2] || 0);
+      }
+      return sum;
+    }, 0);
+
+    this.totalPurchasesMTD = (data.purchases || []).reduce((sum: number, pur: any) => {
+      const purDate = new Date(pur[0], pur[1] - 1, 1);
+      if (purDate >= startOfMonth) {
+        return sum + (pur[2] || 0);
+      }
+      return sum;
+    }, 0);
+  }
+
+  private calculateStockValue() {
+    this.totalStockValue = this.products.reduce((sum, product) => {
+      const quantity = product.quantityAvailable || 0;
+      const cost = product.standardCost || product.buyingPrice || 0;
+      return sum + (quantity * cost);
+    }, 0);
+  }
+
+  private calculateUnpaidBalances(data: any) {
+    // Calculate unpaid receivables (orders with unpaid amounts)
+    this.unpaidReceivables = this.orders.reduce((sum, order) => {
+      const totalAmount = order.totalAmount || 0;
+      const totalPaid = order.totalPaid || 0;
+      const unpaid = totalAmount - totalPaid;
+      return sum + (unpaid > 0 ? unpaid : 0);
+    }, 0);
+
+    // Calculate unpaid payables from purchases
+    // This would require purchase data - for now, we'll estimate from orders
+    // In a real scenario, you'd fetch purchases and calculate unpaid amounts
+    this.unpaidPayables = 0; // Placeholder - would need purchase service data
+  }
+
+  private calculateGrossMargin() {
+    if (this.revenue > 0 && this.profitData) {
+      const totalCosts = (this.profitData.totalCosts || 0) + (this.profitData.totalExpenses || 0);
+      const grossProfit = this.revenue - totalCosts;
+      this.grossMarginPercentage = (grossProfit / this.revenue) * 100;
+    } else if (this.revenue > 0) {
+      // Fallback calculation from orders
+      const totalCosts = this.orders.reduce((sum, order) => {
+        return sum + (order.orderItems?.reduce((itemSum: number, item: any) => {
+          const cost = item.product?.standardCost || item.product?.buyingPrice || 0;
+          return itemSum + (cost * (item.quantity || 0));
+        }, 0) || 0);
+      }, 0);
+      const grossProfit = this.revenue - totalCosts;
+      this.grossMarginPercentage = (grossProfit / this.revenue) * 100;
+    }
+  }
+
+  private calculateTopCustomers() {
+    const customerRevenue = new Map<number, { customer: Customer, revenue: number }>();
+    
+    this.orders.forEach(order => {
+      if (order.customer?.customerId) {
+        const existing = customerRevenue.get(order.customer.customerId) || { 
+          customer: order.customer, 
+          revenue: 0 
+        };
+        existing.revenue += order.totalAmount || 0;
+        customerRevenue.set(order.customer.customerId, existing);
+      }
+    });
+
+    this.topCustomersByRevenue = Array.from(customerRevenue.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+  }
+
+  private buildCriticalAlerts() {
+    this.criticalAlerts = [];
+
+    // Out of stock products with pending orders
+    const outOfStockWithOrders = this.outOfStockProducts.filter(product => {
+      return this.orders.some(order => 
+        order.orderItems?.some(item => item.product?.productId === product.productId)
+      );
+    });
+    if (outOfStockWithOrders.length > 0) {
+      this.criticalAlerts.push({
+        type: 'error',
+        icon: 'pi-exclamation-triangle',
+        message: `${outOfStockWithOrders.length} out of stock products have pending orders`,
+        action: '/inventory/products',
+        severity: 'error'
+      });
+    }
+
+    // Low stock products
+    if (this.lowStockProducts.length > 5) {
+      this.criticalAlerts.push({
+        type: 'warning',
+        icon: 'pi-exclamation-circle',
+        message: `${this.lowStockProducts.length} products are running low on stock`,
+        action: '/inventory/products',
+        severity: 'warn'
+      });
+    }
+
+    // Overdue transfers
+    if (this.overdueTransfers > 0) {
+      this.criticalAlerts.push({
+        type: 'warning',
+        icon: 'pi-clock',
+        message: `${this.overdueTransfers} warehouse transfers are overdue`,
+        action: '/inventory/warehouse-transfers',
+        severity: 'warn'
+      });
+    }
+
+    // High unpaid receivables
+    if (this.unpaidReceivables > this.revenue * 0.2) {
+      this.criticalAlerts.push({
+        type: 'info',
+        icon: 'pi-dollar',
+        message: `Unpaid receivables exceed 20% of total revenue`,
+        action: '/finance/payments',
+        severity: 'info'
+      });
+    }
+
+    // High cancellation rate
+    const cancellationRate = this.todayOrders.length > 0 
+      ? (this.canceledOrders.length / this.todayOrders.length) * 100 
+      : 0;
+    if (cancellationRate > 10) {
+      this.criticalAlerts.push({
+        type: 'warning',
+        icon: 'pi-ban',
+        message: `High cancellation rate: ${cancellationRate.toFixed(1)}%`,
+        action: '/sales/orders',
+        severity: 'warn'
+      });
+    }
+  }
+
+  loadChartOnDemand() {
+    if (this.chartsInitialized && this.chartDataReady) {
+      return; // Already loaded
+    }
+    
+    if (this.chartsInitialized) {
+      // Already initializing, don't start again
+      return;
+    }
+    
+    this.chartsInitialized = true; // Mark as initializing to prevent multiple calls
+    
+    console.log('Loading chart on demand. Current state:', {
+      top5Products: this.top5Products?.length || 0,
+      orders: this.orders?.length || 0,
+      ordersStatistics: this.ordersStatistics?.length || 0
+    });
+    
+    // Always load fresh data to ensure we have everything needed
+    forkJoin({
+      top5Products: this.getTop5Products(),
+      ordersResponse: this.getOrders(), // Load orders to calculate sales
+      ordersStatistics: this.loadOrdersMonthlyStatistics(),
+      expensesStatistics: this.loadExpensesMonthlyStatistics(),
+      purchasesStatistics: this.loadPurchasesMonthlyStatistics(),
+      products: this.getProducts()
+    })
+      .pipe(
+        takeUntil(this.destroy$),
+        timeout(15000),
+        catchError(error => {
+          console.error('Error loading chart data:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load chart data. Please try again.',
+            life: 3000
+          });
+          this.chartDataReady = true;
+          this.chartData = { labels: [], datasets: [] };
+          this.chartOptions = { responsive: true, maintainAspectRatio: false };
+          this.cdr.markForCheck();
+          return of({
+            top5Products: [],
+            ordersResponse: [],
+            ordersStatistics: [],
+            expensesStatistics: [],
+            purchasesStatistics: [],
+            products: []
+          });
+        })
+      )
+      .subscribe((data: any) => {
+        // Update data
+        this.top5Products = data.top5Products || [];
+        
+        // Update orders - handle both array and paginated response
+        this.orders = Array.isArray(data.ordersResponse)
+          ? data.ordersResponse
+          : (data.ordersResponse?.content ?? []);
+        
+        this.ordersStatistics = data.ordersStatistics || [];
+        this.expensesStatistics = data.expensesStatistics || [];
+        this.purchasesStatistics = data.purchasesStatistics || [];
+        this.products = data.products || [];
+        
+        console.log('Chart data loaded:', {
+          top5Products: this.top5Products.length,
+          orders: this.orders.length,
+          ordersStats: this.ordersStatistics.length
+        });
+        
+          this.updateProductStatus();
+          this.updateWarehouseProductCounts();
+          
+          // Now initialize charts with the loaded data - use multiple setTimeout to prevent blocking
+          // This pushes chart initialization to multiple event loop cycles
+          setTimeout(() => {
+            // Initialize line chart first
+            setTimeout(() => {
+              this.initChart().catch(err => {
+                console.error('Error initializing line chart on demand:', err);
+                this.chartData = { labels: [], datasets: [] };
+                this.chartOptions = { responsive: true, maintainAspectRatio: false };
+                this.chartDataReady = true;
+                this.cdr.markForCheck();
+              }).then(() => {
+                this.chartDataReady = true;
+                this.cdr.markForCheck();
+                
+                // Defer actual chart DOM rendering to prevent blocking
+                setTimeout(() => {
+                  this.chartRenderReady = true;
+                  this.cdr.markForCheck();
+                }, 300);
+              });
+            }, 100);
+            
+            // Initialize pie chart separately with delay
+            setTimeout(() => {
+              this.initPieChart().catch(err => {
+                console.error('Error initializing pie chart on demand:', err);
+                this.pieData = { labels: [], datasets: [] };
+                this.pieOptions = { responsive: true, maintainAspectRatio: false };
+                // NOTE: pieChartRenderReady will be set separately after a delay to prevent blocking
+        this.pieDataReady = true;
+                this.cdr.markForCheck();
+              }).then(() => {
+                // NOTE: pieChartRenderReady will be set separately after a delay to prevent blocking
+        this.pieDataReady = true;
+                this.cdr.markForCheck();
+                
+                // Defer actual pie chart DOM rendering to prevent blocking
+                setTimeout(() => {
+                  this.pieChartRenderReady = true;
+                  this.cdr.markForCheck();
+                }, 400);
+              });
+            }, 200);
+          }, 100);
+      });
+  }
+
+  getAdminQuickActions(): any[] {
+    // Use synchronous translation or fallback to English labels
+    const getLabel = (key: string, fallback: string) => {
+      try {
+        const translated = this.translate.instant(key);
+        return translated && translated !== key ? translated : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    return [
+      { label: getLabel('users_menu_title', 'Users'), icon: 'pi pi-user-plus', route: ['/administration/users'], tooltip: 'Manage system users' },
+      { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'Manage products' },
+      { label: getLabel('orders_menu_title', 'Orders'), icon: 'pi pi-shopping-cart', route: ['/sales/orders'], tooltip: 'View all orders' },
+      { label: getLabel('warehouses_menu_title', 'Warehouses'), icon: 'pi pi-database', route: ['/inventory/warehouses'], tooltip: 'Manage warehouses' },
+      { label: getLabel('settings_menu_title', 'Settings'), icon: 'pi pi-cog', route: ['/administration/settings'], tooltip: 'System settings' },
+      { label: getLabel('financial_docs_menu_title', 'Financial Docs'), icon: 'pi pi-file', route: ['/finance/financial-documents'], tooltip: 'Financial documents' },
+      { label: getLabel('warehouse_transfers_menu_title', 'Transfers'), icon: 'pi pi-arrow-right-arrow-left', route: ['/inventory/warehouse-transfers'], tooltip: 'Warehouse transfers' },
+      { label: getLabel('expenses_menu_title', 'Expenses'), icon: 'pi pi-money-bill', route: ['/finance/expenses'], tooltip: 'Manage expenses' }
+    ];
+  }
+
+  getVendorQuickActions(): any[] {
+    const getLabel = (key: string, fallback: string) => {
+      try {
+        const translated = this.translate.instant(key);
+        return translated && translated !== key ? translated : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    return [
+      { label: getLabel('add_new_order', 'New Order'), icon: 'pi pi-plus-circle', route: ['/sales/orders'], tooltip: 'Create new order' },
+      { label: getLabel('orders_menu_title', 'Orders'), icon: 'pi pi-shopping-cart', route: ['/sales/orders'], tooltip: 'View all orders' },
+      { label: getLabel('customers_menu_title', 'Customers'), icon: 'pi pi-users', route: ['/sales/customers'], tooltip: 'Manage customers' },
+      { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View products' },
+      { label: getLabel('payments_menu_title', 'Payments'), icon: 'pi pi-credit-card', route: ['/finance/sales-payments'], tooltip: 'View payments' },
+      { label: getLabel('returns_menu_title', 'Returns'), icon: 'pi pi-undo', route: ['/sales/returns'], tooltip: 'Manage returns' }
+    ];
+  }
+
+  getWarehousemanQuickActions(): any[] {
+    const getLabel = (key: string, fallback: string) => {
+      try {
+        const translated = this.translate.instant(key);
+        return translated && translated !== key ? translated : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    return [
+      { label: getLabel('warehouse_transfers_menu_title', 'Transfers'), icon: 'pi pi-arrow-right-arrow-left', route: ['/inventory/warehouse-transfers'], tooltip: 'Manage transfers' },
+      { label: getLabel('new_transfer', 'New Transfer'), icon: 'pi pi-plus-circle', route: ['/inventory/warehouse-transfers'], tooltip: 'Create new transfer' },
+      { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View products' },
+      { label: getLabel('stock_movements_menu_title', 'Stock Movements'), icon: 'pi pi-chart-line', route: ['/inventory/stock-movements'], tooltip: 'View stock movements' },
+      { label: getLabel('warehouses_menu_title', 'Warehouses'), icon: 'pi pi-database', route: ['/inventory/warehouses'], tooltip: 'View warehouses' },
+      { label: getLabel('purchases_menu_title', 'Purchases'), icon: 'pi pi-shopping-bag', route: ['/finance/purchases'], tooltip: 'View purchases' }
+    ];
+  }
+
+  // ==================== VENDOR-SPECIFIC METHODS ====================
+
+  private loadVendorMetrics() {
+    forkJoin({
+      todayOrders: this.getTodayOrders(),
+      unpaidOrders: this.getUnpaidOrders(),
+      recentCustomers: this.getRecentCustomers()
+    })
+      .pipe(
+        timeout(15000),
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error loading vendor metrics:', error);
+          return of({
+            todayOrders: [],
+            unpaidOrders: [],
+            recentCustomers: []
+          });
+        })
+      )
+      .subscribe((data: any) => {
+        try {
+          this.calculateVendorMetrics(data);
+          this.cdr.markForCheck();
+        } catch (error) {
+          console.error('Error calculating vendor metrics:', error);
+        }
+      });
+  }
+
+  private getUnpaidOrders() {
+    const cacheKey = 'unpaid-orders';
+    const cached = this.getCachedData(cacheKey);
+    if (cached) return of(cached);
+
+    return this.orderService.getOrdersPaginated(0, 100, '', 'orderDate', 'DESC').pipe(
+      map((res: any) => {
+        const orders = res?.content ?? [];
+        return orders.filter((order: Order) => 
+          order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PARTIALLY_PAID'
+        );
+      }),
+      catchError(() => of([]))
+    );
+  }
+
+  private getRecentCustomers() {
+    const cacheKey = 'recent-customers';
+    const cached = this.getCachedData(cacheKey);
+    if (cached) return of(cached);
+
+    return this.customerService.getCustomers().pipe(
+      map((customers: Customer[]) => (customers || []).slice(0, 10)),
+      catchError(() => of([]))
+    );
+  }
+
+  private calculateVendorMetrics(data: any) {
+    // Calculate today's sales
+    this.vendorTodaySales = (data.todayOrders || []).reduce((sum: number, order: Order) => 
+      sum + (order.totalAmount || 0), 0
+    );
+
+    // Calculate pending payments
+    this.vendorUnpaidOrders = (data.unpaidOrders || []).length;
+    this.vendorPendingPayments = (data.unpaidOrders || []).reduce((sum: number, order: Order) => 
+      sum + ((order.totalAmount || 0) - (order.totalPaid || 0)), 0
+    );
+
+    // Get recent customers
+    this.vendorRecentCustomers = (data.recentCustomers || []).slice(0, 5);
+
+    // Get top selling products from today's orders
+    const productSales: { [key: string]: { product: any, quantity: number, revenue: number } } = {};
+    (data.todayOrders || []).forEach((order: Order) => {
+      (order.orderItems || []).forEach((item: any) => {
+        const productId = item.product?.productId;
+        if (productId) {
+          if (!productSales[productId]) {
+            productSales[productId] = {
+              product: item.product,
+              quantity: 0,
+              revenue: 0
+            };
+          }
+          productSales[productId].quantity += item.quantity || 0;
+          productSales[productId].revenue += (item.price || 0) * (item.quantity || 0);
+        }
+      });
+    });
+
+    this.vendorTopSellingProducts = Object.values(productSales)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+  }
+
+  // ==================== WAREHOUSEMAN-SPECIFIC METHODS ====================
+
+  private loadWarehousemanMetrics() {
+    forkJoin({
+      products: this.getProducts(),
+      transfers: this.getPendingTransfers(),
+      warehouse: this.getAssignedWarehouse()
+    })
+      .pipe(
+        timeout(15000),
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error loading warehouseman metrics:', error);
+          return of({
+            products: [],
+            transfers: [],
+            warehouse: null
+          });
+        })
+      )
+      .subscribe((data: any) => {
+        try {
+          this.calculateWarehousemanMetrics(data);
+          this.cdr.markForCheck();
+        } catch (error) {
+          console.error('Error calculating warehouseman metrics:', error);
+        }
+      });
+  }
+
+  private getAssignedWarehouse() {
+    // This would typically get the warehouse assigned to the current user
+    // For now, return the first warehouse or null
+    return from(this.warehouseService.loadToken()).pipe(
+      switchMap(() => this.warehouseService.getWarehouses()),
+      map((warehouses: any) => {
+        if (Array.isArray(warehouses)) {
+          return warehouses?.[0] || null;
+        }
+        const content = (warehouses as any)?.content;
+        if (Array.isArray(content)) {
+          return content?.[0] || null;
+        }
+        return warehouses?.[0] || null;
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  private calculateWarehousemanMetrics(data: any) {
+    const products = data.products || [];
+    
+    // Filter products by assigned warehouse if available
+    let warehouseProducts = products;
+    if (data.warehouse) {
+      warehouseProducts = products.filter((p: Product) => 
+        p.warehouse?.warehouseId === data.warehouse.warehouseId
+      );
+    }
+
+    this.assignedWarehouse = data.warehouse;
+    this.warehouseTotalProducts = warehouseProducts.length;
+    
+    // Calculate stock status
+    this.warehouseLowStockCount = warehouseProducts.filter((p: Product) => 
+      p.inventoryStatus === 'LOWSTOCK'
+    ).length;
+    
+    this.warehouseOutOfStockCount = warehouseProducts.filter((p: Product) => 
+      p.inventoryStatus === 'OUTOFSTOCK'
+    ).length;
+
+    // Get pending transfers
+    this.warehousePendingTransfers = (data.transfers || []).length;
   }
 
 }

@@ -25,6 +25,75 @@
         </div>
     </div>
 
+    <!-- Quick Actions Section - Admin Only -->
+    <!-- <div class="col-12 mb-3" *ngIf="isAdmin">
+        <p-card styleClass="shadow-2 border-round-lg">
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center gap-2 p-3">
+                    <i class="pi pi-bolt text-primary text-xl"></i>
+                    <h5 class="m-0">{{ 'quick_actions' | translate }}</h5>
+                </div>
+            </ng-template>
+            <div class="grid">
+                <div class="col-6 sm:col-4 md:col-3 lg:col-2" *ngFor="let action of getAdminQuickActions()">
+                    <button pButton pRipple 
+                        [label]="action.label" 
+                        [icon]="action.icon"
+                        [routerLink]="action.route"
+                        class="p-button-outlined w-full quick-action-btn"
+                        [pTooltip]="action.tooltip || action.label" tooltipPosition="bottom">
+                    </button>
+                </div>
+            </div>
+        </p-card>
+    </div> -->
+
+    <!-- Quick Actions Section - Vendor Only -->
+    <!-- <div class="col-12 mb-3" *ngIf="isVendor && !isAdmin">
+        <p-card styleClass="shadow-2 border-round-lg">
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center gap-2 p-3">
+                    <i class="pi pi-bolt text-primary text-xl"></i>
+                    <h5 class="m-0">{{ 'quick_actions' | translate }}</h5>
+                </div>
+            </ng-template>
+            <div class="grid">
+                <div class="col-6 sm:col-4 md:col-3 lg:col-2" *ngFor="let action of getVendorQuickActions()">
+                    <button pButton pRipple 
+                        [label]="action.label" 
+                        [icon]="action.icon"
+                        [routerLink]="action.route"
+                        class="p-button-outlined w-full quick-action-btn"
+                        [pTooltip]="action.tooltip || action.label" tooltipPosition="bottom">
+                    </button>
+                </div>
+            </div>
+        </p-card>
+    </div> -->
+
+    <!-- Quick Actions Section - Warehouseman Only -->
+    <!-- <div class="col-12 mb-3" *ngIf="isWarehouseman && !isAdmin && !isVendor">
+        <p-card styleClass="shadow-2 border-round-lg">
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center gap-2 p-3">
+                    <i class="pi pi-bolt text-primary text-xl"></i>
+                    <h5 class="m-0">{{ 'quick_actions' | translate }}</h5>
+                </div>
+            </ng-template>
+            <div class="grid">
+                <div class="col-6 sm:col-4 md:col-3 lg:col-2" *ngFor="let action of getWarehousemanQuickActions()">
+                    <button pButton pRipple 
+                        [label]="action.label" 
+                        [icon]="action.icon"
+                        [routerLink]="action.route"
+                        class="p-button-outlined w-full quick-action-btn"
+                        [pTooltip]="action.tooltip || action.label" tooltipPosition="bottom">
+                    </button>
+                </div>
+            </div>
+        </p-card>
+    </div> -->
+
     <!-- First Row - Primary Key Metrics -->
     <div class="col-12 lg:col-6 xl:col-3">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
@@ -118,14 +187,129 @@
         </p-card>
     </div>
 
+    <!-- Admin-Specific Financial KPIs -->
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
+        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
+            <div class="flex flex-column">
+                <div class="flex justify-content-between align-items-start mb-3">
+                    <div class="flex-1">
+                        <span class="block text-600 font-medium mb-2">{{ 'stock_value' | translate }}</span>
+                        <div class="text-900 font-bold text-2xl mb-2">
+                            {{ totalStockValue | currency:currency:'symbol':'1.2-2' }}
+                        </div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-indigo-100 border-round"
+                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
+                        <i class="pi pi-warehouse text-indigo-500 text-2xl"></i>
+                    </div>
+                </div>
+                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
+                    <i class="pi pi-box text-primary"></i>
+                    <span class="text-600 text-sm">{{ totalProducts || 0 }} {{ 'products' | translate }}</span>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
+        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
+            <div class="flex flex-column">
+                <div class="flex justify-content-between align-items-start mb-3">
+                    <div class="flex-1">
+                        <span class="block text-600 font-medium mb-2">{{ 'unpaid_receivables' | translate }}</span>
+                        <div class="text-900 font-bold text-2xl mb-2">
+                            {{ unpaidReceivables | currency:currency:'symbol':'1.2-2' }}
+                        </div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-green-100 border-round"
+                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
+                        <i class="pi pi-arrow-down text-green-500 text-2xl"></i>
+                    </div>
+                </div>
+                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
+                    <i [class]="unpaidReceivables > revenue * 0.2 ? 'pi pi-exclamation-triangle text-red-500' : 'pi pi-check-circle text-green-500'"></i>
+                    <span class="text-600 text-sm">{{ (revenue > 0 ? (unpaidReceivables / revenue * 100 | number:'1.1-1') : 0) }}% {{ 'of_revenue' | translate }}</span>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
+        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
+            <div class="flex flex-column">
+                <div class="flex justify-content-between align-items-start mb-3">
+                    <div class="flex-1">
+                        <span class="block text-600 font-medium mb-2">{{ 'gross_margin' | translate }}</span>
+                        <div class="text-900 font-bold text-2xl mb-2">
+                            {{ grossMarginPercentage | number:'1.1-1' }}%
+                        </div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-teal-100 border-round"
+                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
+                        <i class="pi pi-percentage text-teal-500 text-2xl"></i>
+                    </div>
+                </div>
+                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
+                    <i [class]="grossMarginPercentage >= 20 ? 'pi pi-arrow-up text-green-500' : 'pi pi-arrow-down text-orange-500'"></i>
+                    <span class="text-600 text-sm">{{ 'margin_indicator' | translate }}</span>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <!-- Warehouseman-specific: Pending Transfers -->
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isWarehouseman && !isAdmin && !isVendor">
+        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
+            <div class="flex flex-column">
+                <div class="flex justify-content-between align-items-start mb-3">
+                    <div class="flex-1">
+                        <span class="block text-600 font-medium mb-2">{{ 'pending_transfers' | translate }}</span>
+                        <div class="text-900 font-bold text-3xl mb-2">{{ warehousePendingTransfers || 0 }}</div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-amber-100 border-round"
+                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
+                        <i class="pi pi-arrow-right-arrow-left text-amber-500 text-2xl"></i>
+                    </div>
+                </div>
+                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
+                    <i class="pi pi-info-circle text-primary"></i>
+                    <span class="text-600 text-sm">{{ 'transfers_awaiting_action' | translate }}</span>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
+        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
+            <div class="flex flex-column">
+                <div class="flex justify-content-between align-items-start mb-3">
+                    <div class="flex-1">
+                        <span class="block text-600 font-medium mb-2">{{ 'pending_transfers' | translate }}</span>
+                        <div class="text-900 font-bold text-3xl mb-2">{{ pendingTransfers || 0 }}</div>
+                    </div>
+                    <div class="flex align-items-center justify-content-center bg-amber-100 border-round"
+                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
+                        <i class="pi pi-arrow-right-arrow-left text-amber-500 text-2xl"></i>
+                    </div>
+                </div>
+                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
+                    <i class="pi pi-clock text-orange-500" *ngIf="overdueTransfers > 0"></i>
+                    <span class="text-orange-500 font-semibold" *ngIf="overdueTransfers > 0">{{ overdueTransfers }}</span>
+                    <span class="text-600 text-sm">{{ overdueTransfers > 0 ? ('overdue' | translate) : ('all_on_time' | translate) }}</span>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
     <!-- Second Row - Status Metrics & Alerts -->
     <div class="col-12 lg:col-6 xl:col-3">
-        <p-card styleClass="shadow-2 border-round-lg h-full" 
-            [ngClass]="{'border-orange-500 border-2': lowStockProducts?.length > 0}">
+        <p-card styleClass="shadow-2 border-round-lg h-full">
             <div class="flex justify-content-between align-items-start">
                 <div class="flex-1">
                     <span class="block text-600 font-medium mb-2">{{'dashboard_products_lowstock_header' | translate}}</span>
-                    <div class="text-900 font-bold text-3xl">{{ lowStockProducts?.length || 0 }}</div>
+                    <div class="text-900 font-bold text-3xl">
+                        {{ isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0) }}
+                    </div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
                     [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -136,12 +320,13 @@
     </div>
 
     <div class="col-12 lg:col-6 xl:col-3">
-        <p-card styleClass="shadow-2 border-round-lg h-full"
-            [ngClass]="{'border-red-500 border-2': outOfStockProducts?.length > 0}">
+        <p-card styleClass="shadow-2 border-round-lg h-full">
             <div class="flex justify-content-between align-items-start">
                 <div class="flex-1">
                     <span class="block text-600 font-medium mb-2">{{'dashboard_products_outofstock_header' | translate}}</span>
-                    <div class="text-900 font-bold text-3xl">{{ outOfStockProducts?.length || 0 }}</div>
+                    <div class="text-900 font-bold text-3xl">
+                        {{ isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0) }}
+                    </div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-red-100 border-round"
                     [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -211,8 +396,12 @@
                     <!-- Profit Data Content -->
                     <div *ngIf="profitData && !profitLoading" class="p-grid p-mt-4">
                         <div class="p-col-12 p-lg-8 chart-container">
-                            <div>
+                            <div *ngIf="profitChartData && profitChartOptions">
                                 <p-chart type="bar" [data]="profitChartData" [options]="profitChartOptions"></p-chart>
+                            </div>
+                            <div *ngIf="!profitChartData || !profitChartOptions" class="flex flex-column align-items-center justify-content-center" style="height: 300px;">
+                                <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+                                <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
                             </div>
                         </div>
 
@@ -322,8 +511,36 @@
         </div>
     </div>
 
+    <!-- Alert Center - Admin Only -->
+    <div class="col-12 lg:col-4" *ngIf="isAdmin && criticalAlerts.length > 0">
+        <p-card styleClass="shadow-2 border-round-lg h-full">
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center gap-2 p-3">
+                    <i class="pi pi-bell text-primary text-xl"></i>
+                    <h5 class="m-0">{{ 'alert_center' | translate }}</h5>
+                    <p-badge [value]="criticalAlerts.length" severity="danger" class="ml-auto"></p-badge>
+                </div>
+            </ng-template>
+            <div class="flex flex-column gap-2">
+                <div *ngFor="let alert of criticalAlerts" 
+                    class="p-3 border-round surface-50 cursor-pointer hover:surface-100 transition-colors"
+                    [routerLink]="alert.action"
+                    [ngClass]="{
+                        'border-left-3 border-red-500': alert.severity === 'error',
+                        'border-left-3 border-orange-500': alert.severity === 'warn',
+                        'border-left-3 border-blue-500': alert.severity === 'info'
+                    }">
+                    <div class="flex align-items-start gap-2">
+                        <i [class]="'pi ' + alert.icon + ' text-' + (alert.severity === 'error' ? 'red' : alert.severity === 'warn' ? 'orange' : 'blue') + '-500'"></i>
+                        <span class="text-900 text-sm line-height-3">{{ alert.message }}</span>
+                    </div>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
     <!-- Recent Orders Section -->
-    <div class="col-12 lg:col-8">
+    <div class="col-12" [ngClass]="{'lg:col-8': isAdmin && criticalAlerts.length > 0, 'lg:col-12': !isAdmin || criticalAlerts.length === 0}">
         <p-card styleClass="shadow-2 border-round-lg">
             <ng-template pTemplate="header">
                 <div class="flex justify-content-between align-items-center p-3">
@@ -380,7 +597,7 @@
     </div>
 
     <!-- Quick Stats Summary -->
-    <div class="col-12 lg:col-4">
+    <div class="col-12" [ngClass]="{'lg:col-4': isAdmin && criticalAlerts.length > 0, 'lg:col-12': !isAdmin || criticalAlerts.length === 0}">
         <p-card styleClass="shadow-2 border-round-lg h-full">
             <ng-template pTemplate="header">
                 <div class="flex align-items-center gap-2 p-3">
@@ -388,40 +605,205 @@
                     <h5 class="m-0">{{'quick_stats' | translate}}</h5>
                 </div>
             </ng-template>
-            <div class="flex flex-column gap-3">
-                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+            <div class="grid">
+                <div class="col-12 md:col-6 lg:col-12 xl:col-6">
+                    <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-chart-bar text-primary"></i>
+                            <span class="font-medium">{{'average_order_value' | translate}}</span>
+                        </div>
+                        <span class="font-bold text-primary">
+                            {{ (todayRevenue / (todayOrders?.length || 1)) | currency:currency:'symbol':'1.2-2' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-12 md:col-6 lg:col-12 xl:col-6">
+                    <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-percentage text-green-500"></i>
+                            <span class="font-medium">{{'delivery_rate' | translate}}</span>
+                        </div>
+                        <span class="font-bold text-green-500">
+                            {{ todayOrders?.length > 0 ? ((deliveredOrders?.length / todayOrders.length) * 100 | number:'1.1-1') : 0 }}%
+                        </span>
+                    </div>
+                </div>
+                <div class="col-12 md:col-6 lg:col-12 xl:col-6">
+                    <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-ban text-red-500"></i>
+                            <span class="font-medium">{{'cancellation_rate' | translate}}</span>
+                        </div>
+                        <span class="font-bold text-red-500">
+                            {{ todayOrders?.length > 0 ? ((canceledOrders?.length / todayOrders.length) * 100 | number:'1.1-1') : 0 }}%
+                        </span>
+                    </div>
+                </div>
+                <div class="col-12 md:col-6 lg:col-12 xl:col-6">
+                    <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-box text-orange-500"></i>
+                            <span class="font-medium">{{'total_items_sold' | translate}}</span>
+                        </div>
+                        <span class="font-bold text-orange-500">{{ totalOrderedProducts || 0 }}</span>
+                    </div>
+                </div>
+                <!-- Admin-specific stats -->
+                <div class="col-12 md:col-6 lg:col-12 xl:col-6" *ngIf="isAdmin">
+                    <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-money-bill text-teal-500"></i>
+                            <span class="font-medium">{{'expenses_mtd' | translate}}</span>
+                        </div>
+                        <span class="font-bold text-teal-500">
+                            {{ totalExpensesMTD | currency:currency:'symbol':'1.2-2' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-12 md:col-6 lg:col-12 xl:col-6" *ngIf="isAdmin">
+                    <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-shopping-bag text-purple-500"></i>
+                            <span class="font-medium">{{'purchases_mtd' | translate}}</span>
+                        </div>
+                        <span class="font-bold text-purple-500">
+                            {{ totalPurchasesMTD | currency:currency:'symbol':'1.2-2' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <!-- Top Customers by Revenue - Admin Only -->
+    <!-- Vendor Top Selling Products Section -->
+    <div class="col-12 lg:col-6" *ngIf="isVendor && !isAdmin && vendorTopSellingProducts.length > 0">
+        <p-card styleClass="shadow-2 border-round-lg">
+            <ng-template pTemplate="header">
+                <div class="flex justify-content-between align-items-center p-3">
                     <div class="flex align-items-center gap-2">
-                        <i class="pi pi-chart-bar text-primary"></i>
-                        <span class="font-medium">{{'average_order_value' | translate}}</span>
+                        <i class="pi pi-star text-primary text-xl"></i>
+                        <h5 class="m-0">{{ 'top_selling_products_today' | translate }}</h5>
+                    </div>
+                </div>
+            </ng-template>
+            <div class="flex flex-column gap-2">
+                <div *ngFor="let item of vendorTopSellingProducts; let i = index" 
+                    class="p-3 border-round surface-50 hover:surface-100 transition-colors">
+                    <div class="flex justify-content-between align-items-center">
+                        <div class="flex align-items-center gap-2">
+                            <span class="font-bold text-primary">{{ i + 1 }}.</span>
+                            <span class="font-medium">{{ item.product?.name || 'N/A' }}</span>
+                        </div>
+                        <div class="flex flex-column align-items-end">
+                            <span class="font-bold text-primary">{{ item.revenue | currency:currency:'symbol':'1.2-2' }}</span>
+                            <span class="text-600 text-sm">{{ item.quantity }} {{ 'units' | translate }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <!-- Vendor Recent Customers Section -->
+    <div class="col-12 lg:col-6" *ngIf="isVendor && !isAdmin && vendorRecentCustomers.length > 0">
+        <p-card styleClass="shadow-2 border-round-lg">
+            <ng-template pTemplate="header">
+                <div class="flex justify-content-between align-items-center p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-users text-primary text-xl"></i>
+                        <h5 class="m-0">{{ 'recent_customers' | translate }}</h5>
+                    </div>
+                    <button pButton pRipple label="{{'view_all' | translate}}" icon="pi pi-arrow-right"
+                        class="p-button-text p-button-sm" routerLink="/sales/customers"></button>
+                </div>
+            </ng-template>
+            <div class="flex flex-column gap-2">
+                <div *ngFor="let customer of vendorRecentCustomers" 
+                    class="p-3 border-round surface-50 hover:surface-100 transition-colors cursor-pointer"
+                    [routerLink]="['/sales/customers']">
+                    <div class="flex justify-content-between align-items-center">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-user text-primary"></i>
+                            <span class="font-medium">
+                                {{ customer.companyName || ((customer.firstName || '') + ' ' + (customer.lastName || '')).trim() || 'N/A' }}
+                            </span>
+                        </div>
+                        <i class="pi pi-arrow-right text-400"></i>
+                    </div>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <!-- Warehouseman Warehouse Summary Section -->
+    <div class="col-12 lg:col-6" *ngIf="isWarehouseman && !isAdmin && !isVendor && assignedWarehouse">
+        <p-card styleClass="shadow-2 border-round-lg">
+            <ng-template pTemplate="header">
+                <div class="flex justify-content-between align-items-center p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-warehouse text-primary text-xl"></i>
+                        <h5 class="m-0">{{ 'warehouse_summary' | translate }}</h5>
+                    </div>
+                    <button pButton pRipple label="{{'view_details' | translate}}" icon="pi pi-arrow-right"
+                        class="p-button-text p-button-sm" [routerLink]="['/inventory/warehouses']"></button>
+                </div>
+            </ng-template>
+            <div class="flex flex-column gap-3">
+                <div class="p-3 border-round surface-50">
+                    <div class="flex justify-content-between align-items-center mb-2">
+                        <span class="text-600">{{ 'warehouse_name' | translate }}</span>
+                        <span class="font-bold">{{ assignedWarehouse?.warehouseName || 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-content-between align-items-center mb-2">
+                        <span class="text-600">{{ 'total_products' | translate }}</span>
+                        <span class="font-bold text-primary">{{ warehouseTotalProducts || 0 }}</span>
+                    </div>
+                    <div class="flex justify-content-between align-items-center mb-2">
+                        <span class="text-600">{{ 'dashboard_products_lowstock_header' | translate }}</span>
+                        <span class="font-bold text-orange-500">{{ warehouseLowStockCount || 0 }}</span>
+                    </div>
+                    <div class="flex justify-content-between align-items-center">
+                        <span class="text-600">{{ 'dashboard_products_outofstock_header' | translate }}</span>
+                        <span class="font-bold text-red-500">{{ warehouseOutOfStockCount || 0 }}</span>
+                    </div>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <div class="col-12 lg:col-6" *ngIf="isAdmin && topCustomersByRevenue.length > 0">
+        <p-card styleClass="shadow-2 border-round-lg">
+            <ng-template pTemplate="header">
+                <div class="flex justify-content-between align-items-center p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-star text-primary text-xl"></i>
+                        <h5 class="m-0">{{ 'top_customers' | translate }}</h5>
+                    </div>
+                    <button pButton pRipple label="{{'view_all' | translate}}" icon="pi pi-arrow-right"
+                        class="p-button-text p-button-sm" routerLink="/inventory/customers"></button>
+                </div>
+            </ng-template>
+            <div class="flex flex-column gap-3">
+                <div *ngFor="let customer of topCustomersByRevenue; let i = index" 
+                    class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                    <div class="flex align-items-center gap-3">
+                        <div class="flex align-items-center justify-content-center bg-primary border-round text-white font-bold"
+                            [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+                            {{ i + 1 }}
+                        </div>
+                        <div>
+                            <span class="font-medium text-900 block">
+                                {{ customer.customer.companyName || 
+                                   ((customer.customer.firstName || '') + ' ' + (customer.customer.lastName || '')).trim() || 
+                                   'N/A' }}
+                            </span>
+                            <small class="text-600">{{ customer.customer.email || '' }}</small>
+                        </div>
                     </div>
                     <span class="font-bold text-primary">
-                        {{ (todayRevenue / (todayOrders?.length || 1)) | currency:currency:'symbol':'1.2-2' }}
+                        {{ customer.revenue | currency:currency:'symbol':'1.2-2' }}
                     </span>
-                </div>
-                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                    <div class="flex align-items-center gap-2">
-                        <i class="pi pi-percentage text-green-500"></i>
-                        <span class="font-medium">{{'delivery_rate' | translate}}</span>
-                    </div>
-                    <span class="font-bold text-green-500">
-                        {{ todayOrders?.length > 0 ? ((deliveredOrders?.length / todayOrders.length) * 100 | number:'1.1-1') : 0 }}%
-                    </span>
-                </div>
-                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                    <div class="flex align-items-center gap-2">
-                        <i class="pi pi-ban text-red-500"></i>
-                        <span class="font-medium">{{'cancellation_rate' | translate}}</span>
-                    </div>
-                    <span class="font-bold text-red-500">
-                        {{ todayOrders?.length > 0 ? ((canceledOrders?.length / todayOrders.length) * 100 | number:'1.1-1') : 0 }}%
-                    </span>
-                </div>
-                <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                    <div class="flex align-items-center gap-2">
-                        <i class="pi pi-box text-orange-500"></i>
-                        <span class="font-medium">{{'total_items_sold' | translate}}</span>
-                    </div>
-                    <span class="font-bold text-orange-500">{{ totalOrderedProducts || 0 }}</span>
                 </div>
             </div>
         </p-card>
@@ -524,40 +906,114 @@
 
     <!-- Right Column - Charts -->
     <div class="col-12 xl:col-6">
-        <!-- Sales Overview Chart -->
+        <!-- Sales Overview Chart - Lazy Loaded -->
         <p-card styleClass="shadow-2 border-round-lg mb-3 chart-container">
             <ng-template pTemplate="header">
-                <div class="flex align-items-center gap-2 p-3">
-                    <i class="pi pi-chart-line text-primary text-xl"></i>
-                    <h5 class="m-0">{{'dashboard_sales_overview_header' | translate}}</h5>
+                <div class="flex align-items-center justify-content-between p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-chart-line text-primary text-xl"></i>
+                        <h5 class="m-0">{{'dashboard_sales_overview_header' | translate}}</h5>
+                    </div>
+                    <button *ngIf="!chartDataReady" 
+                            pButton pRipple 
+                            label="{{ 'load_chart' | translate }}" 
+                            icon="pi pi-refresh"
+                            class="p-button-text p-button-sm"
+                            (click)="loadChartOnDemand()"
+                            [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
             <div class="p-3" [style]="{'height': '350px', 'position': 'relative', 'overflow': 'hidden'}">
-                <div *ngIf="chartData" [style]="{'height': '100%', 'width': '100%', 'position': 'relative'}">
-                    <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
+                <!-- Only render chart when data is completely ready AND render flag is set -->
+                <!-- Defer chart DOM rendering to prevent blocking -->
+                <ng-container *ngIf="chartDataReady && chartRenderReady && chartData && chartOptions && 
+                                      chartData.labels && chartData.labels.length > 0 && 
+                                      chartData.datasets && chartData.datasets.length > 0">
+                    <div [style]="{'height': '100%', 'width': '100%', 'position': 'relative'}">
+                        <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
+                    </div>
+                </ng-container>
+                <!-- Show message if chart is ready but no datasets (no products) -->
+                <div *ngIf="chartDataReady && chartData && chartOptions && 
+                            chartData.labels && chartData.labels.length > 0 && 
+                            (!chartData.datasets || chartData.datasets.length === 0)" 
+                     class="flex flex-column align-items-center justify-content-center h-full">
+                    <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
+                    <span class="text-600 text-center">{{ 'no_products_for_chart' | translate }}</span>
                 </div>
-                <div *ngIf="!chartData" class="flex flex-column align-items-center justify-content-center h-full">
-                    <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
-                    <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
+                <!-- Show loading or load button if data is not ready yet -->
+                <div *ngIf="!chartDataReady || !chartRenderReady || !chartData || !chartOptions || 
+                            !chartData?.labels || chartData.labels.length === 0 || 
+                            !chartData?.datasets || chartData.datasets.length === 0" 
+                     class="flex flex-column align-items-center justify-content-center h-full">
+                    <p-progressSpinner *ngIf="chartsInitialized && (!chartDataReady || !chartRenderReady)" [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+                    <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
+                        <i class="pi pi-chart-line text-4xl text-400"></i>
+                        <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>
+                        <button pButton pRipple 
+                                label="{{ 'load_chart' | translate }}" 
+                                icon="pi pi-play"
+                                class="p-button-sm"
+                                (click)="loadChartOnDemand()"
+                                [disabled]="chartsInitialized"></button>
+                    </div>
+                    <div *ngIf="chartsInitialized && chartDataReady && (!chartData?.datasets || chartData.datasets.length === 0)" 
+                         class="flex flex-column align-items-center gap-2">
+                        <i class="pi pi-info-circle text-3xl text-400"></i>
+                        <span class="text-600 text-center">{{ 'no_chart_data_available' | translate }}</span>
+                    </div>
                 </div>
             </div>
         </p-card>
 
-        <!-- Inventory Overview Chart -->
-        <p-card styleClass="shadow-2 border-round-lg chart-container" *ngIf="isAdmin && products?.length > 0">
+        <!-- Inventory Overview Chart - Lazy Loaded -->
+        <p-card styleClass="shadow-2 border-round-lg chart-container" *ngIf="isAdmin">
             <ng-template pTemplate="header">
-                <div class="flex align-items-center gap-2 p-3">
-                    <i class="pi pi-chart-pie text-primary text-xl"></i>
-                    <h5 class="m-0">{{'dashboard_inventory_overview_header' | translate}}</h5>
+                <div class="flex align-items-center justify-content-between p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-chart-pie text-primary text-xl"></i>
+                        <h5 class="m-0">{{'dashboard_inventory_overview_header' | translate}}</h5>
+                    </div>
+                    <button *ngIf="!pieDataReady" 
+                            pButton pRipple 
+                            label="{{ 'load_chart' | translate }}" 
+                            icon="pi pi-refresh"
+                            class="p-button-text p-button-sm"
+                            (click)="loadChartOnDemand()"
+                            [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
             <div class="p-3" [style]="{'height': '350px', 'position': 'relative', 'overflow': 'hidden'}">
-                <div *ngIf="pieData" [style]="{'height': '100%', 'width': '100%', 'position': 'relative'}">
-                    <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
-                </div>
-                <div *ngIf="!pieData" class="flex flex-column align-items-center justify-content-center h-full">
-                    <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
-                    <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
+                <!-- Only render chart when data is completely ready AND render flag is set -->
+                <!-- Defer chart DOM rendering to prevent blocking -->
+                <ng-container *ngIf="pieDataReady && pieChartRenderReady && pieData && pieOptions && 
+                                      pieData.labels && pieData.labels.length > 0 && 
+                                      pieData.datasets && pieData.datasets.length > 0">
+                    <div [style]="{'height': '100%', 'width': '100%', 'position': 'relative'}">
+                        <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
+                    </div>
+                </ng-container>
+                <!-- Show loading or load button if data is not ready yet -->
+                <div *ngIf="!pieDataReady || !pieChartRenderReady || !pieData || !pieOptions || 
+                            !pieData?.labels || pieData.labels.length === 0 || 
+                            !pieData?.datasets || pieData.datasets.length === 0" 
+                     class="flex flex-column align-items-center justify-content-center h-full">
+                    <p-progressSpinner *ngIf="chartsInitialized && (!pieDataReady || !pieChartRenderReady)" [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+                    <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
+                        <i class="pi pi-chart-pie text-4xl text-400"></i>
+                        <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>
+                        <button pButton pRipple 
+                                label="{{ 'load_chart' | translate }}" 
+                                icon="pi pi-play"
+                                class="p-button-sm"
+                                (click)="loadChartOnDemand()"
+                                [disabled]="chartsInitialized"></button>
+                    </div>
+                    <div *ngIf="chartsInitialized && pieDataReady && (!pieData?.labels || pieData.labels.length === 0)" 
+                         class="flex flex-column align-items-center gap-2">
+                        <i class="pi pi-info-circle text-3xl text-400"></i>
+                        <span class="text-600 text-center">{{ 'no_warehouse_data_available' | translate }}</span>
+                    </div>
                 </div>
             </div>
         </p-card>

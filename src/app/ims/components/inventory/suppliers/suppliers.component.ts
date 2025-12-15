@@ -1,4 +1,5 @@
 import { Component, EventEmitter, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService, PrimeNGConfig } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Supplier } from 'src/app/models/supplier';
@@ -114,7 +115,8 @@ export class SuppliersComponent implements OnInit {
     private permissionService: PermissionService,
     private storage: AngularFireStorage,
     private configService: AppConfigurationService,
-    public keycloakService: KeycloakService,) {
+    public keycloakService: KeycloakService,
+    private router: Router) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -239,12 +241,8 @@ export class SuppliersComponent implements OnInit {
     }
   }
 
-  async openSupplierDialog(supplier: any): Promise<void> {
-    this.supplier = supplier;
-    await this.loadSupplierProducts();
-    await this.loadSupplierPurchases();
-    this.initChartOptions();
-    this.supplierDetailsDialog = true;
+  openSupplierDetails(supplier: any): void {
+    this.router.navigate(['/inventory/suppliers', supplier.supplierId]);
   }
 
 
@@ -411,9 +409,7 @@ export class SuppliersComponent implements OnInit {
       }
       this.suppliers = [...this.suppliers];
       this.supplierDialog = false;
-      if (!this.supplierDetailsDialog) {
-        this.supplier = {};
-      }
+      this.supplier = {};
     } else {
       this.messageService.add({
         severity: 'error',
@@ -629,8 +625,7 @@ export class SuppliersComponent implements OnInit {
   }
 
   viewProductDetails(product: Product) {
-    this.selectedProduct = product;
-    this.productDetailDialog = true;
+    this.router.navigate(['/inventory/products', product.productId]);
   }
 
   // Convert attribute value for display

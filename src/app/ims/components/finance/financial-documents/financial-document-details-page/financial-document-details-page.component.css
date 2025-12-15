@@ -1,0 +1,119 @@
+.premium-financial-doc-details-page {
+  width: 100%;
+}
+
+.premium-dialog-header.financial-doc-details-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.premium-dialog-header.financial-doc-details-header.status-draft {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.premium-dialog-header.financial-doc-details-header.status-issued {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.premium-dialog-header.financial-doc-details-header.status-cancelled {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.header-icon.financial-doc-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.premium-details-section {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e9ecef;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.premium-details-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item label {
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.detail-item span,
+.detail-item div {
+  font-size: 0.95rem;
+  color: #2c3e50;
+}
+
+.premium-font-semibold {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.notes-content {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 0.75rem;
+  color: #495057;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+::ng-deep .p-datatable .p-datatable-thead > tr > th {
+  background: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  border-bottom: 2px solid #dee2e6;
+}
+
+::ng-deep .p-datatable .p-datatable-tbody > tr:hover {
+  background: #f8f9fa;
+}
+
+::ng-deep .p-datatable .p-datatable-tbody > tr > td {
+  border-bottom: 1px solid #e9ecef;
+}
+
+@media (max-width: 768px) {
+  .premium-dialog-header.financial-doc-details-header {
+    padding: 1.5rem;
+  }
+
+  .premium-details-section {
+    padding: 1rem;
+  }
+}
+
