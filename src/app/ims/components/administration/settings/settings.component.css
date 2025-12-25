@@ -1,69 +1,307 @@
-.settings-page {
-  padding: 1rem;
+/* =====================================================
+   Global Settings Page - Modern UI Design
+   ===================================================== */
+
+/* Container */
+.settings-container {
+  min-height: 100vh;
+  background: var(--surface-ground);
 }
 
-.settings-card {
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+.settings-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
 }
 
-.settings-header {
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--surface-border);
-}
-
-.settings-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-600) 100%);
+/* Loading State */
+.loading-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  min-height: 60vh;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+/* =====================================================
+   Hero Section
+   ===================================================== */
+.settings-hero {
+  position: relative;
+  margin: -1rem -1rem 0;
+  padding: 1.5rem 2rem 2rem;
+  background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
+  border-bottom: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.hero-background {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100%;
+  background: linear-gradient(135deg, transparent 0%, var(--primary-100) 100%);
+  opacity: 0.3;
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
+}
+
+:host-context(.layout-theme-dark) .hero-background {
+  background: linear-gradient(135deg, transparent 0%, var(--primary-900) 100%);
+  opacity: 0.15;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.back-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--surface-card) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.back-button:hover {
+  background: var(--surface-hover) !important;
+}
+
+.settings-hero-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-card);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-hero-icon i {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.settings-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.action-buttons {
+  flex-shrink: 0;
+}
+
+/* =====================================================
+   Stats Row
+   ===================================================== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: -1.5rem 0 1.5rem;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 2;
+}
+
+.stat-card-modern {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--surface-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--surface-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-100);
+  color: var(--primary-600);
+  flex-shrink: 0;
+}
+
+.stat-icon i {
+  font-size: 1.25rem;
+}
+
+.stat-icon.configs {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.stat-icon.banks {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+.stat-icon.active {
+  background: var(--emerald-100);
+  color: var(--emerald-600);
+}
+
+.stat-icon.currency {
+  background: var(--amber-100);
+  color: var(--amber-600);
+}
+
+:host-context(.layout-theme-dark) .stat-icon {
+  background: rgba(var(--primary-500-rgb), 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.configs {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.banks {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.active {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.currency {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
   font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.2;
 }
 
-::ng-deep .enhanced-tabview {
-  .p-tabview-nav {
-    background: var(--surface-ground);
-    border-radius: 8px 8px 0 0;
-    padding: 0.5rem;
-  }
-
-  .p-tabview-nav li .p-tabview-nav-link {
-    border-radius: 8px;
-    margin-right: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    transition: all 0.3s ease;
-  }
-
-  .p-tabview-nav li .p-tabview-nav-link:hover {
-    background: var(--surface-hover);
-  }
-
-  .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-    background: var(--primary-color);
-    color: white;
-  }
-
-  .p-tabview-panels {
-    background: transparent;
-    padding: 1.5rem 0;
-  }
+/* =====================================================
+   Tabs
+   ===================================================== */
+::ng-deep .settings-tabs {
+  margin: 2rem 2.5rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 2.5rem;
 }
 
-.settings-content,
-.banks-content {
-  padding: 1rem 0;
-}
-
-.section-header {
-  padding-bottom: 1rem;
+::ng-deep .settings-tabs .p-tabview-nav {
+  background: transparent;
+  border: none;
   border-bottom: 2px solid var(--surface-border);
+  padding: 0;
+  gap: 0.5rem;
 }
 
+::ng-deep .settings-tabs .p-tabview-nav li {
+  margin-right: 0.5rem;
+}
+
+::ng-deep .settings-tabs .p-tabview-nav-link {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  padding: 1rem 1.5rem !important;
+  margin-bottom: -2px;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  transition: all 0.2s ease;
+}
+
+::ng-deep .settings-tabs .p-tabview-nav-link:hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-color);
+}
+
+::ng-deep .settings-tabs .p-tabview-selected .p-tabview-nav-link,
+::ng-deep .settings-tabs .p-highlight .p-tabview-nav-link {
+  color: var(--primary-color) !important;
+  border-bottom-color: var(--primary-color) !important;
+  background: transparent !important;
+}
+
+::ng-deep .settings-tabs .p-tabview-panels {
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+::ng-deep .settings-tabs .p-tabview-panel {
+  padding: 0;
+}
+
+/* =====================================================
+   Detail Cards
+   ===================================================== */
+.detail-card {
+  background: var(--surface-card);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.detail-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+}
+
+.card-header i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+/* =====================================================
+   Settings Grid
+   ===================================================== */
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -71,35 +309,9 @@
   margin-top: 1.5rem;
 }
 
-.setting-item {
-  transition: transform 0.2s ease;
-}
-
-.setting-item:hover {
-  transform: translateY(-2px);
-}
-
-.setting-card {
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 12px;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-
-.setting-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: var(--primary-color);
-}
-
-.setting-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-}
-
+/* =====================================================
+   Setting Styles
+   ===================================================== */
 .setting-info {
   flex: 1;
 }
@@ -170,38 +382,17 @@
   white-space: nowrap;
 }
 
-.banks-section {
-  padding: 0;
-}
-
 .required-asterisk {
   color: var(--red-500);
   font-weight: bold;
 }
 
-/* Responsive Design */
-@media (max-width: 960px) {
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .setting-header {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .setting-actions {
-    margin-left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-  }
-}
-
-/* Enhanced table styling */
+/* =====================================================
+   Table Enhancements
+   ===================================================== */
 ::ng-deep .p-datatable {
   .p-datatable-thead > tr > th {
-    background: var(--surface-50);
+    background: var(--surface-ground);
     font-weight: 600;
     color: var(--text-color);
     border-bottom: 2px solid var(--surface-border);
@@ -214,9 +405,15 @@
   .p-datatable-tbody > tr:hover {
     background: var(--surface-hover);
   }
+
+  .p-datatable-tbody > tr > td {
+    border-bottom: 1px solid var(--surface-border);
+  }
 }
 
-/* Dialog enhancements */
+/* =====================================================
+   Dialog Enhancements
+   ===================================================== */
 ::ng-deep .p-dialog {
   .p-dialog-header {
     background: var(--surface-card);
@@ -235,7 +432,9 @@
   }
 }
 
-/* Button enhancements */
+/* =====================================================
+   Button Enhancements
+   ===================================================== */
 ::ng-deep .p-button {
   transition: all 0.3s ease;
 }
@@ -245,14 +444,18 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
 }
 
-/* Tag enhancements */
+/* =====================================================
+   Tag Enhancements
+   ===================================================== */
 ::ng-deep .p-tag {
   font-weight: 500;
   padding: 0.375rem 0.75rem;
   border-radius: 6px;
 }
 
-/* Input enhancements */
+/* =====================================================
+   Input Enhancements
+   ===================================================== */
 ::ng-deep .p-inputtext,
 ::ng-deep .p-dropdown {
   border-radius: 8px;
@@ -265,7 +468,9 @@
   box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.2);
 }
 
-/* SelectButton enhancements */
+/* =====================================================
+   SelectButton Enhancements
+   ===================================================== */
 ::ng-deep .p-selectbutton {
   .p-button {
     border-radius: 6px;
@@ -275,5 +480,449 @@
   .p-button.p-highlight {
     background: var(--primary-color);
     border-color: var(--primary-color);
+  }
+}
+
+/* =====================================================
+   Bank Details Dialog
+   ===================================================== */
+.bank-details-dialog {
+  border-radius: 16px;
+}
+
+.bank-details-container {
+  padding: 0;
+}
+
+.bank-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
+  border-radius: 16px 16px 0 0;
+  margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+}
+
+.bank-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
+.bank-avatar i {
+  font-size: 2rem;
+  color: white;
+}
+
+.bank-info {
+  flex: 1;
+}
+
+.bank-name {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-color);
+  letter-spacing: -0.02em;
+}
+
+.bank-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bank-status {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.bank-code {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  background: var(--surface-ground);
+  border-radius: 6px;
+}
+
+.bank-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.info-card {
+  background: var(--surface-card);
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.info-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.info-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+  margin: 0;
+}
+
+.info-card .card-header i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+.info-card .card-body {
+  padding: 1.25rem;
+}
+
+.info-card .info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.info-card .info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.info-card .info-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-ground);
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.info-card .info-icon i {
+  font-size: 1rem;
+}
+
+.info-card .info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.info-card .info-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-color-secondary);
+}
+
+.info-card .info-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-color);
+  word-break: break-word;
+}
+
+.info-card .address-text {
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.info-card .website-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.info-card .website-link:hover {
+  color: var(--primary-700);
+  text-decoration: underline;
+}
+
+.info-card .notes-content {
+  background: var(--surface-ground);
+  border-radius: 8px;
+  padding: 1rem;
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+/* =====================================================
+   Bank Form Dialog
+   ===================================================== */
+.bank-dialog {
+  border-radius: 16px;
+}
+
+.bank-form-container {
+  padding: 0;
+}
+
+.bank-form-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
+  border-radius: 16px 16px 0 0;
+  margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+}
+
+.bank-form-header .bank-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bank-form-header .bank-avatar i {
+  font-size: 1.5rem;
+  color: white;
+}
+
+.bank-form-header .bank-info {
+  flex: 1;
+}
+
+.bank-form-header .bank-name {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.bank-form-header .bank-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.form-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-section {
+  background: var(--surface-card);
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.form-section .section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+}
+
+.form-section .section-header i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+.form-section .section-body {
+  padding: 1.25rem;
+}
+
+.form-section .field {
+  margin-bottom: 1.5rem;
+}
+
+.form-section .field:last-child {
+  margin-bottom: 0;
+}
+
+.form-section .field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.form-section .checkbox-label {
+  margin-left: 0.5rem;
+  cursor: pointer;
+}
+
+.form-section .error-message {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--red-500);
+  margin-top: 0.25rem;
+}
+
+/* =====================================================
+   Responsive Design
+   ===================================================== */
+@media screen and (max-width: 992px) {
+  .settings-hero {
+    padding: 1.5rem 1rem;
+  }
+
+  .settings-title {
+    font-size: 1.5rem;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 0 0.5rem;
+  }
+
+  .stat-card-modern {
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  ::ng-deep .settings-tabs {
+    margin: 1.5rem 1rem;
+    padding: 0 1rem;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .settings-hero-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .settings-hero-icon i {
+    font-size: 1.5rem;
+  }
+
+  .settings-title {
+    font-size: 1.25rem;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+    margin-top: -1rem;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  ::ng-deep .settings-tabs .p-tabview-nav-link {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .settings-content {
+    padding: 0 0.5rem 1.5rem;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .action-buttons button {
+    flex: 1;
+    max-width: 140px;
+  }
+
+  ::ng-deep .settings-tabs .p-tabview-nav {
+    flex-wrap: wrap;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Bank Details Dialog Mobile */
+  .bank-header {
+    padding: 1.5rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .bank-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .bank-avatar i {
+    font-size: 1.5rem;
+  }
+
+  .bank-name {
+    font-size: 1.5rem;
+  }
+
+  .bank-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bank-meta {
+    justify-content: center;
+  }
+
+  /* Bank Form Dialog Mobile */
+  .bank-form-header {
+    padding: 1.5rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .bank-form-header .bank-avatar {
+    width: 50px;
+    height: 50px;
+  }
+
+  .bank-form-header .bank-avatar i {
+    font-size: 1.25rem;
+  }
+
+  .bank-form-header .bank-name {
+    font-size: 1.25rem;
   }
 }

@@ -308,6 +308,12 @@ export class AccountDetailsComponent implements OnInit {
     return 'danger';
   }
 
+  getTransactionTypeSeverityTag(type: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
+    const depositTypes = ['DEPOSIT', 'TRANSFER_IN', 'RECEIPT', 'INTEREST'];
+    if (depositTypes.includes(type)) return 'success';
+    return 'danger';
+  }
+
   getTransactionTypeIcon(type: string): string {
     const depositTypes = ['DEPOSIT', 'TRANSFER_IN', 'RECEIPT', 'INTEREST'];
     if (depositTypes.includes(type)) return 'pi pi-arrow-down';

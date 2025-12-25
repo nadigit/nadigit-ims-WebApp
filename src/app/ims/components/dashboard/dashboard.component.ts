@@ -59,6 +59,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   shops: Shop[] = [];
   todayCustomers?: Customer[] = [];
   totalProducts = 0;
+  totalOrders = 0;
 
 
   // Metrics
@@ -78,7 +79,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   profitPeriods: any[] = [];
   selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
   selectedShop: Shop | null = null;
-  shopOptions: SelectItem[] = [];
+  shopOptions: SelectItem[] = [{ label: 'All Shops', value: null }]; // Initialize with default option
 
 
   // Charts
@@ -413,9 +414,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .subscribe((data: any) => {
 
         // If backend returns pagination object
-        this.orders = Array.isArray(data.ordersResponse)
-          ? data.ordersResponse
-          : (data.ordersResponse as any)?.content ?? [];
+        const ordersResponse = data.ordersResponse;
+        if (Array.isArray(ordersResponse)) {
+          this.orders = ordersResponse;
+        } else if (ordersResponse?.content) {
+          this.orders = ordersResponse.content;
+          // Try to get total from various possible response structures
+          if (ordersResponse.totalOrders !== undefined) {
+            this.totalOrders = ordersResponse.totalOrders;
+          } else if (ordersResponse.page?.totalElements !== undefined) {
+            this.totalOrders = ordersResponse.page.totalElements;
+          } else if (ordersResponse.totalElements !== undefined) {
+            this.totalOrders = ordersResponse.totalElements;
+          }
+        } else if (ordersResponse?.page?.content) {
+          this.orders = ordersResponse.page.content;
+          if (ordersResponse.page.totalElements !== undefined) {
+            this.totalOrders = ordersResponse.page.totalElements;
+          } else if (ordersResponse.totalOrders !== undefined) {
+            this.totalOrders = ordersResponse.totalOrders;
+          }
+        } else {
+          this.orders = [];
+        }
 
         this.totalOrderedProducts = data.totalOrderedProducts ?? 0;
         this.recentOrderedProducts = data.recentOrderedProducts ?? [];
@@ -432,10 +453,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private loadHeavyComponents() {
     this.loadAnalyticsData(); // Charts will be initialized inside loadAnalyticsData after data loads
-    this.loadShops();
+    // Load shops with error handling - ensure it loads even if first attempt fails
+    this.loadShops().catch(err => {
+      console.error('Failed to load shops in loadHeavyComponents:', err);
+      // Retry after a delay if initial load fails (only if shops are still empty)
+      setTimeout(() => {
+        if (!this.shops || this.shops.length === 0) {
+          console.log('Retrying shops load after initial failure...');
+          this.shopsLoadRetryCount = 0; // Reset retry count for this retry attempt
+          this.loadShops();
+        }
+      }, 3000);
+    });
     // Removed initChartsLazily() - charts now initialize after data is loaded
     if (this.isAdmin) {
       this.loadAdminMetrics();
+      // Initialize profit chart and load profit data for admin users
+      this.initProfitChart().then(() => {
+        this.loadProfitData();
+      }).catch(err => {
+        console.error('Error initializing profit chart:', err);
+        // Still try to load profit data even if chart options fail
+        this.loadProfitData();
+      });
     } else if (this.isVendor) {
       this.loadVendorMetrics();
     } else if (this.isWarehouseman) {
@@ -473,9 +513,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.ordersStatistics = data.ordersStatistics;
         this.expensesStatistics = data.expensesStatistics;
         this.purchasesStatistics = data.purchasesStatistics;
+        
+        // Recalculate product percentages now that top5Products is loaded
+        if (this.orders && this.orders.length > 0) {
+          this.loadOrders();
+        }
 
         this.updateProductStatus();
         this.updateWarehouseProductCounts();
+        
+        // Note: Stock value will be calculated in loadAdminMetrics() with all products
+        // for more accurate calculation
         
         // DON'T initialize charts automatically - let them load on demand when user scrolls
         // This prevents blocking the dashboard
@@ -558,7 +606,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (cached) return of(cached);
 
     return this.orderService.getOrdersPaginated(0, 20, '', 'orderDate', 'DESC').pipe(
-      map((res: any) => res?.content ?? []),   // ← This makes sure you ALWAYS return an array
+      map((res: any) => {
+        // Store total orders count
+        if (res?.totalOrders !== undefined) {
+          this.totalOrders = res.totalOrders;
+        } else if (res?.page?.totalElements !== undefined) {
+          this.totalOrders = res.page.totalElements;
+        } else if (res?.totalElements !== undefined) {
+          this.totalOrders = res.totalElements;
+        }
+        
+        // Return orders array
+        return res?.content ?? res?.page?.content ?? [];
+      }),
       catchError(() => of([]))
     );
   }
@@ -647,6 +707,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     );
   }
 
+  getAllProductsForStockValue() {
+    const cacheKey = 'all-products-stock';
+    const cached = this.getCachedData(cacheKey);
+    if (cached) return of(cached);
+
+    // Load a large number of products for accurate stock value calculation
+    // Using a large page size (1000) to get most/all products
+    return this.productService.getProductsPaginated(0, 1000, '', 'creationDate', 'DESC').pipe(
+      map((res: any) => {
+        return res?.page?.content ?? [];
+      }),
+      catchError(() => of([]))
+    );
+  }
+
   getProductsOfLastWeek() {
     const cacheKey = 'last-week-products';
     const cached = this.getCachedData(cacheKey);
@@ -715,12 +790,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   calculatePercentages(productQuantityMap: Map<number, number>): void {
-    if (this.totalOrderedProducts > 0 && this.top5Products.length > 0) {
+    if (this.totalOrderedProducts > 0 && this.top5Products && this.top5Products.length > 0) {
       this.productPercentages = this.top5Products.map(product => {
         const quantity = productQuantityMap.get(product.productId) || 0;
         const percentage = (quantity / this.totalOrderedProducts) * 100;
         return { product, percentage: Math.round(percentage * 100) / 100 };
       });
+    } else {
+      // Reset productPercentages if conditions aren't met
+      this.productPercentages = [];
     }
   }
 
@@ -782,11 +860,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { stacked: false },
-          y: { stacked: true }
+          x: {
+            stacked: false,
+            ticks: {
+              display: true
+            }
+          },
+          y: {
+            stacked: false,
+            ticks: {
+              callback: function(value: any) {
+                return new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: this.currency || 'USD',
+                }).format(value);
+              }.bind(this)
+            }
+          }
         },
         plugins: {
-          legend: { position: 'top' },
+          legend: { 
+            position: 'top',
+            display: true
+          },
           title: {
             display: true,
             text: translations['profit_analysis'] || 'Profit Analysis',
@@ -817,11 +913,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { stacked: false },
-          y: { stacked: true }
+          x: {
+            stacked: false,
+            ticks: {
+              display: true
+            }
+          },
+          y: {
+            stacked: false,
+            ticks: {
+              callback: function(value: any) {
+                return new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: this.currency || 'USD',
+                }).format(value);
+              }.bind(this)
+            }
+          }
         },
         plugins: {
-          legend: { position: 'top' }
+          legend: { 
+            position: 'top',
+            display: true
+          }
         }
       };
       this.cdr.markForCheck();
@@ -947,7 +1061,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
       // Prepare datasets for the top 5 products
       const datasets = (this.top5Products || []).map((product: any, index: number) => {
-        if (!product || !product.productId) {
+        // Check for both productId and id properties
+        const productId = product?.productId || product?.id;
+        if (!product || !productId) {
           console.warn('Invalid product in top5Products:', product);
           return null;
         }
@@ -958,7 +1074,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const year = date.getFullYear();
           const month = date.getMonth();
-          const sales = this.getProductSalesForMonth(product.productId, year, month);
+          const sales = this.getProductSalesForMonth(productId, year, month);
           salesData.push(sales);
           totalSales += sales;
         }
@@ -978,22 +1094,68 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.log('Datasets created:', datasets.length, 'Total sales across all products:', 
         datasets.reduce((sum, ds) => sum + ds.data.reduce((a: number, b: number) => a + b, 0), 0));
 
-      // Only set chart data if we have valid data
+      // Set chart data - always create datasets if we have products, even if sales are zero
       console.log('Chart initialization - months:', months.length, 'datasets:', datasets.length, 'top5Products:', this.top5Products?.length);
       console.log('Orders available for chart:', this.orders?.length);
       
-      // Always set chart data if we have months and datasets, even if all values are zero
-      // This allows the chart to render and show "no sales" visually
-      if (months.length > 0 && datasets.length > 0) {
+      // If we have top5Products but datasets are empty (all filtered out), recreate them
+      if (datasets.length === 0 && this.top5Products && this.top5Products.length > 0) {
+        console.log('Recreating datasets for top5Products - products exist but datasets were filtered');
+        const validProducts = this.top5Products.filter((p: any) => p && (p.productId || p.id));
+        validProducts.forEach((product: any, index: number) => {
+          const productId = product.productId || product.id;
+          const salesData = [];
+          for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const sales = this.getProductSalesForMonth(productId, year, month);
+            salesData.push(sales);
+          }
+          const color = colors[index % colors.length];
+          datasets.push({
+            label: product.name || `Product ${index + 1}`,
+            data: salesData,
+            fill: false,
+            backgroundColor: color,
+            borderColor: color,
+            tension: .4
+          });
+        });
+        console.log('Recreated datasets count:', datasets.length);
+      }
+      
+      // Always set chart data if we have months - create datasets even if empty
+      if (months.length > 0) {
+        // If still no datasets but we have products, create them with zero sales
+        if (datasets.length === 0 && this.top5Products && this.top5Products.length > 0) {
+          console.log('Creating datasets with zero sales for products');
+          const validProducts = this.top5Products.filter((p: any) => p && (p.productId || p.id));
+          validProducts.forEach((product: any, index: number) => {
+            const salesData = new Array(12).fill(0);
+            const color = colors[index % colors.length];
+            datasets.push({
+              label: product.name || `Product ${index + 1}`,
+              data: salesData,
+              fill: false,
+              backgroundColor: color,
+              borderColor: color,
+              tension: .4
+            });
+          });
+        }
+        
+        // Set chart data if we have datasets OR if we have months (even with empty datasets)
         this.chartData = {
           labels: months,
           datasets: datasets
         };
         
-        console.log('Chart data set successfully:', {
+        console.log('Chart data set:', {
           labelsCount: this.chartData.labels.length,
           datasetsCount: this.chartData.datasets.length,
-          sampleData: datasets[0]?.data?.slice(0, 3) // Show first 3 months of first product
+          top5ProductsCount: this.top5Products?.length,
+          sampleData: datasets[0]?.data?.slice(0, 3)
         });
 
         this.chartOptions = {
@@ -1037,15 +1199,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
               grid: {
                 color: surfaceBorder,
                 drawBorder: false
-              }
+              },
+              beginAtZero: true // Always start at zero to show products even with zero sales
             }
           }
         };
       } else {
-        // Set empty chart if no data
-        console.warn('No chart data available - months:', months.length, 'datasets:', datasets.length, 'top5Products:', this.top5Products?.length);
-        // Still create chart structure even if no datasets, so we can show a message
-        this.chartData = { labels: months, datasets: [] }; // Keep months for empty state
+        // No months data
+        console.warn('No months data available');
+        this.chartData = { labels: [], datasets: [] };
         this.chartOptions = { responsive: true, maintainAspectRatio: false };
       }
 
@@ -1237,75 +1399,208 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   async updateProfitChart(data: any): Promise<void> {
     try {
+      // Ensure chart options are initialized before setting data
+      if (!this.profitChartOptions) {
+        await this.initProfitChart();
+      }
+
       const translations = await this.translate.get([
         'financial_overview', 'revenue', 'product_costs', 'refunds',
         'expenses', 'purchases', 'profit_margin'
       ]).toPromise();
 
       if (!data || data.totalRevenue === undefined || data.totalCosts === undefined) {
-        console.error('Invalid data received for chart update');
+        console.error('Invalid data received for chart update:', data);
         return;
       }
 
       this.profitChartData = {
-        labels: [translations['financial_overview']],
+        labels: [translations['financial_overview'] || 'Financial Overview'],
         datasets: [
           {
-            label: translations['revenue'],
-            data: [data.totalRevenue],
-            backgroundColor: '#4bc0c0',
-            borderColor: '#4bc0c0'
-          },
-          {
-            label: translations['product_costs'],
-            data: [-data.totalCosts],
-            backgroundColor: '#ff6384',
-            borderColor: '#ff6384'
-          },
-          {
-            label: translations['refunds'],
-            data: [-data.totalRefunds],
-            backgroundColor: '#ff9f40',
-            borderColor: '#ff9f40'
-          },
-          {
-            label: translations['expenses'],
-            data: [-data.totalExpenses],
-            backgroundColor: '#9966ff',
-            borderColor: '#9966ff'
-          },
-          {
-            label: translations['profit_margin'],
-            data: [data.netProfit],
+            label: translations['revenue'] || 'Revenue',
+            data: [data.totalRevenue || 0],
             backgroundColor: '#4bc0c0',
             borderColor: '#4bc0c0',
-            type: 'bar'
+            borderWidth: 1
+          },
+          {
+            label: translations['product_costs'] || 'Product Costs',
+            data: [-Math.abs(data.totalCosts || 0)],
+            backgroundColor: '#ff6384',
+            borderColor: '#ff6384',
+            borderWidth: 1
+          },
+          {
+            label: translations['refunds'] || 'Refunds',
+            data: [-Math.abs(data.totalRefunds || 0)],
+            backgroundColor: '#ff9f40',
+            borderColor: '#ff9f40',
+            borderWidth: 1
+          },
+          {
+            label: translations['expenses'] || 'Expenses',
+            data: [-Math.abs(data.totalExpenses || 0)],
+            backgroundColor: '#9966ff',
+            borderColor: '#9966ff',
+            borderWidth: 1
+          },
+          {
+            label: translations['profit_margin'] || 'Net Profit',
+            data: [data.netProfit || 0],
+            backgroundColor: data.netProfit >= 0 ? '#4bc0c0' : '#ff6384',
+            borderColor: data.netProfit >= 0 ? '#4bc0c0' : '#ff6384',
+            borderWidth: 1
           }
         ]
       };
+      
+      console.log('Profit chart data updated:', {
+        labels: this.profitChartData.labels,
+        datasetsCount: this.profitChartData.datasets.length,
+        hasOptions: !!this.profitChartOptions
+      });
+      
       this.cdr.markForCheck();
     } catch (error) {
       console.error('Error updating profit chart:', error);
+      // Set empty chart data on error
+      this.profitChartData = {
+        labels: [],
+        datasets: []
+      };
+      this.cdr.markForCheck();
     }
   }
 
   // ==================== SHOP MANAGEMENT ====================
 
-  async loadShops(): Promise<void> {
-    try {
-      const translations = await this.translate.get(['All Shops']).toPromise();
-      const shops = await (await this.analysisService.getShops()).toPromise();
+  private shopsLoading = false;
+  private shopsLoadAttempted = false;
+  private shopsLoadRetryCount = 0;
+  private readonly MAX_SHOP_RETRIES = 3;
 
-      this.shops = shops || [];
+  async loadShops(): Promise<void> {
+    // Prevent concurrent calls
+    if (this.shopsLoading) {
+      console.log('Shops already loading, skipping duplicate call');
+      return;
+    }
+
+    // Use cached data if available
+    const cacheKey = 'shops';
+    const cached = this.getCachedData(cacheKey);
+    if (Array.isArray(cached) && cached.length > 0) {
+      console.log('Using cached shops data');
+      this.shops = cached;
       this.shopOptions = [
-        { label: translations['All Shops'], value: null },
+        { label: 'All Shops', value: null },
         ...this.shops.map(shop => ({ label: shop.shopName, value: shop }))
       ];
+      this.shopsLoadAttempted = true;
       this.cdr.markForCheck();
-    } catch (error) {
+      return;
+    }
+
+    // Initialize shopOptions with default "All Shops" option if not already set
+    if (!this.shopOptions || this.shopOptions.length === 0) {
+      this.shopOptions = [{ label: 'All Shops', value: null }];
+      this.cdr.markForCheck();
+    }
+
+    this.shopsLoading = true;
+    this.shopsLoadAttempted = true;
+
+    try {
+      const translations = await firstValueFrom(
+        this.translate.get(['All Shops']).pipe(
+          timeout(5000),
+          catchError(() => of({ 'All Shops': 'All Shops' }))
+        )
+      );
+
+      // `getShops()` returns a Promise<Observable<Shop[]>>, so first await the Promise then pipe the Observable.
+      const shopsObservable = await this.analysisService.getShops();
+      const shops = await firstValueFrom(
+        shopsObservable.pipe(
+          timeout(10000),
+          catchError((error) => {
+            // Handle 429 rate limit error specifically
+            if (error?.status === 429) {
+              const retryAfter = error?.error?.retryAfter || 2;
+              console.warn(`Rate limit exceeded. Retrying after ${retryAfter} seconds...`);
+              // Return empty array and don't retry immediately to avoid more 429s
+              return of([]);
+            }
+            console.error('Error loading shops:', error);
+            return of([]);
+          })
+        )
+      );
+
+      this.shops = Array.isArray(shops) ? shops : [];
+      this.shopOptions = [
+        { label: translations['All Shops'] || 'All Shops', value: null },
+        ...this.shops.map(shop => ({ label: shop.shopName, value: shop }))
+      ];
+
+      // Cache the shops data
+      if (this.shops.length > 0) {
+        this.setCachedData(cacheKey, this.shops);
+      }
+
+      this.cdr.markForCheck();
+    } catch (error: any) {
       console.error('Error loading shops:', error);
+      
+      // Always ensure shopOptions has at least the default option
+      if (!this.shopOptions || this.shopOptions.length === 0) {
+        this.shopOptions = [{ label: 'All Shops', value: null }];
+      }
+      
+      // Handle 429 rate limit error with retry
+      if (error?.status === 429) {
+        const retryAfter = error?.error?.retryAfter || 2;
+        console.warn(`Rate limit exceeded. Retry count: ${this.shopsLoadRetryCount || 0}/3`);
+        
+        // Retry if we haven't exceeded max retries
+        if (!this.shopsLoadRetryCount) {
+          this.shopsLoadRetryCount = 0;
+        }
+        
+        if (this.shopsLoadRetryCount < 3) {
+          this.shopsLoadRetryCount++;
+          this.shopsLoading = false; // Reset flag to allow retry
+          
+          // Retry after the specified delay
+          setTimeout(() => {
+            console.log(`Retrying shops load (attempt ${this.shopsLoadRetryCount})...`);
+            this.loadShops();
+          }, (retryAfter * 1000) || 2000);
+          
+          return; // Exit early, retry will handle it
+        } else {
+          console.warn('Max retries exceeded for shops loading');
+        }
+      }
+      
+      // On error, ensure we at least have the default "All Shops" option
       this.shops = [];
-      this.shopOptions = [];
+      this.shopOptions = [{ label: 'All Shops', value: null }];
+      
+      // Try to use stale cached data as fallback
+      const staleCache = this.cache.get(cacheKey);
+      if (staleCache && Array.isArray(staleCache.data) && staleCache.data.length > 0) {
+        console.log('Using stale cached shops data as fallback');
+        this.shops = staleCache.data;
+        this.shopOptions = [
+          { label: 'All Shops', value: null },
+          ...this.shops.map(shop => ({ label: shop.shopName, value: shop }))
+        ];
+      }
+    } finally {
+      this.shopsLoading = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -1323,6 +1618,87 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return (this.profitData.netProfit / this.profitData.totalRevenue) * 100;
     }
     return 0;
+  }
+
+  calculateRevenuePercentage(): number {
+    if (!this.profitData || this.profitData.totalRevenue <= 0) {
+      return 0;
+    }
+    const totalCosts = Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0));
+    const total = this.profitData.totalRevenue + totalCosts;
+    if (total === 0) return 0;
+    return (this.profitData.totalRevenue / total) * 100;
+  }
+
+  calculateCostsPercentage(): number {
+    if (!this.profitData || this.profitData.totalRevenue <= 0) {
+      return 0;
+    }
+    const totalCosts = Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0));
+    if (totalCosts === 0) return 0;
+    return (totalCosts / this.profitData.totalRevenue) * 100;
+  }
+
+  getTotalCosts(): number {
+    if (!this.profitData) return 0;
+    return Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0));
+  }
+
+  // ==================== NUMBER FORMATTING HELPERS ====================
+
+  /**
+   * Formats a number with abbreviation for large values (K, M, B)
+   * @param value The number to format
+   * @param decimals Number of decimal places (default: 1)
+   * @returns Formatted string (e.g., "1.2K", "1.5M", "2.3B")
+   */
+  formatLargeNumber(value: number | null | undefined, decimals: number = 1): string {
+    if (value === null || value === undefined || isNaN(value)) {
+      return '0';
+    }
+
+    const num = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+
+    if (num >= 1000000000) {
+      return sign + (num / 1000000000).toFixed(decimals) + 'B';
+    } else if (num >= 1000000) {
+      return sign + (num / 1000000).toFixed(decimals) + 'M';
+    } else if (num >= 1000) {
+      return sign + (num / 1000).toFixed(decimals) + 'K';
+    } else {
+      return sign + num.toLocaleString('en-US', { maximumFractionDigits: decimals });
+    }
+  }
+
+  /**
+   * Formats a number with thousand separators
+   * @param value The number to format
+   * @returns Formatted string with commas (e.g., "1,234,567")
+   */
+  formatNumber(value: number | null | undefined): string {
+    if (value === null || value === undefined || isNaN(value)) {
+      return '0';
+    }
+    return value.toLocaleString('en-US');
+  }
+
+  /**
+   * Gets the appropriate CSS class for number display based on value size
+   * @param value The number value
+   * @returns CSS class name for responsive font sizing
+   */
+  getNumberSizeClass(value: number | null | undefined): string {
+    if (value === null || value === undefined || isNaN(value)) {
+      return 'stat-number-small';
+    }
+    const num = Math.abs(value);
+    if (num >= 1000000) {
+      return 'stat-number-large';
+    } else if (num >= 1000) {
+      return 'stat-number-medium';
+    }
+    return 'stat-number-small';
   }
 
   async refreshDashboard(): Promise<void> {
@@ -1377,7 +1753,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       transfers: this.getPendingTransfers(),
       payments: this.getUnpaidPayments(),
       purchases: this.getMonthlyPurchases(),
-      expenses: this.getMonthlyExpenses()
+      expenses: this.getMonthlyExpenses(),
+      allProducts: this.getAllProductsForStockValue()
     })
       .pipe(
         timeout(15000), // 15 second timeout to prevent hanging
@@ -1389,14 +1766,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
             transfers: [],
             payments: { incoming: [], outgoing: [] },
             purchases: [],
-            expenses: []
+            expenses: [],
+            allProducts: []
           });
         })
       )
       .subscribe((data: any) => {
         try {
           this.calculateAdminMetrics(data);
-          this.calculateStockValue();
+          // Calculate stock value using all products for accurate calculation
+          if (data.allProducts && data.allProducts.length > 0) {
+            this.calculateStockValue(data.allProducts);
+          } else if (this.products && this.products.length > 0) {
+            // Fallback to loaded products if all products failed to load
+            this.calculateStockValue(this.products);
+          }
           this.calculateUnpaidBalances(data);
           this.calculateGrossMargin();
           this.calculateTopCustomers();
@@ -1492,12 +1876,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
-  private calculateStockValue() {
-    this.totalStockValue = this.products.reduce((sum, product) => {
+  private calculateStockValue(products?: Product[]) {
+    const productsToCalculate = products || this.products;
+    
+    if (!productsToCalculate || productsToCalculate.length === 0) {
+      this.totalStockValue = 0;
+      return;
+    }
+    
+    this.totalStockValue = productsToCalculate.reduce((sum, product) => {
       const quantity = product.quantityAvailable || 0;
       const cost = product.standardCost || product.buyingPrice || 0;
-      return sum + (quantity * cost);
+      const productValue = quantity * cost;
+      return sum + productValue;
     }, 0);
+    
+    console.log('Stock value calculated:', {
+      productsCount: productsToCalculate.length,
+      totalStockValue: this.totalStockValue
+    });
   }
 
   private calculateUnpaidBalances(data: any) {
@@ -1565,9 +1962,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.criticalAlerts.push({
         type: 'error',
         icon: 'pi-exclamation-triangle',
-        message: `${outOfStockWithOrders.length} out of stock products have pending orders`,
+        translationKey: 'alert_out_of_stock_with_orders',
+        count: outOfStockWithOrders.length,
         action: '/inventory/products',
-        severity: 'error'
+        severity: 'error',
+        priority: 1
       });
     }
 
@@ -1576,9 +1975,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.criticalAlerts.push({
         type: 'warning',
         icon: 'pi-exclamation-circle',
-        message: `${this.lowStockProducts.length} products are running low on stock`,
+        translationKey: 'alert_low_stock_products',
+        count: this.lowStockProducts.length,
         action: '/inventory/products',
-        severity: 'warn'
+        severity: 'warn',
+        priority: 2
       });
     }
 
@@ -1587,20 +1988,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.criticalAlerts.push({
         type: 'warning',
         icon: 'pi-clock',
-        message: `${this.overdueTransfers} warehouse transfers are overdue`,
+        translationKey: 'alert_overdue_transfers',
+        count: this.overdueTransfers,
         action: '/inventory/warehouse-transfers',
-        severity: 'warn'
+        severity: 'warn',
+        priority: 3
       });
     }
 
     // High unpaid receivables
     if (this.unpaidReceivables > this.revenue * 0.2) {
+      const percentage = ((this.unpaidReceivables / this.revenue) * 100).toFixed(1);
       this.criticalAlerts.push({
         type: 'info',
         icon: 'pi-dollar',
-        message: `Unpaid receivables exceed 20% of total revenue`,
+        translationKey: 'alert_high_unpaid_receivables',
+        percentage: percentage,
         action: '/finance/payments',
-        severity: 'info'
+        severity: 'info',
+        priority: 4
       });
     }
 
@@ -1612,11 +2018,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.criticalAlerts.push({
         type: 'warning',
         icon: 'pi-ban',
-        message: `High cancellation rate: ${cancellationRate.toFixed(1)}%`,
+        translationKey: 'alert_high_cancellation_rate',
+        percentage: cancellationRate.toFixed(1),
         action: '/sales/orders',
-        severity: 'warn'
+        severity: 'warn',
+        priority: 5
       });
     }
+
+    // Sort alerts by priority
+    this.criticalAlerts.sort((a, b) => a.priority - b.priority);
   }
 
   loadChartOnDemand() {
@@ -1690,6 +2101,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
           orders: this.orders.length,
           ordersStats: this.ordersStatistics.length
         });
+        
+        // Recalculate product percentages now that both orders and top5Products are loaded
+        if (this.orders && this.orders.length > 0 && this.top5Products && this.top5Products.length > 0) {
+          this.loadOrders();
+        }
         
           this.updateProductStatus();
           this.updateWarehouseProductCounts();

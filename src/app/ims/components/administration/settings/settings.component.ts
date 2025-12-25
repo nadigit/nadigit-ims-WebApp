@@ -1,4 +1,6 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { Location } from '@angular/common';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { TranslateService } from '@ngx-translate/core';
@@ -10,7 +12,7 @@ import { BankAccountService } from 'src/app/services/bank-account.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { firstValueFrom } from 'rxjs';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
 
 interface UploadEvent {
@@ -60,7 +62,14 @@ export class SettingsComponent implements OnInit {
   canReadBank: boolean = false;
   Ressource: string = 'BANKS';
 
+  // Computed properties
+  get activeBanksCount(): number {
+    return (this.banks || []).filter(b => b.active).length;
+  }
+
   constructor(
+    private router: Router,
+    private location: Location,
     private messageService: MessageService,
     private appConfigService: AppConfigurationService,
     private translate: TranslateService,
@@ -68,8 +77,11 @@ export class SettingsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private route: ActivatedRoute,
-    private router: Router,
   ) {
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 
   async ngOnInit() {

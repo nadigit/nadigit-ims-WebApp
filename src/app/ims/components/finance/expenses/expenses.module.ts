@@ -22,6 +22,8 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
+import { TabViewModule } from 'primeng/tabview';
+import { DividerModule } from 'primeng/divider';
 import { ExpenseDetailsPageComponent } from './expense-details-page/expense-details-page.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 
@@ -49,6 +51,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
         CalendarModule,
         TooltipModule,
         TagModule,
+        TabViewModule,
+        DividerModule,
         SharedModule
     ],
     declarations: [ExpensesComponent, ExpenseDetailsPageComponent],

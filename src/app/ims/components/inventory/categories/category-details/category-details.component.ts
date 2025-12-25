@@ -17,9 +17,6 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { getMeasureUnit } from 'src/app/shared/product-utils';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
-import { lastValueFrom } from 'rxjs';
-import { UploadEvent } from 'src/app/models/uploadEvent';
 
 @Component({
   templateUrl: './category-details.component.html',
@@ -58,13 +55,16 @@ export class CategoryDetailsComponent implements OnInit {
   suppliers: Supplier[] = [];
   warehouses: Warehouse[] = [];
   categories: Category[] = [];
-  imageURL: any;
-  uploadedFile: File | null = null;
   deleteProductDialog: boolean = false;
   archiveProductDialog: boolean = false;
   submitted: boolean = false;
-  measureUnits: any[] = [];
-  attributeTypes: any[] = [];
+  canAddCategory: boolean = false;
+  canAddSupplier: boolean = false;
+  canAddWarehouse: boolean = false;
+
+  categoryDialog: boolean = false;
+  canEditCategory: boolean = false;
+  costingMethods: any[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -74,7 +74,6 @@ export class CategoryDetailsComponent implements OnInit {
     private productService: ProductService,
     private supplierService: SupplierService,
     private warehouseService: WarehouseService,
-    private storage: AngularFireStorage,
     private reportingService: ReportingService,
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
@@ -82,19 +81,12 @@ export class CategoryDetailsComponent implements OnInit {
     private translateService: TranslationService,
     private permissionService: PermissionService,
   ) {
-    this.measureUnits = [
-      { value: 'UNIT', label: this.translate.instant('UNIT') },
-      { value: 'KG', label: this.translate.instant('KG') },
-      { value: 'LITER', label: this.translate.instant('LITER') },
-      { value: 'PIECE', label: this.translate.instant('PIECE') },
-      { value: 'BOX', label: this.translate.instant('BOX') },
-      { value: 'METER', label: this.translate.instant('METER') }
-    ];
-    this.attributeTypes = [
-      { label: this.translate.instant('String'), value: 'STRING' },
-      { label: this.translate.instant('Integer'), value: 'INTEGER' },
-      { label: this.translate.instant('Double'), value: 'DOUBLE' },
-      { label: this.translate.instant('Boolean'), value: 'BOOLEAN' }
+    this.costingMethods = [
+      { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
+      { label: this.translate.instant('costing_method_lifo'), value: 'LIFO' },
+      { label: this.translate.instant('costing_method_weighted_average'), value: 'WEIGHTED_AVERAGE' },
+      { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
+      { label: this.translate.instant('costing_method_none'), value: 'NONE' }
     ];
   }
 
@@ -118,6 +110,10 @@ export class CategoryDetailsComponent implements OnInit {
       await this.setUserRoles();
       await this.loadCategory();
       await this.loadCategoryDetails();
+      // Load form data when needed
+      await this.onGetAllCategories();
+      await this.onGetAllWarehouses();
+      await this.onGetAllSuppliers();
       this.isLoading = false;
     });
   }
@@ -167,6 +163,33 @@ export class CategoryDetailsComponent implements OnInit {
     }
   }
 
+  editCategory() {
+    if (!this.canEditCategory) return;
+    this.categoryDialog = true;
+  }
+
+  async saveCategory() {
+    this.submitted = true;
+    if (this.category.categoryName) {
+      if (this.category.categoryId) {
+        try {
+          await this.updateCategory(this.category.categoryId, this.category);
+        } catch (error) {
+          console.error('Error updating category:', error);
+        }
+      }
+      this.categoryDialog = false;
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
+      return;
+    }
+  }
+
   async onGetCategoryProducts(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.categoryService.getCategoryProducts(this.categoryId)
@@ -188,6 +211,34 @@ export class CategoryDetailsComponent implements OnInit {
         });
     });
   }
+
+
+  async updateCategory(id: any, category: any): Promise<any> {
+    await this.categoryService.updateCategory(id, category)
+      .subscribe({
+        next: (response: any) => {
+          this.onGetAllCategories();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('category_updated'),
+            life: 3000
+          });
+          return true;
+        },
+        error(err: any) {
+          console.log(err);
+          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_updating_category'), life: 3000 })
+          return false;
+        },
+      })
+  }
+
+  hideDialog() {
+    this.categoryDialog = false;
+    this.submitted = false;
+  }
+
 
   calculateCategoryStats(): void {
     const lowStockProducts = this.products.filter(p =>
@@ -349,6 +400,10 @@ export class CategoryDetailsComponent implements OnInit {
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
     this.canReadProduct = this.permissionService.canRead('PRODUCTS');
+    this.canEditCategory = this.permissionService.canUpdate(this.Ressource);
+    this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
+    this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
+    this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
   }
 
   private async setUserRoles() {
@@ -416,140 +471,43 @@ export class CategoryDetailsComponent implements OnInit {
   editProduct(product: Product) {
     if (!this.canEditProduct) return;
     this.selectedProduct = product;
+    // Ensure form data is loaded
     this.onGetAllCategories();
     this.onGetAllWarehouses();
     this.onGetAllSuppliers();
     this.productDialog = true;
   }
 
-  addAttribute() {
-    if (!this.selectedProduct.attributes) {
-      this.selectedProduct.attributes = [];
-    }
-
-    this.selectedProduct.attributes.push({
-      attributeName: '',
-      attributeType: 'STRING', // default type
-      value: ''
-    });
+  async onProductFormSaveSuccess(productData: Product): Promise<void> {
+    console.log('Product form saved successfully:', productData);
+    // Reset selected product
+    this.selectedProduct = {};
+    // Close dialog first
+    this.productDialog = false;
+    // Reload category details to refresh products list and stats
+    await this.loadCategoryDetails();
+    // Ensure filtered products are updated
+    this.filteredCategoryProducts = [...this.products];
   }
 
-  removeAttribute(index: number) {
-    if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > index) {
-      this.selectedProduct.attributes.splice(index, 1);
-    }
+  onProductFormSaveError(event: { product: Product, error: any }): void {
+    console.error('Product form save error:', event.error);
+    // Error message is already displayed by the form component
   }
 
-  editImage() {
-    this.selectedProduct.productImage = null;
-    this.uploadedFile = null;
+  openCategoryDialog(): void {
+    // Navigate to categories page or open category dialog
+    this.router.navigate(['/inventory/categories']);
   }
 
-  removeImage() {
-    this.selectedProduct.productImage = null;
-    this.uploadedFile = null;
+  openSupplierDialog(): void {
+    // Navigate to suppliers page or open supplier dialog
+    this.router.navigate(['/inventory/suppliers']);
   }
 
-  async saveProduct() {
-    this.submitted = true;
-
-    if (
-      this.selectedProduct.name &&
-      this.selectedProduct.reference &&
-      this.selectedProduct.quantityAvailable &&
-      this.selectedProduct.buyingPrice &&
-      this.selectedProduct.sellingPrice &&
-      this.selectedProduct.category &&
-      this.selectedProduct.supplier
-    ) {
-      if (this.isAdmin && !this.selectedProduct.warehouse) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('warehouse_required'),
-          life: 3000,
-        });
-        return;
-      }
-
-      // Check for duplicate product with same reference in the same warehouse
-      const isDuplicate = this.products.some((p: any) =>
-        p.reference === this.selectedProduct.reference &&
-        p.warehouse?.warehouseId === this.selectedProduct.warehouse?.warehouseId &&
-        p.productId !== this.selectedProduct.productId
-      );
-
-      if (isDuplicate) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('product_already_exists_in_warehouse'),
-          life: 4000,
-        });
-        return;
-      }
-
-      // Upload product image if any
-      if (this.uploadedFile) {
-        const filePath = `images/${this.uploadedFile.name}`;
-        const fileRef = this.storage.ref(filePath);
-        const task = this.storage.upload(filePath, this.uploadedFile);
-
-        try {
-          await lastValueFrom(task.snapshotChanges());
-          const url = await lastValueFrom(fileRef.getDownloadURL());
-          this.selectedProduct.productImage = url;
-          this.uploadedFile = null;
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_image'),
-            life: 3000,
-          });
-          return;
-        }
-      }
-
-      // Clean attributes before saving
-      if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > 0) {
-        this.selectedProduct.attributes.forEach(attr => {
-          delete attr.value;
-          if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
-            attr.booleanValue = false;
-          }
-        });
-      }
-
-      // Update or add product
-      if (this.selectedProduct.productId) {
-        this.updateProduct(this.selectedProduct.productId, this.selectedProduct)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_updated'),
-            life: 3000,
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000,
-          });
-      }
-
-      this.productDialog = false;
-      await this.loadCategoryDetails();
-    } else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3100,
-      });
-      return;
-    }
+  openWarehouseDialog(): void {
+    // Navigate to warehouses page or open warehouse dialog
+    this.router.navigate(['/inventory/warehouses']);
   }
 
   deleteProduct(product: Product) {
@@ -590,27 +548,6 @@ export class CategoryDetailsComponent implements OnInit {
       })
   }
 
-  async updateProduct(id: any, product: any): Promise<any> {
-    console.log(product)
-    await this.productService.saveProduct(product)
-      .subscribe({
-        next: async (response: any) => {
-          console.log(response);
-          await this.loadCategoryDetails();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
 
   async onGetAllWarehouses() {
     await this.warehouseService.getWarehouses().subscribe({
@@ -659,16 +596,6 @@ export class CategoryDetailsComponent implements OnInit {
       })
   }
 
-  async onFileUpload(event: UploadEvent): Promise<void> {
-    console.log("in upload");
-    const file = event.files[0];
-
-    // Save the file temporarily and update the imageURL
-    this.imageURL = URL.createObjectURL(file);
-
-    // Store the actual file for later use
-    this.uploadedFile = file;
-  }
 
   archiveProduct(product: Product) {
     if (!this.canDeleteProduct) return;

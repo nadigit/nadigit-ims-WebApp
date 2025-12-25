@@ -1,195 +1,463 @@
-<div class="grid">
-    <div class="col-12">
-        <div class="card px-6 py-6">
-            <p-toast></p-toast>
+<div class="transfer-details-container">
+    <p-toast></p-toast>
 
-            <!-- Loading State -->
-            <div class="card flex justify-content-center" *ngIf="isLoading">
-                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-            </div>
+    <!-- Loading State -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
+    </div>
 
-            <!-- Content -->
-            <div *ngIf="!isLoading && transfer" class="premium-transfer-details-dialog">
-                <!-- Transfer Header -->
-                <div class="transfer-details-header" [ngClass]="'status-' + (transfer?.status || '').toLowerCase()">
-                    <div class="flex align-items-center justify-content-between">
-                        <div class="flex align-items-center gap-3">
-                            <button pButton pRipple icon="pi pi-arrow-left" 
-                                class="p-button-text p-button-plain text-white"
-                                [pTooltip]="'back' | translate" tooltipPosition="bottom"
-                                (click)="goBack()"></button>
-                            <div class="transfer-icon">
-                                <i class="pi pi-truck text-white"></i>
+    <!-- Main Content -->
+    <div class="transfer-content" *ngIf="!isLoading && transfer">
+        
+        <!-- Hero Header Section -->
+        <div class="transfer-hero">
+            <div class="hero-background"></div>
+            <div class="hero-content">
+                <div class="flex align-items-center gap-2 mb-3">
+                    <button pButton pRipple icon="pi pi-arrow-left" 
+                        class="p-button-text p-button-rounded p-button-plain back-button"
+                        [pTooltip]="'back' | translate" tooltipPosition="bottom"
+                        (click)="goBack()"></button>
+                    <span class="text-500 text-sm">{{ 'warehouse_transfers' | translate }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">#{{ transfer.reference }}</span>
+                </div>
+                
+                <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+                    <div class="flex align-items-center gap-4">
+                        <div class="transfer-hero-icon">
+                            <i class="pi pi-truck"></i>
+                        </div>
+                        <div>
+                            <div class="flex align-items-center gap-3 mb-2">
+                                <h1 class="m-0 text-900 transfer-title">#{{ transfer.reference }}</h1>
+                                <p-tag [value]="transfer.status ? ('transfer_status_' + transfer.status.toLowerCase() | translate) : 'N/A'" 
+                                    [severity]="getStatusSeverity(transfer.status)" 
+                                    [rounded]="true"></p-tag>
                             </div>
-                            <div>
-                                <h2 class="m-0 text-white">#{{ transfer?.reference }}</h2>
-                                <p class="m-0 text-white opacity-80">
-                                    {{ transfer?.sourceWarehouse?.name }} → {{ transfer?.destinationWarehouse?.name }}
-                                </p>
+                            <div class="flex flex-wrap align-items-center gap-4 text-500">
+                                <span class="flex align-items-center gap-2" *ngIf="transfer.sourceWarehouse?.name">
+                                    <i class="pi pi-warehouse"></i>
+                                    {{ transfer.sourceWarehouse.name }}
+                                </span>
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-arrow-right"></i>
+                                </span>
+                                <span class="flex align-items-center gap-2" *ngIf="transfer.destinationWarehouse?.name">
+                                    <i class="pi pi-warehouse"></i>
+                                    {{ transfer.destinationWarehouse.name }}
+                                </span>
+                                <span class="flex align-items-center gap-2" *ngIf="transfer.transferDate">
+                                    <i class="pi pi-calendar"></i>
+                                    {{ transfer.transferDate | date:'mediumDate' }}
+                                </span>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <span [class]="'transfer-badge transfer-' + (transfer?.status || '').toLowerCase()">
-                                {{ transfer?.status ? ('transfer_status_' + transfer.status.toLowerCase() | translate) : 'N/A' }}
-                            </span>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 action-buttons">
+                        <button pButton pRipple icon="pi pi-refresh" 
+                            [label]="'refresh' | translate"
+                            class="p-button-outlined"
+                            (click)="refreshTransferDetails()"></button>
+                        <button pButton pRipple icon="pi pi-play" 
+                            [label]="'initiate_transfer' | translate"
+                            *ngIf="canInitiate(transfer)"
+                            class="p-button-success"
+                            (click)="openInitiateConfirm()"></button>
+                        <button pButton pRipple icon="pi pi-check" 
+                            [label]="'complete_transfer' | translate"
+                            *ngIf="canComplete(transfer)"
+                            class="p-button-success"
+                            (click)="openCompleteConfirm()"></button>
+                        <button pButton pRipple icon="pi pi-times" 
+                            [label]="'cancel_transfer' | translate"
+                            *ngIf="canCancel(transfer)"
+                            class="p-button-danger"
+                            (click)="openCancelConfirm()"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card-modern">
+                <div class="stat-icon items">
+                    <i class="pi pi-box"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'total_items' | translate }}</span>
+                    <div class="stat-value">{{ transfer.transferItems?.length || 0 }}</div>
+                    <span class="stat-sub">{{ 'products' | translate }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern">
+                <div class="stat-icon quantity">
+                    <i class="pi pi-hashtag"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'total_quantity' | translate }}</span>
+                    <div class="stat-value">{{ getTotalQuantity(transfer) }}</div>
+                    <span class="stat-sub">{{ 'units' | translate }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern">
+                <div class="stat-icon source">
+                    <i class="pi pi-sign-out"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'source_warehouse' | translate }}</span>
+                    <div class="stat-value text-truncate">{{ transfer.sourceWarehouse?.name || 'N/A' }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern">
+                <div class="stat-icon destination">
+                    <i class="pi pi-sign-in"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'destination_warehouse' | translate }}</span>
+                    <div class="stat-value text-truncate">{{ transfer.destinationWarehouse?.name || 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Section -->
+        <p-tabView styleClass="transfer-tabs">
+            
+            <!-- Overview Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>{{ 'overview' | translate }}</span>
+                </ng-template>
+                
+                <div class="grid mt-3">
+                    <!-- Left Column - Transfer Info -->
+                    <div class="col-12 lg:col-4">
+                        <!-- Transfer Information Card -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-info-circle"></i>
+                                <span>{{ 'transfer_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-hashtag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'reference' | translate }}</span>
+                                            <span class="info-value">#{{ transfer.reference }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="transfer.transferDate">
+                                        <div class="info-icon">
+                                            <i class="pi pi-calendar"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'transfer_date' | translate }}</span>
+                                            <span class="info-value">{{ transfer.transferDate | date:'mediumDate' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-tag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'status' | translate }}</span>
+                                            <p-tag [value]="transfer.status ? ('transfer_status_' + transfer.status.toLowerCase() | translate) : 'N/A'" 
+                                                [severity]="getStatusSeverity(transfer.status)"></p-tag>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="notes-section mt-3" *ngIf="transfer.notes">
+                                    <span class="info-label block mb-2">{{ 'notes' | translate }}</span>
+                                    <p class="m-0 text-700 line-height-3">{{ transfer.notes }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Warehouses Card -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-warehouse"></i>
+                                <span>{{ 'warehouses' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="warehouse-flow">
+                                    <div class="warehouse-item source">
+                                        <div class="warehouse-icon source">
+                                            <i class="pi pi-sign-out"></i>
+                                        </div>
+                                        <div class="warehouse-info">
+                                            <span class="warehouse-label">{{ 'source_warehouse' | translate }}</span>
+                                            <span class="warehouse-name">{{ transfer.sourceWarehouse?.name || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flow-arrow">
+                                        <i class="pi pi-arrow-down"></i>
+                                    </div>
+                                    
+                                    <div class="warehouse-item destination">
+                                        <div class="warehouse-icon destination">
+                                            <i class="pi pi-sign-in"></i>
+                                        </div>
+                                        <div class="warehouse-info">
+                                            <span class="warehouse-label">{{ 'destination_warehouse' | translate }}</span>
+                                            <span class="warehouse-name">{{ transfer.destinationWarehouse?.name || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Audit Card -->
+                        <div class="detail-card" *ngIf="transfer.createdBy || transfer.creationDate">
+                            <div class="card-header">
+                                <i class="pi pi-history"></i>
+                                <span>{{ 'audit_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item" *ngIf="transfer.creationDate">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-clock"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'created_date' | translate }}</span>
+                                            <span class="info-value">{{ transfer.creationDate | date:'medium' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="transfer.createdBy">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-user"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'created_by' | translate }}</span>
+                                            <span class="info-value">{{ transfer.createdBy }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column - Quick Actions & Summary -->
+                    <div class="col-12 lg:col-8">
+                        <!-- Transfer Summary -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-chart-bar"></i>
+                                <span>{{ 'transfer_summary' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="summary-grid">
+                                    <div class="summary-item">
+                                        <div class="summary-icon items">
+                                            <i class="pi pi-box"></i>
+                                        </div>
+                                        <div class="summary-content">
+                                            <span class="summary-label">{{ 'total_products' | translate }}</span>
+                                            <span class="summary-value">{{ transfer.transferItems?.length || 0 }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="summary-item">
+                                        <div class="summary-icon quantity">
+                                            <i class="pi pi-hashtag"></i>
+                                        </div>
+                                        <div class="summary-content">
+                                            <span class="summary-label">{{ 'total_units' | translate }}</span>
+                                            <span class="summary-value">{{ getTotalQuantity(transfer) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions Card -->
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-bolt"></i>
+                                <span>{{ 'quick_actions' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="actions-grid">
+                                    <button pButton pRipple icon="pi pi-play" 
+                                        [label]="'initiate_transfer' | translate"
+                                        class="p-button-success"
+                                        *ngIf="canInitiate(transfer)"
+                                        (click)="openInitiateConfirm()"></button>
+                                    
+                                    <button pButton pRipple icon="pi pi-check" 
+                                        [label]="'complete_transfer' | translate"
+                                        class="p-button-success"
+                                        *ngIf="canComplete(transfer)"
+                                        (click)="openCompleteConfirm()"></button>
+                                    
+                                    <button pButton pRipple icon="pi pi-times" 
+                                        [label]="'cancel_transfer' | translate"
+                                        class="p-button-danger"
+                                        *ngIf="canCancel(transfer)"
+                                        (click)="openCancelConfirm()"></button>
+                                    
+                                    <button pButton pRipple icon="pi pi-refresh" 
+                                        [label]="'refresh' | translate"
+                                        class="p-button-outlined p-button-secondary"
+                                        (click)="refreshTransferDetails()"></button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="grid mt-4">
-                    <!-- Left Panel - Timeline & Items -->
-                    <div class="col-12 md:col-8">
-                        <!-- Transfer Timeline -->
-                        <div class="details-section mb-4">
-                            <h4 class="section-title">
-                                <i class="pi pi-history mr-2"></i>
-                                {{ 'transfer_timeline' | translate }}
-                            </h4>
-                            <p-timeline class="premium-timeline" [value]="transferEvents" align="alternate">
-                                <ng-template pTemplate="marker" let-event>
-                                    <div class="timeline-marker">
-                                        <i [class]="event.icon + ' marker-icon'"></i>
-                                    </div>
-                                </ng-template>
-                                <ng-template pTemplate="content" let-event>
-                                    <div class="timeline-card">
-                                        <div class="timeline-header">
-                                            <h5 class="m-0">
-                                                {{ event.status ? ('transfer_status_' + event.status.toLowerCase() | translate) : 'N/A' }}
-                                            </h5>
-                                            <span class="timeline-date">
-                                                {{ event.date ? (event.date | date:'medium') : ('now' | translate) }}
-                                            </span>
-                                        </div>
-                                        <div class="timeline-content">
-                                            <p class="m-0 text-600">
-                                                {{ 'performed_by' | translate }}: {{ event.user }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </ng-template>
-                            </p-timeline>
+            </p-tabPanel>
+            
+            <!-- Items Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-box mr-2"></i>
+                    <span>{{ 'items' | translate }}</span>
+                    <p-badge [value]="(transfer.transferItems?.length || 0).toString()" class="ml-2"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-list"></i>
+                            <span>{{ 'transfer_items' | translate }}</span>
                         </div>
-
-                        <!-- Transfer Items -->
-                        <div class="details-section">
-                            <h4 class="section-title">
-                                <i class="pi pi-box mr-2"></i>
-                                {{ 'transfer_items' | translate }}
-                            </h4>
-                            <p-table [value]="transfer?.transferItems" [scrollable]="true" scrollHeight="300px"
-                                *ngIf="transfer?.transferItems?.length > 0">
+                        <div class="card-body p-0">
+                            <p-table [value]="transfer.transferItems || []" [rows]="10" [paginator]="true"
+                                [showCurrentPageReport]="true"
+                                styleClass="p-datatable-sm p-datatable-striped"
+                                currentPageReportTemplate="{first} - {last} / {totalRecords}"
+                                [rowsPerPageOptions]="[10,25,50]"
+                                *ngIf="transfer.transferItems?.length > 0; else noItems">
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th style="width: 40%">{{ 'product' | translate }}</th>
-                                        <th style="width: 30%">{{ 'product_reference' | translate }}</th>
-                                        <th style="width: 20%">{{ 'quantity' | translate }}</th>
-                                        <th style="width: 10%">{{ 'notes' | translate }}</th>
+                                        <th style="width: 25%">{{ 'product_reference' | translate }}</th>
+                                        <th style="width: 15%" class="text-center">{{ 'quantity' | translate }}</th>
+                                        <th style="width: 20%">{{ 'notes' | translate }}</th>
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="body" let-item>
                                     <tr>
                                         <td>
-                                            <div class="flex align-items-center gap-2">
-                                                <img 
-                                                    [src]="item.product?.productImage || 'assets/core-images/no-image.png'"
+                                            <div class="product-cell">
+                                                <img [src]="item.product?.productImage || 'assets/core-images/no-image.png'"
                                                     [alt]="item.product?.name"
-                                                    class="product-image-small">
-                                                <span>{{ item.product?.name || 'N/A' }}</span>
+                                                    class="product-image" />
+                                                <div class="product-info">
+                                                    <span class="product-name">{{ item.product?.name || 'N/A' }}</span>
+                                                    <span class="product-category">{{ item.product?.category?.categoryName || 'N/A' }}</span>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td>{{ item.product?.reference || 'N/A' }}</td>
-                                        <td>
+                                        <td class="font-medium">{{ item.product?.reference || 'N/A' }}</td>
+                                        <td class="text-center">
                                             <p-tag [value]="item.quantity?.toString() || '0'" severity="info"></p-tag>
                                         </td>
-                                        <td>{{ item.notes || '-' }}</td>
+                                        <td class="text-600">{{ item.notes || '-' }}</td>
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="footer">
-                                    <tr>
-                                        <td colspan="2"><strong>{{ 'total' | translate }}</strong></td>
-                                        <td><strong>{{ getTotalQuantity(transfer) }}</strong></td>
+                                    <tr class="total-footer">
+                                        <td colspan="2" class="text-right font-bold">{{ 'total' | translate }}:</td>
+                                        <td class="text-center font-bold text-primary text-xl">{{ getTotalQuantity(transfer) }}</td>
                                         <td></td>
                                     </tr>
                                 </ng-template>
                             </p-table>
-                        </div>
-                    </div>
-
-                    <!-- Right Panel - Summary & Actions -->
-                    <div class="col-12 md:col-4">
-                        <!-- Transfer Summary -->
-                        <div class="details-section">
-                            <h4 class="section-title">
-                                <i class="pi pi-info-circle mr-2"></i>
-                                {{ 'transfer_information' | translate }}
-                            </h4>
-                            <div class="transfer-summary-card p-3">
-                                <div class="summary-item mb-3">
-                                    <span class="text-600">{{ 'reference' | translate }}:</span>
-                                    <strong>#{{ transfer?.reference }}</strong>
+                            <ng-template #noItems>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="pi pi-box"></i>
+                                    </div>
+                                    <h4>{{ 'no_items_found' | translate }}</h4>
                                 </div>
-                                <div class="summary-item mb-3">
-                                    <span class="text-600">{{ 'source_warehouse' | translate }}:</span>
-                                    <span>{{ transfer?.sourceWarehouse?.name || 'N/A' }}</span>
-                                </div>
-                                <div class="summary-item mb-3">
-                                    <span class="text-600">{{ 'destination_warehouse' | translate }}:</span>
-                                    <span>{{ transfer?.destinationWarehouse?.name || 'N/A' }}</span>
-                                </div>
-                                <div class="summary-item mb-3">
-                                    <span class="text-600">{{ 'transfer_date' | translate }}:</span>
-                                    <span>{{ transfer?.transferDate ? (transfer.transferDate | date:'short') : 'N/A' }}</span>
-                                </div>
-                                <div class="summary-item mb-3" *ngIf="transfer?.notes">
-                                    <span class="text-600">{{ 'notes' | translate }}:</span>
-                                    <p class="m-0 mt-1">{{ transfer.notes }}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="details-section mt-4">
-                            <h4 class="section-title">
-                                <i class="pi pi-cog mr-2"></i>
-                                {{ 'actions' | translate }}
-                            </h4>
-                            <div class="flex flex-column gap-2">
-                                <button 
-                                    pButton 
-                                    *ngIf="canInitiate(transfer)"
-                                    [label]="'initiate_transfer' | translate" 
-                                    icon="pi pi-play"
-                                    class="p-button-success w-full"
-                                    (click)="openInitiateConfirm()">
-                                </button>
-                                <button 
-                                    pButton 
-                                    *ngIf="canComplete(transfer)"
-                                    [label]="'complete_transfer' | translate" 
-                                    icon="pi pi-check"
-                                    class="p-button-success w-full"
-                                    (click)="openCompleteConfirm()">
-                                </button>
-                                <button 
-                                    pButton 
-                                    *ngIf="canCancel(transfer)"
-                                    [label]="'cancel_transfer' | translate" 
-                                    icon="pi pi-times"
-                                    class="p-button-danger w-full"
-                                    (click)="openCancelConfirm()">
-                                </button>
-                                <button 
-                                    pButton 
-                                    [label]="'refresh' | translate" 
-                                    icon="pi pi-refresh"
-                                    class="p-button-outlined p-button-secondary w-full"
-                                    (click)="refreshTransferDetails()">
-                                </button>
-                            </div>
+                            </ng-template>
                         </div>
                     </div>
                 </div>
+            </p-tabPanel>
+            
+            <!-- Timeline Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-history mr-2"></i>
+                    <span>{{ 'timeline' | translate }}</span>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-clock"></i>
+                            <span>{{ 'transfer_timeline' | translate }}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline-container" *ngIf="transferEvents.length > 0; else noTimeline">
+                                <p-timeline [value]="transferEvents" align="left" styleClass="modern-timeline">
+                                    <ng-template pTemplate="marker" let-event>
+                                        <div class="timeline-marker" [ngClass]="event.color">
+                                            <i [class]="event.icon"></i>
+                                        </div>
+                                    </ng-template>
+                                    <ng-template pTemplate="content" let-event>
+                                        <div class="timeline-card" [ngClass]="event.color">
+                                            <div class="timeline-header">
+                                                <h5 class="m-0">
+                                                    {{ event.status ? ('transfer_status_' + event.status.toLowerCase() | translate) : 'N/A' }}
+                                                </h5>
+                                                <span class="timeline-date" *ngIf="event.date">
+                                                    {{ event.date | date:'medium' }}
+                                                </span>
+                                            </div>
+                                            <p class="timeline-description m-0 mt-2 text-600">
+                                                {{ 'performed_by' | translate }}: {{ event.user }}
+                                            </p>
+                                        </div>
+                                    </ng-template>
+                                </p-timeline>
+                            </div>
+                            <ng-template #noTimeline>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="pi pi-history"></i>
+                                    </div>
+                                    <h4>{{ 'no_timeline_events' | translate }}</h4>
+                                </div>
+                            </ng-template>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+        </p-tabView>
+    </div>
+
+    <!-- Empty State -->
+    <div class="transfer-content" *ngIf="!isLoading && !transfer">
+        <div class="empty-state-container">
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="pi pi-truck"></i>
+                </div>
+                <h4>{{ 'transfer_not_found' | translate }}</h4>
+                <p>{{ 'transfer_not_found_description' | translate }}</p>
+                <button pButton pRipple [label]="'go_back' | translate" icon="pi pi-arrow-left"
+                    class="p-button-outlined mt-3" (click)="goBack()"></button>
             </div>
         </div>
     </div>
@@ -198,40 +466,39 @@
 <!-- Confirmation Dialogs -->
 <p-dialog [(visible)]="initiateConfirmDialog" [header]="'confirm_label' | translate" [modal]="true" [style]="{width:'450px'}">
     <div class="flex align-items-center justify-content-center">
-        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500);"></i>
         <span>{{'confirm_initiate_transfer' | translate}}</span>
     </div>
     <ng-template pTemplate="footer">
         <button pButton pRipple icon="pi pi-times" class="p-button-text" [label]="'no_button' | translate"
             (click)="initiateConfirmDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-text" [label]="'yes_button' | translate"
+        <button pButton pRipple icon="pi pi-check" class="p-button-success" [label]="'yes_button' | translate"
             (click)="confirmInitiate()"></button>
     </ng-template>
 </p-dialog>
 
 <p-dialog [(visible)]="completeConfirmDialog" [header]="'confirm_label' | translate" [modal]="true" [style]="{width:'450px'}">
     <div class="flex align-items-center justify-content-center">
-        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500);"></i>
         <span>{{'confirm_complete_transfer' | translate}}</span>
     </div>
     <ng-template pTemplate="footer">
         <button pButton pRipple icon="pi pi-times" class="p-button-text" [label]="'no_button' | translate"
             (click)="completeConfirmDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-text" [label]="'yes_button' | translate"
+        <button pButton pRipple icon="pi pi-check" class="p-button-success" [label]="'yes_button' | translate"
             (click)="confirmComplete()"></button>
     </ng-template>
 </p-dialog>
 
 <p-dialog [(visible)]="cancelConfirmDialog" [header]="'confirm_label' | translate" [modal]="true" [style]="{width:'450px'}">
     <div class="flex align-items-center justify-content-center">
-        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--red-500);"></i>
         <span>{{'confirm_cancel_transfer' | translate}}</span>
     </div>
     <ng-template pTemplate="footer">
         <button pButton pRipple icon="pi pi-times" class="p-button-text" [label]="'no_button' | translate"
             (click)="cancelConfirmDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-text" [label]="'yes_button' | translate"
+        <button pButton pRipple icon="pi pi-check" class="p-button-danger" [label]="'yes_button' | translate"
             (click)="confirmCancel()"></button>
     </ng-template>
 </p-dialog>
-

@@ -8,8 +8,10 @@ import { ShopService } from 'src/app/services/shop.service';
 import { CustomerService } from 'src/app/services/customer.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { OrderService } from 'src/app/services/order.service';
+import { ProductService } from 'src/app/services/product.service';
 import { ReturnService } from 'src/app/services/return.service';
 import { RefundService } from 'src/app/services/refund.service';
+import { BarcodeService } from 'src/app/services/barcode.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
@@ -61,6 +63,7 @@ export class PosComponent implements OnInit, OnDestroy {
   filteredCategories: any[] = [];
   productViewMode: 'grid' | 'list' = 'list';
   private searchSubject = new Subject<string>();
+  private isSearching: boolean = false;
   
   // Barcode Scanner
   scannerDialog: boolean = false;
@@ -214,8 +217,10 @@ export class PosComponent implements OnInit, OnDestroy {
     private customerService: CustomerService,
     private categoryService: CategoryService,
     private orderService: OrderService,
+    private productService: ProductService,
     private returnService: ReturnService,
     private refundService: RefundService,
+    private barcodeService: BarcodeService,
     private translate: TranslateService,
     private translationService: TranslationService,
     private configService: AppConfigurationService,
@@ -582,31 +587,70 @@ export class PosComponent implements OnInit, OnDestroy {
   private async lookupByBarcode(barcode: string) {
     this.productsLoading = true;
     try {
+      // First try the new barcode scanning API
+      this.barcodeService.loadToken();
+      const scanResult = await firstValueFrom(this.barcodeService.scanBarcode(barcode));
+      
+      if (scanResult.found && scanResult.productId) {
+        // Convert scan result to POSProductDTO format
+        const product: POSProductDTO = {
+          productId: scanResult.productId,
+          name: scanResult.productName || '',
+          reference: scanResult.productReference || '',
+          sellingPrice: scanResult.sellingPrice || 0,
+          buyingPrice: scanResult.buyingPrice || 0,
+          quantityAvailable: scanResult.quantityAvailable || 0,
+          inventoryStatus: scanResult.inventoryStatus || 'INSTOCK',
+          categoryName: scanResult.categoryName,
+          warehouseName: scanResult.warehouseName,
+          imageUrl: scanResult.productImage || '',
+          measureUnit: scanResult.measureUnit
+        };
+        await this.addProductToCart(product, 1);
+        this.barcodeInput = '';
+      } else {
+        // Product not found via barcode API, try fallback to legacy search
+        await this.fallbackBarcodeSearch(barcode);
+      }
+    } catch (error: any) {
+      console.error('Error with barcode scan API, trying fallback:', error);
+      // Try fallback to legacy barcode search
+      await this.fallbackBarcodeSearch(barcode);
+    } finally {
+      this.productsLoading = false;
+    }
+  }
+
+  private async fallbackBarcodeSearch(barcode: string) {
+    try {
       const product$ = await this.posService.getProductByBarcode(barcode, this.shopId);
       const product = await firstValueFrom(product$);
       await this.addProductToCart(product, 1);
       this.barcodeInput = '';
     } catch (error: any) {
-      console.error('Error fetching product by barcode:', error);
+      console.error('Error fetching product by barcode (fallback):', error);
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
         detail: this.translate.instant('product_not_found_warning'),
         life: 3000
       });
-    } finally {
-      this.productsLoading = false;
     }
   }
 
   onSearchChange(event: any) {
-    const query = event.query?.trim() || '';
+    const query = event.query?.trim() || event?.trim() || '';
     this.searchQuery = query; // Update the search query model
     if (!query || query.length < 1) {
       this.searchSuggestions = [];
       this.searchResults = [];
       return;
     }
+
+    // Clear previous suggestions immediately to prevent duplicates
+    this.searchSuggestions = [];
+    this.searchResults = [];
+
     // Perform search and populate suggestions
     this.performSearch(query);
   }
@@ -617,15 +661,35 @@ export class PosComponent implements OnInit, OnDestroy {
       this.searchResults = [];
       return;
     }
+
+    // Prevent multiple simultaneous searches
+    if (this.isSearching) {
+      return;
+    }
+
+    this.isSearching = true;
     this.productsLoading = true;
+
     try {
-      const res$ = await this.posService.searchProducts(query, this.shopId, 0, 50);
-      const res = await firstValueFrom(res$);
-      const products = res.content || [];
-      console.log('Search results:', products.length, 'products found for query:', query);
+      // Use the same search method as orders component (does contains search)
+      const res$ = await this.productService.searchProductsForOrder(query);
+      const products = await firstValueFrom(res$);
+
+      // Normalize response like orders component does
+      const normalizedProducts = this.normalizeProductSearchResponse(products);
+
+      console.log('Normalized products for query "' + query + '":', normalizedProducts.length, 'unique products');
+      if (normalizedProducts.length > 0) {
+        console.log('First product properties:', Object.keys(normalizedProducts[0]));
+        console.log('First product ID field:', normalizedProducts[0].productId || normalizedProducts[0].id);
+      }
+
       // Set both searchSuggestions for autocomplete dropdown and searchResults for grid/list display
-      this.searchSuggestions = products;
-      this.searchResults = products;
+      this.searchSuggestions = [...normalizedProducts]; // Create a new array reference
+      this.searchResults = [...normalizedProducts];
+
+      // Force change detection
+      this.cdr.detectChanges();
     } catch (error) {
       console.error('Error searching products:', error);
       this.searchSuggestions = [];
@@ -638,7 +702,29 @@ export class PosComponent implements OnInit, OnDestroy {
       });
     } finally {
       this.productsLoading = false;
+      this.isSearching = false;
     }
+  }
+
+  private normalizeProductSearchResponse(response: any): any[] {
+    if (!response) {
+      return [];
+    }
+
+    let products: any[] = [];
+
+    if (Array.isArray(response)) {
+      products = response;
+    } else if (response.page?.content && Array.isArray(response.page.content)) {
+      products = response.page.content;
+    }
+
+    // Remove duplicates based on productId
+    const uniqueProducts = products.filter((product, index, self) =>
+      index === self.findIndex(p => p.productId === product.productId)
+    );
+
+    return uniqueProducts;
   }
 
   async onQuickProductClick(product: POSProductDTO) {
@@ -753,8 +839,21 @@ export class PosComponent implements OnInit, OnDestroy {
 
     this.cartSaving = true;
     try {
+      // Use only product.productId, as 'id' does not exist on POSProductDTO
+      const productId = product.productId;
+      if (!productId) {
+        console.error('Product missing productId:', product);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: 'Product ID is missing or invalid',
+          life: 3000
+        });
+        return;
+      }
+
       if (this.isOnline) {
-        const updated$ = await this.posService.addItemToCart(this.cart.cartId, product.productId, quantity);
+        const updated$ = await this.posService.addItemToCart(this.cart.cartId, productId, quantity);
         this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
         this.updateCartTracking();
         this.saveToLocalStorage();
@@ -774,6 +873,17 @@ export class PosComponent implements OnInit, OnDestroy {
         detail: this.translate.instant('product_added_success'),
         life: 2000
       });
+
+      // Additional feedback for scanned products
+      if (this.lastScanResult) {
+        this.messageService.add({
+          severity: 'info',
+          summary: this.translate.instant('barcode_scanned'),
+          detail: this.translate.instant('product_added_via_scan'),
+          life: 3000
+        });
+        this.lastScanResult = ''; // Clear scan result after showing message
+      }
     } catch (error: any) {
       console.error('Error adding item to cart:', error);
       const msg = error?.error?.message || this.translate.instant('error_occurred');
@@ -2336,9 +2446,15 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   startBarcodeScanner() {
+    // Reset all scanner state
     this.scannerDialog = true;
     this.scannerEnabled = false;
+    this.hasPermission = false;
+    this.availableDevices = [];
+    this.currentDevice = null;
+    this.currentDeviceId = null;
     this.lastScanResult = '';
+
     // Request camera permission and get available devices
     this.requestCameraPermission();
   }
@@ -2359,8 +2475,12 @@ export class PosComponent implements OnInit, OnDestroy {
         // Use the first available camera (usually the default)
         this.currentDevice = this.availableDevices[0];
         this.currentDeviceId = this.currentDevice.deviceId;
+        console.log('Camera permission granted, enabling scanner with device:', this.currentDeviceId);
         this.scannerEnabled = true;
+        // Trigger change detection to ensure scanner component updates
+        this.cdr.detectChanges();
       } else {
+        console.warn('No video input devices found');
         this.messageService.add({
           severity: 'warn',
           summary: this.translate.instant('warning'),
@@ -2383,45 +2503,76 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   onScanSuccess(result: any) {
+    console.log('Barcode scan success:', result);
     // The result can be a string or an object with getText() method
     const barcode = typeof result === 'string' ? result : (result?.getText ? result.getText() : result);
+    console.log('Extracted barcode:', barcode);
+
     if (barcode && String(barcode).trim()) {
       const barcodeStr = String(barcode).trim();
+      console.log('Processing scanned barcode:', barcodeStr);
       this.lastScanResult = barcodeStr;
+
       // Close scanner dialog
       this.closeScanner();
-      // Process the barcode
-      this.barcodeInput = barcodeStr;
-      this.onBarcodeEnter();
+
+      // Process the barcode directly (auto-add to cart)
+      this.lookupByBarcode(barcodeStr);
+    } else {
+      console.warn('Invalid barcode result:', result);
     }
   }
 
   onScanError(error: any) {
     console.error('Scanner error:', error);
-    // Don't show error to user unless it's a critical error
+    // Only show critical errors to user
+    if (error?.name === 'NotAllowedError' || error?.name === 'NotFoundError') {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('camera_access_error'),
+        life: 3000
+      });
+    }
   }
 
   onCamerasFound(cameras: MediaDeviceInfo[]) {
+    console.log('Cameras found by zxing-scanner:', cameras);
     this.availableDevices = cameras;
     if (cameras.length > 0 && !this.currentDevice) {
       this.currentDevice = cameras[0];
       this.currentDeviceId = this.currentDevice.deviceId;
+      console.log('Selected default camera:', this.currentDevice.label || this.currentDevice.deviceId);
     }
   }
 
   onDeviceSelectChange(deviceId: string) {
     const device = this.availableDevices.find(d => d.deviceId === deviceId);
-    if (device) {
+    if (device && device.deviceId !== this.currentDeviceId) {
+      console.log('Switching to camera device:', device.label || device.deviceId);
+      // Disable scanner temporarily to restart with new device
+      this.scannerEnabled = false;
       this.currentDevice = device;
       this.currentDeviceId = device.deviceId;
+
+      // Re-enable scanner after a short delay to ensure proper restart
+      setTimeout(() => {
+        this.scannerEnabled = true;
+        this.cdr.detectChanges();
+      }, 100);
     }
   }
 
   closeScanner() {
+    console.log('Closing scanner dialog');
     this.scannerDialog = false;
     this.scannerEnabled = false;
     this.lastScanResult = '';
     this.currentDeviceId = null;
+    // Reset permission state when closing
+    this.hasPermission = false;
+    this.availableDevices = [];
+    this.currentDevice = null;
   }
 
   openSplitPayment() {
@@ -2435,12 +2586,20 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
 
-  onProductSelect(product: any) {
-    if (product) {
+  onProductSelect(event: any) {
+    console.log('onProductSelect event:', event);
+    const product = event?.value || event;
+    console.log('Extracted product:', product);
+    console.log('Product ID:', product?.productId);
+    console.log('Product name:', product?.name);
+
+    if (product && product.productId) {
       this.addToCart(product);
       // Clear search query after selection
       this.searchQuery = '';
       this.searchSuggestions = [];
+    } else {
+      console.error('Invalid product selected:', product);
     }
   }
 

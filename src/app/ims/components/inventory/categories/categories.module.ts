@@ -26,7 +26,12 @@ import { ImageModule } from 'primeng/image';
 import { GalleriaModule } from 'primeng/galleria';
 import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
+import { TabViewModule } from 'primeng/tabview';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
+import { ChartModule } from 'primeng/chart';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { ProductsModule } from '../products/products.module';
 
 
 
@@ -56,7 +61,12 @@ import { SharedModule } from 'src/app/shared/shared.module';
         GalleriaModule,
         CardModule,
         CheckboxModule,
-        SharedModule
+        TabViewModule,
+        BadgeModule,
+        DividerModule,
+        ChartModule,
+        SharedModule,
+        ProductsModule
     ],
     declarations: [CategoriesComponent, CategoryDetailsComponent],
     providers: [ReportingService]

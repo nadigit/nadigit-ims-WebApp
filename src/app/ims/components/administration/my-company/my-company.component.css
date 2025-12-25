@@ -1,79 +1,735 @@
-::ng-deep .setting-card {
+/* =====================================================
+   Company Details Page - Modern UI Design
+   ===================================================== */
+
+/* Container */
+.company-details-container {
+  min-height: 100vh;
+  background: var(--surface-ground);
+}
+
+.company-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+/* Loading State */
+.loading-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+/* =====================================================
+   Hero Section
+   ===================================================== */
+.company-hero {
+  position: relative;
+  margin: -1rem -1rem 0;
+  padding: 1.5rem 2rem 2rem;
+  background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
+  border-bottom: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.hero-background {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100%;
+  background: linear-gradient(135deg, transparent 0%, var(--primary-100) 100%);
+  opacity: 0.3;
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
+}
+
+:host-context(.layout-theme-dark) .hero-background {
+  background: linear-gradient(135deg, transparent 0%, var(--primary-900) 100%);
+  opacity: 0.15;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.back-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--surface-card) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.back-button:hover {
+  background: var(--surface-hover) !important;
+}
+
+.company-hero-logo {
+  width: 80px;
+  height: 80px;
   border-radius: 12px;
-  transition: box-shadow 0.3s ease-in-out;
+  overflow: hidden;
+  background: var(--surface-card);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
-::ng-deep .setting-card:hover {
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+.company-hero-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-::ng-deep .p-card .p-card-header {
-  background: #f9fafc;
-  border-bottom: 1px solid #eee;
-  border-radius: 12px 12px 0 0;
+.logo-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.company-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.action-buttons {
+  flex-shrink: 0;
+}
+
+/* =====================================================
+   Stats Row
+   ===================================================== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: -1.5rem 0 1.5rem;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 2;
+}
+
+.stat-card-modern {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--surface-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--surface-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-100);
+  color: var(--primary-600);
+  flex-shrink: 0;
+}
+
+.stat-icon i {
+  font-size: 1.25rem;
+}
+
+.stat-icon.shops {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.stat-icon.warehouses {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+.stat-icon.country {
+  background: var(--purple-100);
+  color: var(--purple-600);
+}
+
+.stat-icon.locale {
+  background: var(--orange-100);
+  color: var(--orange-600);
+}
+
+:host-context(.layout-theme-dark) .stat-icon {
+  background: rgba(var(--primary-500-rgb), 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.shops {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.warehouses {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.country {
+  background: rgba(147, 51, 234, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.locale {
+  background: rgba(249, 115, 22, 0.15);
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.2;
+}
+
+/* =====================================================
+   Tabs
+   ===================================================== */
+::ng-deep .company-tabs {
+  margin: 2rem 2.5rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 2.5rem;
+}
+
+::ng-deep .company-tabs .p-tabview-nav {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--surface-border);
+  padding: 0;
+  gap: 0.5rem;
+}
+
+::ng-deep .company-tabs .p-tabview-nav li {
+  margin-right: 0.5rem;
+}
+
+::ng-deep .company-tabs .p-tabview-nav-link {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  padding: 1rem 1.5rem !important;
+  margin-bottom: -2px;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  transition: all 0.2s ease;
+}
+
+::ng-deep .company-tabs .p-tabview-nav-link:hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-color);
+}
+
+::ng-deep .company-tabs .p-tabview-selected .p-tabview-nav-link,
+::ng-deep .company-tabs .p-highlight .p-tabview-nav-link {
+  color: var(--primary-color) !important;
+  border-bottom-color: var(--primary-color) !important;
+  background: transparent !important;
+}
+
+::ng-deep .company-tabs .p-tabview-panels {
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+::ng-deep .company-tabs .p-tabview-panel {
+  padding: 0;
+}
+
+/* =====================================================
+   Detail Cards
+   ===================================================== */
+.detail-card {
+  background: var(--surface-card);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.detail-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+}
+
+.card-header i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+/* =====================================================
+   Info Grid
+   ===================================================== */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.info-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-ground);
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.info-icon i {
+  font-size: 1rem;
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-color-secondary);
+}
+
+.info-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-color);
+  word-break: break-word;
+}
+
+/* =====================================================
+   Organization Chart
+   ===================================================== */
+.organization-chart-container {
+  padding: 2rem;
+  background: var(--surface-ground);
+  border-radius: 12px;
 }
 
 ::ng-deep .p-organizationchart .p-organizationchart-node-content {
-  border-radius: 10px;
-  padding: 1rem;
+  border-radius: 12px;
+  padding: 0;
   font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+::ng-deep .p-organizationchart .p-organizationchart-node-content:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
 }
 
 ::ng-deep .p-organizationchart .p-organizationchart-line-down {
-  border-color: #007ad9;
+  border-color: var(--primary-color);
 }
 
 ::ng-deep .p-organizationchart .p-organizationchart-line-right,
 ::ng-deep .p-organizationchart .p-organizationchart-line-left {
-  border-color: #ccc;
+  border-color: var(--surface-border);
 }
 
+/* Organization Node */
+.organization-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  min-width: 200px;
+}
+
+.node-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: var(--surface-card);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.node-logo {
+  margin-bottom: 1rem;
+}
+
+.company-logo {
+  width: 80px !important;
+  height: 80px !important;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.node-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.node-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.node-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+/* Shop Node */
+.shop-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  min-width: 180px;
+  background: var(--blue-50);
+  border-radius: 12px;
+}
+
+:host-context(.layout-theme-dark) .shop-node {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.shop-node .node-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: var(--blue-100);
+  color: var(--blue-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+:host-context(.layout-theme-dark) .shop-node .node-icon {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.shop-link {
+  color: var(--blue-600);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.shop-link:hover {
+  color: var(--blue-700);
+}
+
+/* Warehouse Node */
+.warehouse-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  min-width: 180px;
+  background: var(--green-50);
+  border-radius: 12px;
+}
+
+:host-context(.layout-theme-dark) .warehouse-node {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.warehouse-node .node-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: var(--green-100);
+  color: var(--green-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+:host-context(.layout-theme-dark) .warehouse-node .node-icon {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.warehouse-link {
+  color: var(--green-600);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.warehouse-link:hover {
+  color: var(--green-700);
+}
+
+/* =====================================================
+   Organization Dialog
+   ===================================================== */
 :host ::ng-deep {
-    .organization-dialog {
-        .p-dialog-content {
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-        
-        .logo-image {
-            object-fit: cover;
-            border-radius: 8px;
-        }
-        
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        
-        @media (max-width: 640px) {
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .upload-container {
-            transition: all 0.3s ease;
-            
-            &:hover {
-                border-color: var(--primary-color);
-                background-color: rgba(0, 122, 217, 0.05);
-            }
-        }
-        
-        .logo-section.has-logo {
-            background-color: #f8f9fa;
-            border: 1px dashed #dee2e6;
-        }
-        
-        .image-actions {
-            z-index: 10;
-        }
-        
-        .edit-button {
-            background-color: white !important;
-        }
+  .organization-dialog {
+    .p-dialog-content {
+      max-height: 70vh;
+      overflow-y: auto;
     }
+
+    .logo-image {
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 640px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .upload-container {
+      transition: all 0.3s ease;
+
+      &:hover {
+        border-color: var(--primary-color);
+        background-color: rgba(0, 122, 217, 0.05);
+      }
+    }
+
+    .logo-section.has-logo {
+      background-color: #f8f9fa;
+      border: 1px dashed #dee2e6;
+    }
+
+    .image-actions {
+      z-index: 10;
+    }
+
+    .edit-button {
+      background-color: white !important;
+    }
+  }
+}
+
+/* =====================================================
+   Responsive Design
+   ===================================================== */
+@media screen and (max-width: 992px) {
+  .company-hero {
+    padding: 1.5rem 1rem;
+  }
+
+  .company-title {
+    font-size: 1.5rem;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 0 0.5rem;
+  }
+
+  .stat-card-modern {
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  ::ng-deep .company-tabs {
+    margin: 1.5rem 1rem;
+    padding: 0 1rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .company-hero-logo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .company-hero-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .company-title {
+    font-size: 1.25rem;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+    margin-top: -1rem;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  ::ng-deep .company-tabs .p-tabview-nav-link {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem;
+  }
+
+  .organization-node,
+  .shop-node,
+  .warehouse-node {
+    min-width: 160px;
+    padding: 1rem;
+  }
+
+  .company-logo {
+    width: 60px !important;
+    height: 60px !important;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .company-content {
+    padding: 0 0.5rem 1.5rem;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .action-buttons button {
+    flex: 1;
+    max-width: 140px;
+  }
+
+  ::ng-deep .company-tabs .p-tabview-nav {
+    flex-wrap: wrap;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =====================================================
+   Drag and Drop & Image Handling
+   ===================================================== */
+.drag-over {
+  border-color: var(--primary-color) !important;
+  background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+.image-wrapper {
+  position: relative;
+  min-height: 200px;
+}
+
+.image-wrapper.loading {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 10;
+}
+
+.image-actions-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 5;
+}
+
+.image-wrapper:hover .image-actions-overlay {
+  opacity: 1;
 }
 
 .flag-icon {
@@ -81,93 +737,10 @@
   box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
 }
 
-.product-image-container {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  transition: all 0.3s ease;
-}
-
-.product-image-container:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-/* Responsive adjustments */
-@media screen and (max-width: 960px) {
-  .product-image-container {
-    margin-bottom: 1rem;
-  }
-}
-
-
-/* Drag and drop area */
-.drag-over {
-    border-color: var(--primary-color) !important;
-    background-color: rgba(0, 123, 255, 0.05) !important;
-}
-
-/* Image container */
-.image-wrapper {
-    position: relative;
-    min-height: 200px;
-}
-
-.image-wrapper.loading {
-    min-height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.8);
-    z-index: 10;
-}
-
-.image-actions-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: 5;
-}
-
-.image-wrapper:hover .image-actions-overlay {
-    opacity: 1;
-}
-
-/* Recent images */
-.recent-image-container {
-    transition: all 0.2s ease;
-}
-
-.recent-image-container:hover {
-    border-color: var(--primary-color);
-    transform: scale(1.05);
-}
-
-/* File info */
 .truncate {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
 }
 

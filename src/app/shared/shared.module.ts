@@ -10,10 +10,11 @@ import { TagModule } from 'primeng/tag';
 import { SplitButtonModule } from 'primeng/splitbutton';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TableModule } from 'primeng/table';
+import { FileSizePipe } from '../pipes/file-size.pipe';
 
 
 @NgModule({
-  declarations: [CountryTranslatePipe],
+  declarations: [CountryTranslatePipe, FileSizePipe],
   imports: [
     CommonModule,
     TranslateModule,
@@ -36,7 +37,8 @@ import { TableModule } from 'primeng/table';
     TagModule,
     SplitButtonModule,
     ProgressBarModule,
-    TableModule
+    TableModule,
+    FileSizePipe
   ]
 })
 export class SharedModule { }

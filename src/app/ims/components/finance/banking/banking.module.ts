@@ -23,6 +23,9 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { TooltipModule } from 'primeng/tooltip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TranslateModule } from '@ngx-translate/core';
+import { TabViewModule } from 'primeng/tabview';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
 
 @NgModule({
   imports: [
@@ -43,7 +46,10 @@ import { TranslateModule } from '@ngx-translate/core';
     SelectButtonModule,
     TooltipModule,
     ProgressSpinnerModule,
-    TranslateModule
+    TranslateModule,
+    TabViewModule,
+    BadgeModule,
+    DividerModule
   ],
   declarations: [
     AccountsComponent,

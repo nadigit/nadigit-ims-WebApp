@@ -209,5 +209,12 @@ export class CashRegisterService {
     );
   }
 
+  async withdrawMoney(registerId: number, data: any) {
+    const headers = await this.getAuthHeaders();
+    return this.http.post(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${registerId}/withdraw`, data, { headers}
+    );
+  }
+
 
 }

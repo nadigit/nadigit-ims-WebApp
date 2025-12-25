@@ -5,6 +5,7 @@ import { OrderItem } from "./orderItem";
 import { ProductAttribute } from "./productAttribute";
 import { MeasureUnit } from "../enums/measure-condition.enum";
 
+export type BarcodeType = 'EAN13' | 'EAN8' | 'CODE128' | 'CODE39' | 'UPC' | 'QR' | 'CUSTOM';
 
 export class Product {
   [x: string]: any; 
@@ -24,6 +25,13 @@ export class Product {
   supplier?: Supplier;
   warehouse?: Warehouse;
   creationDate?: Date;
+
+  // Barcode fields
+  barcode?: string;
+  barcodeType?: BarcodeType;
+  barcodeGeneratedAt?: Date;
+  qrCode?: string;
+  qrCodeGeneratedAt?: Date;
 
   orderItemQuantity?: number;
   orderItemPricePerUnit?: number;

@@ -1,34 +1,58 @@
-<div class="grid">
-    <div class="col-12">
-        <div class="card px-6 py-6">
+<div class="product-details-container">
             <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
 
             <!-- Loading State -->
-            <div class="card flex justify-content-center" *ngIf="isLoading">
-                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
             </div>
 
-            <!-- Content -->
-            <div *ngIf="!isLoading && product">
-                <!-- Header -->
-                <div class="flex align-items-center justify-content-between mb-4">
-                    <div class="flex align-items-center gap-3">
+    <!-- Main Content -->
+    <div class="product-content" *ngIf="!isLoading && product">
+        
+        <!-- Hero Header Section -->
+        <div class="product-hero">
+            <div class="hero-background"></div>
+            <div class="hero-content">
+                <div class="flex align-items-center gap-2 mb-3">
                         <button pButton pRipple icon="pi pi-arrow-left" 
-                            class="p-button-text p-button-plain"
+                        class="p-button-text p-button-rounded p-button-plain back-button"
                             [pTooltip]="'back' | translate" tooltipPosition="bottom"
                             (click)="goBack()"></button>
-                        <div class="flex align-items-center gap-2">
-                            <i class="pi pi-box text-3xl text-primary"></i>
+                    <span class="text-500 text-sm">{{ 'products_menu_title' | translate }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">{{ product.reference }}</span>
+                </div>
+                
+                <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+                    <div class="flex align-items-center gap-4">
+                        <div class="product-hero-image">
+                            <img [src]="product.productImage || 'assets/core-images/no-image.png'" 
+                                [alt]="product.name" />
+                        </div>
                             <div>
-                                <h2 class="m-0 text-900">{{ product.name }}</h2>
-                                <p class="m-0 text-600 text-sm">{{ product.reference }}</p>
+                            <div class="flex align-items-center gap-3 mb-2">
+                                <h1 class="m-0 text-900 product-title">{{ product.name }}</h1>
+                                <span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
+                                    {{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
+                                </span>
                             </div>
-                            <span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
-                                {{'product_'+product.inventoryStatus.toLowerCase() | translate}}
+                            <div class="flex align-items-center gap-4 text-500">
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-hashtag"></i>
+                                    {{ product.reference }}
+                                </span>
+                                <span class="flex align-items-center gap-2" *ngIf="product.category">
+                                    <i class="pi pi-folder"></i>
+                                    {{ product.category.categoryName }}
                             </span>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex gap-2">
+                    
+                    <div class="flex flex-wrap gap-2 action-buttons">
                         <p-splitButton icon="pi pi-print" [label]="'print_label' | translate"
                             styleClass="p-button-outlined" [model]="printOptions" appendTo="body"
                             (onClick)="productService.printLabel(product,'DEFAULT')">
@@ -36,160 +60,411 @@
                         <button pButton pRipple icon="pi pi-pencil" 
                             [label]="'edit' | translate" 
                             *ngIf="canEdit"
+                            class="p-button-primary"
                             (click)="editProduct()"></button>
                         <button pButton pRipple icon="pi pi-trash" 
-                            [label]="'delete_product' | translate" 
                             *ngIf="canDelete && product.deletable"
-                            class="p-button-danger"
+                            class="p-button-danger p-button-outlined"
+                            [pTooltip]="'delete_product' | translate"
                             (click)="deleteProduct()"></button>
                         <button pButton pRipple icon="pi pi-folder" 
-                            [label]="'archive_product' | translate" 
                             *ngIf="canDelete && !product.deletable"
-                            class="p-button-warning"
+                            class="p-button-warning p-button-outlined"
+                            [pTooltip]="'archive_product' | translate"
                             (click)="archiveProduct()"></button>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div class="grid">
-                    <!-- Left Column - Product Visuals -->
-                    <div class="col-12 md:col-5">
-                        <div class="sticky top-0">
-                            <div class="product-image-container border-round surface-card p-4 shadow-2 mb-4">
-                                <p-galleria [value]="[product.productImage || 'assets/core-images/no-image.png']"
-                                    [containerStyle]="{'max-width': '100%'}" [showThumbnails]="false"
-                                    [showItemNavigators]="true" [circular]="true" [autoPlay]="false"
-                                    [transitionInterval]="3000">
-                                    <ng-template pTemplate="item" let-item>
-                                        <img [src]="item" [alt]="product.name" class="w-full border-round"
-                                            style="max-height: 400px; object-fit: contain;" />
+        <!-- Quick Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card-modern quantity-card">
+                <div class="stat-icon">
+                    <i class="pi pi-box"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'product_quantity' | translate }}</span>
+                    <div class="stat-value">
+                        <span [ngClass]="{'text-danger': product.quantityAvailable <= 0, 'text-warning': product.quantityAvailable > 0 && product.quantityAvailable <= 10}">
+                            {{ product.quantityAvailable }}
+                        </span>
+                        <span class="stat-unit">{{ getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern buying-card" *ngIf="isAdmin">
+                <div class="stat-icon buying">
+                    <i class="pi pi-shopping-cart"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'product_buying_price' | translate }}</span>
+                    <div class="stat-value">{{ product.buyingPrice | currency:currency }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern selling-card">
+                <div class="stat-icon selling">
+                    <i class="pi pi-tag"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'product_selling_price' | translate }}</span>
+                    <div class="stat-value">{{ product.sellingPrice | currency:currency }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern profit-card" *ngIf="isAdmin">
+                <div class="stat-icon profit">
+                    <i class="pi pi-chart-line"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'profit_margin' | translate }}</span>
+                    <div class="stat-value profit-value">
+                        {{ calculateProfit(product) | percent:'1.1-1' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Section -->
+        <p-tabView styleClass="product-tabs">
+            
+            <!-- Overview Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>{{ 'overview' | translate }}</span>
                                     </ng-template>
-                                </p-galleria>
+                
+                <div class="grid mt-3">
+                    <!-- Left Column - Image & Barcode -->
+                    <div class="col-12 lg:col-4">
+                        <!-- Product Image -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-image"></i>
+                                <span>{{ 'product_image' | translate }}</span>
+                            </div>
+                            <div class="card-body text-center">
+                                <p-image [src]="product.productImage || 'assets/core-images/no-image.png'" 
+                                    [alt]="product.name"
+                                    [preview]="true"
+                                    imageClass="product-main-image">
+                                </p-image>
+                            </div>
+                        </div>
+                        
+                        <!-- Primary Barcode -->
+                        <div class="detail-card" *ngIf="getPrimaryBarcode()">
+                            <div class="card-header">
+                                <i class="pi pi-qrcode"></i>
+                                <span>{{ 'primary_barcode' | translate }}</span>
+                                <p-tag [value]="getPrimaryBarcode()?.barcodeFormat" severity="info" 
+                                    [rounded]="true" class="ml-auto"></p-tag>
+                            </div>
+                            <div class="card-body text-center py-4">
+                                <img [src]="getBarcodeImageUrl(getPrimaryBarcode()!)" 
+                                    [alt]="getPrimaryBarcode()?.barcodeValue"
+                                    class="barcode-main-image">
+                                <p class="mt-3 mb-0 font-mono text-lg text-700">{{ getPrimaryBarcode()?.barcodeValue }}</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Right Column - Product Details -->
-                    <div class="col-12 md:col-7">
-                        <div class="surface-card p-4 border-round shadow-1 mb-4">
-                            <div class="grid">
-                                <div class="col-6">
-                                    <div class="text-600 mb-1">{{'product_category' | translate}}</div>
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-folder text-primary"></i>
-                                        <span class="font-medium">{{product.category?.categoryName || 'N/A'}}</span>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="text-600 mb-1">{{'product_supplier' | translate}}</div>
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-truck text-primary"></i>
-                                        <span class="font-medium">{{product.supplier?.name || 'N/A'}}</span>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="text-600 mb-1">{{'product_warehouse' | translate}}</div>
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-home text-primary"></i>
-                                        <span class="font-medium">{{product.warehouse?.name || 'N/A'}}</span>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="text-600 mb-1">{{'creation_date' | translate}}</div>
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-calendar text-primary"></i>
-                                        <span class="font-medium">{{product.creationDate | date:'shortDate'}}</span>
-                                    </div>
-                                </div>
-                                <div class="col-6" *ngFor="let attr of product.attributes">
-                                    <div class="text-600 mb-1">{{ attr.attributeName }}</div>
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-tag text-primary"></i>
-                                        <span class="font-medium">{{ displayAttributeValue(attr) || 'N/A'}}</span>
-                                    </div>
-                                </div>
+                    <!-- Right Column - Details -->
+                    <div class="col-12 lg:col-8">
+                        <!-- Product Information -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-list"></i>
+                                <span>{{ 'product_details' | translate }}</span>
                             </div>
-
-                            <p-divider></p-divider>
-
-                            <div class="grid">
-                                <div class="col-12 md:col-4">
-                                    <div class="stat-card p-3 border-round surface-ground">
-                                        <div class="text-600 mb-1">{{'product_quantity' | translate}}</div>
-                                        <div class="text-900 font-bold text-xl">
-                                            <p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
-                                                [value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
-                                                [icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
-                                            </p-tag>
+                            <div class="card-body">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-folder"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'product_category' | translate }}</span>
+                                            <span class="info-value">{{ product.category?.categoryName || 'N/A' }}</span>
                                         </div>
                                     </div>
+                                    
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-truck"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'product_supplier' | translate }}</span>
+                                            <span class="info-value">{{ product.supplier?.name || 'N/A' }}</span>
                                 </div>
-                                <div class="col-12 md:col-4">
-                                    <div class="stat-card p-3 border-round surface-ground">
-                                        <div class="text-600 mb-1">{{'product_buying_price' | translate}}</div>
-                                        <div class="text-900 font-bold text-xl">{{product.buyingPrice | currency:currency}}</div>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-building"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'product_warehouse' | translate }}</span>
+                                            <span class="info-value">{{ product.warehouse?.name || 'N/A' }}</span>
+                                </div>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-calendar"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'creation_date' | translate }}</span>
+                                            <span class="info-value">{{ product.creationDate | date:'mediumDate' }}</span>
+                                </div>
+                                    </div>
+                                    
+                                    <!-- Custom Attributes -->
+                                    <div class="info-item" *ngFor="let attr of product.attributes">
+                                        <div class="info-icon">
+                                            <i class="pi pi-bookmark"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ attr.attributeName }}</span>
+                                            <span class="info-value">{{ displayAttributeValue(attr) || 'N/A' }}</span>
+                                </div>
                                     </div>
                                 </div>
-                                <div class="col-12 md:col-4">
-                                    <div class="stat-card p-3 border-round surface-ground">
-                                        <div class="text-600 mb-1">{{'product_selling_price' | translate}}</div>
-                                        <div class="text-900 font-bold text-xl">{{product.sellingPrice | currency:currency}}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-align-left"></i>
+                                <span>{{ 'product_description' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <p class="m-0 line-height-3 text-700" 
+                                    [innerHTML]="product.description || ('no_description_available' | translate)">
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Barcodes Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-qrcode mr-2"></i>
+                    <span>{{ 'barcode_management' | translate }}</span>
+                    <p-badge [value]="barcodes.length.toString()" class="ml-2" *ngIf="barcodes.length > 0"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <!-- Actions Bar -->
+                    <div class="flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h3 class="m-0 text-900">{{ 'barcode_qr_codes' | translate }}</h3>
+                            <p class="mt-1 mb-0 text-500">{{ 'manage_product_barcodes' | translate }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <p-splitButton 
+                                icon="pi pi-plus" 
+                                [label]="'generate_barcode' | translate"
+                                [model]="autoGenerateMenuItems"
+                                (onClick)="openGenerateBarcodeDialog()">
+                            </p-splitButton>
+                            <button pButton pRipple icon="pi pi-print" 
+                                [label]="'print_all' | translate"
+                                class="p-button-outlined"
+                                [disabled]="barcodes.length === 0"
+                                (click)="openPrintDialog()"></button>
+                        </div>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div class="flex justify-content-center p-6" *ngIf="barcodesLoading">
+                        <p-progressSpinner styleClass="w-3rem h-3rem" strokeWidth="4"></p-progressSpinner>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div class="empty-state" *ngIf="!barcodesLoading && barcodes.length === 0">
+                        <div class="empty-icon">
+                            <i class="pi pi-qrcode"></i>
+                        </div>
+                        <h4>{{ 'no_barcodes_found' | translate }}</h4>
+                        <p>{{ 'generate_first_barcode_desc' | translate }}</p>
+                        <button pButton pRipple icon="pi pi-plus" 
+                            [label]="'generate_first_barcode' | translate"
+                            (click)="openGenerateBarcodeDialog()"></button>
+                    </div>
+
+                    <!-- Barcodes Grid -->
+                    <div class="grid" *ngIf="!barcodesLoading && barcodes.length > 0">
+                        <div class="col-12 md:col-6 xl:col-4" *ngFor="let barcode of barcodes">
+                            <div class="barcode-card" [ngClass]="{'barcode-primary': barcode.isPrimary}">
+                                <div class="barcode-card-header">
+                                    <div class="flex gap-2">
+                                        <p-tag [value]="barcode.barcodeType" 
+                                            [severity]="barcode.barcodeType === 'QRCODE' ? 'success' : 'info'" 
+                                            [rounded]="true"></p-tag>
+                                        <p-tag *ngIf="barcode.isPrimary" 
+                                            [value]="'primary' | translate" 
+                                            severity="warning" 
+                                            [rounded]="true"></p-tag>
+                                        </div>
+                                    <div class="barcode-actions">
+                                        <button pButton pRipple icon="pi pi-star" 
+                                            class="p-button-text p-button-rounded p-button-sm"
+                                            [disabled]="barcode.isPrimary"
+                                            [pTooltip]="'set_as_primary' | translate"
+                                            (click)="setPrimaryBarcode(barcode)"></button>
+                                        <button pButton pRipple icon="pi pi-download" 
+                                            class="p-button-text p-button-rounded p-button-sm"
+                                            [pTooltip]="'download' | translate"
+                                            (click)="downloadBarcode(barcode)"></button>
+                                        <button pButton pRipple icon="pi pi-print" 
+                                            class="p-button-text p-button-rounded p-button-sm"
+                                            [pTooltip]="'print' | translate"
+                                            (click)="printSingleBarcode(barcode)"></button>
+                                        <button pButton pRipple icon="pi pi-trash" 
+                                            class="p-button-text p-button-rounded p-button-sm p-button-danger"
+                                            [pTooltip]="'delete' | translate"
+                                            (click)="confirmDeleteBarcode(barcode)"></button>
+                                    </div>
+                                </div>
+                                
+                                <div class="barcode-card-body">
+                                    <img [src]="getBarcodeImageUrl(barcode)" 
+                                        [alt]="barcode.barcodeValue"
+                                        class="barcode-image">
+                                    </div>
+                                
+                                <div class="barcode-card-footer">
+                                    <span class="barcode-value">{{ barcode.barcodeValue }}</span>
+                                    <span class="barcode-format">{{ barcode.barcodeFormat }}</span>
+                                    <span class="barcode-label" *ngIf="barcode.label">{{ barcode.label }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Analytics Tab (Admin Only) -->
+            <p-tabPanel *ngIf="isAdmin">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-chart-bar mr-2"></i>
+                    <span>{{ 'analytics' | translate }}</span>
+                </ng-template>
+                
+                <div class="grid mt-3">
+                    <!-- Profit Analysis -->
+                    <div class="col-12 lg:col-6">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-chart-pie"></i>
+                                <span>{{ 'profit_analysis' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="flex flex-column align-items-center">
+                                    <p-chart type="doughnut" [data]="profitChartData" [options]="chartOptions"
+                                        [style]="{'width': '280px', 'height': '280px'}"></p-chart>
+                                    
+                                    <div class="profit-summary mt-4 w-full">
+                                        <div class="profit-item">
+                                            <span class="profit-label">{{ 'cost' | translate }}</span>
+                                            <span class="profit-value cost">{{ product.buyingPrice | currency:currency }}</span>
+                                        </div>
+                                        <div class="profit-item">
+                                            <span class="profit-label">{{ 'profit' | translate }}</span>
+                                            <span class="profit-value profit">{{ (product.sellingPrice - product.buyingPrice) | currency:currency }}</span>
+                                        </div>
+                                        <div class="profit-item highlight">
+                                            <span class="profit-label">{{ 'profit_margin' | translate }}</span>
+                                            <span class="profit-value margin">{{ calculateProfit(product) | percent:'1.2-2' }}</span>
+                                        </div>
+                                    </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Description Section -->
-                        <div class="surface-card p-4 border-round shadow-1 mb-4">
-                            <h4 class="mt-0 mb-3">{{'product_description' | translate}}</h4>
-                            <p class="m-0" [innerHTML]="product.description || ('no_description_available' | translate)"></p>
+                    <!-- Stock Value -->
+                    <div class="col-12 lg:col-6">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-wallet"></i>
+                                <span>{{ 'stock_value' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="stock-value-grid">
+                                    <div class="stock-value-item">
+                                        <div class="stock-icon cost">
+                                            <i class="pi pi-shopping-cart"></i>
+                                        </div>
+                                        <div class="stock-details">
+                                            <span class="stock-label">{{ 'total_cost_value' | translate }}</span>
+                                            <span class="stock-amount">{{ (product.buyingPrice * product.quantityAvailable) | currency:currency }}</span>
+                                        </div>
                         </div>
 
-                        <!-- Profit Analysis (Admin Only) -->
-                        <div class="surface-card p-4 border-round shadow-1 mb-4" *ngIf="isAdmin">
-                            <h4 class="mt-0 mb-3">{{'profit_analysis' | translate}}</h4>
-                            <div class="grid">
-                                <div class="col-12 md:col-6">
-                                    <p-chart type="doughnut" [data]="profitChartData" [options]="chartOptions"></p-chart>
+                                    <div class="stock-value-item">
+                                        <div class="stock-icon retail">
+                                            <i class="pi pi-tag"></i>
                                 </div>
-                                <div class="col-12 md:col-6">
-                                    <div class="grid">
-                                        <div class="col-6">
-                                            <div class="text-600 mb-1">{{'profit_margin' | translate}}</div>
-                                            <div class="text-900 font-bold text-xl">
-                                                {{calculateProfit(product) | percent:'1.2-2'}}
+                                        <div class="stock-details">
+                                            <span class="stock-label">{{ 'total_retail_value' | translate }}</span>
+                                            <span class="stock-amount">{{ (product.sellingPrice * product.quantityAvailable) | currency:currency }}</span>
+                                        </div>
                                             </div>
+                                    
+                                    <div class="stock-value-item">
+                                        <div class="stock-icon profit">
+                                            <i class="pi pi-chart-line"></i>
                                         </div>
-                                        <div class="col-6">
-                                            <div class="text-600 mb-1">{{'profit_value' | translate}}</div>
-                                            <div class="text-900 font-bold text-xl">
-                                                {{(product.sellingPrice - product.buyingPrice) | currency:currency}}
-                                            </div>
-                                        </div>
-                                        <div class="col-12 mt-3">
-                                            <p-progressBar [value]="calculateProfit(product) * 100" [showValue]="false"
-                                                [style]="{'height': '6px'}"></p-progressBar>
+                                        <div class="stock-details">
+                                            <span class="stock-label">{{ 'potential_profit' | translate }}</span>
+                                            <span class="stock-amount profit">{{ ((product.sellingPrice - product.buyingPrice) * product.quantityAvailable) | currency:currency }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Price History Section -->
-                        <div class="surface-card p-4 border-round shadow-1" *ngIf="productPriceHistory.length > 0">
-                            <h4 class="mt-0 mb-3">{{ 'price_history' | translate }}</h4>
-
-                            <p-table [value]="productPriceHistory" [paginator]="true" [rows]="5"
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Price History Tab -->
+            <p-tabPanel *ngIf="productPriceHistory.length > 0">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-history mr-2"></i>
+                    <span>{{ 'price_history' | translate }}</span>
+                    <p-badge [value]="productPriceHistory.length.toString()" class="ml-2"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-clock"></i>
+                            <span>{{ 'price_changes' | translate }}</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <p-table [value]="productPriceHistory" [paginator]="true" [rows]="10"
                                 [rowsPerPageOptions]="[5,10,20]" sortMode="multiple" responsiveLayout="scroll"
-                                class="p-datatable-sm">
+                                styleClass="p-datatable-sm p-datatable-striped">
                                 <ng-template pTemplate="header">
                                     <tr>
-                                        <th pSortableColumn="effectiveDate">{{ 'effective_date' | translate }}
+                                        <th pSortableColumn="effectiveDate">
+                                            {{ 'effective_date' | translate }}
                                             <p-sortIcon field="effectiveDate"></p-sortIcon>
                                         </th>
-                                        <th pSortableColumn="buyingPrice">{{ 'buying_price' | translate }}
+                                        <th pSortableColumn="buyingPrice">
+                                            {{ 'buying_price' | translate }}
                                             <p-sortIcon field="buyingPrice"></p-sortIcon>
                                         </th>
-                                        <th pSortableColumn="sellingPrice">{{ 'selling_price' | translate }}
+                                        <th pSortableColumn="sellingPrice">
+                                            {{ 'selling_price' | translate }}
                                             <p-sortIcon field="sellingPrice"></p-sortIcon>
                                         </th>
                                         <th>{{ 'changed_by' | translate }}</th>
@@ -199,25 +474,231 @@
 
                                 <ng-template pTemplate="body" let-history>
                                     <tr>
-                                        <td>{{ history.effectiveDate | date:'short' }}</td>
-                                        <td [ngClass]="{'text-green-600': history.buyingPrice < product.buyingPrice,
-                                        'text-red-500': history.buyingPrice > product.buyingPrice}">
+                                        <td>
+                                            <span class="flex align-items-center gap-2">
+                                                <i class="pi pi-calendar text-500"></i>
+                                                {{ history.effectiveDate | date:'medium' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span [ngClass]="{
+                                                'text-green-600': history.buyingPrice < product.buyingPrice,
+                                                'text-red-500': history.buyingPrice > product.buyingPrice
+                                            }">
                                             {{ history.buyingPrice | currency:currency }}
+                                            </span>
                                         </td>
-                                        <td [ngClass]="{'text-green-600': history.sellingPrice > product.sellingPrice,
-                                        'text-red-500': history.sellingPrice < product.sellingPrice}">
+                                        <td>
+                                            <span [ngClass]="{
+                                                'text-green-600': history.sellingPrice > product.sellingPrice,
+                                                'text-red-500': history.sellingPrice < product.sellingPrice
+                                            }">
                                             {{ history.sellingPrice | currency:currency }}
+                                            </span>
                                         </td>
-                                        <td>{{ history.changedBy || 'System' }}</td>
+                                        <td>
+                                            <span class="flex align-items-center gap-2">
+                                                <i class="pi pi-user text-500"></i>
+                                                {{ history.changedBy || 'System' }}
+                                            </span>
+                                        </td>
                                         <td>{{ (history.changeReason | translate) || '-' }}</td>
+                                    </tr>
+                                </ng-template>
+                                
+                                <ng-template pTemplate="emptymessage">
+                                    <tr>
+                                        <td colspan="5" class="text-center p-4">
+                                            {{ 'no_price_history' | translate }}
+                                        </td>
                                     </tr>
                                 </ng-template>
                             </p-table>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </p-tabPanel>
+            
+        </p-tabView>
     </div>
 </div>
 
+<!-- Generate Barcode Dialog -->
+<p-dialog [(visible)]="generateBarcodeDialog" 
+    [style]="{width: '500px'}" 
+    [header]="'generate_barcode' | translate"
+    [modal]="true" 
+    [draggable]="false" 
+    [resizable]="false"
+    styleClass="p-fluid product-dialog">
+    <ng-template pTemplate="content">
+        <div class="grid">
+            <div class="field col-12">
+                <label for="barcodeType" class="block mb-2 font-bold">
+                    {{ 'barcode_type' | translate }}
+                </label>
+                <p-dropdown [(ngModel)]="newBarcodeType" 
+                    [options]="barcodeTypes" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    (onChange)="onBarcodeTypeChange()"
+                    appendTo="body">
+                    <ng-template pTemplate="selectedItem">
+                        <div class="flex align-items-center gap-2" *ngIf="newBarcodeType">
+                            <i [class]="newBarcodeType === 'QRCODE' ? 'pi pi-qrcode' : 'pi pi-bars'"></i>
+                            <span>{{ newBarcodeType === 'QRCODE' ? ('qr_code_2d' | translate) : ('barcode_1d' | translate) }}</span>
+                        </div>
+                    </ng-template>
+                </p-dropdown>
+            </div>
+
+            <div class="field col-12">
+                <label for="barcodeFormat" class="block mb-2 font-bold">
+                    {{ 'barcode_format' | translate }}
+                </label>
+                <p-dropdown [(ngModel)]="newBarcodeFormat" 
+                    [options]="currentFormats" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    appendTo="body">
+                    <ng-template let-format pTemplate="item">
+                        <div class="flex flex-column">
+                            <span>{{ format.label }}</span>
+                            <small class="text-500" *ngIf="format.description">{{ format.description }}</small>
+                        </div>
+                    </ng-template>
+                </p-dropdown>
+            </div>
+
+            <div class="field col-12">
+                <label for="customValue" class="block mb-2 font-bold">
+                    {{ 'custom_barcode_value' | translate }}
+                    <span class="text-500 font-normal ml-1">({{ 'optional' | translate }})</span>
+                </label>
+                <input type="text" pInputText [(ngModel)]="newBarcodeCustomValue" 
+                    [placeholder]="'leave_empty_for_auto_generate' | translate" />
+                <small class="text-500 block mt-1">{{ 'custom_value_hint' | translate }}</small>
+            </div>
+
+            <div class="field col-12">
+                <label for="label" class="block mb-2 font-bold">
+                    {{ 'barcode_label' | translate }}
+                    <span class="text-500 font-normal ml-1">({{ 'optional' | translate }})</span>
+                </label>
+                <input type="text" pInputText [(ngModel)]="newBarcodeLabel" 
+                    [placeholder]="'enter_barcode_label' | translate" />
+            </div>
+
+            <div class="field col-12">
+                <div class="flex align-items-center gap-2">
+                    <p-checkbox [(ngModel)]="newBarcodeIsPrimary" 
+                        [binary]="true" 
+                        inputId="isPrimary"></p-checkbox>
+                    <label for="isPrimary">{{ 'set_as_primary_barcode' | translate }}</label>
+                </div>
+            </div>
+        </div>
+    </ng-template>
+    
+    <ng-template pTemplate="footer">
+        <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+            class="p-button-text" (click)="generateBarcodeDialog = false"></button>
+        <button pButton pRipple [label]="'generate' | translate" icon="pi pi-check"
+            (click)="generateBarcode()" [loading]="isGenerating"></button>
+    </ng-template>
+</p-dialog>
+
+<!-- Print Barcodes Dialog -->
+<p-dialog [(visible)]="printBarcodesDialog" 
+    [style]="{width: '600px'}" 
+    [header]="'print_barcodes' | translate"
+    [modal]="true" 
+    [draggable]="false" 
+    [resizable]="false"
+    styleClass="p-fluid product-dialog">
+    <ng-template pTemplate="content">
+        <div class="grid">
+            <div class="field col-12 md:col-6">
+                <label for="labelSize" class="block mb-2 font-bold">
+                    {{ 'label_size' | translate }}
+                </label>
+                <p-dropdown [(ngModel)]="selectedLabelSize" 
+                    [options]="labelSizeOptions" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    appendTo="body">
+                </p-dropdown>
+            </div>
+
+            <div class="field col-12 md:col-6">
+                <label for="columns" class="block mb-2 font-bold">
+                    {{ 'print_columns' | translate }}
+                </label>
+                <p-inputNumber [(ngModel)]="printColumns" [min]="1" [max]="6" [showButtons]="true"></p-inputNumber>
+            </div>
+
+            <div class="field col-12">
+                <label class="block mb-2 font-bold">
+                    {{ 'select_barcodes_to_print' | translate }}
+                </label>
+                <p-listbox [(ngModel)]="selectedBarcodesForPrint" 
+                    [options]="barcodes" 
+                    [multiple]="true"
+                    [checkbox]="true" 
+                    [filter]="false"
+                    optionLabel="barcodeValue"
+                    [listStyle]="{'max-height': '250px'}">
+                    <ng-template let-barcode pTemplate="item">
+                        <div class="flex align-items-center gap-3">
+                            <img [src]="getBarcodeImageUrl(barcode)" 
+                                [alt]="barcode.barcodeValue"
+                                class="print-barcode-preview">
+                            <div class="flex flex-column">
+                                <span class="font-mono font-medium">{{ barcode.barcodeValue }}</span>
+                                <div class="flex gap-1 mt-1">
+                                    <p-tag [value]="barcode.barcodeFormat" severity="info" [rounded]="true" class="text-xs"></p-tag>
+                                    <p-tag *ngIf="barcode.isPrimary" [value]="'primary' | translate" severity="warning" [rounded]="true" class="text-xs"></p-tag>
+                                </div>
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-listbox>
+    </div>
+</div>
+    </ng-template>
+    
+    <ng-template pTemplate="footer">
+        <div class="flex justify-content-between align-items-center w-full">
+            <span class="text-500">{{ selectedBarcodesForPrint.length }} {{ 'barcodes_selected' | translate }}</span>
+            <div class="flex gap-2">
+                <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+                    class="p-button-text" (click)="printBarcodesDialog = false"></button>
+                <button pButton pRipple [label]="'print' | translate" icon="pi pi-print"
+                    (click)="printSelectedBarcodes()" 
+                    [disabled]="selectedBarcodesForPrint.length === 0"></button>
+            </div>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Product Form Dialog -->
+<app-product-form
+    [visible]="productDialog"
+    [product]="product"
+    [categories]="categories"
+    [suppliers]="suppliers"
+    [warehouses]="warehouses"
+    [currency]="currency"
+    [isAdmin]="isAdmin"
+    [canAddCategory]="canAddCategory"
+    [canAddSupplier]="canAddSupplier"
+    [canAddWarehouse]="canAddWarehouse"
+    [existingProducts]="[]"
+    (saveSuccess)="onProductFormSaveSuccess($event)"
+    (saveError)="onProductFormSaveError($event)"
+    (cancel)="hideProductDialog()"
+    (categoryAdd)="openCategoryDialog()"
+    (supplierAdd)="openSupplierDialog()"
+    (warehouseAdd)="openWarehouseDialog()"
+    (visibleChange)="productDialog = $event">
+</app-product-form>

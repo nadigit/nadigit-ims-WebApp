@@ -27,6 +27,7 @@ import { GalleriaModule } from 'primeng/galleria';
 import { CalendarModule } from 'primeng/calendar';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ToggleButtonModule } from 'primeng/togglebutton';
+import { TabViewModule } from 'primeng/tabview';
 
 
 @NgModule({
@@ -54,8 +55,9 @@ import { ToggleButtonModule } from 'primeng/togglebutton';
         ImageModule,
         GalleriaModule,
         CalendarModule,
-    CheckboxModule,
-    ToggleButtonModule
+        TabViewModule,
+        CheckboxModule,
+        ToggleButtonModule
     ],
     declarations: [FinancialDocumentsComponent, FinancialDocumentDetailsPageComponent],
     providers: [ReportingService]

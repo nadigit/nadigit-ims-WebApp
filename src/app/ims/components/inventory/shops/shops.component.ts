@@ -109,7 +109,7 @@ export class ShopsComponent implements OnInit {
 
   movementsDialogVisible = false;
   selectedSessionMovements: CashMovement[] = [];
-  
+
   // Cash Register Statistics
   cashRegisterStats: any = {};
   loadingCashRegister: boolean = false;
@@ -132,6 +132,9 @@ export class ShopsComponent implements OnInit {
 
   newDepositDialogVisible = false;
   newDeposit = { amount: null, notes: '' };
+
+  newWithdrawDialogVisible = false;
+  newWithdraw = { amount: null, notes: '' };
 
   showCashRegisterSessionDialog = false;
 
@@ -302,7 +305,7 @@ export class ShopsComponent implements OnInit {
     const withdrawals = this.movements.filter(m => m.type === 'WITHDRAWAL');
     const adjustments = this.movements.filter(m => m.type === 'ADJUSTMENT');
     const expenses = this.movements.filter(m => m.type === 'EXPENSE');
-    
+
     const totalDeposits = deposits.reduce((sum, m) => sum + (m.amount || 0), 0);
     const totalWithdrawals = withdrawals.reduce((sum, m) => sum + (m.amount || 0), 0);
     const totalAdjustments = adjustments.reduce((sum, m) => sum + (m.amount || 0), 0);
@@ -320,13 +323,13 @@ export class ShopsComponent implements OnInit {
     // Session Performance
     const avgSessionDuration = closedSessions.length > 0
       ? closedSessions.reduce((sum, s) => {
-          if (s.openedAt && s.closedAt) {
-            const opened = new Date(s.openedAt);
-            const closed = new Date(s.closedAt);
-            return sum + (closed.getTime() - opened.getTime());
-          }
-          return sum;
-        }, 0) / closedSessions.length / (1000 * 60 * 60) // Convert to hours
+        if (s.openedAt && s.closedAt) {
+          const opened = new Date(s.openedAt);
+          const closed = new Date(s.closedAt);
+          return sum + (closed.getTime() - opened.getTime());
+        }
+        return sum;
+      }, 0) / closedSessions.length / (1000 * 60 * 60) // Convert to hours
       : 0;
 
     const avgOpeningAmount = this.sessions.length > 0
@@ -363,7 +366,7 @@ export class ShopsComponent implements OnInit {
       avgOpeningAmount: avgOpeningAmount,
       avgClosingAmount: avgClosingAmount,
       avgDifference: avgDifference,
-      
+
       // Movements
       totalMovements: this.movements.length,
       totalDeposits: totalDeposits,
@@ -375,18 +378,18 @@ export class ShopsComponent implements OnInit {
       adjustmentsCount: adjustments.length,
       expensesCount: expenses.length,
       netMovements: totalDeposits - totalWithdrawals - totalExpenses + totalAdjustments,
-      
+
       // Collections
       totalCollections: totalCollections,
       collectionsCount: this.collections.length,
       todayCollections: totalTodayCollections,
       todayCollectionsCount: todayCollections.length,
       avgCollectionAmount: this.collections.length > 0 ? totalCollections / this.collections.length : 0,
-      
+
       // Recent Activity
       recentMovementsCount: recentMovements.length,
       recentCollectionsCount: recentCollections.length,
-      
+
       // Performance Metrics
       cashFlow: (totalDeposits + totalCollections) - (totalWithdrawals + totalExpenses),
       efficiency: closedSessions.length > 0 ? ((closedSessions.filter(s => (s.declaredDifference || 0) === 0).length / closedSessions.length) * 100) : 0
@@ -399,7 +402,7 @@ export class ShopsComponent implements OnInit {
     // Filter by search term
     if (this.movementSearchTerm) {
       const searchLower = this.movementSearchTerm.toLowerCase();
-      filtered = filtered.filter(m => 
+      filtered = filtered.filter(m =>
         m.reference?.toLowerCase().includes(searchLower) ||
         m.performedByName?.toLowerCase().includes(searchLower) ||
         m.type?.toLowerCase().includes(searchLower)
@@ -420,7 +423,7 @@ export class ShopsComponent implements OnInit {
     // Filter by search term
     if (this.collectionSearchTerm) {
       const searchLower = this.collectionSearchTerm.toLowerCase();
-      filtered = filtered.filter(c => 
+      filtered = filtered.filter(c =>
         c.receiptNumber?.toLowerCase().includes(searchLower) ||
         c.collectedByName?.toLowerCase().includes(searchLower) ||
         c.notes?.toLowerCase().includes(searchLower)
@@ -933,7 +936,7 @@ export class ShopsComponent implements OnInit {
     this.movementSearchTerm = '';
     this.collectionSearchTerm = '';
     this.selectedMovementTypeFilter = null;
-    
+
     // Initialize empty arrays
     this.sessions = [];
     this.filteredSessions = [];
@@ -941,7 +944,7 @@ export class ShopsComponent implements OnInit {
     this.filteredMovements = [];
     this.collections = [];
     this.filteredCollections = [];
-    
+
     // Initialize stats with default values
     this.cashRegisterStats = {
       totalSessions: 0,
@@ -960,7 +963,7 @@ export class ShopsComponent implements OnInit {
 
     // Open dialog IMMEDIATELY - no async operations blocking this
     this.cashRegisterDialog = true;
-    
+
     // Force change detection to ensure dialog opens
     this.cdr.detectChanges();
 
@@ -981,7 +984,7 @@ export class ShopsComponent implements OnInit {
         this.refreshData(false),
         this.onGetShopCashRegister()
       ]);
-      
+
       console.log('✅ Cash register data loaded');
     } catch (error) {
       console.error('❌ Error loading cash register data:', error);
@@ -1143,13 +1146,13 @@ export class ShopsComponent implements OnInit {
       console.warn('⚠️ Cannot refresh data: shop ID is missing');
       return;
     }
-    
+
     console.log('🔄 Refreshing cash register data for shop:', this.shop.shopId);
-    
+
     if (manageLoadingState) {
       this.loadingCashRegister = true;
     }
-    
+
     try {
       // Use allSettled to ensure all calls complete even if some fail
       const results = await Promise.allSettled([
@@ -1157,17 +1160,17 @@ export class ShopsComponent implements OnInit {
         this.loadCollections(),
         this.loadMovements()
       ]);
-      
+
       // Check for any failures
       const failures = results.filter(r => r.status === 'rejected');
       if (failures.length > 0) {
         console.warn('⚠️ Some data loading failed:', failures);
       }
-      
+
       // Calculate stats once after all data is loaded (even if some failed)
       this.calculateCashRegisterStats();
       console.log('✅ Cash register stats calculated');
-      
+
       if (manageLoadingState) {
         this.loadingCashRegister = false;
       }
@@ -1270,28 +1273,54 @@ export class ShopsComponent implements OnInit {
   }
 
   openNewDepositDialog() {
-  this.newDepositDialogVisible = true;
-  this.newDeposit = { amount: null, notes: '' };
-}
-
-  async saveNewDeposit() {
-  if (!this.newDeposit.amount || this.newDeposit.amount <= 0) {
-    this.messageService.add({ severity: 'warn', summary: this.translate.instant('warning'), detail: this.translate.instant('amount_must_be_greater_than_zero') });
-    return;
+    this.newDepositDialogVisible = true;
+    this.newDeposit = { amount: null, notes: '' };
   }
 
-  (await this.cashRegisterService.depositMoney(this.cashRegister.cashRegisterId, this.newDeposit)).subscribe({
-    next: () => {
-      this.messageService.add({ severity: 'success', summary: this.translate.instant('success'), detail: this.translate.instant('deposit_added') });
-      this.newDepositDialogVisible = false;
-      if (this.cashRegisterDialog) {
-        this.refreshData(true);
-      }
-    },
-    error: (err) => {
-      this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_adding_deposit') });
-      console.error(err);
+  async saveNewDeposit() {
+    if (!this.newDeposit.amount || this.newDeposit.amount <= 0) {
+      this.messageService.add({ severity: 'warn', summary: this.translate.instant('warning'), detail: this.translate.instant('amount_must_be_greater_than_zero') });
+      return;
     }
-  });
+
+    (await this.cashRegisterService.depositMoney(this.cashRegister.cashRegisterId, this.newDeposit)).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: this.translate.instant('success'), detail: this.translate.instant('deposit_added') });
+        this.newDepositDialogVisible = false;
+        if (this.cashRegisterDialog) {
+          this.refreshData(true);
+        }
+      },
+      error: (err) => {
+        this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_adding_deposit') });
+        console.error(err);
+      }
+    });
+  }
+
+  openNewWithdrawDialog() {
+    this.newWithdrawDialogVisible = true;
+    this.newWithdraw = { amount: null, notes: '' };
+  }
+
+  async saveNewWithdraw() {
+    if (!this.newWithdraw.amount || this.newWithdraw.amount <= 0) {
+      this.messageService.add({ severity: 'warn', summary: this.translate.instant('warning'), detail: this.translate.instant('amount_must_be_greater_than_zero') });
+      return;
+    }
+
+    (await this.cashRegisterService.withdrawMoney(this.cashRegister.cashRegisterId, this.newWithdraw)).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: this.translate.instant('success'), detail: this.translate.instant('withdraw_added') });
+        this.newWithdrawDialogVisible = false;
+        if (this.cashRegisterDialog) {
+          this.refreshData(true);
+        }
+      }
+    });
+  } catch(error) {
+    console.error('❌ Error performing withdrawal:', error);
+    this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_adding_withdrawal') });
+  }
 }
-}
+

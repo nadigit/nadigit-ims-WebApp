@@ -217,6 +217,32 @@ export class ReturnDetailsPageComponent implements OnInit {
     return statusSeverity[status] || 'info';
   }
 
+  getReturnStatusSeverityTag(status: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return 'warn';
+      case 'APPROVED': return 'success';
+      case 'REJECTED': return 'danger';
+      case 'COMPLETED': return 'success';
+      case 'CANCELLED': return 'danger';
+      case 'PROCESSING': return 'info';
+      default: return 'secondary';
+    }
+  }
+
+  getOrderStatusSeverity(status: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {
+    switch (status?.toLowerCase()) {
+      case 'ordered': return 'warn';
+      case 'processing': return 'info';
+      case 'delivered': return 'info';
+      case 'completed': return 'success';
+      case 'canceled': return 'danger';
+      case 'return_pending': return 'warn';
+      case 'partial_return': return 'warn';
+      case 'returned': return 'secondary';
+      default: return 'secondary';
+    }
+  }
+
   isRefundActive(refund: Refund): boolean {
     if (!this.return?.refunds || this.return.refunds.length === 0) {
       return false;

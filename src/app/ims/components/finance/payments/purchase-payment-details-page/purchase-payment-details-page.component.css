@@ -1,192 +1,763 @@
-.premium-payment-details-page {
-  padding: 0;
+/* ==========================================================================
+   Purchase Payment Details Page - Modern UI/UX Design (Unified Style)
+   ========================================================================== */
+
+/* Container */
+.payment-details-container {
+    min-height: 100vh;
+    background: var(--surface-ground);
 }
 
-.premium-payment-details-page .payment-details-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
-  color: var(--primary-color-text);
-  padding: 2rem;
-  border-radius: var(--border-radius);
-  margin-bottom: 2rem;
-  transition: background 0.3s ease;
+/* Loading State */
+.loading-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
 }
 
-/* Status-specific header colors */
-.premium-payment-details-page .payment-details-header.status-completed {
-  background: linear-gradient(135deg, #b9faaf 0%, #5fd476 100%);
-  color: #3c774b;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+.loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
 }
 
-.premium-payment-details-page .payment-details-header.status-pending {
-  background: linear-gradient(135deg, #FFF9C4 0%, #FFEB3B 100%);
-  color: #827717;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+.payment-content {
+    padding: 0;
+    animation: fadeInUp 0.4s ease-out;
 }
 
-.premium-payment-details-page .payment-details-header.status-failed {
-  background: linear-gradient(135deg, #FFCDD2 0%, #F78D8D 100%);
-  color: #C63737;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.premium-payment-details-page .payment-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
+/* ==========================================================================
+   Hero Header Section
+   ========================================================================== */
+.payment-hero {
+    position: relative;
+    background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-100) 100%);
+    padding: 2rem 2.5rem 2.5rem;
+    border-bottom: 1px solid var(--surface-border);
+    overflow: hidden;
 }
 
-.premium-payment-details-page .details-section {
-  background: var(--surface-card);
-  border-radius: var(--border-radius);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  border: 1px solid var(--surface-border);
+.hero-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--primary-color) 5%, transparent) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--primary-color) 8%, transparent) 0%, transparent 50%);
+    pointer-events: none;
 }
 
-.premium-payment-details-page .section-title {
-  display: flex;
-  align-items: center;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-color);
+.hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-.premium-payment-details-page .details-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
+.back-button {
+    color: var(--text-color-secondary) !important;
+    transition: all 0.2s ease;
 }
 
-.premium-payment-details-page .detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.back-button:hover {
+    color: var(--primary-color) !important;
+    background: var(--surface-hover) !important;
 }
 
-.premium-payment-details-page .detail-item label {
-  font-weight: 600;
-  color: var(--text-color-secondary);
-  font-size: 0.9rem;
+.payment-hero-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3);
 }
 
-.premium-payment-details-page .detail-item span {
-  color: var(--text-color);
+.payment-hero-icon.purchase {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.3);
 }
 
-.premium-payment-details-page .customer-card {
-  background: var(--surface-ground);
-  border-radius: var(--border-radius);
-  padding: 1rem;
-  border: 1px solid var(--surface-border);
+.payment-hero-icon i {
+    font-size: 2.5rem;
+    color: white;
 }
 
-.premium-payment-details-page .customer-avatar {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary-color-text);
+.payment-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-color);
+    letter-spacing: -0.5px;
 }
 
-.premium-payment-details-page .notes-content {
-  background: var(--surface-ground);
-  border-radius: var(--border-radius);
-  padding: 1rem;
-  border-left: 4px solid var(--purple-500);
-  font-style: italic;
-  color: var(--text-color);
+.action-buttons .p-button {
+    transition: all 0.2s ease;
 }
 
-.premium-payment-details-page .order-card {
-  background: var(--surface-ground);
-  border-radius: var(--border-radius);
-  padding: 1rem;
-  border: 1px solid var(--surface-border);
+.action-buttons .p-button:hover {
+    transform: translateY(-2px);
 }
 
-.premium-payment-details-page .order-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--surface-border);
+/* ==========================================================================
+   Stats Row
+   ========================================================================== */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    padding: 0 2.5rem;
+    margin-top: -1.5rem;
+    position: relative;
+    z-index: 10;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.premium-payment-details-page .order-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.stat-card-modern {
+    background: var(--surface-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--surface-border);
+    transition: all 0.3s ease;
 }
 
-.premium-payment-details-page .order-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 0;
+.stat-card-modern:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-.premium-payment-details-page .order-item.total {
-  border-top: 2px solid var(--surface-border);
-  padding-top: 1rem;
-  margin-top: 0.5rem;
-  font-weight: 600;
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-.premium-payment-details-page .receipt-card {
-  background: var(--surface-ground);
-  border-radius: var(--border-radius);
-  padding: 1rem;
-  border: 1px solid var(--surface-border);
+.stat-icon i {
+    font-size: 1.5rem;
+    color: white;
 }
 
-.premium-payment-details-page .no-order {
-  text-align: center;
-  padding: 2rem;
-  color: var(--text-color-secondary);
-  background: var(--surface-card);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--surface-border);
+.stat-icon.amount {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
-.premium-payment-details-page .actions-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.stat-icon.purchase {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
-.premium-payment-details-page .audit-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.stat-icon.paid {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 
-.premium-payment-details-page .audit-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--surface-border);
+.stat-icon.remaining {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
-.premium-payment-details-page .audit-item:last-child {
-  border-bottom: none;
+.stat-icon.remaining.zero {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
-.premium-payment-details-page .audit-item label {
-  font-weight: 600;
-  color: var(--text-color-secondary);
+.stat-content {
+    flex: 1;
+    min-width: 0;
 }
 
-.premium-payment-details-page .audit-item span {
-  color: var(--text-color);
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.2;
+}
+
+.stat-sub {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+    margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   Tabs Section
+   ========================================================================== */
+::ng-deep .payment-tabs {
+    margin: 2rem 2.5rem;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 2.5rem;
+}
+
+::ng-deep .payment-tabs .p-tabview-nav {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--surface-border);
+    padding: 0;
+    gap: 0.5rem;
+}
+
+::ng-deep .payment-tabs .p-tabview-nav-link {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    padding: 1rem 1.5rem !important;
+    margin-bottom: -2px;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+    transition: all 0.2s ease;
+}
+
+::ng-deep .payment-tabs .p-tabview-nav-link:hover {
+    background: var(--surface-hover) !important;
+    color: var(--text-color);
+}
+
+::ng-deep .payment-tabs .p-tabview-selected .p-tabview-nav-link,
+::ng-deep .payment-tabs .p-highlight .p-tabview-nav-link {
+    color: var(--primary-color) !important;
+    border-bottom-color: var(--primary-color) !important;
+    background: transparent !important;
+}
+
+::ng-deep .payment-tabs .p-tabview-panels {
+    background: transparent;
+    padding: 0;
+    border: none;
+}
+
+::ng-deep .payment-tabs .p-tabview-panel {
+    padding: 0;
+}
+
+/* ==========================================================================
+   Detail Cards
+   ========================================================================== */
+.detail-card {
+    background: var(--surface-card);
+    border-radius: 16px;
+    border: 1px solid var(--surface-border);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+}
+
+.detail-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface-50);
+    border-bottom: 1px solid var(--surface-border);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.card-header i {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ==========================================================================
+   Info List
+   ========================================================================== */
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: 12px;
+    background: var(--surface-50);
+    transition: all 0.2s ease;
+}
+
+.info-item:hover {
+    background: var(--surface-100);
+}
+
+.info-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.info-icon i {
+    color: white;
+    font-size: 1rem;
+}
+
+.info-icon.audit {
+    background: linear-gradient(135deg, #64748b, #475569);
+}
+
+.info-icon.method {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.info-icon.amount {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.info-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.info-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-color-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.info-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    word-break: break-word;
+}
+
+/* Info Grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+}
+
+.info-grid-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem;
+    background: var(--surface-50);
+    border-radius: 12px;
+}
+
+/* ==========================================================================
+   Supplier Display
+   ========================================================================== */
+.supplier-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--surface-50);
+    border-radius: 12px;
+}
+
+.supplier-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.supplier-avatar i {
+    font-size: 1.5rem;
+    color: white;
+}
+
+.supplier-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.supplier-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.supplier-detail {
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+}
+
+.supplier-detail i {
+    margin-right: 0.25rem;
+    font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   Purchase Display
+   ========================================================================== */
+.purchase-display {
+    background: var(--surface-50);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.purchase-display-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.purchase-display-ref {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.purchase-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.purchase-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.purchase-detail-row.total {
+    border-top: 2px solid var(--surface-border);
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+}
+
+.purchase-label {
+    color: var(--text-color-secondary);
+    font-size: 0.9rem;
+}
+
+.purchase-value {
+    color: var(--text-color);
+}
+
+.no-linked-item {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-color-secondary);
+    background: var(--surface-50);
+    border-radius: 12px;
+}
+
+.no-linked-item i {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* ==========================================================================
+   Receipt Display
+   ========================================================================== */
+.receipt-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--surface-50);
+    border-radius: 12px;
+}
+
+.receipt-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.receipt-number {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.receipt-date {
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+}
+
+/* ==========================================================================
+   Notes Content
+   ========================================================================== */
+.notes-content {
+    background: var(--surface-50);
+    border-radius: 12px;
+    padding: 1rem;
+    border-left: 4px solid #f59e0b;
+    font-style: italic;
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   Actions Grid
+   ========================================================================== */
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.actions-grid .p-button {
+    justify-content: center;
+}
+
+/* ==========================================================================
+   Empty State
+   ========================================================================== */
+.empty-state-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.empty-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--surface-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.empty-icon i {
+    font-size: 3rem;
+    color: var(--text-color-secondary);
+    opacity: 0.5;
+}
+
+.empty-state h4 {
+    margin: 0 0 0.5rem;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.empty-state p {
+    color: var(--text-color-secondary);
+    margin: 0;
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+@media (max-width: 1200px) {
+    .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .payment-hero {
+        padding: 1.5rem;
+    }
+    
+    .payment-hero-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
+    }
+    
+    .payment-hero-icon i {
+        font-size: 1.75rem;
+    }
+    
+    .payment-title {
+        font-size: 1.5rem;
+    }
+    
+    .stats-row {
+        grid-template-columns: 1fr;
+        padding: 0 1rem;
+        margin-top: -1rem;
+    }
+    
+    ::ng-deep .payment-tabs {
+        margin: 1.5rem 1rem;
+        padding: 0;
+    }
+    
+    .stat-card-modern {
+        padding: 1rem;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .action-buttons {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .actions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .action-buttons button span {
+        display: none;
+    }
+    
+    .action-buttons button {
+        padding: 0.75rem !important;
+    }
+}
+
+/* ==========================================================================
+   Dark Mode Support
+   ========================================================================== */
+:host-context(.layout-theme-dark) {
+    .payment-hero {
+        background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-ground) 100%);
+    }
+    
+    .hero-background {
+        background: 
+            radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--primary-color) 8%, transparent) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--primary-color) 10%, transparent) 0%, transparent 50%);
+    }
+    
+    .stat-card-modern {
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stat-card-modern:hover {
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .detail-card {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .detail-card:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+    
+    .info-item,
+    .info-grid-item,
+    .supplier-display,
+    .purchase-display,
+    .receipt-display,
+    .no-linked-item {
+        background: var(--surface-ground);
+    }
+    
+    .info-item:hover {
+        background: var(--surface-hover);
+    }
+    
+    .card-header {
+        background: var(--surface-ground);
+    }
+    
+    .notes-content {
+        background: var(--surface-ground);
+    }
+    
+    .empty-icon {
+        background: var(--surface-ground);
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+@media print {
+    .payment-hero {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .action-buttons {
+        display: none !important;
+    }
+    
+    .back-button {
+        display: none !important;
+    }
+    
+    .stat-card-modern {
+        break-inside: avoid;
+    }
+    
+    .detail-card {
+        break-inside: avoid;
+    }
+}

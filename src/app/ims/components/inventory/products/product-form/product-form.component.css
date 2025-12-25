@@ -1,0 +1,95 @@
+/* Product Form Styles */
+.product-dialog {
+  .image-section {
+    .image-container {
+      position: relative;
+      
+      .image-wrapper {
+        position: relative;
+        min-height: 200px;
+        
+        &.loading {
+          opacity: 0.6;
+        }
+        
+        .loading-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0.8);
+          z-index: 10;
+        }
+        
+        .image-actions-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          opacity: 0;
+          transition: opacity 0.3s ease;
+          z-index: 5;
+          
+          &:hover {
+            opacity: 1;
+          }
+        }
+      }
+      
+      .file-info {
+        font-size: 0.875rem;
+      }
+    }
+  }
+  
+  .upload-container {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    
+    &.drag-over {
+      border-color: var(--primary-color);
+      background: var(--primary-50);
+    }
+    
+    .upload-content {
+      pointer-events: none;
+    }
+    
+    .upload-button-wrapper {
+      pointer-events: auto;
+      margin: 1rem 0;
+      
+      ::ng-deep .p-button {
+        cursor: pointer;
+      }
+    }
+    
+    > small {
+      pointer-events: none;
+    }
+  }
+  
+  .recent-images {
+    .recent-image-container {
+      transition: transform 0.2s ease;
+      
+      &:hover {
+        transform: scale(1.05);
+        border-color: var(--primary-color);
+      }
+    }
+  }
+  
+  .required-asterisk {
+    color: var(--red-500);
+  }
+  
+  .required-note {
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+  }
+}
+

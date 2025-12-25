@@ -27,6 +27,12 @@ import { ImageModule } from 'primeng/image';
 import { WarehouseDetailsComponent } from './warehouse-details/warehouse-details.component';
 import { CardModule } from 'primeng/card';
 import { AvatarModule } from 'primeng/avatar';
+import { TabViewModule } from 'primeng/tabview';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
+import { CheckboxModule } from 'primeng/checkbox';
+import { ProductsModule } from '../products/products.module';
+
 @NgModule({
     imports: [
         CommonModule,
@@ -54,6 +60,11 @@ import { AvatarModule } from 'primeng/avatar';
         GalleriaModule,
         CardModule,
         AvatarModule,
+        TabViewModule,
+        BadgeModule,
+        DividerModule,
+        CheckboxModule,
+        ProductsModule,
     ],
     declarations: [WarehousesComponent, WarehouseDetailsComponent],
     providers: [ReportingService],

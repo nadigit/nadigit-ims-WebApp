@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { LazyLoadEvent, MenuItem, SelectItem } from 'primeng/api';
+import { Table } from 'primeng/table';
 import { Category } from 'src/app/models/category';
 import { Customer } from 'src/app/models/customer';
 import { Order } from 'src/app/models/order';
@@ -23,6 +24,8 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   styleUrls: ['./products-table.component.css', '../products.component.css', '../../inventory.component.css']
 })
 export class ProductsTableComponent {
+  @ViewChild('dt') dt!: Table;
+
   @Input() products: Product[] = [];
   @Input() cols: any[] = [];
   @Input() pageSize = 20;
@@ -63,23 +66,50 @@ export class ProductsTableComponent {
   @Output() showProductDetailsEvent = new EventEmitter<Product>();
   @Output() exportPdfEvent = new EventEmitter<void>();
   @Output() exportExcelEvent = new EventEmitter<void>();
-  @Output() applyFiltersEvent = new EventEmitter<void>();
+  @Output() applyFiltersEvent = new EventEmitter<{
+    categoryIds?: number[];
+    warehouseIds?: number[];
+    supplierIds?: number[];
+    inventoryStatus?: string;
+    globalFilter?: string;
+  }>();
+  @Output() deactivateScanningEvent = new EventEmitter<void>();
+  @Output() activateScanningEvent = new EventEmitter<void>();
 
   items: MenuItem[] | undefined;
   sortOptions: SelectItem[] = [];
+  rowsPerPageOptions = [10, 20, 50, 100];
 
+  // Filter properties
+  globalFilter: string = '';
+  categoryFilters: Category[] = [];
+  warehouseFilters: Warehouse[] = [];
+  supplierFilters: Supplier[] = [];
+  inventoryStatusFilter: string | undefined = undefined;
 
+  // View options
+  currentView: 'list' | 'grid' = 'list';
+  viewOptions = [
+    { icon: 'pi pi-list', value: 'list' },
+    { icon: 'pi pi-th-large', value: 'grid' }
+  ];
 
-  constructor(private translate: TranslateService,
-  ) {
+  inventoryStatusOptions: SelectItem[] = [];
 
+  constructor(private translate: TranslateService) {
     this.sortOptions = [
       { label: this.translate.instant('descending_price'), value: '!sellingPrice' },
       { label: this.translate.instant('ascending_price'), value: 'sellingPrice' },
-      { label: this.translate.instant('availability_desc'), value: 'inventoryStatus' }, // Descending availability
+      { label: this.translate.instant('availability_desc'), value: 'inventoryStatus' },
       { label: this.translate.instant('availability_asc'), value: '!inventoryStatus' }
     ];
 
+    this.inventoryStatusOptions = [
+      { label: this.translate.instant('all'), value: undefined },
+      { label: this.translate.instant('product_instock'), value: 'INSTOCK' },
+      { label: this.translate.instant('product_lowstock'), value: 'LOWSTOCK' },
+      { label: this.translate.instant('product_outofstock'), value: 'OUTOFSTOCK' }
+    ];
   }
 
   onSelectionChange(event: Payment[]) {
@@ -90,22 +120,63 @@ export class ProductsTableComponent {
     this.lazyLoadEvent.emit({ ...event } as any);
   }
 
-  applyGlobalFilter(event: Event) {
+  onGlobalFilterChange(event: Event) {
+    this.deactivateScanningEvent.emit();
     const value = (event.target as HTMLInputElement).value.trim();
     this.onGlobalFilter.emit({ globalFilter: value });
+    
+    // Also filter the table directly if we have the reference
+    if (this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    }
+  }
+
+  onFilterChange() {
+    this.applyFiltersEvent.emit({
+      categoryIds: this.categoryFilters?.map(c => c.categoryId).filter(id => id !== undefined) as number[],
+      warehouseIds: this.warehouseFilters?.map(w => w.warehouseId).filter(id => id !== undefined) as number[],
+      supplierIds: this.supplierFilters?.map(s => s.supplierId).filter(id => id !== undefined) as number[],
+      inventoryStatus: this.inventoryStatusFilter,
+      globalFilter: this.globalFilter
+    });
+  }
+
+  clearFilters() {
+    this.globalFilter = '';
+    this.categoryFilters = [];
+    this.warehouseFilters = [];
+    this.supplierFilters = [];
+    this.inventoryStatusFilter = undefined;
+    
+    if (this.dt) {
+      this.dt.clear();
+    }
+    
+    this.applyFiltersEvent.emit({});
+  }
+
+  onViewChange() {
+    // View changed, no additional action needed
+  }
+
+  onGridPageChange(event: any) {
+    this.lazyLoadEvent.emit({
+      first: event.first,
+      rows: event.rows
+    });
   }
 
   buildMenuItems(product: any) {
     this.items = [
       {
-        label: this.translate.instant['edit_button'],
+        label: this.translate.instant('edit_button'),
         icon: 'pi pi-fw pi-pencil',
         command: () => this.editProductEvent.emit(product),
       },
       {
         label: product.deletable
-          ? this.translate.instant['delete_button']
-          : this.translate.instant['archive_button'],
+          ? this.translate.instant('delete_button')
+          : this.translate.instant('archive_button'),
         icon: product.deletable
           ? 'pi pi-fw pi-trash'
           : 'pi pi-fw pi-folder',
@@ -119,6 +190,4 @@ export class ProductsTableComponent {
       },
     ];
   }
-
-
 }

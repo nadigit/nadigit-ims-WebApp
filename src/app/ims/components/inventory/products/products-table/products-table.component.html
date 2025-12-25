@@ -1,6 +1,20 @@
 <div class="card">
+  <div class="flex justify-content-between align-items-center mb-4">
   <h5>{{'products_menu_title' | translate}}</h5>
+    <div class="flex align-items-center gap-2">
+      <button pButton pRipple *ngIf="canAddProduct" icon="pi pi-plus"
+        [label]="'new_button' | translate" class="p-button-success"
+        (click)="addProductEvent.emit()" pTooltip="{{'add_new_product'|translate}}">
+      </button>
+      <button pButton pRipple *ngIf="isAdmin" icon="pi pi-folder"
+        [label]="'archived_products' | translate" class="p-button-warning"
+        (click)="archivedProductsEvent.emit()" pTooltip="{{'view_archived_products'|translate}}">
+      </button>
+    </div>
+  </div>
+
   <p-toast></p-toast>
+  
   <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
     <div class="flex align-items-center mb-3">
       <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
@@ -8,82 +22,84 @@
     </div>
     <p class="m-0 text-600">
       {{ 'products_page_description' | translate }}
-      <!-- <span *ngIf="customers?.length" class="font-semibold">
-                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
-                    </span> -->
     </p>
-    <div class="flex align-items-center gap-2">
+    <div class="flex align-items-center gap-2 mt-3">
       <p-tag *ngIf="canAddProduct" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
       <p-tag *ngIf="canEditProduct" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
       <p-tag *ngIf="canDeleteProduct" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
       <p-tag *ngIf="canArchiveProduct" value="{{'archive' | translate}}" icon="pi pi-folder" severity="warning"></p-tag>
-      <!-- <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag> -->
-      <!-- <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag> -->
     </div>
   </div>
 
-  <p-toolbar styleClass="mb-4">
-    <ng-template pTemplate="left">
-      <div class="flex align-items-center gap-2 my-2">
-        <button pButton pRipple *ngIf="canAddProduct" label="{{'new_button' | translate}}" icon="pi pi-plus"
-          class="p-button-success mr-2" (click)="addProductEvent.emit()" pTooltip="{{'add_new_product'|translate}}">
-        </button>
-        <button pButton pRipple *ngIf="isAdmin" label="{{'archived_products' | translate}}" icon="pi pi-folder"
-          class="p-button-warning" (click)="archivedProductsEvent.emit()"
-          pTooltip="{{'view_archived_products'|translate}}">
-        </button>
-      </div>
-    </ng-template>
+  <!-- Filters Bar -->
+  <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+    <!-- Global Search -->
+    <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+      <i class="pi pi-search"></i>
+      <input type="text" pInputText [(ngModel)]="globalFilter" 
+        [placeholder]="'search_label' | translate" 
+        (input)="onGlobalFilterChange($event)" class="w-full" />
+    </span>
 
-    <ng-template pTemplate="right">
-      <div class="flex align-items-center gap-2 my-2">
-        <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
-          tooltipPosition="bottom" (click)="exportPdfEvent.emit()"></button>
-        <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcelEvent.emit()" class="p-button-success mr-2"
-          pTooltip="XLS" tooltipPosition="bottom"></button>
-      </div>
+    <!-- Category Filter -->
+    <p-multiSelect [options]="categories" [(ngModel)]="categoryFilters" 
+      [placeholder]="'filter_by_category' | translate"
+      optionLabel="categoryName" [showClear]="true" [filter]="true"
+      (onChange)="onFilterChange()" display="chip" [maxSelectedLabels]="2"
+      [selectedItemsLabel]="'{0} ' + ('categories_selected' | translate)"
+      styleClass="w-14rem"></p-multiSelect>
+
+    <!-- Warehouse Filter -->
+    <p-multiSelect [options]="warehouses" [(ngModel)]="warehouseFilters" 
+      [placeholder]="'filter_by_warehouse' | translate"
+      optionLabel="name" [showClear]="true" [filter]="true"
+      (onChange)="onFilterChange()" display="chip" [maxSelectedLabels]="2"
+      [selectedItemsLabel]="'{0} ' + ('warehouses_selected' | translate)"
+      styleClass="w-14rem"></p-multiSelect>
+
+    <!-- Supplier Filter -->
+    <p-multiSelect [options]="suppliers" [(ngModel)]="supplierFilters" 
+      [placeholder]="'filter_by_supplier' | translate"
+      optionLabel="name" [showClear]="true" [filter]="true"
+      (onChange)="onFilterChange()" display="chip" [maxSelectedLabels]="2"
+      [selectedItemsLabel]="'{0} ' + ('suppliers_selected' | translate)"
+      styleClass="w-14rem"></p-multiSelect>
+
+    <!-- Inventory Status Filter -->
+    <p-selectButton [options]="inventoryStatusOptions" [(ngModel)]="inventoryStatusFilter" 
+      (onChange)="onFilterChange()" optionLabel="label" optionValue="value">
+    </p-selectButton>
+
+    <!-- View Toggle & Export -->
+    <div class="flex align-items-center gap-2 ml-auto">
+      <p-selectButton [options]="viewOptions" [(ngModel)]="currentView" 
+        optionLabel="icon" optionValue="value" (onChange)="onViewChange()">
+        <ng-template let-item pTemplate>
+          <i [class]="item.icon"></i>
     </ng-template>
-  </p-toolbar>
+      </p-selectButton>
+      <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
+          tooltipPosition="bottom" (click)="exportPdfEvent.emit()"></button>
+      <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcelEvent.emit()" class="p-button-success"
+          pTooltip="XLS" tooltipPosition="bottom"></button>
+      <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+    </div>
+      </div>
 
   <div class="card flex justify-content-center" *ngIf="isLoading">
     <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
   </div>
 
-  <p-dataView #dv [value]="products" *ngIf="!isLoading" [lazy]="true" (onLazyLoad)="onLazyLoad($event)"
-    [totalRecords]="totalRecords" [rows]="15" [paginator]="dv.layout === 'grid'" [sortField]="sortField"
-    [sortOrder]="sortOrder" layout="list" emptyMessage="{{ 'no_results_found' | translate }}">
-    <ng-template pTemplate="header">
-      <div class="flex flex-column md:flex-row md:justify-content-between gap-2">
-        <p-dropdown [options]="sortOptions" placeholder="{{ 'sort_by_price' | translate }}"
-          (onChange)="onSortChange($event)">
-          <ng-template pTemplate="item" let-option>
-            <span>{{ option.label | translate }}</span>
-          </ng-template>
-        </p-dropdown>
-
-        <p-treeSelect class="w-full md:w-20rem" containerStyleClass="w-full" [(ngModel)]="selectedNodes"
-          [options]="nodes" display="chip" [metaKeySelection]="false" selectionMode="checkbox"
-          placeholder="{{ 'select_items' | translate}}" (onNodeSelect)="applyGlobalFilter($event)"
-          (onNodeUnselect)="applyGlobalFilter($event)">
-        </p-treeSelect>
-
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
-          <input type="search" pInputText placeholder="{{ 'search_label' | translate }}" [(ngModel)]="searchInput"
-            (input)="applyGlobalFilter($event)" (focus)="deactivateScanning()" (blur)="activateScanning()">
-        </span>
-
-        <p-dataViewLayoutOptions></p-dataViewLayoutOptions>
-      </div>
-    </ng-template>
-
-    <ng-template let-products pTemplate="listItem">
-
-      <p-table #dt [value]="products" *ngIf="!isLoading" [rows]="20" [paginator]="true" [lazy]="true"
+  <!-- List View -->
+  <ng-container *ngIf="!isLoading && currentView === 'list'">
+    <p-table #dt [value]="filteredProducts.length ? filteredProducts : products" [rows]="20" [paginator]="true" [lazy]="true"
         (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords" [loading]="isLoading"
         [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true" dataKey="productId"
         currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-        [(selection)]="selectedProducts" selectionMode="multiple" [rowHover]="true">
+      [(selection)]="selectedProducts" selectionMode="multiple" [rowHover]="true"
+      [globalFilterFields]="['name','reference','category.categoryName','supplier.name','warehouse.name','inventoryStatus']"
+      styleClass="p-datatable-gridlines">
 
         <!-- HEADER -->
         <ng-template pTemplate="header">
@@ -91,18 +107,28 @@
             <th style="width: 3rem">
               <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
             </th>
-            <th>{{ 'product' | translate }}</th>
-            <th>{{ 'details' | translate }}</th>
-            <th>{{ 'stock' | translate }}</th>
-            <th *ngIf="isAdmin">{{ 'pricing' | translate }}</th>
-            <th>{{ 'creation_date' | translate }}</th>
-            <th></th>
+          <th pSortableColumn="name">
+            {{ 'product' | translate }} <p-sortIcon field="name"></p-sortIcon>
+          </th>
+          <th pSortableColumn="category.categoryName">
+            {{ 'details' | translate }} <p-sortIcon field="category.categoryName"></p-sortIcon>
+          </th>
+          <th pSortableColumn="quantityAvailable">
+            {{ 'stock' | translate }} <p-sortIcon field="quantityAvailable"></p-sortIcon>
+          </th>
+          <th *ngIf="isAdmin" pSortableColumn="sellingPrice">
+            {{ 'pricing' | translate }} <p-sortIcon field="sellingPrice"></p-sortIcon>
+          </th>
+          <th pSortableColumn="creationDate">
+            {{ 'creation_date' | translate }} <p-sortIcon field="creationDate"></p-sortIcon>
+          </th>
+          <th>{{ 'actions' | translate }}</th>
           </tr>
         </ng-template>
 
         <!-- BODY -->
         <ng-template pTemplate="body" let-product>
-          <tr (click)="canReadProduct ? showProductDetailsEvent.emit(product) : null">
+        <tr (click)="canReadProduct ? showProductDetailsEvent.emit(product) : null" class="cursor-pointer">
             <!-- Checkbox -->
             <td>
               <p-tableCheckbox [value]="product" (click)="$event.stopPropagation()"></p-tableCheckbox>
@@ -115,9 +141,7 @@
                   class="w-4rem h-4rem mr-3 border-round shadow-1 object-cover" />
                 <div class="flex flex-column">
                   <div class="font-bold text-lg">{{ product.name || 'N/A' }}</div>
-                  <small class="text-muted">{{ 'ref' | translate }}: {{ product.reference ||
-                    '—' }}</small>
-
+                <small class="text-muted">{{ 'ref' | translate }}: {{ product.reference || '—' }}</small>
                   <!-- Attributes -->
                   <div *ngIf="product.attributes?.length" class="mt-2 flex flex-wrap gap-1">
                     <p-tag *ngFor="let attr of product.attributes" [value]="attr.attributeName + ': ' + attr.value"
@@ -131,12 +155,9 @@
             <!-- Category + Supplier + Warehouse -->
             <td style="min-width:16rem;">
               <div class="flex flex-column gap-1">
-                <div><strong>{{ 'product_category' | translate }}:</strong> {{
-                  product.category?.categoryName || 'N/A' }}</div>
-                <div><strong>{{ 'product_supplier' | translate }}:</strong> {{
-                  product.supplier?.name || 'N/A' }}</div>
-                <div><strong>{{ 'product_warehouse' | translate }}:</strong> {{
-                  product.warehouse?.name || 'N/A' }}</div>
+              <div><strong>{{ 'product_category' | translate }}:</strong> {{ product.category?.categoryName || 'N/A' }}</div>
+              <div><strong>{{ 'product_supplier' | translate }}:</strong> {{ product.supplier?.name || 'N/A' }}</div>
+              <div><strong>{{ 'product_warehouse' | translate }}:</strong> {{ product.warehouse?.name || 'N/A' }}</div>
               </div>
             </td>
 
@@ -155,10 +176,8 @@
 
             <!-- Pricing (visible to admin only) -->
             <td *ngIf="isAdmin" style="min-width:14rem;">
-              <div><strong>{{ 'product_buying_price' | translate }}:</strong> {{
-                product.buyingPrice }} {{ currency }}</div>
-              <div><strong>{{ 'product_selling_price' | translate }}:</strong> {{
-                product.sellingPrice }} {{ currency }}</div>
+            <div><strong>{{ 'product_buying_price' | translate }}:</strong> {{ product.buyingPrice }} {{ currency }}</div>
+            <div><strong>{{ 'product_selling_price' | translate }}:</strong> {{ product.sellingPrice }} {{ currency }}</div>
               <div *ngIf="product.buyingPrice && product.sellingPrice && isAdmin">
                 <strong>{{ 'profit' | translate }}:</strong>
                 <span [class]="getProfitClass(product)">
@@ -172,15 +191,18 @@
 
             <!-- Actions -->
             <td>
-              <div class="flex">
+            <div class="flex gap-1">
+              <button pButton pRipple *ngIf="canReadProduct" icon="pi pi-eye"
+                class="p-button-rounded p-button-text p-button-info" pTooltip="{{'view_product'|translate}}"
+                (click)="showProductDetailsEvent.emit(product); $event.stopPropagation()"></button>
                 <button pButton pRipple *ngIf="canEditProduct" icon="pi pi-pencil"
-                  class="p-button-rounded p-button-info mr-2" pTooltip="{{'update_product'|translate}}"
+                class="p-button-rounded p-button-text p-button-warning" pTooltip="{{'update_product'|translate}}"
                   (click)="editProductEvent.emit(product); $event.stopPropagation()"></button>
                 <button pButton pRipple *ngIf="canDeleteProduct && product.deletable" icon="pi pi-trash"
-                  class="p-button-rounded p-button-danger mr-2" pTooltip="{{'delete_product'|translate}}"
+                class="p-button-rounded p-button-text p-button-danger" pTooltip="{{'delete_product'|translate}}"
                   (click)="deleteProductEvent.emit(product); $event.stopPropagation()"></button>
                 <button pButton pRipple *ngIf="canArchiveProduct && !product.deletable" icon="pi pi-folder"
-                  class="p-button-rounded p-button-warning mr-2" pTooltip="{{'archive_product'|translate}}"
+                class="p-button-rounded p-button-text p-button-warning" pTooltip="{{'archive_product'|translate}}"
                   (click)="archiveProductEvent.emit(product); $event.stopPropagation()"></button>
               </div>
             </td>
@@ -209,41 +231,69 @@
           </tr>
         </ng-template>
       </p-table>
+  </ng-container>
 
-    </ng-template>
-
-    <ng-template let-products pTemplate="gridItem">
+  <!-- Grid View -->
+  <ng-container *ngIf="!isLoading && currentView === 'grid'">
       <div class="grid grid-nogutter">
-        <div class="col-12 md:col-4" *ngFor="let product of products">
-          <div class="card m-3 border-1 surface-border">
-            <div class="flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
+      <div class="col-12 md:col-6 lg:col-4 xl:col-3" *ngFor="let product of (filteredProducts.length ? filteredProducts : products)">
+        <div class="product-card m-2 p-3 surface-card border-round shadow-2 hover:shadow-4 transition-all transition-duration-200"
+          (click)="canReadProduct ? showProductDetailsEvent.emit(product) : null">
+          <!-- Header: Category + Status -->
+          <div class="flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
               <div class="flex align-items-center">
-                <i class="pi pi-tag mr-2"></i>
-                <span class="font-semibold">{{product.category.categoryName}}</span>
-              </div>
-              <span
-                [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{'product_'+product.inventoryStatus.toLowerCase()
-                | translate}}</span>
+              <i class="pi pi-tag mr-2 text-primary"></i>
+              <span class="font-semibold text-sm">{{product.category?.categoryName || 'N/A'}}</span>
             </div>
-            <div class="flex flex-column align-items-center text-center mb-3"
-              (click)="canReadProduct ? showProductDetailsEvent.emit(product) : null">
+            <span [class]="'product-badge status-' + product.inventoryStatus?.toLowerCase()">
+              {{'product_' + product.inventoryStatus?.toLowerCase() | translate}}
+            </span>
+          </div>
+
+          <!-- Image -->
+          <div class="flex justify-content-center mb-3">
               <img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
-                [alt]="product.name" class="w-9 shadow-2 my-3 mx-0" style="height: 170px; width: 100px;" />
-              <div class="text-2xl font-bold">{{product.name}}</div>
-              <div class="mb-3">{{product.reference}}</div>
+              [alt]="product.name" class="product-grid-image border-round shadow-1" />
+          </div>
+
+          <!-- Name + Reference -->
+          <div class="text-center mb-3">
+            <h4 class="font-bold mb-1 text-overflow-ellipsis overflow-hidden white-space-nowrap">{{product.name}}</h4>
+            <small class="text-muted">{{product.reference || '—'}}</small>
             </div>
-            <div class="flex align-items-center justify-content-between">
-              <span class="text-2xl font-semibold">{{currency}} {{ product.sellingPrice }}</span>
-              <div>
-                <button #btn type="button" pButton icon="pi pi-ellipsis-v"
-                  (click)="buildMenuItems(product, translations); menu.toggle($event)">
-                </button>
-                <p-tieredMenu #menu [model]="items" [popup]="true" [appendTo]="'body'" [target]="btn"></p-tieredMenu>
+
+          <!-- Stock Quantity -->
+          <div class="flex justify-content-center mb-3">
+            <p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
+              [value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
+              [icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
+            </p-tag>
               </div>
+
+          <!-- Price + Actions -->
+          <div class="flex align-items-center justify-content-between pt-3 border-top-1 surface-border">
+            <span class="text-xl font-semibold text-primary">{{currency}} {{ product.sellingPrice }}</span>
+            <div class="flex gap-1">
+              <button pButton pRipple *ngIf="canEditProduct" icon="pi pi-pencil"
+                class="p-button-rounded p-button-text p-button-sm p-button-warning"
+                (click)="editProductEvent.emit(product); $event.stopPropagation()"></button>
+              <button pButton pRipple *ngIf="canDeleteProduct && product.deletable" icon="pi pi-trash"
+                class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                (click)="deleteProductEvent.emit(product); $event.stopPropagation()"></button>
+              <button pButton pRipple *ngIf="canArchiveProduct && !product.deletable" icon="pi pi-folder"
+                class="p-button-rounded p-button-text p-button-sm p-button-warning"
+                (click)="archiveProductEvent.emit(product); $event.stopPropagation()"></button>
             </div>
           </div>
         </div>
       </div>
-    </ng-template>
-  </p-dataView>
+    </div>
+
+    <!-- Pagination for Grid View -->
+    <p-paginator [rows]="20" [totalRecords]="totalRecords" [rowsPerPageOptions]="rowsPerPageOptions"
+      (onPageChange)="onGridPageChange($event)"
+      currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+      [showCurrentPageReport]="true">
+    </p-paginator>
+  </ng-container>
 </div>

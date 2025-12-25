@@ -172,4 +172,55 @@ export class ProductService {
     return this.http.get(url, { headers });
   }
 
+  // Barcode Management Methods
+  generateBarcode(productId: number, barcodeType: string, customValue?: string) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/barcode/generate`;
+    return this.http.post(url, { barcodeType, customValue }, { headers });
+  }
+
+  generateQRCode(productId: number, customValue?: string) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/qrcode/generate`;
+    return this.http.post(url, { customValue }, { headers });
+  }
+
+  getBarcodeImage(productId: number, format: string = 'PNG') {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/barcode/image?format=${format}`;
+    return this.http.get(url, { headers, responseType: 'blob' });
+  }
+
+  getQRCodeImage(productId: number, format: string = 'PNG') {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/qrcode/image?format=${format}`;
+    return this.http.get(url, { headers, responseType: 'blob' });
+  }
+
+  printLabelWithOptions(productId: number, labelType: string, options: any = {}) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const params = new URLSearchParams();
+    params.append('labelType', labelType);
+    Object.keys(options).forEach(key => {
+      if (options[key] !== undefined) {
+        params.append(key, options[key].toString());
+      }
+    });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/label?${params.toString()}`;
+    this.http.get(url, { headers, responseType: 'blob' }).subscribe(blob => {
+      const blobUrl = window.URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    });
+  }
+
+  batchPrintLabels(productIds: number[], labelType: string) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}labels/batch-print`;
+    this.http.post(url, { productIds, labelType }, { headers, responseType: 'blob' }).subscribe(blob => {
+      const blobUrl = window.URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    });
+  }
+
 }
+

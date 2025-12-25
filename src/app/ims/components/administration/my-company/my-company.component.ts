@@ -1,4 +1,6 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { Location } from '@angular/common';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -41,6 +43,8 @@ export class MyCompanyComponent implements OnInit {
   costingMethods: any[] = [];
 
   constructor(
+    private router: Router,
+    private location: Location,
     private messageService: MessageService,
     private organizationService: OrganizationService,
     private translate: TranslateService,
@@ -128,6 +132,10 @@ export class MyCompanyComponent implements OnInit {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 
   async openOrganizationDialog(event: any): Promise<void> {

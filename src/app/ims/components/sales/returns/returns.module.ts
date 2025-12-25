@@ -38,6 +38,7 @@ import { TagModule } from 'primeng/tag';
 import { TabViewModule } from 'primeng/tabview';
 import { ReturnDetailsPageComponent } from './return-details-page/return-details-page.component';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { DividerModule } from 'primeng/divider';
 
 
 @NgModule({
@@ -77,7 +78,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
         ChipModule,
         TagModule,
         TabViewModule,
-        SharedModule
+        SharedModule,
+        DividerModule
     ],
     declarations: [ReturnsComponent, FilterProductsPipe, ReturnDetailsPageComponent],
     providers: [ReportingService]

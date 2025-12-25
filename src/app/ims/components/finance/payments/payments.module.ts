@@ -32,6 +32,8 @@ import { PurchasePaymentsComponent } from './purchase-payments/purchase-payments
 import { SalesPaymentDetailsPageComponent } from './sales-payment-details-page/sales-payment-details-page.component';
 import { PurchasePaymentDetailsPageComponent } from './purchase-payment-details-page/purchase-payment-details-page.component';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
 
 
 @NgModule({
@@ -61,7 +63,9 @@ import { SharedModule } from 'src/app/shared/shared.module';
         ChipModule,
         SkeletonModule,
         TabViewModule,
-        SharedModule
+        SharedModule,
+        BadgeModule,
+        DividerModule
     ],
     declarations: [PaymentsComponent, PaymentsTableComponent, SalesPaymentsComponent, PurchasePaymentsComponent, SalesPaymentDetailsPageComponent, PurchasePaymentDetailsPageComponent],
     providers: [ReportingService],

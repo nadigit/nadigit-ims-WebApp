@@ -30,6 +30,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { GalleriaModule } from 'primeng/galleria';
 import { ImageModule } from 'primeng/image';
 import { SupplierDetailsComponent } from './supplier-details/supplier-details.component';
+import { ProductsModule } from '../products/products.module';
 
 
 
@@ -62,7 +63,8 @@ import { SupplierDetailsComponent } from './supplier-details/supplier-details.co
         CardModule,
         SharedModule,
         GalleriaModule,
-        ImageModule
+        ImageModule,
+        ProductsModule
     ],
     declarations: [SuppliersComponent, SupplierDetailsComponent],
     providers: [ReportingService],

@@ -41,6 +41,7 @@ import { TagModule } from 'primeng/tag';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { DividerModule } from 'primeng/divider';
 import { OrdersTableComponent } from './orders-table/orders-table.component';
 import { OrderDetailsPageComponent } from './order-details-page/order-details-page.component';
 
@@ -84,7 +85,8 @@ import { OrderDetailsPageComponent } from './order-details-page/order-details-pa
         TagModule,
         AutoCompleteModule,
         InputSwitchModule,
-        SharedModule
+        SharedModule,
+        DividerModule
     ],
     declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent],
     providers: [ReportingService]

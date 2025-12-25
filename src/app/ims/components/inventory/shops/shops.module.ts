@@ -28,6 +28,8 @@ import { TagModule } from 'primeng/tag';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { CashRegisterSessionModule } from 'src/app/ims/components/cash-register/cash-register-session/cash-register-session.module';
 import { AvatarModule } from 'primeng/avatar';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
 
 
 @NgModule({
@@ -57,7 +59,9 @@ import { AvatarModule } from 'primeng/avatar';
         TagModule,
         SharedModule,
         CashRegisterSessionModule,
-        AvatarModule
+        AvatarModule,
+        BadgeModule,
+        DividerModule
     ],
     declarations: [ShopsComponent, ShopDetailsComponent],
     providers: [ReportingService],

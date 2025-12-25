@@ -314,20 +314,26 @@
             [loading]="productsLoading"
             (completeMethod)="onSearchChange($event)"
             [placeholder]="'search_products_placeholder' | translate"
-            [minLength]="1"
-            [delay]="200"
+            [minLength]="0"
+            [delay]="300"
             [dropdown]="true"
             (onSelect)="onProductSelect($event)"
             [forceSelection]="false"
             [autoHighlight]="true"
-            styleClass="w-full"
-            [style]="{ width: '100%' }">
+            [multiple]="false"
+            [showEmptyMessage]="true"
+            [emptyMessage]="'no_products_found' | translate"
+            [scrollHeight]="'300px'"
+            [appendTo]="'body'"
+            [panelStyleClass]="'pos-autocomplete-panel'"
+            styleClass="w-full pos-autocomplete"
+            [style]="{ width: '100%' }"
+            [unique]="true">
             <ng-template let-product pTemplate="item">
-              <div class="flex align-items-center gap-2" style="min-height: 50px;">
-                <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-suggestion-image" />
-                <div class="flex flex-column flex-1" style="min-width: 0;">
-                  <span class="font-semibold text-sm truncate">{{ product.name }}</span>
-                  <small class="text-600 text-xs">{{ product.reference }} • {{ formatCurrency(product.sellingPrice) }}</small>
+              <div class="flex align-items-center gap-2">
+                <div class="flex flex-column">
+                  <span class="font-semibold">{{ product.name }}</span>
+                  <small class="text-500">{{ product.reference }} • {{ formatCurrency(product.sellingPrice) }}</small>
                 </div>
               </div>
             </ng-template>
@@ -639,7 +645,7 @@
             <div class="pos-order-summary">
               <!-- Subtotal Section -->
               <div class="pos-summary-section">
-                <div class="pos-summary-item">
+              <div class="pos-summary-item">
                   <div class="flex align-items-center justify-content-between w-full">
                     <div class="flex align-items-center gap-2">
                       <i class="pi pi-shopping-bag text-600"></i>
@@ -652,28 +658,28 @@
               
               <!-- Discount Section -->
               <div class="pos-summary-section pos-summary-section-interactive">
-                <div class="pos-summary-item">
+              <div class="pos-summary-item">
                   <div class="flex align-items-center justify-content-between w-full">
                     <div class="flex align-items-center gap-2">
                       <i class="pi pi-tag text-orange-500"></i>
                       <span class="pos-summary-label">{{ 'discount' | translate }}</span>
                     </div>
-                    <div class="flex align-items-center gap-2">
-                      <p-inputNumber
-                        [(ngModel)]="discountAmount"
-                        [min]="0"
-                        [max]="cart?.subtotal || 0"
-                        mode="currency"
-                        [currency]="currency"
-                        (onInput)="applyDiscount($event.value, 'Amount')"
+                  <div class="flex align-items-center gap-2">
+                    <p-inputNumber
+                      [(ngModel)]="discountAmount"
+                      [min]="0"
+                      [max]="cart?.subtotal || 0"
+                      mode="currency"
+                      [currency]="currency"
+                      (onInput)="applyDiscount($event.value, 'Amount')"
                         styleClass="pos-discount-input">
-                      </p-inputNumber>
-                      <p-dropdown
-                        [options]="discountTypes"
-                        [(ngModel)]="discountType"
-                        (onChange)="applyDiscount(discountAmount, discountType)"
+                    </p-inputNumber>
+                    <p-dropdown
+                      [options]="discountTypes"
+                      [(ngModel)]="discountType"
+                      (onChange)="applyDiscount(discountAmount, discountType)"
                         styleClass="pos-discount-type">
-                      </p-dropdown>
+                    </p-dropdown>
                     </div>
                   </div>
                   <div class="pos-discount-amount" *ngIf="cart?.discountAmount > 0">
@@ -684,18 +690,18 @@
               
               <!-- Tax Section -->
               <div class="pos-summary-section pos-summary-section-interactive">
-                <div class="pos-summary-item">
+              <div class="pos-summary-item">
                   <div class="flex align-items-center justify-content-between w-full">
                     <div class="flex align-items-center gap-2">
                       <i class="pi pi-percentage text-blue-500"></i>
                       <span class="pos-summary-label">{{ 'tax' | translate }}</span>
                     </div>
-                    <div class="flex align-items-center gap-2">
-                      <p-inputSwitch
+                  <div class="flex align-items-center gap-2">
+                    <p-inputSwitch
                         [(ngModel)]="taxEnabled"
                         (onChange)="onTaxSwitchChange()"
                         [disabled]="!cart || cartSaving">
-                      </p-inputSwitch>
+                    </p-inputSwitch>
                       <span class="pos-summary-value" *ngIf="cart?.taxAmount > 0">{{ formatCurrency(cart?.taxAmount || 0) }}</span>
                       <span class="text-500" *ngIf="cart?.taxAmount === 0">{{ formatCurrency(0) }}</span>
                     </div>
@@ -705,8 +711,8 @@
               
               <!-- Total Section - Enhanced -->
               <div class="pos-summary-total-section">
-                <div class="pos-summary-divider"></div>
-                <div class="pos-summary-total">
+              <div class="pos-summary-divider"></div>
+              <div class="pos-summary-total">
                   <div class="flex align-items-center gap-2">
                     <i class="pi pi-wallet text-primary text-xl"></i>
                     <span class="pos-total-label">{{ 'total' | translate }}</span>
@@ -1584,7 +1590,7 @@
       </button>
     </ng-template>
   </p-dialog>
-
+  
   <!-- Return Dialog -->
   <p-dialog
     [(visible)]="returnDialog"

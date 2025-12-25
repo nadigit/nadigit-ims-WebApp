@@ -205,6 +205,37 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
     }
   }
 
+  getPaymentStatusSeverityTag(status: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {
+    switch (status?.toLowerCase()) {
+      case 'completed': return 'success';
+      case 'settled': return 'success';
+      case 'pending': return 'warn';
+      case 'failed': return 'danger';
+      case 'cancelled': return 'danger';
+      default: return 'info';
+    }
+  }
+
+  getPaymentMethodSeverityTag(method: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {
+    switch (method?.toLowerCase()) {
+      case 'cash': return 'success';
+      case 'card': return 'info';
+      case 'transfer': return 'info';
+      case 'check': return 'warn';
+      case 'boe': return 'warn';
+      default: return 'secondary';
+    }
+  }
+
+  getReceiptStatusSeverityTag(status: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {
+    switch (status?.toLowerCase()) {
+      case 'generated': return 'success';
+      case 'pending': return 'warn';
+      case 'failed': return 'danger';
+      default: return 'info';
+    }
+  }
+
   getReceiptStatusIcon(status: string): string {
     switch (status?.toLowerCase()) {
       case 'generated': return 'pi pi-check';

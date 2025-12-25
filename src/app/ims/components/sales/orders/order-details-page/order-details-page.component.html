@@ -1,441 +1,612 @@
-<div class="grid">
-	<div class="col-12">
-		<div class="card px-6 py-6">
-			<p-toast></p-toast>
-			<p-progressSpinner *ngIf="isLoading" styleClass="w-full"></p-progressSpinner>
+<div class="order-details-container">
+    <p-toast></p-toast>
 
-			<div *ngIf="!isLoading && order" class="premium-order-details-page">
-				<!-- Back Button -->
-				<div class="mb-4">
-					<button pButton pRipple icon="pi pi-arrow-left" label="{{ 'back' | translate }}" 
-						class="p-button-text" (click)="goBack()"></button>
-				</div>
+    <!-- Loading State -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
+    </div>
 
-				<!-- Order Header -->
-				<div class="order-details-header" [ngClass]="'status-' + (order?.orderStatus || '')?.toLowerCase()">
-					<div class="flex align-items-center justify-content-between">
-						<div class="flex align-items-center gap-3">
-							<div class="order-icon">
-								<i class="pi pi-shopping-bag text-white"></i>
-							</div>
-							<div>
-								<h2 class="m-0 text-white">#{{ order?.reference }}</h2>
-								<p class="m-0 text-white opacity-80">
-									{{ order?.customer?.companyName || ((order?.customer?.firstName || '') + ' ' +
-									(order?.customer?.lastName || '')) }}
-								</p>
-							</div>
-						</div>
-						<div class="text-right">
-							<div class="flex align-items-center gap-3">
-								<span
-									[class]="'order-badge order-' + order.orderStatus.toLowerCase()">{{order.orderStatus
-									?
-									('order_status_'+order.orderStatus.toLowerCase() | translate) : 'N/A'}}</span>
-								<span
-									[class]="'payment-badge payment-' + order.paymentStatus.toLowerCase()">{{order.paymentStatus
-									?
-									('order_payment_status_'+order.paymentStatus.toLowerCase() | translate) :
-									'N/A'}}</span>
+    <!-- Main Content -->
+    <div class="order-content" *ngIf="!isLoading && order">
+        
+        <!-- Hero Header Section -->
+        <div class="order-hero">
+            <div class="hero-background"></div>
+            <div class="hero-content">
+                <div class="flex align-items-center gap-2 mb-3">
+                    <button pButton pRipple icon="pi pi-arrow-left" 
+                        class="p-button-text p-button-rounded p-button-plain back-button"
+                        [pTooltip]="'back' | translate" tooltipPosition="bottom"
+                        (click)="goBack()"></button>
+                    <span class="text-500 text-sm">{{ 'orders' | translate }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">#{{ order.reference }}</span>
+                </div>
+                
+                <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+                    <div class="flex align-items-center gap-4">
+                        <div class="order-hero-icon">
+                            <i class="pi pi-shopping-bag"></i>
+                        </div>
+                        <div>
+                            <div class="flex align-items-center gap-3 mb-2 flex-wrap">
+                                <h1 class="m-0 text-900 order-title">#{{ order.reference }}</h1>
+                                <p-tag [value]="order.orderStatus ? ('order_status_' + order.orderStatus.toLowerCase() | translate) : 'N/A'" 
+                                    [severity]="getOrderStatusSeverity(order.orderStatus)" 
+                                    [rounded]="true"></p-tag>
+                                <p-tag [value]="order.paymentStatus ? ('order_payment_status_' + order.paymentStatus.toLowerCase() | translate) : 'N/A'" 
+                                    [severity]="getPaymentStatusSeverity(order.paymentStatus)" 
+                                    [rounded]="true"></p-tag>
+                            </div>
+                            <div class="flex flex-wrap align-items-center gap-4 text-500">
+                                <span class="flex align-items-center gap-2" *ngIf="order.customer">
+                                    <i class="pi pi-user"></i>
+                                    {{ order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || '')) }}
+                                </span>
+                                <span class="flex align-items-center gap-2" *ngIf="order.shop">
+                                    <i class="pi pi-shop"></i>
+                                    {{ order.shop.shopName }}
+                                </span>
+                                <span class="flex align-items-center gap-2" *ngIf="order.orderDate">
+                                    <i class="pi pi-calendar"></i>
+                                    {{ order.orderDate | date:'mediumDate' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 action-buttons">
+                        <button pButton pRipple icon="pi pi-print" 
+                            [label]="'generate_invoice' | translate"
+                            class="p-button-help"
+                            *ngIf="isAdmin && !order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
+                                && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned'"
+                            (click)="generateInvoice(order)"></button>
+                        <button pButton pRipple icon="pi pi-print" 
+                            [label]="'print_invoice' | translate"
+                            class="p-button-help"
+                            *ngIf="order.hasInvoice && isAdmin"
+                            (click)="financialDocService.printFinancialDoc(order.activeInvoiceNumber)"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-							</div>
-							<div class="text-white mt-1 font-bold text-xl">
-								{{ order?.totalAmount | currency:currency:'symbol':'1.2-2' }}
-							</div>
-						</div>
-					</div>
-				</div>
+        <!-- Quick Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card-modern">
+                <div class="stat-icon total">
+                    <i class="pi pi-wallet"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'total_amount' | translate }}</span>
+                    <div class="stat-value">{{ order.totalAmount | number:'1.2-2' }}</div>
+                    <span class="stat-sub">{{ currency }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern">
+                <div class="stat-icon items">
+                    <i class="pi pi-box"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'total_items' | translate }}</span>
+                    <div class="stat-value">{{ order.orderItems?.length || 0 }}</div>
+                    <span class="stat-sub">{{ 'products' | translate }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern" *ngIf="order.discount">
+                <div class="stat-icon discount">
+                    <i class="pi pi-percentage"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'discount' | translate }}</span>
+                    <div class="stat-value">{{ calculateOrderDiscount() | number:'1.2-2' }}</div>
+                    <span class="stat-sub">{{ currency }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern" *ngIf="order.taxEnabled">
+                <div class="stat-icon tax">
+                    <i class="pi pi-receipt"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'tax' | translate }}</span>
+                    <div class="stat-value">{{ calculateOrderTax() | number:'1.2-2' }}</div>
+                    <span class="stat-sub">{{ currency }}</span>
+                </div>
+            </div>
+        </div>
 
-				<div class="grid mt-4">
-					<!-- Left Panel - Order Timeline & Progress -->
-					<div class="col-12 md:col-8">
-						<div class="details-section">
-							<h4 class="section-title">
-								<i class="pi pi-history mr-2"></i>
-								{{ 'order_timeline' | translate }}
-							</h4>
+        <!-- Tabs Section -->
+        <p-tabView styleClass="order-tabs">
+            
+            <!-- Overview Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>{{ 'overview' | translate }}</span>
+                </ng-template>
+                
+                <div class="grid mt-3">
+                    <!-- Left Column - Order Info -->
+                    <div class="col-12 lg:col-4">
+                        <!-- Order Summary Card -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-chart-bar"></i>
+                                <span>{{ 'order_summary' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="order-summary-list">
+                                    <div class="summary-row" *ngIf="order.reference">
+                                        <span class="summary-label">{{ 'order_reference' | translate }}</span>
+                                        <span class="summary-value font-bold">#{{ order.reference }}</span>
+                                    </div>
+                                    <div class="summary-row" *ngIf="order.orderDate">
+                                        <span class="summary-label">{{ 'order_date' | translate }}</span>
+                                        <span class="summary-value">{{ order.orderDate | date:'shortDate' }}</span>
+                                    </div>
+                                    <div class="summary-row" *ngIf="order.customer">
+                                        <span class="summary-label">{{ 'customer' | translate }}</span>
+                                        <span class="summary-value">{{ order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || '')) }}</span>
+                                    </div>
+                                    <div class="summary-row" *ngIf="order.shop">
+                                        <span class="summary-label">{{ 'shop' | translate }}</span>
+                                        <span class="summary-value">{{ order.shop.shopName }}</span>
+                                    </div>
+                                    
+                                    <p-divider *ngIf="order.orderItems?.length > 0"></p-divider>
+                                    
+                                    <div class="summary-row" *ngIf="order.orderItems?.length > 0">
+                                        <span class="summary-label">{{ 'subtotal' | translate }}</span>
+                                        <span class="summary-value">{{ getOrderSubtotal() | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                    <div class="summary-row" *ngIf="order.discount">
+                                        <span class="summary-label">{{ 'discount' | translate }}</span>
+                                        <span class="summary-value text-red-500">-{{ calculateOrderDiscount() | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                    <div class="summary-row" *ngIf="order.taxEnabled">
+                                        <span class="summary-label">{{ 'tax' | translate }}</span>
+                                        <span class="summary-value">+{{ calculateOrderTax() | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                    <div class="summary-row" *ngIf="order.transportAmount">
+                                        <span class="summary-label">{{ 'transport_amount' | translate }}</span>
+                                        <span class="summary-value">+{{ order.transportAmount | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                    
+                                    <div class="summary-total" *ngIf="order.totalAmount">
+                                        <span class="summary-label font-bold">{{ 'total' | translate }}</span>
+                                        <span class="summary-value total-amount">{{ order.totalAmount | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-							<div class="timeline-container">
-								<p-timeline [value]="events" align="alternate" styleClass="premium-timeline">
-									<ng-template pTemplate="marker" let-event>
-										<div class="timeline-marker" [ngClass]="{'active': isEventActive(event)}">
-											<i [class]="event.icon + ' marker-icon'"></i>
-											<div class="marker-tooltip">
-												{{ event.status ? ('order_status_' + event.status.toLowerCase() |
-												translate)
-												: 'N/A' }}
-											</div>
-										</div>
-									</ng-template>
+                        <!-- Customer Card -->
+                        <div class="detail-card mb-4" *ngIf="order.customer">
+                            <div class="card-header">
+                                <i class="pi pi-user"></i>
+                                <span>{{ 'customer_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="customer-display">
+                                    <div class="customer-avatar">
+                                        <img src="assets/core-images/customer.png" alt="Customer" />
+                                    </div>
+                                    <div class="customer-info">
+                                        <span class="customer-name">{{ order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || '')) }}</span>
+                                        <span class="customer-email" *ngIf="order.customer?.email">{{ order.customer.email }}</span>
+                                        <span class="customer-phone" *ngIf="order.customer?.phone">{{ order.customer.phone }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-									<ng-template pTemplate="content" let-event>
-										<div class="timeline-card" [ngClass]="{'active': isEventActive(event)}">
-											<div class="timeline-header">
-												<h5 class="m-0">
-													{{ event.status ? ('order_status_' + event.status.toLowerCase() |
-													translate) : 'N/A' }}
-												</h5>
-												<span class="timeline-date">
-													{{ event.date != null ? (event.date | date:'medium') : ('now' |
-													translate) }}
-												</span>
-											</div>
+                        <!-- Audit Card -->
+                        <div class="detail-card" *ngIf="order.createdBy || order.creationDate">
+                            <div class="card-header">
+                                <i class="pi pi-history"></i>
+                                <span>{{ 'audit_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item" *ngIf="order.creationDate">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-clock"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'created_date' | translate }}</span>
+                                            <span class="info-value">{{ order.creationDate | date:'medium' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="order.createdBy">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-user"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'created_by' | translate }}</span>
+                                            <span class="info-value">{{ order.createdBy }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column - Payments & Actions -->
+                    <div class="col-12 lg:col-8">
+                        <!-- Payments Card -->
+                        <div class="detail-card mb-4" *ngIf="orderPayments.length > 0">
+                            <div class="card-header">
+                                <i class="pi pi-credit-card"></i>
+                                <span>{{ 'payment_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="payments-grid">
+                                    <div *ngFor="let payment of orderPayments" class="payment-card">
+                                        <div class="payment-amount">
+                                            <span class="amount-value">{{ payment.amount | number:'1.2-2' }}</span>
+                                            <span class="amount-currency">{{ currency }}</span>
+                                        </div>
+                                        <div class="payment-details">
+                                            <span class="payment-method">{{ payment.paymentMethod | translate }}</span>
+                                            <span class="payment-date">{{ payment.paymentDate | date:'shortDate' }}</span>
+                                        </div>
+                                        <p-tag
+                                            [value]="('payment_status_' + (payment?.paymentStatus).toLowerCase()) | translate"
+                                            [severity]="getPaymentStatusSeverity(payment?.paymentStatus)"
+                                            [icon]="getPaymentStatusIcon(payment?.paymentStatus)">
+                                        </p-tag>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-											<div class="timeline-content">
-												<!-- Ordered Status Content -->
-												<div *ngIf="event.status === 'Ordered'" class="ordered-content">
-													<!-- Customer Info -->
-													<div class="customer-info mb-3 text-center">
-														<div
-															class="flex align-items-center justify-content-center gap-2 mb-2">
-															<i class="pi pi-user text-primary"></i>
-															<strong>{{ 'customer_information' | translate }}</strong>
-														</div>
-														<p-chip
-															[label]="order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || ''))"
-															image="assets/core-images/customer.png"
-															class="customer-chip">
-														</p-chip>
-													</div>
+                        <!-- Quick Actions Card -->
+                        <div class="detail-card" 
+                            *ngIf="!order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
+                                && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned' || order.hasInvoice">
+                            <div class="card-header">
+                                <i class="pi pi-bolt"></i>
+                                <span>{{ 'quick_actions' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="actions-grid">
+                                    <button pButton pRipple icon="pi pi-print" 
+                                        [label]="'generate_invoice' | translate"
+                                        class="p-button-outlined p-button-help"
+                                        *ngIf="isAdmin && !order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
+                                            && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned'"
+                                        (click)="generateInvoice(order)"></button>
+                                    
+                                    <button pButton pRipple icon="pi pi-print" 
+                                        [label]="'print_invoice' | translate"
+                                        class="p-button-outlined p-button-help"
+                                        *ngIf="order.hasInvoice && isAdmin"
+                                        (click)="financialDocService.printFinancialDoc(order.activeInvoiceNumber)"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Items Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-box mr-2"></i>
+                    <span>{{ 'items' | translate }}</span>
+                    <p-badge [value]="(order.orderItems?.length || 0).toString()" class="ml-2"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-list"></i>
+                            <span>{{ 'ordered_products' | translate }}</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div *ngIf="order?.orderStatus === 'Returned'; else showProductsTable">
+                                <div class="empty-state py-4">
+                                    <div class="empty-icon">
+                                        <i class="pi pi-info-circle"></i>
+                                    </div>
+                                    <h4>{{ 'return_order_no_items_txt' | translate }}</h4>
+                                </div>
+                            </div>
+                            
+                            <ng-template #showProductsTable>
+                                <p-table [value]="order?.orderItems || []" [rows]="10" [paginator]="true"
+                                    [showCurrentPageReport]="true"
+                                    styleClass="p-datatable-sm p-datatable-striped"
+                                    currentPageReportTemplate="{first} - {last} / {totalRecords}"
+                                    [rowsPerPageOptions]="[10,25,50]"
+                                    *ngIf="order?.orderItems?.length > 0; else noItems">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th style="width: 35%">{{ 'product' | translate }}</th>
+                                            <th style="width: 15%">{{ 'reference' | translate }}</th>
+                                            <th style="width: 15%" class="text-center">{{ 'quantity' | translate }}</th>
+                                            <th style="width: 15%">{{ 'unit_price' | translate }}</th>
+                                            <th style="width: 20%">{{ 'total' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="body" let-orderItem>
+                                        <tr>
+                                            <td>
+                                                <div class="product-cell">
+                                                    <img [src]="orderItem?.product?.productImage || 'assets/core-images/no-image.png'"
+                                                        [alt]="orderItem?.product?.name"
+                                                        class="product-image"
+                                                        (click)="viewProductDetails(orderItem?.product)"
+                                                        style="cursor: pointer;" />
+                                                    <div class="product-info">
+                                                        <span class="product-name" 
+                                                            (click)="viewProductDetails(orderItem?.product)"
+                                                            style="cursor: pointer;">{{ orderItem?.product?.name || 'N/A' }}</span>
+                                                        <span class="product-category">{{ orderItem?.product?.category?.categoryName }}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="font-medium">{{ orderItem?.product?.reference || 'N/A' }}</td>
+                                            <td class="text-center">
+                                                <p-tag [value]="orderItem?.quantity?.toString() || '0'" severity="info"></p-tag>
+                                            </td>
+                                            <td class="font-semibold">{{ orderItem?.pricePerUnit | number:'1.2-2' }} {{ currency }}</td>
+                                            <td class="font-bold text-primary">{{ (orderItem?.quantity * orderItem?.pricePerUnit) | number:'1.2-2' }} {{ currency }}</td>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="footer">
+                                        <tr class="total-footer">
+                                            <td colspan="4" class="text-right font-bold">{{ 'subtotal' | translate }}:</td>
+                                            <td class="font-bold text-primary text-xl">{{ getOrderSubtotal() | number:'1.2-2' }} {{ currency }}</td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                                <ng-template #noItems>
+                                    <div class="empty-state py-4">
+                                        <div class="empty-icon">
+                                            <i class="pi pi-box"></i>
+                                        </div>
+                                        <h4>{{ 'no_items_found' | translate }}</h4>
+                                    </div>
+                                </ng-template>
+                            </ng-template>
+                        </div>
+                    </div>
+                    
+                    <!-- Product Gallery -->
+                    <div class="detail-card mt-4" *ngIf="images && images.length > 0">
+                        <div class="card-header">
+                            <i class="pi pi-images"></i>
+                            <span>{{ 'product_images' | translate }}</span>
+                        </div>
+                        <div class="card-body flex justify-content-center">
+                            <p-galleria [(value)]="images" [showIndicators]="true"
+                                [showThumbnails]="false" [changeItemOnIndicatorHover]="true"
+                                [responsiveOptions]="responsiveOptions"
+                                [containerStyle]="{ 'max-width': '400px' }">
+                                <ng-template pTemplate="item" let-item>
+                                    <img [src]="item" [alt]="'product_image' | translate"
+                                        style="max-width: 200px; max-height: 200px; width: auto; height: auto; border-radius: 12px; object-fit: contain;" />
+                                </ng-template>
+                            </p-galleria>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Timeline Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-history mr-2"></i>
+                    <span>{{ 'timeline' | translate }}</span>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-clock"></i>
+                            <span>{{ 'order_timeline' | translate }}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline-container" *ngIf="events.length > 0; else noTimeline">
+                                <p-timeline [value]="events" align="alternate" styleClass="order-timeline">
+                                    <ng-template pTemplate="marker" let-event>
+                                        <div class="timeline-marker" [ngClass]="{
+                                            'active': isEventActive(event),
+                                            'completed': !isEventActive(event)
+                                        }">
+                                            <i [class]="event.icon + ' marker-icon'"></i>
+                                        </div>
+                                    </ng-template>
 
-													<!-- Products Gallery -->
-													<div class="products-gallery mb-3 flex justify-content-center"
-														*ngIf="images && images.length > 0">
-														<p-galleria [(value)]="images" [showIndicators]="true"
-															[showThumbnails]="false" [changeItemOnIndicatorHover]="true"
-															[responsiveOptions]="responsiveOptions"
-															[containerStyle]="{ 'max-width': '300px', 'margin': '0 auto' }">
+                                    <ng-template pTemplate="content" let-event>
+                                        <div class="timeline-card" [ngClass]="{'active': isEventActive(event)}">
+                                            <div class="timeline-header">
+                                                <h5 class="m-0">
+                                                    {{ event.status ? ('order_status_' + event.status.toLowerCase() | translate) : 'N/A' }}
+                                                </h5>
+                                                <span class="timeline-date">
+                                                    {{ event.date != null ? (event.date | date:'medium') : ('now' | translate) }}
+                                                </span>
+                                            </div>
 
-															<ng-template pTemplate="item" let-item>
-																<img [src]="item" [alt]="'product_image' | translate"
-																	style="max-width: 100px; max-height: 100px; width: auto; height: auto; border-radius: 8px; object-fit: contain; margin: 0 auto; display: block;" />
-															</ng-template>
-														</p-galleria>
-													</div>
+                                            <div class="timeline-content">
+                                                <!-- Ordered Status Content -->
+                                                <div *ngIf="event.status === 'Ordered'" class="ordered-content">
+                                                    <!-- Customer Info Badge -->
+                                                    <div class="customer-badge mb-3">
+                                                        <p-chip
+                                                            [label]="order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || ''))"
+                                                            image="assets/core-images/customer.png">
+                                                        </p-chip>
+                                                    </div>
 
-													<!-- Products Accordion -->
-													<p-accordion class="w-full products-accordion">
-														<p-accordionTab>
-															<ng-template pTemplate="header">
-																<div class="flex align-items-center gap-2 w-full">
-																	<i class="pi pi-shopping-cart text-primary"></i>
-																	<span class="font-bold">
-																		{{ 'ordered_products' | translate }}
-																	</span>
-																	<p-badge [value]="order?.orderItems?.length || 0"
-																		severity="info" class="ml-auto">
-																	</p-badge>
-																</div>
-															</ng-template>
+                                                    <!-- Products Preview -->
+                                                    <p-accordion class="w-full">
+                                                        <p-accordionTab>
+                                                            <ng-template pTemplate="header">
+                                                                <div class="flex align-items-center gap-2 w-full">
+                                                                    <i class="pi pi-shopping-cart text-primary"></i>
+                                                                    <span class="font-bold">{{ 'ordered_products' | translate }}</span>
+                                                                    <p-badge [value]="order?.orderItems?.length || 0" severity="info" class="ml-auto"></p-badge>
+                                                                </div>
+                                                            </ng-template>
 
-															<div
-																*ngIf="order?.orderStatus === 'Returned'; else showProductsTable">
-																<p class="text-600 text-center py-3">
-																	<i class="pi pi-info-circle mr-2"></i>
-																	{{ 'return_order_no_items_txt' | translate }}
-																</p>
-															</div>
+                                                            <div class="products-preview">
+                                                                <div *ngFor="let item of order?.orderItems?.slice(0, 3)" class="product-preview-item">
+                                                                    <img [src]="item.product?.productImage || 'assets/core-images/no-image.png'" 
+                                                                        [alt]="item.product?.name" class="product-thumb" />
+                                                                    <div class="product-preview-info">
+                                                                        <span class="product-preview-name">{{ item.product?.name }}</span>
+                                                                        <span class="product-preview-qty">x{{ item.quantity }}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <p *ngIf="order?.orderItems?.length > 3" class="text-500 text-sm mt-2 m-0">
+                                                                    {{ 'and_more_items' | translate : { count: order.orderItems.length - 3 } }}
+                                                                </p>
+                                                            </div>
+                                                        </p-accordionTab>
+                                                    </p-accordion>
+                                                </div>
 
-															<ng-template #showProductsTable>
-																<p-table [value]="order?.orderItems" [scrollable]="true"
-																	scrollHeight="300px"
-																	*ngIf="order?.orderItems?.length > 0"
-																	styleClass="premium-products-table">
-																	<ng-template pTemplate="header">
-																		<tr>
-																			<th style="width: 35%">{{ 'product' |
-																				translate
-																				}}</th>
-																			<th style="width: 15%">{{ 'reference' |
-																				translate }}</th>
-																			<th style="width: 15%">{{ 'quantity' |
-																				translate
-																				}}</th>
-																			<th style="width: 15%">{{ 'unit_price' |
-																				translate }}</th>
-																			<th style="width: 20%">{{ 'total' |
-																				translate }}
-																			</th>
-																		</tr>
-																	</ng-template>
+                                                <!-- Other Status Contents -->
+                                                <div *ngIf="event.status !== 'Ordered'" class="status-content">
+                                                    <p [innerHTML]="getStatusDescription(event.status)" class="m-0 text-600"></p>
 
-																	<ng-template pTemplate="body" let-orderItem>
-																		<tr>
-																			<td>
-																				<div class="product-info">
-																					<img [src]="orderItem?.product?.productImage || 'assets/core-images/no-image.png'"
-																						[alt]="orderItem?.product?.name"
-																						class="product-image" 
-																						(click)="viewProductDetails(orderItem?.product)"
-																						style="cursor: pointer;" />
-																					<div class="product-details">
-																						<div class="product-name" 
-																							(click)="viewProductDetails(orderItem?.product)"
-																							style="cursor: pointer;">{{
-																							orderItem?.product?.name ||
-																							'N/A' }}</div>
-																						<div class="product-category">{{
-																							orderItem?.product?.category?.categoryName
-																							}}</div>
-																					</div>
-																				</div>
-																			</td>
-																			<td>{{ orderItem?.product?.reference ||
-																				'N/A' }}
-																			</td>
-																			<td>
-																				<p-tag
-																					[value]="orderItem?.quantity || '0'"
-																					severity="info"
-																					styleClass="quantity-tag"></p-tag>
-																			</td>
-																			<td class="font-semibold">
-																				{{ orderItem?.pricePerUnit |
-																				number:'1.2-2'
-																				}} {{currency}}
-																			</td>
-																			<td class="font-bold text-primary">
-																				{{ (orderItem?.quantity *
-																				orderItem?.pricePerUnit) |
-																				number:'1.2-2' }}
-																				{{currency}}
-																			</td>
-																		</tr>
-																	</ng-template>
-																</p-table>
-															</ng-template>
-														</p-accordionTab>
-													</p-accordion>
-												</div>
+                                                    <!-- Return Details -->
+                                                    <p-accordion *ngIf="event.status === 'Return_Pending' && orderReturns?.length > 0" class="w-full mt-3">
+                                                        <div *ngFor="let orderReturn of orderReturns; let i = index">
+                                                            <p-accordionTab>
+                                                                <ng-template pTemplate="header">
+                                                                    <div class="flex align-items-center gap-2 w-full">
+                                                                        <i class="pi pi-undo text-orange-500"></i>
+                                                                        <span class="font-bold">{{ 'return_details' | translate }} #{{ i + 1 }}</span>
+                                                                        <p-badge [value]="orderReturn.returnItems.length" severity="warning" class="ml-auto"></p-badge>
+                                                                    </div>
+                                                                </ng-template>
 
-												<!-- Other Status Contents -->
-												<div *ngIf="event.status !== 'Ordered'" class="status-content">
-													<p [innerHTML]="getStatusDescription(event.status)"></p>
+                                                                <div class="returns-list">
+                                                                    <div *ngFor="let returnItem of orderReturn.returnItems" class="return-item">
+                                                                        <span class="return-product">{{ returnItem.product?.name || 'N/A' }}</span>
+                                                                        <p-tag [value]="returnItem.returnedQuantity" severity="warning"></p-tag>
+                                                                        <span class="return-amount">{{ returnItem.refundAmount | number:'1.2-2' }} {{ currency }}</span>
+                                                                    </div>
+                                                                </div>
 
-													<!-- Return Details -->
-													<p-accordion
-														*ngIf="event.status === 'Return_Pending' && orderReturns?.length > 0"
-														class="w-full returns-accordion">
-														<div *ngFor="let orderReturn of orderReturns; let i = index">
-															<p-accordionTab>
-																<ng-template pTemplate="header">
-																	<div class="flex align-items-center gap-2 w-full">
-																		<i class="pi pi-undo text-primary"></i>
-																		<span class="font-bold">
-																			{{ 'return_details' | translate }} #{{ i + 1
-																			}}
-																		</span>
-																		<p-badge
-																			[value]="orderReturn.returnItems.length"
-																			severity="warning" class="ml-auto">
-																		</p-badge>
-																	</div>
-																</ng-template>
+                                                                <div class="return-summary mt-3">
+                                                                    <div *ngIf="orderReturn.refundAmount" class="return-summary-item">
+                                                                        <span>{{ 'return_refund_amount' | translate }}:</span>
+                                                                        <span class="font-bold text-green-600">{{ orderReturn.refundAmount | number:'1.2-2' }} {{ currency }}</span>
+                                                                    </div>
+                                                                    <div *ngIf="orderReturn.reason" class="return-summary-item">
+                                                                        <span>{{ 'return_reason' | translate }}:</span>
+                                                                        <span class="font-semibold">{{ 'return_reason_' + orderReturn.reason.toLowerCase() | translate }}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </p-accordionTab>
+                                                        </div>
+                                                    </p-accordion>
+                                                </div>
+                                            </div>
 
-																<p-table [value]="orderReturn.returnItems"
-																	styleClass="p-datatable-sm">
-																	<ng-template pTemplate="header">
-																		<tr>
-																			<th>{{ 'product' | translate }}</th>
-																			<th>{{ 'quantity_returned' | translate }}
-																			</th>
-																			<th>{{ 'return_refund_amount' | translate }}
-																			</th>
-																		</tr>
-																	</ng-template>
-																	<ng-template pTemplate="body" let-returnItem>
-																		<tr>
-																			<td>{{ returnItem.product?.name || 'N/A' }}
-																			</td>
-																			<td>
-																				<p-tag
-																					[value]="returnItem.returnedQuantity"
-																					severity="warning">
-																				</p-tag>
-																			</td>
-																			<td class="font-semibold">
-																				{{ returnItem.refundAmount |
-																				number:'1.2-2'
-																				}} {{currency}}
-																			</td>
-																		</tr>
-																	</ng-template>
-																</p-table>
+                                            <div class="timeline-actions" *ngIf="showEventButton(event)">
+                                                <button pButton [label]="event.button"
+                                                    [icon]="getActionButtonIcon(event.status)"
+                                                    [severity]="getActionButtonSeverity(event.status)"
+                                                    (click)="updateOrderStatus()" class="action-button">
+                                                </button>
 
-																<div class="return-summary mt-3">
-																	<div *ngIf="orderReturn.refundAmount"
-																		class="summary-item">
-																		<span>{{'return_refund_amount' |
-																			translate}}:</span>
-																		<span class="font-bold text-green-600">
-																			{{orderReturn.refundAmount| number:'1.2-2'}}
-																			{{currency}}
-																		</span>
-																	</div>
-																	<div *ngIf="orderReturn.reason"
-																		class="summary-item">
-																		<span>{{'return_reason' | translate}}:</span>
-																		<span class="font-semibold">
-																			{{'return_reason_'+orderReturn.reason.toLowerCase()
-																			| translate}}
-																		</span>
-																	</div>
-																</div>
-															</p-accordionTab>
-														</div>
-													</p-accordion>
-												</div>
-											</div>
+                                                <button *ngIf="allowCancelOrder()" pButton
+                                                    label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                                                    severity="danger" (click)="cancelOrder()"
+                                                    class="p-button-outlined">
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </ng-template>
+                                </p-timeline>
+                            </div>
+                            <ng-template #noTimeline>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="pi pi-history"></i>
+                                    </div>
+                                    <h4>{{ 'no_timeline_events' | translate }}</h4>
+                                </div>
+                            </ng-template>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Returns Tab (only show if returns exist) -->
+            <p-tabPanel *ngIf="orderReturns?.length > 0">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-undo mr-2"></i>
+                    <span>{{ 'returns' | translate }}</span>
+                    <p-badge [value]="orderReturns.length.toString()" severity="warning" class="ml-2"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <div class="detail-card" *ngFor="let orderReturn of orderReturns; let i = index">
+                        <div class="card-header">
+                            <i class="pi pi-undo"></i>
+                            <span>{{ 'return_details' | translate }} #{{ i + 1 }}</span>
+                            <p-tag *ngIf="orderReturn.reason" 
+                                [value]="'return_reason_' + orderReturn.reason.toLowerCase() | translate" 
+                                severity="warning" class="ml-auto"></p-tag>
+                        </div>
+                        <div class="card-body p-0">
+                            <p-table [value]="orderReturn.returnItems" styleClass="p-datatable-sm p-datatable-striped">
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th>{{ 'product' | translate }}</th>
+                                        <th class="text-center">{{ 'quantity_returned' | translate }}</th>
+                                        <th class="text-right">{{ 'return_refund_amount' | translate }}</th>
+                                    </tr>
+                                </ng-template>
+                                <ng-template pTemplate="body" let-returnItem>
+                                    <tr>
+                                        <td>{{ returnItem.product?.name || 'N/A' }}</td>
+                                        <td class="text-center">
+                                            <p-tag [value]="returnItem.returnedQuantity" severity="warning"></p-tag>
+                                        </td>
+                                        <td class="text-right font-semibold">{{ returnItem.refundAmount | number:'1.2-2' }} {{ currency }}</td>
+                                    </tr>
+                                </ng-template>
+                                <ng-template pTemplate="footer" *ngIf="orderReturn.refundAmount">
+                                    <tr class="total-footer">
+                                        <td colspan="2" class="text-right font-bold">{{ 'return_refund_amount' | translate }}:</td>
+                                        <td class="text-right font-bold text-green-600">{{ orderReturn.refundAmount | number:'1.2-2' }} {{ currency }}</td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+        </p-tabView>
+    </div>
 
-											<div class="timeline-actions" *ngIf="showEventButton(event)">
-												<button pButton [label]="event.button"
-													[icon]="getActionButtonIcon(event.status)"
-													[severity]="getActionButtonSeverity(event.status)"
-													(click)="updateOrderStatus()" class="action-button">
-												</button>
-
-												<button *ngIf="allowCancelOrder()" pButton
-													label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
-													severity="danger" (click)="cancelOrder()"
-													class="p-button-outlined">
-												</button>
-											</div>
-										</div>
-									</ng-template>
-								</p-timeline>
-							</div>
-						</div>
-					</div>
-
-					<!-- Right Panel - Order Summary & Quick Actions -->
-					<div class="col-12 md:col-4">
-						<!-- Order Summary -->
-						<div class="details-section">
-							<h4 class="section-title">
-								<i class="pi pi-chart-bar mr-2"></i>
-								{{ 'order_summary' | translate }}
-							</h4>
-
-							<div class="order-summary-card">
-								<div class="summary-item" *ngIf="order?.reference">
-									<span>{{ 'order_reference' | translate }}:</span>
-									<strong>#{{ order?.reference }}</strong>
-								</div>
-								<div class="summary-item" *ngIf="order?.orderDate">
-									<span>{{ 'order_date' | translate }}:</span>
-									<span>{{ order?.orderDate | date:'shortDate' }}</span>
-								</div>
-								<div class="summary-item" *ngIf="order?.customer">
-									<span>{{ 'customer' | translate }}:</span>
-									<span>{{ order?.customer?.companyName || ((order?.customer?.firstName || '') + ' ' +
-										(order?.customer?.lastName || '')) }}</span>
-								</div>
-								<div class="summary-item" *ngIf="order?.shop">
-									<span>{{ 'shop' | translate }}:</span>
-									<span>{{ order.shop.shopName }}</span>
-								</div>
-								<div class="summary-divider"
-									*ngIf="order?.discount || order?.taxEnabled || order?.transportAmount || order?.dutyFreeAmount">
-								</div>
-								<div class="summary-item" *ngIf="order?.orderItems?.length > 0">
-									<span>{{ 'subtotal' | translate }}:</span>
-									<span>{{ getOrderSubtotal() | number:'1.2-2' }} {{currency}}</span>
-								</div>
-								<div class="summary-item" *ngIf="order.discount">
-									<span>{{ 'discount' | translate }}:</span>
-									<span class="text-red-600">-{{ calculateOrderDiscount() | number:'1.2-2' }}
-										{{currency}}</span>
-								</div>
-								<div class="summary-item" *ngIf="order.taxEnabled">
-									<span>{{ 'tax' | translate }}:</span>
-									<span>+{{ calculateOrderTax() | number:'1.2-2' }} {{currency}}</span>
-								</div>
-								<div class="summary-item" *ngIf="order.transportAmount">
-									<span>{{ 'transport_amount' | translate }}:</span>
-									<span>+{{ order?.transportAmount | number:'1.2-2' }} {{currency}}</span>
-								</div>
-								<div class="summary-total" *ngIf="order?.totalAmount">
-									<span>{{ 'total' | translate }}:</span>
-									<span class="total-amount">{{ order?.totalAmount | number:'1.2-2' }}
-										{{currency}}</span>
-								</div>
-							</div>
-						</div>
-
-						<!-- Quick Actions -->
-						<div class="details-section" *ngIf="!order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
-								&& order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned' || order.hasInvoice">
-							<h4 class="section-title">
-								<i class="pi pi-bolt mr-2"></i>
-								{{ 'quick_actions' | translate }}
-							</h4>
-
-							<div class="actions-grid">
-								<button pButton pRipple icon="pi pi-print" [label]="'generate_invoice' | translate"
-									class="p-button-outlined p-button-help w-full mb-2" *ngIf="isAdmin && !order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
-								&& order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned'"
-									(click)="generateInvoice(order)">
-								</button>
-
-								<button *ngIf="order.hasInvoice && isAdmin" pButton pRipple icon="pi pi-print"
-									[label]="'print_invoice' | translate"
-									class="p-button-outlined p-button-help w-full mb-2"
-									(click)="financialDocService.printFinancialDoc(order.activeInvoiceNumber)">
-								</button>
-							</div>
-						</div>
-
-						<!-- Payment Information -->
-						<div class="details-section" *ngIf="orderPayments.length > 0">
-							<h4 class="section-title">
-								<i class="pi pi-credit-card mr-2"></i>
-								{{ 'payment_information' | translate }}
-							</h4>
-
-							<div class="payments-list">
-								<div *ngFor="let payment of orderPayments" class="payment-item">
-									<div class="flex align-items-center justify-content-between">
-										<div>
-											<div class="font-semibold">{{ payment.amount | number:'1.2-2' }}
-												{{currency}}
-											</div>
-											<small class="text-600">{{ payment.paymentMethod | translate }} • {{ payment.paymentDate |
-												date:'shortDate' }}</small>
-										</div>
-										<p-tag
-											[value]="('payment_status_' + (payment?.paymentStatus).toLowerCase()) | translate"
-											[severity]="getPaymentStatusSeverity(payment?.paymentStatus)"
-											[icon]="getPaymentStatusIcon(payment?.paymentStatus)" styleClass="text-sm">
-										</p-tag>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<div class="details-section" *ngIf="order?.createdBy || order?.creationDate">
-							<h4 class="section-title">
-								<i class="pi pi-history mr-2"></i>
-								{{ 'audit_information' | translate }}
-							</h4>
-
-							<div class="audit-info">
-								<div class="audit-item">
-									<label>{{ 'created_date' | translate }}</label>
-									<span>{{ order.creationDate | date:'short' }}</span>
-								</div>
-							</div>
-
-							<div class="audit-info">
-								<div class="audit-item">
-									<label>{{ 'created_by' | translate }}</label>
-									<span>{{ order.createdBy }}</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
+    <!-- Empty State -->
+    <div class="order-content" *ngIf="!isLoading && !order">
+        <div class="empty-state-container">
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="pi pi-shopping-bag"></i>
+                </div>
+                <h4>{{ 'order_not_found' | translate }}</h4>
+                <p>{{ 'order_not_found_description' | translate }}</p>
+                <button pButton pRipple [label]="'go_back' | translate" icon="pi pi-arrow-left"
+                    class="p-button-outlined mt-3" (click)="goBack()"></button>
+            </div>
+        </div>
+    </div>
 </div>
-

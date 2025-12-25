@@ -23,6 +23,9 @@ import { TooltipModule } from 'primeng/tooltip';
 import { CalendarModule } from 'primeng/calendar';
 import { TagModule } from 'primeng/tag';
 import { ChipModule } from 'primeng/chip';
+import { TabViewModule } from 'primeng/tabview';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
 import { RefundDetailsPageComponent } from './refund-details-page/refund-details-page.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 
@@ -53,6 +56,9 @@ import { SharedModule } from 'src/app/shared/shared.module';
         CalendarModule,
         TagModule,
         ChipModule,
+        TabViewModule,
+        BadgeModule,
+        DividerModule,
         SharedModule
     ],
     declarations: [RefundsComponent, RefundDetailsPageComponent],

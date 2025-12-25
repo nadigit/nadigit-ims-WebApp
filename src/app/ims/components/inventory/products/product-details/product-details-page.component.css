@@ -1,2 +1,780 @@
-/* Product Details Page Component Styles */
+/* =====================================================
+   Product Details Page - Modern UI Design
+   ===================================================== */
 
+/* Container */
+.product-details-container {
+  min-height: 100vh;
+  background: var(--surface-ground);
+}
+
+.product-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+/* Loading State */
+.loading-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+/* =====================================================
+   Hero Section
+   ===================================================== */
+.product-hero {
+  position: relative;
+  margin: -1rem -1rem 0;
+  padding: 1.5rem 2rem 2rem;
+  background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
+  border-bottom: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.hero-background {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100%;
+  background: linear-gradient(135deg, transparent 0%, var(--primary-100) 100%);
+  opacity: 0.3;
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
+}
+
+:host-context(.layout-theme-dark) .hero-background {
+  background: linear-gradient(135deg, transparent 0%, var(--primary-900) 100%);
+  opacity: 0.15;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.back-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--surface-card) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.back-button:hover {
+  background: var(--surface-hover) !important;
+}
+
+.product-hero-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-card);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.product-hero-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.action-buttons {
+  flex-shrink: 0;
+}
+
+/* =====================================================
+   Stats Row
+   ===================================================== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: -1.5rem 0 1.5rem;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 2;
+}
+
+.stat-card-modern {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--surface-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--surface-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-100);
+  color: var(--primary-600);
+  flex-shrink: 0;
+}
+
+.stat-icon i {
+  font-size: 1.25rem;
+}
+
+.stat-icon.buying {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.stat-icon.selling {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+.stat-icon.profit {
+  background: var(--purple-100);
+  color: var(--purple-600);
+}
+
+:host-context(.layout-theme-dark) .stat-icon {
+  background: rgba(var(--primary-500-rgb), 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.buying {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.selling {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stat-icon.profit {
+  background: rgba(147, 51, 234, 0.15);
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.2;
+}
+
+.stat-unit {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-color-secondary);
+  margin-left: 0.25rem;
+}
+
+.profit-value {
+  color: var(--green-500);
+}
+
+.text-danger {
+  color: var(--red-500) !important;
+}
+
+.text-warning {
+  color: var(--orange-500) !important;
+}
+
+/* =====================================================
+   Tabs
+   ===================================================== */
+::ng-deep .product-tabs .p-tabview-nav {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+::ng-deep .product-tabs .p-tabview-nav-link {
+  background: transparent !important;
+  border: none !important;
+  padding: 1rem 1.5rem;
+  font-weight: 500;
+  color: var(--text-color-secondary);
+  transition: all 0.2s ease;
+}
+
+::ng-deep .product-tabs .p-tabview-nav-link:hover {
+  color: var(--text-color);
+}
+
+::ng-deep .product-tabs .p-highlight .p-tabview-nav-link {
+  color: var(--primary-color) !important;
+  border-bottom: 2px solid var(--primary-color) !important;
+}
+
+::ng-deep .product-tabs .p-tabview-panels {
+  background: transparent;
+  padding: 0;
+}
+
+/* =====================================================
+   Detail Cards
+   ===================================================== */
+.detail-card {
+  background: var(--surface-card);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+}
+
+.card-header i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+/* Product Main Image */
+::ng-deep .product-main-image {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* Barcode Main Image */
+.barcode-main-image {
+  max-width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+}
+
+/* =====================================================
+   Info Grid
+   ===================================================== */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.info-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-ground);
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.info-icon i {
+  font-size: 1rem;
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-color-secondary);
+}
+
+.info-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-color);
+  word-break: break-word;
+}
+
+@media screen and (max-width: 576px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =====================================================
+   Barcode Cards
+   ===================================================== */
+.barcode-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.barcode-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.barcode-card.barcode-primary {
+  border-color: var(--yellow-500);
+  background: linear-gradient(180deg, rgba(255, 193, 7, 0.05) 0%, var(--surface-card) 100%);
+}
+
+.barcode-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.barcode-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.barcode-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background: white;
+  flex: 1;
+}
+
+:host-context(.layout-theme-dark) .barcode-card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.barcode-image {
+  max-width: 100%;
+  max-height: 100px;
+  object-fit: contain;
+}
+
+.barcode-card-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--surface-border);
+  text-align: center;
+}
+
+.barcode-value {
+  display: block;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.25rem;
+}
+
+.barcode-format {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-color-secondary);
+}
+
+.barcode-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  margin-top: 0.25rem;
+}
+
+/* =====================================================
+   Empty State
+   ===================================================== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  background: var(--surface-card);
+  border-radius: 12px;
+  border: 2px dashed var(--surface-border);
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-ground);
+  margin-bottom: 1.5rem;
+}
+
+.empty-icon i {
+  font-size: 2.5rem;
+  color: var(--text-color-secondary);
+}
+
+.empty-state h4 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.empty-state p {
+  margin: 0 0 1.5rem;
+  color: var(--text-color-secondary);
+  max-width: 320px;
+}
+
+/* =====================================================
+   Profit Analysis
+   ===================================================== */
+.profit-summary {
+  border-top: 1px solid var(--surface-border);
+  padding-top: 1rem;
+}
+
+.profit-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--surface-100);
+}
+
+.profit-item:last-child {
+  border-bottom: none;
+}
+
+.profit-item.highlight {
+  background: var(--surface-ground);
+  margin: 0 -1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+}
+
+.profit-label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.profit-value {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.profit-value.cost {
+  color: var(--blue-500);
+}
+
+.profit-value.profit {
+  color: var(--green-500);
+}
+
+.profit-value.margin {
+  color: var(--purple-500);
+  font-size: 1.25rem;
+}
+
+/* =====================================================
+   Stock Value Grid
+   ===================================================== */
+.stock-value-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stock-value-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--surface-ground);
+  border-radius: 10px;
+  transition: transform 0.2s ease;
+}
+
+.stock-value-item:hover {
+  transform: translateX(4px);
+}
+
+.stock-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stock-icon.cost {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.stock-icon.retail {
+  background: var(--cyan-100);
+  color: var(--cyan-600);
+}
+
+.stock-icon.profit {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+:host-context(.layout-theme-dark) .stock-icon.cost {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stock-icon.retail {
+  background: rgba(6, 182, 212, 0.15);
+}
+
+:host-context(.layout-theme-dark) .stock-icon.profit {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.stock-icon i {
+  font-size: 1.25rem;
+}
+
+.stock-details {
+  flex: 1;
+}
+
+.stock-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.stock-amount {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.stock-amount.profit {
+  color: var(--green-500);
+}
+
+/* =====================================================
+   Product Badge
+   ===================================================== */
+.product-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.product-badge.status-instock {
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.product-badge.status-outofstock {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+
+.product-badge.status-lowstock {
+  background: var(--orange-100);
+  color: var(--orange-700);
+}
+
+:host-context(.layout-theme-dark) .product-badge.status-instock {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--green-400);
+}
+
+:host-context(.layout-theme-dark) .product-badge.status-outofstock {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red-400);
+}
+
+:host-context(.layout-theme-dark) .product-badge.status-lowstock {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--orange-400);
+}
+
+/* =====================================================
+   Print Dialog
+   ===================================================== */
+.print-barcode-preview {
+  height: 36px;
+  width: auto;
+  background: white;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+::ng-deep .p-listbox .p-listbox-item {
+  padding: 0.875rem 1rem;
+}
+
+/* =====================================================
+   Dialog Styling
+   ===================================================== */
+::ng-deep .product-dialog .p-dialog-content {
+  padding: 1.5rem;
+}
+
+::ng-deep .product-dialog .p-dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--surface-border);
+}
+
+/* =====================================================
+   Font Mono
+   ===================================================== */
+.font-mono {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+}
+
+/* =====================================================
+   Responsive Design
+   ===================================================== */
+@media screen and (max-width: 992px) {
+  .product-hero {
+    padding: 1.5rem 1rem;
+  }
+  
+  .product-title {
+    font-size: 1.5rem;
+  }
+  
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 0 0.5rem;
+  }
+  
+  .stat-card-modern {
+    padding: 1rem;
+  }
+  
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .product-hero-image {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .product-title {
+    font-size: 1.25rem;
+  }
+  
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+    margin-top: -1rem;
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  ::ng-deep .product-tabs .p-tabview-nav-link {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .barcode-actions button {
+    padding: 0.25rem;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .product-content {
+    padding: 0 0.5rem 1.5rem;
+  }
+  
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .action-buttons button,
+  .action-buttons p-splitButton {
+    flex: 1;
+    max-width: 140px;
+  }
+  
+  ::ng-deep .product-tabs .p-tabview-nav {
+    flex-wrap: wrap;
+  }
+}

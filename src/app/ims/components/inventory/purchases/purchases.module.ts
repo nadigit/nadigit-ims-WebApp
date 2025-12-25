@@ -30,6 +30,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { AccordionModule } from 'primeng/accordion';
 import { ChipModule } from 'primeng/chip';
 import { BadgeModule } from 'primeng/badge';
+import { TabViewModule } from 'primeng/tabview';
+import { DividerModule } from 'primeng/divider';
 
 @NgModule({
     imports: [
@@ -60,7 +62,9 @@ import { BadgeModule } from 'primeng/badge';
         SharedModule,
         AccordionModule,
         ChipModule,
-        BadgeModule
+        BadgeModule,
+        TabViewModule,
+        DividerModule
     ],
     declarations: [PurchasesComponent, PurchaseDetailsPageComponent],
     providers: [ReportingService],

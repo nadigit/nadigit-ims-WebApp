@@ -167,6 +167,16 @@ export class PurchaseDetailsPageComponent implements OnInit {
     return severityMap[status] || 'info';
   }
 
+  getPaymentStatusSeverity(status: string): string {
+    const severityMap: { [key: string]: string } = {
+      'PAID': 'success',
+      'UNPAID': 'danger',
+      'PARTIAL': 'warning',
+      'PENDING': 'info'
+    };
+    return severityMap[status] || 'info';
+  }
+
   getPurchaseStatusIcon(status: string): string {
     const iconMap: { [key: string]: string } = {
       'PENDING': 'pi pi-clock',

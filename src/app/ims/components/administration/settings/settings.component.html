@@ -1,461 +1,759 @@
-<div class="settings-page">
-  <div class="grid">
-    <div class="col-12">
-      <div class="card settings-card">
-        <!-- Page Header -->
-        <div class="settings-header mb-4">
-          <div class="flex align-items-center gap-3">
-            <div class="settings-icon-wrapper">
-              <i class="pi pi-sliders-h"></i>
-            </div>
-            <div>
-              <h2 class="m-0 text-2xl font-bold">{{ 'global_settings' | translate }}</h2>
-              <p class="text-600 m-0 mt-1">{{ 'manage_system_settings_and_banks' | translate }}</p>
+<div class="settings-container">
+	<p-toast></p-toast>
+
+	<!-- Loading State -->
+	<div class="loading-wrapper" *ngIf="isLoading && isLoadingBanks">
+		<div class="loading-content">
+			<p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+		</div>
+	</div>
+
+	<!-- Main Content -->
+	<div class="settings-content" *ngIf="!isLoading && !isLoadingBanks">
+
+		<!-- Hero Header Section -->
+		<div class="settings-hero">
+			<div class="hero-background"></div>
+			<div class="hero-content">
+				<div class="flex align-items-center gap-2 mb-3">
+					<button pButton pRipple icon="pi pi-arrow-left"
+						class="p-button-text p-button-rounded p-button-plain back-button"
+						[pTooltip]="'back' | translate" tooltipPosition="bottom"
+						(click)="goBack()"></button>
+					<span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+					<i class="pi pi-angle-right text-400 text-sm"></i>
+					<span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+				</div>
+
+				<div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+					<div class="flex align-items-center gap-4">
+						<div class="settings-hero-icon">
+							<i class="pi pi-sliders-h"></i>
+						</div>
+						<div>
+							<div class="flex align-items-center gap-3 mb-2">
+								<h1 class="m-0 text-900 settings-title">{{ 'global_settings' | translate }}</h1>
+							</div>
+							<div class="flex align-items-center gap-4 text-500">
+								<span class="flex align-items-center gap-2">
+									<i class="pi pi-cog"></i>
+									{{ 'manage_system_settings_and_banks' | translate }}
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Quick Stats Row -->
+		<div class="stats-row">
+			<div class="stat-card-modern configs-card">
+				<div class="stat-icon configs">
+					<i class="pi pi-sliders-h"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'global_parameters' | translate }}</span>
+					<div class="stat-value">
+						{{ configs?.length || 0 }}
+					</div>
+				</div>
+			</div>
+
+			<div class="stat-card-modern banks-card">
+				<div class="stat-icon banks">
+					<i class="pi pi-building"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'total_banks' | translate }}</span>
+					<div class="stat-value">
+						{{ banks?.length || 0 }}
+					</div>
+				</div>
+			</div>
+
+			<div class="stat-card-modern active-banks-card">
+				<div class="stat-icon active">
+					<i class="pi pi-check-circle"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'active_banks' | translate }}</span>
+					<div class="stat-value">
+						{{ activeBanksCount || 0 }}
+					</div>
+				</div>
+			</div>
+
+			<div class="stat-card-modern currency-card">
+				<div class="stat-icon currency">
+					<i class="pi pi-dollar"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'currency' | translate }}</span>
+					<div class="stat-value">
+						{{ appConfigCurrency?.value || 'USD' }}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Tabs Section -->
+		<p-tabView styleClass="settings-tabs" [(activeIndex)]="activeTabIndex">
+
+			<!-- Global Settings Tab -->
+			<p-tabPanel>
+				<ng-template pTemplate="header">
+					<i class="pi pi-cog mr-2"></i>
+					<span>{{ 'global_parameters' | translate }}</span>
+					<p-badge [value]="configs?.length?.toString() || '0'" class="ml-2"></p-badge>
+				</ng-template>
+
+				<div class="mt-3">
+					<!-- Settings Grid -->
+					<div class="settings-grid">
+						<div *ngFor="let config of configs; trackBy: trackByConfig" class="setting-item">
+							<div class="detail-card">
+								<div class="card-header">
+									<div class="setting-info">
+										<h4 class="setting-label">{{ config.key | translate }}</h4>
+										<p class="setting-hint">{{ ('settings_' + config.key + '_hint') | translate : {} }}</p>
+									</div>
+									<div class="setting-actions">
+										<p-button
+											(click)="toggleEditMode(config)"
+											[icon]="config.isEditing ? 'pi pi-check' : 'pi pi-pencil'"
+											[rounded]="true"
+											[outlined]="true"
+											[label]="config.isEditing ? ('save_button' | translate) : ''"
+											[class]="config.isEditing ? 'p-button-success' : 'p-button-secondary'"
+											styleClass="p-button-sm">
+										</p-button>
+									</div>
+								</div>
+
+								<div class="card-body">
+									<div class="setting-value">
+										<ng-container *ngIf="!config.isEditing; else editModeTemplate">
+											<div class="value-display">
+												<!-- Display the value and units for lowStockThreshold -->
+												<span *ngIf="config.key === 'lowStockThreshold'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'units' | translate }}</span>
+												</span>
+
+												<!-- Display the value as a percentage if the key is 'tax' -->
+												<span *ngIf="config.key === 'tax'" class="value-text">
+													<span class="value-number">{{ (config.value * 100) | number: '1.0-2' }}</span>
+													<span class="value-unit">%</span>
+												</span>
+
+												<span *ngIf="config.key === 'cashRegDefaultOpeningBalance'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ appConfigCurrency?.value }}</span>
+												</span>
+
+												<span *ngIf="config.key === 'returnWindow'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'days' | translate }}</span>
+												</span>
+
+												<span *ngIf="config.key === 'refundWindow'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'days' | translate }}</span>
+												</span>
+
+												<!-- Display the value for other keys -->
+												<span *ngIf="config.key !== 'lowStockThreshold' &&
+													config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' &&
+													config.key !== 'returnWindow' &&
+													config.key !== 'refundWindow' &&
+													config.key !== 'app.timezone' &&
+													config.key !== 'autoOrderComplete'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+												</span>
+
+												<!-- Auto order completion -->
+												<span *ngIf="config.key === 'autoOrderComplete'" class="value-text">
+													<p-tag [value]="config.value === 'active' ? ('enabled' | translate) : ('disabled' | translate)"
+														[severity]="config.value === 'active' ? 'success' : 'danger'"></p-tag>
+												</span>
+
+												<!-- Timezone display -->
+												<span *ngIf="config.key === 'app.timezone'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+												</span>
+											</div>
+										</ng-container>
+
+										<!-- Edit mode -->
+										<ng-template #editModeTemplate>
+											<div class="edit-container">
+												<!-- For low stock threshold -->
+												<div *ngIf="config.key == 'lowStockThreshold'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+													<span class="edit-unit">{{ 'units' | translate }}</span>
+												</div>
+
+												<!-- For currency selection -->
+												<div *ngIf="config.key == 'currency'" class="edit-field">
+													<p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol"
+														optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}" class="w-full">
+													</p-dropdown>
+												</div>
+
+												<!-- For tax as percentage -->
+												<div *ngIf="config.key == 'tax'" class="edit-field">
+													<input [(ngModel)]="taxPercentage" type="number" pInputText class="w-full"
+														(ngModelChange)="onTaxChange($event)" />
+													<span class="edit-unit">%</span>
+												</div>
+
+												<div *ngIf="config.key == 'cashRegDefaultOpeningBalance'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+													<span class="edit-unit">{{ appConfigCurrency?.value }}</span>
+												</div>
+
+												<div *ngIf="config.key == 'returnWindow'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+													<span class="edit-unit">{{'days' |translate}}</span>
+												</div>
+
+												<div *ngIf="config.key == 'refundWindow'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
+													<span class="edit-unit">{{'days' |translate}}</span>
+												</div>
+
+												<!-- Auto order completion as enabled/disabled dropdown -->
+												<div *ngIf="config.key == 'autoOrderComplete'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="autoOrderOptions"
+														optionLabel="label"
+														optionValue="value"
+														placeholder="{{ 'enabled' | translate }}" class="w-full">
+													</p-dropdown>
+												</div>
+
+												<!-- Edit mode for timezone -->
+												<div *ngIf="config.key === 'app.timezone'" class="edit-field">
+													<p-dropdown [options]="timezones" [(ngModel)]="config.value" optionLabel="label"
+														optionValue="value" placeholder="{{ 'select_timezone_option' | translate }}" class="w-full">
+													</p-dropdown>
+												</div>
+											</div>
+										</ng-template>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</p-tabPanel>
+
+			<!-- Banks Management Tab -->
+			<p-tabPanel>
+				<ng-template pTemplate="header">
+					<i class="pi pi-building mr-2"></i>
+					<span>{{ 'banks_management' | translate }}</span>
+					<p-badge [value]="banks?.length?.toString() || '0'" class="ml-2"></p-badge>
+				</ng-template>
+
+				<div class="mt-3">
+					<!-- Action Bar -->
+					<div class="detail-card mb-4">
+						<div class="card-body">
+							<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+								<div class="flex align-items-center gap-2">
+									<i class="pi pi-building text-primary text-xl"></i>
+									<div>
+										<h4 class="m-0 text-lg font-semibold">{{ 'banks_management' | translate }}</h4>
+										<p class="text-600 m-0 mt-1">{{ 'manage_bank_information' | translate }}</p>
+									</div>
+								</div>
+								<button *ngIf="canAddBank" pButton pRipple icon="pi pi-plus"
+									[label]="'add_bank' | translate" class="p-button-primary"
+									(click)="openNewBank()"></button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Filters -->
+					<div class="detail-card mb-4">
+						<div class="card-body">
+							<div class="flex flex-column md:flex-row gap-3">
+								<div class="flex-1">
+									<span class="p-input-icon-left w-full">
+										<i class="pi pi-search"></i>
+										<input type="text" pInputText [(ngModel)]="globalFilter"
+											[placeholder]="'search_banks' | translate" class="w-full" />
+									</span>
+								</div>
+								<div>
+									<p-selectButton [options]="[
+										{label: ('all' | translate), value: undefined},
+										{label: ('active' | translate), value: true},
+										{label: ('inactive' | translate), value: false}
+									]" [(ngModel)]="activeFilter" (onChange)="onActiveFilterChange()"
+										optionLabel="label" optionValue="value"></p-selectButton>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Banks Table -->
+					<div class="detail-card">
+						<div class="card-body p-0">
+							<p-table [value]="banks" [(selection)]="selectedBanks"
+								[paginator]="true" [rows]="20" [rowsPerPageOptions]="[20, 50, 100]"
+								[globalFilterFields]="['name','code','country','city']"
+								[loading]="isLoadingBanks" dataKey="bankId"
+								[responsive]="true" styleClass="p-datatable-gridlines"
+								[globalFilter]="globalFilter">
+
+								<ng-template pTemplate="header">
+									<tr>
+										<th style="width: 3rem">
+											<p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+										</th>
+										<th pSortableColumn="name">
+											{{'bank_name' | translate}} <p-sortIcon field="name"></p-sortIcon>
+										</th>
+										<th pSortableColumn="code">
+											{{'bank_code' | translate}} <p-sortIcon field="code"></p-sortIcon>
+										</th>
+										<th pSortableColumn="country">
+											{{'country' | translate}} <p-sortIcon field="country"></p-sortIcon>
+										</th>
+										<th pSortableColumn="city">
+											{{'city' | translate}} <p-sortIcon field="city"></p-sortIcon>
+										</th>
+										<th pSortableColumn="active">
+											{{'status' | translate}} <p-sortIcon field="active"></p-sortIcon>
+										</th>
+										<th>{{'actions' | translate}}</th>
+									</tr>
+								</ng-template>
+
+								<ng-template pTemplate="body" let-bank>
+									<tr>
+										<td>
+											<p-tableCheckbox [value]="bank"></p-tableCheckbox>
+										</td>
+										<td>
+											<span class="font-semibold">{{bank.name}}</span>
+										</td>
+										<td>{{bank.code || '-'}}</td>
+										<td>{{bank.country || '-'}}</td>
+										<td>{{bank.city || '-'}}</td>
+										<td>
+											<p-tag [value]="(bank.active ? 'active' : 'inactive') | translate"
+												[severity]="bank.active ? 'success' : 'danger'"></p-tag>
+										</td>
+										<td>
+											<div class="flex gap-2">
+												<button *ngIf="canReadBank" pButton pRipple icon="pi pi-eye"
+													class="p-button-rounded p-button-text p-button-info"
+													(click)="viewBankDetails(bank)"
+													[pTooltip]="'view_details' | translate"></button>
+												<button *ngIf="canEditBank" pButton pRipple icon="pi pi-pencil"
+													class="p-button-rounded p-button-text p-button-warning"
+													(click)="editBank(bank)"
+													[pTooltip]="'edit' | translate"></button>
+												<button *ngIf="canDeleteBank" pButton pRipple icon="pi pi-trash"
+													class="p-button-rounded p-button-text p-button-danger"
+													(click)="deleteBank(bank)"
+													[pTooltip]="'delete' | translate"></button>
+											</div>
+										</td>
+									</tr>
+								</ng-template>
+
+								<ng-template pTemplate="emptymessage">
+									<tr>
+										<td colspan="7">
+											<div class="flex flex-column align-items-center justify-content-center py-5">
+												<img src="assets/core-images/no_data_found.png" alt="No Data Found"
+													style="max-width: 250px; opacity: 0.6;">
+												<p class="mt-3 text-gray-600 font-medium text-lg">
+													{{ 'no_banks_found' | translate }}
+												</p>
+											</div>
+										</td>
+									</tr>
+								</ng-template>
+							</p-table>
+						</div>
+					</div>
+
+					<!-- Bulk Actions -->
+					<div *ngIf="selectedBanks.length > 0" class="mt-3">
+						<div class="detail-card">
+							<div class="card-body">
+								<div class="flex justify-content-between align-items-center">
+									<span class="text-600">{{ selectedBanks.length }} {{ 'banks_selected' | translate }}</span>
+									<button pButton pRipple [label]="'delete_selected' | translate"
+										icon="pi pi-trash" class="p-button-danger p-button-outlined"
+										(click)="deleteSelectedBanks()"></button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</p-tabPanel>
+
+		</p-tabView>
+	</div>
+</div>
+
+<!-- Bank Dialog -->
+<p-dialog [(visible)]="bankDialog" [style]="{width: '700px'}"
+  [header]="(bank.bankId ? 'edit_bank' : 'add_bank') | translate"
+  [modal]="true" class="bank-dialog p-fluid">
+
+  <ng-template pTemplate="content">
+    <div class="bank-form-container">
+
+      <!-- Bank Header Section -->
+      <div class="bank-form-header" *ngIf="bank.bankId">
+        <div class="bank-avatar">
+          <i class="pi pi-building"></i>
+        </div>
+        <div class="bank-info">
+          <h3 class="bank-name">{{ bank.name || ('new_bank' | translate) }}</h3>
+          <p class="bank-subtitle">{{ 'edit_bank_details' | translate }}</p>
+        </div>
+      </div>
+
+      <!-- Form Fields -->
+      <div class="form-sections">
+
+        <!-- Basic Information Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="pi pi-info-circle"></i>
+            <span>{{ 'basic_information' | translate }}</span>
+          </div>
+          <div class="section-body">
+            <div class="grid">
+              <div class="col-12">
+                <div class="field">
+                  <label for="name" class="field-label">
+                    {{'bank_name' | translate}} <span class="required-asterisk">*</span>
+                  </label>
+                  <input id="name" type="text" pInputText [(ngModel)]="bank.name"
+                    [ngClass]="{'ng-invalid ng-dirty': submittedBank && !bank.name}"
+                    placeholder="{{ 'enter_bank_name' | translate }}" />
+                  <small *ngIf="submittedBank && !bank.name" class="error-message">
+                    <i class="pi pi-exclamation-circle mr-1"></i>
+                    {{'bank_name' | translate}} {{'is_required_label' | translate}}
+                  </small>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <div class="field">
+                  <label for="code" class="field-label">{{'bank_code' | translate}}</label>
+                  <input id="code" type="text" pInputText [(ngModel)]="bank.code"
+                    placeholder="{{ 'enter_bank_code' | translate }}" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <p-toast></p-toast>
-
-        <!-- Loading Spinner -->
-        <div class="card flex justify-content-center" *ngIf="isLoading && isLoadingBanks">
-          <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+        <!-- Location Information Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="pi pi-map-marker"></i>
+            <span>{{ 'location_information' | translate }}</span>
+          </div>
+          <div class="section-body">
+            <div class="grid">
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="country" class="field-label">{{'country' | translate}}</label>
+                  <input id="country" type="text" pInputText [(ngModel)]="bank.country"
+                    placeholder="{{ 'enter_country' | translate }}" />
+                </div>
+              </div>
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="city" class="field-label">{{'city' | translate}}</label>
+                  <input id="city" type="text" pInputText [(ngModel)]="bank.city"
+                    placeholder="{{ 'enter_city' | translate }}" />
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="field">
+                  <label for="address" class="field-label">{{'address' | translate}}</label>
+                  <textarea id="address" rows="3" pInputTextarea [(ngModel)]="bank.address"
+                    placeholder="{{ 'enter_address' | translate }}"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Tabbed Interface -->
-        <p-tabView *ngIf="!isLoading || !isLoadingBanks" class="enhanced-tabview" [(activeIndex)]="activeTabIndex">
-          
-          <!-- Global Settings Tab -->
-          <p-tabPanel>
-            <ng-template pTemplate="header">
-              <span class="flex align-items-center gap-2">
-                <i class="pi pi-cog"></i>
-                <span>{{ 'global_parameters' | translate }}</span>
-              </span>
-            </ng-template>
-
-            <div class="settings-content" *ngIf="!isLoading">
-              <div class="settings-section">
-                <div class="section-header mb-4">
-                  <div class="flex align-items-center gap-2">
-                    <i class="pi pi-sliders-h text-primary text-xl"></i>
-                    <div>
-                      <h3 class="m-0 text-xl font-semibold">{{ 'global_parameters' | translate }}</h3>
-                      <small class="text-600">{{ 'administration_description_txt' | translate }}</small>
-                    </div>
-                  </div>
+        <!-- Contact Information Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="pi pi-phone"></i>
+            <span>{{ 'contact_information' | translate }}</span>
+          </div>
+          <div class="section-body">
+            <div class="grid">
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="phoneNumber" class="field-label">{{'phone_number' | translate}}</label>
+                  <input id="phoneNumber" type="tel" pInputText [(ngModel)]="bank.phoneNumber"
+                    placeholder="{{ 'enter_phone_number' | translate }}" />
                 </div>
+              </div>
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="email" class="field-label">{{'email' | translate}}</label>
+                  <input id="email" type="email" pInputText [(ngModel)]="bank.email"
+                    placeholder="{{ 'enter_email_address' | translate }}" />
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="field">
+                  <label for="website" class="field-label">{{'website' | translate}}</label>
+                  <input id="website" type="url" pInputText [(ngModel)]="bank.website"
+                    placeholder="https://example.com" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                <!-- Settings Grid -->
-                <div class="settings-grid">
-                  <div *ngFor="let config of configs; trackBy: trackByConfig" class="setting-item">
-                    <div class="setting-card">
-                      <div class="setting-header">
-                        <div class="setting-info">
-                          <h4 class="setting-label">{{ config.key | translate }}</h4>
-                          <p class="setting-hint">{{ ('settings_' + config.key + '_hint') | translate : {} }}</p>
-                        </div>
-                        <div class="setting-actions">
-                          <p-button
-                            (click)="toggleEditMode(config)"
-                            [icon]="config.isEditing ? 'pi pi-check' : 'pi pi-pencil'"
-                            [rounded]="true"
-                            [outlined]="true"
-                            [label]="config.isEditing ? ('save_button' | translate) : ''"
-                            [class]="config.isEditing ? 'p-button-success' : 'p-button-secondary'"
-                            styleClass="p-button-sm">
-                          </p-button>
-                        </div>
-                      </div>
-
-                      <div class="setting-value">
-                        <ng-container *ngIf="!config.isEditing; else editModeTemplate">
-                          <div class="value-display">
-                            <!-- Display the value and units for lowStockThreshold -->
-                            <span *ngIf="config.key === 'lowStockThreshold'" class="value-text">
-                              <span class="value-number">{{ config.value }}</span>
-                              <span class="value-unit">{{ 'units' | translate }}</span>
-                            </span>
-
-                            <!-- Display the value as a percentage if the key is 'tax' -->
-                            <span *ngIf="config.key === 'tax'" class="value-text">
-                              <span class="value-number">{{ (config.value * 100) | number: '1.0-2' }}</span>
-                              <span class="value-unit">%</span>
-                            </span>
-
-                            <span *ngIf="config.key === 'cashRegDefaultOpeningBalance'" class="value-text">
-                              <span class="value-number">{{ config.value }}</span>
-                              <span class="value-unit">{{ appConfigCurrency?.value }}</span>
-                            </span>
-
-                            <span *ngIf="config.key === 'returnWindow'" class="value-text">
-                              <span class="value-number">{{ config.value }}</span>
-                              <span class="value-unit">{{ 'days' | translate }}</span>
-                            </span>
-
-                            <span *ngIf="config.key === 'refundWindow'" class="value-text">
-                              <span class="value-number">{{ config.value }}</span>
-                              <span class="value-unit">{{ 'days' | translate }}</span>
-                            </span>
-
-                            <!-- Display the value for other keys -->
-                            <span *ngIf="config.key !== 'lowStockThreshold' && 
-                              config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' && 
-                              config.key !== 'returnWindow' && 
-                              config.key !== 'refundWindow' && 
-                              config.key !== 'app.timezone' &&
-                              config.key !== 'autoOrderComplete'" class="value-text">
-                              <span class="value-number">{{ config.value }}</span>
-                            </span>
-
-                            <!-- Auto order completion -->
-                            <span *ngIf="config.key === 'autoOrderComplete'" class="value-text">
-                              <p-tag [value]="config.value === 'active' ? ('enabled' | translate) : ('disabled' | translate)"
-                                [severity]="config.value === 'active' ? 'success' : 'danger'"></p-tag>
-                            </span>
-
-                            <!-- Timezone display -->
-                            <span *ngIf="config.key === 'app.timezone'" class="value-text">
-                              <span class="value-number">{{ config.value }}</span>
-                            </span>
-                          </div>
-                        </ng-container>
-
-                        <!-- Edit mode -->
-                        <ng-template #editModeTemplate>
-                          <div class="edit-container">
-                            <!-- For low stock threshold -->
-                            <div *ngIf="config.key == 'lowStockThreshold'" class="edit-field">
-                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
-                              <span class="edit-unit">{{ 'units' | translate }}</span>
-                            </div>
-
-                            <!-- For currency selection -->
-                            <div *ngIf="config.key == 'currency'" class="edit-field">
-                              <p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol"
-                                optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}" class="w-full">
-                              </p-dropdown>
-                            </div>
-
-                            <!-- For tax as percentage -->
-                            <div *ngIf="config.key == 'tax'" class="edit-field">
-                              <input [(ngModel)]="taxPercentage" type="number" pInputText class="w-full"
-                                (ngModelChange)="onTaxChange($event)" />
-                              <span class="edit-unit">%</span>
-                            </div>
-
-                            <div *ngIf="config.key == 'cashRegDefaultOpeningBalance'" class="edit-field">
-                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
-                              <span class="edit-unit">{{ appConfigCurrency?.value }}</span>
-                            </div>
-
-                            <div *ngIf="config.key == 'returnWindow'" class="edit-field">
-                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
-                              <span class="edit-unit">{{'days' |translate}}</span>
-                            </div>
-
-                            <div *ngIf="config.key == 'refundWindow'" class="edit-field">
-                              <input [(ngModel)]="config.value" type="number" pInputText class="w-full" />
-                              <span class="edit-unit">{{'days' |translate}}</span>
-                            </div>
-
-                            <!-- Auto order completion as enabled/disabled dropdown -->
-                            <div *ngIf="config.key == 'autoOrderComplete'" class="edit-field">
-                              <p-dropdown [(ngModel)]="config.value"
-                                [options]="autoOrderOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="{{ 'enabled' | translate }}" class="w-full">
-                              </p-dropdown>
-                            </div>
-
-                            <!-- Edit mode for timezone -->
-                            <div *ngIf="config.key === 'app.timezone'" class="edit-field">
-                              <p-dropdown [options]="timezones" [(ngModel)]="config.value" optionLabel="label"
-                                optionValue="value" placeholder="{{ 'select_timezone_option' | translate }}" class="w-full">
-                              </p-dropdown>
-                            </div>
-                          </div>
-                        </ng-template>
-                      </div>
-                    </div>
+        <!-- Additional Information Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="pi pi-file-text"></i>
+            <span>{{ 'additional_information' | translate }}</span>
+          </div>
+          <div class="section-body">
+            <div class="grid">
+              <div class="col-12">
+                <div class="field">
+                  <label for="notes" class="field-label">{{'notes' | translate}}</label>
+                  <textarea id="notes" rows="3" pInputTextarea [(ngModel)]="bank.notes"
+                    placeholder="{{ 'enter_additional_notes' | translate }}"></textarea>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="field">
+                  <div class="flex align-items-center">
+                    <p-checkbox [(ngModel)]="bank.active" inputId="active"
+                      [binary]="true"></p-checkbox>
+                    <label for="active" class="field-label checkbox-label">{{'active' | translate}}</label>
                   </div>
                 </div>
               </div>
             </div>
-          </p-tabPanel>
-
-          <!-- Banks Management Tab -->
-          <p-tabPanel>
-            <ng-template pTemplate="header">
-              <span class="flex align-items-center gap-2">
-                <i class="pi pi-building"></i>
-                <span>{{ 'banks_management' | translate }}</span>
-              </span>
-            </ng-template>
-
-            <div class="banks-content" *ngIf="!isLoadingBanks">
-              <div class="banks-section">
-                <div class="section-header mb-4">
-                  <div class="flex align-items-center justify-content-between">
-                    <div class="flex align-items-center gap-2">
-                      <i class="pi pi-building text-primary text-xl"></i>
-                      <div>
-                        <h3 class="m-0 text-xl font-semibold">{{ 'banks_management' | translate }}</h3>
-                        <small class="text-600">{{ 'manage_bank_information' | translate }}</small>
-                      </div>
-                    </div>
-                    <button *ngIf="canAddBank" pButton pRipple icon="pi pi-plus" 
-                      [label]="'add_bank' | translate" class="p-button-raised"
-                      (click)="openNewBank()"></button>
-                  </div>
-                </div>
-
-                <!-- Filters -->
-                <div class="flex gap-2 mb-4">
-                  <span class="p-input-icon-left flex-1">
-                    <i class="pi pi-search"></i>
-                    <input type="text" pInputText [(ngModel)]="globalFilter" 
-                      [placeholder]="'search' | translate" />
-                  </span>
-                  <p-selectButton [options]="[
-                    {label: ('all' | translate), value: undefined},
-                    {label: ('active' | translate), value: true},
-                    {label: ('inactive' | translate), value: false}
-                  ]" [(ngModel)]="activeFilter" (onChange)="onActiveFilterChange()"
-                    optionLabel="label" optionValue="value"></p-selectButton>
-                </div>
-
-                <!-- Banks Table -->
-                <p-table [value]="banks" [(selection)]="selectedBanks" 
-                  [paginator]="true" [rows]="20" [rowsPerPageOptions]="[20, 50, 100]"
-                  [globalFilterFields]="['name','code','country','city']"
-                  [loading]="isLoadingBanks" dataKey="bankId"
-                  [responsive]="true" styleClass="p-datatable-gridlines"
-                  [globalFilter]="globalFilter">
-                  
-                  <ng-template pTemplate="header">
-                    <tr>
-                      <th style="width: 3rem">
-                        <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
-                      </th>
-                      <th pSortableColumn="name">
-                        {{'bank_name' | translate}} <p-sortIcon field="name"></p-sortIcon>
-                      </th>
-                      <th pSortableColumn="code">
-                        {{'bank_code' | translate}} <p-sortIcon field="code"></p-sortIcon>
-                      </th>
-                      <th pSortableColumn="country">
-                        {{'country' | translate}} <p-sortIcon field="country"></p-sortIcon>
-                      </th>
-                      <th pSortableColumn="city">
-                        {{'city' | translate}} <p-sortIcon field="city"></p-sortIcon>
-                      </th>
-                      <th pSortableColumn="active">
-                        {{'status' | translate}} <p-sortIcon field="active"></p-sortIcon>
-                      </th>
-                      <th>{{'actions' | translate}}</th>
-                    </tr>
-                  </ng-template>
-
-                  <ng-template pTemplate="body" let-bank>
-                    <tr>
-                      <td>
-                        <p-tableCheckbox [value]="bank"></p-tableCheckbox>
-                      </td>
-                      <td>{{bank.name}}</td>
-                      <td>{{bank.code || '-'}}</td>
-                      <td>{{bank.country || '-'}}</td>
-                      <td>{{bank.city || '-'}}</td>
-                      <td>
-                        <p-tag [value]="(bank.active ? 'active' : 'inactive') | translate"
-                          [severity]="bank.active ? 'success' : 'danger'"></p-tag>
-                      </td>
-                      <td>
-                        <div class="flex gap-2">
-                          <button *ngIf="canReadBank" pButton pRipple icon="pi pi-eye" 
-                            class="p-button-rounded p-button-text p-button-info"
-                            (click)="viewBankDetails(bank)"
-                            [pTooltip]="'view_details' | translate"></button>
-                          <button *ngIf="canEditBank" pButton pRipple icon="pi pi-pencil" 
-                            class="p-button-rounded p-button-text p-button-warning"
-                            (click)="editBank(bank)"
-                            [pTooltip]="'edit' | translate"></button>
-                          <button *ngIf="canDeleteBank" pButton pRipple icon="pi pi-trash" 
-                            class="p-button-rounded p-button-text p-button-danger"
-                            (click)="deleteBank(bank)"
-                            [pTooltip]="'delete' | translate"></button>
-                        </div>
-                      </td>
-                    </tr>
-                  </ng-template>
-
-                  <ng-template pTemplate="emptymessage">
-                    <tr>
-                      <td colspan="7" class="text-center">
-                        {{'no_banks_found' | translate}}
-                      </td>
-                    </tr>
-                  </ng-template>
-                </p-table>
-
-                <!-- Bulk Actions -->
-                <div *ngIf="selectedBanks.length > 0" class="mt-3">
-                  <button pButton pRipple [label]="'delete_selected' | translate" 
-                    icon="pi pi-trash" class="p-button-danger p-button-outlined"
-                    (click)="deleteSelectedBanks()"></button>
-                </div>
-              </div>
-            </div>
-          </p-tabPanel>
-
-        </p-tabView>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Bank Dialog -->
-<p-dialog [(visible)]="bankDialog" [style]="{width: '600px'}" 
-  [header]="(bank.bankId ? 'edit_bank' : 'add_bank') | translate"
-  [modal]="true" class="p-fluid">
-  
-  <ng-template pTemplate="content">
-    <div class="field">
-      <label for="name">
-        {{'bank_name' | translate}} <span class="required-asterisk">*</span>
-      </label>
-      <input id="name" type="text" pInputText [(ngModel)]="bank.name" 
-        [ngClass]="{'ng-invalid ng-dirty': submittedBank && !bank.name}" />
-      <small *ngIf="submittedBank && !bank.name" class="ng-dirty ng-invalid">
-        {{'bank_name' | translate}} {{'is_required_label' | translate}}
-      </small>
-    </div>
-
-    <div class="field">
-      <label for="code">{{'bank_code' | translate}}</label>
-      <input id="code" type="text" pInputText [(ngModel)]="bank.code" />
-    </div>
-
-    <div class="grid">
-      <div class="col-12 md:col-6">
-        <div class="field">
-          <label for="country">{{'country' | translate}}</label>
-          <input id="country" type="text" pInputText [(ngModel)]="bank.country" />
+          </div>
         </div>
-      </div>
-      <div class="col-12 md:col-6">
-        <div class="field">
-          <label for="city">{{'city' | translate}}</label>
-          <input id="city" type="text" pInputText [(ngModel)]="bank.city" />
-        </div>
-      </div>
-    </div>
 
-    <div class="field">
-      <label for="address">{{'address' | translate}}</label>
-      <textarea id="address" rows="2" pInputTextarea [(ngModel)]="bank.address"></textarea>
-    </div>
-
-    <div class="grid">
-      <div class="col-12 md:col-6">
-        <div class="field">
-          <label for="phoneNumber">{{'phone_number' | translate}}</label>
-          <input id="phoneNumber" type="text" pInputText [(ngModel)]="bank.phoneNumber" />
-        </div>
-      </div>
-      <div class="col-12 md:col-6">
-        <div class="field">
-          <label for="email">{{'email' | translate}}</label>
-          <input id="email" type="email" pInputText [(ngModel)]="bank.email" />
-        </div>
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="website">{{'website' | translate}}</label>
-      <input id="website" type="url" pInputText [(ngModel)]="bank.website" 
-        placeholder="https://example.com" />
-    </div>
-
-    <div class="field">
-      <label for="notes">{{'notes' | translate}}</label>
-      <textarea id="notes" rows="3" pInputTextarea [(ngModel)]="bank.notes"></textarea>
-    </div>
-
-    <div class="field">
-      <div class="flex align-items-center">
-        <p-checkbox [(ngModel)]="bank.active" inputId="active" 
-          [binary]="true"></p-checkbox>
-        <label for="active" class="ml-2">{{'active' | translate}}</label>
       </div>
     </div>
   </ng-template>
 
   <ng-template pTemplate="footer">
-    <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
-      class="p-button-text" (click)="hideBankDialog()"></button>
-    <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
-      class="p-button-raised" (click)="saveBank()"></button>
+    <div class="flex justify-content-between align-items-center w-full">
+      <div class="flex gap-2">
+        <p-tag *ngIf="bank.bankId" [value]="(bank.active ? 'active' : 'inactive') | translate"
+          [severity]="bank.active ? 'success' : 'danger'"></p-tag>
+      </div>
+      <div class="flex gap-2">
+        <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+          class="p-button-text" (click)="hideBankDialog()"></button>
+        <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
+          class="p-button-primary" (click)="saveBank()"></button>
+      </div>
+    </div>
   </ng-template>
 </p-dialog>
 
 <!-- Bank Details Dialog -->
-<p-dialog [(visible)]="bankDetailsDialog" [style]="{width: '700px'}" 
-  [header]="'bank_details' | translate" [modal]="true">
-  
+<p-dialog [(visible)]="bankDetailsDialog" [style]="{width: '900px', maxWidth: '95vw'}"
+  [header]="'bank_details' | translate" [modal]="true" class="bank-details-dialog">
+
   <ng-template pTemplate="content">
-    <div class="grid">
-      <div class="col-12 md:col-6">
-        <strong>{{'bank_name' | translate}}:</strong>
-        <p>{{bank.name}}</p>
+    <div class="bank-details-container">
+
+      <!-- Bank Header Section -->
+      <div class="bank-header">
+        <div class="bank-avatar">
+          <i class="pi pi-building"></i>
+        </div>
+        <div class="bank-info">
+          <h3 class="bank-name">{{ bank.name }}</h3>
+          <div class="bank-meta">
+            <p-tag [value]="(bank.active ? 'active' : 'inactive') | translate"
+              [severity]="bank.active ? 'success' : 'danger'" class="bank-status"></p-tag>
+            <span class="bank-code" *ngIf="bank.code">{{ bank.code }}</span>
+          </div>
+        </div>
       </div>
-      <div class="col-12 md:col-6">
-        <strong>{{'bank_code' | translate}}:</strong>
-        <p>{{bank.code || '-'}}</p>
-      </div>
-      <div class="col-12 md:col-6">
-        <strong>{{'country' | translate}}:</strong>
-        <p>{{bank.country || '-'}}</p>
-      </div>
-      <div class="col-12 md:col-6">
-        <strong>{{'city' | translate}}:</strong>
-        <p>{{bank.city || '-'}}</p>
-      </div>
-      <div class="col-12">
-        <strong>{{'address' | translate}}:</strong>
-        <p>{{bank.address || '-'}}</p>
-      </div>
-      <div class="col-12 md:col-6">
-        <strong>{{'phone_number' | translate}}:</strong>
-        <p>{{bank.phoneNumber || '-'}}</p>
-      </div>
-      <div class="col-12 md:col-6">
-        <strong>{{'email' | translate}}:</strong>
-        <p>{{bank.email || '-'}}</p>
-      </div>
-      <div class="col-12">
-        <strong>{{'website' | translate}}:</strong>
-        <p *ngIf="bank.website">
-          <a [href]="bank.website" target="_blank">{{bank.website}}</a>
-        </p>
-        <p *ngIf="!bank.website">-</p>
-      </div>
-      <div class="col-12">
-        <strong>{{'notes' | translate}}:</strong>
-        <p>{{bank.notes || '-'}}</p>
-      </div>
-      <div class="col-12">
-        <strong>{{'status' | translate}}:</strong>
-        <p-tag [value]="(bank.active ? 'active' : 'inactive') | translate"
-          [severity]="bank.active ? 'success' : 'danger'"></p-tag>
+
+      <!-- Bank Information Cards -->
+      <div class="bank-info-grid">
+
+        <!-- Basic Information -->
+        <div class="info-card">
+          <div class="card-header">
+            <i class="pi pi-info-circle"></i>
+            <span>{{ 'basic_information' | translate }}</span>
+          </div>
+          <div class="card-body">
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-icon">
+                  <i class="pi pi-building"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'bank_name' | translate }}</span>
+                  <span class="info-value">{{ bank.name }}</span>
+                </div>
+              </div>
+
+              <div class="info-item" *ngIf="bank.code">
+                <div class="info-icon">
+                  <i class="pi pi-hashtag"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'bank_code' | translate }}</span>
+                  <span class="info-value">{{ bank.code }}</span>
+                </div>
+              </div>
+
+              <div class="info-item" *ngIf="bank.active !== undefined">
+                <div class="info-icon">
+                  <i class="pi pi-check-circle"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'status' | translate }}</span>
+                  <p-tag [value]="(bank.active ? 'active' : 'inactive') | translate"
+                    [severity]="bank.active ? 'success' : 'danger'"></p-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Information -->
+        <div class="info-card" *ngIf="bank.country || bank.city || bank.address">
+          <div class="card-header">
+            <i class="pi pi-map-marker"></i>
+            <span>{{ 'location_information' | translate }}</span>
+          </div>
+          <div class="card-body">
+            <div class="info-grid">
+              <div class="info-item" *ngIf="bank.country">
+                <div class="info-icon">
+                  <i class="pi pi-globe"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'country' | translate }}</span>
+                  <span class="info-value">{{ bank.country }}</span>
+                </div>
+              </div>
+
+              <div class="info-item" *ngIf="bank.city">
+                <div class="info-icon">
+                  <i class="pi pi-map-marker"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'city' | translate }}</span>
+                  <span class="info-value">{{ bank.city }}</span>
+                </div>
+              </div>
+
+              <div class="info-item" *ngIf="bank.address">
+                <div class="info-icon">
+                  <i class="pi pi-home"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'address' | translate }}</span>
+                  <span class="info-value address-text">{{ bank.address }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="info-card" *ngIf="bank.phoneNumber || bank.email || bank.website">
+          <div class="card-header">
+            <i class="pi pi-phone"></i>
+            <span>{{ 'contact_information' | translate }}</span>
+          </div>
+          <div class="card-body">
+            <div class="info-grid">
+              <div class="info-item" *ngIf="bank.phoneNumber">
+                <div class="info-icon">
+                  <i class="pi pi-phone"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'phone_number' | translate }}</span>
+                  <span class="info-value">{{ bank.phoneNumber }}</span>
+                </div>
+              </div>
+
+              <div class="info-item" *ngIf="bank.email">
+                <div class="info-icon">
+                  <i class="pi pi-envelope"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'email' | translate }}</span>
+                  <span class="info-value">{{ bank.email }}</span>
+                </div>
+              </div>
+
+              <div class="info-item" *ngIf="bank.website">
+                <div class="info-icon">
+                  <i class="pi pi-link"></i>
+                </div>
+                <div class="info-content">
+                  <span class="info-label">{{ 'website' | translate }}</span>
+                  <a [href]="bank.website" target="_blank" class="info-value website-link">
+                    {{ bank.website }}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="info-card" *ngIf="bank.notes">
+          <div class="card-header">
+            <i class="pi pi-file-text"></i>
+            <span>{{ 'additional_information' | translate }}</span>
+          </div>
+          <div class="card-body">
+            <div class="notes-content">
+              <p>{{ bank.notes }}</p>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </ng-template>
 
   <ng-template pTemplate="footer">
-    <button pButton pRipple [label]="'close' | translate" icon="pi pi-times"
-      class="p-button-text" (click)="bankDetailsDialog = false"></button>
+    <div class="flex justify-content-between align-items-center w-full">
+      <div class="flex gap-2">
+        <button *ngIf="canEditBank" pButton pRipple icon="pi pi-pencil"
+          [label]="'edit' | translate" class="p-button-secondary"
+          (click)="editBank(bank); bankDetailsDialog = false;"></button>
+      </div>
+      <div class="flex gap-2">
+        <button pButton pRipple [label]="'close' | translate" icon="pi pi-times"
+          class="p-button-text" (click)="bankDetailsDialog = false"></button>
+      </div>
+    </div>
   </ng-template>
 </p-dialog>
 

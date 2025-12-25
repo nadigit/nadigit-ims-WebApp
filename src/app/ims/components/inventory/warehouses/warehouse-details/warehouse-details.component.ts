@@ -15,6 +15,8 @@ import { Category } from 'src/app/models/category';
 import { CategoryService } from 'src/app/services/category.service';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { LocationService } from 'src/app/services/location.service';
+import { SupplierService } from 'src/app/services/supplier.service';
+import { Supplier } from 'src/app/models/supplier';
 
 @Component({
   templateUrl: './warehouse-details.component.html',
@@ -33,16 +35,15 @@ export class WarehouseDetailsComponent implements OnInit {
   selectedCategoryFilter: Category | null = null;
   selectedStatusFilter: string | null = null;
   uniqueCategories: Category[] = [];
-  inventoryStatuses = [
-    { label: 'in_stock', value: 'INSTOCK' },
-    { label: 'low_stock', value: 'LOWSTOCK' },
-    { label: 'out_of_stock', value: 'OUTOFSTOCK' }
-  ];
+  inventoryStatuses: any[] = [];
 
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
   canReadProduct: boolean = false;
+  canEditWarehouse: boolean = false;
+  canDeleteWarehouse: boolean = false;
+  canReadWarehouse: boolean = false;
   isAdmin: boolean = false;
   lowStockThreshold: number = 10;
   currency: string = 'USD';
@@ -56,11 +57,17 @@ export class WarehouseDetailsComponent implements OnInit {
   categories: Category[] = [];
   suppliers: any[] = [];
   warehouses: Warehouse[] = [];
-  measureUnits: any[] = [];
-  attributeTypes: any[] = [];
-  uploadedFile: File | null = null;
-  imageURL: string | null = null;
   userRoles: string[] = [];
+  canAddCategory: boolean = false;
+  canAddSupplier: boolean = false;
+  canAddWarehouse: boolean = false;
+
+  selectedCountry: any = null;
+  countries: any = null;
+  states: any = null;
+  warehouseDialog: boolean = false;
+  deleteWarehouseDialog: boolean = false;
+  costingMethods: any[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -72,11 +79,20 @@ export class WarehouseDetailsComponent implements OnInit {
     private configService: AppConfigurationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
+    private locationService: LocationService,
     private productService: ProductService,
     private categoryService: CategoryService,
+    private supplierService: SupplierService,
     private reportingService: ReportingService,
-    private locationService: LocationService
-  ) { }
+  ) {
+    this.costingMethods = [
+      { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
+      { label: this.translate.instant('costing_method_lifo'), value: 'LIFO' },
+      { label: this.translate.instant('costing_method_weighted_average'), value: 'WEIGHTED_AVERAGE' },
+      { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
+      { label: this.translate.instant('costing_method_none'), value: 'NONE' }
+    ];
+  }
 
   async ngOnInit() {
     this.configService.currency$.subscribe(currency => {
@@ -86,7 +102,14 @@ export class WarehouseDetailsComponent implements OnInit {
     });
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
+      this.countries = this.locationService.getAllCountriesWithTranslation();
     });
+
+    this.inventoryStatuses = [
+      { label: this.translate.instant('in_stock'), value: 'INSTOCK' },
+      { label: this.translate.instant('low_stock'), value: 'LOWSTOCK' },
+      { label: this.translate.instant('out_of_stock'), value: 'OUTOFSTOCK' }
+    ];
 
     this.route.params.subscribe(async params => {
       this.loadingWarehouseDetails = true;
@@ -102,6 +125,10 @@ export class WarehouseDetailsComponent implements OnInit {
         if (this.warehouse) {
           await this.loadWarehouseDetails();
           this.lowStockThreshold = await this.getLowStockThreshold();
+          // Load form data when needed
+          await this.onGetAllCategories();
+          await this.onGetAllWarehouses();
+          await this.onGetAllSuppliers();
         }
       } catch (error) {
         console.error('Error initializing warehouse details:', error);
@@ -129,6 +156,12 @@ export class WarehouseDetailsComponent implements OnInit {
       this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
       this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
       this.canReadProduct = this.permissionService.canRead('PRODUCTS');
+      this.canEditWarehouse = this.permissionService.canUpdate('WAREHOUSES');
+      this.canDeleteWarehouse = this.permissionService.canDelete('WAREHOUSES');
+      this.canReadWarehouse = this.permissionService.canRead('WAREHOUSES');
+      this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
+      this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
+      this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
       await this.setUserRoles();
     } catch (error) {
       console.error('Error checking permissions:', error);
@@ -136,6 +169,12 @@ export class WarehouseDetailsComponent implements OnInit {
       this.canEditProduct = false;
       this.canDeleteProduct = false;
       this.canReadProduct = false;
+      this.canEditWarehouse = false;
+      this.canDeleteWarehouse = false;
+      this.canReadWarehouse = false;
+      this.canAddCategory = false;
+      this.canAddSupplier = false;
+      this.canAddWarehouse = false;
     }
   }
 
@@ -190,11 +229,11 @@ export class WarehouseDetailsComponent implements OnInit {
   }
 
   calculateWarehouseStats() {
-    const lowStockProducts = this.warehouseProducts.filter(p => 
+    const lowStockProducts = this.warehouseProducts.filter(p =>
       p.inventoryStatus === 'LOWSTOCK' || (p.quantityAvailable || 0) <= (this.lowStockThreshold || 10)
     );
-    
-    const outOfStockProducts = this.warehouseProducts.filter(p => 
+
+    const outOfStockProducts = this.warehouseProducts.filter(p =>
       p.inventoryStatus === 'OUTOFSTOCK' || (p.quantityAvailable || 0) === 0
     );
 
@@ -220,10 +259,89 @@ export class WarehouseDetailsComponent implements OnInit {
       outOfStockCount: outOfStockProducts.length,
       categoryDistribution: Array.from(categoryMap.entries()).map(([name, count]) => ({ name, count })),
       topProductsByValue: topProductsByValue,
-      averageValue: this.warehouseProducts.length > 0 
+      averageValue: this.warehouseProducts.length > 0
         ? this.warehouseProducts.reduce((sum, p) => sum + ((p.quantityAvailable || 0) * (p.buyingPrice || 0)), 0) / this.warehouseProducts.length
         : 0
     };
+  }
+
+  editWarehouse() {
+    if (!this.canEditWarehouse) return;
+    this.selectedCountry = {};
+    this.warehouseDialog = true;
+    this.onSelectedCountry(this.warehouse.country)
+  }
+
+  saveWarehouse() {
+    this.submitted = true;
+    if (this.warehouse.name) {
+      if (this.warehouse.warehouseId) {
+        this.updateWarehouse(this.warehouse.warehouseId, this.warehouse)
+          ? this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('warehouse_updated'),
+            life: 3000
+          })
+          : this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_updating_warehouse'),
+            life: 3000
+          });
+      }
+      this.warehouseDialog = false;
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000
+      });
+      return;
+    }
+  }
+
+  async updateWarehouse(id: any, warehouse: any): Promise<any> {
+    console.log(warehouse)
+    await this.warehouseService.updateWarehouse(id, warehouse)
+      .subscribe({
+        next: (response: any) => {
+          console.log(response);
+          this.onGetAllWarehouses();
+          return true;
+        },
+        error(err: any) {
+          console.log(err);
+          return false;
+        },
+      })
+  }
+
+  onChangeCountry() {
+    this.warehouse.city = undefined;
+    console.log("clear city")
+  }
+
+  onSelectedCountry(event) {
+    if ((this.warehouse.country != this.selectedCountry) && (this.warehouse.city == undefined)) this.warehouse.city = undefined;
+    this.countries.forEach(element => {
+      if (element.name === event) {
+        this.selectedCountry = element;
+      }
+    });
+    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
+  }
+
+  filterCountry(value: any, filter: string): boolean {
+    // Convert both to lowercase for case-insensitive comparison
+    const normalizedFilter = filter.toLowerCase();
+
+    // Check both original name and translated name
+    return (
+      value.name.toLowerCase().includes(normalizedFilter) ||
+      value.translatedName.toLowerCase().includes(normalizedFilter)
+    );
   }
 
   filterProducts(): void {
@@ -236,7 +354,7 @@ export class WarehouseDetailsComponent implements OnInit {
 
     if (this.productSearchTerm) {
       const searchLower = this.productSearchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p.name?.toLowerCase().includes(searchLower) ||
         p.reference?.toLowerCase().includes(searchLower) ||
         p.category?.categoryName?.toLowerCase().includes(searchLower)
@@ -244,7 +362,7 @@ export class WarehouseDetailsComponent implements OnInit {
     }
 
     if (this.selectedCategoryFilter && this.selectedCategoryFilter.categoryId) {
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p?.category?.categoryId === this.selectedCategoryFilter.categoryId
       );
     }
@@ -379,9 +497,43 @@ export class WarehouseDetailsComponent implements OnInit {
   editProduct(product: Product) {
     if (!this.canEditProduct) return;
     this.selectedProduct = product;
+    // Ensure form data is loaded
     this.onGetAllCategories();
     this.onGetAllWarehouses();
+    this.onGetAllSuppliers();
     this.productDialog = true;
+  }
+
+  async onProductFormSaveSuccess(productData: Product): Promise<void> {
+    console.log('Product form saved successfully:', productData);
+    // Reset selected product
+    this.selectedProduct = null;
+    // Close dialog first
+    this.productDialog = false;
+    // Reload warehouse details to refresh products list and stats
+    await this.loadWarehouseDetails();
+    // Ensure filtered products are updated
+    this.filteredWarehouseProducts = [...this.warehouseProducts];
+  }
+
+  onProductFormSaveError(event: { product: Product, error: any }): void {
+    console.error('Product form save error:', event.error);
+    // Error message is already displayed by the form component
+  }
+
+  openCategoryDialog(): void {
+    // Navigate to categories page or open category dialog
+    this.router.navigate(['/inventory/categories']);
+  }
+
+  openSupplierDialog(): void {
+    // Navigate to suppliers page or open supplier dialog
+    this.router.navigate(['/inventory/suppliers']);
+  }
+
+  openWarehouseDialog(): void {
+    // Navigate to warehouses page or open warehouse dialog
+    this.router.navigate(['/inventory/warehouses']);
   }
 
   calculateProfit(product: Product): number {
@@ -473,6 +625,23 @@ export class WarehouseDetailsComponent implements OnInit {
     });
   }
 
+  async onGetAllSuppliers() {
+    await this.supplierService.getSuppliers().subscribe({
+      next: (response: any) => {
+        this.suppliers = response;
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_suppliers'),
+          life: 3000,
+        });
+        console.log(err);
+      },
+    });
+  }
+
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
@@ -480,6 +649,15 @@ export class WarehouseDetailsComponent implements OnInit {
 
   goBack(): void {
     this.router.navigate(['/inventory/warehouses']);
+  }
+
+  hideDialog(): void {
+    this.warehouseDialog = false;
+    this.submitted = false;
+  }
+
+  hideProductDialog(): void {
+    this.productDialog = false;
   }
 }
 

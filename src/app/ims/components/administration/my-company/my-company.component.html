@@ -1,52 +1,338 @@
-<div class="grid">
-  <div class="col-12">
-    <div class="card px-6 py-6">
-      <h5>{{ 'my_company' | translate }}</h5>
-      <br>
-      <p-toast></p-toast>
+<div class="company-details-container">
+	<p-toast></p-toast>
 
-      <div class="card flex justify-content-center" *ngIf="isLoading">
-        <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-      </div>
+	<!-- Loading State -->
+	<div class="loading-wrapper" *ngIf="isLoading">
+		<div class="loading-content">
+			<p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+		</div>
+	</div>
 
-      <div *ngIf="!isLoading" class="card justify-content-center overflow-x-auto overflow-y-auto" style="height: 100%;">
-        <span class="text-500">{{ 'organization_description_txt' | translate }}</span>
-        <div style="margin-top: 2rem;">
-          <p-organizationChart [value]="organizationStructure" selectionMode="multiple" [(selection)]="selectedNodes"
-            [collapsible]="true" (onNodeSelect)="openOrganizationDialog($event)">
-            <ng-template let-node pTemplate="organization">
+	<!-- Main Content -->
+	<div class="company-content" *ngIf="!isLoading && organization">
 
-              <div class="p-2 text-center">
-                <div class="card flex justify-content-center" *ngIf="imageLoading">
-                  <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-                </div>
-                <p-image *ngIf="!imageLoading && logoImageUrl; else placeholderImage" [src]="logoImageUrl"
-                  [alt]="organization.organizationName" width="150" class="mt-0 mx-auto mb-5 block shadow-2"></p-image>
+		<!-- Hero Header Section -->
+		<div class="company-hero">
+			<div class="hero-background"></div>
+			<div class="hero-content">
+				<div class="flex align-items-center gap-2 mb-3">
+					<button pButton pRipple icon="pi pi-arrow-left"
+						class="p-button-text p-button-rounded p-button-plain back-button"
+						[pTooltip]="'back' | translate" tooltipPosition="bottom"
+						(click)="goBack()"></button>
+					<span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+					<i class="pi pi-angle-right text-400 text-sm"></i>
+					<span class="text-700 text-sm font-medium">{{ 'my_company' | translate }}</span>
+				</div>
 
-                <ng-template #placeholderImage>
-                  <img *ngIf="!imageLoading && !logoImageUrl" src="assets/app-logo/placeholder-image.jpg"
-                    alt="Placeholder" width="150" class="mt-0 mx-auto mb-5 block shadow-2">
-                </ng-template>
-                <div class="font-bold">{{ node.data.name }}</div>
-              </div>
-            </ng-template>
-            <ng-template let-node pTemplate="shops">
-              <div class="p-2 text-center">
-                <div class="font-bold">
-                  <a routerLink="/pages/shops">{{ node.data.name }}</a>
-                </div>
-              </div>
-            </ng-template>
-            <ng-template let-node pTemplate="warehouses">
-              <div class="p-2 text-center">
-                <div class="font-bold">
-                  <a routerLink="/pages/warehouses">{{ node.data.name }}</a>
-                </div>
-              </div>
-            </ng-template>
-          </p-organizationChart>
-        </div>
-      </div>
+				<div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+					<div class="flex align-items-center gap-4">
+						<div class="company-hero-logo">
+							<div class="logo-loading" *ngIf="imageLoading">
+								<p-progressSpinner strokeWidth="4" animationDuration=".5s" styleClass="w-2rem h-2rem"></p-progressSpinner>
+							</div>
+							<img *ngIf="!imageLoading && logoImageUrl; else placeholderLogo"
+								[src]="logoImageUrl" [alt]="organization.organizationName" />
+							<ng-template #placeholderLogo>
+								<img *ngIf="!imageLoading && !logoImageUrl"
+									src="assets/app-logo/placeholder-image.jpg" alt="Company Logo" />
+							</ng-template>
+						</div>
+						<div>
+							<div class="flex align-items-center gap-3 mb-2">
+								<h1 class="m-0 text-900 company-title">{{ organization.organizationName || 'My Company' }}</h1>
+							</div>
+							<div class="flex align-items-center gap-4 text-500">
+								<span class="flex align-items-center gap-2">
+									<i class="pi pi-building"></i>
+									{{ organization.organizationName || 'N/A' }}
+								</span>
+								<span class="flex align-items-center gap-2" *ngIf="organization.email">
+									<i class="pi pi-envelope"></i>
+									{{ organization.email }}
+								</span>
+								<span class="flex align-items-center gap-2" *ngIf="organization.country">
+									<i class="pi pi-map-marker"></i>
+									{{ organization.country | countryTranslate }}
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="flex flex-wrap gap-2 action-buttons">
+						<button pButton pRipple
+							icon="pi pi-pencil"
+							[label]="'edit_company' | translate"
+							class="p-button-primary"
+							(click)="openOrganizationDialog({ node: { data: { title: 'Organization' } } })">
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Quick Stats Row -->
+		<div class="stats-row">
+			<div class="stat-card-modern shops-card">
+				<div class="stat-icon shops">
+					<i class="pi pi-shop"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'total_shops' | translate }}</span>
+					<div class="stat-value">
+						{{ organization.shops?.length || 0 }}
+					</div>
+				</div>
+			</div>
+
+			<div class="stat-card-modern warehouses-card">
+				<div class="stat-icon warehouses">
+					<i class="pi pi-building"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'total_warehouses' | translate }}</span>
+					<div class="stat-value">
+						{{ organization.warehouses?.length || 0 }}
+					</div>
+				</div>
+			</div>
+
+			<div class="stat-card-modern country-card">
+				<div class="stat-icon country">
+					<i class="pi pi-map-marker"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'country' | translate }}</span>
+					<div class="stat-value">
+						{{ (organization.country | countryTranslate) || 'N/A' }}
+					</div>
+				</div>
+			</div>
+
+			<div class="stat-card-modern locale-card">
+				<div class="stat-icon locale">
+					<i class="pi pi-globe"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'default_locale' | translate }}</span>
+					<div class="stat-value">
+						{{ organization.defaultLocale?.toUpperCase() || 'EN' }}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Tabs Section -->
+		<p-tabView styleClass="company-tabs">
+
+			<!-- Overview Tab -->
+			<p-tabPanel>
+				<ng-template pTemplate="header">
+					<i class="pi pi-info-circle mr-2"></i>
+					<span>{{ 'overview' | translate }}</span>
+				</ng-template>
+
+				<div class="grid mt-3">
+					<!-- Left Column - Company Info -->
+					<div class="col-12 lg:col-6">
+						<!-- Company Information -->
+						<div class="detail-card mb-4">
+							<div class="card-header">
+								<i class="pi pi-building"></i>
+								<span>{{ 'company_information' | translate }}</span>
+							</div>
+							<div class="card-body">
+								<div class="info-grid">
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-building"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'organization_name' | translate }}</span>
+											<span class="info-value">{{ organization.organizationName || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-envelope"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'email' | translate }}</span>
+											<span class="info-value">{{ organization.email || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-phone"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'phone' | translate }}</span>
+											<span class="info-value">{{ organization.phoneNumber || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-map-marker"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'address' | translate }}</span>
+											<span class="info-value">{{ organization.address || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-globe"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'website' | translate }}</span>
+											<span class="info-value">{{ organization.website ? 'https://' + organization.website : 'N/A' }}</span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Right Column - Business Details -->
+					<div class="col-12 lg:col-6">
+						<!-- Business Information -->
+						<div class="detail-card">
+							<div class="card-header">
+								<i class="pi pi-briefcase"></i>
+								<span>{{ 'business_information' | translate }}</span>
+							</div>
+							<div class="card-body">
+								<div class="info-grid">
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-hashtag"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'tax_id' | translate }}</span>
+											<span class="info-value">{{ organization.taxId || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-file"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'commercial_register' | translate }}</span>
+											<span class="info-value">{{ organization.commercialRegister || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-qrcode"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'ice' | translate }}</span>
+											<span class="info-value">{{ organization.ice || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-credit-card"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'bank_account' | translate }}</span>
+											<span class="info-value">{{ organization.bankAccountId || 'N/A' }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-language"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'default_locale' | translate }}</span>
+											<span class="info-value">{{ organization.defaultLocale?.toUpperCase() || 'EN' }}</span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</p-tabPanel>
+
+			<!-- Organization Structure Tab -->
+			<p-tabPanel>
+				<ng-template pTemplate="header">
+					<i class="pi pi-sitemap mr-2"></i>
+					<span>{{ 'organization_structure' | translate }}</span>
+				</ng-template>
+
+				<div class="mt-3">
+					<div class="detail-card">
+						<div class="card-header">
+							<i class="pi pi-sitemap"></i>
+							<span>{{ 'company_hierarchy' | translate }}</span>
+						</div>
+						<div class="card-body">
+							<div class="organization-chart-container">
+								<p-organizationChart [value]="organizationStructure" selectionMode="multiple" [(selection)]="selectedNodes"
+									[collapsible]="true" (onNodeSelect)="openOrganizationDialog($event)">
+									<ng-template let-node pTemplate="organization">
+										<div class="organization-node">
+											<div class="node-loading" *ngIf="imageLoading">
+												<p-progressSpinner strokeWidth="4" animationDuration=".5s" styleClass="w-2rem h-2rem"></p-progressSpinner>
+											</div>
+											<div class="node-logo" *ngIf="!imageLoading">
+												<p-image *ngIf="logoImageUrl; else nodePlaceholder" [src]="logoImageUrl"
+													[alt]="organization.organizationName" width="80" class="company-logo"></p-image>
+												<ng-template #nodePlaceholder>
+													<img src="assets/app-logo/placeholder-image.jpg" alt="Company Logo" class="company-logo" />
+												</ng-template>
+											</div>
+											<div class="node-content">
+												<h4 class="node-title">{{ node.data.name }}</h4>
+												<p class="node-subtitle">{{ 'organization' | translate }}</p>
+											</div>
+										</div>
+									</ng-template>
+									<ng-template let-node pTemplate="shops">
+										<div class="shop-node">
+											<div class="node-icon">
+												<i class="pi pi-shop"></i>
+											</div>
+											<div class="node-content">
+												<h4 class="node-title">
+													<a routerLink="/pages/shops" class="shop-link">{{ node.data.name }}</a>
+												</h4>
+												<p class="node-subtitle">{{ organization.shops?.length || 0 }} {{ 'shops' | translate }}</p>
+											</div>
+										</div>
+									</ng-template>
+									<ng-template let-node pTemplate="warehouses">
+										<div class="warehouse-node">
+											<div class="node-icon">
+												<i class="pi pi-building"></i>
+											</div>
+											<div class="node-content">
+												<h4 class="node-title">
+													<a routerLink="/pages/warehouses" class="warehouse-link">{{ node.data.name }}</a>
+												</h4>
+												<p class="node-subtitle">{{ organization.warehouses?.length || 0 }} {{ 'warehouses' | translate }}</p>
+											</div>
+										</div>
+									</ng-template>
+								</p-organizationChart>
+							</div>
+						</div>
+					</div>
+				</div>
+			</p-tabPanel>
+
+		</p-tabView>
+	</div>
 
       <p-dialog [(visible)]="organizationDialog" [style]="{ width: '80%' }"
         header="{{ 'organization_info_lbl' | translate }}" [modal]="true" class="p-fluid organization-dialog"
@@ -371,7 +657,3 @@
           </div>
         </ng-template>
       </p-dialog>
-    </div>
-  </div>
-</div>
-

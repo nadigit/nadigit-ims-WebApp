@@ -99,9 +99,11 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{'orders_menu_title' | translate}}</span>
-                        <div class="text-900 font-bold text-3xl mb-2">{{ orders?.page?.totalElements || 0 }}</div>
+                        <div class="stat-number text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(totalOrders || orders?.length || 0)">
+                            {{ formatNumber(totalOrders || orders?.length || 0) }}
+                        </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-blue-100 border-round"
                         [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -121,10 +123,10 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{ 'dashboard_today_revenue_header' | translate }}</span>
-                        <div class="text-900 font-bold text-2xl mb-2">
-                            {{ todayRevenue | currency:currency:'symbol':'1.2-2' }}
+                        <div class="stat-number stat-currency text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(todayRevenue)">
+                            {{ todayRevenue | currency:currency:'symbol':'1.0-0' }}
                         </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
@@ -147,9 +149,11 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{'customers_menu_title' | translate}}</span>
-                        <div class="text-900 font-bold text-3xl mb-2">{{ customers?.length || 0 }}</div>
+                        <div class="stat-number text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(customers?.length || 0)">
+                            {{ formatNumber(customers?.length || 0) }}
+                        </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-cyan-100 border-round"
                         [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -169,9 +173,11 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{'products_menu_title' | translate}}</span>
-                        <div class="text-900 font-bold text-3xl mb-2">{{ totalProducts || 0 }}</div>
+                        <div class="stat-number text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(totalProducts || 0)">
+                            {{ formatNumber(totalProducts || 0) }}
+                        </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-purple-100 border-round"
                         [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -192,10 +198,10 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{ 'stock_value' | translate }}</span>
-                        <div class="text-900 font-bold text-2xl mb-2">
-                            {{ totalStockValue | currency:currency:'symbol':'1.2-2' }}
+                        <div class="stat-number stat-currency text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(totalStockValue)">
+                            {{ totalStockValue | currency:currency:'symbol':'1.0-0' }}
                         </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-indigo-100 border-round"
@@ -215,10 +221,10 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{ 'unpaid_receivables' | translate }}</span>
-                        <div class="text-900 font-bold text-2xl mb-2">
-                            {{ unpaidReceivables | currency:currency:'symbol':'1.2-2' }}
+                        <div class="stat-number stat-currency text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(unpaidReceivables)">
+                            {{ unpaidReceivables | currency:currency:'symbol':'1.0-0' }}
                         </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-green-100 border-round"
@@ -262,9 +268,11 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{ 'pending_transfers' | translate }}</span>
-                        <div class="text-900 font-bold text-3xl mb-2">{{ warehousePendingTransfers || 0 }}</div>
+                        <div class="stat-number text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(warehousePendingTransfers || 0)">
+                            {{ formatNumber(warehousePendingTransfers || 0) }}
+                        </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-amber-100 border-round"
                         [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -283,9 +291,11 @@
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <span class="block text-600 font-medium mb-2">{{ 'pending_transfers' | translate }}</span>
-                        <div class="text-900 font-bold text-3xl mb-2">{{ pendingTransfers || 0 }}</div>
+                        <div class="stat-number text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(pendingTransfers || 0)">
+                            {{ formatNumber(pendingTransfers || 0) }}
+                        </div>
                     </div>
                     <div class="flex align-items-center justify-content-center bg-amber-100 border-round"
                         [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -305,10 +315,10 @@
     <div class="col-12 lg:col-6 xl:col-3">
         <p-card styleClass="shadow-2 border-round-lg h-full">
             <div class="flex justify-content-between align-items-start">
-                <div class="flex-1">
+                <div class="flex-1 min-w-0">
                     <span class="block text-600 font-medium mb-2">{{'dashboard_products_lowstock_header' | translate}}</span>
-                    <div class="text-900 font-bold text-3xl">
-                        {{ isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0) }}
+                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0))">
+                        {{ formatNumber(isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0)) }}
                     </div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
@@ -322,10 +332,10 @@
     <div class="col-12 lg:col-6 xl:col-3">
         <p-card styleClass="shadow-2 border-round-lg h-full">
             <div class="flex justify-content-between align-items-start">
-                <div class="flex-1">
+                <div class="flex-1 min-w-0">
                     <span class="block text-600 font-medium mb-2">{{'dashboard_products_outofstock_header' | translate}}</span>
-                    <div class="text-900 font-bold text-3xl">
-                        {{ isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0) }}
+                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0))">
+                        {{ formatNumber(isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0)) }}
                     </div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-red-100 border-round"
@@ -339,9 +349,11 @@
     <div class="col-12 lg:col-6 xl:col-3">
         <p-card styleClass="shadow-2 border-round-lg h-full">
             <div class="flex justify-content-between align-items-start">
-                <div class="flex-1">
+                <div class="flex-1 min-w-0">
                     <span class="block text-600 font-medium mb-2">{{'dashboard_orders_delivered_today_header' | translate}}</span>
-                    <div class="text-900 font-bold text-3xl">{{ deliveredOrders?.length || 0 }}</div>
+                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(deliveredOrders?.length || 0)">
+                        {{ formatNumber(deliveredOrders?.length || 0) }}
+                    </div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-green-100 border-round"
                     [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -354,9 +366,11 @@
     <div class="col-12 lg:col-6 xl:col-3">
         <p-card styleClass="shadow-2 border-round-lg h-full">
             <div class="flex justify-content-between align-items-start">
-                <div class="flex-1">
+                <div class="flex-1 min-w-0">
                     <span class="block text-600 font-medium mb-2">{{'dashboard_orders_canceled_today_header' | translate}}</span>
-                    <div class="text-900 font-bold text-3xl">{{ canceledOrders?.length || 0 }}</div>
+                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(canceledOrders?.length || 0)">
+                        {{ formatNumber(canceledOrders?.length || 0) }}
+                    </div>
                 </div>
                 <div class="flex align-items-center justify-content-center bg-pink-100 border-round"
                     [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
@@ -368,174 +382,332 @@
 
     <!-- Profit Analysis Section - Admin Only -->
     <div class="col-12" *ngIf="isAdmin">
-        <div class="p-grid p-fluid profit-dashboard">
-            <div class="p-col-12">
-                <p-card header="{{'profit_analysis_dashboard' | translate}}">
-                    <div class="p-grid p-formgrid">
-                        <div class="p-field p-col-12 p-md-6 mt-4" style="position: relative;">
-                            <label class="mt-4" for="period">{{'period' | translate}}</label>
-                            <p-dropdown [options]="profitPeriods" [(ngModel)]="selectedPeriod"
-                                (onChange)="onFilterChange()" optionLabel="label" optionValue="value" class="mt-4">
-                            </p-dropdown>
-                        </div>
+        <p-card styleClass="shadow-2 border-round-lg profit-analysis-card">
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center gap-3 p-3">
+                    <div class="profit-header-icon">
+                        <i class="pi pi-chart-line text-primary text-2xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="m-0 text-900">{{'profit_analysis_dashboard' | translate}}</h3>
+                        <p class="m-0 text-500 text-sm mt-1" *ngIf="profitData">
+                            {{(profitData.startDate | date :'mediumDate')}} {{'to' | translate}} {{(profitData.endDate | date:'mediumDate')}}
+                        </p>
+                    </div>
+                </div>
+            </ng-template>
 
-                        <div class="p-field p-col-12 p-md-6 mt-4" style="position: relative;">
-                            <label class="mt-4" for="shop">{{'shop' | translate}}</label>
-                            <p-dropdown [options]="shopOptions" [(ngModel)]="selectedShop" (onChange)="onFilterChange()"
-                                class="mt-4" optionLabel="label" optionValue="value">
+            <!-- Filters Section -->
+            <div class="profit-filters mb-4">
+                <div class="grid">
+                    <div class="col-12 md:col-6">
+                        <div class="filter-field">
+                            <label for="period" class="filter-label">
+                                <i class="pi pi-calendar mr-2"></i>
+                                {{'period' | translate}}
+                            </label>
+                            <p-dropdown 
+                                [options]="profitPeriods" 
+                                [(ngModel)]="selectedPeriod"
+                                (onChange)="onFilterChange()" 
+                                optionLabel="label" 
+                                optionValue="value"
+                                [style]="{'width': '100%'}"
+                                [showClear]="false">
                             </p-dropdown>
                         </div>
                     </div>
 
-                    <!-- Profit Loading State -->
-                    <p-progressSpinner *ngIf="profitLoading" styleClass="w-4rem h-4rem"></p-progressSpinner>
+                    <div class="col-12 md:col-6">
+                        <div class="filter-field">
+                            <label for="shop" class="filter-label">
+                                <i class="pi pi-building mr-2"></i>
+                                {{'shop' | translate}}
+                            </label>
+                            <p-dropdown 
+                                [options]="shopOptions" 
+                                [(ngModel)]="selectedShop" 
+                                (onChange)="onFilterChange()"
+                                optionLabel="label" 
+                                optionValue="value"
+                                [style]="{'width': '100%'}"
+                                [showClear]="true">
+                            </p-dropdown>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                    <!-- Profit Error State -->
-                    <p-message *ngIf="error" severity="error" [text]="error"></p-message>
+            <!-- Loading State -->
+            <div *ngIf="profitLoading" class="flex flex-column align-items-center justify-content-center py-6">
+                <p-progressSpinner styleClass="w-4rem h-4rem"></p-progressSpinner>
+                <p class="text-600 mt-3">{{ 'loading' | translate }}...</p>
+            </div>
 
-                    <!-- Profit Data Content -->
-                    <div *ngIf="profitData && !profitLoading" class="p-grid p-mt-4">
-                        <div class="p-col-12 p-lg-8 chart-container">
-                            <div *ngIf="profitChartData && profitChartOptions">
-                                <p-chart type="bar" [data]="profitChartData" [options]="profitChartOptions"></p-chart>
+            <!-- Error State -->
+            <p-message *ngIf="error && !profitLoading" severity="error" [text]="error" class="mb-4"></p-message>
+
+            <!-- Profit Data Content -->
+            <div *ngIf="profitData && !profitLoading" class="profit-content">
+                <!-- Key Metrics Cards -->
+                <div class="grid mb-4">
+                    <div class="col-12 md:col-4">
+                        <div class="profit-metric-card revenue-card">
+                            <div class="metric-icon-wrapper bg-green-100">
+                                <i class="pi pi-arrow-up text-green-600 text-2xl"></i>
                             </div>
-                            <div *ngIf="!profitChartData || !profitChartOptions" class="flex flex-column align-items-center justify-content-center" style="height: 300px;">
-                                <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
-                                <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
+                            <div class="metric-content">
+                                <div class="metric-label">{{'revenue' | translate}}</div>
+                                <div class="metric-value text-green-600">
+                                    {{profitData.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2'}}
+                                </div>
+                                <div class="metric-percentage text-green-600" *ngIf="profitData.totalRevenue > 0">
+                                    {{calculateRevenuePercentage() | number:'1.1-1'}}%
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="p-col-12">
-                            <p-card header="{{'profit_analysis_dashboard' | translate}} -  {{profitData.shopName}}"
-                                subheader="{{(profitData.startDate | date :'dd/MM/yyyy')}} {{'to' | translate}} {{(profitData.endDate | date:'dd/MM/yyyy')}}"
-                                class="profit-summary-card">
+                    <div class="col-12 md:col-4">
+                        <div class="profit-metric-card costs-card">
+                            <div class="metric-icon-wrapper bg-red-100">
+                                <i class="pi pi-arrow-down text-red-600 text-2xl"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">{{'total_costs' | translate}}</div>
+                                <div class="metric-value text-red-600">
+                                    -{{getTotalCosts() | currency: (currency || 'USD'):'symbol':'1.2-2'}}
+                                </div>
+                                <div class="metric-percentage text-red-600" *ngIf="profitData.totalRevenue > 0">
+                                    {{calculateCostsPercentage() | number:'1.1-1'}}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                                <!-- Header with Key Metrics -->
-                                <div class="p-grid p-mb-4 summary-header">
-                                    <div class="p-col-12 p-md-4">
-                                        <div class="metric-tile revenue-tile">
-                                            <div class="metric-label">{{'revenue' | translate}}</div>
-                                            <div class="metric-value text-green-600">{{profitData.totalRevenue | currency: (currency || 'USD')}}</div>
-                                        </div>
+                    <div class="col-12 md:col-4">
+                        <div class="profit-metric-card" [ngClass]="{
+                            'profit-card': profitData.netProfit >= 0,
+                            'loss-card': profitData.netProfit < 0
+                        }">
+                            <div class="metric-icon-wrapper" [ngClass]="{
+                                'bg-green-100': profitData.netProfit >= 0,
+                                'bg-red-100': profitData.netProfit < 0
+                            }">
+                                <i class="pi" [ngClass]="{
+                                    'pi-check-circle text-green-600': profitData.netProfit >= 0,
+                                    'pi-times-circle text-red-600': profitData.netProfit < 0
+                                }" class="text-2xl"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">{{'net_profit' | translate}}</div>
+                                <div class="metric-value" [ngClass]="{
+                                    'text-green-600': profitData.netProfit >= 0,
+                                    'text-red-600': profitData.netProfit < 0
+                                }">
+                                    {{profitData.netProfit | currency: (currency || 'USD'):'symbol':'1.2-2'}}
+                                </div>
+                                <div class="metric-percentage" [ngClass]="{
+                                    'text-green-600': profitData.netProfit >= 0,
+                                    'text-red-600': profitData.netProfit < 0
+                                }" *ngIf="profitData.totalRevenue > 0">
+                                    {{calculateProfitMargin() | number:'1.1-1'}}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart and Breakdown Section -->
+                <div class="grid">
+                    <!-- Chart Section -->
+                    <div class="col-12 lg:col-8">
+                        <p-card styleClass="chart-card h-full">
+                            <ng-template pTemplate="header">
+                                <div class="flex align-items-center gap-2">
+                                    <i class="pi pi-chart-bar text-primary"></i>
+                                    <span class="font-semibold">{{'financial_overview' | translate}}</span>
+                                </div>
+                            </ng-template>
+                            <div class="chart-wrapper">
+                                <div *ngIf="profitChartData && profitChartOptions" class="chart-container">
+                                    <p-chart type="bar" [data]="profitChartData" [options]="profitChartOptions"></p-chart>
+                                </div>
+                                <div *ngIf="!profitChartData || !profitChartOptions" class="flex flex-column align-items-center justify-content-center" style="height: 300px;">
+                                    <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+                                    <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+                    </div>
+
+                    <!-- Breakdown Section -->
+                    <div class="col-12 lg:col-4">
+                        <div class="breakdown-section">
+                            <!-- Revenue Breakdown -->
+                            <p-card styleClass="breakdown-card mb-3">
+                                <ng-template pTemplate="header">
+                                    <div class="flex align-items-center gap-2 p-3">
+                                        <i class="pi pi-arrow-up text-green-600"></i>
+                                        <span class="font-semibold">{{'revenue_breakdown' | translate}}</span>
                                     </div>
-                                    <div class="p-col-12 p-md-4">
-                                        <div class="metric-tile costs-tile">
-                                            <div class="metric-label">{{'total_costs' | translate}}</div>
-                                            <div class="metric-value text-red-600">-{{(profitData.totalCosts + profitData.totalRefunds + profitData.totalExpenses) | currency: (currency || 'USD')}}</div>
+                                </ng-template>
+                                <div class="breakdown-list">
+                                    <div class="breakdown-item">
+                                        <div class="flex align-items-center gap-2">
+                                            <i class="pi pi-circle-fill text-green-500" style="font-size: 0.5rem"></i>
+                                            <span class="breakdown-label">{{'gross_revenue' | translate}}</span>
                                         </div>
-                                    </div>
-                                    <div class="p-col-12 p-md-4">
-                                        <div class="metric-tile" [ngClass]="{
-                                            'profit-tile': profitData.netProfit >= 0,
-                                            'loss-tile': profitData.netProfit < 0
-                                        }">
-                                            <div class="metric-label">{{'net_profit' | translate}}</div>
-                                            <div class="metric-value" [ngClass]="{
-                                                'text-green-600': profitData.netProfit >= 0,
-                                                'text-red-600': profitData.netProfit < 0
-                                            }">
-                                                {{profitData.netProfit | currency: (currency || 'USD')}}
-                                            </div>
-                                        </div>
+                                        <span class="breakdown-value text-green-600 font-semibold">
+                                            {{profitData.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2'}}
+                                        </span>
                                     </div>
                                 </div>
+                            </p-card>
 
-                                <!-- Detailed Breakdown -->
-                                <div class="p-grid breakdown-grid">
-                                    <!-- Revenue Section -->
-                                    <div class="p-col-12 p-md-4">
-                                        <p-panel header="{{'revenue_breakdown' | translate}}" [toggleable]="true">
-                                            <div class="p-grid">
-                                                <div class="p-col-12">
-                                                    <div class="breakdown-item">
-                                                        <span class="breakdown-label">{{'gross_revenue' | translate}}</span>
-                                                        <span class="breakdown-value text-green-600">{{profitData.totalRevenue | currency: (currency || 'USD')}}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </p-panel>
+                            <!-- Costs Breakdown -->
+                            <p-card styleClass="breakdown-card">
+                                <ng-template pTemplate="header">
+                                    <div class="flex align-items-center gap-2 p-3">
+                                        <i class="pi pi-arrow-down text-red-600"></i>
+                                        <span class="font-semibold">{{'costs_breakdown' | translate}}</span>
                                     </div>
-
-                                    <!-- Costs Section -->
-                                    <div class="p-col-12 p-md-4 mt-3">
-                                        <p-panel header="{{'costs_breakdown' | translate}}" [toggleable]="true">
-                                            <div class="p-grid">
-                                                <div class="p-col-12">
-                                                    <div class="breakdown-item">
-                                                        <span class="breakdown-label">{{'product_costs' | translate}}</span>
-                                                        <span class="breakdown-value text-red-600">-{{profitData.totalCosts | currency: (currency || 'USD')}}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="p-col-12">
-                                                    <div class="breakdown-item">
-                                                        <span class="breakdown-label">{{'refunds' | translate}}</span>
-                                                        <span class="breakdown-value text-red-600">-{{profitData.totalRefunds | currency: (currency || 'USD')}}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="p-col-12">
-                                                    <div class="breakdown-item">
-                                                        <span class="breakdown-label">{{'expenses' | translate}}</span>
-                                                        <span class="breakdown-value text-red-600">-{{profitData.totalExpenses | currency: (currency || 'USD')}}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </p-panel>
+                                </ng-template>
+                                <div class="breakdown-list">
+                                    <div class="breakdown-item">
+                                        <div class="flex align-items-center gap-2">
+                                            <i class="pi pi-circle-fill text-orange-500" style="font-size: 0.5rem"></i>
+                                            <span class="breakdown-label">{{'product_costs' | translate}}</span>
+                                        </div>
+                                        <span class="breakdown-value text-red-600 font-semibold">
+                                            -{{profitData.totalCosts | currency: (currency || 'USD'):'symbol':'1.2-2'}}
+                                        </span>
                                     </div>
-                                </div>
-
-                                <!-- Profit Margin Indicator -->
-                                <div class="p-mt-4" *ngIf="profitData.totalRevenue > 0">
-                                    <div class="profit-margin-bar">
-                                        <div class="bar-container">
-                                            <div class="negative-track" *ngIf="profitData.netProfit < 0"></div>
-                                            <div class="positive-track" *ngIf="profitData.netProfit >= 0"></div>
-                                            <div class="indicator" [style.left]="calculateIndicatorPosition()"
-                                                [ngClass]="{
-                                                    'positive': profitData.netProfit >= 0,
-                                                    'negative': profitData.netProfit < 0
-                                                }">
-                                                <span class="indicator-value">{{calculateProfitMargin() | number:'1.0-2'}}%</span>
-                                            </div>
+                                    <div class="breakdown-item">
+                                        <div class="flex align-items-center gap-2">
+                                            <i class="pi pi-circle-fill text-pink-500" style="font-size: 0.5rem"></i>
+                                            <span class="breakdown-label">{{'refunds' | translate}}</span>
                                         </div>
-                                        <div class="p-d-flex p-jc-between p-mt-2">
-                                            <span>{{'profit_margin' | translate}} : </span>
-                                            <span>{{profitData.netProfit | currency: (currency || 'USD')}}</span>
+                                        <span class="breakdown-value text-red-600 font-semibold">
+                                            -{{profitData.totalRefunds | currency: (currency || 'USD'):'symbol':'1.2-2'}}
+                                        </span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <div class="flex align-items-center gap-2">
+                                            <i class="pi pi-circle-fill text-purple-500" style="font-size: 0.5rem"></i>
+                                            <span class="breakdown-label">{{'expenses' | translate}}</span>
                                         </div>
+                                        <span class="breakdown-value text-red-600 font-semibold">
+                                            -{{profitData.totalExpenses | currency: (currency || 'USD'):'symbol':'1.2-2'}}
+                                        </span>
                                     </div>
                                 </div>
                             </p-card>
                         </div>
                     </div>
-                </p-card>
+                </div>
+
+                <!-- Profit Margin Indicator -->
+                <div class="profit-margin-section mt-4" *ngIf="profitData.totalRevenue > 0">
+                    <p-card styleClass="margin-card">
+                        <div class="flex align-items-center justify-content-between mb-3">
+                            <div class="flex align-items-center gap-2">
+                                <i class="pi pi-percentage text-primary"></i>
+                                <span class="font-semibold">{{'profit_margin' | translate}}</span>
+                            </div>
+                            <span class="font-bold text-lg" [ngClass]="{
+                                'text-green-600': profitData.netProfit >= 0,
+                                'text-red-600': profitData.netProfit < 0
+                            }">
+                                {{calculateProfitMargin() | number:'1.2-2'}}%
+                            </span>
+                        </div>
+                        <div class="profit-margin-bar">
+                            <div class="bar-container">
+                                <div class="negative-track" *ngIf="profitData.netProfit < 0"></div>
+                                <div class="positive-track" *ngIf="profitData.netProfit >= 0"></div>
+                                <div class="indicator" [style.left]="calculateIndicatorPosition()"
+                                    [ngClass]="{
+                                        'positive': profitData.netProfit >= 0,
+                                        'negative': profitData.netProfit < 0
+                                    }">
+                                    <span class="indicator-value">{{calculateProfitMargin() | number:'1.0-2'}}%</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-content-between mt-2 text-sm text-600">
+                                <span>-100%</span>
+                                <span>0%</span>
+                                <span>+100%</span>
+                            </div>
+                        </div>
+                    </p-card>
+                </div>
             </div>
-        </div>
+        </p-card>
     </div>
 
     <!-- Alert Center - Admin Only -->
     <div class="col-12 lg:col-4" *ngIf="isAdmin && criticalAlerts.length > 0">
-        <p-card styleClass="shadow-2 border-round-lg h-full">
+        <p-card styleClass="shadow-2 border-round-lg h-full alert-center-card">
             <ng-template pTemplate="header">
-                <div class="flex align-items-center gap-2 p-3">
-                    <i class="pi pi-bell text-primary text-xl"></i>
-                    <h5 class="m-0">{{ 'alert_center' | translate }}</h5>
-                    <p-badge [value]="criticalAlerts.length" severity="danger" class="ml-auto"></p-badge>
+                <div class="flex align-items-center gap-3 p-3 alert-header">
+                    <div class="alert-icon-wrapper">
+                        <i class="pi pi-bell text-primary text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h5 class="m-0 text-900">{{ 'alert_center' | translate }}</h5>
+                        <p class="m-0 text-500 text-sm mt-1">{{ 'alert_center_subtitle' | translate }}</p>
+                    </div>
+                    <p-badge [value]="criticalAlerts.length" severity="danger" [style]="{'min-width': '2rem', 'height': '2rem', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}"></p-badge>
                 </div>
             </ng-template>
-            <div class="flex flex-column gap-2">
-                <div *ngFor="let alert of criticalAlerts" 
-                    class="p-3 border-round surface-50 cursor-pointer hover:surface-100 transition-colors"
+            <div class="alert-list">
+                <div *ngFor="let alert of criticalAlerts; let i = index" 
+                    class="alert-item"
                     [routerLink]="alert.action"
                     [ngClass]="{
-                        'border-left-3 border-red-500': alert.severity === 'error',
-                        'border-left-3 border-orange-500': alert.severity === 'warn',
-                        'border-left-3 border-blue-500': alert.severity === 'info'
+                        'alert-error': alert.severity === 'error',
+                        'alert-warning': alert.severity === 'warn',
+                        'alert-info': alert.severity === 'info'
                     }">
-                    <div class="flex align-items-start gap-2">
-                        <i [class]="'pi ' + alert.icon + ' text-' + (alert.severity === 'error' ? 'red' : alert.severity === 'warn' ? 'orange' : 'blue') + '-500'"></i>
-                        <span class="text-900 text-sm line-height-3">{{ alert.message }}</span>
+                    <div class="flex align-items-start gap-3">
+                        <div class="alert-icon" [ngClass]="{
+                            'alert-icon-error': alert.severity === 'error',
+                            'alert-icon-warning': alert.severity === 'warn',
+                            'alert-icon-info': alert.severity === 'info'
+                        }">
+                            <i [class]="'pi ' + alert.icon"></i>
+                        </div>
+                        <div class="flex-1 alert-content">
+                            <div class="alert-message text-900 font-medium">
+                                <span *ngIf="alert.count !== undefined">
+                                    {{ alert.translationKey | translate: {count: alert.count} }}
+                                </span>
+                                <span *ngIf="alert.percentage !== undefined">
+                                    {{ alert.translationKey | translate: {percentage: alert.percentage} }}
+                                </span>
+                                <span *ngIf="alert.count === undefined && alert.percentage === undefined">
+                                    {{ alert.translationKey | translate }}
+                                </span>
+                            </div>
+                            <div class="flex align-items-center gap-2 mt-2">
+                                <span class="text-500 text-xs">{{ 'view_details' | translate }}</span>
+                                <i class="pi pi-arrow-right text-500 text-xs"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            <ng-template pTemplate="footer" *ngIf="criticalAlerts.length > 0">
+                <div class="p-3 border-top-1 surface-border">
+                    <button pButton pRipple 
+                        [label]="'view_all_alerts' | translate" 
+                        icon="pi pi-external-link"
+                        class="p-button-text p-button-sm w-full"
+                        [routerLink]="'/inventory/products'">
+                    </button>
+                </div>
+            </ng-template>
         </p-card>
     </div>
 
@@ -597,7 +769,7 @@
     </div>
 
     <!-- Quick Stats Summary -->
-    <div class="col-12" [ngClass]="{'lg:col-4': isAdmin && criticalAlerts.length > 0, 'lg:col-12': !isAdmin || criticalAlerts.length === 0}">
+    <div class="col-12" [ngClass]="{'lg:col-6': isAdmin && criticalAlerts.length > 0, 'lg:col-12': !isAdmin || criticalAlerts.length === 0}">
         <p-card styleClass="shadow-2 border-round-lg h-full">
             <ng-template pTemplate="header">
                 <div class="flex align-items-center gap-2 p-3">
@@ -933,10 +1105,11 @@
                         <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
                     </div>
                 </ng-container>
-                <!-- Show message if chart is ready but no datasets (no products) -->
+                <!-- Show message if chart is ready but no datasets AND no products exist -->
                 <div *ngIf="chartDataReady && chartData && chartOptions && 
                             chartData.labels && chartData.labels.length > 0 && 
-                            (!chartData.datasets || chartData.datasets.length === 0)" 
+                            (!chartData.datasets || chartData.datasets.length === 0) &&
+                            (!top5Products || top5Products.length === 0)" 
                      class="flex flex-column align-items-center justify-content-center h-full">
                     <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
                     <span class="text-600 text-center">{{ 'no_products_for_chart' | translate }}</span>

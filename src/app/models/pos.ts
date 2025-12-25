@@ -18,14 +18,16 @@ export interface POSProductDTO {
   reference: string;
   name: string;
   description?: string;
+  buyingPrice?: number;
   sellingPrice: number;
   quantityAvailable: number;
   inventoryStatus?: string;
   categoryName?: string;
+  warehouseName?: string;
   barcode?: string;
   imageUrl?: string;
   measureUnit?: string;
-  active: boolean;
+  active?: boolean;
 }
 
 export interface POSCartItemDTO {

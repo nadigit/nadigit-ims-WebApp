@@ -143,7 +143,7 @@ export class ProductsComponent implements OnInit {
 
   printOptions: any[] = [];
 
-  lowStockThreshold;
+  lowStockThreshold: number = 10;
 
   public translations: any = {};
 
@@ -538,6 +538,74 @@ export class ProductsComponent implements OnInit {
     this.filteredProducts = tempProducts;
   }
 
+  /**
+   * Handle filter events from the products-table component (dropdown-based filters)
+   */
+  onApplyFilters(event: {
+    categoryIds?: number[];
+    warehouseIds?: number[];
+    supplierIds?: number[];
+    inventoryStatus?: string;
+    globalFilter?: string;
+  }) {
+    this.scanning = false;
+    
+    // If all filters are cleared, reload all products
+    const hasNoFilters = (!event.categoryIds || event.categoryIds.length === 0) &&
+      (!event.warehouseIds || event.warehouseIds.length === 0) &&
+      (!event.supplierIds || event.supplierIds.length === 0) &&
+      !event.inventoryStatus && !event.globalFilter;
+    
+    if (hasNoFilters) {
+      this.filteredProducts = [...this.products];
+      const lazyEvent: LazyLoadEventExt = {
+        ...this.lastLazyLoadEvent,
+        first: 0
+      };
+      this.onLazyLoad(lazyEvent);
+      return;
+    }
+
+    // Apply filters locally on the current products array
+    let tempProducts = [...this.products];
+
+    if (event.categoryIds && event.categoryIds.length > 0) {
+      tempProducts = tempProducts.filter(product => 
+        product.category?.categoryId && event.categoryIds!.includes(product.category.categoryId)
+      );
+    }
+
+    if (event.warehouseIds && event.warehouseIds.length > 0) {
+      tempProducts = tempProducts.filter(product => 
+        product.warehouse?.warehouseId && event.warehouseIds!.includes(product.warehouse.warehouseId)
+      );
+    }
+
+    if (event.supplierIds && event.supplierIds.length > 0) {
+      tempProducts = tempProducts.filter(product => 
+        product.supplier?.supplierId && event.supplierIds!.includes(product.supplier.supplierId)
+      );
+    }
+
+    if (event.inventoryStatus) {
+      tempProducts = tempProducts.filter(product => product.inventoryStatus === event.inventoryStatus);
+    }
+
+    if (event.globalFilter) {
+      const searchTerm = event.globalFilter.toUpperCase();
+      tempProducts = tempProducts.filter(product => {
+        return (product.name || '').toUpperCase().includes(searchTerm) ||
+          (product.reference || '').toUpperCase().includes(searchTerm) ||
+          (product.description || '').toUpperCase().includes(searchTerm) ||
+          (product.category?.categoryName || '').toUpperCase().includes(searchTerm) ||
+          (product.supplier?.name || '').toUpperCase().includes(searchTerm) ||
+          (product.warehouse?.name || '').toUpperCase().includes(searchTerm);
+      });
+    }
+
+    this.filteredProducts = tempProducts;
+  }
+
 
   nodeMatchesProduct(node: TreeNode, product: any): boolean {
     if (node.children && node.children.length > 0) {
@@ -598,7 +666,17 @@ export class ProductsComponent implements OnInit {
   }
 
   searchProductByBarcode(barcode: string) {
-    return this.products.find(product => product.reference === barcode);
+    console.log("Searching for product by barcode: ", barcode);
+    console.log("Products: ", this.products);
+    const product = this.products.find(product => product.reference == barcode.trim());
+    console.log("Product: ", product);
+    if (product) {
+      console.log("Product found: ", product);
+      return product;
+    } else {
+      console.log("Product not found");
+      return undefined;
+    }
   }
 
   // Check if a key is a valid alphanumeric character
@@ -607,9 +685,10 @@ export class ProductsComponent implements OnInit {
     return isAlphaNum;
   }
 
-  processBarcode(): void {
-    if (this.barcode) {
-      const product = this.searchProductByBarcode(this.barcode);
+  async processBarcode(): Promise<void> {
+    if (this.barcode && this.barcode.trim().length >= 3) {
+      const product = await this.searchProductByBarcode(this.barcode);
+      console.log("Product: ", product);
       if (product) {
         console.log("Product found");
         this.showProductDetails(product);
@@ -727,6 +806,22 @@ export class ProductsComponent implements OnInit {
     this.isAdmin = this.userRoles.includes('ADMIN');
   }
 
+  // Handler for product form save success event
+  onProductFormSaveSuccess(product: Product): void {
+    // Reload products to reflect the changes
+    this.loadProducts();
+    // Reset product
+    this.product = {};
+  }
+
+  // Handler for product form save error event
+  onProductFormSaveError(error: any): void {
+    // Error message is already shown by the form component
+    // Just log for debugging if needed
+    console.error('Product save error:', error);
+  }
+
+  // Legacy saveProduct method - kept for backward compatibility if needed
   async saveProduct() {
     this.submitted = true;
 
@@ -1195,27 +1290,50 @@ export class ProductsComponent implements OnInit {
       })
   }
 
-  async updateProduct(id: any, product: any): Promise<any> {
-    console.log(product)
-    await this.productService.updateProduct(id, product)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          // Reload products using lazy loading method to maintain table state
-          this.loadProducts();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
+  async updateProduct(id: any, product: any): Promise<boolean> {
+    console.log('Updating product ID:', id);
+    console.log('Product data being sent:', JSON.stringify(product, null, 2));
+    
+    return new Promise<boolean>((resolve) => {
+      this.productService.updateProduct(id, product)
+        .subscribe({
+          next: (response: any) => {
+            console.log('Product update API response:', response);
+            console.log('Response status:', response?.status || 'OK');
+            console.log('Response body:', response);
+            
+            // Check if response indicates success
+            if (response) {
+              // Reload products using lazy loading method to maintain table state
+              this.loadProducts();
+              resolve(true);
+            } else {
+              console.warn('Update response was empty or null');
+              resolve(false);
+            }
+          },
+          error: (err: any) => {
+            console.error('Error updating product:', err);
+            console.error('Error status:', err?.status);
+            console.error('Error statusText:', err?.statusText);
+            console.error('Error body:', err?.error);
+            console.error('Full error object:', err);
+            
+            const errorMessage = err?.error?.message || 
+                                err?.error?.error || 
+                                err?.message || 
+                                this.translate.instant('error_while_updating_product');
+            
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: errorMessage,
+              life: 5000
+            });
+            resolve(false);
+          },
+        });
+    });
   }
 
   async addProduct(data: any): Promise<any> {

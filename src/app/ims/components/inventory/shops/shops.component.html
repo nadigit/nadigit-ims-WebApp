@@ -638,12 +638,22 @@
                                                     pButton
                                                     type="button"
                                                     icon="pi pi-plus"
+                                                    label="{{ 'new_withdraw' | translate }}"
+                                                    class="p-button-sm p-button-success mr-2"
+                                                    [pTooltip]="'new_withdraw' | translate"
+                                                    tooltipPosition="left"
+                                                    (click)="openNewWithdrawDialog()">
+                                                </button>
+                                                <button *ngIf="isAdmin"
+                                                    pButton
+                                                    type="button"
+                                                    icon="pi pi-plus"
                                                     label="{{ 'new_deposit' | translate }}"
                                                     class="p-button-sm p-button-success"
                                                     [pTooltip]="'new_deposit' | translate"
                                                     tooltipPosition="left"
                                                     (click)="openNewDepositDialog()">
-                                </button>
+                                                </button>
                             </div>
                                         </div>
                                     </ng-template>
@@ -980,6 +990,28 @@
                     (click)="newDepositDialogVisible = false"></button>
                 <button pButton label="{{ 'confirm_deposit' | translate }}" icon="pi pi-check" class="p-button-primary"
                     (click)="saveNewDeposit()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog header="{{ 'new_withdraw' | translate }}" [(visible)]="newWithdrawDialogVisible" [modal]="true"
+            [style]="{width: '450px'}" [closable]="true" [draggable]="false">
+
+            <div class="p-fluid">
+                <div class="field">
+                    <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
+                    <input pInputText type="number" [(ngModel)]="newWithdraw.amount" placeholder="0.00" />
+                </div>
+                <div class="field">
+                    <label for="notes">{{ 'notes' | translate }}</label>
+                    <textarea pInputTextarea [(ngModel)]="newWithdraw.notes" rows="2"></textarea>
+                </div>
+            </div>
+
+            <ng-template pTemplate="footer">
+                <button pButton label="{{ 'cancel' | translate }}" icon="pi pi-times" class="p-button-text"
+                    (click)="newWithdrawDialogVisible = false"></button>
+                <button pButton label="{{ 'confirm_withdraw' | translate }}" icon="pi pi-check" class="p-button-primary"
+                    (click)="saveNewWithdraw()"></button>
             </ng-template>
         </p-dialog>
 

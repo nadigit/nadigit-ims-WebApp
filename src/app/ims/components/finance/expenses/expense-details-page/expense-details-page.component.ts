@@ -180,6 +180,17 @@ export class ExpenseDetailsPageComponent implements OnInit {
     return severityMap[status] || 'info';
   }
 
+  getExpenseStatusSeverityTag(status: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
+    const severityMap: { [key: string]: 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined } = {
+      'Recorded': 'info',
+      'Pending': 'warn',
+      'Approved': 'success',
+      'Reimbursed': 'secondary',
+      'Rejected': 'danger'
+    };
+    return severityMap[status] || 'info';
+  }
+
   getExpenseStatusIcon(status: string): string {
     const iconMap: { [key: string]: string } = {
       'Recorded': 'pi pi-plus-circle',
@@ -197,6 +208,27 @@ export class ExpenseDetailsPageComponent implements OnInit {
 
   getPaymentMethodIcon(method: string): string {
     return getPaymentMethodIcon(method);
+  }
+
+  getPaymentMethodSeverityTag(method: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
+    const severityMap: { [key: string]: 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined } = {
+      'Cash': 'success',
+      'Card': 'info',
+      'Transfer': 'secondary',
+      'Check': 'warn',
+      'BOE': 'contrast'
+    };
+    return severityMap[method] || 'secondary';
+  }
+
+  isCurrentStatus(status: string): boolean {
+    return this.expense?.status?.toLowerCase() === status?.toLowerCase();
+  }
+
+  getTimelineDetails(status: string): boolean {
+    if (status === 'Approved' && this.expense?.approvedBy) return true;
+    if (status === 'Reimbursed' && this.expense?.reimbursedBy) return true;
+    return false;
   }
 
   hasExpensePaymentMethodDetails(): boolean {

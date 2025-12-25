@@ -82,6 +82,8 @@ export class ShopDetailsComponent implements OnInit {
   newCollection = { amount: null, notes: '' };
   newDepositDialogVisible = false;
   newDeposit = { amount: null, notes: '' };
+  newWithdrawDialogVisible = false;
+  newWithdraw = { amount: null, notes: '' };
   showCashRegisterSessionDialog = false;
   dailyDifferenceTrend: number = 0;
   dailyDifferencePercentage: number = 0;
@@ -719,6 +721,47 @@ export class ShopDetailsComponent implements OnInit {
   openNewDepositDialog(): void {
     this.newDepositDialogVisible = true;
     this.newDeposit = { amount: null, notes: '' };
+  }
+
+  openNewWithdrawDialog(): void {
+    this.newWithdrawDialogVisible = true;
+    this.newWithdraw = { amount: null, notes: '' };
+  }
+
+  async saveNewWithdraw(): Promise<void> {
+    if (!this.newWithdraw.amount || this.newWithdraw.amount <= 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Invalid Amount',
+        detail: 'Please enter a valid amount.',
+        life: 3000
+      });
+      return;
+    }
+
+    try {
+      const withdrawObservable = await this.cashRegisterService.withdrawMoney(this.cashRegister.cashRegisterId, this.newWithdraw);
+      await firstValueFrom(withdrawObservable);
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Withdraw Performed',
+        detail: 'Cash withdrawal has been successfully recorded.',
+        life: 3000
+      });
+
+      if (this.cashRegisterDialog) {
+        this.refreshCashRegisterData(true);
+      }
+    } catch (error) {
+      console.error('❌ Error performing withdrawal:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to perform cash withdrawal.',
+        life: 4000
+      });
+    }
   }
 
   async saveNewDeposit(): Promise<void> {

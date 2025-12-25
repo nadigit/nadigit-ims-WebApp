@@ -1,95 +1,349 @@
-.profit-summary-card {
-  .summary-header {
-    .metric-tile {
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      margin-bottom: 1rem;
-      height: 100%;
-      
-      .metric-label {
-        font-size: 0.9rem;
-        color: var(--text-color-secondary);
-        margin-bottom: 0.5rem;
-      }
-      
-      .metric-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-      }
-      
-      &.revenue-tile {
-        border-left: 4px solid var(--green-500);
-        background-color: rgba(76, 175, 80, 0.1);
-      }
-      
-      &.costs-tile {
-        border-left: 4px solid var(--red-500);
-        background-color: rgba(244, 67, 54, 0.1);
-      }
-      
-      &.profit-tile {
-        border-left: 4px solid var(--green-500);
-        background-color: rgba(76, 175, 80, 0.1);
-      }
-      
-      &.loss-tile {
-        border-left: 4px solid var(--red-500);
-        background-color: rgba(244, 67, 54, 0.1);
-      }
+/* Quick Stats Cards - Number Display */
+.stat-number {
+  line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  
+  &.stat-number-small {
+    font-size: 2rem;
+  }
+  
+  &.stat-number-medium {
+    font-size: 1.75rem;
+  }
+  
+  &.stat-number-large {
+    font-size: 1.5rem;
+  }
+  
+  &.stat-currency {
+    font-size: 1.5rem;
+    white-space: normal;
+    
+    &.stat-number-small {
+      font-size: 1.5rem;
+    }
+    
+    &.stat-number-medium {
+      font-size: 1.25rem;
+    }
+    
+    &.stat-number-large {
+      font-size: 1.125rem;
     }
   }
   
-  .breakdown-grid {
+  &.stat-percentage {
+    font-size: 1.75rem;
+  }
+}
+
+/* Ensure flex containers handle overflow properly */
+.flex-1.min-w-0 {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 0%;
+}
+
+/* Responsive font sizes for stat numbers */
+@media (max-width: 1200px) {
+  .stat-number {
+    &.stat-number-small {
+      font-size: 1.75rem;
+    }
+    
+    &.stat-number-medium {
+      font-size: 1.5rem;
+    }
+    
+    &.stat-number-large {
+      font-size: 1.25rem;
+    }
+    
+    &.stat-currency {
+      font-size: 1.25rem;
+      
+      &.stat-number-small {
+        font-size: 1.25rem;
+      }
+      
+      &.stat-number-medium {
+        font-size: 1.125rem;
+      }
+      
+      &.stat-number-large {
+        font-size: 1rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-number {
+    &.stat-number-small {
+      font-size: 1.5rem;
+    }
+    
+    &.stat-number-medium {
+      font-size: 1.25rem;
+    }
+    
+    &.stat-number-large {
+      font-size: 1.125rem;
+    }
+    
+    &.stat-currency {
+      font-size: 1.125rem;
+      
+      &.stat-number-small {
+        font-size: 1.125rem;
+      }
+      
+      &.stat-number-medium {
+        font-size: 1rem;
+      }
+      
+      &.stat-number-large {
+        font-size: 0.875rem;
+      }
+    }
+    
+    &.stat-percentage {
+      font-size: 1.5rem;
+    }
+  }
+}
+
+/* Profit Analysis Card */
+.profit-analysis-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  
+  ::ng-deep .p-card-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-600) 100%);
+    color: white;
+    border-radius: 6px 6px 0 0;
+    padding: 1.5rem;
+  }
+  
+  .profit-header-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Profit Filters */
+.profit-filters {
+  .filter-field {
+    .filter-label {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+/* Profit Metric Cards */
+.profit-metric-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: var(--surface-card);
+  border: 2px solid var(--surface-border);
+  transition: all 0.3s ease;
+  height: 100%;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+  
+  .metric-icon-wrapper {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  .metric-content {
+    flex: 1;
+    min-width: 0;
+      
+      .metric-label {
+      font-size: 0.875rem;
+        color: var(--text-color-secondary);
+        margin-bottom: 0.5rem;
+      font-weight: 500;
+      }
+      
+      .metric-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 0.25rem;
+      }
+      
+    .metric-percentage {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+  }
+  
+  &.revenue-card {
+    border-color: rgba(76, 175, 80, 0.3);
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.02) 100%);
+    
+    &:hover {
+      border-color: rgba(76, 175, 80, 0.5);
+    }
+      }
+      
+  &.costs-card {
+    border-color: rgba(244, 67, 54, 0.3);
+    background: linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%);
+    
+    &:hover {
+      border-color: rgba(244, 67, 54, 0.5);
+    }
+      }
+      
+  &.profit-card {
+    border-color: rgba(76, 175, 80, 0.3);
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.02) 100%);
+    
+    &:hover {
+      border-color: rgba(76, 175, 80, 0.5);
+    }
+      }
+      
+  &.loss-card {
+    border-color: rgba(244, 67, 54, 0.3);
+    background: linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%);
+    
+    &:hover {
+      border-color: rgba(244, 67, 54, 0.5);
+    }
+  }
+}
+
+/* Chart Card */
+.chart-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  
+  ::ng-deep .p-card-header {
+    background: var(--surface-ground);
+    border-bottom: 1px solid var(--surface-border);
+    padding: 1rem 1.5rem;
+  }
+  
+  .chart-wrapper {
+    .chart-container {
+      min-height: 350px;
+      padding: 1rem 0;
+    }
+  }
+}
+
+/* Breakdown Section */
+.breakdown-section {
+  .breakdown-card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    
+    ::ng-deep .p-card-header {
+      background: var(--surface-ground);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 1rem 1.5rem;
+    }
+    
+    ::ng-deep .p-card-body {
+      padding: 1rem 1.5rem;
+    }
+  }
+  
+  .breakdown-list {
     .breakdown-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid var(--surface-d);
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--surface-border);
+      transition: background-color 0.2s ease;
       
       &:last-child {
         border-bottom: none;
       }
       
+      &:hover {
+        background-color: var(--surface-hover);
+        margin: 0 -1.5rem;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        border-radius: 6px;
+      }
+      
       .breakdown-label {
         font-weight: 500;
+        color: var(--text-color);
+        font-size: 0.9rem;
       }
       
       .breakdown-value {
-        font-weight: bold;
+        font-weight: 700;
+        font-size: 1rem;
       }
     }
   }
-  
-  .profit-bar {
-    ::ng-deep .p-progressbar-value {
-      background-color: var(--green-500);
-    }
-  }
-  
-  .loss-bar {
-    ::ng-deep .p-progressbar-value {
-      background-color: var(--red-500);
+}
+
+/* Profit Margin Section */
+.profit-margin-section {
+  .margin-card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    
+    ::ng-deep .p-card-body {
+      padding: 1.5rem;
     }
   }
 }
 /* Progress bar styles */
 .profit-margin-bar {
   .bar-container {
-    height: 8px;
-    background: var(--surface-d);
-    border-radius: 4px;
+    height: 12px;
+    background: var(--surface-ground);
+    border-radius: 8px;
     position: relative;
-    margin: 1rem 0;
+    margin: 1.5rem 0 0.5rem 0;
+    overflow: visible;
+    border: 1px solid var(--surface-border);
     
     .negative-track {
       position: absolute;
       left: 50%;
       width: 50%;
       height: 100%;
-      background: rgba(244, 67, 54, 0.2);
-      border-radius: 0 4px 4px 0;
+      background: linear-gradient(90deg, rgba(244, 67, 54, 0.3) 0%, rgba(244, 67, 54, 0.1) 100%);
+      border-radius: 0 8px 8px 0;
     }
     
     .positive-track {
@@ -97,36 +351,43 @@
       right: 50%;
       width: 50%;
       height: 100%;
-      background: rgba(76, 175, 80, 0.2);
-      border-radius: 4px 0 0 4px;
+      background: linear-gradient(90deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.3) 100%);
+      border-radius: 8px 0 0 8px;
     }
     
     .indicator {
       position: absolute;
-      top: -6px;
-      width: 20px;
-      height: 20px;
+      top: -8px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       transform: translateX(-50%);
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       
       &.positive {
-        background: var(--green-500);
-        border: 2px solid var(--green-700);
+        background: linear-gradient(135deg, var(--green-500) 0%, var(--green-600) 100%);
+        border: 3px solid white;
       }
       
       &.negative {
-        background: var(--red-500);
-        border: 2px solid var(--red-700);
+        background: linear-gradient(135deg, var(--red-500) 0%, var(--red-600) 100%);
+        border: 3px solid white;
       }
       
       .indicator-value {
         position: absolute;
-        top: -25px;
+        top: -35px;
         left: 50%;
         transform: translateX(-50%);
-        font-size: 0.75rem;
-        font-weight: bold;
+        font-size: 0.875rem;
+        font-weight: 700;
         white-space: nowrap;
+        padding: 0.25rem 0.5rem;
+        background: var(--surface-card);
+        border: 1px solid var(--surface-border);
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
     }
   }
@@ -218,10 +479,197 @@
   }
 }
 
+/* Alert Center Styles */
+.alert-center-card {
+  ::ng-deep .p-card-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-600) 100%);
+    color: white;
+    border-radius: 6px 6px 0 0;
+  }
+  
+  .alert-header {
+    .alert-icon-wrapper {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+  
+  .alert-list {
+    max-height: 500px;
+    overflow-y: auto;
+    
+    .alert-item {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-left: 4px solid transparent;
+      background: var(--surface-ground);
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      &:hover {
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      
+      &.alert-error {
+        border-left-color: var(--red-500);
+        background: linear-gradient(90deg, rgba(244, 67, 54, 0.05) 0%, transparent 100%);
+        
+        &:hover {
+          background: linear-gradient(90deg, rgba(244, 67, 54, 0.1) 0%, transparent 100%);
+        }
+      }
+      
+      &.alert-warning {
+        border-left-color: var(--orange-500);
+        background: linear-gradient(90deg, rgba(255, 152, 0, 0.05) 0%, transparent 100%);
+        
+        &:hover {
+          background: linear-gradient(90deg, rgba(255, 152, 0, 0.1) 0%, transparent 100%);
+        }
+      }
+      
+      &.alert-info {
+        border-left-color: var(--blue-500);
+        background: linear-gradient(90deg, rgba(33, 150, 243, 0.05) 0%, transparent 100%);
+        
+        &:hover {
+          background: linear-gradient(90deg, rgba(33, 150, 243, 0.1) 0%, transparent 100%);
+        }
+      }
+      
+      .alert-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        
+        i {
+          font-size: 1.125rem;
+        }
+        
+        &.alert-icon-error {
+          background: rgba(244, 67, 54, 0.1);
+          color: var(--red-600);
+        }
+        
+        &.alert-icon-warning {
+          background: rgba(255, 152, 0, 0.1);
+          color: var(--orange-600);
+        }
+        
+        &.alert-icon-info {
+          background: rgba(33, 150, 243, 0.1);
+          color: var(--blue-600);
+        }
+      }
+      
+      .alert-content {
+        .alert-message {
+          font-size: 0.9rem;
+          line-height: 1.5;
+        }
+      }
+    }
+  }
+}
+
 /* Responsive adjustments for admin sections */
 @media (max-width: 768px) {
   .quick-action-btn {
     min-height: 2.5rem;
     font-size: 0.875rem;
+  }
+  
+  /* Profit Analysis Responsive */
+  .profit-metric-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.25rem;
+    
+    .metric-icon-wrapper {
+      width: 3.5rem;
+      height: 3.5rem;
+    }
+    
+    .metric-content {
+      .metric-value {
+        font-size: 1.5rem;
+      }
+    }
+  }
+  
+  .profit-filters {
+    .filter-field {
+      margin-bottom: 1rem;
+    }
+  }
+  
+  .chart-wrapper {
+    .chart-container {
+      min-height: 250px;
+    }
+  }
+  
+  .breakdown-section {
+    margin-top: 1rem;
+  }
+  
+  .profit-margin-bar {
+    .bar-container {
+      .indicator {
+        width: 24px;
+        height: 24px;
+        
+        .indicator-value {
+          font-size: 0.75rem;
+          padding: 0.2rem 0.4rem;
+        }
+      }
+    }
+  }
+  
+  /* Alert Center Responsive */
+  .alert-center-card {
+    .alert-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+      
+      .alert-icon-wrapper {
+        width: 2rem;
+        height: 2rem;
+      }
+    }
+    
+    .alert-list {
+      .alert-item {
+        padding: 0.875rem;
+        
+        .alert-icon {
+          width: 2rem;
+          height: 2rem;
+        }
+        
+        .alert-content {
+          .alert-message {
+            font-size: 0.875rem;
+          }
+        }
+      }
+    }
   }
 }

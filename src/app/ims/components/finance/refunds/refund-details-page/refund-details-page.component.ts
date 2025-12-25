@@ -174,6 +174,17 @@ export class RefundDetailsPageComponent implements OnInit {
     return severityMap[status] || 'info';
   }
 
+  getRefundStatusSeverityTag(status: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
+    const severityMap: { [key: string]: 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined } = {
+      'Initiated': 'info',
+      'Processing': 'warn',
+      'Completed': 'success',
+      'Failed': 'danger',
+      'Canceled': 'secondary'
+    };
+    return severityMap[status] || 'info';
+  }
+
   getRefundStatusIcon(status: string): string {
     const iconMap: { [key: string]: string } = {
       'Initiated': 'pi pi-plus-circle',
@@ -191,6 +202,31 @@ export class RefundDetailsPageComponent implements OnInit {
 
   getPaymentMethodIcon(method: string): string {
     return getPaymentMethodIcon(method);
+  }
+
+  getPaymentMethodSeverityTag(method: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
+    const severityMap: { [key: string]: 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined } = {
+      'Cash': 'success',
+      'Card': 'info',
+      'Transfer': 'secondary',
+      'Check': 'warn',
+      'BOE': 'contrast'
+    };
+    return severityMap[method] || 'secondary';
+  }
+
+  isCurrentStatus(status: string): boolean {
+    return this.refund?.status?.toLowerCase() === status?.toLowerCase();
+  }
+
+  printRefund(): void {
+    console.log('Print refund:', this.refund);
+    // Implement print functionality
+  }
+
+  exportRefundToPDF(): void {
+    console.log('Export refund to PDF:', this.refund);
+    // Implement PDF export functionality
   }
 
   hasRefundMethodDetails(): boolean {

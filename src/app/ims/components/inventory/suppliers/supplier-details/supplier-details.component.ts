@@ -12,6 +12,10 @@ import { KeycloakService } from 'keycloak-angular';
 import { Product } from 'src/app/models/product';
 import { Purchase } from 'src/app/models/purchase';
 import { LocationService } from 'src/app/services/location.service';
+import { CategoryService } from 'src/app/services/category.service';
+import { WarehouseService } from 'src/app/services/warehouse.service';
+import { Warehouse } from 'src/app/models/warehouse';
+import { Category } from 'src/app/models/category';
 
 @Component({
   templateUrl: './supplier-details.component.html',
@@ -45,11 +49,29 @@ export class SupplierDetailsComponent implements OnInit {
   states: any = null;
   countries: any;
 
+  categories: Category[] = [];
+  warehouses: Warehouse[] = [];
+  suppliers: Supplier[] = [];
+  selectedProduct: Product | null = null;
+  productDialog: boolean = false;
+  canEditProduct: boolean = false;
+  canDeleteProduct: boolean = false;
+  canReadProduct: boolean = false;
+  filteredSupplierProducts: Product[] = [];
+  canAddCategory: boolean = false;
+  canAddWarehouse: boolean = false;
+  canAddSupplier: boolean = false;
+  isAdmin: boolean = false;
+  userRoles: any;
+  lowStockThreshold: number = 10;
+  
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private messageService: MessageService,
     private supplierService: SupplierService,
+    private categoryService: CategoryService,
+    private warehouseService: WarehouseService,
     private translate: TranslateService,
     private translateService: TranslationService,
     private configService: AppConfigurationService,
@@ -74,9 +96,15 @@ export class SupplierDetailsComponent implements OnInit {
       this.supplierId = +params['id'];
       await this.checkPermissions();
       await this.loadSupplier();
-      await this.loadSupplierProducts();
-      await this.loadSupplierPurchases();
-      this.initChartOptions();
+      if (this.supplier) {
+        await this.loadSupplierProducts();
+        await this.loadSupplierPurchases();
+        this.initChartOptions();
+        // Load form data when needed
+        await this.onGetAllCategories();
+        await this.onGetAllWarehouses();
+        await this.onGetAllSuppliers();
+      }
       this.isLoading = false;
     });
   }
@@ -84,8 +112,20 @@ export class SupplierDetailsComponent implements OnInit {
   async checkPermissions() {
     const profile = await this.keycloakService.loadUserProfile();
     const userId = profile.id;
+    await this.setUserRoles();
     await this.permissionService.init(userId).toPromise();
     this.canEditSupplier = this.permissionService.canUpdate(this.Ressource);
+    this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
+    this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
+    this.canReadProduct = this.permissionService.canRead('PRODUCTS');
+    this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
+    this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
+    this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
+  }
+
+  async setUserRoles() {
+    this.userRoles = await this.keycloakService.getUserRoles();
+    this.isAdmin = this.userRoles.includes('ADMIN');
   }
 
   async loadSupplier() {
@@ -445,6 +485,142 @@ export class SupplierDetailsComponent implements OnInit {
       return `${unit}_plural`;
     }
     return unit;
+  }
+
+  viewProductDetails(product: Product) {
+    this.router.navigate(['/inventory/products', product.productId]);
+  }
+
+  displayAttributeValue(attr: any): string {
+    if (!attr) return '';
+    switch (attr.attributeType) {
+      case 'BOOLEAN':
+        return attr.booleanValue ? 'Yes' : 'No';
+      case 'INTEGER':
+        return attr.intValue?.toString() || '';
+      case 'DOUBLE':
+        return attr.doubleValue?.toFixed(2) || '';
+      default:
+        return attr.stringValue || '';
+    }
+  }
+
+  editProduct(product: Product) {
+    if (!this.canEditProduct) return;
+    this.selectedProduct = product;
+    // Ensure form data is loaded
+    this.onGetAllCategories();
+    this.onGetAllWarehouses();
+    this.onGetAllSuppliers();
+    this.productDialog = true;
+  }
+
+  async onProductFormSaveSuccess(productData: Product): Promise<void> {
+    console.log('Product form saved successfully:', productData);
+    // Reset selected product
+    this.selectedProduct = null;
+    // Close dialog first
+    this.productDialog = false;
+    // Reload supplier products to refresh the list
+    await this.loadSupplierProducts();
+    // Ensure filtered products are updated
+    this.filteredSupplierProducts = [...this.supplierProducts];
+  }
+
+  onProductFormSaveError(event: { product: Product, error: any }): void {
+    console.error('Product form save error:', event.error);
+    // Error message is already displayed by the form component
+  }
+
+  async onGetAllCategories() {
+    await this.categoryService.getCategories().subscribe({
+      next: async (response: any) => {
+        this.categories = response;
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_categories'),
+          life: 3000,
+        });
+        console.log(err);
+      },
+    });
+  }
+
+  async onGetAllWarehouses() {
+    await this.warehouseService.getWarehouses().subscribe({
+      next: (response: any) => {
+        this.warehouses = response;
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_warehouses'),
+          life: 3000,
+        });
+        console.log(err);
+      },
+    });
+  }
+
+  async onGetAllSuppliers() {
+    await this.supplierService.getSuppliers().subscribe({
+      next: (response: any) => {
+        this.suppliers = response;
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_suppliers'),
+          life: 3000,
+        });
+        console.log(err);
+      },
+    });
+  }
+
+  async loadSupplierDetails() {
+    if (!this.supplierId) return;
+    try {
+      const products = await firstValueFrom(this.supplierService.getProductsBySupplier(this.supplierId)) as Product[];
+      this.supplierProducts = products || [];
+      this.filteredSupplierProducts = [...this.supplierProducts];
+      // this.updateUniqueCategories();
+      // this.calculateWarehouseStats();
+    } catch (error) {
+      console.error('Error loading warehouse details:', error);
+      this.supplierProducts = [];
+      this.filteredSupplierProducts = [];
+      // this.uniqueCategories = [];
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_supplier_details'),
+        life: 3000
+      });
+      throw error; // Re-throw to let caller handle
+    }
+  }
+
+  hideProductDialog(): void {
+    this.productDialog = false;
+    this.submitted = false;
+  }
+
+  openCategoryDialog(): void {
+    this.router.navigate(['/inventory/categories']);
+  }
+
+  openWarehouseDialog(): void {
+    this.router.navigate(['/inventory/warehouses']);
+  }
+
+  openSupplierDialog(): void {
+    this.router.navigate(['/inventory/suppliers']);
   }
 }
 

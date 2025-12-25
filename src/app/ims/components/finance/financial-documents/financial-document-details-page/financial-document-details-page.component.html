@@ -1,278 +1,406 @@
-<div class="grid">
-	<div class="col-12">
-		<div class="card px-6 py-6">
-			<p-toast></p-toast>
-			<p-progressSpinner *ngIf="isLoading" styleClass="w-full"></p-progressSpinner>
+<div class="financial-doc-details-container">
+	<p-toast></p-toast>
 
-			<div *ngIf="!isLoading && financialDoc" class="premium-financial-doc-details-page">
-				<!-- Back Button -->
-				<div class="mb-4">
-					<button pButton pRipple icon="pi pi-arrow-left" label="{{ 'back' | translate }}" 
-						class="p-button-text" (click)="goBack()"></button>
+	<!-- Loading State -->
+	<div class="loading-wrapper" *ngIf="isLoading">
+		<div class="loading-content">
+			<p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+		</div>
+	</div>
+
+	<!-- Main Content -->
+	<div class="financial-doc-content" *ngIf="!isLoading && financialDoc">
+		
+		<!-- Hero Header Section -->
+		<div class="financial-doc-hero">
+			<div class="hero-background"></div>
+			<div class="hero-content">
+				<div class="flex align-items-center gap-2 mb-3">
+					<button pButton pRipple icon="pi pi-arrow-left" 
+						class="p-button-text p-button-rounded p-button-plain back-button"
+						[pTooltip]="'back' | translate" tooltipPosition="bottom"
+						(click)="goBack()"></button>
+					<span class="text-500 text-sm">{{ 'financial_documents' | translate }}</span>
+					<i class="pi pi-angle-right text-400 text-sm"></i>
+					<span class="text-700 text-sm font-medium">{{ financialDoc?.docNumber || 'N/A' }}</span>
 				</div>
-
-				<!-- Financial Document Header -->
-				<div class="premium-dialog-header financial-doc-details-header"
-					[ngClass]="'status-' + (financialDoc?.docStatus || '')?.toLowerCase()">
-					<div class="flex align-items-center justify-content-between">
-						<div class="flex align-items-center gap-3">
-							<div class="header-icon financial-doc-icon">
-								<i [class]="getDocTypeIcon(financialDoc?.docType) + ' text-white'"></i>
-							</div>
-							<div>
-								<h2 class="m-0 text-white">#{{ financialDoc?.docNumber || 'N/A' }}</h2>
-								<p class="m-0 text-white opacity-80">
-									{{ financialDoc?.docTitle || 'N/A' }}
-								</p>
-							</div>
+				
+				<div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+					<div class="flex align-items-center gap-4">
+						<div class="financial-doc-hero-icon">
+							<i [class]="getDocTypeIcon(financialDoc?.docType)"></i>
 						</div>
-						<div class="text-right">
-							<div class="flex align-items-center gap-3 justify-content-end">
-								<p-tag
-									[value]="getDocStatusLabel(financialDoc?.docStatus)"
-									[severity]="getDocStatusSeverity(financialDoc?.docStatus)"
-									[icon]="getDocStatusIcon(financialDoc?.docStatus)" styleClass="text-sm">
-								</p-tag>
-								<p-tag
-									[value]="getDocTypeLabel(financialDoc?.docType)"
-									severity="info"
-									[icon]="getDocTypeIcon(financialDoc?.docType)" styleClass="text-sm">
-								</p-tag>
+						<div>
+							<div class="flex align-items-center gap-3 mb-2">
+								<h1 class="m-0 text-900 financial-doc-title">{{ financialDoc?.docTitle || financialDoc?.docNumber || 'N/A' }}</h1>
+								<span [class]="'financial-doc-badge status-' + (financialDoc?.docStatus || '')?.toLowerCase()">
+									{{ getDocStatusLabel(financialDoc?.docStatus) }}
+								</span>
 							</div>
-							<div class="text-white mt-1 font-bold text-xl" *ngIf="financialDoc?.order?.totalAmount">
-								{{ financialDoc.order.totalAmount | currency:currency:'symbol':'1.2-2' }}
+							<div class="flex align-items-center gap-4 text-500">
+								<span class="flex align-items-center gap-2">
+									<i class="pi pi-hashtag"></i>
+									{{ financialDoc?.docNumber || 'N/A' }}
+								</span>
+								<span class="flex align-items-center gap-2">
+									<i [class]="getDocTypeIcon(financialDoc?.docType)"></i>
+									{{ getDocTypeLabel(financialDoc?.docType) }}
+								</span>
 							</div>
 						</div>
 					</div>
+					
+					<div class="flex flex-wrap gap-2 action-buttons">
+						<button pButton pRipple 
+							icon="pi pi-file-pdf" 
+							[label]="'print' | translate"
+							class="p-button-outlined"
+							(click)="printFinancialDoc()"
+							[disabled]="!financialDoc?.fileUrl">
+						</button>
+						<button pButton pRipple 
+							icon="pi pi-pencil" 
+							[label]="'edit' | translate" 
+							*ngIf="canEdit"
+							class="p-button-primary"
+							(click)="editFinancialDoc()"
+							[disabled]="financialDoc?.docStatus === 'ISSUED' || financialDoc?.docStatus === 'CANCELLED'">
+						</button>
+						<button pButton pRipple 
+							icon="pi pi-trash" 
+							*ngIf="canDelete"
+							class="p-button-danger p-button-outlined"
+							[pTooltip]="'delete' | translate"
+							(click)="deleteFinancialDoc()"
+							[disabled]="financialDoc?.docStatus === 'ISSUED' || financialDoc?.docStatus === 'CANCELLED'">
+						</button>
+						<button pButton pRipple 
+							icon="pi pi-shopping-cart" 
+							[label]="'view_order' | translate" 
+							class="p-button-outlined"
+							(click)="viewOrder()"
+							[disabled]="!financialDoc?.order?.orderId">
+						</button>
+					</div>
 				</div>
+			</div>
+		</div>
 
-				<!-- Action Buttons -->
-				<div class="flex gap-2 mt-4 mb-4">
-					<button pButton pRipple 
-						icon="pi pi-pencil" 
-						label="{{ 'edit' | translate }}" 
-						class="p-button-outlined"
-						(click)="editFinancialDoc()"
-						[disabled]="!canEdit || financialDoc?.docStatus === 'ISSUED' || financialDoc?.docStatus === 'CANCELLED'">
-					</button>
-					<button pButton pRipple 
-						icon="pi pi-trash" 
-						label="{{ 'delete' | translate }}" 
-						class="p-button-outlined p-button-danger"
-						(click)="deleteFinancialDoc()"
-						[disabled]="!canDelete || financialDoc?.docStatus === 'ISSUED' || financialDoc?.docStatus === 'CANCELLED'">
-					</button>
-					<button pButton pRipple 
-						icon="pi pi-file-pdf" 
-						label="{{ 'print' | translate }}" 
-						class="p-button-outlined"
-						(click)="printFinancialDoc()"
-						[disabled]="!financialDoc?.fileUrl">
-					</button>
-					<button pButton pRipple 
-						icon="pi pi-shopping-cart" 
-						label="{{ 'view_order' | translate }}" 
-						class="p-button-outlined"
-						(click)="viewOrder()"
-						[disabled]="!financialDoc?.order?.orderId">
-					</button>
+		<!-- Quick Stats Row -->
+		<div class="stats-row">
+			<div class="stat-card-modern amount-card">
+				<div class="stat-icon amount">
+					<i class="pi pi-money-bill"></i>
 				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'total_amount' | translate }}</span>
+					<div class="stat-value" *ngIf="financialDoc?.order?.totalAmount">
+						{{ financialDoc.order.totalAmount | currency:currency:'symbol':'1.2-2' }}
+					</div>
+					<div class="stat-value" *ngIf="!financialDoc?.order?.totalAmount">
+						{{ 'N/A' | translate }}
+					</div>
+				</div>
+			</div>
+			
+			<div class="stat-card-modern status-card">
+				<div class="stat-icon status" [ngClass]="'status-' + (financialDoc?.docStatus || '')?.toLowerCase()">
+					<i [class]="getDocStatusIcon(financialDoc?.docStatus)"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'document_status' | translate }}</span>
+					<div class="stat-value">{{ getDocStatusLabel(financialDoc?.docStatus) }}</div>
+				</div>
+			</div>
+			
+			<div class="stat-card-modern type-card">
+				<div class="stat-icon type">
+					<i [class]="getDocTypeIcon(financialDoc?.docType)"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'document_type' | translate }}</span>
+					<div class="stat-value">{{ getDocTypeLabel(financialDoc?.docType) }}</div>
+				</div>
+			</div>
+			
+			<div class="stat-card-modern items-card" *ngIf="financialDoc?.order?.orderItems">
+				<div class="stat-icon items">
+					<i class="pi pi-list"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'order_items' | translate }}</span>
+					<div class="stat-value">
+						{{ financialDoc.order.orderItems?.length || 0 }}
+					</div>
+				</div>
+			</div>
+		</div>
 
-				<div class="grid mt-4">
-					<!-- Left Column - Document Information -->
-					<div class="col-12 md:col-4 md:pr-4">
-						<!-- Document Info Card -->
-						<div class="premium-details-section">
-							<h4 class="section-title">
-								<i class="pi pi-info-circle mr-2"></i>
-								{{ 'document_information' | translate }}
-							</h4>
-
-							<div class="premium-details-grid">
-								<div class="detail-item">
-									<label>{{ 'document_number' | translate }}: </label>
-									<span class="font-mono premium-font-semibold">{{ financialDoc?.docNumber || 'N/A' }}</span>
-								</div>
-
-								<div class="detail-item">
-									<label>{{ 'document_title' | translate }}: </label>
-									<span class="premium-font-semibold">{{ financialDoc?.docTitle || 'N/A' }}</span>
-								</div>
-
-								<div class="detail-item">
-									<label>{{ 'document_type' | translate }}: </label>
-									<div class="flex align-items-center gap-2">
-										<p-tag
-											[value]="getDocTypeLabel(financialDoc?.docType)"
-											severity="info"
-											[icon]="getDocTypeIcon(financialDoc?.docType)">
-										</p-tag>
+		<!-- Tabs Section -->
+		<p-tabView styleClass="order-tabs">
+			
+			<!-- Overview Tab -->
+			<p-tabPanel>
+				<ng-template pTemplate="header">
+					<i class="pi pi-info-circle mr-2"></i>
+					<span>{{ 'overview' | translate }}</span>
+				</ng-template>
+				
+				<div class="grid mt-3">
+					<!-- Left Column - Document Info -->
+					<div class="col-12 lg:col-4">
+						<!-- Document Information -->
+						<div class="detail-card mb-4">
+							<div class="card-header">
+								<i class="pi pi-file"></i>
+								<span>{{ 'document_information' | translate }}</span>
+							</div>
+							<div class="card-body">
+								<div class="info-grid">
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-hashtag"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'document_number' | translate }}</span>
+											<span class="info-value font-mono">{{ financialDoc?.docNumber || 'N/A' }}</span>
+										</div>
 									</div>
-								</div>
-
-								<div class="detail-item">
-									<label>{{ 'document_status' | translate }}: </label>
-									<div class="flex align-items-center gap-2">
-										<p-tag
-											[value]="getDocStatusLabel(financialDoc?.docStatus)"
-											[severity]="getDocStatusSeverity(financialDoc?.docStatus)"
-											[icon]="getDocStatusIcon(financialDoc?.docStatus)">
-										</p-tag>
+									
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-file-edit"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'document_title' | translate }}</span>
+											<span class="info-value">{{ financialDoc?.docTitle || 'N/A' }}</span>
+										</div>
 									</div>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.dueDate">
-									<label>{{ 'due_date' | translate }}: </label>
-									<span class="premium-font-semibold">{{ financialDoc.dueDate | date:'fullDate' }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.validityDays">
-									<label>{{ 'validity_days' | translate }}: </label>
-									<span class="premium-font-semibold">{{ financialDoc.validityDays }} {{ 'days' | translate }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.origin">
-									<label>{{ 'origin' | translate }}: </label>
-									<span class="premium-font-semibold">{{ financialDoc.origin }}</span>
+									
+									<div class="info-item">
+										<div class="info-icon">
+											<i [class]="getDocTypeIcon(financialDoc?.docType)"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'document_type' | translate }}</span>
+											<span class="info-value">{{ getDocTypeLabel(financialDoc?.docType) }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item">
+										<div class="info-icon">
+											<i [class]="getDocStatusIcon(financialDoc?.docStatus)"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'document_status' | translate }}</span>
+											<span class="info-value">{{ getDocStatusLabel(financialDoc?.docStatus) }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.dueDate">
+										<div class="info-icon">
+											<i class="pi pi-calendar"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'due_date' | translate }}</span>
+											<span class="info-value">{{ financialDoc.dueDate | date:'mediumDate' }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.validityDays">
+										<div class="info-icon">
+											<i class="pi pi-clock"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'validity_days' | translate }}</span>
+											<span class="info-value">{{ financialDoc.validityDays }} {{ 'days' | translate }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.origin">
+										<div class="info-icon">
+											<i class="pi pi-map-marker"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'origin' | translate }}</span>
+											<span class="info-value">{{ financialDoc.origin }}</span>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
-
+						
 						<!-- Dates & Audit Info -->
-						<div class="premium-details-section">
-							<h4 class="section-title">
-								<i class="pi pi-calendar mr-2"></i>
-								{{ 'dates_and_audit' | translate }}
-							</h4>
-
-							<div class="premium-details-grid">
-								<div class="detail-item">
-									<label>{{ 'creation_date' | translate }}: </label>
-									<span>{{ financialDoc?.createdAt | date:'short' }}</span>
-								</div>
-
-								<div class="detail-item">
-									<label>{{ 'created_by' | translate }}: </label>
-									<span>{{ financialDoc?.createdBy || 'N/A' }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.issuedAt">
-									<label>{{ 'issued_date' | translate }}: </label>
-									<span>{{ financialDoc.issuedAt | date:'short' }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.issuedBy">
-									<label>{{ 'issued_by' | translate }}: </label>
-									<span>{{ financialDoc.issuedBy }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.canceledAt">
-									<label>{{ 'canceled_date' | translate }}: </label>
-									<span>{{ financialDoc.canceledAt | date:'short' }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.canceledBy">
-									<label>{{ 'canceled_by' | translate }}: </label>
-									<span>{{ financialDoc.canceledBy }}</span>
-								</div>
+						<div class="detail-card">
+							<div class="card-header">
+								<i class="pi pi-calendar"></i>
+								<span>{{ 'dates_and_audit' | translate }}</span>
 							</div>
-						</div>
-
-						<!-- Payment Terms & Additional Info -->
-						<div class="premium-details-section" *ngIf="financialDoc?.paymentTerms || financialDoc?.notes || financialDoc?.additionalReferences">
-							<h4 class="section-title">
-								<i class="pi pi-file-edit mr-2"></i>
-								{{ 'additional_information' | translate }}
-							</h4>
-
-							<div class="premium-details-grid">
-								<div class="detail-item" *ngIf="financialDoc?.paymentTerms">
-									<label>{{ 'payment_terms' | translate }}: </label>
-									<div class="notes-content">{{ financialDoc.paymentTerms }}</div>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.notes">
-									<label>{{ 'notes' | translate }}: </label>
-									<div class="notes-content">{{ financialDoc.notes }}</div>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.additionalReferences">
-									<label>{{ 'additional_references' | translate }}: </label>
-									<div class="notes-content">{{ financialDoc.additionalReferences }}</div>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.requiresSignature">
-									<label>{{ 'requires_signature' | translate }}: </label>
-									<p-tag value="{{ 'yes' | translate }}" severity="success" icon="pi pi-check"></p-tag>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc?.fileUrl">
-									<label>{{ 'file' | translate }}: </label>
-									<a [href]="financialDoc.fileUrl" target="_blank" class="flex align-items-center gap-2">
-										<i class="pi pi-file-pdf"></i>
-										<span>{{ 'download_file' | translate }}</span>
-									</a>
+							<div class="card-body">
+								<div class="info-grid">
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-calendar-plus"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'creation_date' | translate }}</span>
+											<span class="info-value">{{ financialDoc?.createdAt | date:'short' }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item">
+										<div class="info-icon">
+											<i class="pi pi-user"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'created_by' | translate }}</span>
+											<span class="info-value">{{ financialDoc?.createdBy || 'N/A' }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.issuedAt">
+										<div class="info-icon">
+											<i class="pi pi-check-circle"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'issued_date' | translate }}</span>
+											<span class="info-value">{{ financialDoc.issuedAt | date:'short' }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.issuedBy">
+										<div class="info-icon">
+											<i class="pi pi-user-plus"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'issued_by' | translate }}</span>
+											<span class="info-value">{{ financialDoc.issuedBy }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.canceledAt">
+										<div class="info-icon">
+											<i class="pi pi-times-circle"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'canceled_date' | translate }}</span>
+											<span class="info-value">{{ financialDoc.canceledAt | date:'short' }}</span>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.canceledBy">
+										<div class="info-icon">
+											<i class="pi pi-user-minus"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'canceled_by' | translate }}</span>
+											<span class="info-value">{{ financialDoc.canceledBy }}</span>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 
-					<!-- Right Column - Order Information & Items -->
-					<div class="col-12 md:col-8 md:pl-4">
-						<!-- Order Information -->
-						<div class="premium-details-section" *ngIf="financialDoc?.order">
-							<h4 class="section-title">
-								<i class="pi pi-shopping-cart mr-2"></i>
-								{{ 'order_information' | translate }}
-							</h4>
-
-							<div class="premium-details-grid">
-								<div class="detail-item">
-									<label>{{ 'order_number' | translate }}: </label>
-									<span class="font-mono premium-font-semibold">#{{ financialDoc.order.orderId }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc.order.customer">
-									<label>{{ 'customer' | translate }}: </label>
-									<span class="premium-font-semibold">{{ getCustomerDisplayName(financialDoc.order.customer) }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc.order.orderDate">
-									<label>{{ 'order_date' | translate }}: </label>
-									<span>{{ financialDoc.order.orderDate | date:'fullDate' }}</span>
-								</div>
-
-								<div class="detail-item" *ngIf="financialDoc.order.totalAmount">
-									<label>{{ 'order_total' | translate }}: </label>
-									<span class="premium-font-semibold text-xl">
-										{{ financialDoc.order.totalAmount | currency:currency:'symbol':'1.2-2' }}
-									</span>
+					<!-- Right Column - Additional Info -->
+					<div class="col-12 lg:col-8">
+						<!-- Additional Information -->
+						<div class="detail-card mb-4" *ngIf="financialDoc?.paymentTerms || financialDoc?.notes || financialDoc?.additionalReferences || financialDoc?.requiresSignature || financialDoc?.fileUrl">
+							<div class="card-header">
+								<i class="pi pi-file-edit"></i>
+								<span>{{ 'additional_information' | translate }}</span>
+							</div>
+							<div class="card-body">
+								<div class="info-grid">
+									<div class="info-item" *ngIf="financialDoc?.paymentTerms">
+										<div class="info-icon">
+											<i class="pi pi-credit-card"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'payment_terms' | translate }}</span>
+											<div class="notes-content">{{ financialDoc.paymentTerms }}</div>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.notes">
+										<div class="info-icon">
+											<i class="pi pi-align-left"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'notes' | translate }}</span>
+											<div class="notes-content">{{ financialDoc.notes }}</div>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.additionalReferences">
+										<div class="info-icon">
+											<i class="pi pi-bookmark"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'additional_references' | translate }}</span>
+											<div class="notes-content">{{ financialDoc.additionalReferences }}</div>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.requiresSignature">
+										<div class="info-icon">
+											<i class="pi pi-pencil"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'requires_signature' | translate }}</span>
+											<p-tag [value]="'yes' | translate" severity="success" icon="pi pi-check"></p-tag>
+										</div>
+									</div>
+									
+									<div class="info-item" *ngIf="financialDoc?.fileUrl">
+										<div class="info-icon">
+											<i class="pi pi-file-pdf"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'file' | translate }}</span>
+											<a [href]="financialDoc.fileUrl" target="_blank" class="flex align-items-center gap-2 text-primary">
+												<i class="pi pi-download"></i>
+												<span>{{ 'download_file' | translate }}</span>
+											</a>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
-
-						<!-- Order Items Table -->
-						<div class="premium-details-section" *ngIf="financialDoc?.order?.orderItems">
-							<h4 class="section-title mb-3">
-								<i class="pi pi-list mr-2"></i>
-								{{ 'order_items' | translate }}
-								<p-tag [value]="financialDoc.order.orderItems?.length?.toString() || '0'"
-									severity="info" styleClass="ml-2"></p-tag>
-							</h4>
-
-							<p-table #dt1 [value]="financialDoc.order.orderItems" responsiveLayout="scroll" [rows]="20"
+					</div>
+				</div>
+			</p-tabPanel>
+			
+			<!-- Items Tab -->
+			<p-tabPanel *ngIf="financialDoc?.order">
+				<ng-template pTemplate="header">
+					<i class="pi pi-box mr-2"></i>
+					<span>{{ 'items' | translate }}</span>
+					<p-badge [value]="(financialDoc.order.orderItems?.length || 0).toString()" class="ml-2"></p-badge>
+				</ng-template>
+				
+				<div class="mt-3">
+					<!-- Order Items Table -->
+					<div class="detail-card">
+						<div class="card-header">
+							<i class="pi pi-list"></i>
+							<span>{{ 'ordered_products' | translate }}</span>
+						</div>
+						<div class="card-body p-0">
+							<p-table #dt1 [value]="financialDoc.order.orderItems || []" responsiveLayout="scroll" [rows]="20"
 								[globalFilterFields]="['product.name','product.reference','quantity','pricePerUnit']"
 								[paginator]="true" [rowsPerPageOptions]="[10,20,50,100]" [showCurrentPageReport]="true"
 								currentPageReportTemplate="{first} - {last} / {totalRecords} {{'table_records' | translate}}"
-								[rowHover]="true" dataKey="id" styleClass="p-datatable-sm p-datatable-striped">
+								[rowHover]="true" dataKey="id" styleClass="p-datatable-sm p-datatable-striped"
+								*ngIf="financialDoc.order.orderItems?.length > 0; else noItems">
 
 								<ng-template pTemplate="caption">
-									<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-2">
+									<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-2 p-3">
 										<div class="flex align-items-center gap-2">
 											<span class="p-input-icon-left w-full">
 												<i class="pi pi-search"></i>
 												<input pInputText type="text" (input)="onGlobalFilter(dt1, $event)"
-													placeholder="{{'search_label' | translate}}" class="w-full" />
+													[placeholder]="'search_label' | translate" class="w-full" />
 											</span>
 										</div>
 									</div>
@@ -313,52 +441,138 @@
 										</td>
 										<td>{{item.product?.reference || 'N/A'}}</td>
 										<td class="text-center">
-											{{item.quantity || 0}}
-										</td>
-										<td class="text-right">
-											{{item.pricePerUnit | currency:currency:'symbol':'1.2-2' || 'N/A'}}
+											<p-tag [value]="(item.quantity || 0).toString()" severity="info"></p-tag>
 										</td>
 										<td class="text-right font-semibold">
+											{{item.pricePerUnit | currency:currency:'symbol':'1.2-2' || 'N/A'}}
+										</td>
+										<td class="text-right font-bold text-primary">
 											{{(item.pricePerUnit * item.quantity) | currency:currency:'symbol':'1.2-2'}}
 										</td>
 									</tr>
 								</ng-template>
 
-								<ng-template pTemplate="emptymessage">
-									<tr>
-										<td colspan="6">
-											<div class="flex flex-column align-items-center justify-content-center py-5">
-												<img src="assets/core-images/no_data_found.png" alt="No Data Found"
-													style="max-width: 250px; opacity: 0.6;">
-												<p class="mt-3 text-gray-600 font-medium text-lg">
-													{{ 'no_order_items_found' | translate }}
-												</p>
-											</div>
+								<ng-template pTemplate="footer">
+									<tr class="total-footer">
+										<td colspan="5" class="text-right font-bold">{{ 'subtotal' | translate }}:</td>
+										<td class="text-right font-bold text-primary text-xl">
+											{{ getOrderTotal() | currency:currency:'symbol':'1.2-2' }}
 										</td>
 									</tr>
 								</ng-template>
-
-								<ng-template pTemplate="summary">
-									<div class="flex flex-wrap align-items-center justify-content-between gap-3">
-										<div class="flex align-items-center gap-2">
-											<span class="font-medium">{{'total_items' | translate}}:</span>
-											<p-tag
-												[value]="financialDoc.order.orderItems?.length?.toString() || '0'"></p-tag>
-										</div>
-										<div class="flex flex-column">
-											<span class="text-sm">{{'grand_total' | translate}}</span>
-											<span class="font-semibold text-xl">
-												{{ getOrderTotal() | currency:currency:'symbol':'1.2-2' }}
-											</span>
-										</div>
-									</div>
-								</ng-template>
 							</p-table>
+							
+							<ng-template #noItems>
+								<div class="empty-state py-4">
+									<div class="empty-icon">
+										<i class="pi pi-box"></i>
+									</div>
+									<h4>{{ 'no_items_found' | translate }}</h4>
+								</div>
+							</ng-template>
 						</div>
 					</div>
 				</div>
-			</div>
-		</div>
+			</p-tabPanel>
+			
+			<!-- Order Summary Tab -->
+			<p-tabPanel *ngIf="financialDoc?.order">
+				<ng-template pTemplate="header">
+					<i class="pi pi-chart-bar mr-2"></i>
+					<span>{{ 'order_summary' | translate }}</span>
+				</ng-template>
+				
+				<div class="grid mt-3">
+					<!-- Left Column - Order Info -->
+					<div class="col-12 lg:col-4">
+						<!-- Order Summary Card -->
+						<div class="detail-card mb-4">
+							<div class="card-header">
+								<i class="pi pi-chart-bar"></i>
+								<span>{{ 'order_summary' | translate }}</span>
+							</div>
+							<div class="card-body">
+								<div class="order-summary-list">
+									<div class="summary-row" *ngIf="financialDoc.order.orderId">
+										<span class="summary-label">{{ 'order_number' | translate }}</span>
+										<span class="summary-value font-bold">#{{ financialDoc.order.orderId }}</span>
+									</div>
+									<div class="summary-row" *ngIf="financialDoc.order.orderDate">
+										<span class="summary-label">{{ 'order_date' | translate }}</span>
+										<span class="summary-value">{{ financialDoc.order.orderDate | date:'shortDate' }}</span>
+									</div>
+									<div class="summary-row" *ngIf="financialDoc.order.customer">
+										<span class="summary-label">{{ 'customer' | translate }}</span>
+										<span class="summary-value">{{ getCustomerDisplayName(financialDoc.order.customer) }}</span>
+									</div>
+									
+									<p-divider *ngIf="financialDoc.order.orderItems?.length > 0"></p-divider>
+									
+									<div class="summary-row" *ngIf="financialDoc.order.orderItems?.length > 0">
+										<span class="summary-label">{{ 'subtotal' | translate }}</span>
+										<span class="summary-value">{{ getOrderTotal() | number:'1.2-2' }} {{ currency }}</span>
+									</div>
+									
+									<div class="summary-total" *ngIf="financialDoc.order.totalAmount">
+										<span class="summary-label font-bold">{{ 'total' | translate }}</span>
+										<span class="summary-value total-amount">{{ financialDoc.order.totalAmount | number:'1.2-2' }} {{ currency }}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Customer Card -->
+						<div class="detail-card" *ngIf="financialDoc.order.customer">
+							<div class="card-header">
+								<i class="pi pi-user"></i>
+								<span>{{ 'customer_information' | translate }}</span>
+							</div>
+							<div class="card-body">
+								<div class="customer-display">
+									<div class="customer-avatar">
+										<img src="assets/core-images/customer.png" alt="Customer" />
+									</div>
+									<div class="customer-info">
+										<span class="customer-name">{{ getCustomerDisplayName(financialDoc.order.customer) }}</span>
+										<span class="customer-email" *ngIf="financialDoc.order.customer?.email">{{ financialDoc.order.customer.email }}</span>
+										<span class="customer-phone" *ngIf="financialDoc.order.customer?.phone">{{ financialDoc.order.customer.phone }}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Right Column - Additional Actions -->
+					<div class="col-12 lg:col-8">
+						<!-- Quick Actions Card -->
+						<div class="detail-card">
+							<div class="card-header">
+								<i class="pi pi-bolt"></i>
+								<span>{{ 'quick_actions' | translate }}</span>
+							</div>
+							<div class="card-body">
+								<div class="actions-grid">
+									<button pButton pRipple 
+										icon="pi pi-shopping-cart" 
+										[label]="'view_order' | translate" 
+										class="p-button-outlined"
+										(click)="viewOrder()"
+										[disabled]="!financialDoc?.order?.orderId">
+									</button>
+									<button pButton pRipple 
+										icon="pi pi-file-pdf" 
+										[label]="'print' | translate"
+										class="p-button-outlined"
+										(click)="printFinancialDoc()"
+										[disabled]="!financialDoc?.fileUrl">
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</p-tabPanel>
+			
+		</p-tabView>
 	</div>
 </div>
-

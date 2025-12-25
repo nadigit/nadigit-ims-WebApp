@@ -31,36 +31,36 @@ export class AppMenuComponent implements OnInit {
 
     // --- Menu Items ---
     const inventoryItems = [
-      { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/inventory/suppliers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/inventory/customers'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/inventory/warehouses'], roles: ['ADMIN'] },
-      { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/shops'], roles: ['ADMIN'] },
-      { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/inventory/purchases'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
-      { label: translations['warehouse_transfers_menu_title'], icon: 'pi pi-fw pi-arrow-right-arrow-left', routerLink: ['/inventory/warehouse-transfers'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['stock_movements_menu_title'], icon: 'pi pi-fw pi-chart-line', routerLink: ['/inventory/stock-movements'], roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/inventory/suppliers'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/inventory/customers'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/inventory/warehouses'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/shops'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/inventory/purchases'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      { label: translations['warehouse_transfers_menu_title'], icon: 'pi pi-fw pi-arrow-right-arrow-left', routerLink: ['/inventory/warehouse-transfers'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['stock_movements_menu_title'], icon: 'pi pi-fw pi-chart-line', routerLink: ['/inventory/stock-movements'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
     ];
 
     const salesItems = [
-      { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/sales/orders'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/sales/returns'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['pos_menu_title'], icon: 'pi pi-fw pi-desktop', routerLink: ['/pos'], roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/sales/orders'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/sales/returns'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['pos_menu_title'], icon: 'pi pi-fw pi-desktop', routerLink: ['/pos'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
     ];
 
     const financeItems = [
-      { label: translations['sales_payments'], icon: 'pi pi-fw pi-arrow-down', routerLink: ['/finance/payments/sales'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['purchase_payments'], icon: 'pi pi-fw pi-arrow-up', routerLink: ['/finance/payments/purchase'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/finance/expenses'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
-      { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/finance/refunds'], roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['bank_accounts_menu_title'], icon: 'pi pi-fw pi-credit-card', routerLink: ['/finance/banking/accounts'], roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
-      { label: translations['financial_docs_menu_title'], icon: 'pi pi-fw pi-file', routerLink: ['/finance/financial-documents'], roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
+      { label: translations['sales_payments'], icon: 'pi pi-fw pi-arrow-down', routerLink: ['/finance/payments/sales'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['purchase_payments'], icon: 'pi pi-fw pi-arrow-up', routerLink: ['/finance/payments/purchase'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/finance/expenses'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/finance/refunds'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['bank_accounts_menu_title'], icon: 'pi pi-fw pi-credit-card', routerLink: ['/finance/banking/accounts'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
+      { label: translations['financial_docs_menu_title'], icon: 'pi pi-fw pi-file', routerLink: ['/finance/financial-documents'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
     ];
 
     const administrationItems = [
-      { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/administration/users'], roles: ['ADMIN'] },
-      { label: translations['my_company'] || 'My Company', icon: 'pi pi-fw pi-sitemap', routerLink: ['/administration/my-company'], roles: ['ADMIN'] },
-      { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/administration/settings'], roles: ['ADMIN'] },
+      { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/administration/users'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['my_company'] || 'My Company', icon: 'pi pi-fw pi-sitemap', routerLink: ['/administration/my-company'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/administration/settings'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
     ];
 
     const systemItems = [

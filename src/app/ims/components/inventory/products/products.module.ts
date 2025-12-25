@@ -34,14 +34,25 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { ChartModule } from 'primeng/chart';
 import { GalleriaModule } from 'primeng/galleria';
 import { SplitButtonModule } from 'primeng/splitbutton';
-import { FileSizePipe } from 'src/app/pipes/file-size.pipe';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { PaginatorModule } from 'primeng/paginator';
+import { MultiSelectModule } from 'primeng/multiselect';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ListboxModule } from 'primeng/listbox';
+import { CheckboxModule } from 'primeng/checkbox';
+import { TabViewModule } from 'primeng/tabview';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
 import { ProductsTableComponent } from './products-table/products-table.component';
 import { ProductDetailsPageComponent } from './product-details/product-details-page.component';
+import { ProductFormComponent } from './product-form/product-form.component';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 
 @NgModule({
     imports: [
         CommonModule,
+        SharedModule,
         DataViewModule,
         ProductsRoutingModule,
         TableModule,
@@ -74,8 +85,18 @@ import { ProductDetailsPageComponent } from './product-details/product-details-p
         ChartModule,
         GalleriaModule,
         SplitButtonModule,
+        SelectButtonModule,
+        PaginatorModule,
+        MultiSelectModule,
+        ConfirmDialogModule,
+        ListboxModule,
+        CheckboxModule,
+        TabViewModule,
+        BadgeModule,
+        DividerModule,
     ],
-    declarations: [ProductsComponent, FileSizePipe, ProductsTableComponent, ProductDetailsPageComponent],
-    providers: [ReportingService, DialogService]
+    declarations: [ProductsComponent, ProductsTableComponent, ProductDetailsPageComponent, ProductFormComponent],
+    providers: [ReportingService, DialogService],
+    exports: [ProductFormComponent]
 })
 export class ProductsModule { }

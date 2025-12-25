@@ -23,6 +23,9 @@ import { TagModule } from 'primeng/tag';
 import { TimelineModule } from 'primeng/timeline';
 import { CardModule } from 'primeng/card';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { TabViewModule } from 'primeng/tabview';
+import { BadgeModule } from 'primeng/badge';
+import { DividerModule } from 'primeng/divider';
 
 @NgModule({
     imports: [
@@ -47,7 +50,10 @@ import { SharedModule } from 'src/app/shared/shared.module';
         TagModule,
         TimelineModule,
         CardModule,
-        SharedModule
+        SharedModule,
+        TabViewModule,
+        BadgeModule,
+        DividerModule
     ],
     declarations: [WarehouseTransfersComponent, TransferDetailsPageComponent]
 })

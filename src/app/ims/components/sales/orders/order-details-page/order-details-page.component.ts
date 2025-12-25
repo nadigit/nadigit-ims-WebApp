@@ -435,6 +435,20 @@ export class OrderDetailsPageComponent implements OnInit {
     return getPaymentStatusSeverity(status);
   }
 
+  getOrderStatusSeverity(status: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {
+    switch (status?.toLowerCase()) {
+      case 'ordered': return 'warn';
+      case 'processing': return 'info';
+      case 'delivered': return 'info';
+      case 'completed': return 'success';
+      case 'canceled': return 'danger';
+      case 'return_pending': return 'warn';
+      case 'partial_return': return 'warn';
+      case 'returned': return 'secondary';
+      default: return 'secondary';
+    }
+  }
+
   getOrderSubtotal(): number {
     if (!this.order?.orderItems) return 0;
     return this.order.orderItems.reduce((total, item) =>
