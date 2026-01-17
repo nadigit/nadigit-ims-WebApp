@@ -1,0 +1,483 @@
+<div class="write-off-details-container">
+    <p-toast></p-toast>
+
+    <!-- Loading State -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="write-off-content" *ngIf="!isLoading && writeOff">
+        
+        <!-- Hero Header Section -->
+        <div class="write-off-hero">
+            <div class="hero-background"></div>
+            <div class="hero-content">
+                <div class="flex align-items-center gap-2 mb-3">
+                    <button pButton pRipple icon="pi pi-arrow-left" 
+                        class="p-button-text p-button-rounded p-button-plain back-button"
+                        [pTooltip]="'back' | translate" tooltipPosition="bottom"
+                        (click)="goBack()"></button>
+                    <span class="text-500 text-sm">{{ 'write_offs' | translate }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">#{{ writeOff.reference }}</span>
+                </div>
+                
+                <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+                    <div class="flex align-items-center gap-4">
+                        <div class="write-off-hero-icon">
+                            <i class="pi pi-minus-circle"></i>
+                        </div>
+                        <div>
+                            <div class="flex align-items-center gap-3 mb-2">
+                                <h1 class="m-0 text-900 write-off-title">#{{ writeOff.reference }}</h1>
+                                <p-tag [value]="writeOff.status ? ('write_off_status_' + writeOff.status.toLowerCase() | translate) : 'N/A'" 
+                                    [severity]="getStatusSeverity(writeOff.status)" 
+                                    [rounded]="true"></p-tag>
+                            </div>
+                            <div class="flex flex-wrap align-items-center gap-4 text-500">
+                                <span class="flex align-items-center gap-2" *ngIf="writeOff.product?.name">
+                                    <i class="pi pi-box"></i>
+                                    {{ writeOff.product.name }}
+                                </span>
+                                <span class="flex align-items-center gap-2" *ngIf="writeOff.warehouse?.name">
+                                    <i class="pi pi-warehouse"></i>
+                                    {{ writeOff.warehouse.name }}
+                                </span>
+                                <span class="flex align-items-center gap-2" *ngIf="writeOff.writeOffDate">
+                                    <i class="pi pi-calendar"></i>
+                                    {{ writeOff.writeOffDate | date:'mediumDate' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 action-buttons">
+                        <button pButton pRipple icon="pi pi-refresh" 
+                            [label]="'refresh' | translate"
+                            class="p-button-outlined"
+                            (click)="refreshWriteOffDetails()"></button>
+                        <button pButton pRipple icon="pi pi-check" 
+                            [label]="'approve_write_off' | translate"
+                            *ngIf="canApproveWriteOff(writeOff)"
+                            class="p-button-success"
+                            (click)="openApproveConfirm()"></button>
+                        <button pButton pRipple icon="pi pi-times" 
+                            [label]="'reject_write_off' | translate"
+                            *ngIf="canRejectWriteOff(writeOff)"
+                            class="p-button-danger"
+                            (click)="openRejectConfirm()"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card-modern">
+                <div class="stat-icon quantity">
+                    <i class="pi pi-hashtag"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'quantity' | translate }}</span>
+                    <div class="stat-value">{{ writeOff.quantity || 0 }}</div>
+                    <span class="stat-sub">{{ 'units' | translate }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern">
+                <div class="stat-icon cost">
+                    <i class="pi pi-dollar"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'write_off_cost' | translate }}</span>
+                    <div class="stat-value">{{ formatCurrency(writeOff.writeOffCost) }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern">
+                <div class="stat-icon condition">
+                    <i class="pi pi-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'condition' | translate }}</span>
+                    <div class="stat-value text-truncate">
+                        <p-tag [value]="getConditionLabel(writeOff.condition)" 
+                            [severity]="getConditionSeverity(writeOff.condition)"></p-tag>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern">
+                <div class="stat-icon source">
+                    <i class="pi pi-tag"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'source_type' | translate }}</span>
+                    <div class="stat-value text-truncate">{{ getSourceTypeLabel(writeOff.sourceType) }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Section -->
+        <p-tabView styleClass="write-off-tabs">
+            
+            <!-- Overview Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>{{ 'overview' | translate }}</span>
+                </ng-template>
+                
+                <div class="grid mt-3">
+                    <!-- Left Column - Write-Off Info -->
+                    <div class="col-12 lg:col-6">
+                        <!-- Write-Off Information Card -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-info-circle"></i>
+                                <span>{{ 'write_off_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-hashtag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'reference' | translate }}</span>
+                                            <span class="info-value">#{{ writeOff.reference }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="writeOff.writeOffDate">
+                                        <div class="info-icon">
+                                            <i class="pi pi-calendar"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'write_off_date' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.writeOffDate | date:'mediumDate' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-tag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'status' | translate }}</span>
+                                            <p-tag [value]="writeOff.status ? ('write_off_status_' + writeOff.status.toLowerCase() | translate) : 'N/A'" 
+                                                [severity]="getStatusSeverity(writeOff.status)"></p-tag>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-exclamation-triangle"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'condition' | translate }}</span>
+                                            <p-tag [value]="getConditionLabel(writeOff.condition)" 
+                                                [severity]="getConditionSeverity(writeOff.condition)"></p-tag>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-item" *ngIf="writeOff.sourceType">
+                                        <div class="info-icon">
+                                            <i class="pi pi-tag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'source_type' | translate }}</span>
+                                            <span class="info-value">{{ getSourceTypeLabel(writeOff.sourceType) }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-item" *ngIf="writeOff.sourceReference">
+                                        <div class="info-icon">
+                                            <i class="pi pi-file"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'source_reference' | translate }}</span>
+                                            <span class="info-value">#{{ writeOff.sourceReference }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="notes-section mt-3" *ngIf="writeOff.reason">
+                                    <span class="info-label block mb-2">{{ 'reason' | translate }}</span>
+                                    <p class="m-0 text-700 line-height-3">{{ getReasonLabel(writeOff.reason) }}</p>
+                                </div>
+
+                                <div class="notes-section mt-3" *ngIf="writeOff.notes">
+                                    <span class="info-label block mb-2">{{ 'notes' | translate }}</span>
+                                    <p class="m-0 text-700 line-height-3">{{ writeOff.notes }}</p>
+                                </div>
+
+                                <div class="notes-section mt-3" *ngIf="writeOff.rejectionReason">
+                                    <span class="info-label block mb-2 text-red-500">{{ 'rejection_reason' | translate }}</span>
+                                    <p class="m-0 text-700 line-height-3">{{ writeOff.rejectionReason }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column - Product & Batch Info -->
+                    <div class="col-12 lg:col-6">
+                        <!-- Product Information Card -->
+                        <div class="detail-card mb-4" *ngIf="writeOff.product">
+                            <div class="card-header">
+                                <i class="pi pi-box"></i>
+                                <span>{{ 'product_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-box"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'product_name' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.product.name || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="writeOff.product.reference">
+                                        <div class="info-icon">
+                                            <i class="pi pi-hashtag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'reference' | translate }}</span>
+                                            <span class="info-value">#{{ writeOff.product.reference }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Warehouse Information Card -->
+                        <div class="detail-card mb-4" *ngIf="writeOff.warehouse">
+                            <div class="card-header">
+                                <i class="pi pi-warehouse"></i>
+                                <span>{{ 'warehouse' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-warehouse"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'warehouse_name' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.warehouse.name || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Batch Information Card -->
+                        <div class="detail-card mb-4" *ngIf="writeOff.batch">
+                            <div class="card-header">
+                                <i class="pi pi-box"></i>
+                                <span>{{ 'batch_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item" *ngIf="writeOff.batch.batchNumber">
+                                        <div class="info-icon">
+                                            <i class="pi pi-hashtag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'batch_number' | translate }}</span>
+                                            <span class="info-value">#{{ writeOff.batch.batchNumber }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="writeOff.batch.expirationDate">
+                                        <div class="info-icon">
+                                            <i class="pi pi-calendar"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'expiration_date' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.batch.expirationDate | date:'mediumDate' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Audit Card -->
+                        <div class="detail-card" *ngIf="writeOff.createdBy || writeOff.creationDate">
+                            <div class="card-header">
+                                <i class="pi pi-history"></i>
+                                <span>{{ 'audit_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list">
+                                    <div class="info-item" *ngIf="writeOff.creationDate">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-clock"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'created_date' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.creationDate | date:'medium' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="writeOff.createdBy">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-user"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'created_by' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.createdBy }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="writeOff.approvedBy">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-check-circle"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'approved_by' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.approvedBy }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="writeOff.approvedDate">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-calendar-check"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'approved_date' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.approvedDate | date:'medium' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="writeOff.rejectedBy">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-times-circle"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'rejected_by' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.rejectedBy }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="writeOff.rejectedDate">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-calendar-times"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'rejected_date' | translate }}</span>
+                                            <span class="info-value">{{ writeOff.rejectedDate | date:'medium' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Timeline Tab -->
+            <p-tabPanel *ngIf="writeOffEvents.length > 0">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-clock mr-2"></i>
+                    <span>{{ 'timeline' | translate }}</span>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-history"></i>
+                            <span>{{ 'write_off_timeline' | translate }}</span>
+                        </div>
+                        <div class="card-body">
+                            <p-timeline [value]="writeOffEvents" align="alternate" styleClass="custom-timeline">
+                                <ng-template let-event pTemplate="content">
+                                    <div class="timeline-event">
+                                        <div class="timeline-event-header">
+                                            <strong class="timeline-event-status">{{ event.status | translate }}</strong>
+                                            <span class="timeline-event-date">{{ formatDate(event.date) }}</span>
+                                        </div>
+                                        <div class="timeline-event-user">
+                                            <i class="pi pi-user mr-2"></i>
+                                            {{ event.user }}
+                                        </div>
+                                    </div>
+                                </ng-template>
+                                <ng-template let-event pTemplate="marker">
+                                    <span class="custom-marker" [attr.data-severity]="event.color">
+                                        <i [class]="event.icon"></i>
+                                    </span>
+                                </ng-template>
+                            </p-timeline>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+        </p-tabView>
+    </div>
+
+    <!-- Not Found State -->
+    <div class="not-found-wrapper" *ngIf="!isLoading && !writeOff">
+        <div class="not-found-content">
+            <i class="pi pi-exclamation-circle text-6xl text-400 mb-4"></i>
+            <h2>{{ 'write_off_not_found' | translate }}</h2>
+            <p class="text-500">{{ 'write_off_not_found_description' | translate }}</p>
+            <button pButton pRipple label="{{ 'go_back' | translate }}" icon="pi pi-arrow-left" 
+                class="p-button-outlined mt-3" (click)="goBack()"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Confirmation Dialog -->
+<p-dialog 
+    [(visible)]="approveConfirmDialog" 
+    [modal]="true" 
+    [style]="{width: '450px'}"
+    [header]="'approve_write_off' | translate"
+    [draggable]="false" 
+    [resizable]="false">
+    <div class="confirmation-content">
+        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+        <span>{{ 'confirm_approve_write_off' | translate }}</span>
+    </div>
+    <ng-template pTemplate="footer">
+        <button pButton pRipple type="button" label="{{ 'cancel' | translate }}" 
+            icon="pi pi-times" class="p-button-text" (click)="approveConfirmDialog = false"></button>
+        <button pButton pRipple type="button" label="{{ 'approve' | translate }}" 
+            icon="pi pi-check" class="p-button-success" (click)="confirmApprove()" [disabled]="isLoading"></button>
+    </ng-template>
+</p-dialog>
+
+<!-- Reject Confirmation Dialog -->
+<p-dialog 
+    [(visible)]="rejectConfirmDialog" 
+    [modal]="true" 
+    [style]="{width: '500px'}"
+    [header]="'reject_write_off' | translate"
+    [draggable]="false" 
+    [resizable]="false">
+    <div class="confirmation-content flex flex-column gap-3">
+        <div class="flex align-items-center">
+            <i class="pi pi-exclamation-triangle mr-3 text-orange-500" style="font-size: 2rem"></i>
+            <span>{{ 'confirm_reject_write_off' | translate }}</span>
+        </div>
+        <div class="flex flex-column gap-2">
+            <label for="rejectionReason">{{ 'rejection_reason' | translate }} ({{ 'optional' | translate }})</label>
+            <textarea 
+                id="rejectionReason" 
+                pInputTextarea 
+                [(ngModel)]="rejectionReason"
+                [rows]="3"
+                [placeholder]="'enter_rejection_reason' | translate"
+                class="w-full">
+            </textarea>
+        </div>
+    </div>
+    <ng-template pTemplate="footer">
+        <button pButton pRipple type="button" label="{{ 'cancel' | translate }}" 
+            icon="pi pi-times" class="p-button-text" (click)="rejectConfirmDialog = false"></button>
+        <button pButton pRipple type="button" label="{{ 'reject' | translate }}" 
+            icon="pi pi-times" class="p-button-danger" (click)="confirmReject()" [disabled]="isLoading"></button>
+    </ng-template>
+</p-dialog>

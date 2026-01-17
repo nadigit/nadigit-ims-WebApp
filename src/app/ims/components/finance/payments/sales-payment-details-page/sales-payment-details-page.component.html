@@ -182,6 +182,27 @@
                                             <span class="info-value text-primary font-bold text-xl">{{ payment.amount | number:'1.2-2' }} {{ currency }}</span>
                                         </div>
                                     </div>
+
+                                    <!-- Credit Information -->
+                                    <div class="info-item" *ngIf="payment.creditAmountUsed && payment.creditAmountUsed > 0">
+                                        <div class="info-icon credit">
+                                            <i class="pi pi-credit-card"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'credit_used' | translate }}</span>
+                                            <span class="info-value text-green-600 font-semibold">{{ payment.creditAmountUsed | number:'1.2-2' }} {{ currency }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-item" *ngIf="payment.creditAmountUsed && payment.creditAmountUsed > 0 && payment.amount">
+                                        <div class="info-icon">
+                                            <i class="pi pi-money-bill"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'payment_method_amount' | translate }}</span>
+                                            <span class="info-value font-semibold">{{ (payment.amount - payment.creditAmountUsed) | number:'1.2-2' }} {{ currency }}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -210,6 +231,82 @@
                                         <span class="info-label">{{ 'boe_expiration_date' | translate }}</span>
                                         <span class="info-value">{{ payment.boeExpirationDate | date:'shortDate' }}</span>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bank Reconciliation Status Card -->
+                        <div class="detail-card mb-4" *ngIf="requiresReconciliation(payment?.paymentMethod)">
+                            <div class="card-header">
+                                <i class="pi pi-bank"></i>
+                                <span>{{ 'bank_reconciliation_status' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <!-- Loading State -->
+                                <div *ngIf="isCheckingReconciliation" class="flex align-items-center justify-content-center p-3">
+                                    <i class="pi pi-spin pi-spinner mr-2"></i>
+                                    <span>{{'checking_reconciliation_status' | translate}}</span>
+                                </div>
+
+                                <!-- Warning: Unreconciled Transactions -->
+                                <div *ngIf="!isCheckingReconciliation && reconciliationStatus && reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled" 
+                                     class="p-3 border-round surface-orange-50 border-left-3 border-orange-500">
+                                    <div class="flex align-items-center gap-2 mb-2">
+                                        <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                                        <span class="font-semibold text-orange-700">{{'bank_reconciliation_required' | translate}}</span>
+                                    </div>
+                                    <p class="text-sm text-600 m-0 mb-2">
+                                        {{'cannot_confirm_payment_reconciliation_required_detail' | translate}}
+                                    </p>
+                                    <div class="text-sm">
+                                        <span class="font-semibold">{{'unreconciled_transactions' | translate}}:</span>
+                                        <ul class="m-0 mt-1 pl-3">
+                                            <li *ngFor="let transaction of reconciliationStatus.transactions" 
+                                                [class.text-orange-600]="!transaction.reconciled"
+                                                [class.text-green-600]="transaction.reconciled">
+                                                {{'transaction' | translate}} #{{transaction.transactionId}} - 
+                                                <span *ngIf="!transaction.reconciled">{{'not_reconciled' | translate}}</span>
+                                                <span *ngIf="transaction.reconciled">{{'reconciled' | translate}}</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Success: All Reconciled -->
+                                <div *ngIf="!isCheckingReconciliation && reconciliationStatus && reconciliationStatus.hasTransactions && reconciliationStatus.allReconciled" 
+                                     class="p-3 border-round surface-green-50 border-left-3 border-green-500">
+                                    <div class="flex align-items-center gap-2 mb-2">
+                                        <i class="pi pi-check-circle text-green-500"></i>
+                                        <span class="font-semibold text-green-700">{{'all_transactions_reconciled' | translate}}</span>
+                                    </div>
+                                    <p class="text-sm text-600 m-0">
+                                        {{'payment_ready_for_confirmation' | translate}}
+                                    </p>
+                                </div>
+
+                                <!-- No Bank Transactions -->
+                                <div *ngIf="!isCheckingReconciliation && reconciliationStatus && !reconciliationStatus.hasTransactions" 
+                                     class="p-3 border-round surface-blue-50">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-info-circle text-blue-500"></i>
+                                        <span class="text-sm text-600">{{'no_bank_transactions_linked' | translate}}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Error State: Could not load reconciliation status -->
+                                <div *ngIf="!isCheckingReconciliation && !reconciliationStatus" 
+                                     class="p-3 border-round surface-orange-50 border-left-3 border-orange-500">
+                                    <div class="flex align-items-center gap-2 mb-2">
+                                        <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                                        <span class="font-semibold text-orange-700">{{'bank_reconciliation_required' | translate}}</span>
+                                    </div>
+                                    <p class="text-sm text-600 m-0">
+                                        {{'cannot_confirm_payment_reconciliation_required_detail' | translate}}
+                                    </p>
+                                    <p class="text-sm text-600 m-0 mt-2">
+                                        <i class="pi pi-info-circle mr-1"></i>
+                                        {{'error_loading_reconciliation_status' | translate}}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -331,6 +428,14 @@
                             </div>
                             <div class="card-body">
                                 <div class="actions-grid">
+                                    <button pButton pRipple icon="pi pi-check-circle" 
+                                        [label]="'confirm_payment' | translate"
+                                        *ngIf="canConfirm && isPaymentNotSettled() && (payment.paymentMethod === 'Check' || payment.paymentMethod === 'BOE' || payment.paymentMethod === 'Transfer') && payment.paymentStatus === 'PENDING'"
+                                        class="p-button-outlined p-button-success"
+                                        [disabled]="!canConfirmPaymentBasedOnReconciliation()"
+                                        [pTooltip]="(requiresReconciliation(payment?.paymentMethod) && !canConfirmPaymentBasedOnReconciliation()) ? ('reconciliation_required_tooltip' | translate) : ''"
+                                        (click)="openConfirmPayment()"></button>
+                                    
                                     <button pButton pRipple icon="pi pi-print" 
                                         [label]="'print_receipt' | translate"
                                         *ngIf="payment?.receiptNumber"
@@ -402,4 +507,97 @@
             </div>
         </div>
     </div>
+
+    <!-- Confirm Payment Dialog -->
+    <p-dialog [(visible)]="confirmPaymentDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+        [style]="{width:'550px'}">
+        <div class="flex flex-column gap-3">
+            <!-- Confirmation Message -->
+            <div class="flex align-items-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="payment">{{'confirm_payment_msg' | translate}}
+                    <b>{{payment.transactionId || payment.paymentId}}</b>?</span>
+            </div>
+
+            <!-- Reconciliation Status Section (always show if reconciliation is required) -->
+            <div *ngIf="requiresReconciliation(payment?.paymentMethod)" class="p-3 border-round surface-ground">
+                <!-- Loading State -->
+                <div *ngIf="isCheckingReconciliation" class="flex align-items-center justify-content-center p-3">
+                    <i class="pi pi-spin pi-spinner mr-2"></i>
+                    <span>{{'checking_reconciliation_status' | translate}}</span>
+                </div>
+
+                <!-- Reconciliation Status Warning -->
+                <div *ngIf="!isCheckingReconciliation && reconciliationStatus && reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled" 
+                     class="p-3 border-round surface-orange-50 border-left-3 border-orange-500">
+                    <div class="flex align-items-center gap-2 mb-2">
+                        <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                        <span class="font-semibold text-orange-700">{{'bank_reconciliation_required' | translate}}</span>
+                    </div>
+                    <p class="text-sm text-600 m-0 mb-2">
+                        {{'cannot_confirm_payment_reconciliation_required_detail' | translate}}
+                    </p>
+                    <div class="text-sm">
+                        <span class="font-semibold">{{'unreconciled_transactions' | translate}}:</span>
+                        <ul class="m-0 mt-1 pl-3">
+                            <li *ngFor="let transaction of reconciliationStatus.transactions | slice:0:5" 
+                                [class.text-orange-600]="!transaction.reconciled">
+                                {{'transaction' | translate}} #{{transaction.transactionId}} - 
+                                <span *ngIf="!transaction.reconciled">{{'not_reconciled' | translate}}</span>
+                                <span *ngIf="transaction.reconciled">{{'reconciled' | translate}}</span>
+                            </li>
+                        </ul>
+                        <p *ngIf="reconciliationStatus.unreconciledCount > 5" class="text-sm text-600 m-0 mt-1">
+                            {{'and_more_transactions' | translate: {count: reconciliationStatus.unreconciledCount - 5} }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Reconciliation Status Success -->
+                <div *ngIf="!isCheckingReconciliation && reconciliationStatus && reconciliationStatus.hasTransactions && reconciliationStatus.allReconciled" 
+                     class="p-3 border-round surface-green-50 border-left-3 border-green-500">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-check-circle text-green-500"></i>
+                        <span class="font-semibold text-green-600">{{'all_transactions_reconciled' | translate}}</span>
+                    </div>
+                    <p class="text-sm text-600 m-0 mt-1">
+                        {{'payment_ready_for_confirmation' | translate}}
+                    </p>
+                </div>
+
+                <!-- No Bank Transactions -->
+                <div *ngIf="!isCheckingReconciliation && reconciliationStatus && !reconciliationStatus.hasTransactions" 
+                     class="p-3 border-round surface-blue-50">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-info-circle text-blue-500"></i>
+                        <span class="text-sm text-600">{{'no_bank_transactions_linked' | translate}}</span>
+                    </div>
+                </div>
+
+                <!-- Error State: Could not load reconciliation status -->
+                <div *ngIf="!isCheckingReconciliation && !reconciliationStatus" 
+                     class="p-3 border-round surface-orange-50 border-left-3 border-orange-500">
+                    <div class="flex align-items-center gap-2 mb-2">
+                        <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                        <span class="font-semibold text-orange-700">{{'bank_reconciliation_required' | translate}}</span>
+                    </div>
+                    <p class="text-sm text-600 m-0">
+                        {{'cannot_confirm_payment_reconciliation_required_detail' | translate}}
+                    </p>
+                    <p class="text-sm text-600 m-0 mt-2">
+                        <i class="pi pi-info-circle mr-1"></i>
+                        {{'error_loading_reconciliation_status' | translate}}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                (click)="confirmPaymentDialog = false; reconciliationStatus = null; isCheckingReconciliation = false;"></button>
+            <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                [disabled]="isCheckingReconciliation || (requiresReconciliation(payment?.paymentMethod) && (!reconciliationStatus || (reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled)))"
+                [pTooltip]="(requiresReconciliation(payment?.paymentMethod) && (!reconciliationStatus || (reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled))) ? ('reconciliation_required_tooltip' | translate) : ''"
+                (click)="confirmPayment()"></button>
+        </ng-template>
+    </p-dialog>
 </div>

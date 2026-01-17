@@ -1,0 +1,422 @@
+<div class="grid">
+    <div class="col-12">
+        <!-- Purchase Credits Management Section - Above Card (matching dashboard style) -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'purchase_credits_menu_title' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'purchase_credits_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-content-end align-items-center mb-4">
+                <div class="flex align-items-center gap-2">
+                    <button pButton pRipple *ngIf="canAddCredit" label="{{ 'new_button' | translate }}"
+                        icon="pi pi-plus" class="p-button-success" (click)="openNew()"
+                        pTooltip="{{'add_new_credit'|translate}}"></button>
+                    <button pButton pRipple *ngIf="canDeleteCredit" label="{{ 'delete_button' | translate }}"
+                        icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedCredits()"
+                        pTooltip="{{'delete_credit'|translate}}"
+                        [disabled]="!selectedCredits || !selectedCredits.length"></button>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+                <!-- Global Search -->
+                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                    <i class="pi pi-search"></i>
+                    <input type="text" pInputText 
+                        [placeholder]="'search_label' | translate" 
+                        (input)="onGlobalFilter($event)" class="w-full" />
+                </span>
+
+                <!-- Credit Status Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedCreditStatus" 
+                    [options]="creditStatuses" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_status' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                    <ng-template let-option pTemplate="item">
+                        <span [class]="'credit-badge credit-' + option.value.toLowerCase()">
+                            {{ option.label | translate }}
+                        </span>
+                    </ng-template>
+                </p-dropdown>
+
+                <!-- Credit Method Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedCreditMethod" 
+                    [options]="creditMethods" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_credit_method' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                    <ng-template let-option pTemplate="item">
+                        <span>{{ option.label | translate }}</span>
+                    </ng-template>
+                </p-dropdown>
+
+                <!-- Supplier Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedSupplier" 
+                    [options]="suppliers" 
+                    optionLabel="name" 
+                    [showClear]="true"
+                    [filter]="true"
+                    filterBy="name"
+                    [placeholder]="'filter_by_supplier' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
+
+                <!-- Date Range Filters -->
+                <div class="flex align-items-center gap-2">
+                    <p-calendar 
+                        [(ngModel)]="startDate" 
+                        [showIcon]="true"
+                        dateFormat="dd/mm/yy"
+                        [showOnFocus]="false"
+                        [placeholder]="'start_date' | translate"
+                        appendTo="body"
+                        styleClass="w-10rem"
+                        (onSelect)="onFilterChange()"
+                        (onClearClick)="onFilterChange()">
+                    </p-calendar>
+                    <p-calendar 
+                        [(ngModel)]="endDate" 
+                        [showIcon]="true"
+                        dateFormat="dd/mm/yy"
+                        [showOnFocus]="false"
+                        [minDate]="startDate"
+                        [placeholder]="'end_date' | translate"
+                        appendTo="body"
+                        styleClass="w-10rem"
+                        (onSelect)="onFilterChange()"
+                        (onClearClick)="onFilterChange()">
+                    </p-calendar>
+                </div>
+
+                <!-- View Toggle & Export -->
+                <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
+                        tooltipPosition="bottom" (click)="exportPdf()"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
+                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                    <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+                </div>
+            </div>
+
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="credits" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['purchaseReturn.purchase.reference','amount','status','creditMethod','transactionId','notes']"
+                [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedCredits" selectionMode="multiple" [rowHover]="true" dataKey="creditId"
+                styleClass="p-datatable-gridlines">
+
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="transactionId">{{'credit_transaction_id' | translate}} <p-sortIcon
+                                field="transactionId"></p-sortIcon></th>
+                        <th pSortableColumn="purchaseReturn.purchase.reference">{{ 'purchase_reference' | translate }}
+                            <p-sortIcon field="purchaseReturn.purchase.reference"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="amount">{{'amount' | translate}}
+                            <p-sortIcon field="amount"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="status">{{'credit_status' | translate}}
+                            <p-sortIcon field="status"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="creditMethod">{{'credit_method' | translate}}
+                            <p-sortIcon field="creditMethod"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="creditDate">{{'credit_date' | translate}}
+                            <p-sortIcon field="creditDate"></p-sortIcon>
+                        </th>
+                        <th>{{ 'actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="body" let-credit>
+                    <tr (click)="canReadCredit ? showCreditDetails(credit) : null"
+                        class="cursor-pointer">
+                        <td>
+                            <p-tableCheckbox [value]="credit" [disabled]="!isCreditValidForUpdate(credit)"
+                                (click)="$event.stopPropagation()"></p-tableCheckbox>
+                        </td>
+                        <td>
+                            <p-chip label="{{ credit.transactionId ?? 'N/A' }}" />
+                            <i *ngIf="!isCreditValidForUpdate(credit)" class="pi pi-lock text-red-500 ml-2"
+                                pTooltip="{{ 'credit_locked' | translate }}">
+                            </i>
+                        </td>
+                        <td>#{{ credit.purchaseReturn?.purchase?.reference || 'N/A' }}</td>
+                        <td>{{ credit.amount | currency:currency:'symbol':'1.2-2' }}</td>
+                        <td>
+                            <span [class]="'credit-badge credit-' + credit?.status?.toLowerCase()">
+                                {{ credit?.status ? ('credit_status_' +
+                                credit?.status?.toLowerCase() | translate) : 'N/A' }}
+                            </span>
+                        </td>
+                        <td>
+                            <p-tag [value]="'payment_method_'+credit?.creditMethod?.toLowerCase() | translate"
+                                [severity]="getPaymentMethodSeverity(credit?.creditMethod)"
+                                [icon]="getPaymentMethodIcon(credit?.creditMethod)">
+                            </p-tag>
+                        </td>
+                        <td>{{ credit.creditDate | date:'dd/MM/yyyy' }}</td>
+                        <td>
+                            <div class="flex gap-1">
+                                <button pButton pRipple *ngIf="canReadCredit"
+                                    type="button"
+                                    icon="pi pi-eye" class="p-button-rounded p-button-text p-button-info"
+                                    pTooltip="{{'view_credit'|translate}}"
+                                    (click)="showCreditDetails(credit); $event.stopPropagation(); $event.preventDefault()"></button>
+                                <button pButton pRipple *ngIf="canEditCredit && isCreditValidForUpdate(credit)"
+                                    icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
+                                    (click)="editCredit(credit); $event.stopPropagation()"
+                                    pTooltip="{{ 'edit_credit' | translate }}"></button>
+                                <button pButton pRipple *ngIf="credit.status === 'PENDING' && canEditCredit"
+                                    icon="pi pi-check" class="p-button-rounded p-button-text p-button-success"
+                                    (click)="confirmCredit(credit.creditId || credit.purchaseCreditId); $event.stopPropagation()"
+                                    pTooltip="{{ 'confirm_credit' | translate }}"></button>
+                                <button pButton pRipple *ngIf="canDeleteCredit && isCreditValidForUpdate(credit)"
+                                    icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+                                    (click)="deleteCredit(credit); $event.stopPropagation()"
+                                    pTooltip="{{ 'delete_credit' | translate }}"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{ 'total_credits' | translate }} {{ credits?.length || 0 }}.
+                        <span *ngIf="getTotalAmount() > 0">
+                            {{'credit_total_amount' | translate}}: {{ getTotalAmount() |
+                            currency:currency:'symbol':'1.2-2' }}
+                        </span>
+                    </div>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_credits_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="creditDialog" [style]="{width: '80%'}" header="{{ 'credit_details' | translate }}"
+            [modal]="true" class="p-fluid">
+            <ng-template pTemplate="content">
+                <div class="field">
+                    <label for="purchaseReturn">
+                        {{ 'purchase_return' | translate }} <span class="required-asterisk">*</span>
+                    </label>
+                    <p-dropdown [(ngModel)]="credit.purchaseReturn" [options]="eligibleReturns" [dataKey]="'returnId'"
+                        placeholder="{{ 'select_return_option' | translate }}" [filter]="true"
+                        filterBy="returnId,reference,purchase.reference,purchase.supplier.supplierName"
+                        [showClear]="true" inputId="purchaseReturn" name="purchaseReturn"
+                        (onChange)="onReturnSelect($event.value)" [emptyMessage]="'no_returns_available' | translate"
+                        [emptyFilterMessage]="'no_returns_matching_filter' | translate"
+                        [ngClass]="{'ng-invalid ng-dirty': submitted && !credit.purchaseReturn}">
+                        <ng-template pTemplate="selectedItem" let-return>
+                            <span *ngIf="return" class="product-badge">
+                                {{ getReturnDisplayLabel(return) }}
+                            </span>
+                        </ng-template>
+                        <ng-template pTemplate="item" let-return>
+                            <div class="flex flex-column">
+                                <div class="flex justify-content-between align-items-center">
+                                    <span>{{'return'|translate}} #{{ return.reference }}</span>
+                                    <span>{{'purchase'|translate}} #{{ return.purchase?.reference }}</span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center text-sm text-gray-600 mt-1">
+                                    <span>{{ return.purchase?.supplier?.supplierName || 'N/A' }}</span>
+                                    <span>{{'total'|translate}}: {{ return.totalCreditableAmount | currency: currency
+                                        }}</span>
+                                </div>
+                                <div class="flex justify-content-between align-items-center text-sm mt-1">
+                                    <span>{{'credited'|translate}}: {{ getCreditedAmount(return) | currency: currency
+                                        }}</span>
+                                    <span>{{'due'|translate}}: {{ (return.totalCreditableAmount -
+                                        getCreditedAmount(return)) | currency: currency }}</span>
+                                </div>
+                            </div>
+                        </ng-template>
+                    </p-dropdown>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !credit.purchaseReturn">
+                        {{ 'purchase_return_is_required' | translate }}
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label for="amount">
+                        {{ 'credit_amount' | translate }} <span class="required-asterisk">*</span>
+                        <span class="amount-helper">
+                            ({{ 'max_amount' | translate }}: {{ maxCreditAmount | currency: currency }})
+                        </span>
+                    </label>
+                    <p-inputNumber [(ngModel)]="credit.amount" name="amount" [min]="0" [max]="maxCreditAmount"
+                        [required]="true"
+                        [ngClass]="{'ng-invalid ng-dirty': submitted && (!credit.amount || credit.amount <= 0 || credit.amount > maxCreditAmount)}">
+                    </p-inputNumber>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !credit.amount">
+                        {{ 'amount_is_required' | translate }}
+                    </small>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && credit.amount > maxCreditAmount">
+                        {{ 'amount_exceeds_max' | translate }}
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label>{{ 'credit_method' | translate }} <span class="required-asterisk">*</span></label>
+                    <div class="flex flex-wrap gap-3">
+                        <div class="flex align-items-center" *ngFor="let method of creditMethods">
+                            <p-radioButton [name]="'creditMethod'" [value]="method.value"
+                                [(ngModel)]="credit.creditMethod" [inputId]="'method_' + method.value"
+                                (onClick)="onCreditMethodChange()">
+                            </p-radioButton>
+                            <label [for]="'method_' + method.value" class="ml-2">{{ method.label | translate }}</label>
+                        </div>
+                    </div>
+                    <small class="text-500 mt-2" *ngIf="minimumAmountHint">
+                        <i class="pi pi-info-circle mr-1"></i>{{ minimumAmountHint }}
+                    </small>
+                    <div *ngIf="showBankAccountField" class="field">
+                        <label for="bankAccountId">{{ 'bank_account' | translate }} 
+                            <span class="required-asterisk" *ngIf="isBankAccountRequired">*</span>
+                        </label>
+                        <p-dropdown [(ngModel)]="credit.bankAccountId" [options]="bankAccounts" optionLabel="accountName"
+                            optionValue="accountId" placeholder="{{ 'select_bank_account' | translate }}"
+                            [ngClass]="{'ng-invalid ng-dirty': submitted && isBankAccountRequired && !credit.bankAccountId}"
+                            (onChange)="onCreditMethodChange()">
+                        </p-dropdown>
+                        <small class="ng-dirty ng-invalid" *ngIf="submitted && isBankAccountRequired && !credit.bankAccountId">
+                            {{ 'bank_account_required' | translate }}
+                        </small>
+                    </div>
+                    <div *ngIf="credit.creditMethod === 'Check'" class="field">
+                        <label for="checkNumber">{{ 'check_number' | translate }}</label>
+                        <input type="text" id="checkNumber" [(ngModel)]="credit.checkNumber"
+                            placeholder="{{ 'enter_check_number' | translate }}" class="p-inputtext" />
+                    </div>
+                    <div *ngIf="credit.creditMethod === 'Check'" class="field">
+                        <label for="checkExpirationDate">{{ 'expiration_date' | translate }}</label>
+                        <p-calendar [(ngModel)]="credit.checkExpirationDate" [showIcon]="true"
+                            inputId="checkExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
+                            placeholder="{{ 'expiration_date' | translate }}" appendTo="body" />
+                    </div>
+                    <div *ngIf="credit.creditMethod === 'BOE'" class="field">
+                        <label for="boeNumber">{{ 'boe_number' | translate }}</label>
+                        <input type="text" id="boeNumber" [(ngModel)]="credit.boeNumber"
+                            placeholder="{{ 'enter_boe_number' | translate }}" class="p-inputtext" />
+                    </div>
+                    <div *ngIf="credit.creditMethod === 'BOE'" class="field">
+                        <label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
+                        <p-calendar [(ngModel)]="credit.boeExpirationDate" [showIcon]="true" inputId="boeExpirationDate"
+                            dateFormat="dd/mm/yy" [showOnFocus]="false" appendTo="body"
+                            placeholder="{{ 'expiration_date' | translate }}" />
+                    </div>
+                    <div *ngIf="credit.creditMethod === 'Transfer'" class="field">
+                        <label for="transactionReference">{{ 'transaction_reference' | translate }}</label>
+                        <input type="text" id="transactionReference" [(ngModel)]="credit.transactionReference"
+                            placeholder="{{ 'enter_transaction_reference' | translate }}" class="p-inputtext" />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="creditDate">{{ 'credit_date' | translate }} <span
+                            class="required-asterisk">*</span></label>
+                    <p-calendar [(ngModel)]="credit.creditDate" ngDefaultControl name="creditDate" inputId="creditDate"
+                        dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
+                        placeholder="{{ 'credit_date' | translate }}" required autofocus
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !credit.creditDate}" [maxDate]="maxCreditDate"
+                        appendTo="body" />
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !credit.creditDate">{{ 'credit_date' |
+                        translate }} {{'is_required_label' | translate}}</small>
+                </div>
+
+                <div class="field">
+                    <label for="notes">{{ 'credit_notes' | translate }}</label>
+                    <textarea pInputTextarea [(ngModel)]="credit.notes" rows="3"></textarea>
+                </div>
+
+                <div class="required-note">
+                    <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' |
+                        translate }}</small>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <div class="flex justify-content-between align-items-center w-full">
+                    <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
+                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+                        class="p-button-raised" (click)="saveCredit()"></button>
+                </div>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteCreditDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="credit">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>#{{credit.transactionId}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteCreditDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteCreditsDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteCreditsDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+    </div>
+</div>
+

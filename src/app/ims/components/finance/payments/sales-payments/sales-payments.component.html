@@ -1,7 +1,16 @@
 <div class="grid">
     <div class="col-12">
+        <!-- Sales Payments Management Section - Above Card (matching dashboard style) -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'sales_payments' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'sales_payments_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
         <div class="card px-6 py-6">
-            <h5>{{'sales_payments' | translate}}</h5>
             <p-toast></p-toast>
 
             <app-payments-table [payments]="payments" [context]="'incoming'"
@@ -10,13 +19,16 @@
                 [canDeletePayment]="canDeletePayment" (editPaymentEvent)="editPayment($event)"
                 [canAddPayment]="canAddPayment" [currency]="currency" 
                 [canConfirmPayment]="canConfirmPayment" (confirmPaymentEvent)="openConfirmPayment($event)" 
+                [paymentReconciliationStatuses]="paymentReconciliationCache"
                 (deletePaymentEvent)="deletePayment($event)" (printReceiptEvent)="printReceipt($event)"
                 (generateReceiptEvent)="generateReceipt($event)" (addPaymentEvent)="openNew()"
                 (onGlobalFilter)="onGlobalFilter($event)" (viewPaymentDetailsEvent)="viewPaymentDetails($event)"
                 [(selectedPayments)]="selectedPayments"
                 (deleteSelectedEvent)="deleteSelectedPayments()"
                 (paymentMethodIconEvent)="getPaymentMethodIcon($event)"
-                (paymentMethodSeverityEvent)="getPaymentMethodSeverity($event)">
+                (paymentMethodSeverityEvent)="getPaymentMethodSeverity($event)"
+                (exportPdfEvent)="exportPdf()"
+                (exportExcelEvent)="exportExcel()">
             </app-payments-table>
         </div>
 
@@ -55,8 +67,22 @@
                     </small>
                 </div>
 
-                <!-- Order -->
-                <div class="field" style="position: relative;">
+                <!-- ⚠️ NEW: Multi-Order Payment Toggle -->
+                <div class="field" *ngIf="!payment.paymentId">
+                    <div class="flex align-items-center gap-2">
+                        <p-checkbox [(ngModel)]="multiOrderMode" 
+                                    [binary]="true" 
+                                    inputId="multiOrderMode"
+                                    (ngModelChange)="onMultiOrderModeChange($event)">
+                        </p-checkbox>
+                        <label for="multiOrderMode" class="ml-2">
+                            {{ 'pay_multiple_orders' | translate }}
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Single Order Selection (when multi-order mode is OFF) -->
+                <div class="field" style="position: relative;" *ngIf="!multiOrderMode">
                     <label for="order">
                         {{ 'payment_order' | translate }} <span class="required-asterisk">*</span>
                     </label>
@@ -92,26 +118,153 @@
                         translate}} {{'is_required_label' | translate}}</small>
                 </div>
 
+                <!-- ⚠️ NEW: Multi-Order Selection (when multi-order mode is ON) -->
+                <div class="field" *ngIf="multiOrderMode && payment.customer">
+                    <label>
+                        {{ 'select_orders' | translate }} <span class="required-asterisk">*</span>
+                    </label>
+                    
+                    <!-- Quick Actions -->
+                    <div class="flex gap-2 mb-3">
+                        <p-button 
+                            label="{{ 'select_all_unpaid' | translate }}" 
+                            icon="pi pi-check-square" 
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="selectAllUnpaidOrders()">
+                        </p-button>
+                        <p-button 
+                            label="{{ 'allocate_full_outstanding' | translate }}" 
+                            icon="pi pi-dollar" 
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="allocateFullOutstanding()">
+                        </p-button>
+                    </div>
+
+                    <!-- Orders List with Checkboxes -->
+                    <div class="orders-selection-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 1rem;">
+                        <p *ngIf="unpaidOrders.length === 0" class="text-500 text-center p-3">
+                            {{ 'no_unpaid_orders' | translate }}
+                        </p>
+                        
+                        <div *ngFor="let order of unpaidOrders" class="order-selection-item p-3 mb-2 border-bottom-1 surface-border"
+                             [class.selected]="isOrderSelected(order.orderId!)">
+                            <div class="flex align-items-center gap-3">
+                                <p-checkbox 
+                                    [binary]="true"
+                                    [ngModel]="isOrderSelected(order.orderId!)"
+                                    (ngModelChange)="onOrderToggle(order, { checked: $event })"
+                                    [inputId]="'order-' + order.orderId">
+                                </p-checkbox>
+                                
+                                <div class="flex-1">
+                                    <div class="flex align-items-center justify-content-between mb-2">
+                                        <span class="font-semibold">#{{ order.reference }}</span>
+                                        <span class="text-500 text-sm">{{ order.orderDate | date:'shortDate' }}</span>
+                                    </div>
+                                    
+                                    <div class="grid text-sm">
+                                        <div class="col-4">
+                                            <span class="text-500">{{ 'payment_total' | translate }}:</span>
+                                            <span class="ml-2 font-semibold">{{ order.totalAmount | currency:currency:'symbol':'1.2-2' }}</span>
+                                        </div>
+                                        <div class="col-4">
+                                            <span class="text-500">{{ 'payment_paid_amount' | translate }}:</span>
+                                            <span class="ml-2">{{ order.totalPaid | currency:currency:'symbol':'1.2-2' }}</span>
+                                        </div>
+                                        <div class="col-4">
+                                            <span class="text-500">{{ 'payment_due_amount' | translate }}:</span>
+                                            <span class="ml-2 font-semibold text-orange-600">{{ getOrderOutstanding(order) | currency:currency:'symbol':'1.2-2' }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Allocation Input (when order is selected) -->
+                                    <div class="mt-2" *ngIf="isOrderSelected(order.orderId!)">
+                                        <label class="text-sm font-semibold">
+                                            {{ 'allocate_amount' | translate }}:
+                                        </label>
+                                        <p-inputNumber 
+                                            [ngModel]="getAllocationAmount(order.orderId!)"
+                                            (ngModelChange)="setAllocationAmount(order.orderId!, $event)"
+                                            mode="currency"
+                                            [currency]="currency"
+                                            [min]="0.01"
+                                            [max]="getOrderOutstanding(order)"
+                                            [placeholder]="getOrderOutstanding(order) | currency:currency:'symbol':'1.2-2'"
+                                            class="w-full mt-1">
+                                        </p-inputNumber>
+                                        <small class="text-500">
+                                            {{ 'max' | translate }}: {{ getOrderOutstanding(order) | currency:currency:'symbol':'1.2-2' }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Summary -->
+                    <div class="mt-3 p-3 surface-100 border-round">
+                        <div class="flex justify-content-between align-items-center mb-2">
+                            <span class="font-semibold">{{ 'total_selected_orders' | translate }}:</span>
+                            <span class="font-bold text-lg">{{ selectedOrders.length }}</span>
+                        </div>
+                        <div class="flex justify-content-between align-items-center mb-2">
+                            <span class="font-semibold">{{ 'total_outstanding' | translate }}:</span>
+                            <span class="font-bold">{{ calculateTotalOutstanding() | currency:currency:'symbol':'1.2-2' }}</span>
+                        </div>
+                        <div class="flex justify-content-between align-items-center">
+                            <span class="font-semibold">{{ 'total_allocated' | translate }}:</span>
+                            <span class="font-bold text-primary">{{ calculateTotalAllocated() | currency:currency:'symbol':'1.2-2' }}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Amount -->
                 <div class="field">
                     <label for="amount">
                         {{ 'payment_amount' | translate }}
                         <span class="required-asterisk">*</span>
-                        <span class="amount-helper">
+                        <span class="amount-helper" *ngIf="!multiOrderMode">
                             ({{ payment.paymentId ? 'Can update up to' : 'Max can add' }}:
                             {{maxPaymentAmount | currency:currency:'symbol':'1.2-2'}})
                         </span>
+                        <span class="amount-helper" *ngIf="multiOrderMode">
+                            ({{ 'total_allocated' | translate }}: {{ calculateTotalAllocated() | currency:currency:'symbol':'1.2-2' }})
+                        </span>
                     </label>
-                    <input type="number" pInputText [(ngModel)]="payment.amount" name="amount" [min]="0.01"
-                        [max]="maxPaymentAmount" [step]="0.01" [disabled]="maxPaymentAmount <= 0"
+                    <p-inputNumber 
+                        *ngIf="!multiOrderMode"
+                        [(ngModel)]="payment.amount" 
+                        name="amount" 
+                        mode="currency"
+                        [currency]="currency"
+                        [min]="0.01"
+                        [max]="maxPaymentAmount" 
+                        [step]="0.01" 
+                        [disabled]="maxPaymentAmount <= 0"
                         [ngClass]="{'ng-invalid ng-dirty': submitted && (!payment.amount || payment.amount <= 0 || payment.amount > maxPaymentAmount)}" />
+                    <p-inputNumber 
+                        *ngIf="multiOrderMode"
+                        [(ngModel)]="payment.amount" 
+                        name="amount" 
+                        mode="currency"
+                        [currency]="currency"
+                        [min]="0.01"
+                        [max]="calculateTotalOutstanding()" 
+                        [step]="0.01" 
+                        (onInput)="autoAllocateProportionally()"
+                        [ngClass]="{'ng-invalid ng-dirty': submitted && (!payment.amount || payment.amount <= 0)}" />
                     <small class="ng-dirty ng-invalid" *ngIf="submitted && !payment.amount">
                         {{ 'payment_amount' | translate }} {{ 'is_required_label' | translate }}
                     </small>
                     <small class="ng-dirty ng-invalid"
-                        *ngIf="submitted && payment.amount && (payment.amount <= 0 || payment.amount > maxPaymentAmount)">
-                        {{ 'payment_amount_must_be_between' | translate }} 0 {{ 'and' | translate }} {{maxPaymentAmount
+                        *ngIf="submitted && payment.amount && (payment.amount <= 0 || (!multiOrderMode && payment.amount > maxPaymentAmount))">
+                        {{ 'payment_amount_must_be_between' | translate }} 0 {{ 'and' | translate }} {{multiOrderMode ? calculateTotalOutstanding() : maxPaymentAmount
                         | currency:currency:'symbol':'1.2-2'}}
+                    </small>
+                    <small class="text-500" *ngIf="multiOrderMode && selectedOrders.length > 0">
+                        {{ 'payment_amount_will_be_allocated_to_selected_orders' | translate }}
                     </small>
                 </div>
 
@@ -253,16 +406,93 @@
         <!-- Payment Details View Dialog -->
 
         <p-dialog [(visible)]="confirmPaymentDialog" header="{{'confirm_label' | translate}}" [modal]="true"
-            [style]="{width:'450px'}">
-            <div class="flex align-items-center justify-content-center">
-                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-                <span *ngIf="payment">{{'confirm_payment_msg' | translate}}
-                    <b>{{payment.transactionId}}</b>?</span>
+            [style]="{width:'550px'}">
+            <div class="flex flex-column gap-3">
+                <!-- Confirmation Message -->
+                <div class="flex align-items-center">
+                    <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                    <span *ngIf="payment">{{'confirm_payment_msg' | translate}}
+                        <b>{{payment.transactionId || payment.paymentId}}</b>?</span>
+                </div>
+
+                <!-- Reconciliation Status Section (always show if reconciliation is required) -->
+                <div *ngIf="requiresReconciliation(payment?.paymentMethod)" class="p-3 border-round surface-ground">
+                    <!-- Loading State -->
+                    <div *ngIf="isCheckingReconciliation" class="flex align-items-center justify-content-center p-3">
+                        <i class="pi pi-spin pi-spinner mr-2"></i>
+                        <span>{{'checking_reconciliation_status' | translate}}</span>
+                    </div>
+
+                    <!-- Reconciliation Status Warning -->
+                    <div *ngIf="!isCheckingReconciliation && reconciliationStatus && reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled" 
+                         class="p-3 border-round surface-orange-50 border-left-3 border-orange-500">
+                        <div class="flex align-items-center gap-2 mb-2">
+                            <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                            <span class="font-semibold text-orange-700">{{'bank_reconciliation_required' | translate}}</span>
+                        </div>
+                        <p class="text-sm text-600 m-0 mb-2">
+                            {{'cannot_confirm_payment_reconciliation_required_detail' | translate}}
+                        </p>
+                        <div class="text-sm">
+                            <span class="font-semibold">{{'unreconciled_transactions' | translate}}:</span>
+                            <ul class="m-0 mt-1 pl-3">
+                                <li *ngFor="let transaction of reconciliationStatus.transactions | slice:0:5" 
+                                    [class.text-orange-600]="!transaction.reconciled">
+                                    {{'transaction' | translate}} #{{transaction.transactionId}} - 
+                                    <span *ngIf="!transaction.reconciled">{{'not_reconciled' | translate}}</span>
+                                    <span *ngIf="transaction.reconciled">{{'reconciled' | translate}}</span>
+                                </li>
+                            </ul>
+                            <p *ngIf="reconciliationStatus.unreconciledCount > 5" class="text-sm text-600 m-0 mt-1">
+                                {{'and_more_transactions' | translate: {count: reconciliationStatus.unreconciledCount - 5} }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Reconciliation Status Success -->
+                    <div *ngIf="!isCheckingReconciliation && reconciliationStatus && reconciliationStatus.hasTransactions && reconciliationStatus.allReconciled" 
+                         class="p-3 border-round surface-green-50 border-left-3 border-green-500">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-check-circle text-green-500"></i>
+                            <span class="font-semibold text-green-600">{{'all_transactions_reconciled' | translate}}</span>
+                        </div>
+                        <p class="text-sm text-600 m-0 mt-1">
+                            {{'payment_ready_for_confirmation' | translate}}
+                        </p>
+                    </div>
+
+                    <!-- No Bank Transactions -->
+                    <div *ngIf="!isCheckingReconciliation && reconciliationStatus && !reconciliationStatus.hasTransactions" 
+                         class="p-3 border-round surface-blue-50">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-info-circle text-blue-500"></i>
+                            <span class="text-sm text-600">{{'no_bank_transactions_linked' | translate}}</span>
+                        </div>
+                    </div>
+
+                    <!-- Error State: Could not load reconciliation status -->
+                    <div *ngIf="!isCheckingReconciliation && !reconciliationStatus" 
+                         class="p-3 border-round surface-orange-50 border-left-3 border-orange-500">
+                        <div class="flex align-items-center gap-2 mb-2">
+                            <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                            <span class="font-semibold text-orange-700">{{'bank_reconciliation_required' | translate}}</span>
+                        </div>
+                        <p class="text-sm text-600 m-0">
+                            {{'cannot_confirm_payment_reconciliation_required_detail' | translate}}
+                        </p>
+                        <p class="text-sm text-600 m-0 mt-2">
+                            <i class="pi pi-info-circle mr-1"></i>
+                            {{'error_loading_reconciliation_status' | translate}}
+                        </p>
+                    </div>
+                </div>
             </div>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
-                    (click)="confirmPaymentDialog = false"></button>
+                    (click)="confirmPaymentDialog = false; reconciliationStatus = null; isCheckingReconciliation = false;"></button>
                 <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    [disabled]="isCheckingReconciliation || (requiresReconciliation(payment?.paymentMethod) && (!reconciliationStatus || (reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled)))"
+                    [pTooltip]="(requiresReconciliation(payment?.paymentMethod) && (!reconciliationStatus || (reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled))) ? ('reconciliation_required_tooltip' | translate) : ''"
                     (click)="confirmPayment()"></button>
             </ng-template>
         </p-dialog>

@@ -116,7 +116,7 @@
 				<div class="stat-content">
 					<span class="stat-label">{{ 'default_locale' | translate }}</span>
 					<div class="stat-value">
-						{{ organization.defaultLocale?.toUpperCase() || 'EN' }}
+						{{ getLocaleName(organization.defaultLocale) }}
 					</div>
 				</div>
 			</div>
@@ -253,7 +253,7 @@
 										</div>
 										<div class="info-content">
 											<span class="info-label">{{ 'default_locale' | translate }}</span>
-											<span class="info-value">{{ organization.defaultLocale?.toUpperCase() || 'EN' }}</span>
+											<span class="info-value">{{ getLocaleName(organization.defaultLocale) }}</span>
 										</div>
 									</div>
 								</div>

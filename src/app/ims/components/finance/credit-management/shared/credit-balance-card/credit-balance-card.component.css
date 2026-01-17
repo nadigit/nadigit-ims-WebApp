@@ -1,0 +1,87 @@
+.credit-balance-card {
+    background: var(--surface-card);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--surface-border);
+}
+
+.card-header {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.card-body {
+    margin-bottom: 1rem;
+}
+
+.credit-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.metric-item:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+}
+
+.metric-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.metric-value.balance {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+.metric-value.available {
+    color: var(--green-500);
+    font-weight: 700;
+}
+
+.credit-summary {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+}
+
+.card-footer {
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+}
+
+.empty-state {
+    text-align: center;
+}
+
+.empty-state .card-body {
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+

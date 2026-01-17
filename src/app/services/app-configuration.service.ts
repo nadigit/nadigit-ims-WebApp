@@ -105,5 +105,31 @@ export class AppConfigurationService {
       { headers }
     );
   }
+
+  /**
+   * Get configuration value as boolean
+   */
+  async getConfigurationValueAsBoolean(key: string): Promise<Observable<boolean>> {
+    return (await this.getConfigurationValue(key)).pipe(
+      map(value => {
+        if (typeof value === 'string') {
+          return value.toLowerCase() === 'true';
+        }
+        return Boolean(value);
+      })
+    );
+  }
+
+  /**
+   * Get configuration value as number
+   */
+  async getConfigurationValueAsNumber(key: string): Promise<Observable<number>> {
+    return (await this.getConfigurationValue(key)).pipe(
+      map(value => {
+        const num = parseFloat(String(value));
+        return isNaN(num) ? 0 : num;
+      })
+    );
+  }
   
 }

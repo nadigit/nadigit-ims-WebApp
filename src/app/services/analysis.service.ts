@@ -22,6 +22,7 @@ export interface ProfitAnalysis {
   totalCosts: number;
   totalRefunds: number;
   totalExpenses: number;
+  totalWriteOffs: number;
   totalPurchases: number;
   grossProfit: number;
   netProfit: number;

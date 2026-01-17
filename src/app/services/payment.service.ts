@@ -1,6 +1,8 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
+import { Observable } from 'rxjs';
+import { Payment } from 'src/app/models/payment';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
@@ -90,5 +92,17 @@ export class PaymentService {
   getReceipt(id: any) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + +id + '/receipt', { headers: headers, responseType: 'blob' });
+  }
+
+  processMultiOrderPayment(request: any): Observable<Payment> {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}process-multi-order`;
+    return this.http.post<Payment>(url, request, { headers });
+  }
+
+  processMultiPurchasePayment(request: any): Observable<Payment> {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}process-multi-purchase`;
+    return this.http.post<Payment>(url, request, { headers });
   }
 }

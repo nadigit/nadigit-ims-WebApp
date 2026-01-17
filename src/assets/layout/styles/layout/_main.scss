@@ -18,6 +18,21 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* RTL Support */
+html[dir="rtl"],
+body[dir="rtl"],
+html.rtl,
+body.rtl {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir="ltr"],
+body[dir="ltr"] {
+    direction: ltr;
+    text-align: left;
+}
+
 a {
     text-decoration: none;
     color: var(--primary-color);

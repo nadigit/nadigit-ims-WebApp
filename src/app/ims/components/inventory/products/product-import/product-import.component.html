@@ -1,0 +1,711 @@
+<p-dialog [(visible)]="importDialogVisible" [modal]="true"
+  [style]="{width: '90vw', maxWidth: '1200px', height: '90vh'}"
+  [breakpoints]="{'960px': '95vw', '640px': '98vw'}" [draggable]="false" [resizable]="true"
+  [header]="'import_products' | translate" (onHide)="closeDialog()">
+  
+  <ng-template pTemplate="content">
+    <p-toast></p-toast>
+
+    <!-- Help Guide Section -->
+    <div class="card p-4 mb-4" *ngIf="currentStep === 'upload'">
+      <div class="flex align-items-center justify-content-between mb-3">
+        <div class="flex align-items-center">
+          <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+          <h3 class="m-0 text-900">{{ 'import_guide' | translate }}</h3>
+        </div>
+        <button pButton pRipple 
+          [icon]="showHelpGuide ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+          class="p-button-text p-button-sm"
+          (click)="showHelpGuide = !showHelpGuide"
+          [label]="showHelpGuide ? ('hide_guide' | translate) : ('show_guide' | translate)">
+        </button>
+      </div>
+      
+      <div *ngIf="showHelpGuide" class="help-content">
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="help-step p-3 mb-3 surface-ground border-round">
+              <div class="flex align-items-start mb-2">
+                <span class="step-number bg-primary text-white border-circle flex align-items-center justify-content-center mr-3" style="width: 2rem; height: 2rem; font-weight: bold;">1</span>
+                <div class="flex-1">
+                  <h4 class="m-0 mb-2 text-900">{{ 'step_1_download_template' | translate }}</h4>
+                  <p class="text-600 m-0 text-sm">{{ 'step_1_description' | translate }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-12 md:col-6">
+            <div class="help-step p-3 mb-3 surface-ground border-round">
+              <div class="flex align-items-start mb-2">
+                <span class="step-number bg-primary text-white border-circle flex align-items-center justify-content-center mr-3" style="width: 2rem; height: 2rem; font-weight: bold;">2</span>
+                <div class="flex-1">
+                  <h4 class="m-0 mb-2 text-900">{{ 'step_2_fill_template' | translate }}</h4>
+                  <p class="text-600 m-0 text-sm">{{ 'step_2_description' | translate }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-12 md:col-6">
+            <div class="help-step p-3 mb-3 surface-ground border-round">
+              <div class="flex align-items-start mb-2">
+                <span class="step-number bg-primary text-white border-circle flex align-items-center justify-content-center mr-3" style="width: 2rem; height: 2rem; font-weight: bold;">3</span>
+                <div class="flex-1">
+                  <h4 class="m-0 mb-2 text-900">{{ 'step_3_upload_file' | translate }}</h4>
+                  <p class="text-600 m-0 text-sm">{{ 'step_3_description' | translate }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-12 md:col-6">
+            <div class="help-step p-3 mb-3 surface-ground border-round">
+              <div class="flex align-items-start mb-2">
+                <span class="step-number bg-primary text-white border-circle flex align-items-center justify-content-center mr-3" style="width: 2rem; height: 2rem; font-weight: bold;">4</span>
+                <div class="flex-1">
+                  <h4 class="m-0 mb-2 text-900">{{ 'step_4_validate' | translate }}</h4>
+                  <p class="text-600 m-0 text-sm">{{ 'step_4_description' | translate }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Required Columns Info -->
+        <div class="required-columns-section p-4 mt-4 surface-card border-round">
+          <h4 class="m-0 mb-3 text-900">
+            <i class="pi pi-check-circle text-green-500 mr-2"></i>
+            {{ 'required_columns' | translate }}
+          </h4>
+          <div class="grid">
+            <div class="col-12 md:col-6">
+              <ul class="list-none p-0 m-0">
+                <li class="mb-2">
+                  <i class="pi pi-asterisk text-red-500 mr-2 text-xs"></i>
+                  <strong>{{ 'reference' | translate }}</strong> - {{ 'reference_help' | translate }}
+                </li>
+                <li class="mb-2">
+                  <i class="pi pi-asterisk text-red-500 mr-2 text-xs"></i>
+                  <strong>{{ 'name' | translate }}</strong> - {{ 'name_help' | translate }}
+                </li>
+                <li class="mb-2">
+                  <i class="pi pi-asterisk text-red-500 mr-2 text-xs"></i>
+                  <strong>{{ 'selling_price' | translate }}</strong> - {{ 'selling_price_help' | translate }}
+                </li>
+                <li class="mb-2">
+                  <i class="pi pi-asterisk text-red-500 mr-2 text-xs"></i>
+                  <strong>{{ 'category' | translate }}</strong> - {{ 'category_help' | translate }}
+                </li>
+              </ul>
+            </div>
+            <div class="col-12 md:col-6">
+              <h5 class="m-0 mb-2 text-600">{{ 'optional_columns' | translate }}</h5>
+              <p class="text-600 text-sm m-0">
+                {{ 'optional_columns_description' | translate }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="tips-section p-4 mt-4 surface-50 border-round">
+          <h4 class="m-0 mb-3 text-900">
+            <i class="pi pi-lightbulb text-yellow-500 mr-2"></i>
+            {{ 'tips_for_success' | translate }}
+          </h4>
+          <ul class="list-none p-0 m-0">
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-check text-green-500 mr-2 mt-1"></i>
+              <span class="text-600">{{ 'tip_1' | translate }}</span>
+            </li>
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-check text-green-500 mr-2 mt-1"></i>
+              <span class="text-600">{{ 'tip_2' | translate }}</span>
+            </li>
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-check text-green-500 mr-2 mt-1"></i>
+              <span class="text-600">{{ 'tip_3' | translate }}</span>
+            </li>
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-check text-green-500 mr-2 mt-1"></i>
+              <span class="text-600">{{ 'tip_4' | translate }}</span>
+            </li>
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-check text-green-500 mr-2 mt-1"></i>
+              <span class="text-600">{{ 'tip_5' | translate }}</span>
+            </li>
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-check text-green-500 mr-2 mt-1"></i>
+              <span class="text-600">{{ 'tip_6' | translate }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Common Errors Section -->
+        <div class="errors-section p-4 mt-4 surface-red-50 border-round">
+          <h4 class="m-0 mb-3 text-900">
+            <i class="pi pi-exclamation-triangle text-red-500 mr-2"></i>
+            {{ 'common_errors' | translate }}
+          </h4>
+          <ul class="list-none p-0 m-0">
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-times-circle text-red-500 mr-2 mt-1"></i>
+              <div>
+                <strong class="text-900">{{ 'error_1_title' | translate }}</strong>
+                <p class="text-600 m-0 text-sm">{{ 'error_1_description' | translate }}</p>
+              </div>
+            </li>
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-times-circle text-red-500 mr-2 mt-1"></i>
+              <div>
+                <strong class="text-900">{{ 'error_2_title' | translate }}</strong>
+                <p class="text-600 m-0 text-sm">{{ 'error_2_description' | translate }}</p>
+              </div>
+            </li>
+            <li class="mb-2 flex align-items-start">
+              <i class="pi pi-times-circle text-red-500 mr-2 mt-1"></i>
+              <div>
+                <strong class="text-900">{{ 'error_3_title' | translate }}</strong>
+                <p class="text-600 m-0 text-sm">{{ 'error_3_description' | translate }}</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1: Template Download & File Upload -->
+    <div *ngIf="currentStep === 'upload'" class="flex flex-column gap-4">
+      <!-- Template Download Section -->
+      <div class="card p-4">
+        <div class="flex align-items-center mb-3">
+          <i class="pi pi-download text-primary mr-2" style="font-size: 1.25rem"></i>
+          <h3 class="m-0 text-900">{{ 'download_template' | translate }}</h3>
+        </div>
+        <p class="text-600 mb-3">{{ 'download_template_description' | translate }}</p>
+        <div class="flex gap-2">
+          <button pButton pRipple 
+            [label]="'download_csv_template' | translate" 
+            icon="pi pi-file"
+            class="p-button-outlined"
+            [loading]="loading"
+            (click)="downloadTemplate('csv')">
+          </button>
+          <button pButton pRipple 
+            [label]="'download_excel_template' | translate" 
+            icon="pi pi-file-excel"
+            class="p-button-outlined"
+            [loading]="loading"
+            (click)="downloadTemplate('excel')">
+          </button>
+        </div>
+      </div>
+
+      <!-- File Upload Section -->
+      <div class="card p-4">
+        <div class="flex align-items-center mb-3">
+          <i class="pi pi-upload text-primary mr-2" style="font-size: 1.25rem"></i>
+          <h3 class="m-0 text-900">{{ 'upload_file' | translate }}</h3>
+        </div>
+        <p class="text-600 mb-3">{{ 'upload_file_description' | translate }}</p>
+        
+        <p-fileUpload #fileUpload
+          mode="basic"
+          [accept]="'.csv,.xlsx,.xls'"
+          [maxFileSize]="fileSizeLimit"
+          [auto]="false"
+          (onSelect)="onFileSelect($event)"
+          (onRemove)="onFileRemove()"
+          [chooseLabel]="'choose_file' | translate"
+          [chooseIcon]="'pi pi-upload'"
+          styleClass="w-full">
+        </p-fileUpload>
+
+        <div *ngIf="selectedFile" class="mt-3 p-3 surface-ground border-round">
+          <div class="flex align-items-center justify-content-between">
+            <div>
+              <i class="pi pi-file mr-2"></i>
+              <span class="font-medium">{{ selectedFile.name }}</span>
+              <span class="text-500 ml-2">({{ formatFileSize(selectedFile.size) }})</span>
+            </div>
+            <button pButton pRipple 
+              icon="pi pi-times" 
+              class="p-button-text p-button-danger"
+              (click)="onFileRemove()">
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import Options Section -->
+      <div class="card p-4">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <div class="flex align-items-center">
+            <i class="pi pi-cog text-primary mr-2" style="font-size: 1.25rem"></i>
+            <h3 class="m-0 text-900">{{ 'import_options' | translate }}</h3>
+          </div>
+          <button pButton pRipple 
+            [label]="showAdvancedOptions ? ('hide_advanced_options' | translate) : ('show_advanced_options' | translate)"
+            icon="pi pi-chevron-down"
+            class="p-button-text"
+            (click)="showAdvancedOptions = !showAdvancedOptions">
+          </button>
+        </div>
+
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <div class="field-checkbox mb-3">
+              <p-checkbox [(ngModel)]="importOptions.skipDuplicates" 
+                [binary]="true" 
+                inputId="skipDuplicates">
+              </p-checkbox>
+              <label for="skipDuplicates" class="ml-2">{{ 'skip_duplicates' | translate }}</label>
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="field-checkbox mb-3">
+              <p-checkbox [(ngModel)]="importOptions.updateExisting" 
+                [binary]="true" 
+                inputId="updateExisting">
+              </p-checkbox>
+              <label for="updateExisting" class="ml-2">{{ 'update_existing_products' | translate }}</label>
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="field-checkbox mb-3">
+              <p-checkbox [(ngModel)]="importOptions.createMissingCategories" 
+                [binary]="true" 
+                inputId="createMissingCategories">
+              </p-checkbox>
+              <label for="createMissingCategories" class="ml-2">{{ 'create_missing_categories' | translate }}</label>
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="field-checkbox mb-3">
+              <p-checkbox [(ngModel)]="importOptions.createMissingSuppliers" 
+                [binary]="true" 
+                inputId="createMissingSuppliers">
+              </p-checkbox>
+              <label for="createMissingSuppliers" class="ml-2">{{ 'create_missing_suppliers' | translate }}</label>
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <div class="field-checkbox mb-3">
+              <p-checkbox [(ngModel)]="importOptions.createMissingWarehouses" 
+                [binary]="true" 
+                inputId="createMissingWarehouses">
+              </p-checkbox>
+              <label for="createMissingWarehouses" class="ml-2">{{ 'create_missing_warehouses' | translate }}</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div *ngIf="showAdvancedOptions" class="mt-4 pt-4 border-top-1 surface-border">
+          <div class="grid">
+            <div class="col-12 md:col-4">
+              <label for="defaultWarehouse" class="block mb-2">{{ 'default_warehouse' | translate }}</label>
+              <p-dropdown [options]="warehouses" 
+                [(ngModel)]="importOptions.defaultWarehouseId"
+                optionLabel="name" 
+                optionValue="warehouseId"
+                [showClear]="true"
+                [placeholder]="'select_warehouse' | translate"
+                inputId="defaultWarehouse"
+                styleClass="w-full">
+              </p-dropdown>
+            </div>
+            <div class="col-12 md:col-4">
+              <label for="defaultCategory" class="block mb-2">{{ 'default_category' | translate }}</label>
+              <p-dropdown [options]="categories" 
+                [(ngModel)]="importOptions.defaultCategoryId"
+                optionLabel="categoryName" 
+                optionValue="categoryId"
+                [showClear]="true"
+                [placeholder]="'select_category' | translate"
+                inputId="defaultCategory"
+                styleClass="w-full">
+              </p-dropdown>
+            </div>
+            <div class="col-12 md:col-4">
+              <label for="defaultSupplier" class="block mb-2">{{ 'default_supplier' | translate }}</label>
+              <p-dropdown [options]="suppliers" 
+                [(ngModel)]="importOptions.defaultSupplierId"
+                optionLabel="name" 
+                optionValue="supplierId"
+                [showClear]="true"
+                [placeholder]="'select_supplier' | translate"
+                inputId="defaultSupplier"
+                styleClass="w-full">
+              </p-dropdown>
+            </div>
+            <div class="col-12 md:col-6">
+              <label for="batchSize" class="block mb-2">{{ 'batch_size' | translate }}</label>
+              <p-inputNumber [(ngModel)]="importOptions.batchSize" 
+                [min]="1" 
+                [max]="1000"
+                inputId="batchSize"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+            <div class="col-12 md:col-6">
+              <div class="field-checkbox mt-4">
+                <p-checkbox [(ngModel)]="importOptions.stopOnFirstError" 
+                  [binary]="true" 
+                  inputId="stopOnFirstError">
+                </p-checkbox>
+                <label for="stopOnFirstError" class="ml-2">{{ 'stop_on_first_error' | translate }}</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-content-end gap-2">
+        <button pButton pRipple 
+          [label]="'cancel' | translate" 
+          icon="pi pi-times"
+          class="p-button-text"
+          (click)="closeDialog()">
+        </button>
+        <button pButton pRipple 
+          [label]="'validate_file' | translate" 
+          icon="pi pi-check-circle"
+          class="p-button-primary"
+          [disabled]="!selectedFile || validating"
+          [loading]="validating"
+          (click)="validateFile()">
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Validation Results -->
+    <div *ngIf="currentStep === 'validation' && validationResult" class="flex flex-column gap-4">
+      <!-- Validation Summary -->
+      <div class="card p-4">
+        <div class="flex align-items-center mb-3">
+          <i class="pi pi-check-circle text-primary mr-2" style="font-size: 1.25rem"></i>
+          <h3 class="m-0 text-900">{{ 'validation_results' | translate }}</h3>
+        </div>
+
+        <div class="grid">
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-900">{{ validationResult.totalRows }}</div>
+              <div class="text-600">{{ 'total_rows' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-green-500">{{ validationResult.validRows }}</div>
+              <div class="text-600">{{ 'valid_rows' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-red-500">{{ validationResult.errorRows }}</div>
+              <div class="text-600">{{ 'error_rows' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-orange-500">{{ validationResult.warningRows }}</div>
+              <div class="text-600">{{ 'warning_rows' | translate }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- General Errors -->
+        <div *ngIf="validationResult.generalErrors && validationResult.generalErrors.length > 0" class="mt-4">
+          <p class="font-bold text-red-500 mb-2">{{ 'general_errors' | translate }}:</p>
+          <ul class="list-none p-0 m-0">
+            <li *ngFor="let error of validationResult.generalErrors" class="mb-2">
+              <i class="pi pi-times-circle text-red-500 mr-2"></i>
+              <span>{{ translateErrorMessage(error, null) }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Missing Columns -->
+        <div *ngIf="validationResult.missingColumns && validationResult.missingColumns.length > 0" class="mt-4">
+          <p class="font-bold text-orange-500 mb-2">{{ 'missing_columns' | translate }}:</p>
+          <p-tag *ngFor="let col of validationResult.missingColumns" 
+            [value]="col" 
+            severity="warning" 
+            class="mr-2 mb-2">
+          </p-tag>
+        </div>
+      </div>
+
+      <!-- Errors Table -->
+      <div *ngIf="validationResult.errors && validationResult.errors.length > 0" class="card p-4">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <h3 class="m-0 text-900">{{ 'validation_errors' | translate }}</h3>
+          <button pButton pRipple 
+            [label]="'download_error_report' | translate" 
+            icon="pi pi-download"
+            class="p-button-outlined"
+            (click)="downloadErrorReport()">
+          </button>
+        </div>
+
+        <p-table [value]="validationResult.errors" 
+          [paginator]="true" 
+          [rows]="10"
+          styleClass="p-datatable-gridlines">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>{{ 'row_number' | translate }}</th>
+              <th>{{ 'column' | translate }}</th>
+              <th>{{ 'error_message' | translate }}</th>
+              <th>{{ 'invalid_value' | translate }}</th>
+              <th>{{ 'severity' | translate }}</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-error>
+            <tr>
+              <td>{{ error.rowNumber }}</td>
+              <td>{{ error.column }}</td>
+              <td>{{ translateErrorMessage(error.message, error) }}</td>
+              <td>{{ error.invalidValue || '-' }}</td>
+              <td>
+                <p-tag [value]="error.severity" 
+                  [severity]="getErrorSeverity(error.severity)">
+                </p-tag>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-content-between">
+        <button pButton pRipple 
+          [label]="'back' | translate" 
+          icon="pi pi-arrow-left"
+          class="p-button-text"
+          (click)="currentStep = 'upload'">
+        </button>
+        <div class="flex gap-2">
+          <button pButton pRipple 
+            [label]="'preview_import' | translate" 
+            icon="pi pi-eye"
+            class="p-button-outlined"
+            [disabled]="!validationResult.valid || previewing"
+            [loading]="previewing"
+            (click)="previewImport()">
+          </button>
+          <button pButton pRipple 
+            [label]="'import_products' | translate" 
+            icon="pi pi-upload"
+            class="p-button-primary"
+            [disabled]="!validationResult.valid || importing"
+            [loading]="importing"
+            (click)="executeImport()">
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Preview -->
+    <div *ngIf="currentStep === 'preview' && preview" class="flex flex-column gap-4">
+      <div class="card p-4">
+        <div class="flex align-items-center mb-3">
+          <i class="pi pi-eye text-primary mr-2" style="font-size: 1.25rem"></i>
+          <h3 class="m-0 text-900">{{ 'import_preview' | translate }}</h3>
+        </div>
+
+        <!-- Preview Summary -->
+        <div class="grid mb-4">
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-green-500">{{ preview.estimatedCreates }}</div>
+              <div class="text-600">{{ 'will_create' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-blue-500">{{ preview.estimatedUpdates }}</div>
+              <div class="text-600">{{ 'will_update' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-orange-500">{{ preview.estimatedSkips }}</div>
+              <div class="text-600">{{ 'will_skip' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-900">{{ preview.totalRows }}</div>
+              <div class="text-600">{{ 'total_rows' | translate }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Table -->
+        <p-table [value]="preview.previewData" 
+          [paginator]="true" 
+          [rows]="10"
+          styleClass="p-datatable-gridlines">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>{{ 'row_number' | translate }}</th>
+              <th>{{ 'reference' | translate }}</th>
+              <th>{{ 'name' | translate }}</th>
+              <th>{{ 'category' | translate }}</th>
+              <th>{{ 'supplier' | translate }}</th>
+              <th>{{ 'warehouse' | translate }}</th>
+              <th>{{ 'status' | translate }}</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-item>
+            <tr>
+              <td>{{ item.rowNumber }}</td>
+              <td>{{ item.reference }}</td>
+              <td>{{ item.name }}</td>
+              <td>{{ item.category }}</td>
+              <td>{{ item.supplier }}</td>
+              <td>{{ item.warehouse }}</td>
+              <td>
+                <p-tag [value]="getStatusLabel(item.status)" 
+                  [severity]="getStatusSeverity(item.status)">
+                </p-tag>
+                <div *ngIf="item.warnings && item.warnings.length > 0" class="mt-2">
+                  <p-tag *ngFor="let warning of item.warnings" 
+                    [value]="warning" 
+                    severity="warning" 
+                    class="mr-1">
+                  </p-tag>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-content-between">
+        <button pButton pRipple 
+          [label]="'back' | translate" 
+          icon="pi pi-arrow-left"
+          class="p-button-text"
+          (click)="currentStep = 'validation'">
+        </button>
+        <button pButton pRipple 
+          [label]="'import_products' | translate" 
+          icon="pi pi-upload"
+          class="p-button-primary"
+          [disabled]="importing"
+          [loading]="importing"
+          (click)="executeImport()">
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 4: Import Progress -->
+    <div *ngIf="currentStep === 'import' && importing" class="flex flex-column align-items-center justify-content-center" style="min-height: 300px;">
+      <p-progressSpinner></p-progressSpinner>
+      <p class="mt-4 text-600">{{ 'importing_products' | translate }}...</p>
+    </div>
+
+    <!-- Step 5: Import Results -->
+    <div *ngIf="currentStep === 'results' && importResult" class="flex flex-column gap-4">
+      <div class="card p-4">
+        <div class="flex align-items-center mb-3">
+          <i class="pi pi-check-circle text-green-500 mr-2" style="font-size: 1.25rem"></i>
+          <h3 class="m-0 text-900">{{ 'import_results' | translate }}</h3>
+        </div>
+
+        <!-- Results Summary -->
+        <div class="grid mb-4">
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-green-500">{{ importResult.created }}</div>
+              <div class="text-600">{{ 'created' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-blue-500">{{ importResult.updated }}</div>
+              <div class="text-600">{{ 'updated' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-orange-500">{{ importResult.skipped }}</div>
+              <div class="text-600">{{ 'skipped' | translate }}</div>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="surface-card p-3 border-round text-center">
+              <div class="text-2xl font-bold text-red-500">{{ importResult.failed }}</div>
+              <div class="text-600">{{ 'failed' | translate }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex align-items-center justify-content-center gap-4 mb-4">
+          <div class="text-center">
+            <i class="pi pi-clock text-500 mr-2"></i>
+            <span class="text-600">{{ 'duration' | translate }}: {{ formatDuration(importResult.durationMs) }}</span>
+          </div>
+        </div>
+
+        <!-- Errors Table -->
+        <div *ngIf="importResult.errors && importResult.errors.length > 0" class="mt-4">
+          <div class="flex align-items-center justify-content-between mb-3">
+            <h4 class="m-0 text-900">{{ 'import_errors' | translate }}</h4>
+            <button pButton pRipple 
+              [label]="'download_error_report' | translate" 
+              icon="pi pi-download"
+              class="p-button-outlined"
+              (click)="downloadErrorReport()">
+            </button>
+          </div>
+
+          <p-table [value]="importResult.errors" 
+            [paginator]="true" 
+            [rows]="10"
+            styleClass="p-datatable-gridlines">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>{{ 'row_number' | translate }}</th>
+                <th>{{ 'column' | translate }}</th>
+                <th>{{ 'error_message' | translate }}</th>
+                <th>{{ 'invalid_value' | translate }}</th>
+                <th>{{ 'severity' | translate }}</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-error>
+              <tr>
+                <td>{{ error.rowNumber }}</td>
+                <td>{{ error.column }}</td>
+                <td>{{ translateErrorMessage(error.message, error) }}</td>
+                <td>{{ error.invalidValue || '-' }}</td>
+                <td>
+                  <p-tag [value]="error.severity" 
+                    [severity]="getErrorSeverity(error.severity)">
+                  </p-tag>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-content-end gap-2">
+        <button pButton pRipple 
+          [label]="'close' | translate" 
+          icon="pi pi-times"
+          class="p-button-primary"
+          (click)="closeDialog()">
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</p-dialog>
+

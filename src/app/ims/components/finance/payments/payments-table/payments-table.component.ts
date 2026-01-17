@@ -1,14 +1,15 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { LazyLoadEvent } from 'primeng/api';
 import { Payment } from 'src/app/models/payment';
-import { getPaymentMethodLabel } from 'src/app/shared/payment-utils';
+import { getPaymentMethodLabel, paymentMethodOptions } from 'src/app/shared/payment-utils';
+import { ReconciliationValidationService } from 'src/app/services/reconciliation-validation.service';
 
 @Component({
   selector: 'app-payments-table',
   templateUrl: './payments-table.component.html',
   styleUrls: ['./payments-table.component.css']
 })
-export class PaymentsTableComponent {
+export class PaymentsTableComponent implements OnInit {
   @Input() payments: Payment[] = [];
   @Input() cols: any[] = [];
   @Input() pageSize = 20;
@@ -22,6 +23,26 @@ export class PaymentsTableComponent {
   @Input() context: 'incoming' | 'outgoing' = 'incoming';
   @Input() currency: string = 'USD';
   @Input() selectedPayments: Payment[] = [];
+  @Input() paymentReconciliationStatuses: Map<number, any> = new Map(); // Map of paymentId -> reconciliation status
+  @Input() customers: any[] = []; // Customers for filtering (for incoming payments)
+  @Input() suppliers: any[] = []; // Suppliers for filtering (for outgoing payments)
+  @Input() getCustomerDisplayName?: (customer: any) => string; // Function to get customer display name
+  @Input() getSupplierDisplayName?: (supplier: any) => string; // Function to get supplier display name
+
+  // Filter properties
+  selectedPaymentStatus: string | null = null;
+  selectedPaymentMethod: string | null = null;
+  selectedCustomer: any = null;
+  selectedSupplier: any = null;
+  startDate: Date | null = null;
+  endDate: Date | null = null;
+  
+  paymentStatuses: any[] = [];
+  paymentMethods: any[] = [];
+
+  constructor(private reconciliationValidationService: ReconciliationValidationService) {
+    this.initializePaymentFilters();
+  }
 
   @Output() editPaymentEvent = new EventEmitter<Payment>();
   @Output() deletePaymentEvent = new EventEmitter<Payment>();
@@ -37,6 +58,9 @@ export class PaymentsTableComponent {
   // @Output() paymentNotSettledEvent = new EventEmitter<Payment>();
   @Output() paymentMethodIconEvent = new EventEmitter<LazyLoadEvent>();
   @Output() paymentMethodSeverityEvent = new EventEmitter<LazyLoadEvent>();
+  @Output() exportPdfEvent = new EventEmitter<void>();
+  @Output() exportExcelEvent = new EventEmitter<void>();
+  @Output() filterChangeEvent = new EventEmitter<any>();
 
   onSelectionChange(event: Payment[]) {
     this.selectedPaymentsChange.emit(event); // this triggers parent two-way binding
@@ -47,16 +71,26 @@ export class PaymentsTableComponent {
     this.lazyLoadEvent.emit({ ...event, context: this.context } as any);
   }
 
+  requiresReconciliation(paymentMethod: string | null | undefined): boolean {
+    return this.reconciliationValidationService.requiresReconciliation(paymentMethod);
+  }
+
+  getReconciliationStatus(payment: Payment): string | null {
+    if (!payment.paymentId || !this.requiresReconciliation(payment.paymentMethod)) {
+      return null; // No reconciliation required
+    }
+    const status = this.paymentReconciliationStatuses.get(payment.paymentId);
+    if (!status) {
+      return 'unknown'; // Status not loaded yet
+    }
+    return status.allReconciled ? 'reconciled' : 'unreconciled';
+  }
+
   isPaymentNotSettled(payment: Payment): boolean {
-    const today = new Date();
-    const paymentDate = new Date(payment.paymentDate);
-
-    const isToday =
-      paymentDate.getFullYear() === today.getFullYear() &&
-      paymentDate.getMonth() === today.getMonth() &&
-      paymentDate.getDate() === today.getDate();
-
-    return isToday && payment.paymentStatus !== 'SETTLED';
+    // A payment is considered "not settled" if its status is not SETTLED
+    // This allows editing/deleting payments regardless of when they were created,
+    // as long as they haven't been settled yet
+    return payment.paymentStatus !== 'SETTLED';
   }
 
   applyGlobalFilter(event: Event) {
@@ -67,6 +101,61 @@ export class PaymentsTableComponent {
 
   getPaymentMethodLabel(paymentMethod: string) {
     return getPaymentMethodLabel(paymentMethod);
+  }
+
+  // ⚠️ NEW: Check if payment is part of a multi-order/purchase payment
+  isMultiPayment(payment: Payment): boolean {
+    return !!(payment as any).isMultiPayment;
+  }
+
+  // ⚠️ NEW: Get payment count for multi-payment transactions
+  getPaymentCount(payment: Payment): number {
+    return (payment as any).paymentCount || 1;
+  }
+
+  ngOnInit() {
+    // Filters are initialized in constructor
+  }
+
+  private initializePaymentFilters() {
+    // Payment statuses
+    this.paymentStatuses = [
+      { label: 'Settled', value: 'SETTLED' },
+      { label: 'Pending', value: 'PENDING' },
+      { label: 'Overdue', value: 'OVERDUE' },
+      { label: 'Failed', value: 'FAILED' },
+      { label: 'Refunded', value: 'REFUNDED' },
+    ];
+
+    // Payment methods
+    this.paymentMethods = paymentMethodOptions.map(opt => ({
+      label: opt.label,
+      value: opt.value
+    }));
+  }
+
+  onFilterChange() {
+    // Emit filter change event to parent component
+    // The parent component will handle the actual filtering since it uses lazy loading
+    this.filterChangeEvent.emit({
+      paymentStatus: this.selectedPaymentStatus,
+      paymentMethod: this.selectedPaymentMethod,
+      customer: this.selectedCustomer,
+      supplier: this.selectedSupplier,
+      startDate: this.startDate,
+      endDate: this.endDate
+    });
+  }
+
+  clearFilters() {
+    this.selectedPaymentStatus = null;
+    this.selectedPaymentMethod = null;
+    this.selectedCustomer = null;
+    this.selectedSupplier = null;
+    this.startDate = null;
+    this.endDate = null;
+    
+    this.onFilterChange();
   }
 
 }

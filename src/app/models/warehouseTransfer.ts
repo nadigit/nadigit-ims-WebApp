@@ -13,6 +13,18 @@ export interface TransferItem {
   product: Product;
   quantity: number;
   notes?: string;
+  batchMetadata?: string; // JSON string with batch information
+}
+
+// Helper interface for parsed batch metadata
+export interface BatchMetadata {
+  batchId?: number;
+  quantity: number;
+  expirationDate?: string;
+  buyingPrice?: number;
+  supplierId?: number;
+  batchNumber?: string;
+  receiptDate?: string;
 }
 
 export interface WarehouseTransfer {

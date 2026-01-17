@@ -3,11 +3,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
-import { WarehouseTransfer } from 'src/app/models/warehouseTransfer';
+import { WarehouseTransfer, TransferItem, BatchMetadata } from 'src/app/models/warehouseTransfer';
 import { WarehouseTransferService } from 'src/app/services/warehouse-transfer.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { TranslationService } from 'src/app/services/translation.service';
+import { BatchMetadataUtil } from 'src/app/utils/batch-metadata.util';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
@@ -205,6 +206,34 @@ export class TransferDetailsPageComponent implements OnInit {
 
   getTotalQuantity(transfer: WarehouseTransfer): number {
     return transfer.transferItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+  }
+
+  // Batch Metadata Methods
+  getBatchMetadata(item: TransferItem): BatchMetadata[] {
+    return BatchMetadataUtil.parseBatchMetadata(item.batchMetadata);
+  }
+
+  hasBatchInfo(item: TransferItem): boolean {
+    return BatchMetadataUtil.hasBatchMetadata(item.batchMetadata);
+  }
+
+  formatBatchDate(date: string | null | undefined): string {
+    if (!date) return '-';
+    try {
+      return new Date(date).toLocaleDateString();
+    } catch {
+      return date;
+    }
+  }
+
+  formatCurrency(amount: number | null | undefined): string {
+    if (amount == null || amount === undefined || isNaN(amount)) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   }
 
   // Action Methods

@@ -1406,7 +1406,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
       const translations = await this.translate.get([
         'financial_overview', 'revenue', 'product_costs', 'refunds',
-        'expenses', 'purchases', 'profit_margin'
+        'expenses', 'write_offs', 'purchases', 'profit_margin'
       ]).toPromise();
 
       if (!data || data.totalRevenue === undefined || data.totalCosts === undefined) {
@@ -1443,6 +1443,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
             data: [-Math.abs(data.totalExpenses || 0)],
             backgroundColor: '#9966ff',
             borderColor: '#9966ff',
+            borderWidth: 1
+          },
+          {
+            label: translations['write_offs'] || 'Write-Offs',
+            data: [-Math.abs(data.totalWriteOffs || 0)],
+            backgroundColor: '#ff9800',
+            borderColor: '#ff9800',
             borderWidth: 1
           },
           {
@@ -1634,14 +1641,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!this.profitData || this.profitData.totalRevenue <= 0) {
       return 0;
     }
-    const totalCosts = Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0));
+    const totalCosts = Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0) + (this.profitData.totalWriteOffs || 0));
     if (totalCosts === 0) return 0;
     return (totalCosts / this.profitData.totalRevenue) * 100;
   }
 
   getTotalCosts(): number {
     if (!this.profitData) return 0;
-    return Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0));
+    return Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0) + (this.profitData.totalWriteOffs || 0));
   }
 
   // ==================== NUMBER FORMATTING HELPERS ====================

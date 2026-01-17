@@ -1,0 +1,47 @@
+:host ::ng-deep .p-dialog-content {
+    padding: 1.5rem;
+}
+
+.field {
+    margin-bottom: 1.5rem;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.required-asterisk {
+    color: var(--red-500);
+}
+
+.info-box {
+    background: var(--surface-50);
+    border-radius: 4px;
+    padding: 1rem;
+    border: 1px solid var(--surface-border);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.warning-box {
+    background: var(--yellow-50);
+    border: 1px solid var(--yellow-200);
+    border-radius: 4px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--yellow-800);
+}
+
+.warning-box i {
+    font-size: 1.25rem;
+}
+

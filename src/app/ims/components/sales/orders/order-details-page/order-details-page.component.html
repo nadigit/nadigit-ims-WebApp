@@ -58,6 +58,13 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
+                        <button pButton pRipple icon="pi pi-file-edit" 
+                            [label]="'generate_proforma_invoice' | translate"
+                            class="p-button-warning"
+                            *ngIf="isAdmin && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
+                                && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned'"
+                            [pTooltip]="'preliminary_invoice_info' | translate"
+                            (click)="generateProformaInvoice(order)"></button>
                         <button pButton pRipple icon="pi pi-print" 
                             [label]="'generate_invoice' | translate"
                             class="p-button-help"
@@ -115,8 +122,46 @@
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'tax' | translate }}</span>
-                    <div class="stat-value">{{ calculateOrderTax() | number:'1.2-2' }}</div>
+                    <div class="stat-value">{{ order.taxAmount | number:'1.2-2' }}</div>
                     <span class="stat-sub">{{ currency }}</span>
+                </div>
+            </div>
+            
+            <!-- Cost and Profit Stats (if available) -->
+            <div class="stat-card-modern" *ngIf="hasCostInfo()">
+                <div class="stat-icon cost">
+                    <i class="pi pi-dollar"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'total_cost' | translate }}</span>
+                    <div class="stat-value cost-value">{{ order.totalCost | number:'1.2-2' }}</div>
+                    <span class="stat-sub">{{ currency }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern" *ngIf="hasCostInfo()">
+                <div class="stat-icon profit" [ngClass]="{'profit-negative': order.totalProfit < 0}">
+                    <i class="pi" [ngClass]="order.totalProfit >= 0 ? 'pi-arrow-up' : 'pi-arrow-down'"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'total_profit' | translate }}</span>
+                    <div class="stat-value profit-value" [ngClass]="{'profit-negative': order.totalProfit < 0}">
+                        {{ order.totalProfit | number:'1.2-2' }}
+                    </div>
+                    <span class="stat-sub">{{ currency }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern" *ngIf="hasCostInfo() && order.profitMargin != null">
+                <div class="stat-icon margin" [ngClass]="getProfitMarginClass(order.profitMargin)">
+                    <i class="pi pi-percentage"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'profit_margin' | translate }}</span>
+                    <div class="stat-value margin-value" [ngClass]="getProfitMarginClass(order.profitMargin)">
+                        {{ order.profitMargin | number:'1.2-2' }}%
+                    </div>
+                    <span class="stat-sub">{{ 'margin' | translate }}</span>
                 </div>
             </div>
         </div>
@@ -171,7 +216,7 @@
                                     </div>
                                     <div class="summary-row" *ngIf="order.taxEnabled">
                                         <span class="summary-label">{{ 'tax' | translate }}</span>
-                                        <span class="summary-value">+{{ calculateOrderTax() | number:'1.2-2' }} {{ currency }}</span>
+                                        <span class="summary-value">+{{ order.taxAmount | number:'1.2-2' }} {{ currency }}</span>
                                     </div>
                                     <div class="summary-row" *ngIf="order.transportAmount">
                                         <span class="summary-label">{{ 'transport_amount' | translate }}</span>
@@ -181,6 +226,28 @@
                                     <div class="summary-total" *ngIf="order.totalAmount">
                                         <span class="summary-label font-bold">{{ 'total' | translate }}</span>
                                         <span class="summary-value total-amount">{{ order.totalAmount | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                    
+                                    <!-- Cost and Profit Breakdown (if available) -->
+                                    <p-divider *ngIf="hasCostInfo()"></p-divider>
+                                    
+                                    <div class="summary-row cost-row" *ngIf="hasCostInfo()">
+                                        <span class="summary-label">{{ 'total_cost' | translate }}</span>
+                                        <span class="summary-value cost-value">{{ order.totalCost | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                    
+                                    <div class="summary-row profit-row" *ngIf="hasCostInfo()">
+                                        <span class="summary-label">{{ 'total_profit' | translate }}</span>
+                                        <span class="summary-value profit-value" [ngClass]="{'profit-negative': order.totalProfit < 0}">
+                                            {{ order.totalProfit | number:'1.2-2' }} {{ currency }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="summary-row margin-row" *ngIf="hasCostInfo() && order.profitMargin != null">
+                                        <span class="summary-label">{{ 'profit_margin' | translate }}</span>
+                                        <span class="summary-value margin-value" [ngClass]="getProfitMarginClass(order.profitMargin)">
+                                            {{ order.profitMargin | number:'1.2-2' }}%
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -328,11 +395,15 @@
                                     *ngIf="order?.orderItems?.length > 0; else noItems">
                                     <ng-template pTemplate="header">
                                         <tr>
-                                            <th style="width: 35%">{{ 'product' | translate }}</th>
-                                            <th style="width: 15%">{{ 'reference' | translate }}</th>
-                                            <th style="width: 15%" class="text-center">{{ 'quantity' | translate }}</th>
-                                            <th style="width: 15%">{{ 'unit_price' | translate }}</th>
-                                            <th style="width: 20%">{{ 'total' | translate }}</th>
+                                            <th style="width: 25%">{{ 'product' | translate }}</th>
+                                            <th style="width: 12%">{{ 'reference' | translate }}</th>
+                                            <th style="width: 10%" class="text-center">{{ 'quantity' | translate }}</th>
+                                            <th style="width: 12%">{{ 'unit_price' | translate }}</th>
+                                            <th style="width: 12%">{{ 'total' | translate }}</th>
+                                            <!-- Cost and Profit Columns (if available) -->
+                                            <th style="width: 10%" *ngIf="hasCostInfo()">{{ 'cost_per_unit' | translate }}</th>
+                                            <th style="width: 10%" *ngIf="hasCostInfo()">{{ 'total_cost' | translate }}</th>
+                                            <th style="width: 9%" *ngIf="hasCostInfo()">{{ 'profit' | translate }}</th>
                                         </tr>
                                     </ng-template>
                                     <ng-template pTemplate="body" let-orderItem>
@@ -358,12 +429,34 @@
                                             </td>
                                             <td class="font-semibold">{{ orderItem?.pricePerUnit | number:'1.2-2' }} {{ currency }}</td>
                                             <td class="font-bold text-primary">{{ (orderItem?.quantity * orderItem?.pricePerUnit) | number:'1.2-2' }} {{ currency }}</td>
+                                            <!-- Cost and Profit Data (if available) -->
+                                            <td class="cost-cell" *ngIf="hasCostInfo()">
+                                                {{ orderItem?.costPerUnit != null ? (orderItem.costPerUnit | number:'1.2-2') + ' ' + currency : 'N/A' }}
+                                            </td>
+                                            <td class="cost-cell" *ngIf="hasCostInfo()">
+                                                {{ orderItem?.totalCost != null ? (orderItem.totalCost | number:'1.2-2') + ' ' + currency : 'N/A' }}
+                                            </td>
+                                            <td class="profit-cell" *ngIf="hasCostInfo()" [ngClass]="{'profit-negative': orderItem?.profit != null && orderItem.profit < 0}">
+                                                <span *ngIf="orderItem?.profit != null">
+                                                    {{ orderItem.profit | number:'1.2-2' }} {{ currency }}
+                                                    <span class="profit-margin-badge" [ngClass]="getProfitMarginClass(orderItem?.profitMargin)">
+                                                        ({{ orderItem?.profitMargin != null ? (orderItem.profitMargin | number:'1.0-1') + '%' : 'N/A' }})
+                                                    </span>
+                                                </span>
+                                                <span *ngIf="orderItem?.profit == null">N/A</span>
+                                            </td>
                                         </tr>
                                     </ng-template>
                                     <ng-template pTemplate="footer">
                                         <tr class="total-footer">
-                                            <td colspan="4" class="text-right font-bold">{{ 'subtotal' | translate }}:</td>
+                                            <td [attr.colspan]="hasCostInfo() ? 4 : 4" class="text-right font-bold">{{ 'subtotal' | translate }}:</td>
                                             <td class="font-bold text-primary text-xl">{{ getOrderSubtotal() | number:'1.2-2' }} {{ currency }}</td>
+                                            <td *ngIf="hasCostInfo()" colspan="2" class="text-right font-bold cost-cell">{{ 'total_cost' | translate }}:</td>
+                                            <td *ngIf="hasCostInfo()" class="font-bold cost-value text-xl">{{ order.totalCost | number:'1.2-2' }} {{ currency }}</td>
+                                            <td *ngIf="hasCostInfo()" colspan="2" class="text-right font-bold profit-cell">{{ 'total_profit' | translate }}:</td>
+                                            <td *ngIf="hasCostInfo()" class="font-bold profit-value text-xl" [ngClass]="{'profit-negative': order.totalProfit < 0}">
+                                                {{ order.totalProfit | number:'1.2-2' }} {{ currency }}
+                                            </td>
                                         </tr>
                                     </ng-template>
                                 </p-table>

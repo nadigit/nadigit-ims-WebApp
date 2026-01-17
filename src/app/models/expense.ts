@@ -22,4 +22,5 @@ export class Expense {
     reimbursementDate?: Date | string;
     reimbursedBy?: string;
     approvalNotes?: string;
+    bankAccountId?: number;
 } 

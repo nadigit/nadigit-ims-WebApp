@@ -1,0 +1,45 @@
+/* Write-Off List Styles */
+.write-off-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.write-off-badge.pending {
+    background-color: var(--yellow-100);
+    color: var(--yellow-800);
+}
+
+.write-off-badge.approved {
+    background-color: var(--green-100);
+    color: var(--green-800);
+}
+
+.write-off-badge.rejected {
+    background-color: var(--red-100);
+    color: var(--red-800);
+}
+
+.condition-badge.damaged,
+.condition-badge.unusable {
+    background-color: var(--red-100);
+    color: var(--red-800);
+}
+
+.condition-badge.lost {
+    background-color: var(--orange-100);
+    color: var(--orange-800);
+}
+
+.condition-badge.expired {
+    background-color: var(--blue-100);
+    color: var(--blue-800);
+}
+
+.confirmation-content {
+    display: flex;
+    align-items: center;
+}
+

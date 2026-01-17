@@ -8,4 +8,6 @@ export class PurchaseItem {
   quantityPurchased?: number;
   buyingPrice?: number;
   totalCost?: number;
+  expirationDate?: string | null; // Optional expiration date for this batch/lot (ISO date string)
+  batchNumber?: string | null; // Optional batch number for this purchase item
 }

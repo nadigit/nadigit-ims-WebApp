@@ -14,11 +14,12 @@ import { FinancialDocumentsService } from 'src/app/services/financial-documents.
 import { Order } from 'src/app/models/order';
 import { firstValueFrom } from 'rxjs';
 import { getPaymentMethodIcon, getPaymentMethodSeverity, getPaymentStatusSeverity, getPaymentStatusIcon } from 'src/app/shared/payment-utils';
+import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
 
 @Component({
   selector: 'app-sales-payment-details-page',
   templateUrl: './sales-payment-details-page.component.html',
-  styleUrls: ['./sales-payment-details-page.component.css', '../payments.component.css']
+  styleUrls: ['./sales-payment-details-page.component.css']
 })
 export class SalesPaymentDetailsPageComponent implements OnInit {
   paymentId!: number;
@@ -29,9 +30,15 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
   canEdit: boolean = false;
   canDelete: boolean = false;
   canRead: boolean = false;
+  canConfirm: boolean = false;
   isAdmin: boolean = false;
   userRoles: any;
   Ressource: string = "PAYMENTS";
+  
+  // Reconciliation status properties
+  reconciliationStatus: ReconciliationStatus | null = null;
+  isCheckingReconciliation: boolean = false;
+  confirmPaymentDialog: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -45,7 +52,8 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private translateService: TranslationService,
-    public financialDocService: FinancialDocumentsService
+    public financialDocService: FinancialDocumentsService,
+    private reconciliationValidationService: ReconciliationValidationService
   ) {}
 
   async ngOnInit() {
@@ -124,6 +132,28 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
         }
       }
 
+      // Load reconciliation status if required
+      if (this.payment.paymentId && this.reconciliationValidationService.requiresReconciliation(this.payment.paymentMethod)) {
+        this.isCheckingReconciliation = true;
+        try {
+          this.reconciliationStatus = await this.reconciliationValidationService.checkPaymentReconciliationStatus(this.payment.paymentId);
+          this.isCheckingReconciliation = false;
+        } catch (error) {
+          console.error('Error checking reconciliation status:', error);
+          this.isCheckingReconciliation = false;
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('error_loading_reconciliation_status'),
+            life: 4000
+          });
+          this.reconciliationStatus = null;
+        }
+      } else {
+        this.reconciliationStatus = null;
+        this.isCheckingReconciliation = false;
+      }
+
       this.isLoading = false;
     } catch (error: any) {
       console.error('Error loading payment:', error);
@@ -144,6 +174,9 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
     this.canEdit = this.permissionService.canUpdate(this.Ressource);
     this.canDelete = this.permissionService.canDelete(this.Ressource);
     this.canRead = this.permissionService.canRead(this.Ressource);
+    // Note: confirm permission might need to be added to permission service
+    // For now, allowing if user can update
+    this.canConfirm = this.permissionService.canUpdate(this.Ressource);
   }
 
   async setUserRoles() {
@@ -183,17 +216,11 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
   }
 
   isPaymentNotSettled(): boolean {
-    if (!this.payment?.paymentDate) return false;
-    
-    const today = new Date();
-    const paymentDate = new Date(this.payment.paymentDate);
-
-    const isToday =
-      paymentDate.getFullYear() === today.getFullYear() &&
-      paymentDate.getMonth() === today.getMonth() &&
-      paymentDate.getDate() === today.getDate();
-
-    return isToday && this.payment.paymentStatus !== 'SETTLED';
+    // A payment is considered "not settled" if its status is not SETTLED
+    // This allows editing/deleting payments regardless of when they were created,
+    // as long as they haven't been settled yet
+    if (!this.payment) return false;
+    return this.payment.paymentStatus !== 'SETTLED';
   }
 
   getReceiptStatusSeverity(status: string): string {
@@ -291,6 +318,112 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
       detail: this.translate.instant('delete_payment_confirmation_required'),
       life: 3000
     });
+  }
+
+  requiresReconciliation(paymentMethod: string | null | undefined): boolean {
+    return this.reconciliationValidationService.requiresReconciliation(paymentMethod);
+  }
+
+  canConfirmPaymentBasedOnReconciliation(): boolean {
+    if (!this.payment?.paymentId || !this.requiresReconciliation(this.payment.paymentMethod)) {
+      return true; // No reconciliation required
+    }
+    return !this.reconciliationStatus || this.reconciliationStatus.canProceed;
+  }
+
+  async openConfirmPayment(): Promise<void> {
+    if (!this.canConfirm || !this.payment) return;
+    this.confirmPaymentDialog = true;
+    
+    // Check reconciliation status if required
+    if (this.payment.paymentId && this.reconciliationValidationService.requiresReconciliation(this.payment.paymentMethod)) {
+      try {
+        this.isCheckingReconciliation = true;
+        this.reconciliationStatus = await this.reconciliationValidationService.checkPaymentReconciliationStatus(this.payment.paymentId);
+        this.isCheckingReconciliation = false;
+      } catch (error) {
+        console.error('Error checking reconciliation status:', error);
+        this.isCheckingReconciliation = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_loading_reconciliation_status'),
+          life: 4000
+        });
+        this.reconciliationStatus = null;
+      }
+    } else {
+      this.reconciliationStatus = null;
+    }
+  }
+
+  async confirmPayment(): Promise<void> {
+    if (!this.payment?.paymentId) return;
+    
+    // Check reconciliation status before confirming (refresh status to ensure it's current)
+    if (this.reconciliationValidationService.requiresReconciliation(this.payment.paymentMethod)) {
+      try {
+        this.isCheckingReconciliation = true;
+        const status = await this.reconciliationValidationService.checkPaymentReconciliationStatus(this.payment.paymentId);
+        this.reconciliationStatus = status;
+        this.isCheckingReconciliation = false;
+        
+        if (!status.canProceed) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('cannot_confirm_payment_reconciliation_required'),
+            life: 5000
+          });
+          return; // Don't confirm
+        }
+      } catch (error) {
+        console.error('Error checking reconciliation status:', error);
+        this.isCheckingReconciliation = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_loading_reconciliation_status'),
+          life: 4000
+        });
+        this.reconciliationStatus = null;
+        return; // Don't proceed if we can't check status
+      }
+    }
+    
+    this.confirmPaymentDialog = false;
+    
+    try {
+      await firstValueFrom(this.paymentService.confirmPayment(this.payment.paymentId));
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('payment_confirmed'),
+        life: 3000
+      });
+      // Reload payment to get updated status
+      await this.loadPayment();
+    } catch (error: any) {
+      console.error('Error confirming payment:', error);
+      const errorMessage = error?.error?.message || error?.message || '';
+      const errorLower = errorMessage.toLowerCase();
+      
+      if (errorLower.includes('reconciled') || errorLower.includes('reconciliation') || errorLower.includes('bank transaction')) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('cannot_confirm_payment_reconciliation_required'),
+          life: 5000
+        });
+      } else {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: errorMessage || this.translate.instant('error_confirming_payment'),
+          life: 4000
+        });
+      }
+    }
   }
 }
 

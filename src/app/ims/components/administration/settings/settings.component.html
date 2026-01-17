@@ -162,13 +162,77 @@
 													<span class="value-unit">{{ 'days' | translate }}</span>
 												</span>
 
+												<!-- Boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
+												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account'" class="value-text">
+													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
+														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
+												</span>
+
+												<!-- Credit boolean settings -->
+												<span *ngIf="config.key === 'credit.automatic.usage.enabled' || 
+													config.key === 'credit.automatic.issuance.enabled' || 
+													config.key === 'credit.manual.issuance.enabled' || 
+													config.key === 'credit.limit.enforcement.enabled' || 
+													config.key === 'credit.limit.includes.outstanding'" class="value-text">
+													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
+														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
+												</span>
+
+												<!-- Outstanding balance boolean settings -->
+												<span *ngIf="config.key === 'outstanding.balance.tracking.enabled' || 
+													config.key === 'outstanding.balance.aging.enabled'" class="value-text">
+													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
+														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
+												</span>
+
+												<!-- Outstanding balance overdue threshold days -->
+												<span *ngIf="config.key === 'outstanding.balance.overdue.threshold.days'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'days' | translate }}</span>
+												</span>
+
+												<!-- Credit default terms days -->
+												<span *ngIf="config.key === 'credit.default.terms.days'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'days' | translate }}</span>
+												</span>
+
+												<!-- Minimum amount with currency -->
+												<span *ngIf="config.key === 'payment.bank.methods.minimum.amount'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ appConfigCurrency?.value || 'USD' }}</span>
+												</span>
+
+												<!-- Refund percentages -->
+												<span *ngIf="config.key === 'return.refund.percentage.damaged' || 
+													config.key === 'return.refund.percentage.used' || 
+													config.key === 'return.refund.percentage.new'" class="value-text">
+													<span class="value-number">{{ (parseFloat(config.value) * 100) | number: '1.0-2' }}</span>
+													<span class="value-unit">%</span>
+												</span>
+
 												<!-- Display the value for other keys -->
 												<span *ngIf="config.key !== 'lowStockThreshold' &&
 													config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' &&
 													config.key !== 'returnWindow' &&
 													config.key !== 'refundWindow' &&
 													config.key !== 'app.timezone' &&
-													config.key !== 'autoOrderComplete'" class="value-text">
+													config.key !== 'autoOrderComplete' &&
+													config.key !== 'cash.register.auto.open.session' &&
+													config.key !== 'payment.bank.methods.require.account' &&
+													config.key !== 'payment.bank.methods.minimum.amount' &&
+													config.key !== 'return.refund.percentage.damaged' &&
+													config.key !== 'return.refund.percentage.used' &&
+													config.key !== 'return.refund.percentage.new' &&
+													config.key !== 'credit.automatic.usage.enabled' &&
+													config.key !== 'credit.automatic.issuance.enabled' &&
+													config.key !== 'credit.manual.issuance.enabled' &&
+													config.key !== 'credit.default.terms.days' &&
+													config.key !== 'credit.limit.enforcement.enabled' &&
+													config.key !== 'credit.limit.includes.outstanding' &&
+													config.key !== 'outstanding.balance.tracking.enabled' &&
+													config.key !== 'outstanding.balance.aging.enabled' &&
+													config.key !== 'outstanding.balance.overdue.threshold.days'" class="value-text">
 													<span class="value-number">{{ config.value }}</span>
 												</span>
 
@@ -238,6 +302,67 @@
 													<p-dropdown [options]="timezones" [(ngModel)]="config.value" optionLabel="label"
 														optionValue="value" placeholder="{{ 'select_timezone_option' | translate }}" class="w-full">
 													</p-dropdown>
+												</div>
+
+												<!-- Edit mode for boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
+												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="booleanOptions"
+														optionLabel="label"
+														optionValue="value"
+														placeholder="{{ 'enabled' | translate }}" class="w-full">
+													</p-dropdown>
+												</div>
+
+												<!-- Edit mode for minimum amount -->
+												<div *ngIf="config.key === 'payment.bank.methods.minimum.amount'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" min="0" step="0.01" />
+													<span class="edit-unit">{{ appConfigCurrency?.value || 'USD' }}</span>
+												</div>
+
+												<!-- Edit mode for refund percentages -->
+												<div *ngIf="config.key === 'return.refund.percentage.damaged' || 
+													config.key === 'return.refund.percentage.used' || 
+													config.key === 'return.refund.percentage.new'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" min="0" max="1" step="0.01" />
+													<span class="edit-unit">%</span>
+												</div>
+
+												<!-- Credit boolean settings edit mode -->
+												<div *ngIf="config.key === 'credit.automatic.usage.enabled' || 
+													config.key === 'credit.automatic.issuance.enabled' || 
+													config.key === 'credit.manual.issuance.enabled' || 
+													config.key === 'credit.limit.enforcement.enabled' || 
+													config.key === 'credit.limit.includes.outstanding'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="booleanOptions"
+														optionLabel="label"
+														optionValue="value"
+														placeholder="{{ 'enabled' | translate }}" class="w-full">
+													</p-dropdown>
+												</div>
+
+												<!-- Credit default terms days edit mode -->
+												<div *ngIf="config.key === 'credit.default.terms.days'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" [min]="0" />
+													<span class="edit-unit">{{ 'days' | translate }}</span>
+												</div>
+
+												<!-- Outstanding balance boolean settings edit mode -->
+												<div *ngIf="config.key === 'outstanding.balance.tracking.enabled' || 
+													config.key === 'outstanding.balance.aging.enabled'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="booleanOptions"
+														optionLabel="label"
+														optionValue="value"
+														placeholder="{{ 'enabled' | translate }}" class="w-full">
+													</p-dropdown>
+												</div>
+
+												<!-- Outstanding balance overdue threshold days edit mode -->
+												<div *ngIf="config.key === 'outstanding.balance.overdue.threshold.days'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" [min]="0" />
+													<span class="edit-unit">{{ 'days' | translate }}</span>
 												</div>
 											</div>
 										</ng-template>

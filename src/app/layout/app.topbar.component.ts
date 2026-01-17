@@ -97,7 +97,7 @@ export class AppTopBarComponent implements OnInit {
     console.log(this.profile)
 
     // Determine if current user is admin (can see all notifications)
-    const roles = this.keycloakService.getUserRoles?.() || [];
+    const roles = await this.keycloakService.getUserRoles();
     this.isAdminUser = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN');
     console.log('Topbar user roles:', roles, 'isAdminUser:', this.isAdminUser);
     // this.items = [
@@ -225,15 +225,28 @@ export class AppTopBarComponent implements OnInit {
 
     // Non-admin users: restrict to stock-related notifications only
     if (!this.isAdminUser) {
-      const stockTitles = ['product in low stock', 'product is out of stock'];
+      const stockTitles = ['product in low stock', 'product is out of stock', 'product expired', 'product expiring soon'];
       allRecent = allRecent.filter(n => stockTitles.includes(n.title));
       allOlder = allOlder.filter(n => stockTitles.includes(n.title));
     }
 
     // Update priority notifications first
+    // Include expired products as high priority even if not explicitly marked
     const allPriority = [...allRecent, ...allOlder]
-      .filter(n => n.priority === 'high')
-      .sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime());
+      .filter(n => {
+        const isHighPriority = n.priority === 'high';
+        const isExpired = n.title === 'product expired' || 
+                         (n.title && n.title.toLowerCase().includes('expired'));
+        return isHighPriority || isExpired;
+      })
+      .sort((a, b) => {
+        // Sort expired products first, then by date
+        const aExpired = a.title === 'product expired' || (a.title && a.title.toLowerCase().includes('expired'));
+        const bExpired = b.title === 'product expired' || (b.title && b.title.toLowerCase().includes('expired'));
+        if (aExpired && !bExpired) return -1;
+        if (!aExpired && bExpired) return 1;
+        return new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime();
+      });
 
     let filteredRecent = [...allRecent];
     let filteredOlder = [...allOlder];
@@ -280,7 +293,15 @@ export class AppTopBarComponent implements OnInit {
       case 'system':
         return notification.type === 'system';
       case 'inventory':
-        return notification.type === 'inventory' || notification.category === 'inventory';
+        // Include inventory type, category, and expiration-related notifications
+        const isInventoryType = notification.type === 'inventory' || notification.category === 'inventory';
+        const isExpirationNotification = notification.title === 'product expired' || 
+                                        notification.title === 'product expiring soon' ||
+                                        (notification.title && (
+                                          notification.title.toLowerCase().includes('expired') ||
+                                          notification.title.toLowerCase().includes('expiring')
+                                        ));
+        return isInventoryType || isExpirationNotification;
       case 'orders':
         return notification.type === 'order' || notification.category === 'orders';
       case 'financial':
@@ -311,6 +332,16 @@ export class AppTopBarComponent implements OnInit {
   }
 
   getNotificationIcon(notification: any): string {
+    // Handle expiration-related notifications
+    if (notification.title === 'product expired' || 
+        (notification.title && notification.title.toLowerCase().includes('expired'))) {
+      return 'pi pi-exclamation-triangle';
+    }
+    if (notification.title === 'product expiring soon' || 
+        (notification.title && notification.title.toLowerCase().includes('expiring'))) {
+      return 'pi pi-clock';
+    }
+
     const iconMap: { [key: string]: string } = {
       'inventory': 'pi pi-box',
       'order': 'pi pi-shopping-cart',
@@ -327,6 +358,16 @@ export class AppTopBarComponent implements OnInit {
   }
 
   getNotificationIconClass(notification: any): string {
+    // Handle expiration-related notifications
+    if (notification.title === 'product expired' || 
+        (notification.title && notification.title.toLowerCase().includes('expired'))) {
+      return 'notification-icon-error';
+    }
+    if (notification.title === 'product expiring soon' || 
+        (notification.title && notification.title.toLowerCase().includes('expiring'))) {
+      return 'notification-icon-warning';
+    }
+
     const classMap: { [key: string]: string } = {
       'high': 'notification-icon-high',
       'medium': 'notification-icon-medium',
@@ -344,14 +385,41 @@ export class AppTopBarComponent implements OnInit {
     const titleMap: { [key: string]: string } = {
       'product in low stock': 'low_stock_alert',
       'product is out of stock': 'out_of_stock_alert',
+      'product expired': 'product_expired_notification',
+      'product expiring soon': 'product_expiring_soon_notification',
       'order created': 'new_order_received',
       'payment received': 'payment_received',
       'purchase created': 'purchase_created',
       'session opened': 'session_opened',
       'session closed': 'session_closed',
       'system update': 'system_update',
-      'inventory audit': 'inventory_audit'
+      'inventory audit': 'inventory_audit',
+      'write-off created': 'write_off_created_notification',
+      'write-off approved': 'write_off_approved_notification',
+      'write-off rejected': 'write_off_rejected_notification'
     };
+
+    // Also check for case-insensitive matching and partial matches
+    if (notification.title) {
+      const titleLower = notification.title.toLowerCase();
+      if (titleLower.includes('expired') && !titleMap[notification.title]) {
+        return 'product_expired_notification';
+      }
+      if (titleLower.includes('expiring') && !titleMap[notification.title]) {
+        return 'product_expiring_soon_notification';
+      }
+      if (titleLower.includes('write-off') || titleLower.includes('writeoff')) {
+        if (titleLower.includes('created')) {
+          return 'write_off_created_notification';
+        }
+        if (titleLower.includes('approved')) {
+          return 'write_off_approved_notification';
+        }
+        if (titleLower.includes('rejected')) {
+          return 'write_off_rejected_notification';
+        }
+      }
+    }
 
     return titleMap[notification.title] || notification.title;
   }
@@ -379,6 +447,27 @@ export class AppTopBarComponent implements OnInit {
   }
 
   getNotificationMessage(notification: any): string {
+    // Handle expiration notifications
+    if (notification.title === 'product expired' || 
+        (notification.title && notification.title.toLowerCase().includes('expired'))) {
+      const productName = notification.message?.match(/\(([^)]+)\)/)?.[1] || 
+                         notification.message?.split(' - ')?.[0] ||
+                         notification.message?.split(' has expired')?.[0] ||
+                         'Product';
+      return this.translate.instant('product_x_has_expired', { product: productName });
+    }
+    
+    if (notification.title === 'product expiring soon' || 
+        (notification.title && notification.title.toLowerCase().includes('expiring'))) {
+      const productName = notification.message?.match(/\(([^)]+)\)/)?.[1] || 
+                         notification.message?.split(' - ')?.[0] ||
+                         notification.message?.split(' is expiring')?.[0] ||
+                         'Product';
+      const daysMatch = notification.message?.match(/(\d+)\s*days?/i);
+      const days = daysMatch ? daysMatch[1] : '7';
+      return this.translate.instant('product_x_expiring_soon_days', { product: productName, days: days });
+    }
+
     // Handle product stock notifications
     if (['product in low stock', 'product is out of stock'].includes(notification.title)) {
       const productName = notification.message?.match(/\(([^)]+)\)/)?.[1];
@@ -475,6 +564,89 @@ export class AppTopBarComponent implements OnInit {
             currency: this.currency
           }
         );
+      }
+    }
+
+    // Handle write-off created notification
+    const titleLower = notification.title?.toLowerCase() || '';
+    if (titleLower.includes('write-off') || titleLower.includes('writeoff')) {
+      if (titleLower.includes('created')) {
+        // Backend format: "Write-off WOF-2026-00001 created for 5 units of Product Name (Condition: DAMAGED, Cost: $100.00). Pending approval."
+        const regex = /Write-off\s+([A-Z0-9-]+)\s+created for\s+(\d+)\s+units? of\s+(.+?)\s+\(Condition:\s*(.+?),\s*Cost:\s*\$([0-9.]+)[^)]*\)\.\s*(.+)/i;
+        const matches = notification.message?.match(regex);
+        
+        if (matches && matches.length >= 7) {
+          const reference = matches[1] || 'N/A';
+          const quantity = matches[2] || '0';
+          const product = matches[3]?.trim() || 'Product';
+          const condition = matches[4]?.trim() || 'N/A';
+          const rawCost = matches[5] || '0';
+          const status = matches[6]?.trim() || 'Pending approval';
+          const cost = rawCost.replace(/[^0-9.,-]/g, '');
+          
+          return this.translate.instant(
+            'write_off_created_notification_message',
+            {
+              reference,
+              quantity,
+              product,
+              condition,
+              cost,
+              currency: this.currency || '',
+              status
+            }
+          );
+        }
+      }
+      
+      if (titleLower.includes('approved')) {
+        // Backend format: "Write-off WOF-2026-00001 for 5 units of Product Name (Cost: $100.00) has been approved by admin."
+        const regex = /Write-off\s+([A-Z0-9-]+)\s+for\s+(\d+)\s+units? of\s+(.+?)\s+\(Cost:\s*\$([0-9.]+)[^)]*\)\s+has been approved by\s+(.+?)\./i;
+        const matches = notification.message?.match(regex);
+        
+        if (matches && matches.length >= 6) {
+          const reference = matches[1] || 'N/A';
+          const quantity = matches[2] || '0';
+          const product = matches[3]?.trim() || 'Product';
+          const rawCost = matches[4] || '0';
+          const approver = matches[5]?.trim() || 'System';
+          const cost = rawCost.replace(/[^0-9.,-]/g, '');
+          
+          return this.translate.instant(
+            'write_off_approved_notification_message',
+            {
+              reference,
+              quantity,
+              product,
+              cost,
+              currency: this.currency || '',
+              approver
+            }
+          );
+        }
+      }
+      
+      if (titleLower.includes('rejected')) {
+        // Backend format: "Write-off WOF-2026-00001 for Product Name has been rejected. Reason: Some reason" or "Write-off WOF-2026-00001 for Product Name has been rejected."
+        const regex = /Write-off\s+([A-Z0-9-]+)\s+for\s+(.+?)\s+has been rejected\.(?:\s+Reason:\s+(.+))?/i;
+        const matches = notification.message?.match(regex);
+        
+        if (matches && matches.length >= 2) {
+          const reference = matches[1] || 'N/A';
+          const product = matches[2]?.trim() || 'Product';
+          const rejectionReason = matches[3]?.trim() || '';
+          // Format reason with " Reason: " prefix if it exists
+          const reason = rejectionReason ? ` Reason: ${rejectionReason}` : '';
+          
+          return this.translate.instant(
+            'write_off_rejected_notification_message',
+            {
+              reference,
+              product,
+              reason
+            }
+          );
+        }
       }
     }
 

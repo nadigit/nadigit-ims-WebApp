@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { MenuItem, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { AuthenticationService } from 'src/app/services/authentication.service';
@@ -14,6 +14,7 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { Warehouse } from 'src/app/models/warehouse';
 import { Shop } from 'src/app/models/shop';
 import { PermissionService } from 'src/app/services/permission.service';
+import { Router } from '@angular/router';
 
 
 @Component({
@@ -97,6 +98,8 @@ export class UsersComponent implements OnInit {
   selectedShop: Shop = {}; // To hold selected shop IDs
 
   selectedWarehouse: Warehouse = {}; // To hold selected warehouse IDs
+  
+  posPin: string = ''; // POS PIN for user
   isLoading: boolean = true;
 
 
@@ -109,7 +112,8 @@ export class UsersComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private cdr: ChangeDetectorRef,
-    private permissionService: PermissionService,) {  
+    private permissionService: PermissionService,
+    private router: Router) {  
 
     }
 
@@ -259,8 +263,11 @@ export class UsersComponent implements OnInit {
 
   async editUser(user: User) {
     this.user = { ...user };
-    const warehouseId = Number(user.attributes.warehouse);
-    const shopId = Number(user.attributes.shop);
+    const warehouseId = Number(user.attributes?.warehouse);
+    const shopId = Number(user.attributes?.shop);
+    
+    // Load POS PIN from user attributes
+    this.posPin = user.attributes?.posPin || '';
     try {
         // Use forkJoin to combine both observables
         const result = await forkJoin({
@@ -285,6 +292,10 @@ export class UsersComponent implements OnInit {
     this.initializePickList();
     this.userDialog = true;
 }
+
+  showUserDetails(user: User) {
+    this.router.navigate(['/administration/users', user.id]);
+  }
 
   deleteUser(user: User) {
     this.deleteUserDialog = true;
@@ -346,6 +357,7 @@ export class UsersComponent implements OnInit {
     this.userCredential = {};
     this.selectedShop = {};
     this.selectedWarehouse = {};
+    this.posPin = '';
     this.initializePickList()
     this.submitted = false;
     if (this.activeItem.icon == 'pi pi-fw pi-user') {
@@ -480,6 +492,7 @@ export class UsersComponent implements OnInit {
 
     this.user.attributes.shop = this.selectedShop ? this.selectedShop.shopId?.toString() : ''; // Set single shop as string
     this.user.attributes.warehouse = this.selectedWarehouse ? this.selectedWarehouse.warehouseId?.toString() : ''; // Set single warehouse as string
+    this.user.attributes.posPin = this.posPin || ''; // Set POS PIN
 
     if (this.user.username.trim()) {
       delete this.user.creationDate;
@@ -503,11 +516,19 @@ export class UsersComponent implements OnInit {
 
       this.user = {};
       this.userCredential = {};
-      this.targetRoles = []
+      this.targetRoles = [];
+      this.posPin = '';
+      this.selectedShop = {};
+      this.selectedWarehouse = {};
     }
     this.isUserInfoValid = false;
     this.cdr.detectChanges(); // Detect changes to update the UI
+  }
 
+  onPosPinInput(event: any) {
+    // Only allow numeric characters
+    const value = event.target.value;
+    this.posPin = value.replace(/[^0-9]/g, '');
   }
 
   saveRole() {
@@ -540,8 +561,17 @@ export class UsersComponent implements OnInit {
   }
 
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  @ViewChild('dt') dt!: Table;
+  @ViewChild('dtRoles') dtRoles!: Table;
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    // Filter the appropriate table based on active tab
+    if (this.activeItem?.icon === 'pi pi-fw pi-user' && this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    } else if (this.activeItem?.icon === 'pi pi-fw pi-shield' && this.dtRoles) {
+      this.dtRoles.filterGlobal(value, 'contains');
+    }
   }
 
 

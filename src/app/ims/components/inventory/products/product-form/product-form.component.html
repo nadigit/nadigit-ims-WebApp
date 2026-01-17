@@ -106,6 +106,39 @@
 			<!-- Right Column - Form Fields -->
 			<div class="col-12 md:col-8">
 				<div class="form-section grid">
+					<!-- Product Type Selector -->
+					<div class="field col-12">
+						<label for="productType" class="block mb-2 font-bold">
+							{{'product_type' | translate}} <span class="required-asterisk">*</span>
+						</label>
+						<p-dropdown appendTo="body" [(ngModel)]="localProduct.productType" name="productType"
+							[options]="productTypeOptions" optionLabel="label" optionValue="value"
+							placeholder="{{'select_product_type' | translate}}" required
+							[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.productType}"
+							(onChange)="onProductTypeChange()"
+							[disabled]="!isAdmin && localProduct?.productId">
+							<ng-template pTemplate="selectedItem">
+								<span *ngIf="localProduct.productType" class="flex align-items-center gap-2">
+									<i [class]="localProduct.productType === 'SERVICE' ? 'pi pi-cog' : 'pi pi-box'"></i>
+									{{ localProduct.productType === 'SERVICE' ? ('product_type_service' | translate) : ('product_type_product' | translate) }}
+								</span>
+							</ng-template>
+							<ng-template let-option pTemplate="item">
+								<span class="flex align-items-center gap-2">
+									<i [class]="option.value === 'SERVICE' ? 'pi pi-cog' : 'pi pi-box'"></i>
+									{{ option.label }}
+								</span>
+							</ng-template>
+						</p-dropdown>
+						<small class="text-color-secondary">
+							<span *ngIf="localProduct.productType === 'SERVICE'">{{'product_type_service_help' | translate}}</span>
+							<span *ngIf="!localProduct.productType || localProduct.productType === 'PRODUCT'">{{'product_type_product_help' | translate}}</span>
+						</small>
+						<small class="p-error" *ngIf="submitted && !localProduct.productType">
+							{{'product_type' | translate}} {{'is_required_label' | translate}}
+						</small>
+					</div>
+
 					<!-- Product Name -->
 					<div class="field col-12 md:col-6">
 						<label for="name" class="block mb-2 font-bold">
@@ -159,21 +192,25 @@
 							placeholder="{{'enter_product_description' | translate}}"></textarea>
 					</div>
 
-					<!-- Quantity Available -->
-					<div class="field col-12 md:col-4">
+					<!-- Quantity Available (Products only) -->
+					<div class="field col-12 md:col-4" *ngIf="isProduct()">
 						<label for="quantityAvailable" class="block mb-2 font-bold">
 							{{'product_quantity' | translate}}
 						</label>
 						<p-inputNumber name="quantityAvailable" [(ngModel)]="localProduct.quantityAvailable"
 							mode="decimal" [showButtons]="true" [min]="0"
-							[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.quantityAvailable}"
-							placeholder="0" required [readonly]="!isAdmin && localProduct?.productId">
+							[ngClass]="{'ng-invalid ng-dirty' : submitted && localProduct.quantityAvailable === null}"
+							placeholder="0" [readonly]="!!localProduct?.productId" [disabled]="!!localProduct?.productId">
 							<ng-template pTemplate="prefix">
 								<i class="pi pi-box"></i>
 							</ng-template>
 						</p-inputNumber>
-						<small class="p-error" *ngIf="submitted && !localProduct.quantityAvailable">
-							{{'product_quantity' | translate}} {{'is_required_label' | translate}}
+						<small class="text-color-secondary" *ngIf="!localProduct?.productId">
+							{{'product_quantity_help' | translate}}
+						</small>
+						<small class="text-warning block mt-1" *ngIf="localProduct?.productId">
+							<i class="pi pi-info-circle mr-1"></i>
+							{{'quantity_adjustment_help' | translate}}
 						</small>
 					</div>
 
@@ -184,7 +221,7 @@
 						</label>
 
 						<p-dropdown appendTo="body" [(ngModel)]="localProduct.measureUnit" name="measureUnit"
-							[options]="measureUnits" optionLabel="label" optionValue="value"
+							[options]="measureUnitsForCurrentType" optionLabel="label" optionValue="value"
 							placeholder="{{'select_measure_unit' | translate}}" required
 							[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.measureUnit}"
 							[disabled]="!isAdmin && localProduct?.productId">
@@ -196,20 +233,24 @@
 					</div>
 
 					<!-- Buying Price -->
-					<div class="field col-12 md:col-4">
+					<div class="field col-12 md:col-4" [ngClass]="{'col-12 md:col-6': isService()}">
 						<label for="buyingPrice" class="block mb-2 font-bold">
-							{{'product_buying_price' | translate}} <span class="required-asterisk">*</span>
+							{{'product_buying_price' | translate}} 
+							<span class="required-asterisk" *ngIf="isProduct()">*</span>
 						</label>
 						<p-inputNumber name="buyingPrice" [(ngModel)]="localProduct.buyingPrice" mode="currency"
 							[currency]="currency" [showButtons]="true" [min]="0"
-							[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.buyingPrice}"
-							[max]="9999999999" required [readonly]="!isAdmin && localProduct?.productId">
+							[ngClass]="{'ng-invalid ng-dirty' : submitted && isProduct() && !localProduct.buyingPrice}"
+							[max]="9999999999" [required]="isProduct()" [readonly]="!isAdmin && localProduct?.productId">
 							<ng-template pTemplate="prefix">
 								<i class="pi pi-money-bill"></i>
 							</ng-template>
 						</p-inputNumber>
-						<small class="p-error" *ngIf="submitted && !localProduct.buyingPrice">
+						<small class="p-error" *ngIf="submitted && isProduct() && !localProduct.buyingPrice">
 							{{'product_buying_price' | translate}} {{'is_required_label' | translate}}
+						</small>
+						<small class="text-color-secondary" *ngIf="isService()">
+							{{'product_buying_price_optional_services' | translate}}
 						</small>
 					</div>
 
@@ -229,6 +270,50 @@
 						<small class="p-error" *ngIf="submitted && !localProduct.sellingPrice">
 							{{'product_selling_price' | translate}} {{'is_required_label' | translate}}
 						</small>
+					</div>
+
+					<!-- Expiration Date (Products only) -->
+					<div class="field col-12" *ngIf="isProduct()">
+						<div class="flex align-items-center mb-2">
+							<p-checkbox [(ngModel)]="hasExpirationDate" 
+								[binary]="true" 
+								inputId="hasExpirationDate"
+								(onChange)="onExpirationDateToggle()">
+							</p-checkbox>
+							<label for="hasExpirationDate" class="ml-2 font-bold cursor-pointer">
+								{{'product_has_expiration_date' | translate}}
+							</label>
+						</div>
+						<small class="text-color-secondary block mb-2">
+							{{'expiration_date_help_text' | translate}}
+						</small>
+						
+						<div *ngIf="hasExpirationDate" class="mt-2">
+							<label for="expirationDate" class="block mb-2 font-bold">
+								{{'expiration_date' | translate}} <span class="required-asterisk">*</span>
+							</label>
+							<p-calendar 
+								id="expirationDate"
+								[(ngModel)]="expirationDateValue" 
+								name="expirationDate"
+								[showIcon]="true"
+								[showButtonBar]="true"
+								dateFormat="yy-mm-dd"
+								[readonly]="!isAdmin && localProduct?.productId"
+								[required]="hasExpirationDate"
+								[ngClass]="{'ng-invalid ng-dirty': submitted && hasExpirationDate && !expirationDateValue}"
+								[placeholder]="'select_expiration_date' | translate"
+								[showOnFocus]="true"
+								[baseZIndex]="10000"
+								appendTo="body">
+							</p-calendar>
+							<small class="p-error" *ngIf="submitted && hasExpirationDate && !expirationDateValue">
+								{{'expiration_date' | translate}} {{'is_required_label' | translate}}
+							</small>
+							<small class="text-color-secondary block mt-1">
+								{{'expiration_date_hint' | translate}}
+							</small>
+						</div>
 					</div>
 
 					<!-- Costing Method -->
@@ -322,7 +407,8 @@
 					<div class="field col-12" style="position: relative;">
 						<div class="flex align-items-center justify-content-between mb-2">
 							<label for="supplier" class="font-bold">
-								{{'product_supplier' | translate}} <span class="required-asterisk">*</span>
+								{{'product_supplier' | translate}} 
+								<span class="required-asterisk" *ngIf="isProduct()">*</span>
 							</label>
 							<a *ngIf="canAddSupplier" (click)="openSupplierDialog()"
 								class="text-sm text-primary cursor-pointer">
@@ -331,8 +417,9 @@
 						</div>
 						<p-dropdown appendTo="body" [(ngModel)]="localProduct.supplier" name="supplier"
 							optionLabel="name" [options]="suppliers" [filter]="true" filterBy="name"
-							[showClear]="true" placeholder="{{'select_supplier_option' | translate}}" required
-							[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.supplier}"
+							[showClear]="true" placeholder="{{'select_supplier_option' | translate}}" 
+							[required]="isProduct()"
+							[ngClass]="{'ng-invalid ng-dirty' : submitted && isProduct() && !localProduct.supplier}"
 							[disabled]="!isAdmin && localProduct?.productId">
 							<ng-template pTemplate="selectedItem">
 								<span *ngIf="localProduct && localProduct.supplier" class="flex align-items-center gap-2">
@@ -347,13 +434,16 @@
 								</span>
 							</ng-template>
 						</p-dropdown>
-						<small class="p-error" *ngIf="submitted && !localProduct.supplier">
+						<small class="p-error" *ngIf="submitted && isProduct() && !localProduct.supplier">
 							{{'product_supplier' | translate}} {{'is_required_label' | translate}}
+						</small>
+						<small class="text-color-secondary" *ngIf="isService()">
+							{{'product_supplier_optional_services' | translate}}
 						</small>
 					</div>
 
-					<!-- Warehouse (Admin only) -->
-					<div class="field col-12" style="position: relative;" *ngIf="isAdmin">
+					<!-- Warehouse (Products only, Admin only) -->
+					<div class="field col-12" style="position: relative;" *ngIf="isAdmin && isProduct()">
 						<div class="flex align-items-center justify-content-between mb-2">
 							<label for="warehouse" class="font-bold">
 								{{'product_warehouse' | translate}} <span class="required-asterisk">*</span>
@@ -383,6 +473,63 @@
 						<small class="p-error" *ngIf="submitted && !localProduct.warehouse">
 							{{'product_warehouse' | translate}} {{'is_required_label' | translate}}
 						</small>
+					</div>
+
+					<!-- Service-specific fields -->
+					<div *ngIf="isService()" class="col-12">
+						<div class="field col-12 md:col-4">
+							<label for="serviceProvider" class="block mb-2 font-bold">
+								{{'service_provider' | translate}}
+							</label>
+							<div class="p-inputgroup">
+								<input type="text" pInputText name="serviceProvider" 
+									[(ngModel)]="localProduct.serviceProvider"
+									placeholder="{{'enter_service_provider' | translate}}"
+									[readonly]="!isAdmin && localProduct?.productId" />
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-user"></i>
+								</span>
+							</div>
+							<small class="text-color-secondary">
+								{{'service_provider_help' | translate}}
+							</small>
+						</div>
+
+						<div class="field col-12 md:col-4">
+							<label for="estimatedDurationMinutes" class="block mb-2 font-bold">
+								{{'estimated_duration_minutes' | translate}}
+							</label>
+							<p-inputNumber name="estimatedDurationMinutes" 
+								[(ngModel)]="localProduct.estimatedDurationMinutes"
+								mode="decimal" [showButtons]="true" [min]="0"
+								placeholder="{{'enter_duration_minutes' | translate}}"
+								[readonly]="!isAdmin && localProduct?.productId">
+								<ng-template pTemplate="prefix">
+									<i class="pi pi-clock"></i>
+								</ng-template>
+							</p-inputNumber>
+							<small class="text-color-secondary">
+								{{'estimated_duration_help' | translate}}
+							</small>
+						</div>
+
+						<div class="field col-12 md:col-4">
+							<label for="serviceCategory" class="block mb-2 font-bold">
+								{{'service_category' | translate}}
+							</label>
+							<div class="p-inputgroup">
+								<input type="text" pInputText name="serviceCategory" 
+									[(ngModel)]="localProduct.serviceCategory"
+									placeholder="{{'enter_service_category' | translate}}"
+									[readonly]="!isAdmin && localProduct?.productId" />
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-tag"></i>
+								</span>
+							</div>
+							<small class="text-color-secondary">
+								{{'service_category_help' | translate}}
+							</small>
+						</div>
 					</div>
 
 					<!-- Dynamic Attributes Section -->

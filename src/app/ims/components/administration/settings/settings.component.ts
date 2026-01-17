@@ -43,6 +43,7 @@ export class SettingsComponent implements OnInit {
   isLoadingBanks: boolean = true;
 
   autoOrderOptions: any[] = [];
+  booleanOptions: any[] = [];
   activeTabIndex: number = 0;
 
   // Banks properties
@@ -110,12 +111,24 @@ export class SettingsComponent implements OnInit {
       { label: this.translate.instant('disabled'), value: 'inactive' }
     ];
 
+    // Options for boolean settings (true/false)
+    this.booleanOptions = [
+      { label: this.translate.instant('enabled'), value: 'true' },
+      { label: this.translate.instant('disabled'), value: 'false' }
+    ];
+
     // Check if we need to open banks tab from query params
     this.route.queryParams.subscribe(params => {
       if (params['tab'] === 'banks') {
         this.activeTabIndex = 1;
       }
     });
+  }
+
+  // Helper method to parse float values in templates
+  parseFloat(value: string | number): number {
+    if (typeof value === 'number') return value;
+    return parseFloat(String(value)) || 0;
   }
 
   onGlobalFilter(table: Table, event: Event) {

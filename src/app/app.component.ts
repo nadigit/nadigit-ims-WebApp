@@ -38,6 +38,11 @@ export class AppComponent implements OnInit {
         // ✅ Load translations and configure PrimeNG globally
         this.translateService.currentLanguage$.subscribe(lang => {
             this.translate.use(lang);
+            
+            // Configure PrimeNG RTL
+            const isRTL = lang === 'ar';
+            this.primengConfig.ripple = true;
+            // Note: PrimeNG components will automatically respect the dir attribute on html/body
 
             this.translate.get([
                 'starts_with', 'contains', 'not_contains', 'ends_with', 'equals', 'not_equals',
@@ -81,7 +86,7 @@ export class AppComponent implements OnInit {
                     dayNamesMin: translations['day_names_min']?.split(','),
                     monthNames: translations['month_names']?.split(','),
                     monthNamesShort: translations['month_names_short']?.split(','),
-                    firstDayOfWeek: 1,
+                    firstDayOfWeek: isRTL ? 6 : 1, // Saturday for Arabic, Monday for others
                 });
             });
 
@@ -93,7 +98,15 @@ export class AppComponent implements OnInit {
         // Auth logic
         const authenticated = await this.keycloakService.isLoggedIn();
         if (authenticated) {
-            this.profile = await this.keycloakService.loadUserProfile();
+            // Try to load user profile, but don't block if it fails (e.g., CASHIER users may not have view-profile permission)
+            // Profile will be loaded when needed (e.g., in profile component)
+            try {
+                this.profile = await this.keycloakService.loadUserProfile();
+            } catch (error) {
+                // Silently handle error - expected for users without view-profile permission (e.g., CASHIER role)
+                // Profile loading is optional here and will be handled when actually needed
+            }
+            
             if (this.keycloakService.isTokenExpired()) {
                 this.logOut();
             } else {

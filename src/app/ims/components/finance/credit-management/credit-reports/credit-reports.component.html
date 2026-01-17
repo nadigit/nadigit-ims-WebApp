@@ -1,0 +1,363 @@
+<div class="credit-reports-container">
+    <p-toast></p-toast>
+
+    <!-- Loading State -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="reports-content" *ngIf="!isLoading">
+        <!-- Header -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'credit_reports' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'credit_reports_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tabs -->
+        <p-tabView styleClass="reports-tabs">
+            <!-- Outstanding Credit Report -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-wallet mr-2"></i>
+                    <span>{{ 'outstanding_credit_report' | translate }}</span>
+                </ng-template>
+
+                <div class="card">
+                    <div class="card-header flex align-items-center justify-content-between">
+                        <h3 class="m-0">{{ 'outstanding_credit_accounts' | translate }}</h3>
+                        <button pButton 
+                                type="button" 
+                                icon="pi pi-file-excel" 
+                                label="{{ 'export_excel' | translate }}"
+                                class="p-button-success p-button-sm"
+                                (click)="exportOutstandingCredit()"></button>
+                    </div>
+                    <div class="card-body">
+                        <p-table [value]="outstandingCreditAccounts" 
+                                 [paginator]="true"
+                                 [rows]="20"
+                                 styleClass="p-datatable-striped p-datatable-gridlines">
+                            <ng-template pTemplate="header">
+                                <tr>
+                                    <th pSortableColumn="customer">
+                                        {{ 'customer' | translate }}
+                                        <p-sortIcon field="customer"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="creditBalance">
+                                        {{ 'credit_balance' | translate }}
+                                        <p-sortIcon field="creditBalance"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="creditLimit">
+                                        {{ 'credit_limit' | translate }}
+                                        <p-sortIcon field="creditLimit"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="status">
+                                        {{ 'status' | translate }}
+                                        <p-sortIcon field="status"></p-sortIcon>
+                                    </th>
+                                    <th pSortableColumn="lastTransactionDate">
+                                        {{ 'last_transaction' | translate }}
+                                        <p-sortIcon field="lastTransactionDate"></p-sortIcon>
+                                    </th>
+                                    <th style="width: 100px">{{ 'actions' | translate }}</th>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="body" let-account>
+                                <tr class="cursor-pointer">
+                                    <td>{{ getCustomerDisplayName(account) }}</td>
+                                    <td class="font-semibold">{{ account.creditBalance | currency:currency:'symbol':'1.2-2' }}</td>
+                                    <td>{{ account.creditLimit || ('unlimited' | translate) }}</td>
+                                    <td>
+                                        <p-tag [value]="account.status" 
+                                               [severity]="getStatusSeverity(account.status)" 
+                                               [rounded]="true"></p-tag>
+                                    </td>
+                                    <td>{{ account.lastTransactionDate | date:'short' }}</td>
+                                    <td>
+                                        <button pButton 
+                                                type="button" 
+                                                icon="pi pi-eye" 
+                                                class="p-button-text p-button-sm"
+                                                [pTooltip]="'view_details' | translate"
+                                                (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
+                                    </td>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="emptymessage">
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="flex flex-column align-items-center justify-content-center py-5">
+                                            <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
+                                            <p class="text-500">{{ 'no_outstanding_credit' | translate }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Over Limit Report -->
+            <p-tabPanel *ngIf="isAdmin">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-exclamation-triangle mr-2"></i>
+                    <span>{{ 'over_limit_report' | translate }}</span>
+                </ng-template>
+
+                <div class="card">
+                    <div class="card-header flex align-items-center justify-content-between">
+                        <h3 class="m-0">{{ 'customers_over_limit' | translate }}</h3>
+                        <button pButton 
+                                type="button" 
+                                icon="pi pi-file-excel" 
+                                label="{{ 'export_excel' | translate }}"
+                                class="p-button-danger p-button-sm"
+                                (click)="exportOverLimit()"></button>
+                    </div>
+                    <div class="card-body">
+                        <p-table [value]="overLimitAccounts" 
+                                 [paginator]="true"
+                                 [rows]="20"
+                                 styleClass="p-datatable-striped p-datatable-gridlines">
+                            <ng-template pTemplate="header">
+                                <tr>
+                                    <th>{{ 'customer' | translate }}</th>
+                                    <th>{{ 'current_balance' | translate }}</th>
+                                    <th>{{ 'credit_limit' | translate }}</th>
+                                    <th>{{ 'over_by' | translate }}</th>
+                                    <th>{{ 'status' | translate }}</th>
+                                    <th style="width: 100px">{{ 'actions' | translate }}</th>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="body" let-account>
+                                <tr class="cursor-pointer">
+                                    <td>{{ getCustomerDisplayName(account) }}</td>
+                                    <td>{{ account.creditBalance | currency:currency:'symbol':'1.2-2' }}</td>
+                                    <td>{{ account.creditLimit | currency:currency:'symbol':'1.2-2' }}</td>
+                                    <td class="text-red-600 font-semibold">
+                                        {{ getOverLimitAmount(account) | currency:currency:'symbol':'1.2-2' }}
+                                    </td>
+                                    <td>
+                                        <p-tag [value]="account.status" 
+                                               [severity]="getStatusSeverity(account.status)" 
+                                               [rounded]="true"></p-tag>
+                                    </td>
+                                    <td>
+                                        <button pButton 
+                                                type="button" 
+                                                icon="pi pi-eye" 
+                                                class="p-button-text p-button-sm"
+                                                [pTooltip]="'view_details' | translate"
+                                                (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
+                                    </td>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="emptymessage">
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="flex flex-column align-items-center justify-content-center py-5">
+                                            <i class="pi pi-check-circle text-4xl text-green-500 mb-3"></i>
+                                            <p class="text-500">{{ 'no_customers_over_limit' | translate }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Credit Aging Report -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-chart-bar mr-2"></i>
+                    <span>{{ 'credit_aging_report' | translate }}</span>
+                </ng-template>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="m-0">{{ 'credit_aging_report' | translate }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="field mb-4">
+                            <label for="customerSelect">{{ 'select_customer' | translate }} ({{ 'optional' | translate }})</label>
+                            <p-dropdown [(ngModel)]="selectedCustomerId"
+                                        [options]="customers"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="{{ 'select_customer_for_aging_report' | translate }}"
+                                        [showClear]="true"
+                                        (onChange)="loadCreditAging()"
+                                        styleClass="w-full">
+                            </p-dropdown>
+                            <small class="text-500">{{ 'credit_aging_report_hint' | translate }}</small>
+                        </div>
+
+                        <div *ngIf="creditAging" class="aging-report">
+                            <div class="grid mb-4">
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card">
+                                        <div class="aging-label">{{ 'aging_0_30_days' | translate }}</div>
+                                        <div class="aging-value">{{ creditAging['0-30'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card">
+                                        <div class="aging-label">{{ 'aging_31_60_days' | translate }}</div>
+                                        <div class="aging-value">{{ creditAging['31-60'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card">
+                                        <div class="aging-label">{{ 'aging_61_90_days' | translate }}</div>
+                                        <div class="aging-value">{{ creditAging['61-90'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card">
+                                        <div class="aging-label">{{ 'aging_90_plus_days' | translate }}</div>
+                                        <div class="aging-value">{{ creditAging['90+'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="aging-chart" *ngIf="agingChartData">
+                                <p-chart type="bar" [data]="agingChartData" [options]="agingChartOptions"></p-chart>
+                            </div>
+                        </div>
+
+                        <div *ngIf="!creditAging && selectedCustomerId" class="text-center py-5">
+                            <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
+                            <p class="text-500">{{ 'no_aging_data_available' | translate }}</p>
+                        </div>
+
+                        <div *ngIf="!selectedCustomerId" class="text-center py-5">
+                            <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
+                            <p class="text-500">{{ 'select_customer_to_view_aging_report' | translate }}</p>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Outstanding Balance Aging Report -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-chart-line mr-2"></i>
+                    <span>{{ 'outstanding_balance_aging_report' | translate }}</span>
+                </ng-template>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="m-0">{{ 'outstanding_balance_aging_report' | translate }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="field mb-4">
+                            <label for="customerSelectOutstanding">{{ 'select_customer' | translate }} ({{ 'optional' | translate }})</label>
+                            <p-dropdown [(ngModel)]="selectedCustomerForOutstanding"
+                                        [options]="allCustomers"
+                                        [optionLabel]="getCustomerDisplayNameForDropdown"
+                                        placeholder="{{ 'select_customer_for_outstanding_aging_report' | translate }}"
+                                        [showClear]="true"
+                                        (onChange)="loadOutstandingBalanceAging()"
+                                        styleClass="w-full">
+                            </p-dropdown>
+                            <small class="text-500">{{ 'outstanding_balance_aging_report_hint' | translate }}</small>
+                        </div>
+
+                        <div *ngIf="outstandingAgingInfo?.outstandingAging" class="outstanding-aging-report">
+                            <!-- Summary Cards -->
+                            <div class="grid mb-4">
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card">
+                                        <div class="aging-label">{{ 'aging_0_30_days' | translate }}</div>
+                                        <div class="aging-value">{{ outstandingAgingInfo.outstandingAging['0-30'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                        <div class="aging-percentage">{{ getOutstandingAgingPercentage('0-30') | number:'1.1-1' }}%</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card">
+                                        <div class="aging-label">{{ 'aging_31_60_days' | translate }}</div>
+                                        <div class="aging-value">{{ outstandingAgingInfo.outstandingAging['31-60'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                        <div class="aging-percentage">{{ getOutstandingAgingPercentage('31-60') | number:'1.1-1' }}%</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card">
+                                        <div class="aging-label">{{ 'aging_61_90_days' | translate }}</div>
+                                        <div class="aging-value">{{ outstandingAgingInfo.outstandingAging['61-90'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                        <div class="aging-percentage">{{ getOutstandingAgingPercentage('61-90') | number:'1.1-1' }}%</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 md:col-6 lg:col-3">
+                                    <div class="aging-card critical">
+                                        <div class="aging-label">{{ 'aging_90_plus_days' | translate }}</div>
+                                        <div class="aging-value text-red-600">{{ outstandingAgingInfo.outstandingAging['90+'] | currency:currency:'symbol':'1.2-2' }}</div>
+                                        <div class="aging-percentage">{{ getOutstandingAgingPercentage('90+') | number:'1.1-1' }}%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Chart -->
+                            <div class="aging-chart mb-4" *ngIf="outstandingAgingChartData">
+                                <p-chart type="bar" [data]="outstandingAgingChartData" [options]="agingChartOptions"></p-chart>
+                            </div>
+
+                            <!-- Detailed Table -->
+                            <div class="aging-table">
+                                <p-table [value]="[
+                                    { age: '0-30', label: 'aging_0_30_days', amount: outstandingAgingInfo.outstandingAging['0-30'], percentage: getOutstandingAgingPercentage('0-30') },
+                                    { age: '31-60', label: 'aging_31_60_days', amount: outstandingAgingInfo.outstandingAging['31-60'], percentage: getOutstandingAgingPercentage('31-60') },
+                                    { age: '61-90', label: 'aging_61_90_days', amount: outstandingAgingInfo.outstandingAging['61-90'], percentage: getOutstandingAgingPercentage('61-90') },
+                                    { age: '90+', label: 'aging_90_plus_days', amount: outstandingAgingInfo.outstandingAging['90+'], percentage: getOutstandingAgingPercentage('90+') }
+                                ]" styleClass="p-datatable-striped p-datatable-gridlines">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th>{{ 'age' | translate }}</th>
+                                            <th>{{ 'amount' | translate }}</th>
+                                            <th>{{ 'percentage' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="body" let-row>
+                                        <tr [class.critical-row]="row.age === '90+'" class="cursor-pointer">
+                                            <td>{{ row.label | translate }}</td>
+                                            <td [class.text-red-600]="row.age === '90+'">
+                                                {{ row.amount | currency:currency:'symbol':'1.2-2' }}
+                                            </td>
+                                            <td>{{ row.percentage | number:'1.1-1' }}%</td>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="footer">
+                                        <tr class="font-bold">
+                                            <td>{{ 'total_outstanding' | translate }}</td>
+                                            <td>{{ getTotalOutstandingAging() | currency:currency:'symbol':'1.2-2' }}</td>
+                                            <td>100%</td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                            </div>
+                        </div>
+
+                        <div *ngIf="!outstandingAgingInfo && selectedCustomerForOutstanding" class="text-center py-5">
+                            <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
+                            <p class="text-500">{{ 'no_outstanding_aging_data_available' | translate }}</p>
+                        </div>
+
+                        <div *ngIf="!selectedCustomerForOutstanding" class="text-center py-5">
+                            <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
+                            <p class="text-500">{{ 'select_customer_to_view_outstanding_aging_report' | translate }}</p>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+        </p-tabView>
+    </div>
+</div>
+

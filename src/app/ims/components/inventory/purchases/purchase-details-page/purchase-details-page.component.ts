@@ -289,17 +289,6 @@ export class PurchaseDetailsPageComponent implements OnInit {
     this.isAdmin = this.userRoles.includes('ADMIN');
   }
 
-  // Quick action methods
-  printPurchaseInvoice(purchase: any) {
-    // Implement print functionality
-    console.log('Print purchase invoice:', purchase);
-  }
-
-  exportPurchaseToPDF(purchase: any) {
-    // Implement PDF export functionality
-    console.log('Export purchase to PDF:', purchase);
-  }
-
   refreshPurchaseDetails() {
     this.loadPurchase();
     this.messageService.add({
@@ -336,6 +325,14 @@ export class PurchaseDetailsPageComponent implements OnInit {
             life: 3000
           });
         }
+      });
+    }
+  }
+
+  navigateToReturns(): void {
+    if (this.purchase?.purchaseId) {
+      this.router.navigate(['/inventory/purchase-returns'], { 
+        queryParams: { purchaseId: this.purchase.purchaseId } 
       });
     }
   }

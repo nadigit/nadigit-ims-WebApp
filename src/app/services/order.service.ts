@@ -1,7 +1,8 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -21,9 +22,46 @@ export class OrderService {
     this.jwt = this.keycloakService.getToken();
   }
 
-  saveOrder(data: any) {
+  saveOrder(data: any): Observable<any> {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
-    return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers })
+    return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers }).pipe(
+      catchError((error: HttpErrorResponse) => {
+        // Handle insufficient stock errors with write-off details
+        if (error.error?.code === 'insufficient_stock' || 
+            error.error?.message?.includes('Net available quantity') ||
+            error.error?.error?.includes('Net available quantity')) {
+          return throwError(() => ({
+            ...error,
+            userFriendlyMessage: this.parseStockError(error.error?.message || error.error?.error || '')
+          }));
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Parse stock error message to extract net available quantity and write-off info
+   * Format: "Net available quantity (excluding X write-offs): Y, Requested: Z"
+   */
+  private parseStockError(errorMessage: string): string {
+    if (!errorMessage) return '';
+    
+    // Extract net available quantity and write-off info from error message
+    const netQtyMatch = errorMessage.match(/Net available quantity \(excluding (\d+) write-offs\): (\d+)/);
+    if (netQtyMatch) {
+      const writeOffs = netQtyMatch[1];
+      const netAvailable = netQtyMatch[2];
+      return `Insufficient stock. Only ${netAvailable} units available (${writeOffs} units written off).`;
+    }
+    
+    // Fallback: try to extract any quantity information
+    const simpleMatch = errorMessage.match(/Net available quantity[:\s]+(\d+)/);
+    if (simpleMatch) {
+      return `Insufficient stock. Only ${simpleMatch[1]} units available.`;
+    }
+    
+    return errorMessage;
   }
   updateOrder(id: any, order: any) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
@@ -141,12 +179,20 @@ export class OrderService {
         let value = filterMeta.value;
         let backendParamName = field;
 
+        console.log(`Processing filter field: ${field}`, {
+          filterMeta,
+          value,
+          valueType: typeof value,
+          isObject: value && typeof value === 'object'
+        });
+
         // Map PrimeNG field names to backend parameter names
         switch (field) {
           case 'orderStatus':
             backendParamName = 'orderStatus';
             // Extract value if it's an object (dropdown might pass full object)
             if (value && typeof value === 'object') {
+              console.log('orderStatus value is an object, extracting...', value);
               // Try to extract the value property first
               if (value.value !== undefined && value.value !== null) {
                 value = value.value;
@@ -158,9 +204,16 @@ export class OrderService {
                 value = String(value);
               }
             }
-            // Ensure value is a string
+            // Ensure value is a string and matches backend enum exactly
+            // Backend enum: Ordered, Processing, Delivered, Completed, Canceled, Return_Pending, Returned, Partial_Return
             if (value !== null && value !== undefined) {
               value = String(value).trim();
+              // No mapping needed - backend enum matches frontend values exactly
+              // Just ensure it's a valid enum value
+              const validStatuses = ['Ordered', 'Processing', 'Delivered', 'Completed', 'Canceled', 'Return_Pending', 'Returned', 'Partial_Return'];
+              if (!validStatuses.includes(value)) {
+                console.warn(`Invalid orderStatus value: "${value}". Valid values are:`, validStatuses);
+              }
             }
             console.log('Processed orderStatus filter:', { 
               original: filterMeta.value, 
@@ -229,19 +282,35 @@ export class OrderService {
             console.log('Processed orderDate filter:', { original: filterMeta.value, processed: value });
             break;
 
+          // Note: Backend only supports single orderDate, not date range
+          // If both startDate and endDate are provided, we'll use startDate only
+          // For date range filtering, backend would need to be updated to support orderDateFrom and orderDateTo
+
           default:
             // For any other fields, use as-is
             break;
         }
 
         // Skip empty values after processing
-        if (value == null || value === '') return;
+        if (value == null || value === '') {
+          console.log(`Skipping empty filter for ${field}:`, value);
+          return;
+        }
 
-        url += `&${encodeURIComponent(backendParamName)}=${encodeURIComponent(value)}`;
+        const encodedValue = encodeURIComponent(value);
+        url += `&${encodeURIComponent(backendParamName)}=${encodedValue}`;
+        console.log(`Added filter ${backendParamName}=${encodedValue} (decoded: ${value})`);
       });
     }
 
     console.log('Final URL with filters:', url);
+    console.log('All filter parameters:', {
+      orderStatus: filters?.['orderStatus']?.value,
+      paymentStatus: filters?.['paymentStatus']?.value,
+      customerId: filters?.['customerId']?.value,
+      shopName: filters?.['shopName']?.value,
+      orderDate: filters?.['orderDate']?.value
+    });
     return this.http.get(url, { headers });
   }
 }

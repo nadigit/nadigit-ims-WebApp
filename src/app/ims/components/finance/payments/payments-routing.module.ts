@@ -1,6 +1,5 @@
 import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { PaymentsComponent } from './payments.component';
 import { SalesPaymentsComponent } from './sales-payments/sales-payments.component';
 import { PurchasePaymentsComponent } from './purchase-payments/purchase-payments.component';
 import { SalesPaymentDetailsPageComponent } from './sales-payment-details-page/sales-payment-details-page.component';

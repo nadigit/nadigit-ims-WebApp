@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -12,11 +12,13 @@ import { Expense } from 'src/app/models/expense';
 import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
-import { getPaymentMethodIcon, getPaymentMethodSeverity } from 'src/app/shared/payment-utils';
+import { getPaymentMethodIcon, getPaymentMethodSeverity, paymentMethodOptions } from 'src/app/shared/payment-utils';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { BankTransaction } from 'src/app/models/bank-transaction';
+import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
 import { firstValueFrom } from 'rxjs';
+import { PaymentValidationService } from 'src/app/services/payment-validation.service';
 
 @Component({
   templateUrl: './expenses.component.html',
@@ -49,6 +51,14 @@ export class ExpensesComponent implements OnInit {
 
   statuses: any[] = [];
 
+  // Filter properties
+  selectedPaymentMethod: string | null = null;
+  selectedShop: Shop | null = null;
+  startDate: Date | null = null;
+  endDate: Date | null = null;
+  
+  paymentMethods: any[] = [];
+
   rowsPerPageOptions = [20, 50, 100];
 
   valSwitch: boolean = false;
@@ -66,6 +76,14 @@ export class ExpensesComponent implements OnInit {
   maxExpenseDate: any;
   bankAccounts: BankAccount[] = [];
   selectedBankAccount: BankAccount | null = null;
+  showBankAccountField: boolean = false;
+  isBankAccountRequired: boolean = false;
+  minimumAmountHint: string | null = null;
+
+  // ⚠️ NEW: Reconciliation status properties
+  reconciliationStatus: ReconciliationStatus | null = null;
+  isCheckingReconciliation: boolean = false;
+  expenseReconciliationCache: Map<number, ReconciliationStatus> = new Map(); // Cache reconciliation status per expense
 
   constructor(private messageService: MessageService,
     private expenseService: ExpenseService,
@@ -77,12 +95,15 @@ export class ExpensesComponent implements OnInit {
     public keycloakService: KeycloakService,
     private shopService: ShopService,
     private bankAccountService: BankAccountService,
-    private router: Router) { }
+    private router: Router,
+    private paymentValidationService: PaymentValidationService,
+    private reconciliationValidationService: ReconciliationValidationService) { }
 
   async ngOnInit() {
     this.isLoading = true;
     this.maxExpenseDate = new Date(); // Today's date
     this.maxExpenseDate.setHours(23, 59, 59, 999); // Include entire current day
+    await this.paymentValidationService.loadConfigurations();
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -97,6 +118,7 @@ export class ExpensesComponent implements OnInit {
     await this.loadBankAccounts();
     await this.checkPermissions();
     await this.setUserRoles();
+    this.initializePaymentMethods();
     this.cols = [
       { field: 'id', header: this.translateService.instant('ID') },
       { field: 'purpose', header: this.translateService.instant('expense_purpose') },
@@ -129,14 +151,116 @@ export class ExpensesComponent implements OnInit {
     this.deleteExpensesDialog = true;
   }
 
-  editExpense(expense: Expense) {
+  async editExpense(expense: Expense) {
     if (!this.canEditExpense) return;
+    
+    // Check reconciliation status if required
+    if (expense.id && this.reconciliationValidationService.requiresReconciliation(expense.paymentMethod)) {
+      try {
+        this.isCheckingReconciliation = true;
+        const status = await this.reconciliationValidationService.checkExpenseReconciliationStatus(expense.id);
+        this.expenseReconciliationCache.set(expense.id, status);
+        this.isCheckingReconciliation = false;
+        
+        if (!status.canProceed) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('cannot_edit_delete_expense_reconciliation_required'),
+            life: 5000
+          });
+          return; // Don't open edit dialog
+        }
+      } catch (error) {
+        console.error('Error checking reconciliation status:', error);
+        this.isCheckingReconciliation = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_loading_reconciliation_status'),
+          life: 4000
+        });
+        // On error, allow user to proceed - backend will validate
+      }
+    }
+    
     this.expense = { ...expense };
+    // Restore selected bank account if expense has bankAccountId
+    if (expense.bankAccountId) {
+      this.selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === expense.bankAccountId) || null;
+    }
+    await this.updateBankAccountFieldVisibility();
     this.expenseDialog = true;
   }
 
-  deleteExpense(expense: Expense) {
+  async updateBankAccountFieldVisibility() {
+    if (!this.expense.paymentMethod) {
+      this.showBankAccountField = false;
+      this.isBankAccountRequired = false;
+      this.minimumAmountHint = null;
+      return;
+    }
+
+    this.showBankAccountField = await this.paymentValidationService.shouldShowBankAccountField(this.expense.paymentMethod);
+    this.isBankAccountRequired = await this.paymentValidationService.isBankAccountRequired(this.expense.paymentMethod);
+    this.minimumAmountHint = await this.paymentValidationService.getMinimumAmountHint(this.expense.paymentMethod, this.currency);
+
+    // Pre-populate bank account from shop's default if available
+    if (this.showBankAccountField && this.expense.shop && !this.selectedBankAccount) {
+      const shopDefaultAccountId = this.expense.shop.defaultBankAccount?.accountId || this.expense.shop.defaultBankAccountId;
+      if (shopDefaultAccountId) {
+        const defaultAccount = this.bankAccounts.find(acc => acc.accountId === shopDefaultAccountId);
+        if (defaultAccount) {
+          this.selectedBankAccount = defaultAccount;
+          this.expense.bankAccountId = defaultAccount.accountId;
+        }
+      }
+    }
+  }
+
+  async onShopChange() {
+    // When shop changes, update bank account field visibility and pre-populate if needed
+    await this.updateBankAccountFieldVisibility();
+  }
+
+  async onPaymentMethodChange() {
+    // When payment method changes, update bank account field visibility and pre-populate if needed
+    await this.updateBankAccountFieldVisibility();
+  }
+
+  async deleteExpense(expense: Expense) {
     if (!this.canDeleteExpense) return;
+    
+    // Check reconciliation status if required
+    if (expense.id && this.reconciliationValidationService.requiresReconciliation(expense.paymentMethod)) {
+      try {
+        this.isCheckingReconciliation = true;
+        const status = await this.reconciliationValidationService.checkExpenseReconciliationStatus(expense.id);
+        this.expenseReconciliationCache.set(expense.id, status);
+        this.isCheckingReconciliation = false;
+        
+        if (!status.canProceed) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('cannot_edit_delete_expense_reconciliation_required'),
+            life: 5000
+          });
+          return; // Don't open delete dialog
+        }
+      } catch (error) {
+        console.error('Error checking reconciliation status:', error);
+        this.isCheckingReconciliation = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_loading_reconciliation_status'),
+          life: 4000
+        });
+        // On error, allow user to proceed - backend will validate
+      }
+    }
+    
     this.deleteExpenseDialog = true;
     this.expense = { ...expense };
   }
@@ -158,13 +282,17 @@ export class ExpensesComponent implements OnInit {
     this.submitted = false;
   }
 
-  openNew() {
+  async openNew() {
     if (!this.canAddExpense) return;
     this.expense = {};
     this.selectedBankAccount = null;
     this.expense.dateOfExpense = new Date();
     this.expense.paymentMethod = 'Cash';
     this.submitted = false;
+    this.showBankAccountField = false;
+    if (this.expense.paymentMethod === 'Bank' || this.expense.paymentMethod === 'Check' || this.expense.paymentMethod === 'BOE') {
+      this.showBankAccountField = true;
+    }
     this.expenseDialog = true;
   }
 
@@ -172,6 +300,29 @@ export class ExpensesComponent implements OnInit {
     const today = new Date();
     const dateOfExpense = new Date(expense.dateOfExpense);
     return dateOfExpense.toDateString() === today.toDateString();
+  }
+
+  // ⚠️ NEW: Helper methods for template
+  requiresReconciliation(paymentMethod: string | null | undefined): boolean {
+    return this.reconciliationValidationService.requiresReconciliation(paymentMethod);
+  }
+
+  canEditExpenseBasedOnReconciliation(expense: Expense): boolean {
+    if (!expense.id || !this.requiresReconciliation(expense.paymentMethod)) {
+      return true; // No reconciliation required or new expense
+    }
+    
+    const status = this.expenseReconciliationCache.get(expense.id);
+    return !status || status.canProceed;
+  }
+
+  canDeleteExpenseBasedOnReconciliation(expense: Expense): boolean {
+    if (!expense.id || !this.requiresReconciliation(expense.paymentMethod)) {
+      return true; // No reconciliation required
+    }
+    
+    const status = this.expenseReconciliationCache.get(expense.id);
+    return !status || status.canProceed;
   }
 
   async saveExpense() {
@@ -186,13 +337,19 @@ export class ExpensesComponent implements OnInit {
       return;
     }
 
-    // 🔹 Validate bank account for Transfer, Check, or BOE
-    const requiresBankAccount = ['Transfer', 'Check', 'BOE'].includes(this.expense.paymentMethod);
-    if (requiresBankAccount && !this.selectedBankAccount) {
+    // Validate bank account and minimum amount using validation service
+    const validation = await this.paymentValidationService.validateBankPayment(
+      this.expense.paymentMethod || '',
+      this.selectedBankAccount?.accountId,
+      this.expense.amount,
+      'expense'
+    );
+
+    if (!validation.valid) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('bank_account_required'),
+        detail: validation.error || this.translate.instant('validation_error')
       });
       return;
     }
@@ -274,6 +431,11 @@ export class ExpensesComponent implements OnInit {
       }
 
       // 🔹 Record bank transaction if payment method requires it
+      const requiresBankAccount =
+        savedExpense &&
+        savedExpense.paymentMethod &&
+        ['BANK_TRANSFER', 'CHECK', 'BOE'].includes(savedExpense.paymentMethod);
+
       if (requiresBankAccount && this.selectedBankAccount && savedExpense) {
         await this.recordBankTransaction(savedExpense);
       }
@@ -294,10 +456,64 @@ export class ExpensesComponent implements OnInit {
     }
   }
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  @ViewChild('dt') dt!: Table;
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    }
   }
 
+  private initializePaymentMethods() {
+    // Payment methods for expenses (same as payments)
+    this.paymentMethods = paymentMethodOptions.map(opt => ({
+      label: opt.label,
+      value: opt.value
+    }));
+  }
+
+  onFilterChange() {
+    // Apply filters to the table
+    if (this.dt) {
+      const filters: any = {};
+      
+      if (this.selectedPaymentMethod) {
+        filters['paymentMethod'] = { value: this.selectedPaymentMethod, matchMode: 'equals' };
+      }
+      
+      if (this.selectedShop) {
+        // Filter by shop.shopName
+        filters['shop.shopName'] = { value: this.selectedShop.shopName, matchMode: 'equals' };
+      }
+      
+      if (this.startDate || this.endDate) {
+        if (this.startDate && this.endDate) {
+          // Date range filter
+          filters['dateOfExpense'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
+        } else if (this.startDate) {
+          filters['dateOfExpense'] = { value: this.startDate, matchMode: 'dateIs' };
+        } else if (this.endDate) {
+          filters['dateOfExpense'] = { value: this.endDate, matchMode: 'dateIs' };
+        }
+      }
+      
+      this.dt.filters = filters;
+      this.dt.filteredValue = null; // Trigger filtering
+    }
+  }
+
+  clearFilters() {
+    this.selectedPaymentMethod = null;
+    this.selectedShop = null;
+    this.startDate = null;
+    this.endDate = null;
+    
+    if (this.dt) {
+      this.dt.filters = {};
+      this.dt.filteredValue = null;
+    }
+  }
 
   clear(table: Table) {
     table.clear();
@@ -325,9 +541,33 @@ export class ExpensesComponent implements OnInit {
   }
 
   async onDeleteExpense(id: any) {
+    // Find the expense to check its payment method
+    const expenseToDelete = this.expenses.find(e => e.id === id);
+    
+    // Check reconciliation status before deleting (refresh to ensure it's current)
+    if (expenseToDelete && this.reconciliationValidationService.requiresReconciliation(expenseToDelete.paymentMethod)) {
+      try {
+        const status = await this.reconciliationValidationService.checkExpenseReconciliationStatus(id);
+        if (!status.canProceed) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('cannot_edit_delete_expense_reconciliation_required'),
+            life: 5000
+          });
+          return; // Don't delete
+        }
+      } catch (error) {
+        console.error('Error checking reconciliation status:', error);
+        // On error, proceed with delete - backend will validate
+      }
+    }
+    
     await this.expenseService.deleteExpense(id)
       .subscribe({
         next: (response: any) => {
+          // Clear cache for this expense
+          this.expenseReconciliationCache.delete(id);
           this.onGetAllExpenses();
           this.messageService.add({
             severity: 'success',
@@ -338,12 +578,30 @@ export class ExpensesComponent implements OnInit {
         },
         error: (err: any) => {
           console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translateService.instant('error'),
-            detail: this.translateService.instant('error_deleting_expense'),
-            life: 3000
-          });
+          
+          // Handle reconciliation validation error from backend
+          const errorMessage = err?.error?.message || err?.message || '';
+          const errorLower = errorMessage.toLowerCase();
+          
+          // Check for reconciliation-related errors
+          if (errorLower.includes('reconciled') || 
+              errorLower.includes('reconciliation') || 
+              errorLower.includes('bank transaction')) {
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('cannot_edit_delete_expense_reconciliation_required'),
+              life: 5000
+            });
+          } else {
+            // Generic error message
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translateService.instant('error'),
+              detail: this.translateService.instant('error_deleting_expense'),
+              life: 3000
+            });
+          }
         },
       })
   }
@@ -377,30 +635,80 @@ export class ExpensesComponent implements OnInit {
 
   async updateExpense(id: any, expense: any): Promise<Expense | null> {
     return new Promise((resolve) => {
-      this.expenseService.updateExpense(id, expense)
-        .subscribe({
-          next: (response: Expense) => {
-            this.onGetAllExpenses();
+      // Check reconciliation status before updating (refresh to ensure it's current)
+      if (this.reconciliationValidationService.requiresReconciliation(expense.paymentMethod)) {
+        this.reconciliationValidationService.checkExpenseReconciliationStatus(id)
+          .then(status => {
+            if (!status.canProceed) {
+              this.messageService.add({
+                severity: 'warn',
+                summary: this.translate.instant('warning'),
+                detail: this.translate.instant('cannot_edit_delete_expense_reconciliation_required'),
+                life: 5000
+              });
+              resolve(null);
+              return;
+            }
+            // Proceed with update
+            this.performUpdateExpense(id, expense, resolve);
+          })
+          .catch(error => {
+            console.error('Error checking reconciliation status:', error);
+            // On error, proceed with update - backend will validate
+            this.performUpdateExpense(id, expense, resolve);
+          });
+      } else {
+        // No reconciliation required, proceed with update
+        this.performUpdateExpense(id, expense, resolve);
+      }
+    });
+  }
+
+  private performUpdateExpense(id: any, expense: any, resolve: Function) {
+    this.expenseService.updateExpense(id, expense)
+      .subscribe({
+        next: (response: Expense) => {
+          // Clear cache for this expense
+          this.expenseReconciliationCache.delete(id);
+          this.onGetAllExpenses();
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translateService.instant('successful'),
+            detail: this.translateService.instant('expense_updated'),
+            life: 3000
+          });
+          resolve(response);
+        },
+        error: (err: any) => {
+          console.error(err);
+          
+          // Handle reconciliation validation error from backend
+          const errorMessage = err?.error?.message || err?.message || '';
+          const errorLower = errorMessage.toLowerCase();
+          
+          // Check for reconciliation-related errors
+          if (errorLower.includes('reconciled') || 
+              errorLower.includes('reconciliation') || 
+              errorLower.includes('bank transaction')) {
             this.messageService.add({
-              severity: 'success',
-              summary: this.translateService.instant('successful'),
-              detail: this.translateService.instant('expense_updated'),
-              life: 3000
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('cannot_edit_delete_expense_reconciliation_required'),
+              life: 5000
             });
-            resolve(response);
-          },
-          error: (err: any) => {
-            console.error(err);
+          } else {
+            // Generic error message
             this.messageService.add({
               severity: 'error',
               summary: this.translateService.instant('error'),
               detail: this.translateService.instant('error_updating_expense'),
               life: 3000
             });
-            resolve(null);
-          },
-        });
-    });
+          }
+          
+          resolve(null);
+        },
+      });
   }
 
   async addExpense(data: any): Promise<Expense | null> {

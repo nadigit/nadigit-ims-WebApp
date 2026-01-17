@@ -98,4 +98,45 @@ export class FinancialDocumentsService {
       { headers: headers, params: { origin: 'BACK_OFFICE' } }
     );
   }
+
+  generateProformaInvoiceFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    
+    let params: any = { origin: options?.origin || 'BACK_OFFICE' };
+    
+    if (options?.documentDate) {
+      const dateStr = options.documentDate instanceof Date 
+        ? options.documentDate.toISOString().split('T')[0]
+        : options.documentDate;
+      params.documentDate = dateStr;
+    }
+    
+    return this.http.post(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'proforma-invoice/order/' + orderId + '/create',
+      {},
+      { headers: headers, params: params }
+    );
+  }
+
+  /**
+   * Get HTML preview of a financial document
+   * @param documentData The financial document data to preview
+   * @returns Observable with PreviewResponse containing html property
+   */
+  getDocumentPreview(documentData: any): any {
+    this.loadToken();
+    let headers = new HttpHeaders({ 
+      'authorization': 'Bearer ' + this.jwt,
+      'Content-Type': 'application/json'
+    });
+    
+    return this.http.post<{ html: string }>(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'preview',
+      documentData,
+      { 
+        headers: headers
+      }
+    );
+  }
 }

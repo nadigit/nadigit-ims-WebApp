@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService, PrimeNGConfig } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -71,9 +71,7 @@ export class SuppliersComponent implements OnInit {
 
   lowStockThreshold;
 
-  imageURL: any;
-
-  uploadedFile: File | null = null;
+  // imageURL and uploadedFile removed - now handled by ProductFormComponent
 
   monthlyPurchasesChartData: any;
   productDistributionChartData: any;
@@ -88,6 +86,8 @@ export class SuppliersComponent implements OnInit {
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
   canReadProduct: boolean = false;
+  canAddCategory: boolean = false;
+  canAddWarehouse: boolean = false;
 
   isLoading: boolean = true;
   selectedProduct: Product;
@@ -97,8 +97,7 @@ export class SuppliersComponent implements OnInit {
   userRoles: any;
   categories: Category[] = [];
   warehouses: Warehouse[] = [];
-  measureUnits: any[] = [];
-  attributeTypes: any[] = [];
+  // measureUnits and attributeTypes removed - now handled by ProductFormComponent
   deleteProductDialog: boolean = false;
 
   archiveProductDialog: boolean = false;
@@ -118,20 +117,7 @@ export class SuppliersComponent implements OnInit {
     public keycloakService: KeycloakService,
     private router: Router) {
     this.setUserRoles();
-    this.measureUnits = [
-      { value: 'UNIT', label: this.translate.instant('UNIT') },
-      { value: 'KG', label: this.translate.instant('KG') },
-      { value: 'LITER', label: this.translate.instant('LITER') },
-      { value: 'PIECE', label: this.translate.instant('PIECE') },
-      { value: 'BOX', label: this.translate.instant('BOX') },
-      { value: 'METER', label: this.translate.instant('METER') }
-    ];
-    this.attributeTypes = [
-      { label: this.translate.instant('String'), value: 'STRING' },
-      { label: this.translate.instant('Integer'), value: 'INTEGER' },
-      { label: this.translate.instant('Double'), value: 'DOUBLE' },
-      { label: this.translate.instant('Boolean'), value: 'BOOLEAN' }
-    ];
+    // measureUnits and attributeTypes initialization removed - now handled by ProductFormComponent
   }
 
   async ngOnInit() {
@@ -178,6 +164,10 @@ export class SuppliersComponent implements OnInit {
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
     this.canReadProduct = this.permissionService.canRead('PRODUCTS');
+    
+    this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
+    this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
+    this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
   }
 
   deleteSelectedSuppliers() {
@@ -324,6 +314,36 @@ export class SuppliersComponent implements OnInit {
     this.submitted = false;
   }
 
+  async onProductFormSaveSuccess(productData: Product): Promise<void> {
+    console.log('Product form saved successfully:', productData);
+    // Reload supplier products to reflect changes
+    await this.loadSupplierProducts();
+    this.productDialog = false;
+    this.selectedProduct = {};
+  }
+
+  onProductFormSaveError(event: { product: Product, error: any }): void {
+    console.error('Product form save error:', event.error);
+    // Error message is already displayed by the form component
+  }
+
+  openCategoryDialog(): void {
+    // Navigate to categories page or open category dialog
+    this.router.navigate(['/inventory/categories']);
+  }
+
+  openSupplierDialog(): void {
+    // Navigate to suppliers page or open supplier dialog
+    // Since we're already in suppliers, we could open the supplier form dialog
+    // For now, just navigate to suppliers page
+    this.router.navigate(['/inventory/suppliers']);
+  }
+
+  openWarehouseDialog(): void {
+    // Navigate to warehouses page or open warehouse dialog
+    this.router.navigate(['/inventory/warehouses']);
+  }
+
   getSupplierInitials(supplier: any): string {
     if (!supplier?.name) return '';
     const names = supplier.name.split(' ');
@@ -448,8 +468,13 @@ export class SuppliersComponent implements OnInit {
     };
   }
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  @ViewChild('dt') dt!: Table;
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    }
   }
 
 
@@ -645,139 +670,21 @@ export class SuppliersComponent implements OnInit {
 
   editProduct(product: Product) {
     if (!this.canEditProduct) return;
-    this.selectedProduct = product;
+    this.selectedProduct = { ...product };
+    // Ensure supplier is set from the current supplier context
+    if (!this.selectedProduct.supplier && this.supplier) {
+      this.selectedProduct.supplier = this.supplier;
+    }
     this.onGetAllCategories();
     this.onGetAllWarehouses();
+    // Ensure suppliers array includes current supplier for the dropdown
+    if (this.supplier && this.supplier.supplierId) {
+      const supplierExists = this.suppliers.some(s => s.supplierId === this.supplier.supplierId);
+      if (!supplierExists) {
+        this.suppliers = [...this.suppliers, this.supplier];
+      }
+    }
     this.productDialog = true;
-  }
-
-  addAttribute() {
-    if (!this.selectedProduct.attributes) {
-      this.selectedProduct.attributes = [];
-    }
-
-    this.selectedProduct.attributes.push({
-      attributeName: '',
-      attributeType: 'STRING', // default type
-      value: ''
-    });
-  }
-
-  removeAttribute(index: number) {
-    if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > index) {
-      this.selectedProduct.attributes.splice(index, 1);
-    }
-  }
-
-  editImage() {
-    this.selectedProduct.productImage = null;
-    this.uploadedFile = null;
-  }
-
-  async saveProduct() {
-    this.submitted = true;
-
-    if (
-      this.selectedProduct.name &&
-      this.selectedProduct.reference &&
-      this.selectedProduct.quantityAvailable &&
-      this.selectedProduct.buyingPrice &&
-      this.selectedProduct.sellingPrice &&
-      this.selectedProduct.category &&
-      this.selectedProduct.supplier
-    ) {
-      if (this.isAdmin && !this.selectedProduct.warehouse) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('warehouse_required'),
-          life: 3000,
-        });
-        return;
-      }
-
-      // 🔍 Check for duplicate product with same reference in the same warehouse
-      const isDuplicate = this.supplierProducts.some((p: any) =>
-        p.reference === this.selectedProduct.reference &&
-        p.warehouse?.warehouseId === this.selectedProduct.warehouse?.warehouseId &&
-        p.productId !== this.selectedProduct.productId // exclude current product if updating
-      );
-
-      if (isDuplicate) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('product_already_exists_in_warehouse'),
-          life: 4000,
-        });
-        return;
-      }
-
-      // 📦 Upload product image if any
-      if (this.uploadedFile) {
-        const filePath = `images/${this.uploadedFile.name}`;
-        const fileRef = this.storage.ref(filePath);
-        const task = this.storage.upload(filePath, this.uploadedFile);
-
-        try {
-          await lastValueFrom(task.snapshotChanges());
-          const url = await lastValueFrom(fileRef.getDownloadURL());
-          this.selectedProduct.productImage = url;
-          this.uploadedFile = null;
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_image'),
-            life: 3000,
-          });
-          return;
-        }
-      }
-
-      // Clean attributes before saving
-      if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > 0) {
-        this.selectedProduct.attributes.forEach(attr => {
-          // strip transient field if it still exists
-          delete attr.value;
-
-          // optionally normalize booleans (Angular checkboxes can send null)
-          if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
-            attr.booleanValue = false;
-          }
-        });
-      }
-
-      // ✏️ Update or add product
-      if (this.selectedProduct.productId) {
-        this.updateProduct(this.selectedProduct.productId, this.selectedProduct)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_updated'),
-            life: 3000,
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000,
-          });
-      }
-
-      // ✅ Reset and close dialog
-      this.productDialog = false;
-      // this.selectedProduct = {};
-    } else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3100,
-      });
-      return;
-    }
   }
 
   deleteProduct(product: Product) {
@@ -818,27 +725,7 @@ export class SuppliersComponent implements OnInit {
       })
   }
 
-  async updateProduct(id: any, product: any): Promise<any> {
-    console.log(product)
-    await this.productService.saveProduct(product)
-      .subscribe({
-        next: async (response: any) => {
-          console.log(response);
-          await this.loadSupplierProducts();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
+  // updateProduct method removed - now handled by ProductFormComponent
 
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
@@ -902,18 +789,7 @@ export class SuppliersComponent implements OnInit {
     });
   }
 
-  async onFileUpload(event: UploadEvent): Promise<void> {
-    console.log("in upload");
-    const file = event.files[0];
-
-    // Save the file temporarily and update the imageURL
-    this.imageURL = URL.createObjectURL(file);
-
-    // Store the actual file for later use
-    this.uploadedFile = file;
-
-    // Note: The actual upload to Firebase Storage will happen when the user clicks "Save" in the saveProduct method
-  }
+  // onFileUpload method removed - now handled by ProductFormComponent
 
   getPaymentMethodLabel(paymentMethod: string) {
     return getPaymentMethodLabel(paymentMethod);

@@ -4,6 +4,8 @@ import { MessageService } from 'primeng/api';
 import { BankAccount } from 'src/app/models/bank-account';
 import { BankTransaction, TransactionFilter } from 'src/app/models/bank-transaction';
 import { BankAccountService } from 'src/app/services/bank-account.service';
+import { PaymentService } from 'src/app/services/payment.service';
+import { Payment } from 'src/app/models/payment';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { firstValueFrom } from 'rxjs';
@@ -19,6 +21,8 @@ export class ReconciliationComponent implements OnInit {
   account: BankAccount | null = null;
   unreconciledTransactions: BankTransaction[] = [];
   selectedTransactions: BankTransaction[] = [];
+  paymentCache: Map<number, Payment> = new Map(); // Cache for payment details
+  confirmingPayments: Set<number> = new Set(); // Track payments being confirmed
 
   isLoading: boolean = true;
 
@@ -27,6 +31,7 @@ export class ReconciliationComponent implements OnInit {
     private router: Router,
     private messageService: MessageService,
     private bankAccountService: BankAccountService,
+    private paymentService: PaymentService,
     private translate: TranslateService,
     private translateService: TranslationService
   ) { }
@@ -67,9 +72,36 @@ export class ReconciliationComponent implements OnInit {
         await this.bankAccountService.getTransactions(this.accountId, filter)
       );
       this.unreconciledTransactions = response.content || [];
+      
+      // Load payment details for transactions with linked payments
+      await this.loadPaymentDetailsForTransactions();
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
+  }
+
+  /**
+   * Load payment details for all transactions that have a linked payment
+   */
+  async loadPaymentDetailsForTransactions() {
+    const paymentIds = new Set<number>();
+    
+    // Collect all unique payment IDs
+    this.unreconciledTransactions.forEach(transaction => {
+      if (transaction.payment?.paymentId) {
+        paymentIds.add(transaction.payment.paymentId);
+      }
+    });
+
+    // Load payment details for each unique payment ID
+    const loadPromises = Array.from(paymentIds).map(paymentId => 
+      this.loadPaymentDetails(paymentId).catch(error => {
+        console.error(`Error loading payment ${paymentId}:`, error);
+        return null;
+      })
+    );
+
+    await Promise.all(loadPromises);
   }
 
   async reconcileSelected() {
@@ -86,12 +118,25 @@ export class ReconciliationComponent implements OnInit {
     try {
       const transactionIds = this.selectedTransactions.map(t => t.transactionId!);
       await firstValueFrom(await this.bankAccountService.reconcileBatch(transactionIds));
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('transactions_reconciled'),
-        life: 3000
-      });
+      
+      // After reconciliation, check for pending payments that can be confirmed
+      const transactionsWithPayments = this.selectedTransactions.filter(t => t.payment?.paymentId);
+      if (transactionsWithPayments.length > 0) {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('transactions_reconciled') + '. ' + this.translate.instant('pending_payments_available_for_confirmation'),
+          life: 5000
+        });
+      } else {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('transactions_reconciled'),
+          life: 3000
+        });
+      }
+      
       this.selectedTransactions = [];
       await this.loadUnreconciledTransactions();
     } catch (error) {
@@ -153,6 +198,131 @@ export class ReconciliationComponent implements OnInit {
 
   cancel() {
     this.router.navigate(['/finance/banking/accounts', this.accountId]);
+  }
+
+  /**
+   * Check if transaction has a linked payment
+   */
+  hasPayment(transaction: BankTransaction): boolean {
+    return !!transaction.payment?.paymentId;
+  }
+
+  /**
+   * Get payment ID from transaction
+   */
+  getPaymentId(transaction: BankTransaction): number | null {
+    return transaction.payment?.paymentId || null;
+  }
+
+  /**
+   * Load payment details for a transaction
+   */
+  async loadPaymentDetails(paymentId: number): Promise<Payment | null> {
+    if (this.paymentCache.has(paymentId)) {
+      return this.paymentCache.get(paymentId) || null;
+    }
+
+    try {
+      const payment = await firstValueFrom(this.paymentService.getPayment(paymentId));
+      this.paymentCache.set(paymentId, payment);
+      return payment;
+    } catch (error) {
+      console.error('Error loading payment details:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if payment is pending and can be confirmed
+   */
+  isPaymentPending(payment: Payment | null): boolean {
+    return payment?.paymentStatus === 'PENDING';
+  }
+
+  /**
+   * Get payment status for a transaction (safe method for template)
+   */
+  getPaymentStatus(transaction: BankTransaction): string | null {
+    const paymentId = this.getPaymentId(transaction);
+    if (!paymentId) {
+      return null;
+    }
+    const payment = this.paymentCache.get(paymentId);
+    return payment?.paymentStatus || null;
+  }
+
+  /**
+   * Check if payment status is PENDING (safe method for template)
+   */
+  isPaymentStatusPending(transaction: BankTransaction): boolean {
+    return this.getPaymentStatus(transaction) === 'PENDING';
+  }
+
+  /**
+   * Check if payment status is CONFIRMED (safe method for template)
+   */
+  isPaymentStatusConfirmed(transaction: BankTransaction): boolean {
+    return this.getPaymentStatus(transaction) === 'CONFIRMED';
+  }
+
+  /**
+   * Confirm a payment after reconciliation
+   */
+  async confirmPayment(transaction: BankTransaction) {
+    const paymentId = this.getPaymentId(transaction);
+    if (!paymentId) {
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = confirm(this.translate.instant('confirm_payment_after_reconciliation'));
+    if (!confirmed) {
+      return;
+    }
+
+    this.confirmingPayments.add(paymentId);
+
+    try {
+      await firstValueFrom(this.paymentService.confirmPayment(paymentId));
+      
+      // Update cached payment status
+      const payment = this.paymentCache.get(paymentId);
+      if (payment) {
+        payment.paymentStatus = 'CONFIRMED';
+        this.paymentCache.set(paymentId, payment);
+      }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('payment_confirmed_successfully'),
+        life: 3000
+      });
+    } catch (error: any) {
+      console.error('Error confirming payment:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_confirming_payment') + ': ' + (error.message || ''),
+        life: 4000
+      });
+    } finally {
+      this.confirmingPayments.delete(paymentId);
+    }
+  }
+
+  /**
+   * Check if payment is currently being confirmed
+   */
+  isConfirmingPayment(paymentId: number | null): boolean {
+    return paymentId ? this.confirmingPayments.has(paymentId) : false;
+  }
+
+  /**
+   * Navigate to payment details
+   */
+  viewPayment(paymentId: number) {
+    this.router.navigate(['/finance/payments'], { queryParams: { paymentId } });
   }
 }
 

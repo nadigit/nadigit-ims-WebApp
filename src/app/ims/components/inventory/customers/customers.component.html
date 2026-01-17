@@ -1,53 +1,49 @@
 <div class="grid">
     <div class="col-12">
+        <!-- Customers Management Section - Above Card (matching dashboard style) -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'customers_menu_title' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'customers_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
         <div class="card px-6 py-6">
-            <h5>{{'customers_menu_title' | translate}}</h5>
             <p-toast></p-toast>
 
-            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-                <div class="flex align-items-center mb-3">
-                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
-                </div>
-                <p class="m-0 text-600">
-                    {{ 'customers_page_description' | translate }}
-                    <!-- <span *ngIf="customers?.length" class="font-semibold">
-                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
-                    </span> -->
-                </p>
-                <div class="flex mt-3 gap-2">
-                    <p-tag *ngIf="canAddCustomer" value="{{'create' | translate}}" icon="pi pi-plus"
-                        severity="success"></p-tag>
-                    <p-tag *ngIf="canEditCustomer" value="{{'edit' | translate}}" icon="pi pi-pencil"
-                        severity="info"></p-tag>
-                    <p-tag *ngIf="canDeleteCustomer" value="{{'delete' | translate}}" icon="pi pi-trash"
-                        severity="danger"></p-tag>
-                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
-                    <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history"
-                        severity="help"></p-tag>
+            <!-- Action Buttons -->
+            <div class="flex justify-content-end align-items-center mb-4">
+                <div class="flex align-items-center gap-2">
+                    <button pButton pRipple *ngIf="canAddCustomer" label="{{'new_button' | translate}}"
+                        icon="pi pi-plus" class="p-button-success" (click)="openNew()"
+                        pTooltip="{{'add_new_customer'|translate}}"></button>
+                    <button pButton pRipple *ngIf="canDeleteCustomer" label="{{'delete_button' | translate}}"
+                        icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedCustomers()"
+                        pTooltip="{{'delete_customer'|translate}}"
+                        [disabled]="!selectedCustomers || !selectedCustomers.length"></button>
                 </div>
             </div>
 
-            <p-toolbar styleClass="mb-4">
-                <ng-template pTemplate="left">
-                    <div class="my-2">
-                        <button pButton pRipple *ngIf="canAddCustomer" label="{{'new_button' | translate}}"
-                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
-                            pTooltip="{{'add_new_customer'|translate}}"></button>
-                        <button pButton pRipple *ngIf="canDeleteCustomer" label="{{'delete_button' | translate}}"
-                            icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedCustomers()"
-                            pTooltip="{{'delete_customer'|translate}}"
-                            [disabled]="!selectedCustomers || !selectedCustomers.length"></button>
-                    </div>
-                </ng-template>
+            <!-- Filters Bar -->
+            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+                <!-- Global Search -->
+                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                    <i class="pi pi-search"></i>
+                    <input type="text" pInputText 
+                        [placeholder]="'search_label' | translate" 
+                        (input)="onGlobalFilter($event)" class="w-full" />
+                </span>
 
-                <ng-template pTemplate="right">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+                <!-- View Toggle & Export -->
+                <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
                         tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
-                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
-                </ng-template>
-            </p-toolbar>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
+                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                </div>
+            </div>
 
             <div class="card flex justify-content-center" *ngIf="isLoading">
                 <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
@@ -57,17 +53,8 @@
                 [globalFilterFields]="['companyName','firstName','lastName','email','country','city','phoneNumber','customerType']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                [(selection)]="selectedCustomers" selectionMode="multiple" [rowHover]="true" dataKey="customerId">
-                <ng-template pTemplate="caption">
-                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                        <h5 class="m-0">{{'customers_page_title' | translate}}</h5>
-                        <span class="block mt-2 md:mt-0 p-input-icon-left">
-                            <i class="pi pi-search"></i>
-                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
-                                placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
-                        </span>
-                    </div>
-                </ng-template>
+                [(selection)]="selectedCustomers" selectionMode="multiple" [rowHover]="true" dataKey="customerId"
+                styleClass="p-datatable-gridlines">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 3rem">
@@ -83,7 +70,7 @@
                             <p-columnFilter type="numeric" field="totalOrders" display="menu" />
                             <p-sortIcon field="totalOrders"></p-sortIcon>
                         </th>
-                        <th pSortableColumn="totalAmount">{{ 'order_total_amount' | translate }}
+                        <!-- <th pSortableColumn="totalAmount">{{ 'order_total_amount' | translate }}
                             <p-columnFilter type="numeric" field="totalAmount" display="menu" />
                             <p-sortIcon field="totalAmount"></p-sortIcon>
                         </th>
@@ -94,13 +81,20 @@
                         <th pSortableColumn="remainingBalance">{{ 'order_remaining_balance' | translate }}
                             <p-columnFilter type="numeric" field="remainingBalance" display="menu" />
                             <p-sortIcon field="remainingBalance"></p-sortIcon>
-                        </th>
-                        <th></th>
+                        </th> -->
+                        <th>{{ 'credit_balance' | translate }}</th>
+                        <th>{{ 'outstanding_balance' | translate }}</th>
+                        <th>{{ 'overdue_balance' | translate }}</th>
+                        <th>{{ 'net_balance' | translate }}</th>
+                        <th>{{ 'available_credit_limit' | translate }}</th>
+                        <th>{{ 'actions' | translate }}</th>
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-customer>
                     <tr
-                        (click)="canReadHistory ? openCustomerDetails(customer) : null">
+                        (click)="canReadHistory ? openCustomerDetails(customer) : null"
+                        (mouseenter)="loadCreditInfoForCustomer(customer.customerId)"
+                        class="cursor-pointer">
                         <td>
                             <p-tableCheckbox [value]="customer" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
@@ -178,7 +172,7 @@
                             <span class="p-column-title">{{ 'order_total_orders' | translate }}</span>
                             {{customer.totalOrders || 0}}
                         </td>
-                        <td style="min-width:10rem;" class="font-bold">
+                        <!-- <td style="min-width:10rem;" class="font-bold">
                             <span class="p-column-title">{{ 'order_total_amount' | translate }}</span>
                             {{customer.totalAmount | currency:currency:'symbol':'1.2-2'}}
                         </td>
@@ -199,15 +193,88 @@
                                     icon="pi pi-exclamation-triangle">
                                 </p-tag>
                             </ng-container>
+                        </td> -->
+                        
+                        <!-- Credit Balance -->
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'credit_balance' | translate }}</span>
+                            <span *ngIf="getCreditInfo(customer.customerId)" 
+                                class="text-green-600">
+                                {{ getCreditInfo(customer.customerId)?.availableCredit | currency:currency:'symbol':'1.2-2' }}
+                            </span>
+                            <span *ngIf="!getCreditInfo(customer.customerId)" 
+                                class="text-500 cursor-pointer"
+                                (click)="loadCreditInfoForCustomer(customer.customerId); $event.stopPropagation()"
+                                pTooltip="{{ 'click_to_load' | translate }}">
+                                {{ 'loading' | translate }}...
+                            </span>
                         </td>
+                        
+                        <!-- Outstanding Balance -->
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'outstanding_balance' | translate }}</span>
+                            <span *ngIf="getCreditInfo(customer.customerId)" 
+                                class="text-red-600">
+                                {{ getCreditInfo(customer.customerId)?.outstandingBalance | currency:currency:'symbol':'1.2-2' }}
+                            </span>
+                            <span *ngIf="!getCreditInfo(customer.customerId)" 
+                                class="text-500">
+                                -
+                            </span>
+                        </td>
+                        
+                        <!-- Overdue Balance -->
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'overdue_balance' | translate }}</span>
+                            <span *ngIf="getCreditInfo(customer.customerId)?.overdueBalance && getCreditInfo(customer.customerId)!.overdueBalance! > 0" 
+                                class="text-red-600">
+                                <p-tag severity="danger" [value]="getCreditInfo(customer.customerId)?.overdueBalance | currency:currency:'symbol':'1.2-2'"></p-tag>
+                            </span>
+                            <span *ngIf="!getCreditInfo(customer.customerId) || !getCreditInfo(customer.customerId)?.overdueBalance || getCreditInfo(customer.customerId)!.overdueBalance! === 0" 
+                                class="text-500">
+                                {{ '0.00' | currency:currency:'symbol':'1.2-2' }}
+                            </span>
+                        </td>
+                        
+                        <!-- Net Position -->
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'net_balance' | translate }}</span>
+                            <span *ngIf="getSafeNetBalance(customer.customerId) !== null" 
+                                [class.text-red-600]="(getSafeNetBalance(customer.customerId) || 0) > 0"
+                                [class.text-green-600]="(getSafeNetBalance(customer.customerId) || 0) <= 0">
+                                {{ getSafeNetBalance(customer.customerId) | currency:currency:'symbol':'1.2-2' }}
+                            </span>
+                            <span *ngIf="getSafeNetBalance(customer.customerId) === null" 
+                                class="text-500">
+                                -
+                            </span>
+                        </td>
+                        
+                        <!-- Available Credit Limit -->
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'available_credit_limit' | translate }}</span>
+                            <span *ngIf="getCreditInfo(customer.customerId) && getCreditInfo(customer.customerId)?.availableCreditLimit !== undefined && getCreditInfo(customer.customerId)?.availableCreditLimit !== null && isFinite(getCreditInfo(customer.customerId)!.availableCreditLimit!) && Math.abs(getCreditInfo(customer.customerId)!.availableCreditLimit!) <= 1e15" 
+                                [class.text-orange-600]="(getCreditInfo(customer.customerId)?.availableCreditLimit || 0) < 100"
+                                [class.text-600]="(getCreditInfo(customer.customerId)?.availableCreditLimit || 0) >= 100">
+                                {{ getCreditInfo(customer.customerId)?.availableCreditLimit | currency:currency:'symbol':'1.2-2' }}
+                                <i *ngIf="(getCreditInfo(customer.customerId)?.availableCreditLimit || 0) < 100" 
+                                    class="pi pi-exclamation-triangle text-orange-500 ml-1"
+                                    pTooltip="{{ 'low_credit_limit_warning' | translate }}"></i>
+                            </span>
+                            <span *ngIf="!getCreditInfo(customer.customerId) || getCreditInfo(customer.customerId)?.availableCreditLimit === undefined || getCreditInfo(customer.customerId)?.availableCreditLimit === null || !isFinite(getCreditInfo(customer.customerId)!.availableCreditLimit!) || Math.abs(getCreditInfo(customer.customerId)!.availableCreditLimit!) > 1e15" 
+                                class="text-500">
+                                -
+                            </span>
+                        </td>
+                        
                         <td>
-                            <div class="flex">
+                            <div class="flex gap-1">
                                 <button pButton pRipple *ngIf="canEditCustomer" icon="pi pi-pencil"
-                                    class="p-button-rounded p-button-info mr-2"
+                                    class="p-button-rounded p-button-text p-button-warning"
                                     pTooltip="{{'update_customer'|translate}}"
                                     (click)="editCustomer(customer); $event.stopPropagation()"></button>
                                 <button pButton pRipple *ngIf="canDeleteCustomer" icon="pi pi-trash"
-                                    class="p-button-rounded p-button-danger mr-2"
+                                    class="p-button-rounded p-button-text p-button-danger"
                                     pTooltip="{{'delete_customer'|translate}}"
                                     (click)="deleteCustomer(customer); $event.stopPropagation()"></button>
                                 <!-- <button pButton pRipple *ngIf="canReadHistory" icon="pi pi-list"

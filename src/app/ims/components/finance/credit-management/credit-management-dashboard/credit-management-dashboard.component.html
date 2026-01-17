@@ -1,0 +1,234 @@
+<div class="credit-dashboard-container">
+    <p-toast></p-toast>
+
+    <!-- Loading State -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-content" *ngIf="!isLoading">
+        <!-- Header -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'credit_management_dashboard' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'credit_management_overview' | translate }}</p>
+                </div>
+                <div class="flex gap-2" *ngIf="isAdmin">
+                    <button pButton 
+                            label="{{ 'process_expired_credits' | translate }}" 
+                            icon="pi pi-refresh"
+                            class="p-button-warning"
+                            (click)="processExpiredCredits()"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid mb-4">
+            <div class="col-12 md:col-6 lg:col-3">
+                <div class="summary-card">
+                    <div class="card-icon issued">
+                        <i class="pi pi-arrow-up"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'total_credit_issued' | translate }}</span>
+                        <div class="card-value">{{ totalCreditIssued | currency:currency:'symbol':'1.2-2' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6 lg:col-3">
+                <div class="summary-card">
+                    <div class="card-icon used">
+                        <i class="pi pi-arrow-down"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'total_credit_used' | translate }}</span>
+                        <div class="card-value">{{ totalCreditUsed | currency:currency:'symbol':'1.2-2' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6 lg:col-3">
+                <div class="summary-card">
+                    <div class="card-icon outstanding">
+                        <i class="pi pi-wallet"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'outstanding_credit_balance' | translate }}</span>
+                        <div class="card-value">{{ outstandingCreditBalance | currency:currency:'symbol':'1.2-2' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6 lg:col-3">
+                <div class="summary-card">
+                    <div class="card-icon customers">
+                        <i class="pi pi-users"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'customers_with_credit' | translate }}</span>
+                        <div class="card-value">{{ customersWithCredit }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Over Limit Alert -->
+        <div class="card mb-4" *ngIf="customersOverLimit > 0">
+            <div class="card-header flex align-items-center justify-content-between">
+                <div class="flex align-items-center gap-2">
+                    <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                    <h3 class="m-0">{{ 'customers_over_limit' | translate }} ({{ customersOverLimit }})</h3>
+                </div>
+            </div>
+            <div class="card-body">
+                <p-table [value]="overLimitAccounts" styleClass="p-datatable-sm p-datatable-gridlines">
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th>{{ 'customer' | translate }}</th>
+                            <th>{{ 'current_balance' | translate }}</th>
+                            <th>{{ 'credit_limit' | translate }}</th>
+                            <th>{{ 'over_by' | translate }}</th>
+                            <th>{{ 'status' | translate }}</th>
+                            <th style="width: 100px">{{ 'actions' | translate }}</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-account>
+                        <tr class="cursor-pointer">
+                            <td>{{ getCustomerDisplayName(account) }}</td>
+                            <td>{{ account.creditBalance | currency:currency:'symbol':'1.2-2' }}</td>
+                            <td>{{ account.creditLimit | currency:currency:'symbol':'1.2-2' }}</td>
+                            <td class="text-red-600 font-semibold">
+                                {{ getOverLimitAmount(account) | currency:currency:'symbol':'1.2-2' }}
+                            </td>
+                            <td>
+                                <p-tag [value]="account.status" 
+                                       [severity]="getStatusSeverity(account.status)" 
+                                       [rounded]="true"></p-tag>
+                            </td>
+                            <td>
+                                <button pButton 
+                                        type="button" 
+                                        icon="pi pi-eye" 
+                                        class="p-button-text p-button-sm"
+                                        [pTooltip]="'view_details' | translate"
+                                        (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            </div>
+        </div>
+
+        <!-- Outstanding Credit Table -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="m-0">{{ 'outstanding_credit_accounts' | translate }}</h3>
+            </div>
+            <div class="card-body">
+                <p-table [value]="outstandingCreditAccounts" 
+                         [paginator]="true"
+                         [rows]="10"
+                         styleClass="p-datatable-striped p-datatable-gridlines">
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th pSortableColumn="customer">
+                                {{ 'customer' | translate }}
+                                <p-sortIcon field="customer"></p-sortIcon>
+                            </th>
+                            <th pSortableColumn="creditBalance">
+                                {{ 'credit_balance' | translate }}
+                                <p-sortIcon field="creditBalance"></p-sortIcon>
+                            </th>
+                            <th pSortableColumn="creditLimit">
+                                {{ 'credit_limit' | translate }}
+                                <p-sortIcon field="creditLimit"></p-sortIcon>
+                            </th>
+                            <th pSortableColumn="status">
+                                {{ 'status' | translate }}
+                                <p-sortIcon field="status"></p-sortIcon>
+                            </th>
+                            <th pSortableColumn="lastTransactionDate">
+                                {{ 'last_transaction' | translate }}
+                                <p-sortIcon field="lastTransactionDate"></p-sortIcon>
+                            </th>
+                            <th style="width: 100px">{{ 'actions' | translate }}</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-account>
+                        <tr class="cursor-pointer">
+                            <td>{{ getCustomerDisplayName(account) }}</td>
+                            <td class="font-semibold">{{ account.creditBalance | currency:currency:'symbol':'1.2-2' }}</td>
+                            <td>{{ account.creditLimit || ('unlimited' | translate) }}</td>
+                            <td>
+                                <p-tag [value]="account.status" 
+                                       [severity]="getStatusSeverity(account.status)" 
+                                       [rounded]="true"></p-tag>
+                            </td>
+                            <td>{{ account.lastTransactionDate | date:'short' }}</td>
+                            <td>
+                                <button pButton 
+                                        type="button" 
+                                        icon="pi pi-eye" 
+                                        class="p-button-text p-button-sm"
+                                        [pTooltip]="'view_details' | translate"
+                                        (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
+                            </td>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="emptymessage">
+                        <tr>
+                            <td colspan="6">
+                                <div class="flex flex-column align-items-center justify-content-center py-5">
+                                    <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
+                                    <p class="text-500">{{ 'no_outstanding_credit' | translate }}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="card" *ngIf="recentTransactions.length > 0">
+            <div class="card-header">
+                <h3 class="m-0">{{ 'recent_credit_transactions' | translate }}</h3>
+            </div>
+            <div class="card-body">
+                <p-table [value]="recentTransactions" styleClass="p-datatable-sm p-datatable-gridlines">
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th>{{ 'date' | translate }}</th>
+                            <th>{{ 'customer' | translate }}</th>
+                            <th>{{ 'type' | translate }}</th>
+                            <th>{{ 'amount' | translate }}</th>
+                            <th>{{ 'balance_after' | translate }}</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-transaction>
+                        <tr class="cursor-pointer">
+                            <td>{{ transaction.transactionDate | date:'short' }}</td>
+                            <td>{{ getCustomerDisplayName(transaction.creditAccount) }}</td>
+                            <td>
+                                <p-tag [value]="transaction.transactionType" 
+                                       severity="info" 
+                                       [rounded]="true"></p-tag>
+                            </td>
+                            <td [ngClass]="transaction.amount && transaction.amount > 0 ? 'text-green-600' : 'text-red-600'">
+                                {{ transaction.amount | currency:currency:'symbol':'1.2-2' }}
+                            </td>
+                            <td>{{ transaction.balanceAfter | currency:currency:'symbol':'1.2-2' }}</td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            </div>
+        </div>
+    </div>
+</div>
+

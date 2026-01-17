@@ -12,6 +12,8 @@ import { Supplier } from 'src/app/models/supplier';
 import { Warehouse } from 'src/app/models/warehouse';
 import { TranslationService } from 'src/app/services/translation.service';
 import { getPaymentMethodLabel } from 'src/app/shared/payment-utils';
+import { getExpirationStatus, getExpirationInfo, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
+import { getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -52,6 +54,14 @@ export class ProductsTableComponent {
   @Input() calculateProfit: (product: Product) => number = () => 0;
   @Input() getQuantitySeverity: (quantity: number) => string = () => 'info';
   @Input() getMeasureUnit: (measureUnit: string, quantity: number) => string = () => 'UNIT';
+  @Input() getAvailableQuantity: (product: Product) => number = (product) => getAvailableQuantity(product);
+  @Input() hasWriteOffs: (product: Product) => boolean = (product) => hasWriteOffs(product);
+  @Input() getWriteOffQuantity: (product: Product) => number = (product) => getWriteOffQuantity(product);
+  @Input() expandedProducts: { [key: number]: boolean } = {};
+  @Input() isProductRowExpanded: (productId: number) => boolean = () => false;
+  @Input() toggleProductRow: (productId: number) => void = () => {};
+  @Input() getAggregatedWarehouseStocks: (product: any) => any[] = () => [];
+  @Input() viewMode: 'standard' | 'aggregated' = 'standard';
 
   @Output() editProductEvent = new EventEmitter<Product>();
   @Output() deleteProductEvent = new EventEmitter<Product>();
@@ -64,6 +74,7 @@ export class ProductsTableComponent {
   @Output() deleteSelectedProductsEvent = new EventEmitter<LazyLoadEvent>();
   @Output() selectedProductsChange = new EventEmitter<Product[]>();
   @Output() showProductDetailsEvent = new EventEmitter<Product>();
+  @Output() showWarehouseDetailsEvent = new EventEmitter<number>();
   @Output() exportPdfEvent = new EventEmitter<void>();
   @Output() exportExcelEvent = new EventEmitter<void>();
   @Output() applyFiltersEvent = new EventEmitter<{
@@ -71,10 +82,13 @@ export class ProductsTableComponent {
     warehouseIds?: number[];
     supplierIds?: number[];
     inventoryStatus?: string;
+    productType?: string;
+    expirationStatus?: string;
     globalFilter?: string;
   }>();
   @Output() deactivateScanningEvent = new EventEmitter<void>();
   @Output() activateScanningEvent = new EventEmitter<void>();
+  @Output() importProductsEvent = new EventEmitter<void>();
 
   items: MenuItem[] | undefined;
   sortOptions: SelectItem[] = [];
@@ -86,6 +100,8 @@ export class ProductsTableComponent {
   warehouseFilters: Warehouse[] = [];
   supplierFilters: Supplier[] = [];
   inventoryStatusFilter: string | undefined = undefined;
+  productTypeFilter: string | undefined = undefined;
+  expirationStatusFilter: string | undefined = undefined;
 
   // View options
   currentView: 'list' | 'grid' = 'list';
@@ -95,6 +111,8 @@ export class ProductsTableComponent {
   ];
 
   inventoryStatusOptions: SelectItem[] = [];
+  productTypeOptions: SelectItem[] = [];
+  expirationStatusOptions: SelectItem[] = [];
 
   constructor(private translate: TranslateService) {
     this.sortOptions = [
@@ -110,6 +128,31 @@ export class ProductsTableComponent {
       { label: this.translate.instant('product_lowstock'), value: 'LOWSTOCK' },
       { label: this.translate.instant('product_outofstock'), value: 'OUTOFSTOCK' }
     ];
+
+    this.productTypeOptions = [
+      { label: this.translate.instant('all'), value: undefined },
+      { label: this.translate.instant('product_type_product'), value: 'PRODUCT' },
+      { label: this.translate.instant('product_type_service'), value: 'SERVICE' }
+    ];
+
+    this.expirationStatusOptions = [
+      { label: this.translate.instant('all'), value: undefined },
+      { label: this.translate.instant('with_expiration'), value: 'with_expiration' },
+      { label: this.translate.instant('without_expiration'), value: 'without_expiration' },
+      { label: this.translate.instant('expired'), value: 'expired' },
+      { label: this.translate.instant('expiring_soon'), value: 'expiring_soon' },
+      { label: this.translate.instant('valid'), value: 'valid' }
+    ];
+  }
+
+  isService(product: Product): boolean {
+    if (!product) return false;
+    return product.productType === 'SERVICE';
+  }
+
+  isProduct(product: Product): boolean {
+    if (!product) return false;
+    return !product.productType || product.productType === 'PRODUCT';
   }
 
   onSelectionChange(event: Payment[]) {
@@ -137,6 +180,8 @@ export class ProductsTableComponent {
       warehouseIds: this.warehouseFilters?.map(w => w.warehouseId).filter(id => id !== undefined) as number[],
       supplierIds: this.supplierFilters?.map(s => s.supplierId).filter(id => id !== undefined) as number[],
       inventoryStatus: this.inventoryStatusFilter,
+      productType: this.productTypeFilter,
+      expirationStatus: this.expirationStatusFilter,
       globalFilter: this.globalFilter
     });
   }
@@ -147,6 +192,8 @@ export class ProductsTableComponent {
     this.warehouseFilters = [];
     this.supplierFilters = [];
     this.inventoryStatusFilter = undefined;
+    this.productTypeFilter = undefined;
+    this.expirationStatusFilter = undefined;
     
     if (this.dt) {
       this.dt.clear();
@@ -189,5 +236,56 @@ export class ProductsTableComponent {
         },
       },
     ];
+  }
+
+  // Expiration status helper methods
+  getExpirationStatus(product: Product): ExpirationStatus | null {
+    if (!this.isProduct(product) || !product.expirationDate) {
+      return null; // No expiration date or not a product
+    }
+    return getExpirationStatus(product, 7);
+  }
+
+  getExpirationInfo(product: Product) {
+    if (!this.isProduct(product) || !product.expirationDate) {
+      return null;
+    }
+    return getExpirationInfo(product, 7);
+  }
+
+  getExpirationSeverity(status: ExpirationStatus | null): string {
+    if (!status) return 'info';
+    return getExpirationSeverity(status);
+  }
+
+  getExpirationIcon(status: ExpirationStatus | null): string {
+    if (!status) return 'pi pi-info-circle';
+    return getExpirationIcon(status);
+  }
+
+  getExpirationDays(product: Product): number {
+    const info = this.getExpirationInfo(product);
+    return info ? info.daysUntilExpiration : 0;
+  }
+
+  shouldShowExpirationBadge(product: Product): boolean {
+    if (!this.isProduct(product) || !product.expirationDate) {
+      return false; // No badge for services or products without expiration date
+    }
+    const status = this.getExpirationStatus(product);
+    // Show badge for expired and expiring soon, hide for valid products
+    return status === 'EXPIRED' || status === 'EXPIRING_SOON';
+  }
+
+  showValidIndicator(product: Product): boolean {
+    if (!this.isProduct(product) || !product.expirationDate) {
+      return false;
+    }
+    const status = this.getExpirationStatus(product);
+    return status === 'VALID';
+  }
+
+  viewWarehouseDetails(warehouseId: number): void {
+    this.showWarehouseDetailsEvent.emit(warehouseId);
   }
 }

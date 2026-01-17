@@ -1,50 +1,104 @@
 <div class="grid">
 	<div class="col-12">
+		<!-- Financial Documents Management Section - Above Card (matching dashboard style) -->
+		<div class="mb-4">
+			<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+				<div>
+					<h2 class="m-0 text-900">{{ 'financial_docs_menu_title' | translate }}</h2>
+					<p class="text-600 mt-2 mb-0">{{ 'financial_docs_page_description' | translate }}</p>
+				</div>
+			</div>
+		</div>
+
 		<div class="card px-6 py-6">
-			<h5>{{'financial_docs_menu_title' | translate}}</h5>
 			<p-toast></p-toast>
 
-			<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-				<div class="flex align-items-center mb-3">
-					<i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-					<h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
-				</div>
-				<p class="m-0 text-600">
-					{{ 'financial_docs_page_description' | translate }}
-				</p>
-				<div class="flex mt-3 gap-2">
-					<p-tag *ngIf="canAddFinancialDocs" value="{{'create'|translate}}" icon="pi pi-plus"
-						severity="success"></p-tag>
-					<p-tag *ngIf="canEditFinancialDocs" value="{{'edit'|translate}}" icon="pi pi-pencil"
-						severity="info"></p-tag>
-					<p-tag *ngIf="canDeleteFinancialDocs" value="{{'delete'|translate}}" icon="pi pi-trash"
-						severity="danger"></p-tag>
-					<p-tag value="{{'export'|translate}}" icon="pi pi-download" severity="warning"></p-tag>
-					<p-tag *ngIf="canReadFinancialDocs" value="{{'read'|translate}}" icon="pi pi-list"
-						severity="help"></p-tag>
+			<!-- Action Buttons -->
+			<div class="flex justify-content-end align-items-center mb-4">
+				<div class="flex align-items-center gap-2">
+					<button *ngIf="canAddFinancialDocs" pButton pRipple label="{{'new_button' | translate}}"
+						icon="pi pi-plus" class="p-button-success" (click)="openNew()"
+						pTooltip="{{'add_new_financial_doc'|translate}}"></button>
+					<button *ngIf="canDeleteFinancialDocs" pButton pRipple label="{{'delete_button' | translate}}"
+						icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedFinancialDocs()"
+						pTooltip="{{'delete_financial_doc'|translate}}"
+						[disabled]="!selectedFinancialDocs || !selectedFinancialDocs.length"></button>
 				</div>
 			</div>
 
-			<p-toolbar styleClass="mb-4">
-				<ng-template pTemplate="left">
-					<div class="my-2">
-						<button *ngIf="canAddFinancialDocs" pButton pRipple label="{{'new_button' | translate}}"
-							icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
-							pTooltip="{{'add_new_financial_doc'|translate}}"></button>
-						<button *ngIf="canDeleteFinancialDocs" pButton pRipple label="{{'delete_button' | translate}}"
-							icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedFinancialDocs()"
-							pTooltip="{{'delete_financial_doc'|translate}}"
-							[disabled]="!selectedFinancialDocs || !selectedFinancialDocs.length"></button>
-					</div>
-				</ng-template>
+			<!-- Filters Bar -->
+			<div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+				<!-- Global Search -->
+				<span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+					<i class="pi pi-search"></i>
+					<input type="text" pInputText 
+						[placeholder]="'search_label' | translate" 
+						(input)="onGlobalFilter($event)" class="w-full" />
+				</span>
 
-				<ng-template pTemplate="right">
-					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+				<!-- Document Type Filter -->
+				<p-dropdown 
+					[(ngModel)]="selectedDocType" 
+					[options]="docTypes" 
+					optionLabel="label" 
+					optionValue="value"
+					[showClear]="true"
+					[placeholder]="'filter_by_document_type' | translate"
+					appendTo="body"
+					styleClass="w-14rem"
+					(onChange)="onFilterChange()">
+				</p-dropdown>
+
+				<!-- Document Status Filter -->
+				<p-dropdown 
+					[(ngModel)]="selectedDocStatus" 
+					[options]="docStatuses" 
+					optionLabel="label" 
+					optionValue="value"
+					[showClear]="true"
+					[placeholder]="'filter_by_status' | translate"
+					appendTo="body"
+					styleClass="w-14rem"
+					(onChange)="onFilterChange()">
+				</p-dropdown>
+
+				<!-- Date Range Filters -->
+				<div class="flex align-items-center gap-2">
+					<p-calendar 
+						[(ngModel)]="startDate" 
+						[showIcon]="true"
+						dateFormat="dd/mm/yy"
+						[showOnFocus]="false"
+						[placeholder]="'start_date' | translate"
+						appendTo="body"
+						styleClass="w-10rem"
+						(onSelect)="onFilterChange()"
+						(onClearClick)="onFilterChange()">
+					</p-calendar>
+					<p-calendar 
+						[(ngModel)]="endDate" 
+						[showIcon]="true"
+						dateFormat="dd/mm/yy"
+						[showOnFocus]="false"
+						[minDate]="startDate"
+						[placeholder]="'end_date' | translate"
+						appendTo="body"
+						styleClass="w-10rem"
+						(onSelect)="onFilterChange()"
+						(onClearClick)="onFilterChange()">
+					</p-calendar>
+				</div>
+
+				<!-- View Toggle & Export -->
+				<div class="flex align-items-center gap-2 ml-auto">
+					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
 						tooltipPosition="bottom" (click)="exportPdf()"></button>
-					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
-						class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
-				</ng-template>
-			</p-toolbar>
+					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
+						pTooltip="XLS" tooltipPosition="bottom"></button>
+					<button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+						pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+				</div>
+			</div>
 
 			<div class="card flex justify-content-center" *ngIf="isLoading">
 				<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
@@ -55,17 +109,8 @@
 				[rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
 				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
 				[(selection)]="selectedFinancialDocs" selectionMode="multiple" [rowHover]="true"
-				dataKey="financialDocId">
-				<ng-template pTemplate="caption">
-					<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-						<h5 class="m-0">{{'financial_docs_page_title' | translate}}</h5>
-						<span class="block mt-2 md:mt-0 p-input-icon-left">
-							<i class="pi pi-search"></i>
-							<input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
-								placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
-						</span>
-					</div>
-				</ng-template>
+				dataKey="financialDocId"
+				styleClass="p-datatable-gridlines">
 				<ng-template pTemplate="header">
 					<tr>
 						<th style="width: 3rem">
@@ -92,29 +137,28 @@
 							<p-sortIcon field="docStatus"></p-sortIcon>
 						</th>
 
-						<th pSortableColumn="createdAt">
-							{{ 'creation_date' | translate }}
-							<p-columnFilter type="date" field="createdAt" display="menu" />
-							<p-sortIcon field="createdAt"></p-sortIcon>
-						</th>
+					<th pSortableColumn="createdAt">
+						{{ 'creation_date' | translate }}
+						<p-sortIcon field="createdAt"></p-sortIcon>
+					</th>
 
-						<th pSortableColumn="issuedAt">
-							{{ 'issued_date' | translate }}
-							<p-columnFilter type="date" field="issuedAt" display="menu" />
-							<p-sortIcon field="issuedAt"></p-sortIcon>
-						</th>
+					<th pSortableColumn="issuedAt">
+						{{ 'issued_date' | translate }}
+						<p-sortIcon field="issuedAt"></p-sortIcon>
+					</th>
 
 						<th class="text-center" *ngIf="canReadFinancialDocs">
 							{{ 'file' | translate }}
 						</th>
 
-						<th></th>
+						<th>{{ 'actions' | translate }}</th>
 					</tr>
 				</ng-template>
 
 				<ng-template pTemplate="body" let-doc>
 					<tr [pSelectableRow]="doc"
-						(click)="canReadFinancialDocs ? viewFinancialDocDetailsDialog(doc) : null">
+						(click)="canReadFinancialDocs ? viewFinancialDocDetailsDialog(doc) : null"
+						class="cursor-pointer">
 						<td>
 							<p-tableCheckbox [value]="doc" (click)="$event.stopPropagation()"></p-tableCheckbox>
 						</td>
@@ -160,31 +204,31 @@
 						</td>
 
 						<td>
-							<div class="flex">
+							<div class="flex gap-1">
 								<!-- Edit button -->
 								<button pButton pRipple *ngIf="canEditFinancialDocs && doc.docStatus =='DRAFT'"
-									icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+									icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
 									pTooltip="{{ 'update_financial_doc' | translate }}"
 									(click)="editFinancialDoc(doc); $event.stopPropagation()">
 								</button>
 
 								<!-- Delete button -->
 								<button pButton pRipple *ngIf="canDeleteFinancialDocs && isAdmin" icon="pi pi-trash"
-									class="p-button-rounded p-button-danger mr-2"
+									class="p-button-rounded p-button-text p-button-danger"
 									pTooltip="{{ 'delete_financial_doc' | translate }}"
 									(click)="deleteFinancialDoc(doc); $event.stopPropagation()">
 								</button>
 
 								<!-- Issue button -->
 								<button pButton pRipple *ngIf="canIssueFinancialDocs && doc.docStatus =='DRAFT'"
-									icon="pi pi-check-circle" class="p-button-rounded p-button-success mr-2"
+									icon="pi pi-check-circle" class="p-button-rounded p-button-text p-button-success"
 									pTooltip="{{ 'issue_financial_doc' | translate }}"
 									(click)="issueFinancialDoc(doc); $event.stopPropagation()">
 								</button>
 
 								<!-- Cancel button -->
 								<button pButton pRipple *ngIf="canEditFinancialDocs && doc.docStatus =='ISSUED'"
-									icon="pi pi-times" class="p-button-rounded p-button-warning mr-2"
+									icon="pi pi-times" class="p-button-rounded p-button-text p-button-warning"
 									pTooltip="{{ 'cancel_financial_doc' | translate }}"
 									(click)="cancelFinancialDoc(doc); $event.stopPropagation()">
 								</button>
@@ -335,37 +379,129 @@
 			</ng-template>
 		</p-dialog>
 
-		<p-dialog [(visible)]="issueFinancialDocDialog" [style]="{width: '700px'}"
-			[breakpoints]="{'960px': '90vw', '640px': '95vw'}"
-			header="{{'financial_document_details' | translate}} : {{financialDoc.docNumber}}" [modal]="true"
-			[draggable]="false" [resizable]="false" class="p-fluid financial-doc-dialog">
+		<p-dialog [(visible)]="issueFinancialDocDialog" [style]="{width: '95vw', maxWidth: '1400px', height: '90vh'}"
+			[breakpoints]="{'960px': '95vw', '640px': '95vw'}"
+			[modal]="true"
+			[draggable]="false" [resizable]="false" class="p-fluid enhanced-financial-doc-dialog">
+
+			<!-- HEADER -->
+			<ng-template pTemplate="header">
+				<div class="flex align-items-center justify-content-between w-full">
+					<div>
+						<h3 class="m-0">{{ 'issue_document' | translate }}</h3>
+						<span class="text-500 text-sm">{{ financialDoc.docNumber }}</span>
+					</div>
+					<p-tag [value]="financialDoc.docType" [severity]="getDocTypeSeverity(financialDoc.docType)"></p-tag>
+				</div>
+			</ng-template>
 
 			<!-- CONTENT -->
 			<ng-template pTemplate="content">
-				<div class="grid p-fluid">
+				<div class="issue-document-container">
+					<div class="grid h-full">
+						<!-- LEFT PANEL: Form Fields -->
+						<div class="col-12 lg:col-5 form-panel">
+							<p-tabView>
+								<!-- Basic Information Tab -->
+								<p-tabPanel header="{{ 'basic_information' | translate }}">
+									<div class="grid p-fluid">
 
 					<!-- DOCUMENT INFO -->
 					<div class="col-12">
 						<h4 class="mt-3 mb-2">{{ 'document_information' | translate }}</h4>
 					</div>
 
+					<!-- DOCUMENT DATE -->
+					<div class="col-12 md:col-6">
+						<div class="field">
+							<label for="documentDate">{{ 'document_date' | translate }}</label>
+							<p-calendar [(ngModel)]="financialDoc.documentDate" name="documentDate" dateFormat="dd/mm/yy"
+								showIcon="true" appendTo="body" placeholder="{{ 'select_document_date' | translate }}"
+								(onSelect)="onDocumentDateChange()">
+							</p-calendar>
+						</div>
+					</div>
 
-					<!-- DATES -->
+					<!-- DELIVERY DATE -->
+					<div class="col-12 md:col-6">
+						<div class="field">
+							<label for="deliveryDate">{{ 'delivery_date' | translate }}</label>
+							<p-calendar [(ngModel)]="financialDoc.deliveryDate" name="deliveryDate" dateFormat="dd/mm/yy"
+								showIcon="true" appendTo="body" placeholder="{{ 'select_delivery_date' | translate }}">
+							</p-calendar>
+						</div>
+					</div>
+
+					<!-- PAYMENT TERMS SECTION -->
+					<div class="col-12">
+						<h5 class="mt-2 mb-2">{{ 'payment_terms' | translate }}</h5>
+					</div>
+
+					<!-- PAYMENT TERMS DAYS (Due Date Calculator) -->
+					<div class="col-12 md:col-6">
+						<div class="field">
+							<label for="paymentTermsDays">{{ 'due_in_days' | translate }}</label>
+							<p-inputNumber [(ngModel)]="financialDoc.paymentTermsDays" name="paymentTermsDays"
+								[showButtons]="true" [min]="0" [max]="365"
+								placeholder="{{ 'enter_days' | translate }}"
+								(onInput)="calculateDueDate()">
+							</p-inputNumber>
+							<small class="text-500" *ngIf="financialDoc.paymentTermsDays && financialDoc.documentDate">
+								{{ 'calculated_due_date' | translate }}: {{ getCalculatedDueDate() | date:'dd/MM/yyyy' }}
+							</small>
+						</div>
+					</div>
+
+					<!-- DUE DATE -->
 					<div class="col-12 md:col-6">
 						<div class="field">
 							<label for="dueDate">{{ 'due_date' | translate }}</label>
 							<p-calendar [(ngModel)]="financialDoc.dueDate" name="dueDate" dateFormat="dd/mm/yy"
 								showIcon="true" appendTo="body" placeholder="{{ 'select_due_date' | translate }}"
-								(onSelect)="updateValidityDays()">
+								(onSelect)="onDueDateChange()">
+							</p-calendar>
+							<small class="text-500">{{ 'or_set_custom_due_date' | translate }}</small>
+						</div>
+					</div>
+
+					<!-- VALIDITY PERIOD SECTION -->
+					<div class="col-12" *ngIf="financialDoc.docType === 'QUOTE'">
+						<h5 class="mt-2 mb-2">{{ 'validity_period' | translate }}</h5>
+					</div>
+
+					<!-- VALIDITY DAYS -->
+					<div class="col-12 md:col-6" *ngIf="financialDoc.docType === 'QUOTE'">
+						<div class="field">
+							<label for="validityDays">{{ 'valid_for_days' | translate }}</label>
+							<p-inputNumber [(ngModel)]="financialDoc.validityDays" name="validityDays"
+								[showButtons]="true" [min]="0" [max]="365"
+								placeholder="{{ 'enter_days' | translate }}"
+								(onInput)="calculateValidityEndDate()">
+							</p-inputNumber>
+							<small class="text-500" *ngIf="financialDoc.validityDays && financialDoc.documentDate">
+								{{ 'valid_until' | translate }}: {{ getCalculatedValidityEndDate() | date:'dd/MM/yyyy' }}
+							</small>
+						</div>
+					</div>
+
+					<!-- VALIDITY START DATE -->
+					<div class="col-12 md:col-3" *ngIf="financialDoc.docType === 'QUOTE'">
+						<div class="field">
+							<label for="validityStartDate">{{ 'validity_start_date' | translate }}</label>
+							<p-calendar [(ngModel)]="financialDoc.validityStartDate" name="validityStartDate" dateFormat="dd/mm/yy"
+								showIcon="true" appendTo="body" placeholder="{{ 'select_start_date' | translate }}">
 							</p-calendar>
 						</div>
 					</div>
 
-					<div class="col-12 md:col-6" *ngIf="financialDoc.docType === 'QUOTE'">
+					<!-- VALIDITY END DATE -->
+					<div class="col-12 md:col-3" *ngIf="financialDoc.docType === 'QUOTE'">
 						<div class="field">
-							<label>{{ 'validity_days' | translate }}</label>
-							<i class="pi pi-info-circle ml-2" pTooltip="{{ 'validity_days_help' | translate }}"></i>
-							<input type="number" pInputText [(ngModel)]="financialDoc.validityDays" readonly />
+							<label for="validityEndDate">{{ 'validity_end_date' | translate }}</label>
+							<p-calendar [(ngModel)]="financialDoc.validityEndDate" name="validityEndDate" dateFormat="dd/mm/yy"
+								showIcon="true" appendTo="body" placeholder="{{ 'select_end_date' | translate }}">
+							</p-calendar>
+							<small class="text-500">{{ 'or_set_custom_end_date' | translate }}</small>
 						</div>
 					</div>
 
@@ -375,6 +511,14 @@
 							<textarea pInputTextarea [(ngModel)]="financialDoc.paymentTerms"
 								placeholder="{{ 'enter_payment_terms' | translate }}" rows="3" autoResize="true">
 							</textarea>
+						</div>
+					</div>
+
+					<div class="col-12 md:col-12">
+						<div class="field">
+							<label>{{'notes' | translate}}</label>
+							<textarea pInputTextarea [(ngModel)]="financialDoc.notes" rows="3"
+								placeholder="{{'enter_notes' | translate}}" autoResize="true"></textarea>
 						</div>
 					</div>
 
@@ -396,26 +540,119 @@
 						</div>
 					</div>
 
-					<!-- REQUIRED NOTE -->
-					<div class="required-note mt-3 col-12">
-						<small><span class="required-asterisk">*</span>
-							{{'fields_marked_with_asterisk_required' | translate}}
-						</small>
-					</div>
+										<!-- REQUIRED NOTE -->
+										<div class="required-note mt-3 col-12">
+											<small><span class="required-asterisk">*</span>
+												{{'fields_marked_with_asterisk_required' | translate}}
+											</small>
+										</div>
+									</div>
+								</p-tabPanel>
+								
+								<!-- Advanced Options Tab -->
+								<p-tabPanel header="{{ 'advanced_options' | translate }}">
+									<div class="grid p-fluid">
+										<div class="col-12 md:col-6">
+											<div class="field-checkbox">
+												<p-checkbox [(ngModel)]="financialDoc.requiresSignature" binary="true"
+													inputId="requiresSignature"></p-checkbox>
+												<label for="requiresSignature">{{'requires_signature' | translate}}</label>
+											</div>
+										</div>
 
+										<div class="col-12 md:col-12">
+											<div class="field">
+												<label>{{'additional_references' | translate}}</label>
+												<textarea pInputTextarea [(ngModel)]="financialDoc.additionalReferences"
+													placeholder="{{ 'enter_additional_references' | translate }}" rows="3"
+													autoResize="true">
+												</textarea>
+											</div>
+										</div>
+									</div>
+								</p-tabPanel>
+							</p-tabView>
+						</div>
+
+						<!-- RIGHT PANEL: Live Preview -->
+						<div class="col-12 lg:col-7 preview-panel">
+							<div class="preview-header">
+								<h4>{{ 'document_preview' | translate }}</h4>
+								<div class="flex gap-2">
+									<button pButton icon="pi pi-refresh" 
+										class="p-button-text p-button-sm"
+										[pTooltip]="'refresh_preview' | translate"
+										(click)="refreshPreview()"
+										[disabled]="previewLoading || !financialDoc?.order?.orderId"></button>
+								</div>
+							</div>
+							
+							<div class="document-preview-container">
+								<!-- Loading State -->
+								<div *ngIf="previewLoading" class="flex flex-column align-items-center justify-content-center" style="height: 100%; min-height: 400px;">
+									<p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+									<p class="text-600 mt-3">{{ 'loading_preview' | translate }}</p>
+								</div>
+
+								<!-- Error State -->
+								<div *ngIf="previewError && !previewLoading" class="flex flex-column align-items-center justify-content-center p-4" style="height: 100%; min-height: 400px;">
+									<i class="pi pi-exclamation-triangle text-orange-500 text-4xl mb-3"></i>
+									<p class="text-600">{{ previewError }}</p>
+									<button pButton label="{{ 'retry' | translate }}" 
+										icon="pi pi-refresh"
+										class="p-button-outlined mt-3"
+										(click)="refreshPreview()"></button>
+								</div>
+
+								<!-- Preview Content: Backend-rendered HTML -->
+								<div *ngIf="!previewLoading && !previewError && safePreviewHtml" 
+									class="preview-html-container"
+									[innerHTML]="safePreviewHtml">
+								</div>
+
+								<!-- Empty State -->
+								<div *ngIf="!previewLoading && !previewError && !previewHtml && financialDoc?.order?.orderId" 
+									class="flex flex-column align-items-center justify-content-center p-4" 
+									style="height: 100%; min-height: 400px;">
+									<i class="pi pi-file text-400 text-4xl mb-3"></i>
+									<p class="text-600">{{ 'no_preview_available' | translate }}</p>
+									<button pButton label="{{ 'load_preview' | translate }}" 
+										icon="pi pi-eye"
+										class="p-button-outlined mt-3"
+										(click)="refreshPreview()"></button>
+								</div>
+
+								<!-- No Order State -->
+								<div *ngIf="!financialDoc?.order?.orderId" 
+									class="flex flex-column align-items-center justify-content-center p-4" 
+									style="height: 100%; min-height: 400px;">
+									<i class="pi pi-info-circle text-400 text-4xl mb-3"></i>
+									<p class="text-600">{{ 'select_order_to_preview' | translate }}</p>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</ng-template>
 
 			<!-- FOOTER -->
 			<ng-template pTemplate="footer">
 				<div class="flex justify-content-between align-items-center w-full">
-					<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-						class="p-button-text p-button-danger" (click)="issueFinancialDocDialog = false"></button>
-
+					<button pButton label="{{ 'preview_pdf' | translate }}" 
+						icon="pi pi-file-pdf" 
+						class="p-button-outlined"
+						(click)="previewPDF()"
+						[disabled]="!financialDoc.docNumber"></button>
+					
 					<div class="flex gap-2">
-						<button pButton pRipple
-							label="{{ isNewDoc ? ('save_button' | translate) : ('save_button' | translate) }}"
-							icon="pi pi-check" class="p-button-raised" (click)="confirmIssueDocument()"></button>
+						<button pButton label="{{ 'cancel_button' | translate }}" 
+							icon="pi pi-times"
+							class="p-button-text p-button-danger" 
+							(click)="issueFinancialDocDialog = false"></button>
+						<button pButton label="{{ 'issue_document' | translate }}" 
+							icon="pi pi-check" 
+							class="p-button-raised"
+							(click)="confirmIssueDocument()"></button>
 					</div>
 				</div>
 			</ng-template>

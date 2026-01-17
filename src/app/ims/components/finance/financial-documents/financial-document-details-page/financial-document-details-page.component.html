@@ -371,6 +371,22 @@
 				</div>
 			</p-tabPanel>
 			
+			<!-- Payment History Tab (for Invoices) -->
+			<p-tabPanel *ngIf="financialDoc?.docType === 'INVOICE' && financialDoc?.allocations && financialDoc.allocations.length > 0">
+				<ng-template pTemplate="header">
+					<i class="pi pi-credit-card mr-2"></i>
+					<span>{{ 'payment_history' | translate }}</span>
+				</ng-template>
+				
+				<div class="mt-3">
+					<app-payment-history 
+						[allocations]="financialDoc.allocations"
+						[totalAmount]="financialDoc.order?.totalAmount || 0"
+						[currency]="currency">
+					</app-payment-history>
+				</div>
+			</p-tabPanel>
+			
 			<!-- Items Tab -->
 			<p-tabPanel *ngIf="financialDoc?.order">
 				<ng-template pTemplate="header">

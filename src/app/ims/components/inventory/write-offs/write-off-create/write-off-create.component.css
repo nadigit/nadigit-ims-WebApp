@@ -1,0 +1,33 @@
+/* Write-Off Create Component Styles */
+.write-off-create-container {
+    padding: 1.5rem;
+}
+
+.sticky-top {
+    position: sticky;
+}
+
+.field {
+    margin-bottom: 1.5rem;
+}
+
+.field label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.text-red-500 {
+    color: var(--red-500);
+}
+
+.p-error {
+    color: var(--red-500);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.ng-invalid.ng-touched,
+.ng-invalid.ng-dirty {
+    border-color: var(--red-500);
+}
+

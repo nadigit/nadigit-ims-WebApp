@@ -343,13 +343,15 @@
                                 styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,25,50]"
+                                dataKey="transferItemId"
                                 *ngIf="transfer.transferItems?.length > 0; else noItems">
                                 <ng-template pTemplate="header">
                                     <tr>
-                                        <th style="width: 40%">{{ 'product' | translate }}</th>
-                                        <th style="width: 25%">{{ 'product_reference' | translate }}</th>
-                                        <th style="width: 15%" class="text-center">{{ 'quantity' | translate }}</th>
-                                        <th style="width: 20%">{{ 'notes' | translate }}</th>
+                                        <th style="width: 35%">{{ 'product' | translate }}</th>
+                                        <th style="width: 20%">{{ 'product_reference' | translate }}</th>
+                                        <th style="width: 12%" class="text-center">{{ 'quantity' | translate }}</th>
+                                        <th style="width: 18%">{{ 'notes' | translate }}</th>
+                                        <th style="width: 15%">{{ 'batch_info' | translate }}</th>
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="body" let-item>
@@ -370,13 +372,55 @@
                                             <p-tag [value]="item.quantity?.toString() || '0'" severity="info"></p-tag>
                                         </td>
                                         <td class="text-600">{{ item.notes || '-' }}</td>
+                                        <td>
+                                            <p-tag *ngIf="hasBatchInfo(item)" 
+                                                [value]="'batch_tracked' | translate" 
+                                                severity="info" 
+                                                [icon]="'pi pi-box'">
+                                            </p-tag>
+                                            <span *ngIf="!hasBatchInfo(item)" class="text-500 text-sm">-</span>
+                                        </td>
+                                    </tr>
+                                    <!-- Batch Information Row -->
+                                    <tr *ngIf="hasBatchInfo(item)">
+                                        <td [attr.colspan]="5" class="batch-info-cell p-0">
+                                            <div class="batch-info-section">
+                                                <div class="batch-info-header">
+                                                    <i class="pi pi-box mr-2"></i>
+                                                    <strong>{{ 'batch_details' | translate }}</strong>
+                                                </div>
+                                                <div class="batch-info-content">
+                                                    <div *ngFor="let batch of getBatchMetadata(item)" class="batch-detail-item">
+                                                        <div class="batch-row">
+                                                            <span *ngIf="batch.batchNumber" class="batch-field">
+                                                                <strong>{{ 'batch_number' | translate }}:</strong> {{ batch.batchNumber }}
+                                                            </span>
+                                                            <span class="batch-field">
+                                                                <strong>{{ 'quantity' | translate }}:</strong> {{ batch.quantity }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="batch-row">
+                                                            <span *ngIf="batch.expirationDate" class="batch-field">
+                                                                <strong>{{ 'expires' | translate }}:</strong> {{ formatBatchDate(batch.expirationDate) }}
+                                                            </span>
+                                                            <span *ngIf="batch.buyingPrice" class="batch-field">
+                                                                <strong>{{ 'price' | translate }}:</strong> {{ formatCurrency(batch.buyingPrice) }}
+                                                            </span>
+                                                            <span *ngIf="batch.supplierId" class="batch-field">
+                                                                <strong>{{ 'supplier_id' | translate }}:</strong> {{ batch.supplierId }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="footer">
                                     <tr class="total-footer">
                                         <td colspan="2" class="text-right font-bold">{{ 'total' | translate }}:</td>
                                         <td class="text-center font-bold text-primary text-xl">{{ getTotalQuantity(transfer) }}</td>
-                                        <td></td>
+                                        <td colspan="2"></td>
                                     </tr>
                                 </ng-template>
                             </p-table>

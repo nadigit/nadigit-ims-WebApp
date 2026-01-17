@@ -40,12 +40,14 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ListboxModule } from 'primeng/listbox';
 import { CheckboxModule } from 'primeng/checkbox';
+import { CalendarModule } from 'primeng/calendar';
 import { TabViewModule } from 'primeng/tabview';
 import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
 import { ProductsTableComponent } from './products-table/products-table.component';
 import { ProductDetailsPageComponent } from './product-details/product-details-page.component';
 import { ProductFormComponent } from './product-form/product-form.component';
+import { ProductImportComponent } from './product-import/product-import.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 
 
@@ -91,11 +93,12 @@ import { SharedModule } from 'src/app/shared/shared.module';
         ConfirmDialogModule,
         ListboxModule,
         CheckboxModule,
+        CalendarModule,
         TabViewModule,
         BadgeModule,
         DividerModule,
     ],
-    declarations: [ProductsComponent, ProductsTableComponent, ProductDetailsPageComponent, ProductFormComponent],
+    declarations: [ProductsComponent, ProductsTableComponent, ProductDetailsPageComponent, ProductFormComponent, ProductImportComponent],
     providers: [ReportingService, DialogService],
     exports: [ProductFormComponent]
 })

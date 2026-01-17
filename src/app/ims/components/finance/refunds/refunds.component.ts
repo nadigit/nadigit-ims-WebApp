@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -17,6 +17,14 @@ import { RefundMethod } from 'src/app/enums/refund-method.enum';
 import { RefundStatus } from 'src/app/enums/refund-status.enum';
 import { ReturnService } from 'src/app/services/return.service';
 import { OrderReturn } from 'src/app/models/orderReturn';
+import { BankAccountService } from 'src/app/services/bank-account.service';
+import { BankAccount } from 'src/app/models/bank-account';
+import { PaymentValidationService } from 'src/app/services/payment-validation.service';
+import { CustomerCreditService } from 'src/app/services/customer-credit.service';
+import { CreditInfo } from 'src/app/models/credit-info';
+import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
+import { BankTransaction } from 'src/app/models/bank-transaction';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   templateUrl: './refunds.component.html',
@@ -32,6 +40,8 @@ export class RefundsComponent implements OnInit {
   deleteRefundDialog: boolean = false;
 
   deleteRefundsDialog: boolean = false;
+
+  confirmRefundDialog: boolean = false;
 
   currency: any;
 
@@ -80,7 +90,25 @@ export class RefundsComponent implements OnInit {
   canReadRefund: boolean = false;
   isLoading: boolean = true;
   refundStatuses: any[] = [];
+  
+  // Filter properties
+  selectedRefundStatus: string | null = null;
+  selectedRefundMethod: string | null = null;
+  selectedCustomer: Customer | null = null;
+  startDate: Date | null = null;
+  endDate: Date | null = null;
+  
   maxRefundDate: Date;
+  bankAccounts: BankAccount[] = [];
+  showBankAccountField: boolean = false;
+  isBankAccountRequired: boolean = false;
+  minimumAmountHint: string | null = null;
+  creditInfo: CreditInfo | null = null;
+
+  // ⚠️ NEW: Reconciliation status properties
+  reconciliationStatus: ReconciliationStatus | null = null;
+  isCheckingReconciliation: boolean = false;
+  refundReconciliationCache: Map<number, ReconciliationStatus> = new Map(); // Cache reconciliation status per refund
 
   constructor(private messageService: MessageService,
     private refundService: RefundService,
@@ -92,12 +120,18 @@ export class RefundsComponent implements OnInit {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
-    private router: Router) { }
+    private router: Router,
+    private bankAccountService: BankAccountService,
+    private paymentValidationService: PaymentValidationService,
+    private customerCreditService: CustomerCreditService,
+    private reconciliationValidationService: ReconciliationValidationService) { }
 
   async ngOnInit() {
     this.isLoading = true;
     this.maxRefundDate = new Date(); // Today's date
     this.maxRefundDate.setHours(23, 59, 59, 999); // Include entire current day
+    await this.paymentValidationService.loadConfigurations();
+    await this.loadBankAccounts();
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -129,10 +163,13 @@ export class RefundsComponent implements OnInit {
       { label: 'Processing', value: 'PROCESSING' },
     ];
 
+    // Initialize refund statuses for filters (based on RefundStatus enum)
     this.refundStatuses = [
       { value: 'PENDING', label: 'refund_status_pending' },
       { value: 'PROCESSING', label: 'refund_status_processing' },
-      { value: 'COMPLETED', label: 'refund_status_completed' }
+      { value: 'COMPLETED', label: 'refund_status_completed' },
+      { value: 'FAILED', label: 'refund_status_failed' },
+      { value: 'CANCELLED', label: 'refund_status_cancelled' }
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
@@ -162,7 +199,9 @@ export class RefundsComponent implements OnInit {
   async editRefund(refund: Refund) {
     if (!this.canEditRefund) return;
     await this.loadEligibleReturns();
+    await this.loadBankAccounts();
     this.refund = { ...refund };
+    await this.updateBankAccountFieldVisibility();
     this.refundDialog = true;
   }
 
@@ -184,6 +223,75 @@ export class RefundsComponent implements OnInit {
     this.refund = {};
   }
 
+  async openConfirmRefund(refund: Refund) {
+    this.confirmRefundDialog = true;
+    this.refund = { ...refund };
+    
+    // Check reconciliation status if required
+    if (this.reconciliationValidationService.requiresReconciliation(refund.refundMethod)) {
+      try {
+        this.isCheckingReconciliation = true;
+        this.reconciliationStatus = await this.reconciliationValidationService.checkRefundReconciliationStatus(refund.refundId!);
+        this.refundReconciliationCache.set(refund.refundId!, this.reconciliationStatus);
+        this.isCheckingReconciliation = false;
+      } catch (error) {
+        console.error('Error checking reconciliation status:', error);
+        this.isCheckingReconciliation = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_loading_reconciliation_status'),
+          life: 4000
+        });
+        // On error, set null status - user can still try to confirm, backend will validate
+        this.reconciliationStatus = null;
+      }
+    } else {
+      this.reconciliationStatus = null;
+    }
+  }
+
+  async confirmRefund() {
+    // Check reconciliation status before confirming (refresh status to ensure it's current)
+    if (this.refund.refundId && this.reconciliationValidationService.requiresReconciliation(this.refund.refundMethod)) {
+      // Refresh reconciliation status
+      try {
+        this.isCheckingReconciliation = true;
+        const status = await this.reconciliationValidationService.checkRefundReconciliationStatus(this.refund.refundId);
+        this.reconciliationStatus = status;
+        this.refundReconciliationCache.set(this.refund.refundId, status);
+        this.isCheckingReconciliation = false;
+        
+        if (!status.canProceed) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('cannot_confirm_refund_reconciliation_required'),
+            life: 5000
+          });
+          return; // Don't close dialog, don't confirm
+        }
+      } catch (error) {
+        console.error('Error checking reconciliation status:', error);
+        this.isCheckingReconciliation = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_loading_reconciliation_status'),
+          life: 4000
+        });
+        // Set null status - user can still try to confirm, backend will validate
+        this.reconciliationStatus = null;
+        // Don't return here - allow user to proceed, backend will validate
+      }
+    }
+    
+    this.confirmRefundDialog = false;
+    await this.onConfirmRefund(this.refund.refundId);
+    this.refund = {};
+    this.reconciliationStatus = null;
+  }
+
   hideDialog() {
     this.refundDialog = false;
     this.submitted = false;
@@ -192,18 +300,75 @@ export class RefundsComponent implements OnInit {
   async openNew() {
     if (!this.canAddRefund) return;
     await this.loadEligibleReturns();
+    await this.loadBankAccounts();
     this.refund = {};
     this.refund.refundDate = new Date();
     this.refund.refundMethod = 'Cash';
     this.refund.status = 'PENDING';
     this.submitted = false;
+    await this.updateBankAccountFieldVisibility();
     this.refundDialog = true;
+  }
+
+  async loadBankAccounts() {
+    try {
+      const accounts$ = await this.bankAccountService.getBankAccounts(true);
+      const response = await firstValueFrom(accounts$);
+      this.bankAccounts = response as BankAccount[];
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+    }
+  }
+
+  async onRefundMethodChange() {
+    await this.updateBankAccountFieldVisibility();
+  }
+
+  async updateBankAccountFieldVisibility() {
+    if (!this.refund.refundMethod) {
+      this.showBankAccountField = false;
+      this.isBankAccountRequired = false;
+      this.minimumAmountHint = null;
+      return;
+    }
+
+    this.showBankAccountField = await this.paymentValidationService.shouldShowBankAccountField(this.refund.refundMethod);
+    this.isBankAccountRequired = await this.paymentValidationService.isBankAccountRequired(this.refund.refundMethod);
+    this.minimumAmountHint = await this.paymentValidationService.getMinimumAmountHint(this.refund.refundMethod, this.currency);
+
+    // Pre-populate bank account from shop's default if available
+    if (this.showBankAccountField && this.refund.orderReturn?.order?.shop && !this.refund.bankAccountId) {
+      const shopDefaultAccountId = this.refund.orderReturn.order.shop.defaultBankAccount?.accountId || 
+                                    this.refund.orderReturn.order.shop.defaultBankAccountId;
+      if (shopDefaultAccountId) {
+        const defaultAccount = this.bankAccounts.find(acc => acc.accountId === shopDefaultAccountId);
+        if (defaultAccount) {
+          this.refund.bankAccountId = defaultAccount.accountId;
+        }
+      }
+    }
   }
 
   isRefundValidForUpdate(refund: any): boolean {
     const today = new Date();
     const refundDate = new Date(refund.refundDate);
     return refundDate.toDateString() === today.toDateString();
+  }
+
+  // ⚠️ NEW: Helper methods for template
+  requiresReconciliation(refundMethod: string | null | undefined): boolean {
+    return this.reconciliationValidationService.requiresReconciliation(refundMethod);
+  }
+
+  getRefundReconciliationStatus(refund: Refund): string | null {
+    if (!refund.refundId || !this.requiresReconciliation(refund.refundMethod)) {
+      return null; // No reconciliation required
+    }
+    const status = this.refundReconciliationCache.get(refund.refundId);
+    if (!status) {
+      return 'unknown'; // Status not loaded yet
+    }
+    return status.allReconciled ? 'reconciled' : 'unreconciled';
   }
 
   getReturnDisplayLabel = (ret: OrderReturn): string => {
@@ -289,6 +454,23 @@ export class RefundsComponent implements OnInit {
       return;
     }
 
+    // Validate bank account and minimum amount using validation service
+    const validation = await this.paymentValidationService.validateBankPayment(
+      this.refund.refundMethod || '',
+      this.refund.bankAccountId,
+      this.refund.amount,
+      'refund'
+    );
+
+    if (!validation.valid) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: validation.error || this.translate.instant('validation_error')
+      });
+      return;
+    }
+
     if (this.refund.refundDate) {
       const date =
         typeof this.refund.refundDate === 'string'
@@ -323,6 +505,29 @@ export class RefundsComponent implements OnInit {
       }
 
       if (success) {
+        // Check if credit was issued (non-cash refunds)
+        if (this.refund.refundMethod && this.refund.refundMethod !== 'Cash' && this.refund.orderReturn?.order?.customer?.customerId) {
+          // Show notification about credit issuance
+          const amountFormatted = (this.refund.amount || 0).toFixed(2);
+          const methodLabel = this.translate.instant('payment_method_' + this.refund.refundMethod.toLowerCase());
+          this.messageService.add({
+            severity: 'info',
+            summary: this.translate.instant('credit_issued'),
+            detail: `${this.translate.instant('credit_will_be_issued_from_refund')} (${amountFormatted} ${this.currency} via ${methodLabel})`,
+            life: 5000,
+          });
+          
+          // Reload credit info to show updated balance
+          await this.loadCreditInfo(this.refund.orderReturn.order.customer.customerId);
+        } else if (this.refund.refundMethod === 'Cash') {
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('cash_refund_processed_immediately'),
+            life: 3000,
+          });
+        }
+        
         this.refunds = [...this.refunds];
         this.refundDialog = false;
         this.refund = {};
@@ -348,10 +553,61 @@ export class RefundsComponent implements OnInit {
     }
   }
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  @ViewChild('dt') dt!: Table;
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    }
   }
 
+  onFilterChange() {
+    // Apply filters to the table
+    if (this.dt) {
+      const filters: any = {};
+      
+      if (this.selectedRefundStatus) {
+        filters['status'] = { value: this.selectedRefundStatus, matchMode: 'equals' };
+      }
+      
+      if (this.selectedRefundMethod) {
+        filters['method'] = { value: this.selectedRefundMethod, matchMode: 'equals' };
+      }
+      
+      if (this.selectedCustomer) {
+        // Filter by customer (using fullName field)
+        filters['fullName'] = { value: this.getCustomerDisplayName(this.selectedCustomer), matchMode: 'contains' };
+      }
+      
+      if (this.startDate || this.endDate) {
+        if (this.startDate && this.endDate) {
+          // Date range filter
+          filters['refundDate'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
+        } else if (this.startDate) {
+          filters['refundDate'] = { value: this.startDate, matchMode: 'dateIs' };
+        } else if (this.endDate) {
+          filters['refundDate'] = { value: this.endDate, matchMode: 'dateIs' };
+        }
+      }
+      
+      this.dt.filters = filters;
+      this.dt.filteredValue = null; // Trigger filtering
+    }
+  }
+
+  clearFilters() {
+    this.selectedRefundStatus = null;
+    this.selectedRefundMethod = null;
+    this.selectedCustomer = null;
+    this.startDate = null;
+    this.endDate = null;
+    
+    if (this.dt) {
+      this.dt.filters = {};
+      this.dt.filteredValue = null;
+    }
+  }
 
   clear(table: Table) {
     table.clear();
@@ -414,6 +670,54 @@ export class RefundsComponent implements OnInit {
   }
 
 
+  onConfirmRefund(refundId: any): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.refundService.confirmRefund(refundId).subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('success'),
+            detail: this.translate.instant('refund_confirmed'),
+            life: 3000
+          });
+
+          this.onGetAllRefunds();
+          resolve(true);
+        },
+        error: (err: any) => {
+          console.error('Error confirming refund:', err);
+          
+          // Handle reconciliation validation error from backend
+          const errorMessage = err?.error?.message || err?.message || '';
+          const errorLower = errorMessage.toLowerCase();
+          
+          // Check for reconciliation-related errors
+          if (errorLower.includes('reconciled') || 
+              errorLower.includes('reconciliation') || 
+              errorLower.includes('bank transaction')) {
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('cannot_confirm_refund_reconciliation_required'),
+              life: 5000
+            });
+          } else {
+            // Generic error message
+            const detailMessage = errorMessage || this.translate.instant('error_confirming_refund');
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: detailMessage,
+              life: 4000
+            });
+          }
+          
+          resolve(false);
+        }
+      });
+    });
+  }
+
   async updateRefund(id: any, refund: any): Promise<any> {
     console.log(refund)
     await this.refundService.updateRefund(id, refund)
@@ -444,14 +748,42 @@ export class RefundsComponent implements OnInit {
   addRefund(refund: any): Promise<boolean> {
     return new Promise((resolve) => {
       this.refundService.saveRefund(refund).subscribe({
-        next: () => {
+        next: async (response: any) => {
           this.onGetAllRefunds();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('refund_added'),
-            life: 3000
-          });
+          
+          // Check if credit was issued (non-cash refunds)
+          const refundMethod = refund.refundMethod || response?.refundMethod;
+          const customerId = refund.orderReturn?.order?.customer?.customerId || response?.orderReturn?.order?.customer?.customerId;
+          
+          if (refundMethod && refundMethod !== 'Cash' && customerId) {
+            // Show notification about credit issuance
+            const amountFormatted = (refund.amount || response?.amount || 0).toFixed(2);
+            const methodLabel = this.translate.instant('payment_method_' + refundMethod.toLowerCase());
+            this.messageService.add({
+              severity: 'info',
+              summary: this.translate.instant('credit_issued'),
+              detail: `${this.translate.instant('credit_will_be_issued_from_refund')} (${amountFormatted} ${this.currency} via ${methodLabel})`,
+              life: 5000,
+            });
+            
+            // Reload credit info to show updated balance
+            await this.loadCreditInfo(customerId);
+          } else if (refundMethod === 'Cash') {
+            this.messageService.add({
+              severity: 'success',
+              summary: this.translate.instant('successful'),
+              detail: this.translate.instant('cash_refund_processed_immediately'),
+              life: 3000,
+            });
+          } else {
+            this.messageService.add({
+              severity: 'success',
+              summary: this.translate.instant('successful'),
+              detail: this.translate.instant('refund_added'),
+              life: 3000
+            });
+          }
+          
           resolve(true);
         },
         error: (err: any) => {
@@ -500,7 +832,7 @@ export class RefundsComponent implements OnInit {
   compareReturns = (o1: OrderReturn, o2: OrderReturn): boolean =>
     o1 && o2 ? o1.returnId === o2.returnId : o1 === o2;
 
-  onReturnSelect(selectedReturn: OrderReturn) {
+  async onReturnSelect(selectedReturn: OrderReturn) {
     if (!selectedReturn) {
       this.maxRefundAmount = 0;
       return;
@@ -517,6 +849,11 @@ export class RefundsComponent implements OnInit {
     // Ensure current refund doesn't exceed max
     if (this.refund.amount > this.maxRefundAmount) {
       this.refund.amount = this.maxRefundAmount;
+    }
+
+    // Update bank account field visibility and pre-populate from shop default if refund method is already selected
+    if (this.refund.refundMethod) {
+      await this.updateBankAccountFieldVisibility();
     }
   }
 
@@ -636,5 +973,20 @@ export class RefundsComponent implements OnInit {
     return iconMap[status] || 'pi pi-question-circle';
   }
 
+  async loadCreditInfo(customerId: number): Promise<void> {
+    if (!customerId) {
+      this.creditInfo = null;
+      return;
+    }
 
+    try {
+      await this.customerCreditService.loadToken();
+      const info$ = await this.customerCreditService.getCreditInfo(customerId);
+      this.creditInfo = await firstValueFrom(info$);
+    } catch (error: any) {
+      // Credit account might not exist, that's okay
+      console.log('Credit account not found or error loading:', error);
+      this.creditInfo = null;
+    }
+  }
 }

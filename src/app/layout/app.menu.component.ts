@@ -28,6 +28,30 @@ export class AppMenuComponent implements OnInit {
 
   setupMenu(translations: any, userRoles: string[]) {
     const isAdmin = userRoles.includes('ADMIN');
+    const isCashier = userRoles.includes('CASHIER');
+    
+    // CASHIER role only sees POS menu
+    if (isCashier && !isAdmin) {
+      this.model = [
+        {
+          label: translations['sales'],
+          icon: 'pi pi-fw pi-shopping-cart',
+          items: [
+            { label: translations['pos_menu_title'], icon: 'pi pi-fw pi-desktop', routerLink: ['/pos'], routerLinkActiveOptions: { exact: false } }
+          ]
+        },
+        {
+          label: translations['system'],
+          icon: 'pi pi-fw pi-desktop',
+          items: [
+            { label: translations['profile_page_title'] || translations['profile'] || 'Profile', icon: 'pi pi-fw pi-user', routerLink: ['/profile'], routerLinkActiveOptions: { exact: false } },
+            { label: translations['system_info'], icon: 'pi pi-fw pi-info-circle', command: () => this.layoutService.triggerSystemInfoLoad() },
+            { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() }
+          ]
+        }
+      ];
+      return;
+    }
 
     // --- Menu Items ---
     const inventoryItems = [
@@ -38,14 +62,16 @@ export class AppMenuComponent implements OnInit {
       { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/inventory/purchases'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      { label: translations['purchase_returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/inventory/purchase-returns'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
       { label: translations['warehouse_transfers_menu_title'], icon: 'pi pi-fw pi-arrow-right-arrow-left', routerLink: ['/inventory/warehouse-transfers'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['write_offs_menu_title'] || translations['write_offs'], icon: 'pi pi-fw pi-minus-circle', routerLink: ['/inventory/write-offs'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['stock_movements_menu_title'], icon: 'pi pi-fw pi-chart-line', routerLink: ['/inventory/stock-movements'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
     ];
 
     const salesItems = [
       { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/sales/orders'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/sales/returns'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['pos_menu_title'], icon: 'pi pi-fw pi-desktop', routerLink: ['/pos'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['pos_menu_title'], icon: 'pi pi-fw pi-desktop', routerLink: ['/pos'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN', 'CASHIER'] },
     ];
 
     const financeItems = [
@@ -53,6 +79,9 @@ export class AppMenuComponent implements OnInit {
       { label: translations['purchase_payments'], icon: 'pi pi-fw pi-arrow-up', routerLink: ['/finance/payments/purchase'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/finance/expenses'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
       { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/finance/refunds'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['purchase_credits_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/finance/purchase-credits'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['customer_credits_dashboard'], icon: 'pi pi-fw pi-chart-pie', routerLink: ['/finance/credit-management/dashboard'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['credit_reports'], icon: 'pi pi-fw pi-chart-bar', routerLink: ['/finance/credit-management/reports'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
       { label: translations['bank_accounts_menu_title'], icon: 'pi pi-fw pi-credit-card', routerLink: ['/finance/banking/accounts'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
       { label: translations['financial_docs_menu_title'], icon: 'pi pi-fw pi-file', routerLink: ['/finance/financial-documents'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
     ];
@@ -64,6 +93,7 @@ export class AppMenuComponent implements OnInit {
     ];
 
     const systemItems = [
+      { label: translations['profile_page_title'] || translations['profile'] || 'Profile', icon: 'pi pi-fw pi-user', routerLink: ['/profile'], routerLinkActiveOptions: { exact: false } },
       { label: translations['system_info'], icon: 'pi pi-fw pi-info-circle', command: () => this.layoutService.triggerSystemInfoLoad() },
       { label: translations['logout'], icon: 'pi pi-fw pi-sign-out', command: () => this.logOut() },
     ];

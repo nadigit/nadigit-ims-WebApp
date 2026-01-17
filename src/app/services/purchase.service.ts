@@ -56,4 +56,10 @@ export class PurchaseService {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + "/update-status", purchase, { headers: headers });
   }
+
+  getEligiblePurchasesForReturn() {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'eligible-purchases-returns', { headers: headers });
+  }
 }

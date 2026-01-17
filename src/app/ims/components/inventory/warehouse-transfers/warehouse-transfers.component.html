@@ -1,133 +1,112 @@
 <div class="grid">
     <div class="col-12">
+        <!-- Warehouse Transfers Management Section - Above Card (matching dashboard style) -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'warehouse_transfers_page_title' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'warehouse_transfers_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
         <div class="card px-6 py-6">
-            <h5>{{ 'warehouse_transfers_page_title' | translate }}</h5>
             <p-toast></p-toast>
 
-            <!-- Page Description -->
-            <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-                <div class="flex align-items-center mb-3">
-                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
-                </div>
-                <p class="m-0 text-600">
-                    {{ 'warehouse_transfers_page_description' | translate }}
-                </p>
-                <div class="flex mt-3 gap-2">
-                    <p-tag *ngIf="canAddTransfer" value="{{'create' | translate}}" icon="pi pi-plus"
-                        severity="success"></p-tag>
-                    <p-tag *ngIf="canEditTransfer" value="{{'edit' | translate}}" icon="pi pi-pencil"
-                        severity="info"></p-tag>
-                    <p-tag *ngIf="canReadTransfer" value="{{'view' | translate}}" icon="pi pi-eye"
-                        severity="help"></p-tag>
+            <!-- Action Buttons -->
+            <div class="flex justify-content-end align-items-center mb-4">
+                <div class="flex align-items-center gap-2">
+                    <button pButton pRipple *ngIf="canAddTransfer" label="{{ 'new_transfer' | translate }}"
+                        icon="pi pi-plus" class="p-button-success" (click)="openNew()"
+                        pTooltip="{{'create_new_transfer'|translate}}"></button>
                 </div>
             </div>
 
-            <!-- Toolbar -->
-            <p-toolbar styleClass="mb-4">
-                <ng-template pTemplate="left">
-                    <div class="my-2">
-                        <button pButton pRipple *ngIf="canAddTransfer" label="{{ 'new_transfer' | translate }}"
-                            icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
-                            pTooltip="{{'create_new_transfer'|translate}}"></button>
-                    </div>
-                </ng-template>
-            </p-toolbar>
+            <!-- Filters Bar -->
+            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+                <!-- Global Search -->
+                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                    <i class="pi pi-search"></i>
+                    <input type="text" pInputText 
+                        [placeholder]="'search_label' | translate" 
+                        class="w-full" />
+                </span>
 
-            <!-- Filter Panel -->
-            <p-card styleClass="mb-3">
-                <div class="grid">
-                    <div class="col-12 md:col-3">
-                        <label class="block mb-2 font-bold">{{ 'source_warehouse' | translate }}</label>
-                        <p-dropdown 
-                            [(ngModel)]="selectedSourceWarehouse" 
-                            [options]="warehouses" 
-                            optionLabel="label" 
-                            [filter]="true" 
-                            filterBy="label"
-                            [showClear]="true"
-                            placeholder="{{ 'select_source_warehouse' | translate }}"
-                            appendTo="body"
-                            styleClass="w-full">
-                        </p-dropdown>
-                    </div>
+                <!-- Source Warehouse Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedSourceWarehouse" 
+                    [options]="warehouses" 
+                    optionLabel="label" 
+                    [filter]="true" 
+                    filterBy="label"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_source_warehouse' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
 
-                    <div class="col-12 md:col-3">
-                        <label class="block mb-2 font-bold">{{ 'destination_warehouse' | translate }}</label>
-                        <p-dropdown 
-                            [(ngModel)]="selectedDestinationWarehouse" 
-                            [options]="warehouses" 
-                            optionLabel="label" 
-                            [filter]="true" 
-                            filterBy="label"
-                            [showClear]="true"
-                            placeholder="{{ 'select_destination_warehouse' | translate }}"
-                            appendTo="body"
-                            styleClass="w-full">
-                        </p-dropdown>
-                    </div>
+                <!-- Destination Warehouse Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedDestinationWarehouse" 
+                    [options]="warehouses" 
+                    optionLabel="label" 
+                    [filter]="true" 
+                    filterBy="label"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_destination_warehouse' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
 
-                    <div class="col-12 md:col-2">
-                        <label class="block mb-2 font-bold">{{ 'status' | translate }}</label>
-                        <p-dropdown 
-                            [(ngModel)]="selectedStatus" 
-                            [options]="statusOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                            [showClear]="true"
-                            placeholder="{{ 'select_status' | translate }}"
-                            appendTo="body"
-                            styleClass="w-full">
-                        </p-dropdown>
-                    </div>
+                <!-- Status Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedStatus" 
+                    [options]="statusOptions" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_status' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
 
-                    <div class="col-12 md:col-2">
-                        <label class="block mb-2 font-bold">{{ 'start_date' | translate }}</label>
-                        <p-calendar 
-                            [(ngModel)]="startDate" 
-                            [showIcon]="true"
-                            dateFormat="dd/mm/yy"
-                            [showOnFocus]="false"
-                            placeholder="{{ 'start_date' | translate }}"
-                            appendTo="body"
-                            styleClass="w-full">
-                        </p-calendar>
-                    </div>
+                <!-- Date Range Filters -->
+                <p-calendar 
+                    [(ngModel)]="startDate" 
+                    [showIcon]="true"
+                    dateFormat="dd/mm/yy"
+                    [showOnFocus]="false"
+                    [placeholder]="'start_date' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onSelect)="onFilterChange()">
+                </p-calendar>
 
-                    <div class="col-12 md:col-2">
-                        <label class="block mb-2 font-bold">{{ 'end_date' | translate }}</label>
-                        <p-calendar 
-                            [(ngModel)]="endDate" 
-                            [showIcon]="true"
-                            dateFormat="dd/mm/yy"
-                            [showOnFocus]="false"
-                            [minDate]="startDate"
-                            placeholder="{{ 'end_date' | translate }}"
-                            appendTo="body"
-                            styleClass="w-full">
-                        </p-calendar>
-                    </div>
+                <p-calendar 
+                    [(ngModel)]="endDate" 
+                    [showIcon]="true"
+                    dateFormat="dd/mm/yy"
+                    [showOnFocus]="false"
+                    [minDate]="startDate"
+                    [placeholder]="'end_date' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onSelect)="onFilterChange()">
+                </p-calendar>
+
+                <!-- View Toggle & Export -->
+                <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
+                        tooltipPosition="bottom"></button>
+                    <button pButton pRipple icon="pi pi-file-excel" class="p-button-success"
+                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                    <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
                 </div>
-
-                <div class="flex gap-2 mt-3">
-                    <button 
-                        pButton 
-                        type="button" 
-                        label="{{ 'filter' | translate }}" 
-                        icon="pi pi-filter"
-                        (click)="applyFilters()"
-                        class="p-button-primary">
-                    </button>
-                    <button 
-                        pButton 
-                        type="button" 
-                        label="{{ 'reset' | translate }}" 
-                        icon="pi pi-refresh"
-                        (click)="resetFilters()"
-                        class="p-button-outlined">
-                    </button>
-                </div>
-            </p-card>
+            </div>
 
             <!-- Transfers Table -->
             <p-table 
@@ -146,13 +125,8 @@
                 [rowHover]="true"
                 sortField="creationDate"
                 [sortOrder]="-1"
-                dataKey="transferId">
-
-                <ng-template pTemplate="caption">
-                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                        <h5 class="m-0">{{ 'warehouse_transfers_page_title' | translate }}</h5>
-                    </div>
-                </ng-template>
+                dataKey="transferId"
+                styleClass="p-datatable-gridlines">
 
                 <ng-template pTemplate="header">
                     <tr>
@@ -178,7 +152,8 @@
                 </ng-template>
 
                 <ng-template pTemplate="body" let-transfer>
-                    <tr [class.cursor-pointer]="canReadTransfer" (click)="canReadTransfer ? viewTransferDetails(transfer) : null">
+                    <tr (click)="canReadTransfer ? viewTransferDetails(transfer) : null"
+                        class="cursor-pointer">
                         <td>
                             <span class="p-column-title">{{ 'reference' | translate }}</span>
                             <strong class="text-primary">#{{ transfer.reference }}</strong>
@@ -206,6 +181,16 @@
                             <strong>{{ getTotalQuantity(transfer) }}</strong>
                         </td>
                         <td>
+                            <span class="p-column-title">{{ 'batch_info' | translate }}</span>
+                            <p-tag *ngIf="hasBatchInfo(transfer)" 
+                                [value]="'batch_tracked' | translate" 
+                                severity="info" 
+                                [icon]="'pi pi-box'"
+                                styleClass="text-xs">
+                            </p-tag>
+                            <span *ngIf="!hasBatchInfo(transfer)" class="text-500 text-sm">-</span>
+                        </td>
+                        <td>
                             <span class="p-column-title">{{ 'created_date' | translate }}</span>
                             {{ transfer.creationDate ? (transfer.creationDate | date:'dd/MM/yyyy HH:mm') : 'N/A' }}
                         </td>
@@ -220,7 +205,7 @@
                                     pRipple
                                     *ngIf="canReadTransfer"
                                     icon="pi pi-eye" 
-                                    class="p-button-rounded p-button-info mr-2"
+                                    class="p-button-rounded p-button-text p-button-info"
                                     (click)="viewTransferDetails(transfer)"
                                     pTooltip="{{ 'view_details' | translate }}">
                                 </button>
@@ -229,7 +214,7 @@
                                     pRipple
                                     *ngIf="canInitiate(transfer)"
                                     icon="pi pi-play" 
-                                    class="p-button-rounded p-button-success mr-2"
+                                    class="p-button-rounded p-button-text p-button-success"
                                     (click)="openInitiateConfirm(transfer)"
                                     pTooltip="{{ 'initiate_transfer' | translate }}">
                                 </button>
@@ -238,7 +223,7 @@
                                     pRipple
                                     *ngIf="canComplete(transfer)"
                                     icon="pi pi-check" 
-                                    class="p-button-rounded p-button-success mr-2"
+                                    class="p-button-rounded p-button-text p-button-success"
                                     (click)="openCompleteConfirm(transfer)"
                                     pTooltip="{{ 'complete_transfer' | translate }}">
                                 </button>
@@ -247,7 +232,7 @@
                                     pRipple
                                     *ngIf="canCancel(transfer)"
                                     icon="pi pi-times" 
-                                    class="p-button-rounded p-button-danger"
+                                    class="p-button-rounded p-button-text p-button-danger"
                                     (click)="openCancelConfirm(transfer)"
                                     pTooltip="{{ 'cancel_transfer' | translate }}">
                                 </button>

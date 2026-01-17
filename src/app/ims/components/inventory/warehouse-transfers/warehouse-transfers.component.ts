@@ -3,6 +3,7 @@ import { LazyLoadEvent, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Router, ActivatedRoute } from '@angular/router';
 import { WarehouseTransfer, TransferItem, TransferStatus } from 'src/app/models/warehouseTransfer';
+import { BatchMetadataUtil } from 'src/app/utils/batch-metadata.util';
 import { WarehouseTransferService } from 'src/app/services/warehouse-transfer.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { ProductService } from 'src/app/services/product.service';
@@ -290,6 +291,15 @@ export class WarehouseTransfersComponent implements OnInit {
     this.startDate = null;
     this.endDate = null;
     this.pageSize = 20;
+    this.applyFilters();
+  }
+
+  clearFilters() {
+    this.resetFilters();
+  }
+
+  onFilterChange() {
+    // Apply filters when any filter changes
     this.applyFilters();
   }
 
@@ -755,6 +765,12 @@ export class WarehouseTransfersComponent implements OnInit {
 
   canCancel(transfer: WarehouseTransfer): boolean {
     return (transfer.status === 'PENDING' || transfer.status === 'IN_TRANSIT') && this.canEditTransfer;
+  }
+
+  hasBatchInfo(transfer: WarehouseTransfer): boolean {
+    return transfer.transferItems?.some(item => 
+      BatchMetadataUtil.hasBatchMetadata(item.batchMetadata)
+    ) ?? false;
   }
 
   getItemsCount(transfer: WarehouseTransfer): number {

@@ -26,8 +26,13 @@ import { CategoryService } from 'src/app/services/category.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { getPaymentMethodLabel, getPaymentMethodSeverity, getPaymentStatusSeverity } from 'src/app/shared/payment-utils';
-import { getMeasureUnit, getQuantitySeverity } from 'src/app/shared/product-utils';
+import { getMeasureUnit, getQuantitySeverity, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
+import { BankAccountService } from 'src/app/services/bank-account.service';
+import { BankAccount } from 'src/app/models/bank-account';
+import { PaymentValidationService } from 'src/app/services/payment-validation.service';
+import { CustomerCreditService } from 'src/app/services/customer-credit.service';
+import { CreditInfo } from 'src/app/models/credit-info';
 
 interface EventItem {
   status?: string;
@@ -229,6 +234,25 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   paymentMethods: any;
 
+  bankAccounts: BankAccount[] = [];
+  showBankAccountField: boolean = false;
+  isBankAccountRequired: boolean = false;
+  minimumAmountHint: string | null = null;
+  creditInfo: CreditInfo | null = null;
+  creditAmountUsed: number = 0;
+  
+  // ⚠️ NEW: Explicit credit selection properties
+  useCredit: boolean = false;
+  creditAmountToUse: number | null = null;
+  creditLimitExceeded: boolean = false;
+  creditLimitError: string | null = null;
+  
+  // Outstanding balance properties (from creditInfo)
+  outstandingBalance: number = 0;
+  overdueBalance: number = 0;
+  netBalance: number = 0;
+  availableCreditLimit: number = 0;
+
   orderReturnsMap: Map<number, OrderReturn[]> = new Map();
   loadingReturns: Set<number> = new Set();
 
@@ -270,6 +294,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   totalAmount: number = 0;
   totalPaid: number = 0;
   remainingBalance: number = 0;
+  totalCost: number = 0;
+  totalProfit: number = 0;
 
   filteredProducts: Product[] = [];
   productSuggestions: Product[] = [];
@@ -316,6 +342,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private productService: ProductService,
     private customerService: CustomerService,
     private paymentService: PaymentService,
+    private bankAccountService: BankAccountService,
+    private paymentValidationService: PaymentValidationService,
+    private creditService: CustomerCreditService,
     private shopService: ShopService,
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
@@ -385,6 +414,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.setUserRoles(),
       this.checkPermissions(),
       this.onGetOrganization(),
+      this.loadBankAccounts(),
     ]);
 
     // Initialize table columns and statuses
@@ -417,7 +447,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     const page = first! / rows!;
     const size = rows!;
     const direction = sortOrder === -1 ? 'ASC' : 'DESC';
-    const filterPayload = filters ? { ...filters } : {};
+    
+    // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
+    const filterPayload = filters || {};
 
     console.log('Loading orders with parameters:', {
       page,
@@ -456,9 +488,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
       // Assign totals from backend
       this.totalRecords = res.totalOrders;
-      this.totalAmount = res.totalAmount;
-      this.totalPaid = res.totalPaid;
-      this.remainingBalance = res.remainingBalance;
+      this.totalAmount = res.totalAmount || 0;
+      this.totalPaid = res.totalPaid || 0;
+      this.remainingBalance = res.remainingBalance || 0;
+      this.totalCost = res.totalCost || 0;
+      this.totalProfit = res.totalProfit || 0;
 
       // Load returns if any
       for (let order of this.orders) {
@@ -468,6 +502,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       }
 
       this.isLoading = false;
+      
+      // Trigger change detection to ensure table updates
+      if (this.cdr) {
+        this.cdr.detectChanges();
+      }
     },
     error: (err: any) => {
       console.error(err);
@@ -643,14 +682,16 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   private initializeStatuses() {
+    // Backend enum: Ordered, Processing, Delivered, Completed, Canceled, Return_Pending, Returned, Partial_Return
     this.statuses = [
       { label: 'Ordered', value: 'Ordered' },
+      { label: 'Processing', value: 'Processing' },
       { label: 'Delivered', value: 'Delivered' },
+      { label: 'Completed', value: 'Completed' },
       { label: 'Canceled', value: 'Canceled' },
       { label: 'Return_Pending', value: 'Return_Pending' },
       { label: 'Returned', value: 'Returned' },
       { label: 'Partial_Return', value: 'Partial_Return' },
-      { label: 'Processing', value: 'Processing' },
     ];
 
     this.paymentStatuses = [
@@ -698,7 +739,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
 
-  togglePaymentSection(): void {
+  async onPaymentAmountChange(): Promise<void> {
+    // Recalculate credit usage when payment amount changes (if not using explicit credit)
+    if (!this.useCredit && this.creditInfo && this.showPaymentSection) {
+      const orderTotal = this.getTotalWithoutCredit();
+      const availableCredit = this.creditInfo.availableCredit || 0;
+      this.creditAmountUsed = Math.min(orderTotal, availableCredit);
+    } else if (this.useCredit) {
+      // If using credit, adjust payment amount
+      this.payment.amount = this.getRemainingAfterCredit();
+    }
+  }
+
+  async togglePaymentSection(): Promise<void> {
     this.showPaymentSection = !this.showPaymentSection;
 
     if (this.showPaymentSection) {
@@ -715,7 +768,224 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       if (!this.payment.paymentMethod) {
         this.payment.paymentMethod = 'Cash';
       }
+
+      await this.updateBankAccountFieldVisibility();
+      await this.loadCreditInfo();
     }
+  }
+
+  async loadCreditInfo() {
+    if (!this.order.customer?.customerId) {
+      this.creditInfo = null;
+      this.creditAmountUsed = 0;
+      return;
+    }
+
+    try {
+      this.creditService.loadToken();
+      const info$ = await this.creditService.getCreditInfo(this.order.customer.customerId);
+      const info = await firstValueFrom(info$);
+      this.creditInfo = info;
+
+      // Update component properties with new fields
+      // Sanitize values to handle invalid/unlimited values
+      this.outstandingBalance = this.sanitizeValue(info.outstandingBalance);
+      this.overdueBalance = this.sanitizeValue(info.overdueBalance);
+      this.netBalance = this.sanitizeValue(info.netBalance);
+      this.availableCreditLimit = this.sanitizeValue(info.availableCreditLimit);
+      
+      // Store original availableCreditLimit for unlimited check
+      this.creditInfo.availableCreditLimit = info.availableCreditLimit;
+      
+      // Check credit limit for order creation
+      if (this.order.orderId === undefined) { // New order
+        this.checkCreditLimit();
+      }
+    } catch (error: any) {
+      // Credit account might not exist, that's okay
+      this.outstandingBalance = 0;
+      this.overdueBalance = 0;
+      this.netBalance = 0;
+      this.availableCreditLimit = 0;
+      this.creditInfo = null;
+      this.creditAmountUsed = 0;
+    }
+  }
+
+  // ⚠️ NEW: Credit selection methods
+  onCreditSelectionChange(): void {
+    if (this.useCredit) {
+      // Auto-calculate credit amount if not set
+      if (this.creditAmountToUse === null) {
+        this.creditAmountToUse = this.getMaxCreditToUse();
+      }
+      // Update payment amount
+      this.payment.amount = this.getRemainingAfterCredit();
+    } else {
+      // Reset credit amount
+      this.creditAmountToUse = null;
+      this.creditAmountUsed = 0;
+      // Reset payment amount to full amount
+      this.payment.amount = this.getTotalWithoutCredit();
+    }
+  }
+
+  onCreditAmountChange(): void {
+    if (this.useCredit && this.creditAmountToUse !== null) {
+      // Validate credit amount
+      const maxCredit = this.getMaxCreditToUse();
+      if (this.creditAmountToUse > maxCredit) {
+        this.creditAmountToUse = maxCredit;
+      }
+      // Update payment amount
+      this.payment.amount = this.getRemainingAfterCredit();
+    }
+  }
+
+  getMaxCreditToUse(): number {
+    if (!this.creditInfo || !this.creditInfo.availableCredit) {
+      return 0;
+    }
+    const orderTotal = this.getTotalWithoutCredit();
+    return Math.min(this.creditInfo.availableCredit, orderTotal);
+  }
+
+  getCreditToUse(): number {
+    if (!this.useCredit || !this.creditInfo) {
+      return 0;
+    }
+    if (this.creditAmountToUse !== null && this.creditAmountToUse > 0) {
+      return Math.min(this.creditAmountToUse, this.getMaxCreditToUse());
+    }
+    return this.getMaxCreditToUse();
+  }
+
+  getRemainingAfterCredit(): number {
+    const orderTotal = this.getTotalWithoutCredit();
+    const creditToUse = this.getCreditToUse();
+    return Math.max(0, orderTotal - creditToUse);
+  }
+
+  // Helper method to sanitize invalid values (returns 0 for invalid, or -1 for unlimited)
+  private sanitizeValue(value: any): number {
+    // 0 is a valid value
+    if (value === 0) {
+      return 0;
+    }
+    
+    if (value === undefined || value === null) {
+      return 0;
+    }
+    
+    const valueStr = String(value).toUpperCase();
+    
+    // Check for scientific notation with large exponent (represents unlimited)
+    if (valueStr.includes('E+')) {
+      const match = valueStr.match(/E\+(\d+)/);
+      if (match && parseInt(match[1]) >= 15) {
+        return -1; // Use -1 to represent unlimited
+      }
+    }
+    
+    // Convert to number if it's a string
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    // Check if it's 0 after parsing
+    if (numValue === 0) {
+      return 0;
+    }
+    
+    const absValue = Math.abs(numValue);
+    
+    // Check for invalid values (Infinity, NaN, or extremely large)
+    if (!isFinite(numValue) || isNaN(numValue) || 
+        absValue > 1e15 || 
+        absValue >= Number.MAX_VALUE * 0.9) {
+      return -1; // Use -1 to represent unlimited
+    }
+    
+    return numValue;
+  }
+
+  // Check if available credit limit is unlimited
+  isUnlimitedCreditLimit(): boolean {
+    return this.availableCreditLimit === -1 || 
+           (this.creditInfo && this.isInvalidValue(this.creditInfo.availableCreditLimit));
+  }
+
+  // Helper method to check if a value is invalid (for unlimited detection)
+  private isInvalidValue(value: any): boolean {
+    if (value === 0 || value === undefined || value === null) {
+      return false;
+    }
+    
+    const valueStr = String(value).toUpperCase();
+    if (valueStr.includes('E+')) {
+      const match = valueStr.match(/E\+(\d+)/);
+      if (match && parseInt(match[1]) >= 15) {
+        return true;
+      }
+    }
+    
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (numValue === 0) {
+      return false;
+    }
+    
+    const absValue = Math.abs(numValue);
+    return !isFinite(numValue) || isNaN(numValue) || 
+           absValue > 1e15 || 
+           absValue >= Number.MAX_VALUE * 0.9;
+  }
+
+  // Credit limit validation
+  checkCreditLimit(): void {
+    if (!this.creditInfo || this.order.orderId !== undefined) {
+      return; // Only check for new orders
+    }
+    
+    const orderTotal = this.calculateTotalAmount();
+    
+    // If unlimited, no need to check
+    if (this.isUnlimitedCreditLimit()) {
+      this.creditLimitExceeded = false;
+      this.creditLimitError = null;
+      return;
+    }
+    
+    const availableLimit = this.availableCreditLimit;
+    
+    if (availableLimit > 0 && orderTotal > availableLimit) {
+      this.creditLimitExceeded = true;
+      this.creditLimitError = this.translate.instant('credit_limit_exceeded', {
+        available: availableLimit.toFixed(2),
+        order: orderTotal.toFixed(2)
+      });
+    } else {
+      this.creditLimitExceeded = false;
+      this.creditLimitError = null;
+    }
+  }
+
+  // Check if order is overdue
+  isOrderOverdue(order: Order): boolean {
+    if (!order.paymentDueDate || order.paymentStatus === 'PAID') {
+      return false;
+    }
+    const dueDate = new Date(order.paymentDueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  }
+
+  getDaysOverdue(order: Order): number {
+    if (!this.isOrderOverdue(order)) {
+      return 0;
+    }
+    const dueDate = new Date(order.paymentDueDate!);
+    const today = new Date();
+    return Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
   }
 
   async checkPermissions() {
@@ -828,11 +1098,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   getSourceProducts(): Product[] {
     if (this.order && this.order.orderItems && this.order.orderItems.length > 0) {
       return this.products.filter(product =>
-        product.quantityAvailable > 0 &&
+        (product.productType === 'SERVICE' || (product.quantityAvailable !== null && product.quantityAvailable !== undefined && product.quantityAvailable > 0)) &&
         !this.order.orderItems.some(targetProduct => targetProduct.product.productId === product.productId)
       );
     } else {
-      return this.products.filter(product => product.quantityAvailable > 0);
+      return this.products.filter(product => 
+        product.productType === 'SERVICE' || 
+        (product.quantityAvailable !== null && product.quantityAvailable !== undefined && product.quantityAvailable > 0)
+      );
     }
   }
 
@@ -993,6 +1266,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.submitted = false;
     this.showPaymentSection = false;
     this.payment = new Payment();
+    // ⚠️ CRITICAL: Always reset credit selection to false when opening new order
+    this.useCredit = false;
+    this.creditAmountToUse = null;
+    this.creditAmountUsed = 0;
+    // ⚠️ CRITICAL: Reset credit limit error states when opening new order
+    this.creditLimitExceeded = false;
+    this.creditLimitError = null;
+    this.creditInfo = null;
     this.loadProducts();
     this.onGetAllCustomers(),
     this.onGetAllShops(),
@@ -1009,7 +1290,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.submitted = true;
 
     if (this.showPaymentSection) {
-      const paymentValid = this.validatePayment();
+      const paymentValid = await this.validatePayment();
       if (!paymentValid) {
         return; // Stop if payment validation fails
       }
@@ -1063,6 +1344,30 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       pricePerUnit: product['orderItemPricePerUnit'],
     }));
 
+    // ⚠️ REMOVED: Credit limit validation before order creation
+    // The backend will now handle this properly when payments are included
+
+    // Build payment object if payment section is shown (only for new orders)
+    let paymentsToInclude: Payment[] = [];
+    if (!this.order.orderId && this.showPaymentSection) {
+      // Check if payment has minimum required fields
+      if (this.payment.amount && this.payment.paymentMethod && this.payment.paymentDate) {
+        const paymentToInclude = this.buildPaymentForOrderRequest();
+        if (paymentToInclude) {
+          paymentsToInclude = [paymentToInclude];
+          // ⚠️ DEBUG: Log payment object to verify useCredit is explicitly set
+          console.log('Including payment in order creation:', {
+            ...paymentToInclude,
+            useCredit: (paymentToInclude as any).useCredit,
+            creditAmountToUse: (paymentToInclude as any).creditAmountToUse,
+            useCreditExplicitlySet: (paymentToInclude as any).useCredit !== undefined
+          });
+        }
+      } else {
+        console.warn('Payment section shown but payment data incomplete:', this.payment);
+      }
+    }
+
     // Create New Order Object
     const newOrder: Order = {
       ...this.order,
@@ -1072,11 +1377,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       discount: this.order.discount,
     };
 
-    // Cleanup temporary fields
-    newOrder.orderItems.forEach((orderItem) => {
-      delete orderItem.product['orderItemQuantity'];
-      delete orderItem.product['orderItemPricePerUnit'];
-    });
+    // Include payments in order request (only for new orders)
+    // This allows backend to skip credit limit check if order will be paid immediately
+    if (paymentsToInclude.length > 0) {
+      newOrder.payments = paymentsToInclude;
+      // ⚠️ DEBUG: Log full order payload to verify useCredit is explicitly false
+      console.log('Order with payments (full payload):', JSON.stringify(newOrder, null, 2));
+      console.log('Payment useCredit values:', paymentsToInclude.map((p: any) => ({
+        paymentMethod: p.paymentMethod,
+        useCredit: p.useCredit,
+        creditAmountToUse: p.creditAmountToUse,
+        useCreditExplicitlySet: p.useCredit !== undefined
+      })));
+    }
 
     try {
       let savedOrder: Order;
@@ -1090,7 +1403,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           life: 3000,
         });
       } else {
-        // Now properly awaiting the addOrder promise
+        // Create new order (payments will be processed automatically by backend if included)
         savedOrder = await this.addOrder(newOrder);
         this.messageService.add({
           severity: 'success',
@@ -1099,30 +1412,98 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           life: 3000,
         });
 
-        // Only process payment if we have a valid saved order
-        if (this.showPaymentSection && savedOrder) {
-          console.log('Processing payment for order:', savedOrder);
+        // ⚠️ IMPORTANT: Only process payment separately if it wasn't included in order creation
+        // This is a fallback for cases where payment couldn't be included
+        if (this.showPaymentSection && savedOrder && paymentsToInclude.length === 0) {
+          console.log('Payment not included in order creation, processing separately:', savedOrder);
           await this.processPayment(savedOrder);
+        } else if (paymentsToInclude.length > 0) {
+          console.log('Payment was included in order creation, no need to process separately');
+          // Optionally refresh the order to see the payment
+          if (savedOrder.orderId) {
+            try {
+              savedOrder = await firstValueFrom(this.orderService.getOrder(savedOrder.orderId));
+            } catch (error) {
+              console.warn('Could not refresh order after creation:', error);
+            }
+          }
         }
       }
 
+      // ⚠️ IMPORTANT: Only cleanup temporary fields AFTER successful save
+      // This prevents losing product data if save fails
+      newOrder.orderItems.forEach((orderItem) => {
+        delete orderItem.product['orderItemQuantity'];
+        delete orderItem.product['orderItemPricePerUnit'];
+      });
 
       this.orderDialog = false;
       this.resetForms();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in saveOrder:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_occurred') + ': ' + (error?.message || error),
-        life: 3000,
-      });
+      
+      // Check for user-friendly message from service (write-off errors)
+      let errorMessage: string = '';
+      if (error?.userFriendlyMessage) {
+        errorMessage = error.userFriendlyMessage;
+      } else if (error?.error?.message) {
+        errorMessage = error.error.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else {
+        errorMessage = this.translate.instant('error_occurred');
+      }
+
+      // Check if error is related to insufficient stock with write-offs
+      const isStockError = error?.error?.code === 'insufficient_stock' || 
+                          errorMessage.toLowerCase().includes('insufficient stock') ||
+                          errorMessage.toLowerCase().includes('net available quantity') ||
+                          errorMessage.toLowerCase().includes('written off');
+
+      // Check if error is related to credit limit exceeded
+      const isCreditLimitError = errorMessage.toLowerCase().includes('exceeds credit limit') || 
+                                  errorMessage.toLowerCase().includes('credit limit exceeded');
+
+      if (isStockError) {
+        // Display as warning for stock errors (with write-off info)
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('insufficient_stock'),
+          detail: errorMessage,
+          life: 5000,
+        });
+      } else if (isCreditLimitError) {
+        // Display as warning instead of error for credit limit exceeded
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: errorMessage,
+          life: 5000,
+        });
+      } else {
+        // Display as error for other errors
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: errorMessage,
+          life: 3000,
+        });
+      }
     }
   }
 
-  validatePayment(): boolean {
-    if (!this.payment.amount || !this.payment.paymentMethod || !this.payment.paymentDate) {
+  async validatePayment(): Promise<boolean> {
+    // ⚠️ IMPORTANT: If using credit, ensure payment amount is set to remaining amount
+    if (this.useCredit) {
+      const remainingAmount = this.getRemainingAfterCredit();
+      this.payment.amount = remainingAmount;
+    }
+
+    // Check required fields (paymentMethod and paymentDate are always required)
+    if (!this.payment.paymentMethod || !this.payment.paymentDate) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -1132,7 +1513,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       return false;
     }
 
-    if (this.payment.amount < 0.01) {
+    const amount: number | undefined = this.payment.amount;
+    const paymentAmount: number = amount !== undefined && amount !== null ? Number(amount) : 0;
+
+    // When using credit that fully covers the amount, payment amount can be 0
+    // Otherwise, payment amount must be at least 0.01
+    if (!this.useCredit && (isNaN(paymentAmount) || paymentAmount < 0.01)) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -1142,9 +1528,163 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       return false;
     }
 
+    // When using credit, amount can be 0 if credit covers everything, but must be >= 0
+    if (this.useCredit && (isNaN(paymentAmount) || paymentAmount < 0)) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('payment_amount_invalid'),
+        life: 3000,
+      });
+      return false;
+    }
+
+    // Validate bank account is provided when required
+    if (this.isBankAccountRequired && !this.payment.bankAccountId) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('bank_account_required') || 'Bank account is required for this payment method',
+        life: 3000,
+      });
+      return false;
+    }
+
+    // Validate credit usage if credit is being used
+    if (this.creditAmountUsed > 0) {
+      if (!this.creditInfo || this.creditInfo.status !== 'ACTIVE') {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('credit_account_not_active'),
+          life: 3000,
+        });
+        return false;
+      }
+
+      // Check if available credit is sufficient
+      const orderTotal = this.getTotalWithoutCredit();
+      if (this.creditAmountUsed > (this.creditInfo.availableCredit || 0)) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('insufficient_credit_balance', {
+            available: this.creditInfo.availableCredit || 0,
+            requested: this.creditAmountUsed
+          }),
+          life: 3000,
+        });
+        return false;
+      }
+    }
+
+    // Validate bank account and minimum amount using validation service
+    const validation = await this.paymentValidationService.validateBankPayment(
+      this.payment.paymentMethod || '',
+      this.payment.bankAccountId,
+      this.payment.amount,
+      'payment'
+    );
+
+    if (!validation.valid) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: validation.error || this.translate.instant('validation_error')
+      });
+      return false;
+    }
+
     return true;
   }
 
+  /**
+   * Build payment object to include in order creation request
+   * This allows the backend to skip credit limit check when immediate payment methods cover the full amount
+   */
+  buildPaymentForOrderRequest(): Payment | null {
+    if (!this.payment.amount || !this.payment.paymentMethod || !this.payment.paymentDate) {
+      return null;
+    }
+
+    // Format payment date - must be YYYY-MM-DD format
+    const formattedPaymentDate = this.formatPaymentDate(this.payment.paymentDate);
+    if (!formattedPaymentDate) {
+      console.error('Invalid payment date:', this.payment.paymentDate);
+      return null;
+    }
+
+    // Build payment object according to backend specification
+    const payment: Payment = {
+      // Required fields
+      amount: this.payment.amount,
+      paymentMethod: this.payment.paymentMethod,
+      paymentDate: formattedPaymentDate, // Must be YYYY-MM-DD format
+      direction: 'INCOMING', // Required for orders
+      
+      // Payment status - backend will set based on payment method
+      paymentStatus: 'PENDING',
+      
+      // Optional fields based on payment method
+      checkNumber: this.payment.checkNumber || undefined,
+      boeNumber: this.payment.boeNumber || undefined,
+      checkExpirationDate: this.formatPaymentDate(this.payment.checkExpirationDate),
+      boeExpirationDate: this.formatPaymentDate(this.payment.boeExpirationDate),
+      
+      // Notes
+      notes: this.payment.notes || undefined,
+    };
+
+    // Bank account (required for Transfer, Check, BOE)
+    if (this.payment.bankAccountId) {
+      const selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === this.payment.bankAccountId);
+      if (selectedBankAccount && selectedBankAccount.accountId) {
+        // Include bankAccount with only accountId as per specification
+        (payment as any).bankAccount = {
+          accountId: selectedBankAccount.accountId
+        };
+      }
+    }
+
+    // ⚠️ CRITICAL: Credit-related fields - ALWAYS explicitly set
+    // Credit should ONLY be used when user explicitly checks "Use Credit" option
+    if (this.useCredit === true) {
+      // User explicitly checked "Use Credit" - calculate credit amount
+      const creditToUse = this.getCreditToUse();
+      (payment as any).useCredit = true;
+      (payment as any).creditAmountToUse = creditToUse > 0 ? creditToUse : null;
+    } else {
+      // User did NOT check "Use Credit" - explicitly set to false
+      // This ensures credit is NEVER automatically applied
+      (payment as any).useCredit = false;
+      (payment as any).creditAmountToUse = null;
+    }
+
+    // DO NOT include these fields (they'll be set by backend):
+    // paymentId, order, customer, transactionId, creationDate, createdBy, allocations
+
+    return payment;
+  }
+
+  /**
+   * Format payment date to YYYY-MM-DD string format
+   */
+  formatPaymentDate(date: Date | string | null | undefined): string | undefined {
+    if (!date) {
+      return undefined;
+    }
+
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) {
+      return undefined;
+    }
+
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
 
   async processPayment(order: Order): Promise<void> {
     this.isSavingPayment = true;
@@ -1167,6 +1707,25 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         summary: this.translate.instant('error'),
         detail: this.translate.instant('payment_amount_invalid_min')
       });
+      this.isSavingPayment = false;
+      return;
+    }
+
+    // Validate bank account and minimum amount using validation service
+    const validation = await this.paymentValidationService.validateBankPayment(
+      this.payment.paymentMethod || '',
+      this.payment.bankAccountId,
+      this.payment.amount,
+      'payment'
+    );
+
+    if (!validation.valid) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: validation.error || this.translate.instant('validation_error')
+      });
+      this.isSavingPayment = false;
       return;
     }
 
@@ -1199,7 +1758,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
       this.payment.checkExpirationDate = `${year}-${month}-${day}`; // Convert to string format
     }
-    else if (this.payment.boeExpirationDate) {
+    else     if (this.payment.boeExpirationDate) {
       // Ensure `dateOfExpense` is a Date object
       const date =
         typeof this.payment.boeExpirationDate === "string"
@@ -1214,15 +1773,84 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.payment.boeExpirationDate = `${year}-${month}-${day}`; // Convert to string format
     }
 
-    try {
+    // ⚠️ NEW: Prepare payment request with explicit credit selection
+    const paymentToSend = { ...this.payment };
+    
+    // Add credit fields if credit is selected
+    if (this.useCredit) {
+      paymentToSend.useCredit = true;
+      paymentToSend.creditAmountToUse = this.getCreditToUse() > 0 ? this.getCreditToUse() : null;
+    } else {
+      paymentToSend.useCredit = false;
+      paymentToSend.creditAmountToUse = null;
+    }
+    
+    // Remove creditAmountUsed from request (backend calculates it)
+    delete paymentToSend.creditAmountUsed;
 
-      const paymentResponse = await this.paymentService.savePayment(this.payment).toPromise();
+    // Set payment status to PENDING for bank payment methods (Check, BOE, Transfer)
+    // These payments require reconciliation before confirmation
+    const isBankPayment = this.paymentValidationService.isBankMethod(this.payment.paymentMethod || '');
+    if (isBankPayment) {
+      paymentToSend.paymentStatus = 'PENDING';
+    }
+
+    // Add bankAccount object if bankAccountId is present (REQUIRED for Check, BOE, and Bank Transfer payments)
+    if (this.payment.bankAccountId) {
+      const selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === this.payment.bankAccountId);
+      if (selectedBankAccount) {
+        // Add bankAccount object to paymentToSend (backend expects this)
+        (paymentToSend as any).bankAccount = selectedBankAccount;
+      }
+    } else if (this.isBankAccountRequired) {
+      // Bank account is required but not provided - validation should have caught this, but double-check
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('bank_account_required_for_method', { method: this.payment.paymentMethod || '' })
+      });
+      this.isSavingPayment = false;
+      return;
+    }
+
+    try {
+      // Send payment without creditAmountUsed (backend handles it automatically)
+      const paymentResponse: any = await this.paymentService.savePayment(paymentToSend).toPromise();
+      
+      // Read creditAmountUsed from response (backend returns it)
+      if (paymentResponse?.creditAmountUsed) {
+        this.creditAmountUsed = paymentResponse.creditAmountUsed;
+        // Show success message with credit breakdown
+        const remainingAmount = (paymentResponse.amount || 0) - (paymentResponse.creditAmountUsed || 0);
+        let detailMessage = this.translate.instant('payment_added');
+        if (paymentResponse.creditAmountUsed > 0) {
+          const creditFormatted = paymentResponse.creditAmountUsed.toFixed(2);
+          if (remainingAmount > 0) {
+            const remainingFormatted = remainingAmount.toFixed(2);
+            detailMessage += `. ${this.translate.instant('credit_used')}: ${creditFormatted} ${this.currency}, ${this.translate.instant('payment_method_amount')}: ${remainingFormatted} ${this.currency}`;
+          } else {
+            detailMessage += `. ${this.translate.instant('fully_paid_by_credit')}: ${creditFormatted} ${this.currency}`;
+          }
+        }
       this.messageService.add({
         severity: 'success',
         summary: this.translate.instant('successful'),
-        detail: this.translate.instant('payment_added'),
-        life: 3000,
-      });
+          detail: detailMessage,
+          life: 5000,
+        });
+      } else {
+        let detailMessage = this.translate.instant('payment_added');
+        // If payment is pending (bank method), inform user about reconciliation workflow
+        if (paymentResponse?.paymentStatus === 'PENDING' || isBankPayment) {
+          detailMessage += '. ' + this.translate.instant('payment_pending_reconciliation');
+        }
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: detailMessage,
+          life: isBankPayment ? 5000 : 3000,
+        });
+      }
       this.showReceiptDialog(order, paymentResponse);
 
     } catch (error: any) {
@@ -1314,6 +1942,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       boeExpirationDate: null,
       notes: ''
     };
+    // ⚠️ CRITICAL: Always reset credit selection to false
+    this.useCredit = false;
+    this.creditAmountToUse = null;
+    this.creditAmountUsed = 0;
     this.scanning = false;
     this.submitted = false;
     this.loadOrders();
@@ -1377,6 +2009,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.shop = {};
   }
 
+  // Filter properties
+  selectedOrderStatus: string | null = null;
+  selectedPaymentStatus: string | null = null;
+  selectedCustomer: Customer | null = null;
+  selectedShop: Shop | null = null;
+  startDate: Date | null = null;
+  endDate: Date | null = null;
+
   onGlobalFilter(event: { globalFilter: string }) {
     this.scanning = false;
     this.globalFilter = event.globalFilter;
@@ -1385,6 +2025,85 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       ...this.lastLazyLoadEvent,
       first: 0,
       globalFilter: this.globalFilter
+    };
+
+    this.onLazyLoad(lazyEvent);
+  }
+
+  onFilterChange(filterData: {
+    orderStatus?: string | null;
+    paymentStatus?: string | null;
+    customer?: Customer | null;
+    shop?: Shop | null;
+    startDate?: Date | null;
+    endDate?: Date | null;
+  }) {
+    this.selectedOrderStatus = filterData.orderStatus ?? null;
+    this.selectedPaymentStatus = filterData.paymentStatus ?? null;
+    this.selectedCustomer = filterData.customer ?? null;
+    this.selectedShop = filterData.shop ?? null;
+    this.startDate = filterData.startDate ?? null;
+    this.endDate = filterData.endDate ?? null;
+  }
+
+  applyFilters() {
+    // Build filters object in the format expected by the service
+    // Service expects: { field: { value: ..., matchMode: ... } }
+    const filters: any = {};
+    
+    if (this.selectedOrderStatus) {
+      filters.orderStatus = { value: this.selectedOrderStatus, matchMode: 'equals' };
+    }
+    if (this.selectedPaymentStatus) {
+      filters.paymentStatus = { value: this.selectedPaymentStatus, matchMode: 'equals' };
+    }
+    if (this.selectedCustomer) {
+      filters.customerId = { value: this.selectedCustomer.customerId, matchMode: 'equals' };
+    }
+    if (this.selectedShop) {
+      filters.shopName = { value: this.selectedShop.shopName, matchMode: 'equals' };
+    }
+    // Backend only supports single orderDate parameter, not date range
+    // If both dates are provided, use startDate (or we could prioritize endDate)
+    // For date range filtering, backend would need to support orderDateFrom and orderDateTo parameters
+    if (this.startDate) {
+      filters.orderDate = { value: this.startDate, matchMode: 'dateIs' };
+    } else if (this.endDate) {
+      // If only endDate is provided, use it as the orderDate filter
+      filters.orderDate = { value: this.endDate, matchMode: 'dateIs' };
+    }
+
+    console.log('=== APPLYING FILTERS ===');
+    console.log('Selected order status (raw):', this.selectedOrderStatus, typeof this.selectedOrderStatus);
+    console.log('Selected payment status (raw):', this.selectedPaymentStatus, typeof this.selectedPaymentStatus);
+    console.log('Selected customer:', this.selectedCustomer);
+    console.log('Selected shop:', this.selectedShop);
+    console.log('Start date:', this.startDate);
+    console.log('End date:', this.endDate);
+    console.log('Filters object:', JSON.stringify(filters, null, 2));
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      filters: filters
+    };
+
+    this.updateLastLazyLoadEvent(lazyEvent);
+    this.loadOrders();
+  }
+
+  resetFilters() {
+    this.selectedOrderStatus = null;
+    this.selectedPaymentStatus = null;
+    this.selectedCustomer = null;
+    this.selectedShop = null;
+    this.startDate = null;
+    this.endDate = null;
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      filters: {}
     };
 
     this.onLazyLoad(lazyEvent);
@@ -1834,7 +2553,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   //function to move scanned products to target
   moveProductToTarget(product: any): void {
-    if (product.quantityAvailable <= 0) {
+    const availableQty = this.getAvailableQuantity(product);
+    if (this.isProduct(product) && (availableQty === null || availableQty === undefined || availableQty <= 0)) {
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
@@ -2028,7 +2748,21 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
+  getTotalWithoutCredit(): number {
+    const subtotal = this.getSubtotal();
+    const discountAmount = this.calculateDiscountAmount();
+    const taxAmount = this.calculateTax(subtotal - discountAmount);
+    const transportAmount = this.order.transportAmount || 0;
+    return subtotal - discountAmount + taxAmount + transportAmount;
+  }
+
   calculateTotalAmount(): number {
+    // Recalculate credit usage when total changes
+    if (this.creditInfo && this.showPaymentSection) {
+      const orderTotal = this.getTotalWithoutCredit();
+      const availableCredit = this.creditInfo.availableCredit || 0;
+      this.creditAmountUsed = Math.min(orderTotal, availableCredit);
+    }
     const subtotal = this.getSubtotal();
     const discountAmount = this.calculateDiscountAmount();
     const taxableAmount = subtotal - discountAmount;
@@ -2276,7 +3010,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     );
 
     return products.filter(product =>
-      (product?.quantityAvailable ?? 0) > 0 &&
+      (product?.productType === 'SERVICE' || (product?.quantityAvailable ?? 0) > 0) &&
       !selectedProductIds.has(product.productId)
     );
   }
@@ -2291,6 +3025,28 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.selectedProduct = null;
   }
 
+  // Helper methods for product type
+  isService(product: Product): boolean {
+    return product.productType === 'SERVICE';
+  }
+
+  isProduct(product: Product): boolean {
+    return !product.productType || product.productType === 'PRODUCT';
+  }
+
+  // Write-off integration helpers
+  getAvailableQuantity(product: Product): number {
+    return getAvailableQuantity(product);
+  }
+
+  hasWriteOffs(product: Product): boolean {
+    return hasWriteOffs(product);
+  }
+
+  getWriteOffQuantity(product: Product): number {
+    return getWriteOffQuantity(product);
+  }
+
   addProductToOrder(product: Product): void {
     if (!product) {
       this.messageService.add({
@@ -2302,11 +3058,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       return;
     }
 
-    if (product.quantityAvailable <= 0) {
+    // Only check quantity for products, not services - use net quantity
+    const availableQty = this.getAvailableQuantity(product);
+    console.log('Available quantity:', availableQty);
+    console.log('Product:', product);
+    if (this.isProduct(product) && (availableQty === null || availableQty === undefined || availableQty <= 0)) {
+      const writeOffQty = this.hasWriteOffs(product) ? this.getWriteOffQuantity(product) : 0;
+      const message = writeOffQty > 0 
+        ? this.translate.instant('product_out_of_stock_writeoffs').replace('{0}', writeOffQty.toString())
+        : this.translate.instant('product_quantity_insufficient');
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
-        detail: this.translate.instant('product_quantity_insufficient'),
+        detail: message,
         life: 3000,
       });
       return;
@@ -2332,8 +3096,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       });
 
     } else {
-      // Check stock before increasing quantity
-      if (existingProduct.orderItemQuantity < product.quantityAvailable) {
+      // Check stock before increasing quantity (only for products) - use net quantity
+      if (this.isProduct(product)) {
+        const availableQty = this.getAvailableQuantity(product);
+        if (existingProduct.orderItemQuantity < availableQty) {
         existingProduct.orderItemQuantity += 1;
         this.targetProducts = [...this.targetProducts];
 
@@ -2343,12 +3109,23 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           detail: this.translate.instant('product_quantity_increased'),
           life: 3000,
         });
-
       } else {
         this.messageService.add({
           severity: 'warn',
           summary: this.translate.instant('warning'),
           detail: this.translate.instant('max_quantity_reached'),
+            life: 3000,
+          });
+        }
+      } else {
+        // For services, just increase quantity without stock check
+        existingProduct.orderItemQuantity += 1;
+        this.targetProducts = [...this.targetProducts];
+
+        this.messageService.add({
+          severity: 'info',
+          summary: this.translate.instant('info'),
+          detail: this.translate.instant('product_quantity_increased'),
           life: 3000,
         });
       }
@@ -2392,14 +3169,26 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   updateProductSubtotal(product: Product): void {
-    if (product.orderItemQuantity > product.quantityAvailable) {
-      product.orderItemQuantity = product.quantityAvailable;
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('max_quantity_reached'),
-        life: 3000,
-      });
+    // Validate against net available quantity (excluding write-offs)
+    if (this.isProduct(product)) {
+      const netAvailable = this.getAvailableQuantity(product);
+      
+      if (product.orderItemQuantity > netAvailable) {
+        const writeOffs = this.hasWriteOffs(product) ? this.getWriteOffQuantity(product) : 0;
+        const message = writeOffs > 0
+          ? `${product.name}: Only ${netAvailable} units available (${writeOffs} units written off). Requested: ${product.orderItemQuantity}`
+          : `${product.name}: Only ${netAvailable} units available. Requested: ${product.orderItemQuantity}`;
+        
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('insufficient_stock'),
+          detail: message,
+          life: 3000,
+        });
+        
+        // Reset to max available
+        product.orderItemQuantity = netAvailable;
+      }
     }
 
     this.targetProducts = [...this.targetProducts];
@@ -3010,5 +3799,44 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           return false;
         },
       })
+  }
+
+  async loadBankAccounts() {
+    try {
+      const accounts$ = await this.bankAccountService.getBankAccounts(true);
+      const response = await firstValueFrom(accounts$);
+      this.bankAccounts = response as BankAccount[];
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+    }
+  }
+
+  async updateBankAccountFieldVisibility() {
+    if (!this.payment.paymentMethod) {
+      this.showBankAccountField = false;
+      this.isBankAccountRequired = false;
+      this.minimumAmountHint = null;
+      return;
+    }
+
+    this.showBankAccountField = await this.paymentValidationService.shouldShowBankAccountField(this.payment.paymentMethod);
+    this.isBankAccountRequired = await this.paymentValidationService.isBankAccountRequired(this.payment.paymentMethod);
+    this.minimumAmountHint = await this.paymentValidationService.getMinimumAmountHint(this.payment.paymentMethod, this.currency);
+
+    // Pre-populate bank account from shop's default if available
+    if (this.showBankAccountField && this.order?.shop && !this.payment.bankAccountId) {
+      const shopDefaultAccountId = this.order.shop.defaultBankAccount?.accountId || 
+                                    this.order.shop.defaultBankAccountId;
+      if (shopDefaultAccountId) {
+        const defaultAccount = this.bankAccounts.find(acc => acc.accountId === shopDefaultAccountId);
+        if (defaultAccount) {
+          this.payment.bankAccountId = defaultAccount.accountId;
+        }
+      }
+    }
+  }
+
+  async onPaymentMethodChange() {
+    await this.updateBankAccountFieldVisibility();
   }
 }

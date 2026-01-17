@@ -1,12 +1,22 @@
 <div class="grid">
 	<div class="col-12">
+		<!-- Orders Management Section - Above Card (matching dashboard style) -->
+		<div class="mb-4">
+			<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+				<div>
+					<h2 class="m-0 text-900">{{ 'orders_menu_title' | translate }}</h2>
+					<p class="text-600 mt-2 mb-0">{{ 'orders_page_description' | translate }}</p>
+				</div>
+			</div>
+		</div>
+
 		<div class="card px-6 py-6">
-			<h5>{{'orders_menu_title' | translate}}</h5>
 			<p-toast></p-toast>
 
 			<app-orders-table [orders]="orders" [cols]="cols" (lazyLoadEvent)="onLazyLoad($event)"
 				[totalRecords]="totalRecords" [totalAmount]="totalAmount" [totalPaid]="totalPaid"
 				[currency]="currency" [canProcessOrder]="canProcessOrder" [remainingBalance]="remainingBalance"
+				[totalCost]="totalCost" [totalProfit]="totalProfit"
 				(processOrderEvent)="showOrderStatus($event)" [canEditOrder]="canEditOrder"
 				(editOrderEvent)="editOrder($event)" [canDeleteOrder]="canDeleteOrder"
 				(deleteOrderEvent)="deleteOrder($event)" (deleteSelectedOrdersEvent)="deleteSelectedOrders()"
@@ -20,7 +30,9 @@
 				[getTotalRefundedAmount]="getTotalRefundedAmount" [getNetAmount]="getNetAmount"
 				(onGlobalFilter)="onGlobalFilter($event)" (lazyLoadEvent)="onLazyLoad($event)"
 				[customers]="customers" [shops]="shops" [statuses]="statuses" [paymentStatuses]="paymentStatuses"
-				(exportPdfEvent)="exportPdf()" (exportExcelEvent)="exportExcel()"></app-orders-table>
+				(exportPdfEvent)="exportPdf()" (exportExcelEvent)="exportExcel()"
+				(applyFiltersEvent)="applyFilters()" (resetFiltersEvent)="resetFilters()"
+				(filterChangeEvent)="onFilterChange($event)"></app-orders-table>
 		</div>
 
 
@@ -49,6 +61,7 @@
 										[options]="customers" required autofocus
 										placeholder="{{ 'select_customer_option' | translate }}" [filter]="true"
 										filterBy="firstName,lastName,companyName" [disabled]="order.orderId"
+										(onChange)="loadCreditInfo()"
 										[ngClass]="{'ng-invalid ng-dirty' : submitted && !order.customer}">
 
 										<ng-template pTemplate="selectedItem">
@@ -125,10 +138,23 @@
 												<img [src]="product.productImage || 'assets/core-images/no-image.png'"
 													[alt]="product.name" class="product-suggestion-image" />
 												<div class="product-suggestion-details">
-													<div>{{ product.name }}</div>
+													<div class="flex align-items-center gap-2">
+														<span>{{ product.name }}</span>
+														<p-tag [value]="isService(product) ? ('product_type_service' | translate) : ('product_type_product' | translate)"
+															[severity]="isService(product) ? 'purple' : 'info'"
+															[icon]="isService(product) ? 'pi pi-cog' : 'pi pi-box'"
+															styleClass="text-xs">
+														</p-tag>
+													</div>
 													<div>{{ product.reference }}</div>
 													<small>{{ product.category?.categoryName }} • {{ currency }} {{
 														product.sellingPrice }}</small>
+													<small *ngIf="isProduct(product)" class="block mt-1">
+														{{ 'stock' | translate }}: {{ product.quantityAvailable || 0 }}
+													</small>
+													<small *ngIf="isService(product) && product.serviceProvider" class="block mt-1">
+														{{ 'service_provider' | translate }}: {{ product.serviceProvider }}
+													</small>
 												</div>
 											</div>
 										</ng-template>
@@ -171,12 +197,33 @@
 									<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
 										[alt]="product.name" class="product-card-image" />
 									<div class="product-card-details">
-										<div class="product-card-name">{{ product.name }}</div>
+										<div class="flex align-items-center gap-2">
+											<span class="product-card-name">{{ product.name }}</span>
+											<p-tag [value]="isService(product) ? ('product_type_service' | translate) : ('product_type_product' | translate)"
+												[severity]="isService(product) ? 'purple' : 'info'"
+												[icon]="isService(product) ? 'pi pi-cog' : 'pi pi-box'"
+												styleClass="text-xs">
+											</p-tag>
+										</div>
 										<div class="product-card-category">{{ product.category?.categoryName }}</div>
 										<div class="product-card-price">{{ currency }}{{ product.sellingPrice }}</div>
-										<div class="product-card-stock"
-											[class.low-stock]="product.quantityAvailable < 10">
-											{{ 'stock' | translate }}: {{ product.quantityAvailable }}
+										<div class="product-card-stock" *ngIf="isProduct(product)"
+											[class.low-stock]="getAvailableQuantity(product) < 10">
+											<div class="flex align-items-center gap-2">
+												<span>{{ 'stock' | translate }}: {{ getAvailableQuantity(product) }}</span>
+												<span *ngIf="hasWriteOffs(product)" 
+													  class="writeoff-indicator" 
+													  [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
+													  tooltipPosition="top">
+													<i class="pi pi-exclamation-triangle text-orange-500 text-xs"></i>
+												</span>
+											</div>
+											<small *ngIf="hasWriteOffs(product)" class="text-orange-600 text-xs">
+												{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})
+											</small>
+										</div>
+										<div class="product-card-stock" *ngIf="isService(product)">
+											<p-tag value="{{ 'no_inventory_tracking' | translate }}" severity="secondary" icon="pi pi-info-circle" styleClass="text-xs"></p-tag>
 										</div>
 									</div>
 									<button pButton icon="pi pi-plus" class="p-button-sm add-product-btn"></button>
@@ -211,7 +258,14 @@
 												<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
 													[alt]="product.name" class="product-image" />
 												<div class="product-details">
-													<div class="product-name">{{ product.name }}</div>
+													<div class="flex align-items-center gap-2">
+														<span class="product-name">{{ product.name }}</span>
+														<p-tag [value]="isService(product) ? ('product_type_service' | translate) : ('product_type_product' | translate)"
+															[severity]="isService(product) ? 'purple' : 'info'"
+															[icon]="isService(product) ? 'pi pi-cog' : 'pi pi-box'"
+															styleClass="text-xs">
+														</p-tag>
+													</div>
 													<div class="product-category small-text">{{
 														product.category?.categoryName }}</div>
 												</div>
@@ -226,13 +280,16 @@
 										</td>
 										<td>
 											<p-inputNumber [(ngModel)]="product.orderItemQuantity" [min]="1"
-												[max]="product.quantityAvailable"
+												[max]="isProduct(product) ? getAvailableQuantity(product) : undefined"
 												(onInput)="updateProductSubtotal(product)"
 												[ngClass]="{'p-invalid': submitted && !product.orderItemQuantity}">
 											</p-inputNumber>
 										</td>
-										<td class="available-quantity">
-											{{ (product.quantityAvailable || 0) - (product.orderItemQuantity || 0) }}
+										<td class="available-quantity" *ngIf="isProduct(product)">
+											{{ getAvailableQuantity(product) - (product.orderItemQuantity || 0) }}
+										</td>
+										<td class="available-quantity" *ngIf="isService(product)">
+											<p-tag value="{{ 'no_inventory_tracking' | translate }}" severity="secondary" icon="pi pi-info-circle" styleClass="text-xs"></p-tag>
 										</td>
 										<td class="subtotal">
 											{{ currency }} {{ (product.orderItemPricePerUnit || 0) *
@@ -259,8 +316,54 @@
 
 					<!-- Right Panel - Order Summary & Payment -->
 					<div class="col-12 md:col-4">
+						<!-- Credit Limit Warning -->
+						<div class="p-3 mb-3 border-round surface-card" *ngIf="creditLimitExceeded">
+							<div class="flex align-items-center gap-2 mb-2">
+								<i class="pi pi-exclamation-triangle text-red-500"></i>
+								<span class="font-semibold text-red-600">{{ 'credit_limit_exceeded' | translate }}</span>
+							</div>
+							<p class="text-sm m-0">{{ creditLimitError }}</p>
+						</div>
+						
+						<!-- Credit Limit Info -->
+						<div class="p-3 mb-3 border-round surface-100" *ngIf="creditInfo && order.orderId === undefined">
+							<div class="text-sm">
+								<span class="font-semibold">{{ 'credit_limit' | translate }}:</span>
+								<span>{{ creditInfo.creditLimit | currency:currency:'symbol':'1.2-2' }}</span>
+								<span class="ml-2">|</span>
+								<span class="font-semibold ml-2">{{ 'available_limit' | translate }}:</span>
+								<span *ngIf="!isUnlimitedCreditLimit()" 
+								      [class.text-orange-600]="availableCreditLimit < 100">
+									{{ availableCreditLimit | currency:currency:'symbol':'1.2-2' }}
+								</span>
+								<span *ngIf="isUnlimitedCreditLimit()" class="text-green-600 font-semibold">
+									{{ 'unlimited' | translate }}
+								</span>
+							</div>
+						</div>
+						
 						<div class="order-summary-card">
 							<h3><i class="pi pi-receipt"></i> {{ 'order_summary' | translate }}</h3>
+							
+							<!-- Payment Terms and Due Date (for existing orders) -->
+							<div class="summary-row" *ngIf="order.orderId && order.paymentTermsDays">
+								<span>{{ 'payment_terms' | translate }}:</span>
+								<span>Net {{ order.paymentTermsDays }} {{ 'days' | translate }}</span>
+							</div>
+							
+							<div class="summary-row" *ngIf="order.orderId && order.paymentDueDate">
+								<span>{{ 'due_date' | translate }}:</span>
+								<span [class.text-red-600]="isOrderOverdue(order)">
+									{{ order.paymentDueDate | date:'mediumDate' }}
+									<p-tag 
+										*ngIf="isOrderOverdue(order)" 
+										value="{{ 'overdue' | translate }} ({{ getDaysOverdue(order) }} {{ 'days' | translate }})" 
+										severity="danger"
+										[rounded]="true"
+										class="ml-2">
+									</p-tag>
+								</span>
+							</div>
 
 							<div class="summary-row">
 								<span>{{ 'subtotal' | translate }}:</span>
@@ -338,6 +441,21 @@
 									}}</span>
 							</div>
 
+							<!-- Outstanding Balance Info Message (shown when creating new order and payment section is closed) -->
+							<div class="p-3 mt-3 mb-2 border-round surface-100" *ngIf="!order.orderId && !showPaymentSection">
+								<div class="flex align-items-start gap-2">
+									<i class="pi pi-info-circle text-primary mt-1"></i>
+									<div class="flex-1">
+										<p class="text-sm m-0 text-700">
+											<strong>{{ 'payment_section_not_opened' | translate }}</strong>
+										</p>
+										<p class="text-sm m-0 mt-1 text-600">
+											{{ 'order_will_be_outstanding_balance' | translate }}
+										</p>
+									</div>
+								</div>
+							</div>
+
 							<!-- Payment Toggle -->
 							<div class="payment-toggle mt-3">
 								<p-button
@@ -350,13 +468,93 @@
 							<div *ngIf="showPaymentSection" class="payment-section">
 								<h4><i class="pi pi-money-bill"></i> {{ 'payment_details' | translate }}</h4>
 
+								<!-- Credit Information Display - UPDATED with explicit selection -->
+								<div class="credit-info-box mb-3" *ngIf="creditInfo && creditInfo.availableCredit && creditInfo.availableCredit > 0">
+									<div class="flex align-items-center gap-2 mb-2">
+										<i class="pi pi-credit-card text-primary"></i>
+										<span class="font-semibold">{{ 'available_credit' | translate }}: {{ creditInfo.availableCredit | currency:currency:'symbol':'1.2-2' }}</span>
+									</div>
+									
+									<!-- Outstanding Balance Info -->
+									<div class="outstanding-info mb-2" *ngIf="creditInfo.outstandingBalance && creditInfo.outstandingBalance > 0">
+										<div class="flex align-items-center gap-2">
+											<i class="pi pi-exclamation-triangle text-orange-500"></i>
+											<span class="text-sm">{{ 'outstanding_balance' | translate }}: {{ creditInfo.outstandingBalance | currency:currency:'symbol':'1.2-2' }}</span>
+										</div>
+										<div class="flex align-items-center gap-2 mt-1" *ngIf="creditInfo.overdueBalance && creditInfo.overdueBalance > 0">
+											<i class="pi pi-clock text-red-500"></i>
+											<span class="text-sm text-red-600 font-semibold">{{ 'overdue_balance' | translate }}: {{ creditInfo.overdueBalance | currency:currency:'symbol':'1.2-2' }}</span>
+										</div>
+									</div>
+									
+									<!-- Credit Selection Checkbox -->
+									<div class="field-checkbox mt-3">
+										<p-checkbox 
+											[(ngModel)]="useCredit" 
+											[binary]="true" 
+											inputId="useCredit"
+											(onChange)="onCreditSelectionChange()">
+										</p-checkbox>
+										<label for="useCredit" class="ml-2">{{ 'use_credit_for_payment' | translate }}</label>
+									</div>
+									
+									<!-- Credit Amount Input (when credit is selected) -->
+									<div class="field mt-2" *ngIf="useCredit">
+										<label for="creditAmountToUse">
+											{{ 'credit_amount_to_use' | translate }}
+											<span class="text-sm text-500">({{ 'leave_empty_to_use_all' | translate }})</span>
+										</label>
+										<p-inputNumber 
+											[(ngModel)]="creditAmountToUse" 
+											mode="currency" 
+											[currency]="currency"
+											[min]="0" 
+											[max]="getMaxCreditToUse()"
+											[placeholder]="'Max: ' + (getMaxCreditToUse() | currency:currency:'symbol':'1.2-2')"
+											(onInput)="onCreditAmountChange()">
+										</p-inputNumber>
+										<small class="text-500">
+											{{ 'available_credit' | translate }}: {{ creditInfo.availableCredit | currency:currency:'symbol':'1.2-2' }}
+										</small>
+									</div>
+									
+									<!-- Payment Breakdown Preview (when credit is selected) -->
+									<div class="payment-breakdown mt-3" *ngIf="useCredit && creditInfo.availableCredit > 0">
+										<h5 class="mb-2">{{ 'payment_breakdown' | translate }}</h5>
+										<div class="breakdown-item flex justify-content-between mb-1">
+											<span>{{ 'order_total' | translate }}:</span>
+											<span class="font-semibold">{{ getTotalWithoutCredit() | currency:currency:'symbol':'1.2-2' }}</span>
+										</div>
+										<div class="breakdown-item flex justify-content-between mb-1">
+											<span class="text-green-600">{{ 'credit_to_use' | translate }}:</span>
+											<span class="font-semibold text-green-600">-{{ getCreditToUse() | currency:currency:'symbol':'1.2-2' }}</span>
+										</div>
+										<div class="breakdown-item flex justify-content-between pt-2 border-top-1">
+											<span class="font-semibold">{{ 'remaining_via_payment_method' | translate }}:</span>
+											<span class="font-semibold">{{ getRemainingAfterCredit() | currency:currency:'symbol':'1.2-2' }}</span>
+										</div>
+									</div>
+								</div>
+
 								<div class="field">
 									<label for="paymentAmount">
 										{{ 'payment_amount' | translate }}<span class="required-asterisk">*</span>
+										<span class="text-sm text-500 ml-2" *ngIf="useCredit && getCreditToUse() > 0">
+											({{ 'after_credit' | translate }}: {{ getRemainingAfterCredit() | currency:currency:'symbol':'1.2-2' }})
+										</span>
 									</label>
-									<p-inputNumber [(ngModel)]="payment.amount" mode="currency" [currency]="currency"
-										[min]="0.01" [required]="showPaymentSection">
-									</p-inputNumber>
+								<p-inputNumber 
+									[(ngModel)]="payment.amount" 
+									mode="currency" 
+									[currency]="currency"
+									[min]="0.01" 
+									[required]="showPaymentSection"
+									[disabled]="useCredit && getCreditToUse() > 0"
+									(onInput)="onPaymentAmountChange()">
+								</p-inputNumber>
+									<small class="text-500" *ngIf="useCredit && getCreditToUse() > 0">
+										{{ 'amount_automatically_adjusted_for_credit' | translate }}
+									</small>
 								</div>
 
 								<div class="field">
@@ -364,7 +562,8 @@
 										{{ 'payment_method' | translate }}<span class="required-asterisk">*</span>
 									</label>
 									<p-dropdown [(ngModel)]="payment.paymentMethod" [options]="paymentMethods"
-										optionLabel="label" optionValue="value" [required]="showPaymentSection">
+										optionLabel="label" optionValue="value" [required]="showPaymentSection"
+										(onChange)="onPaymentMethodChange()">
 										<ng-template pTemplate="selectedItem">
 											<div class="payment-method-item">
 												<i
@@ -382,6 +581,9 @@
 											</div>
 										</ng-template>
 									</p-dropdown>
+									<small class="text-500 mt-2" *ngIf="minimumAmountHint">
+										<i class="pi pi-info-circle mr-1"></i>{{ minimumAmountHint }}
+									</small>
 								</div>
 
 								<div class="field">
@@ -403,9 +605,53 @@
 										<div class="field">
 											<label for="checkExpirationDate">{{ 'expiration_date' | translate }}</label>
 											<p-calendar [(ngModel)]="payment.checkExpirationDate" [showIcon]="true"
-												dateFormat="dd/mm/yy" inputStyleClass="w-full"></p-calendar>
+												dateFormat="dd/mm/yy" inputStyleClass="w-full" appendTo="body"></p-calendar>
 										</div>
 									</div>
+								</div>
+
+								<div class="grid" *ngIf="payment.paymentMethod === 'BOE'">
+									<div class="col-12 md:col-6">
+										<div class="field">
+											<label for="boeNumber">{{ 'boe_number' | translate }}</label>
+											<input pInputText [(ngModel)]="payment.boeNumber" id="boeNumber">
+										</div>
+									</div>
+									<div class="col-12 md:col-6">
+										<div class="field">
+											<label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
+											<p-calendar [(ngModel)]="payment.boeExpirationDate" [showIcon]="true"
+												dateFormat="dd/mm/yy" inputStyleClass="w-full" appendTo="body"></p-calendar>
+										</div>
+									</div>
+								</div>
+
+								<!-- Bank Account Selector for Transfer, Check, or BOE -->
+								<div *ngIf="showBankAccountField" class="field mt-3">
+									<label for="bankAccountId">
+										{{ 'bank_account' | translate }}
+										<span class="required-asterisk" *ngIf="isBankAccountRequired">*</span>
+									</label>
+									<p-dropdown [(ngModel)]="payment.bankAccountId" [options]="bankAccounts" optionLabel="accountName"
+										optionValue="accountId" placeholder="{{ 'select_bank_account' | translate }}"
+										[filter]="true" filterBy="accountName,bank.name" [showClear]="true" styleClass="w-full"
+										[ngClass]="{'ng-invalid ng-dirty': isBankAccountRequired && !payment.bankAccountId}">
+										<ng-template let-account pTemplate="item">
+											<div class="flex align-items-center justify-content-between">
+												<div>
+													<div class="font-semibold">{{ account.accountName }}</div>
+													<div class="text-sm text-gray-500">{{ account.bank?.name }}</div>
+												</div>
+												<div class="text-right">
+													<div class="font-semibold">{{ account.currentBalance | currency:currency:'symbol':'1.2-2' }}</div>
+													<div class="text-xs text-gray-500">{{ account.accountType }}</div>
+												</div>
+											</div>
+										</ng-template>
+									</p-dropdown>
+									<small class="ng-dirty ng-invalid" *ngIf="isBankAccountRequired && !payment.bankAccountId">
+										{{ 'bank_account_required_for_method' | translate:{ method: payment.paymentMethod | lowercase } }}
+									</small>
 								</div>
 
 								<div class="field">

@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, TreeNode, ConfirmationService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
-import { Product } from 'src/app/models/product';
+import { Product, AggregatedProduct, ProductsAggregatedResponse } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
@@ -23,7 +23,8 @@ import { KeycloakService } from 'keycloak-angular';
 import { DialogService } from 'primeng/dynamicdialog';
 import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
 import { UploadEvent } from 'src/app/models/uploadEvent';
-import { calculateProfit, getMeasureUnit, getProfitClass, getQuantitySeverity } from 'src/app/shared/product-utils';
+import { calculateProfit, getAvailableQuantity, getMeasureUnit, getProfitClass, getQuantitySeverity, getWriteOffQuantity, hasWriteOffs } from 'src/app/shared/product-utils';
+import { ProductImportComponent } from './product-import/product-import.component';
 
 
 interface LazyLoadEventExt extends LazyLoadEvent {
@@ -80,6 +81,13 @@ export class ProductsComponent implements OnInit {
   products: Product[] = [];
 
   selectedProducts: Product[] = [];
+
+  // Aggregated view mode
+  viewMode: 'standard' | 'aggregated' = 'standard';
+  aggregatedProducts: AggregatedProduct[] = [];
+  expandedProducts: { [key: number]: boolean } = {}; // Track expanded rows for aggregated products
+  
+  private readonly VIEW_MODE_STORAGE_KEY = 'productsViewMode';
 
   product: Product = {};
 
@@ -191,6 +199,7 @@ export class ProductsComponent implements OnInit {
   pageSize: number = 20;
   globalFilter: string = '';
   filters: any = {};
+  expirationStatusFilter: string | undefined = undefined;
   lastLazyLoadEvent: LazyLoadEventExt = {
     first: 0,
     rows: 20,
@@ -204,6 +213,7 @@ export class ProductsComponent implements OnInit {
   lastGlobalFilter: string = '';
   @ViewChild('dt') dt!: Table;
   @ViewChild('filter') filter!: ElementRef;
+  @ViewChild(ProductImportComponent) productImportComponent!: ProductImportComponent;
 
 
   constructor(private messageService: MessageService,
@@ -245,6 +255,14 @@ export class ProductsComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    // Load view mode from localStorage (only for admin users)
+    await this.checkPermissions();
+    if (this.isAdmin) {
+      const savedViewMode = localStorage.getItem(this.VIEW_MODE_STORAGE_KEY);
+      if (savedViewMode === 'standard' || savedViewMode === 'aggregated') {
+        this.viewMode = savedViewMode;
+      }
+    }
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -387,8 +405,19 @@ export class ProductsComponent implements OnInit {
   }
 
   showProductDetails(product: Product) {
-    this.router.navigate(['/inventory/products', product.productId]);
+    // For aggregated products, pass reference as query param to show all warehouses
+    if ((product as any)['_aggregated'] && product.reference && this.isAdmin) {
+      this.router.navigate(['/inventory/products', product.productId], {
+        queryParams: { reference: product.reference, aggregated: 'true' }
+      });
+    } else {
+      this.router.navigate(['/inventory/products', product.productId]);
+    }
     this.deactivateScanning();
+  }
+
+  showWarehouseDetails(warehouseId: number): void {
+    this.router.navigate(['/inventory/warehouses', warehouseId]);
   }
 
   getInventorySeverity(status: string): string {
@@ -542,31 +571,55 @@ export class ProductsComponent implements OnInit {
    * Handle filter events from the products-table component (dropdown-based filters)
    */
   onApplyFilters(event: {
+    productType?: string;
     categoryIds?: number[];
     warehouseIds?: number[];
     supplierIds?: number[];
     inventoryStatus?: string;
+    expirationStatus?: string;
     globalFilter?: string;
   }) {
     this.scanning = false;
     
-    // If all filters are cleared, reload all products
-    const hasNoFilters = (!event.categoryIds || event.categoryIds.length === 0) &&
-      (!event.warehouseIds || event.warehouseIds.length === 0) &&
-      (!event.supplierIds || event.supplierIds.length === 0) &&
-      !event.inventoryStatus && !event.globalFilter;
-    
-    if (hasNoFilters) {
-      this.filteredProducts = [...this.products];
+    // ExpirationStatus is a backend filter (batch-aware), so trigger reload when it changes
+    if (event.hasOwnProperty('expirationStatus')) {
+      this.expirationStatusFilter = event.expirationStatus;
+      // Trigger reload from backend with expirationStatus filter
+      const updatedFilters = { ...this.lastLazyLoadEvent.filters };
+      if (event.expirationStatus) {
+        updatedFilters['expirationStatus'] = { value: event.expirationStatus };
+      } else {
+        // Remove expirationStatus filter if cleared
+        delete updatedFilters['expirationStatus'];
+      }
       const lazyEvent: LazyLoadEventExt = {
         ...this.lastLazyLoadEvent,
-        first: 0
+        first: 0,
+        filters: updatedFilters
       };
       this.onLazyLoad(lazyEvent);
       return;
     }
+    
+    // If all filters are cleared, reset filtered products to show all from backend
+    const hasNoFilters = (!event.categoryIds || event.categoryIds.length === 0) &&
+      (!event.warehouseIds || event.warehouseIds.length === 0) &&
+      (!event.supplierIds || event.supplierIds.length === 0) &&
+      !event.inventoryStatus && !event.productType && !event.globalFilter;
+    
+    if (hasNoFilters) {
+      // Reset filtered products to empty array to show all products from backend (lazy loaded)
+      this.filteredProducts = [];
+      return;
+    }
 
     // Apply filters locally on the current products array
+    // Only filter if we have products loaded
+    if (!this.products || this.products.length === 0) {
+      this.filteredProducts = [];
+      return;
+    }
+    
     let tempProducts = [...this.products];
 
     if (event.categoryIds && event.categoryIds.length > 0) {
@@ -589,6 +642,14 @@ export class ProductsComponent implements OnInit {
 
     if (event.inventoryStatus) {
       tempProducts = tempProducts.filter(product => product.inventoryStatus === event.inventoryStatus);
+    }
+
+    if (event.productType) {
+      tempProducts = tempProducts.filter(product => {
+        if (!product) return false;
+        const productType = product.productType || 'PRODUCT';
+        return productType === event.productType;
+      });
     }
 
     if (event.globalFilter) {
@@ -1646,6 +1707,19 @@ export class ProductsComponent implements OnInit {
     return getQuantitySeverity(quantity, this.lowStockThreshold);
   }
 
+  // Write-off integration helpers
+  getAvailableQuantity(product: Product): number {
+    return getAvailableQuantity(product);
+  }
+
+  hasWriteOffs(product: Product): boolean {
+    return hasWriteOffs(product);
+  }
+
+  getWriteOffQuantity(product: Product): number {
+    return getWriteOffQuantity(product);
+  }
+
   async getLowStockThreshold(): Promise<number> {
     let threshold: any;
     try {
@@ -1696,6 +1770,17 @@ export class ProductsComponent implements OnInit {
     this.deactivateScanning();
     this.archivedProductsDialog = true;
     this.loadArchivedProducts();
+  }
+
+  onImportSuccess(): void {
+    // Reload products after successful import
+    this.loadProducts();
+  }
+
+  openImportDialog(): void {
+    if (this.productImportComponent) {
+      this.productImportComponent.openDialog();
+    }
   }
 
   loadArchivedProducts(): void {
@@ -1774,6 +1859,11 @@ export class ProductsComponent implements OnInit {
 
 
   loadProducts() {
+    if (this.viewMode === 'aggregated' && this.isAdmin) {
+      this.loadAggregatedProducts();
+      return;
+    }
+
     const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
 
     const page = first! / rows!;
@@ -1800,9 +1890,10 @@ export class ProductsComponent implements OnInit {
     ).subscribe({
       next: (res: any) => {
         console.log('Paginated products response:', res);
-        // Assign the paginated orders
+        // Assign the paginated products
         this.products = res.page.content.map((p: any) => ({
           ...p,
+          productType: p.productType || 'PRODUCT', // Ensure productType is set
           creationDate: p.creationDate ? new Date(p.creationDate) : null,
           archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
           buyingDate: p.buyingDate ? new Date(p.buyingDate) : null,
@@ -1810,6 +1901,7 @@ export class ProductsComponent implements OnInit {
 
         // Assign totals from backend
         this.totalRecords = res.totalProducts;
+        console.log('Products:', this.products);
 
         this.isLoading = false;
       },
@@ -1826,6 +1918,93 @@ export class ProductsComponent implements OnInit {
     });
   }
 
+  loadAggregatedProducts() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    const processedFilters = this.processFilters(filters);
+
+    this.isLoading = true;
+
+    this.productService.getAggregatedProducts(
+      page,
+      size,
+      globalFilter || '',
+      sortField || 'name',
+      direction,
+      processedFilters
+    ).subscribe({
+      next: (res: ProductsAggregatedResponse) => {
+        console.log('Aggregated products response:', res);
+        this.aggregatedProducts = res.products;
+        
+        // Convert aggregated products to Product format for table compatibility
+        this.products = res.products.map((ap: AggregatedProduct) => ({
+          productId: ap.warehouseStocks[0]?.productId || 0,
+          reference: ap.reference,
+          name: ap.name,
+          description: ap.description,
+          productType: ap.productType || 'PRODUCT',
+          quantityAvailable: ap.totalQuantityAvailable,
+          netAvailableQuantity: ap.totalNetAvailableQuantity,
+          inventoryStatus: ap.overallInventoryStatus,
+          sellingPrice: ap.sellingPrice,
+          buyingPrice: ap.buyingPrice,
+          productImage: ap.productImage,
+          category: ap.category,
+          supplier: ap.supplier,
+          measureUnit: ap.measureUnit,
+          active: ap.active,
+          expirationDate: ap.earliestExpirationDate,
+          // Store aggregated data for later use
+          _aggregated: true,
+          _warehouseCount: ap.warehouseCount,
+          _warehouseStocks: ap.warehouseStocks
+        } as any));
+
+        this.totalRecords = res.totalElements;
+        this.isLoading = false;
+        console.log('Products:', this.products);
+      },
+      error: (err: any) => {
+        console.error('Error loading aggregated products:', err);
+        this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_products'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+  toggleViewMode() {
+    this.viewMode = this.viewMode === 'standard' ? 'aggregated' : 'standard';
+    // Save view mode to localStorage (only for admin users)
+    if (this.isAdmin) {
+      localStorage.setItem(this.VIEW_MODE_STORAGE_KEY, this.viewMode);
+    }
+    // Reset to first page when switching views
+    this.lastLazyLoadEvent.first = 0;
+    // Clear expanded rows when switching views
+    this.expandedProducts = {};
+    this.loadProducts();
+  }
+
+  isProductRowExpanded(productId: number): boolean {
+    return !!this.expandedProducts[productId];
+  }
+
+  toggleProductRow(productId: number): void {
+    this.expandedProducts[productId] = !this.expandedProducts[productId];
+  }
+
+  getAggregatedWarehouseStocks(product: any): any[] {
+    return product._warehouseStocks || [];
+  }
 
   private updateLastLazyLoadEvent(event: LazyLoadEvent) {
     this.lastLazyLoadEvent = {
@@ -1864,6 +2043,11 @@ export class ProductsComponent implements OnInit {
     // Process creationDate filter
     if (filters['creationDate'] && filters['creationDate'].value) {
       processedFilters.creationDate = filters['creationDate'].value;
+    }
+
+    // Process expirationStatus filter (batch-aware, backend filter)
+    if (filters['expirationStatus'] && filters['expirationStatus'].value) {
+      processedFilters.expirationStatus = filters['expirationStatus'].value;
     }
 
     return processedFilters;

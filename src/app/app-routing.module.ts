@@ -34,7 +34,7 @@ import { AuthGuard } from './guards/auth.guard';
                         path: 'pos',
                         loadChildren: () => import('./ims/components/pos/pos.module').then(m => m.PosModule),
                         canActivate: [AuthGuard],
-                        data: { roles: ['ADMIN', 'VENDOR'] }
+                        data: { roles: ['ADMIN', 'VENDOR', 'CASHIER'] }
                     },
 
                     // Finance Section
@@ -54,7 +54,7 @@ import { AuthGuard } from './guards/auth.guard';
                     },
 
                     // Profile
-                    { path: 'profile', loadChildren: () => import('./ims/components/profile/profile.module').then(m => m.ProfileModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] } },
+                    { path: 'profile', loadChildren: () => import('./ims/components/profile/profile.module').then(m => m.ProfileModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN', 'CASHIER'] } },
                     // { path: 'pages', loadChildren: () => import('./ims/components/pages/pages.module').then(m => m.PagesModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] } }
                 ]
             },

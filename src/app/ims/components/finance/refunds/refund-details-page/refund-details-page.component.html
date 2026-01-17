@@ -175,6 +175,36 @@
                                             <span class="info-value text-primary font-bold text-xl">{{ refund.amount | number:'1.2-2' }} {{ currency }}</span>
                                         </div>
                                     </div>
+
+                                    <!-- Credit Information (for non-cash refunds) -->
+                                    <div class="info-item" *ngIf="refund.refundMethod && refund.refundMethod !== 'Cash'">
+                                        <div class="info-icon credit">
+                                            <i class="pi pi-credit-card"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'credit_issued' | translate }}</span>
+                                            <span class="info-value text-green-600 font-semibold">{{ refund.amount | number:'1.2-2' }} {{ currency }}</span>
+                                            <small class="text-500 block mt-1">
+                                                <i class="pi pi-info-circle mr-1"></i>
+                                                {{ 'credit_will_be_issued_from_refund' | translate }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Cash Refund Notice -->
+                                    <div class="info-item" *ngIf="refund.refundMethod === 'Cash'">
+                                        <div class="info-icon">
+                                            <i class="pi pi-money-bill"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'refund_method' | translate }}</span>
+                                            <span class="info-value">{{ 'payment_method_cash' | translate }}</span>
+                                            <small class="text-500 block mt-1">
+                                                <i class="pi pi-info-circle mr-1"></i>
+                                                {{ 'cash_refund_processed_immediately' | translate }}
+                                            </small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

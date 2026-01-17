@@ -11,6 +11,7 @@ export interface Refund {
   refundDate?: Date | string;
   status?: string;
   refundMethod?: string;
+  bankAccountId?: number;
   checkNumber?: string;
   checkExpirationDate?: Date | string;
   boeNumber?: string;
@@ -22,4 +23,5 @@ export interface Refund {
   transactionId?: string;
   customer?: any;
   lastUpdated?: Date | string;
+  creditAmountIssued?: number; // Amount of credit issued from this refund (for non-cash methods)
 }

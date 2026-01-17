@@ -1,4 +1,4 @@
-import { Component, OnInit, Pipe, PipeTransform } from '@angular/core';
+import { Component, OnInit, Pipe, PipeTransform, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -16,6 +16,8 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
 import { LocationService } from 'src/app/services/location.service';
+import { CustomerCreditService } from 'src/app/services/customer-credit.service';
+import { CreditInfo } from 'src/app/models/credit-info';
 
 @Pipe({ name: 'absolute' })
 export class AbsolutePipe implements PipeTransform {
@@ -78,6 +80,7 @@ export class CustomersComponent implements OnInit {
   exportColumns!: ExportColumn[];
 
   Math = Math;
+  isFinite = isFinite;
 
   // Permissions
   canAddCustomer: boolean = false;
@@ -87,6 +90,10 @@ export class CustomersComponent implements OnInit {
   isLoading: boolean = true;
   currency: any;
   paymentStatuses: { label: string; value: string; }[];
+  
+  // ⚠️ NEW: Credit info map for customers
+  customerCreditInfo: Map<number, CreditInfo> = new Map();
+  loadingCreditInfo: Set<number> = new Set();
 
   constructor(private messageService: MessageService,
     private customerService: CustomerService,
@@ -97,7 +104,8 @@ export class CustomersComponent implements OnInit {
     public keycloakService: KeycloakService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-    private router: Router) { }
+    private router: Router,
+    private customerCreditService: CustomerCreditService) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -429,12 +437,129 @@ export class CustomersComponent implements OnInit {
     }
   }
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  @ViewChild('dt') dt!: Table;
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    }
   }
 
+  // ⚠️ NEW: Load credit info for a customer
+  async loadCreditInfoForCustomer(customerId: number): Promise<void> {
+    // If already cached, check if it has invalid netBalance and clear it
+    if (this.customerCreditInfo.has(customerId)) {
+      const cachedInfo = this.customerCreditInfo.get(customerId);
+      if (cachedInfo && this.isInvalidNetBalance(cachedInfo.netBalance)) {
+        // Clear invalid cached data
+        this.customerCreditInfo.delete(customerId);
+      } else if (cachedInfo) {
+        return; // Valid cached data, no need to reload
+      }
+    }
+    
+    if (this.loadingCreditInfo.has(customerId)) {
+      return; // Already loading
+    }
+    
+    this.loadingCreditInfo.add(customerId);
+    try {
+      this.customerCreditService.loadToken();
+      const creditInfo$ = await this.customerCreditService.getCreditInfo(customerId);
+      const creditInfo = await firstValueFrom(creditInfo$);
+      
+      // ⚠️ Sanitize invalid values (Infinity, NaN, or extremely large numbers)
+      if (creditInfo) {
+        if (this.isInvalidNetBalance(creditInfo.netBalance)) {
+          creditInfo.netBalance = null as any;
+        }
+        if (this.isInvalidNetBalance(creditInfo.availableCreditLimit)) {
+          creditInfo.availableCreditLimit = null as any;
+        }
+        if (this.isInvalidNetBalance(creditInfo.outstandingBalance)) {
+          creditInfo.outstandingBalance = null as any;
+        }
+        if (this.isInvalidNetBalance(creditInfo.overdueBalance)) {
+          creditInfo.overdueBalance = null as any;
+        }
+      }
+      
+      this.customerCreditInfo.set(customerId, creditInfo);
+    } catch (error) {
+      console.error(`Error loading credit info for customer ${customerId}:`, error);
+      // Set null to avoid retrying
+      this.customerCreditInfo.set(customerId, null as any);
+    } finally {
+      this.loadingCreditInfo.delete(customerId);
+    }
+  }
+
+  // ⚠️ NEW: Get credit info for a customer
+  getCreditInfo(customerId: number): CreditInfo | null {
+    return this.customerCreditInfo.get(customerId) || null;
+  }
+
+  // Helper method to check if netBalance is invalid
+  private isInvalidNetBalance(value: any): boolean {
+    // 0 is a valid value, so check for it explicitly
+    if (value === 0) {
+      return false; // 0 is valid
+    }
+    
+    if (value === undefined || value === null) {
+      return false; // null/undefined is valid (means no data)
+    }
+    
+    const valueStr = String(value).toUpperCase();
+    
+    // Check for scientific notation with large exponent
+    if (valueStr.includes('E+')) {
+      const match = valueStr.match(/E\+(\d+)/);
+      if (match && parseInt(match[1]) >= 15) {
+        return true; // Exponent >= 15 means extremely large
+      }
+    }
+    
+    // Convert to number if it's a string
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    // Check if it's 0 after parsing
+    if (numValue === 0) {
+      return false; // 0 is valid
+    }
+    
+    const absValue = Math.abs(numValue);
+    
+    // Check for invalid values
+    return !isFinite(numValue) || isNaN(numValue) || 
+           absValue > 1e15 || 
+           absValue >= Number.MAX_VALUE * 0.9;
+  }
+
+  // ⚠️ NEW: Safely get net balance value (handles invalid/very large numbers)
+  getSafeNetBalance(customerId: number): number | null {
+    const creditInfo = this.getCreditInfo(customerId);
+    if (!creditInfo || creditInfo.netBalance === undefined || creditInfo.netBalance === null) {
+      return null;
+    }
+    
+    // Use the helper method to check if the value is invalid
+    if (this.isInvalidNetBalance(creditInfo.netBalance)) {
+      // Sanitize it in the stored data and return null
+      creditInfo.netBalance = null as any;
+      return null;
+    }
+    
+    // Convert to number if it's a string, otherwise return as-is
+    return typeof creditInfo.netBalance === 'string' ? parseFloat(creditInfo.netBalance) : creditInfo.netBalance;
+  }
 
   async onGetAllCustomers() {
+    // Clear credit info cache when reloading customers
+    this.customerCreditInfo.clear();
+    this.loadingCreditInfo.clear();
+    
     await this.customerService.getCustomers()
       .subscribe({
         next: (response: any) => {

@@ -21,7 +21,7 @@
         </button> -->
 
         <!-- Enhanced Notification Button -->
-        <button class="p-link layout-topbar-button notification-button" (click)="showNotifications()" *ngIf="profile"
+        <button class="p-link layout-topbar-button notification-button" (click)="showNotifications()" *ngIf="profile && isAdminUser"
             pTooltip="{{ 'notifications' | translate }}">
             <div class="notification-icon-wrapper">
                 <i class="pi pi-bell"></i>

@@ -1,0 +1,105 @@
+<div class="credit-balance-card" *ngIf="creditAccount">
+    <div class="card-header">
+        <div class="flex align-items-center justify-content-between">
+            <div class="flex align-items-center gap-2">
+                <i class="pi pi-credit-card"></i>
+                <span class="font-semibold">{{ 'credit_account' | translate }}</span>
+            </div>
+            <p-tag [value]="getStatusLabel(creditAccount.status)" 
+                   [severity]="getStatusSeverity(creditAccount.status)" 
+                   [rounded]="true"></p-tag>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <div class="credit-metrics">
+            <div class="metric-item">
+                <span class="metric-label">{{ 'credit_balance' | translate }}</span>
+                <span class="metric-value balance">{{ creditAccount.creditBalance | currency:currency:'symbol':'1.2-2' }}</span>
+            </div>
+
+            <div class="metric-item" *ngIf="creditAccount.creditLimit !== null && creditAccount.creditLimit !== undefined">
+                <span class="metric-label">{{ 'credit_limit' | translate }}</span>
+                <span class="metric-value">{{ creditAccount.creditLimit | currency:currency:'symbol':'1.2-2' }}</span>
+            </div>
+
+            <div class="metric-item" *ngIf="creditAccount.creditLimit === null || creditAccount.creditLimit === undefined || creditAccount.creditLimit === 0">
+                <span class="metric-label">{{ 'credit_limit' | translate }}</span>
+                <span class="metric-value text-500">{{ 'unlimited' | translate }}</span>
+            </div>
+
+            <div class="metric-item">
+                <span class="metric-label">{{ 'available_credit' | translate }}</span>
+                <span class="metric-value available">{{ availableCredit | currency:currency:'symbol':'1.2-2' }}</span>
+            </div>
+
+            <div class="metric-item" *ngIf="creditAccount.creditTermsDays">
+                <span class="metric-label">{{ 'credit_terms' | translate }}</span>
+                <span class="metric-value">Net {{ creditAccount.creditTermsDays }} {{ 'days' | translate }}</span>
+            </div>
+        </div>
+
+        <div class="credit-summary" *ngIf="creditAccount.totalCreditIssued || creditAccount.totalCreditUsed">
+            <div class="summary-row">
+                <span>{{ 'total_credit_issued' | translate }}:</span>
+                <span>{{ creditAccount.totalCreditIssued | currency:currency:'symbol':'1.2-2' }}</span>
+            </div>
+            <div class="summary-row">
+                <span>{{ 'total_credit_used' | translate }}:</span>
+                <span>{{ creditAccount.totalCreditUsed | currency:currency:'symbol':'1.2-2' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer" *ngIf="showActions">
+        <div class="flex flex-wrap gap-2">
+            <button pButton 
+                    type="button" 
+                    label="{{ 'view_details' | translate }}" 
+                    icon="pi pi-eye" 
+                    class="p-button-outlined p-button-sm"
+                    (click)="viewDetails.emit()"></button>
+            
+            <button pButton 
+                    type="button" 
+                    label="{{ 'issue_credit' | translate }}" 
+                    icon="pi pi-plus" 
+                    class="p-button-success p-button-sm"
+                    *ngIf="isAdmin"
+                    (click)="issueCredit.emit()"></button>
+            
+            <button pButton 
+                    type="button" 
+                    label="{{ 'adjust_credit' | translate }}" 
+                    icon="pi pi-pencil" 
+                    class="p-button-warning p-button-sm"
+                    *ngIf="isAdmin"
+                    (click)="adjustCredit.emit()"></button>
+            
+            <button pButton 
+                    type="button" 
+                    label="{{ 'set_limit' | translate }}" 
+                    icon="pi pi-cog" 
+                    class="p-button-info p-button-sm"
+                    *ngIf="isAdmin"
+                    (click)="setLimit.emit()"></button>
+        </div>
+    </div>
+</div>
+
+<div class="credit-balance-card empty-state" *ngIf="!creditAccount">
+    <div class="card-body">
+        <div class="flex flex-column align-items-center justify-content-center py-4">
+            <i class="pi pi-credit-card text-4xl text-400 mb-3"></i>
+            <p class="text-500">{{ 'no_credit_account' | translate }}</p>
+            <button pButton 
+                    type="button" 
+                    label="{{ 'create_credit_account' | translate }}" 
+                    icon="pi pi-plus" 
+                    class="p-button-outlined p-button-sm mt-2"
+                    *ngIf="isAdmin"
+                    (click)="viewDetails.emit()"></button>
+        </div>
+    </div>
+</div>
+

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { KeycloakService } from 'keycloak-angular';
@@ -40,6 +40,14 @@ export class AuthenticationService {
     }
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/",{headers:headers});
+  }
+
+  getUser(userId: string){
+    if (!this.jwt) {
+      this.loadToken();
+    }
+    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+userId,{headers:headers});
   }
 
   // async getUsers() {
@@ -174,7 +182,8 @@ export class AuthenticationService {
     const roleRouteMap: { [key: string]: string } = {
       'ADMIN': '/',
       'VENDOR': '/',
-      'WAREHOUSEMAN': '/'
+      'WAREHOUSEMAN': '/',
+      'CASHIER': '/pos'
     };
   
     // Determine if the current route is accessible for the user roles
@@ -194,6 +203,8 @@ export class AuthenticationService {
         this.router.navigate(['/']);
       } else if (userRoles.includes('WAREHOUSEMAN')) {
         this.router.navigate(['/']);
+      } else if (userRoles.includes('CASHIER')) {
+        this.router.navigate(['/pos']);
       } else {
         this.router.navigate(['/auth/access']);
       }
@@ -207,5 +218,26 @@ export class AuthenticationService {
     this.userProfile = await this.keycloakService.loadUserProfile(); // Load user profile from Keycloak
   }
 
+  getUserEvents(userId: string, maxResults: number = 100, dateFrom?: number, dateTo?: number, type?: string) {
+    if (this.jwt == null) this.loadToken();
+    let headers = new HttpHeaders({'authorization': 'Bearer ' + this.jwt});
+    
+    let url = this.apiProtocol + '://' + this.kcHost + ':' + this.kcPort + this.kcRealm + '/events';
+    let params = new HttpParams()
+      .set('user', userId)
+      .set('max', maxResults.toString());
+    
+    if (dateFrom) {
+      params = params.set('dateFrom', dateFrom.toString());
+    }
+    if (dateTo) {
+      params = params.set('dateTo', dateTo.toString());
+    }
+    if (type) {
+      params = params.set('type', type);
+    }
+    
+    return this.http.get(url, { headers: headers, params: params });
+  }
 
 }

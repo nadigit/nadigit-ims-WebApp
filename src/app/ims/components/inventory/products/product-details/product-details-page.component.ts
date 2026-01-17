@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
 import { MessageService, ConfirmationService } from 'primeng/api';
-import { Product } from 'src/app/models/product';
+import { Product, AggregatedProduct, WarehouseStockInfo } from 'src/app/models/product';
 import { ProductPriceHistory } from 'src/app/models/productPriceHistory';
 import { ProductService } from 'src/app/services/product.service';
 import { BarcodeService } from 'src/app/services/barcode.service';
@@ -18,7 +18,9 @@ import { Category } from 'src/app/models/category';
 import { Warehouse } from 'src/app/models/warehouse';
 import { Supplier } from 'src/app/models/supplier';
 import { firstValueFrom } from 'rxjs';
-import { getMeasureUnit } from 'src/app/shared/product-utils';
+import { getMeasureUnit, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
+import { getExpirationInfo, formatExpirationDate, getExpirationStatus, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
+import { ProductBatch, BatchStatus } from 'src/app/models/productBatch';
 import { 
   BarcodeResponseDTO, 
   BarcodeRequestDTO,
@@ -29,6 +31,8 @@ import {
   getQRCodeFormats,
   LabelSizeOption
 } from 'src/app/models/barcode';
+import { InventoryWriteOff } from 'src/app/models/write-off';
+import { WriteOffService } from 'src/app/services/write-off.service';
 
 @Component({
   selector: 'app-product-details-page',
@@ -47,6 +51,12 @@ export class ProductDetailsPageComponent implements OnInit {
   isAdmin: boolean = false;
   userRoles: any;
   Ressource: string = "PRODUCTS";
+  
+  // Aggregated product support
+  isAggregatedView: boolean = false;
+  productReference: string | null = null;
+  aggregatedProduct: AggregatedProduct | null = null;
+  warehouseStocks: WarehouseStockInfo[] = [];
 
   // Product form properties
   productDialog: boolean = false;
@@ -92,6 +102,20 @@ export class ProductDetailsPageComponent implements OnInit {
   // Auto-generate menu items
   autoGenerateMenuItems: any[] = [];
 
+  // Stock Adjustment
+  stockAdjustmentDialog: boolean = false;
+  quantityChange: number = 0;
+  adjustmentReason: string = '';
+  isAdjustingStock: boolean = false;
+
+  // Batch Management
+  batches: ProductBatch[] = [];
+  batchesLoading: boolean = false;
+
+  // Write-Offs Management
+  writeOffs: InventoryWriteOff[] = [];
+  writeOffsLoading: boolean = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -107,7 +131,8 @@ export class ProductDetailsPageComponent implements OnInit {
     private translateService: TranslationService,
     private categoryService: CategoryService,
     private warehouseService: WarehouseService,
-    private supplierService: SupplierService
+    private supplierService: SupplierService,
+    private writeOffService: WriteOffService
   ) {
     this.printOptions = [
       {
@@ -148,6 +173,7 @@ export class ProductDetailsPageComponent implements OnInit {
     
     this.initAutoGenerateMenuItems();
 
+    // Combine params and queryParams subscriptions
     this.route.params.subscribe(async params => {
       this.productId = +params['id'];
       if (!this.productId || isNaN(this.productId)) {
@@ -160,15 +186,96 @@ export class ProductDetailsPageComponent implements OnInit {
         this.router.navigate(['/inventory/products']);
         return;
       }
+      
+      // Get query params synchronously
+      const queryParams = this.route.snapshot.queryParams;
+      this.isAggregatedView = queryParams['aggregated'] === 'true' && !!queryParams['reference'];
+      this.productReference = queryParams['reference'] || null;
+      
       await this.checkPermissions();
       await this.setUserRoles();
-      await this.loadProduct();
+      
+      // Load aggregated product if reference is provided, otherwise load single product
+      if (this.isAggregatedView && this.productReference && this.isAdmin) {
+        await this.loadAggregatedProduct();
+      } else {
+        await this.loadProduct();
+      }
+      
       await this.loadBarcodes();
+      await this.loadBatches(); // Load batches for products with expiration dates
+      await this.loadWriteOffs(); // Load write-offs for products
       // Load form data when needed
       await this.onGetAllCategories();
       await this.onGetAllWarehouses();
       await this.onGetAllSuppliers();
     });
+  }
+
+  async loadAggregatedProduct(): Promise<void> {
+    try {
+      this.productService.loadToken();
+      
+      if (!this.productReference) {
+        // Fallback to single product if no reference provided
+        await this.loadProduct();
+        return;
+      }
+      
+      // Fetch aggregated product by reference using the new endpoint
+      const response = await firstValueFrom(
+        this.productService.getAggregatedProductByReference(this.productReference)
+      ) as AggregatedProduct;
+      
+      if (response) {
+        this.aggregatedProduct = response;
+        this.warehouseStocks = this.aggregatedProduct.warehouseStocks || [];
+        
+        // Convert aggregated product to Product format for compatibility
+        this.product = {
+          productId: this.warehouseStocks[0]?.productId || this.productId,
+          reference: this.aggregatedProduct.reference,
+          name: this.aggregatedProduct.name,
+          description: this.aggregatedProduct.description,
+          productType: this.aggregatedProduct.productType || 'PRODUCT',
+          quantityAvailable: this.aggregatedProduct.totalQuantityAvailable,
+          netAvailableQuantity: this.aggregatedProduct.totalNetAvailableQuantity,
+          inventoryStatus: this.aggregatedProduct.overallInventoryStatus,
+          sellingPrice: this.aggregatedProduct.sellingPrice,
+          buyingPrice: this.aggregatedProduct.buyingPrice,
+          productImage: this.aggregatedProduct.productImage,
+          category: this.aggregatedProduct.category,
+          supplier: this.aggregatedProduct.supplier,
+          measureUnit: this.aggregatedProduct.measureUnit,
+          expirationDate: this.aggregatedProduct.earliestExpirationDate,
+          _aggregated: true,
+          _warehouseCount: this.aggregatedProduct.warehouseCount,
+          _warehouseStocks: this.warehouseStocks
+        } as any;
+        
+        this.updateChart();
+        if (this.product.productId) {
+          this.onGetProductPriceHistory(this.product.productId);
+        }
+        this.isLoading = false;
+      } else {
+        // Fallback to single product if aggregated not found
+        await this.loadProduct();
+      }
+    } catch (error: any) {
+      console.error('Error loading aggregated product:', error);
+      // If 404, product not found with reference - fallback to single product
+      if (error?.status === 404) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('product_not_found'),
+          life: 3000
+        });
+      }
+      // Fallback to single product on error
+      await this.loadProduct();
+    }
   }
 
   async loadProduct(): Promise<void> {
@@ -219,6 +326,374 @@ export class ProductDetailsPageComponent implements OnInit {
         this.router.navigate(['/inventory/products']);
       }, 2000);
     }
+  }
+  
+  getAggregatedWarehouseStocks(): WarehouseStockInfo[] {
+    if (this.isAggregatedView && this.warehouseStocks.length > 0) {
+      return this.warehouseStocks;
+    }
+    if (this.product && (this.product as any)._warehouseStocks) {
+      return (this.product as any)._warehouseStocks;
+    }
+    return [];
+  }
+  
+  viewWarehouseDetails(warehouseId: number): void {
+    this.router.navigate(['/inventory/warehouses', warehouseId]);
+  }
+
+  // ==================== BATCH MANAGEMENT ====================
+
+  async loadBatches(): Promise<void> {
+    // Only load batches for products (not services)
+    // Note: Batches can exist without expiration dates, so we don't check for product.expirationDate
+    if (!this.product || this.product.productType === 'SERVICE') {
+      this.batches = [];
+      return;
+    }
+
+    this.batchesLoading = true;
+    try {
+      this.productService.loadToken();
+      const response: any = await firstValueFrom(this.productService.getProductBatches(this.productId));
+      
+      if (Array.isArray(response)) {
+        this.batches = response.map((batch: any) => ({
+          ...batch,
+          expirationDate: batch.expirationDate,
+          receiptDate: batch.receiptDate,
+          createdAt: batch.createdAt,
+          updatedAt: batch.updatedAt
+        }));
+      } else if (response && response.content && Array.isArray(response.content)) {
+        // Handle paginated response
+        this.batches = response.content.map((batch: any) => ({
+          ...batch,
+          expirationDate: batch.expirationDate,
+          receiptDate: batch.receiptDate
+        }));
+      } else {
+        this.batches = [];
+      }
+
+      // Sort batches by expiration date (earliest first)
+      // Batches without expiration dates are sorted to the end
+      this.batches.sort((a, b) => {
+        // If both have expiration dates, sort by date
+        if (a.expirationDate && b.expirationDate) {
+          const dateA = new Date(a.expirationDate).getTime();
+          const dateB = new Date(b.expirationDate).getTime();
+          return dateA - dateB;
+        }
+        // If only a has expiration date, a comes first
+        if (a.expirationDate && !b.expirationDate) {
+          return -1;
+        }
+        // If only b has expiration date, b comes first
+        if (!a.expirationDate && b.expirationDate) {
+          return 1;
+        }
+        // If neither has expiration date, maintain original order
+        return 0;
+      });
+    } catch (error: any) {
+      console.error('Error loading batches:', error);
+      // Don't show error if batches endpoint doesn't exist yet (404), just set empty array
+      if (error?.status !== 404) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_loading_batches') || 'Could not load batches',
+          life: 3000
+        });
+      }
+      this.batches = [];
+    } finally {
+      this.batchesLoading = false;
+    }
+  }
+
+  getBatchStatus(batch: ProductBatch): BatchStatus {
+    if (!batch.expirationDate) return 'ACTIVE';
+    const expirationDate = new Date(batch.expirationDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expirationDate.setHours(0, 0, 0, 0);
+    return expirationDate < today ? 'EXPIRED' : 'ACTIVE';
+  }
+
+  getBatchExpirationStatus(batch: ProductBatch): ExpirationStatus | null {
+    if (!batch.expirationDate) return null; // Return null for batches without expiration dates
+    return getExpirationStatus({ expirationDate: batch.expirationDate } as Product, 7);
+  }
+
+  getBatchSeverity(batch: ProductBatch): string {
+    const status = this.getBatchExpirationStatus(batch);
+    if (status === null) return 'secondary'; // Use secondary severity for batches without expiration dates
+    return getExpirationSeverity(status);
+  }
+
+  getBatchIcon(batch: ProductBatch): string {
+    const status = this.getBatchExpirationStatus(batch);
+    if (status === null) return 'pi pi-info-circle'; // Use info icon for batches without expiration dates
+    return getExpirationIcon(status);
+  }
+
+  formatBatchDate(date: string | null | undefined): string {
+    if (!date) return '-';
+    return formatExpirationDate(date) || '-';
+  }
+
+  formatBatchBuyingPrice(batch: ProductBatch): string {
+    if (batch.buyingPrice != null && batch.buyingPrice !== undefined) {
+      return this.formatCurrency(batch.buyingPrice);
+    }
+    // Show fallback indicator
+    return '-';
+  }
+
+  formatCurrency(amount: number | null | undefined): string {
+    if (amount == null || amount === undefined || isNaN(amount)) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: this.currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+
+  hasCustomBatchPrice(batch: ProductBatch): boolean {
+    // Check if batch has a custom price (different from product price or if product price is null)
+    if (batch.buyingPrice == null || batch.buyingPrice === undefined) return false;
+    if (!this.product || this.product.buyingPrice == null || this.product.buyingPrice === undefined) {
+      return true; // Batch has price but product doesn't
+    }
+    // Account for floating point precision
+    return Math.abs(batch.buyingPrice - this.product.buyingPrice) > 0.01;
+  }
+
+  getBatchPriceIndicator(batch: ProductBatch): string {
+    if (batch.buyingPrice == null || batch.buyingPrice === undefined) return 'uses_product';
+    if (this.hasCustomBatchPrice(batch)) return 'custom';
+    return 'matches';
+  }
+
+  hasMultipleBatches(): boolean {
+    return this.batches && this.batches.length > 1;
+  }
+
+  getTotalBatchQuantity(): number {
+    return this.batches.reduce((sum, batch) => sum + (batch.quantityAvailable || 0), 0);
+  }
+
+  getTotalBatchValue(): number {
+    return this.batches.reduce((sum, batch) => {
+      const price = batch.buyingPrice ?? this.product?.buyingPrice ?? 0;
+      return sum + ((batch.quantityAvailable || 0) * price);
+    }, 0);
+  }
+
+  // ==================== BATCH SUPPLIER METHODS ====================
+
+  getBatchSupplier(batch: ProductBatch): string {
+    if (batch.supplier?.name) {
+      return batch.supplier.name;
+    }
+    return this.product?.supplier?.name || '-';
+  }
+
+  isSupplierDifferent(batch: ProductBatch): boolean {
+    if (!batch.supplier || !this.product?.supplier) {
+      return false; // Can't compare if either is null
+    }
+    return batch.supplier.supplierId !== this.product.supplier.supplierId;
+  }
+
+  formatBatchSupplier(batch: ProductBatch): string {
+    const batchSupplier = batch.supplier?.name || null;
+    const productSupplier = this.product?.supplier?.name || null;
+    
+    if (!batchSupplier) {
+      return productSupplier ? `${productSupplier} (${this.translate.instant('from_product')})` : '-';
+    }
+    
+    if (batchSupplier === productSupplier) {
+      return `${batchSupplier} ✓`;
+    }
+    
+    return `${batchSupplier} ⚠`;
+  }
+
+  getBatchSupplierTooltip(batch: ProductBatch): string {
+    const batchSupplier = batch.supplier?.name || null;
+    const productSupplier = this.product?.supplier?.name || null;
+    
+    if (!batchSupplier) {
+      return productSupplier 
+        ? this.translate.instant('batch_uses_product_supplier_tooltip', { supplier: productSupplier })
+        : this.translate.instant('batch_no_supplier_tooltip');
+    }
+    
+    if (batchSupplier === productSupplier) {
+      return this.translate.instant('batch_supplier_matches_product_tooltip', { supplier: batchSupplier });
+    }
+    
+    return this.translate.instant('batch_supplier_different_tooltip', { 
+      batchSupplier: batchSupplier, 
+      productSupplier: productSupplier || this.translate.instant('not_specified')
+    });
+  }
+
+  // ==================== WRITE-OFFS MANAGEMENT ====================
+
+  async loadWriteOffs(): Promise<void> {
+    // Only load write-offs for products (not services)
+    if (!this.product || this.product.productType === 'SERVICE') {
+      this.writeOffs = [];
+      return;
+    }
+
+    this.writeOffsLoading = true;
+    try {
+      this.writeOffService.loadToken();
+      const response: any = await firstValueFrom(await this.writeOffService.getWriteOffsByProduct(this.productId));
+      
+      if (Array.isArray(response)) {
+        this.writeOffs = response.map((writeOff: any) => ({
+          ...writeOff,
+          // Handle flat format from backend (productId, warehouseId, productName, warehouseName)
+          product: writeOff.product || (writeOff.productId ? {
+            productId: writeOff.productId,
+            name: writeOff.productName,
+            reference: writeOff.productReference
+          } : null),
+          warehouse: writeOff.warehouse || (writeOff.warehouseId ? {
+            warehouseId: writeOff.warehouseId,
+            name: writeOff.warehouseName
+          } : null),
+          writeOffDate: writeOff.writeOffDate ? new Date(writeOff.writeOffDate) : null,
+          approvedDate: writeOff.approvedDate ? new Date(writeOff.approvedDate) : null,
+          rejectedDate: writeOff.rejectedDate ? new Date(writeOff.rejectedDate) : null,
+          creationDate: writeOff.creationDate ? new Date(writeOff.creationDate) : null
+        }));
+      } else {
+        this.writeOffs = [];
+      }
+
+      // Sort write-offs by date (most recent first)
+      this.writeOffs.sort((a, b) => {
+        const dateA = a.writeOffDate ? new Date(a.writeOffDate).getTime() : 0;
+        const dateB = b.writeOffDate ? new Date(b.writeOffDate).getTime() : 0;
+        return dateB - dateA;
+      });
+    } catch (error: any) {
+      console.error('Error loading write-offs:', error);
+      // Don't show error if write-offs endpoint doesn't exist yet (404), just set empty array
+      if (error?.status !== 404) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_loading_write_offs') || 'Could not load write-offs',
+          life: 3000
+        });
+      }
+      this.writeOffs = [];
+    } finally {
+      this.writeOffsLoading = false;
+    }
+  }
+
+  getWriteOffStatusSeverity(status: string | undefined): string {
+    if (!status) return '';
+    const s = status.toUpperCase();
+    if (s === 'PENDING') return 'warning';
+    if (s === 'APPROVED') return 'success';
+    if (s === 'REJECTED') return 'danger';
+    return '';
+  }
+
+  getWriteOffConditionSeverity(condition: string | undefined): string {
+    if (!condition) return '';
+    const c = condition.toUpperCase();
+    if (c === 'DAMAGED' || c === 'UNUSABLE') return 'danger';
+    if (c === 'LOST') return 'warn';
+    if (c === 'EXPIRED') return 'info';
+    return '';
+  }
+
+  getWriteOffConditionLabel(condition: string | undefined): string {
+    if (!condition) return 'N/A';
+    const key = `item_condition_${condition.toLowerCase()}`;
+    return this.translate.instant(key) || condition;
+  }
+
+  getWriteOffSourceTypeLabel(sourceType: string | undefined): string {
+    if (!sourceType) return 'N/A';
+    const key = `write_off_source_type_${sourceType.toLowerCase().replace(/_/g, '_')}`;
+    return this.translate.instant(key) || sourceType;
+  }
+
+  formatWriteOffDate(date: Date | string | null | undefined): string {
+    if (!date) return '-';
+    try {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return d.toLocaleDateString();
+    } catch {
+      return String(date);
+    }
+  }
+
+  formatWriteOffCurrency(amount: number | null | undefined): string {
+    if (amount == null || amount === undefined || isNaN(amount)) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: this.currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+
+  getTotalWriteOffQuantity(): number {
+    return this.writeOffs.reduce((sum, wo) => sum + (wo.quantity || 0), 0);
+  }
+
+  getTotalWriteOffCost(): number {
+    return this.writeOffs.reduce((sum, wo) => sum + (wo.writeOffCost || 0), 0);
+  }
+
+  viewWriteOffDetails(writeOff: InventoryWriteOff) {
+    if (!writeOff.writeOffId) return;
+    this.router.navigate(['/inventory/write-offs', writeOff.writeOffId]);
+  }
+
+  getWriteOffReasonLabel(reason: string | undefined): string {
+    if (!reason) return '-';
+    // Check if reason is a predefined value (uppercase) that needs translation
+    const upperReason = reason.toUpperCase().trim();
+    const translationKey = `write_off_reason_${upperReason.toLowerCase()}`;
+    const translated = this.translate.instant(translationKey);
+    
+    // If translation exists and is different from the key, use it
+    if (translated && translated !== translationKey) {
+      return translated;
+    }
+    
+    // If it's a predefined reason value, try common reason translations
+    if (upperReason === 'DEFECTIVE') {
+      return this.translate.instant('return_reason_defective') || reason;
+    }
+    if (upperReason === 'INCORRECT_ITEM') {
+      return this.translate.instant('return_reason_incorrect_item') || reason;
+    }
+    if (upperReason === 'CHANGE_OF_MIND') {
+      return this.translate.instant('return_reason_change_of_mind') || reason;
+    }
+    if (upperReason === 'OTHER') {
+      return this.translate.instant('return_reason_other') || reason;
+    }
+    
+    // For custom reasons, return as-is
+    return reason;
   }
 
   // ==================== BARCODE MANAGEMENT ====================
@@ -468,7 +943,9 @@ export class ProductDetailsPageComponent implements OnInit {
   updateChart() {
     if (!this.product) return;
 
-    const profitValue = this.product.sellingPrice - this.product.buyingPrice;
+    // For services, buyingPrice might be null, use 0 as fallback
+    const buyingPrice = this.product.buyingPrice || 0;
+    const profitValue = this.product.sellingPrice - buyingPrice;
     const costLabel = this.translate.instant('cost');
     const profitLabel = this.translate.instant('profit');
 
@@ -476,7 +953,7 @@ export class ProductDetailsPageComponent implements OnInit {
       labels: [costLabel, profitLabel],
       datasets: [
         {
-          data: [this.product.buyingPrice, profitValue],
+          data: [buyingPrice, profitValue],
           backgroundColor: ['#42A5F5', '#66BB6A'],
           hoverBackgroundColor: ['#64B5F6', '#81C784']
         }
@@ -542,6 +1019,52 @@ export class ProductDetailsPageComponent implements OnInit {
     return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
   }
 
+  isService(product: Product): boolean {
+    if (!product) return false;
+    return product.productType === 'SERVICE';
+  }
+
+  isProduct(product: Product): boolean {
+    if (!product) return false;
+    return !product.productType || product.productType === 'PRODUCT';
+  }
+
+  // Write-off integration helpers
+  getAvailableQuantity(product: Product): number {
+    return getAvailableQuantity(product);
+  }
+
+  hasWriteOffs(product: Product): boolean {
+    return hasWriteOffs(product);
+  }
+
+  getWriteOffQuantity(product: Product): number {
+    return getWriteOffQuantity(product);
+  }
+
+  getExpirationInfo(product: Product) {
+    return getExpirationInfo(product);
+  }
+
+  formatExpirationDate(expirationDate: string | Date | null | undefined): string | null {
+    return formatExpirationDate(expirationDate);
+  }
+
+  getExpirationStatus(product: Product): ExpirationStatus {
+    return getExpirationStatus(product);
+  }
+
+  getExpirationSeverity(status: ExpirationStatus): string {
+    return getExpirationSeverity(status);
+  }
+
+  getExpirationIcon(status: ExpirationStatus): string {
+    return getExpirationIcon(status);
+  }
+
+  // Expose Math for template
+  Math = Math;
+
   displayAttributeValue(attr: any): string {
     if (!attr) return '';
     switch (attr.attributeType) {
@@ -573,12 +1096,125 @@ export class ProductDetailsPageComponent implements OnInit {
     this.productDialog = false;
   }
 
+  openStockAdjustmentDialog(): void {
+    if (!this.product || this.isService(this.product)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('services_cannot_have_quantity'),
+        life: 3000
+      });
+      return;
+    }
+    this.quantityChange = 0;
+    this.adjustmentReason = '';
+    this.stockAdjustmentDialog = true;
+  }
+
+  closeStockAdjustmentDialog(): void {
+    this.stockAdjustmentDialog = false;
+    this.quantityChange = 0;
+    this.adjustmentReason = '';
+  }
+
+  getNewQuantity(): number {
+    if (!this.product) return 0;
+    return (this.product.quantityAvailable || 0) + this.quantityChange;
+  }
+
+  canAdjustStock(): boolean {
+    if (this.quantityChange === 0) return false;
+    const newQuantity = this.getNewQuantity();
+    return newQuantity >= 0;
+  }
+
+  async adjustStock(): Promise<void> {
+    if (!this.product || !this.canAdjustStock()) return;
+
+    // Validate
+    if (this.quantityChange === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('quantity_change_cannot_be_zero'),
+        life: 3000
+      });
+      return;
+    }
+
+    const newQuantity = this.getNewQuantity();
+    if (newQuantity < 0) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('cannot_decrease_stock_below_zero').replace('{0}', (this.product.quantityAvailable || 0).toString()).replace('{1}', this.quantityChange.toString()),
+        life: 4000
+      });
+      return;
+    }
+
+    this.isAdjustingStock = true;
+    try {
+      this.productService.loadToken();
+      const response = await firstValueFrom(
+        this.productService.adjustStock(
+          this.product.productId!,
+          this.quantityChange,
+          this.adjustmentReason
+        )
+      );
+
+      // Update product with response
+      if (response && typeof response === 'object') {
+        this.product = response as Product;
+      }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('stock_adjusted_successfully'),
+        life: 3000
+      });
+
+      this.closeStockAdjustmentDialog();
+      // Reload product to get updated data
+      await this.loadProduct();
+      // Reload batches as quantity may have changed
+      await this.loadBatches();
+    } catch (error: any) {
+      console.error('Error adjusting stock:', error);
+      const errorMessage = error?.error?.message || error?.message || this.translate.instant('error_adjusting_stock');
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: errorMessage,
+        life: 4000
+      });
+    } finally {
+      this.isAdjustingStock = false;
+    }
+  }
+
+  quickAdjustStock(change: number): void {
+    this.quantityChange = change;
+    // Optionally auto-fill reason for quick adjustments
+    if (!this.adjustmentReason) {
+      if (change > 0) {
+        this.adjustmentReason = this.translate.instant('quick_adjustment_add');
+      } else {
+        this.adjustmentReason = this.translate.instant('quick_adjustment_remove');
+      }
+    }
+  }
+
   async onProductFormSaveSuccess(productData: Product): Promise<void> {
     console.log('Product form saved successfully:', productData);
     // Reload the product to reflect changes
     await this.loadProduct();
     // Reload barcodes in case product reference changed
     await this.loadBarcodes();
+    // Reload batches in case product expiration date changed
+    await this.loadBatches();
     this.productDialog = false;
   }
 

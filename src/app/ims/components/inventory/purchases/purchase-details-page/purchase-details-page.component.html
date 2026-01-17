@@ -62,14 +62,14 @@
                             [label]="'refresh' | translate"
                             class="p-button-outlined"
                             (click)="refreshPurchaseDetails()"></button>
-                        <button pButton pRipple icon="pi pi-print" 
+                        <!-- <button pButton pRipple icon="pi pi-print" 
                             [label]="'print' | translate"
                             class="p-button-outlined"
                             (click)="printPurchaseInvoice(purchase)"></button>
                         <button pButton pRipple icon="pi pi-file-pdf" 
                             [label]="'export_pdf' | translate"
                             class="p-button-outlined"
-                            (click)="exportPurchaseToPDF(purchase)"></button>
+                            (click)="exportPurchaseToPDF(purchase)"></button> -->
                         <button pButton pRipple icon="pi pi-pencil" 
                             [label]="'edit' | translate"
                             *ngIf="canEdit && purchase.purchaseStatus === 'PENDING'"
@@ -346,6 +346,12 @@
                                         class="p-button-outlined p-button-danger"
                                         (click)="exportPurchaseToPDF(purchase)"></button>
                                     
+                                    <button pButton pRipple icon="pi pi-undo" 
+                                        [label]="'return_items' | translate"
+                                        class="p-button-outlined p-button-warning"
+                                        *ngIf="purchase.purchaseStatus === 'COMPLETED' || purchase.purchaseStatus === 'RECEIVED'"
+                                        (click)="navigateToReturns()"></button>
+                                    
                                     <button pButton pRipple icon="pi pi-pencil" 
                                         [label]="'edit_purchase' | translate"
                                         class="p-button-primary"
@@ -411,7 +417,7 @@
                                             <p-tag [value]="item?.quantityPurchased || '0'" severity="info"></p-tag>
                                         </td>
                                         <td class="text-right font-semibold">
-                                            {{ item?.unitCost | currency:currency:'symbol':'1.2-2' }}
+                                            {{ item?.buyingPrice | currency:currency:'symbol':'1.2-2' }}
                                         </td>
                                         <td class="text-right font-bold text-primary">
                                             {{ item?.totalCost | currency:currency:'symbol':'1.2-2' }}

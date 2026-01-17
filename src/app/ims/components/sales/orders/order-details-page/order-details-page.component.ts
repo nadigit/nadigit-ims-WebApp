@@ -471,6 +471,25 @@ export class OrderDetailsPageComponent implements OnInit {
     return taxableAmount * this.taxRate;
   }
 
+  // Cost and Profit helper methods
+  getProfitMarginSeverity(margin: number | null | undefined): string {
+    if (margin == null) return 'secondary';
+    if (margin >= 30) return 'success'; // High margin - Green
+    if (margin >= 15) return 'warning'; // Medium margin - Yellow/Orange
+    return 'danger'; // Low margin - Red
+  }
+
+  getProfitMarginClass(margin: number | null | undefined): string {
+    if (margin == null) return '';
+    if (margin >= 30) return 'high-margin';
+    if (margin >= 15) return 'medium-margin';
+    return 'low-margin';
+  }
+
+  hasCostInfo(): boolean {
+    return this.order?.totalCost != null && this.order?.totalCost !== undefined;
+  }
+
   allowCancelOrder(): boolean {
     return this.order?.orderStatus === 'Ordered';
   }
@@ -593,6 +612,31 @@ export class OrderDetailsPageComponent implements OnInit {
           severity: 'error',
           summary: this.translate.instant('error'),
           detail: this.translate.instant('error_while_generating_invoice'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+  generateProformaInvoice(order: Order) {
+    this.financialDocService.generateProformaInvoiceFromOrder(order.orderId, {
+      origin: 'BACK_OFFICE'
+    }).subscribe({
+      next: (response: any) => {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('proforma_invoice_generated_successfully') || 'Proforma invoice generated successfully',
+          life: 3000
+        });
+        // Reload order to get updated document status
+        this.loadOrder();
+      },
+      error: (error: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_generating_proforma_invoice') || 'Error while generating proforma invoice',
           life: 3000
         });
       }

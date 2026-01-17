@@ -35,9 +35,20 @@
                             <div>
                             <div class="flex align-items-center gap-3 mb-2">
                                 <h1 class="m-0 text-900 product-title">{{ product.name }}</h1>
-                                <span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
+                                <p-tag [value]="isService(product) ? ('product_type_service' | translate) : ('product_type_product' | translate)"
+                                    [severity]="isService(product) ? 'purple' : 'info'"
+                                    [icon]="isService(product) ? 'pi pi-cog' : 'pi pi-box'">
+                                </p-tag>
+                                <span *ngIf="isProduct(product) && product.inventoryStatus" 
+                                    [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
                                     {{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
                                 </span>
+                                <!-- Expiration Status Badge -->
+                                <p-tag *ngIf="isProduct(product) && product.expirationDate && (getExpirationStatus(product) === 'EXPIRED' || getExpirationStatus(product) === 'EXPIRING_SOON')"
+                                    [value]="getExpirationStatus(product) === 'EXPIRED' ? ('expired' | translate) : ('expiring_soon_days' | translate).replace('{0}', getExpirationInfo(product).daysUntilExpiration.toString())"
+                                    [severity]="getExpirationSeverity(getExpirationStatus(product))"
+                                    [icon]="getExpirationIcon(getExpirationStatus(product))">
+                                </p-tag>
                             </div>
                             <div class="flex align-items-center gap-4 text-500">
                                 <span class="flex align-items-center gap-2">
@@ -79,28 +90,61 @@
 
         <!-- Quick Stats Row -->
         <div class="stats-row">
-            <div class="stat-card-modern quantity-card">
+            <!-- Quantity (Products only) -->
+            <div class="stat-card-modern quantity-card" *ngIf="isProduct(product)">
                 <div class="stat-icon">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'product_quantity' | translate }}</span>
                     <div class="stat-value">
-                        <span [ngClass]="{'text-danger': product.quantityAvailable <= 0, 'text-warning': product.quantityAvailable > 0 && product.quantityAvailable <= 10}">
-                            {{ product.quantityAvailable }}
-                        </span>
-                        <span class="stat-unit">{{ getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate }}</span>
+                        <div class="flex align-items-center gap-2">
+                            <span [ngClass]="{'text-danger': getAvailableQuantity(product) <= 0, 'text-warning': getAvailableQuantity(product) > 0 && getAvailableQuantity(product) <= 10, 'has-writeoff': hasWriteOffs(product)}">
+                                {{ getAvailableQuantity(product) }}
+                            </span>
+                            <span *ngIf="hasWriteOffs(product)" 
+                                  class="writeoff-indicator" 
+                                  [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
+                                  tooltipPosition="top">
+                                <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                            </span>
+                        </div>
+                        <span class="stat-unit">{{ getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate }}</span>
+                    </div>
+                    <div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
+                        <small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+                    </div>
+                    <div class="mt-2" *ngIf="canEdit">
+                        <button pButton pRipple 
+                            icon="pi pi-plus-minus" 
+                            [label]="'adjust_stock' | translate"
+                            class="p-button-sm p-button-outlined"
+                            (click)="openStockAdjustmentDialog()">
+                        </button>
                     </div>
                 </div>
             </div>
             
-            <div class="stat-card-modern buying-card" *ngIf="isAdmin">
+            <!-- Service Info (Services only) -->
+            <div class="stat-card-modern quantity-card" *ngIf="isService(product)">
+                <div class="stat-icon">
+                    <i class="pi pi-cog"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'product_type' | translate }}</span>
+                    <div class="stat-value">
+                        <span>{{ 'no_inventory_tracking' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern buying-card" *ngIf="isAdmin && (isProduct(product) || (isService(product) && product.buyingPrice))">
                 <div class="stat-icon buying">
                     <i class="pi pi-shopping-cart"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'product_buying_price' | translate }}</span>
-                    <div class="stat-value">{{ product.buyingPrice | currency:currency }}</div>
+                    <div class="stat-value">{{ (product.buyingPrice || 0) | currency:currency }}</div>
                 </div>
             </div>
             
@@ -123,6 +167,78 @@
                     <div class="stat-value profit-value">
                         {{ calculateProfit(product) | percent:'1.1-1' }}
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Warehouse Breakdown (Aggregated Products Only - Not Services) -->
+        <div class="warehouse-breakdown-section mb-4" *ngIf="isAggregatedView && isAdmin && isProduct(product) && getAggregatedWarehouseStocks().length > 0">
+            <div class="detail-card">
+                <div class="card-header">
+                    <i class="pi pi-building"></i>
+                    <span>{{ 'warehouse_breakdown' | translate }}</span>
+                    <p-tag [value]="getAggregatedWarehouseStocks().length + ' ' + ('warehouses' | translate)" 
+                        severity="info" [rounded]="true" class="ml-auto"></p-tag>
+                </div>
+                <div class="card-body">
+                    <p class="text-600 text-sm mb-3">{{ 'warehouse_breakdown_description' | translate }}</p>
+                    <p-table [value]="getAggregatedWarehouseStocks()" 
+                        dataKey="warehouseId" 
+                        responsiveLayout="scroll"
+                        styleClass="p-datatable-sm">
+                        <ng-template pTemplate="header">
+                            <tr>
+                                <th>{{ 'warehouse_name' | translate }}</th>
+                                <th>{{ 'quantity_available' | translate }}</th>
+                                <th>{{ 'net_available_quantity' | translate }}</th>
+                                <th>{{ 'inventory_status' | translate }}</th>
+                                <th *ngIf="product?.expirationDate">{{ 'expiration_date' | translate }}</th>
+                                <th style="width: 4rem"></th>
+                            </tr>
+                        </ng-template>
+                        <ng-template pTemplate="body" let-stock>
+                            <tr>
+                                <td>
+                                    <strong>{{ stock.warehouseName || 'N/A' }}</strong>
+                                </td>
+                                <td>
+                                    <p-tag [severity]="getQuantitySeverity(stock.quantityAvailable)"
+                                        [value]="stock.quantityAvailable + ' ' + (getMeasureUnit(product?.measureUnit || 'UNIT', stock.quantityAvailable) | translate)"
+                                        styleClass="text-xs">
+                                    </p-tag>
+                                </td>
+                                <td>
+                                    <p-tag [severity]="getQuantitySeverity(stock.netAvailableQuantity)"
+                                        [value]="stock.netAvailableQuantity + ' ' + (getMeasureUnit(product?.measureUnit || 'UNIT', stock.netAvailableQuantity) | translate)"
+                                        styleClass="text-xs">
+                                    </p-tag>
+                                </td>
+                                <td>
+                                    <span [class]="'product-badge status-' + (stock.inventoryStatus || '').toLowerCase()">
+                                        {{ 'product_' + (stock.inventoryStatus || '').toLowerCase() | translate }}
+                                    </span>
+                                </td>
+                                <td *ngIf="product?.expirationDate">
+                                    {{ stock.expirationDate ? (stock.expirationDate | date:'dd/MM/yyyy') : 'N/A' }}
+                                </td>
+                                <td>
+                                    <button pButton pRipple icon="pi pi-eye" 
+                                        class="p-button-rounded p-button-text p-button-info p-button-sm"
+                                        [pTooltip]="'view_warehouse_details' | translate"
+                                        (click)="viewWarehouseDetails(stock.warehouseId)"
+                                        tooltipPosition="top">
+                                    </button>
+                                </td>
+                            </tr>
+                        </ng-template>
+                        <ng-template pTemplate="emptymessage">
+                            <tr>
+                                <td [attr.colspan]="product?.expirationDate ? 6 : 5" class="text-center">
+                                    {{ 'no_warehouse_stock' | translate }}
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
                 </div>
             </div>
         </div>
@@ -192,7 +308,7 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="info-item">
+                                    <div class="info-item" *ngIf="isProduct(product)">
                                         <div class="info-icon">
                                             <i class="pi pi-truck"></i>
                                         </div>
@@ -202,13 +318,44 @@
                                 </div>
                                     </div>
                                     
-                                    <div class="info-item">
+                                    <div class="info-item" *ngIf="isProduct(product)">
                                         <div class="info-icon">
                                             <i class="pi pi-building"></i>
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'product_warehouse' | translate }}</span>
                                             <span class="info-value">{{ product.warehouse?.name || 'N/A' }}</span>
+                                </div>
+                                    </div>
+                                    
+                                    <!-- Service-specific fields -->
+                                    <div class="info-item" *ngIf="isService(product) && product.serviceProvider">
+                                        <div class="info-icon">
+                                            <i class="pi pi-user"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'service_provider' | translate }}</span>
+                                            <span class="info-value">{{ product.serviceProvider }}</span>
+                                </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="isService(product) && product.estimatedDurationMinutes">
+                                        <div class="info-icon">
+                                            <i class="pi pi-clock"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'estimated_duration_minutes' | translate }}</span>
+                                            <span class="info-value">{{ product.estimatedDurationMinutes }} {{ 'minutes' | translate }}</span>
+                                </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="isService(product) && product.serviceCategory">
+                                        <div class="info-icon">
+                                            <i class="pi pi-tags"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'service_category' | translate }}</span>
+                                            <span class="info-value">{{ product.serviceCategory }}</span>
                                 </div>
                                     </div>
                                     
@@ -219,6 +366,35 @@
                                         <div class="info-content">
                                             <span class="info-label">{{ 'creation_date' | translate }}</span>
                                             <span class="info-value">{{ product.creationDate | date:'mediumDate' }}</span>
+                                </div>
+                                    </div>
+                                    
+                                    <!-- Expiration Date (Products only) -->
+                                    <div class="info-item" *ngIf="isProduct(product) && product.expirationDate">
+                                        <div class="info-icon" [ngClass]="{
+                                            'text-danger': getExpirationStatus(product) === 'EXPIRED',
+                                            'text-warning': getExpirationStatus(product) === 'EXPIRING_SOON',
+                                            'text-success': getExpirationStatus(product) === 'VALID'
+                                        }">
+                                            <i class="pi pi-clock"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'expiration_date' | translate }}</span>
+                                            <div class="flex flex-column gap-1">
+                                                <span class="info-value">{{ formatExpirationDate(product.expirationDate) }}</span>
+                                                <div *ngIf="getExpirationStatus(product) === 'EXPIRED'" class="flex align-items-center gap-1 text-danger">
+                                                    <i class="pi pi-exclamation-triangle text-xs"></i>
+                                                    <span class="text-xs font-semibold">{{ 'expired_days_ago' | translate }}: {{ Math.abs(getExpirationInfo(product).daysUntilExpiration) }}</span>
+                                                </div>
+                                                <div *ngIf="getExpirationStatus(product) === 'EXPIRING_SOON'" class="flex align-items-center gap-1 text-warning">
+                                                    <i class="pi pi-clock text-xs"></i>
+                                                    <span class="text-xs font-semibold">{{ 'expiring_in_days' | translate }}: {{ getExpirationInfo(product).daysUntilExpiration }}</span>
+                                                </div>
+                                                <div *ngIf="getExpirationStatus(product) === 'VALID'" class="flex align-items-center gap-1 text-success">
+                                                    <i class="pi pi-check-circle text-xs"></i>
+                                                    <span class="text-xs font-semibold">{{ 'valid_for_days' | translate }}: {{ getExpirationInfo(product).daysUntilExpiration }}</span>
+                                                </div>
+                                            </div>
                                 </div>
                                     </div>
                                     
@@ -374,11 +550,11 @@
                                     <div class="profit-summary mt-4 w-full">
                                         <div class="profit-item">
                                             <span class="profit-label">{{ 'cost' | translate }}</span>
-                                            <span class="profit-value cost">{{ product.buyingPrice | currency:currency }}</span>
+                                            <span class="profit-value cost">{{ (product.buyingPrice || 0) | currency:currency }}</span>
                                         </div>
                                         <div class="profit-item">
                                             <span class="profit-label">{{ 'profit' | translate }}</span>
-                                            <span class="profit-value profit">{{ (product.sellingPrice - product.buyingPrice) | currency:currency }}</span>
+                                            <span class="profit-value profit">{{ (product.sellingPrice - (product.buyingPrice || 0)) | currency:currency }}</span>
                                         </div>
                                         <div class="profit-item highlight">
                                             <span class="profit-label">{{ 'profit_margin' | translate }}</span>
@@ -399,33 +575,44 @@
                             </div>
                             <div class="card-body">
                                 <div class="stock-value-grid">
-                                    <div class="stock-value-item">
+                                    <div class="stock-value-item" *ngIf="isProduct(product)">
                                         <div class="stock-icon cost">
                                             <i class="pi pi-shopping-cart"></i>
                                         </div>
                                         <div class="stock-details">
                                             <span class="stock-label">{{ 'total_cost_value' | translate }}</span>
-                                            <span class="stock-amount">{{ (product.buyingPrice * product.quantityAvailable) | currency:currency }}</span>
+                                            <span class="stock-amount">{{ ((product.buyingPrice || 0) * (product.quantityAvailable || 0)) | currency:currency }}</span>
                                         </div>
                         </div>
 
-                                    <div class="stock-value-item">
+                                    <div class="stock-value-item" *ngIf="isProduct(product)">
                                         <div class="stock-icon retail">
                                             <i class="pi pi-tag"></i>
                                 </div>
                                         <div class="stock-details">
                                             <span class="stock-label">{{ 'total_retail_value' | translate }}</span>
-                                            <span class="stock-amount">{{ (product.sellingPrice * product.quantityAvailable) | currency:currency }}</span>
+                                            <span class="stock-amount">{{ (product.sellingPrice * (product.quantityAvailable || 0)) | currency:currency }}</span>
                                         </div>
                                             </div>
                                     
-                                    <div class="stock-value-item">
+                                    <div class="stock-value-item" *ngIf="isProduct(product)">
                                         <div class="stock-icon profit">
                                             <i class="pi pi-chart-line"></i>
                                         </div>
                                         <div class="stock-details">
                                             <span class="stock-label">{{ 'potential_profit' | translate }}</span>
-                                            <span class="stock-amount profit">{{ ((product.sellingPrice - product.buyingPrice) * product.quantityAvailable) | currency:currency }}</span>
+                                            <span class="stock-amount profit">{{ ((product.sellingPrice - (product.buyingPrice || 0)) * (product.quantityAvailable || 0)) | currency:currency }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Service-specific info -->
+                                    <div class="stock-value-item" *ngIf="isService(product)">
+                                        <div class="stock-icon cost">
+                                            <i class="pi pi-info-circle"></i>
+                                        </div>
+                                        <div class="stock-details">
+                                            <span class="stock-label">{{ 'service_info' | translate }}</span>
+                                            <span class="stock-amount">{{ 'services_no_inventory_tracking' | translate }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -467,6 +654,10 @@
                                             {{ 'selling_price' | translate }}
                                             <p-sortIcon field="sellingPrice"></p-sortIcon>
                                         </th>
+                                        <th pSortableColumn="supplierName">
+                                            {{'supplier' | translate}}
+                                            <p-sortIcon field="supplierName"></p-sortIcon>
+                                        </th>
                                         <th>{{ 'changed_by' | translate }}</th>
                                         <th>{{ 'reason' | translate }}</th>
                                     </tr>
@@ -497,6 +688,12 @@
                                             </span>
                                         </td>
                                         <td>
+                                            <span class="flex align-items-center gap-2" *ngIf="history.supplier">
+                                                <i class="pi pi-truck text-500"></i>
+                                                {{ history.supplier.name }}
+                                            </span>
+                                        </td>
+                                        <td>
                                             <span class="flex align-items-center gap-2">
                                                 <i class="pi pi-user text-500"></i>
                                                 {{ history.changedBy || 'System' }}
@@ -514,6 +711,360 @@
                                     </tr>
                                 </ng-template>
                             </p-table>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Batches Tab (Only for products with expiration dates) -->
+            <p-tabPanel *ngIf="isProduct(product)">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-box mr-2"></i>
+                    <span>{{ 'batches' | translate }}</span>
+                    <p-badge [value]="batches.length.toString()" class="ml-2" *ngIf="batches.length > 0" severity="info"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <!-- Loading State -->
+                    <div class="flex justify-content-center p-6" *ngIf="batchesLoading">
+                        <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+                    </div>
+
+                    <!-- Batches Table -->
+                    <div *ngIf="!batchesLoading && batches.length > 0">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-box"></i>
+                                <span>{{ 'batches' | translate }}</span>
+                            </div>
+                            <!-- Batch Summary Info -->
+                            <div class="card-body" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--surface-border);">
+                                <div class="flex justify-content-between align-items-center flex-wrap gap-3">
+                                    <div class="flex flex-column gap-1">
+                                        <p class="m-0 text-500 text-sm" *ngIf="hasMultipleBatches()">
+                                            {{ 'multiple_batches' | translate }} ({{ batches.length }} {{ 'batches' | translate }}, 
+                                            {{ getTotalBatchQuantity() }} {{ getMeasureUnit(product?.measureUnit, getTotalBatchQuantity()) | translate }})
+                                        </p>
+                                        <p class="m-0 text-500 text-sm" *ngIf="!hasMultipleBatches() && batches.length === 1">
+                                            {{ batches.length }} {{ 'batch' | translate }}
+                                        </p>
+                                    </div>
+                                    <!-- Price Summary (Admin only) -->
+                                    <div *ngIf="isAdmin" class="flex flex-column align-items-end gap-1">
+                                        <div class="text-sm text-600">
+                                            <strong>{{ 'product_buying_price' | translate }}:</strong> {{ formatCurrency(product?.buyingPrice) }}
+                                        </div>
+                                        <div class="text-sm text-600" *ngIf="getTotalBatchValue() > 0">
+                                            <strong>{{ 'total_batch_value' | translate }}:</strong> {{ formatCurrency(getTotalBatchValue()) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <p-table [value]="batches" [paginator]="batches.length > 10" 
+                                    [rows]="10" [showCurrentPageReport]="true" 
+                                    currentPageReportTemplate="{first} - {last} of {totalRecords} {{ 'batches' | translate }}"
+                                    sortMode="multiple" responsiveLayout="scroll"
+                                    styleClass="p-datatable-sm p-datatable-striped">
+                                    
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th pSortableColumn="batchNumber">
+                                                {{ 'batch_number' | translate }} <p-sortIcon field="batchNumber"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="quantityAvailable">
+                                                {{ 'batch_quantity' | translate }} <p-sortIcon field="quantityAvailable"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="expirationDate">
+                                                {{ 'batch_expiration_date' | translate }} <p-sortIcon field="expirationDate"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="receiptDate">
+                                                {{ 'batch_receipt_date' | translate }} <p-sortIcon field="receiptDate"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="buyingPrice" *ngIf="isAdmin">
+                                                {{ 'batch_buying_price' | translate }} <p-sortIcon field="buyingPrice"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="supplier">
+                                                {{ 'supplier' | translate }} <p-sortIcon field="supplier"></p-sortIcon>
+                                            </th>
+                                            <th>{{ 'batch_status' | translate }}</th>
+                                            <th>{{ 'batch_source' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="body" let-batch>
+                                        <tr>
+                                            <td>
+                                                <span class="font-semibold">{{ batch.batchNumber || '-' }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="font-semibold text-900">
+                                                    {{ batch.quantityAvailable || 0 }} {{ getMeasureUnit(product?.measureUnit, batch.quantityAvailable || 0) | translate }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="flex align-items-center gap-2">
+                                                    <span>{{ formatBatchDate(batch.expirationDate) }}</span>
+                                                    <p-tag *ngIf="getBatchExpirationStatus(batch) !== null && getBatchExpirationStatus(batch) !== 'VALID'"
+                                                        [value]="getBatchExpirationStatus(batch) === 'EXPIRED' ? ('expired' | translate) : ('expiring_soon' | translate)"
+                                                        [severity]="getBatchSeverity(batch)"
+                                                        [icon]="getBatchIcon(batch)"
+                                                        styleClass="text-xs">
+                                                    </p-tag>
+                                                    <p-tag *ngIf="getBatchExpirationStatus(batch) === null"
+                                                        [value]="'without_expiration' | translate"
+                                                        severity="secondary"
+                                                        icon="pi pi-info-circle"
+                                                        styleClass="text-xs">
+                                                    </p-tag>
+                                                </div>
+                                            </td>
+                                            <td>{{ formatBatchDate(batch.receiptDate) }}</td>
+                                            <td *ngIf="isAdmin">
+                                                <div class="flex align-items-center gap-2">
+                                                    <span [ngClass]="{
+                                                        'text-600': batch.buyingPrice != null,
+                                                        'text-400': batch.buyingPrice == null
+                                                    }">
+                                                        {{ formatBatchBuyingPrice(batch) }}
+                                                    </span>
+                                                    <i *ngIf="hasCustomBatchPrice(batch) && batch.buyingPrice != null" 
+                                                        class="pi pi-info-circle text-blue-500 cursor-pointer"
+                                                        [pTooltip]="('batch_custom_price_tooltip' | translate: {
+                                                          price: formatCurrency(batch.buyingPrice), 
+                                                          productPrice: formatCurrency(product?.buyingPrice ?? null)
+                                                        })"
+                                                        tooltipPosition="top">
+                                                    </i>
+                                                    <i *ngIf="!hasCustomBatchPrice(batch) && (batch.buyingPrice == null || batch.buyingPrice === undefined)"
+                                                        class="pi pi-info-circle text-gray-400 cursor-pointer"
+                                                        [pTooltip]="'batch_uses_product_price_tooltip' | translate"
+                                                        tooltipPosition="top">
+                                                    </i>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex align-items-center gap-2">
+                                                    <span [ngClass]="{
+                                                        'text-600': batch.supplier != null,
+                                                        'text-400': batch.supplier == null,
+                                                        'text-green-600': batch.supplier && !isSupplierDifferent(batch),
+                                                        'text-blue-600': batch.supplier && isSupplierDifferent(batch)
+                                                    }">
+                                                        {{ getBatchSupplier(batch) }}
+                                                    </span>
+                                                    <i *ngIf="batch.supplier && !isSupplierDifferent(batch)" 
+                                                        class="pi pi-check-circle text-green-500 text-xs"
+                                                        [pTooltip]="getBatchSupplierTooltip(batch)"
+                                                        tooltipPosition="top">
+                                                    </i>
+                                                    <i *ngIf="batch.supplier && isSupplierDifferent(batch)" 
+                                                        class="pi pi-exclamation-triangle text-blue-500 text-xs"
+                                                        [pTooltip]="getBatchSupplierTooltip(batch)"
+                                                        tooltipPosition="top">
+                                                    </i>
+                                                    <i *ngIf="!batch.supplier" 
+                                                        class="pi pi-info-circle text-gray-400 text-xs cursor-pointer"
+                                                        [pTooltip]="getBatchSupplierTooltip(batch)"
+                                                        tooltipPosition="top">
+                                                    </i>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <p-tag [value]="getBatchStatus(batch) === 'ACTIVE' ? ('batch_active' | translate) : ('batch_expired' | translate)"
+                                                    [severity]="getBatchStatus(batch) === 'ACTIVE' ? 'success' : 'danger'"
+                                                    [icon]="getBatchStatus(batch) === 'ACTIVE' ? 'pi pi-check-circle' : 'pi pi-times-circle'">
+                                                </p-tag>
+                                            </td>
+                                            <td>
+                                                <span *ngIf="batch.sourceReference" class="text-600">
+                                                    {{ batch.sourceType || 'PURCHASE' }}: {{ batch.sourceReference }}
+                                                </span>
+                                                <span *ngIf="!batch.sourceReference" class="text-500">-</span>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="emptymessage">
+                                        <tr>
+                                            <td [attr.colspan]="isAdmin ? 8 : 7" class="text-center p-4">
+                                                {{ 'no_batches' | translate }}
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div *ngIf="!batchesLoading && batches.length === 0">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-box"></i>
+                                <span>{{ 'batches' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="flex flex-column align-items-center justify-content-center py-5">
+                                    <i class="pi pi-box text-5xl text-300 mb-3"></i>
+                                    <p class="text-600 font-medium">{{ 'no_batches' | translate }}</p>
+                                    <p class="text-500 text-sm mt-2">{{ 'no_batches_description' | translate }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Write-Offs Tab (Only for products) -->
+            <p-tabPanel *ngIf="isProduct(product)">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-file-excel mr-2"></i>
+                    <span>{{ 'write_offs' | translate }}</span>
+                    <p-badge [value]="writeOffs.length.toString()" class="ml-2" *ngIf="writeOffs.length > 0" severity="warning"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <!-- Loading State -->
+                    <div class="flex justify-content-center p-6" *ngIf="writeOffsLoading">
+                        <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+                    </div>
+
+                    <!-- Write-Offs Table -->
+                    <div *ngIf="!writeOffsLoading && writeOffs.length > 0">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-file-excel"></i>
+                                <span>{{ 'write_offs' | translate }}</span>
+                            </div>
+                            <!-- Write-Off Summary Info -->
+                            <div class="card-body" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--surface-border);">
+                                <div class="flex justify-content-between align-items-center flex-wrap gap-3">
+                                    <div class="flex flex-column gap-1">
+                                        <p class="m-0 text-500 text-sm">
+                                            {{ writeOffs.length }} {{ writeOffs.length === 1 ? ('write_off' | translate) : ('write_offs' | translate) }}
+                                            ({{ getTotalWriteOffQuantity() }} {{ getMeasureUnit(product?.measureUnit, getTotalWriteOffQuantity()) | translate }})
+                                        </p>
+                                    </div>
+                                    <!-- Cost Summary -->
+                                    <div class="flex flex-column align-items-end gap-1" *ngIf="getTotalWriteOffCost() > 0">
+                                        <div class="text-sm text-600">
+                                            <strong>{{ 'total_write_off_cost' | translate }}:</strong> {{ formatWriteOffCurrency(getTotalWriteOffCost()) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <p-table [value]="writeOffs" [paginator]="writeOffs.length > 10" 
+                                    [rows]="10" [showCurrentPageReport]="true" 
+                                    currentPageReportTemplate="{first} - {last} of {totalRecords} {{ 'write_offs' | translate }}"
+                                    sortMode="multiple" responsiveLayout="scroll"
+                                    styleClass="p-datatable-sm p-datatable-striped">
+                                    
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th pSortableColumn="reference">
+                                                {{ 'reference' | translate }} <p-sortIcon field="reference"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="writeOffDate">
+                                                {{ 'write_off_date' | translate }} <p-sortIcon field="writeOffDate"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="quantity">
+                                                {{ 'quantity' | translate }} <p-sortIcon field="quantity"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="writeOffCost">
+                                                {{ 'write_off_cost' | translate }} <p-sortIcon field="writeOffCost"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="condition">
+                                                {{ 'condition' | translate }} <p-sortIcon field="condition"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="sourceType">
+                                                {{ 'source_type' | translate }} <p-sortIcon field="sourceType"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="status">
+                                                {{ 'status' | translate }} <p-sortIcon field="status"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="warehouse">
+                                                {{ 'warehouse' | translate }} <p-sortIcon field="warehouse"></p-sortIcon>
+                                            </th>
+                                            <th>{{ 'actions' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="body" let-writeOff>
+                                        <tr>
+                                            <td>
+                                                <span class="font-semibold">{{ writeOff.reference || '-' }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="flex align-items-center gap-2">
+                                                    <i class="pi pi-calendar text-500"></i>
+                                                    {{ formatWriteOffDate(writeOff.writeOffDate) }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="font-semibold text-900">
+                                                    {{ writeOff.quantity || 0 }} {{ getMeasureUnit(product?.measureUnit, writeOff.quantity || 0) | translate }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="font-semibold text-orange-600">
+                                                    {{ formatWriteOffCurrency(writeOff.writeOffCost) }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <p-tag [value]="getWriteOffConditionLabel(writeOff.condition)" 
+                                                    [severity]="getWriteOffConditionSeverity(writeOff.condition)">
+                                                </p-tag>
+                                            </td>
+                                            <td>
+                                                <span class="text-600">{{ getWriteOffSourceTypeLabel(writeOff.sourceType) }}</span>
+                                            </td>
+                                            <td>
+                                                <p-tag [value]="writeOff.status ? ('write_off_status_' + writeOff.status.toLowerCase() | translate) : 'N/A'" 
+                                                    [severity]="getWriteOffStatusSeverity(writeOff.status)">
+                                                </p-tag>
+                                            </td>
+                                            <td>
+                                                <span class="text-600">{{ writeOff.warehouse?.name || '-' }}</span>
+                                            </td>
+                                            <td>
+                                                <button pButton pRipple 
+                                                    icon="pi pi-eye" 
+                                                    class="p-button-sm p-button-text p-button-rounded"
+                                                    [pTooltip]="'view_details' | translate"
+                                                    (click)="viewWriteOffDetails(writeOff)">
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="emptymessage">
+                                        <tr>
+                                            <td colspan="9" class="text-center p-4">
+                                                {{ 'no_write_offs' | translate }}
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div *ngIf="!writeOffsLoading && writeOffs.length === 0">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-file-excel"></i>
+                                <span>{{ 'write_offs' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="flex flex-column align-items-center justify-content-center py-5">
+                                    <i class="pi pi-file-excel text-5xl text-300 mb-3"></i>
+                                    <p class="text-600 font-medium">{{ 'no_write_offs' | translate }}</p>
+                                    <p class="text-500 text-sm mt-2">{{ 'no_write_offs_for_product' | translate }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -702,3 +1253,138 @@
     (warehouseAdd)="openWarehouseDialog()"
     (visibleChange)="productDialog = $event">
 </app-product-form>
+
+<!-- Stock Adjustment Dialog -->
+<p-dialog [(visible)]="stockAdjustmentDialog" 
+    [modal]="true" 
+    [style]="{width: '500px'}"
+    [header]="'adjust_stock' | translate"
+    [draggable]="false"
+    [resizable]="false"
+    (onHide)="closeStockAdjustmentDialog()">
+    <ng-template pTemplate="content">
+        <div class="stock-adjustment-form">
+            <!-- Current Stock Display -->
+            <div class="current-stock-display p-3 mb-4 surface-100 border-round">
+                <div class="flex align-items-center justify-content-between">
+                    <span class="text-600 font-medium">{{ 'current_stock' | translate }}:</span>
+                    <span class="text-900 font-bold text-xl" *ngIf="product">
+                        {{ product.quantityAvailable || 0 }}
+                        <span class="text-600 text-sm ml-2">{{ getMeasureUnit(product.measureUnit || 'UNIT', product.quantityAvailable || 0) | translate }}</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Quick Adjustment Buttons -->
+            <div class="quick-adjustment-buttons mb-4">
+                <label class="block mb-2 font-medium">{{ 'quick_adjustments' | translate }}</label>
+                <div class="flex flex-wrap gap-2">
+                    <button pButton pRipple 
+                        type="button"
+                        icon="pi pi-plus" 
+                        [label]="'+1'"
+                        class="p-button-sm p-button-outlined"
+                        (click)="quickAdjustStock(1)"></button>
+                    <button pButton pRipple 
+                        type="button"
+                        icon="pi pi-minus" 
+                        [label]="'-1'"
+                        class="p-button-sm p-button-outlined"
+                        (click)="quickAdjustStock(-1)"></button>
+                    <button pButton pRipple 
+                        type="button"
+                        icon="pi pi-plus" 
+                        [label]="'+10'"
+                        class="p-button-sm p-button-outlined"
+                        (click)="quickAdjustStock(10)"></button>
+                    <button pButton pRipple 
+                        type="button"
+                        icon="pi pi-minus" 
+                        [label]="'-10'"
+                        class="p-button-sm p-button-outlined"
+                        (click)="quickAdjustStock(-10)"></button>
+                </div>
+            </div>
+
+            <!-- Quantity Change Input -->
+            <div class="field mb-4">
+                <label for="quantityChange" class="block mb-2 font-bold">
+                    {{ 'quantity_change' | translate }}
+                    <span class="text-500 text-sm ml-2">({{ 'positive_increase_negative_decrease' | translate }})</span>
+                </label>
+                <p-inputNumber 
+                    id="quantityChange"
+                    [(ngModel)]="quantityChange" 
+                    [showButtons]="true"
+                    [min]="product ? -(product.quantityAvailable || 0) : undefined"
+                    [max]="999999"
+                    [placeholder]="'enter_quantity_change' | translate"
+                    styleClass="w-full">
+                </p-inputNumber>
+                <small class="text-500">{{ 'quantity_change_hint' | translate }}</small>
+            </div>
+
+            <!-- New Quantity Preview -->
+            <div class="new-quantity-preview p-3 mb-4 surface-50 border-round" *ngIf="quantityChange !== 0">
+                <div class="flex align-items-center justify-content-between">
+                    <span class="text-600 font-medium">{{ 'new_quantity_will_be' | translate }}:</span>
+                    <span class="text-900 font-bold text-xl" 
+                        [ngClass]="{'text-danger': getNewQuantity() < 0, 'text-success': getNewQuantity() >= 0}">
+                        {{ getNewQuantity() }}
+                        <span class="text-600 text-sm ml-2" *ngIf="product">
+                            {{ getMeasureUnit(product.measureUnit || 'UNIT', getNewQuantity()) | translate }}
+                        </span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Reason Input -->
+            <div class="field mb-4">
+                <label for="adjustmentReason" class="block mb-2 font-bold">
+                    {{ 'reason_optional' | translate }}
+                </label>
+                <textarea 
+                    id="adjustmentReason"
+                    pInputTextarea 
+                    [(ngModel)]="adjustmentReason" 
+                    [rows]="3"
+                    [autoResize]="true"
+                    [placeholder]="'enter_adjustment_reason' | translate"
+                    class="w-full">
+                </textarea>
+                <small class="text-500">{{ 'reason_hint' | translate }}</small>
+            </div>
+
+            <!-- Error Message -->
+            <div class="error-message p-3 mb-3 border-round" 
+                *ngIf="quantityChange !== 0 && getNewQuantity() < 0"
+                style="background: var(--red-50); border: 1px solid var(--red-200);">
+                <div class="flex align-items-center gap-2 text-red-600">
+                    <i class="pi pi-exclamation-triangle"></i>
+                    <span>{{ 'cannot_decrease_stock_below_zero' | translate }}</span>
+                </div>
+            </div>
+        </div>
+    </ng-template>
+    <ng-template pTemplate="footer">
+        <div class="flex justify-content-end gap-2">
+            <button pButton 
+                pRipple 
+                [label]="'cancel' | translate" 
+                icon="pi pi-times"
+                class="p-button-text"
+                (click)="closeStockAdjustmentDialog()"
+                [disabled]="isAdjustingStock">
+            </button>
+            <button pButton 
+                pRipple 
+                [label]="'adjust_stock' | translate" 
+                icon="pi pi-check"
+                class="p-button-primary"
+                (click)="adjustStock()"
+                [disabled]="!canAdjustStock() || isAdjustingStock"
+                [loading]="isAdjustingStock">
+            </button>
+        </div>
+    </ng-template>
+</p-dialog>

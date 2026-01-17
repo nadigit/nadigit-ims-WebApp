@@ -10,7 +10,32 @@ import 'moment/locale/ar';
 })
 export class TranslationService {
 
+  public supportedLanguages = [
+    { label: 'English', value: 'en' },
+    { label: 'Français', value: 'fr' },
+    { label: 'Español', value: 'es' },
+    { label: 'الْعَرَبِيَّةُ', value: 'ar' }
+  ]; // Your supported languages
+
   private currentLang = new BehaviorSubject<string>(this.getPreferredLanguage()); // Initial language based on preference
+
+  // Initialize RTL on service creation
+  constructor() {
+    // Apply RTL on initial load
+    const initialLang = this.getPreferredLanguage();
+    const isRTL = initialLang === 'ar';
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = initialLang;
+      document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+      document.body.dir = isRTL ? 'rtl' : 'ltr';
+      document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
+      document.body.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
+      if (isRTL) {
+        document.body.classList.add('rtl');
+        document.documentElement.classList.add('rtl');
+      }
+    }
+  }
 
   public get currentLanguage$() {
     return this.currentLang.asObservable();
@@ -20,8 +45,23 @@ export class TranslationService {
     if (this.supportedLanguages.find(l => l.value === lang)) { // Find language by value
       this.currentLang.next(lang);
       localStorage.setItem('preferredLanguage', lang);
+      
+      // Apply RTL/LTR direction to HTML and body
+      const isRTL = lang === 'ar';
       document.documentElement.lang = lang;
-      document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+      document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+      document.body.dir = isRTL ? 'rtl' : 'ltr';
+      document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
+      document.body.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
+      
+      // Add/remove RTL class to body for CSS targeting
+      if (isRTL) {
+        document.body.classList.add('rtl');
+        document.documentElement.classList.add('rtl');
+      } else {
+        document.body.classList.remove('rtl');
+        document.documentElement.classList.remove('rtl');
+      }
 
       // Update Moment locale whenever language changes
       moment.locale(lang);
@@ -29,13 +69,6 @@ export class TranslationService {
       console.error(`Language "${lang}" not supported.`);
     }
   }
-
-  public supportedLanguages = [
-    { label: 'English', value: 'en' },
-    { label: 'Français', value: 'fr' },
-    { label: 'Español', value: 'es' },
-    { label: 'الْعَرَبِيَّةُ', value: 'ar' }
-  ]; // Your supported languages
 
   public getPreferredLanguage(): string {
     const storedLang = localStorage.getItem('preferredLanguage');

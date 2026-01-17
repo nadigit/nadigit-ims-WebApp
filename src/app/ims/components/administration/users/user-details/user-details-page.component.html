@@ -1,0 +1,420 @@
+<div class="user-details-container">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <!-- Loading State -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="user-content" *ngIf="!isLoading && user">
+        
+        <!-- Hero Header Section -->
+        <div class="user-hero">
+            <div class="hero-background"></div>
+            <div class="hero-content">
+                <div class="flex align-items-center gap-2 mb-3">
+                    <button pButton pRipple icon="pi pi-arrow-left" 
+                        class="p-button-text p-button-rounded p-button-plain back-button"
+                        [pTooltip]="'back' | translate" tooltipPosition="bottom"
+                        (click)="goBack()"></button>
+                    <span class="text-500 text-sm">{{ 'users_menu_title' | translate }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">{{ user.username }}</span>
+                </div>
+                
+                <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+                    <div class="flex align-items-center gap-4">
+                        <div class="user-hero-avatar">
+                            <i class="pi pi-user"></i>
+                        </div>
+                        <div>
+                            <div class="flex align-items-center gap-3 mb-2">
+                                <h1 class="m-0 text-900 user-title">{{ getFullName() }}</h1>
+                                <p-tag [value]="getStatusLabel(user.enabled)" 
+                                    [severity]="getStatusSeverity(user.enabled)"
+                                    [icon]="user.enabled ? 'pi pi-check-circle' : 'pi pi-times-circle'">
+                                </p-tag>
+                            </div>
+                            <div class="flex align-items-center gap-4 text-500">
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-at"></i>
+                                    {{ user.email || 'N/A' }}
+                                </span>
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-user"></i>
+                                    {{ user.username }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 action-buttons">
+                        <button pButton pRipple icon="pi pi-pencil" 
+                            [label]="'edit' | translate" 
+                            *ngIf="canEdit"
+                            class="p-button-primary"
+                            (click)="editUser()"></button>
+                        <button pButton pRipple icon="pi pi-trash" 
+                            *ngIf="canDelete"
+                            class="p-button-danger p-button-outlined"
+                            [pTooltip]="'delete_user' | translate"
+                            (click)="deleteUser()"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card-modern status-card">
+                <div class="stat-icon status">
+                    <i class="pi pi-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'user_status' | translate }}</span>
+                    <div class="stat-value">
+                        <span [ngClass]="{'text-success': user.enabled, 'text-danger': !user.enabled}">
+                            {{ getStatusLabel(user.enabled) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern roles-card" *ngIf="userRealmRoles.length > 0">
+                <div class="stat-icon roles">
+                    <i class="pi pi-shield"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'user_role' | translate }}</span>
+                    <div class="stat-value">{{ userRealmRoles.length }} {{ 'roles' | translate }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-card-modern email-card" *ngIf="user.emailVerified !== undefined">
+                <div class="stat-icon email">
+                    <i class="pi pi-envelope"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'email_verified' | translate }}</span>
+                    <div class="stat-value">
+                        <span [ngClass]="{'text-success': user.emailVerified, 'text-warning': !user.emailVerified}">
+                            {{ user.emailVerified ? ('yes' | translate) : ('no' | translate) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Section -->
+        <p-tabView styleClass="user-tabs">
+            
+            <!-- Overview Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>{{ 'overview' | translate }}</span>
+                </ng-template>
+                
+                <div class="grid mt-3">
+                    <!-- Left Column - Avatar & Basic Info -->
+                    <div class="col-12 lg:col-4">
+                        <!-- User Avatar -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-user"></i>
+                                <span>{{ 'user_profile' | translate }}</span>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="user-avatar-large">
+                                    <i class="pi pi-user"></i>
+                                </div>
+                                <h3 class="mt-3 mb-1">{{ getFullName() }}</h3>
+                                <p class="text-500 m-0">{{ user.username }}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Account Status -->
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-lock"></i>
+                                <span>{{ 'account_status' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-check-circle"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'status' | translate }}</span>
+                                            <span class="info-value" [ngClass]="{'text-success': user.enabled, 'text-danger': !user.enabled}">
+                                                {{ getStatusLabel(user.enabled) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="user.emailVerified !== undefined">
+                                        <div class="info-icon">
+                                            <i class="pi pi-envelope"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'email_verified' | translate }}</span>
+                                            <span class="info-value" [ngClass]="{'text-success': user.emailVerified, 'text-warning': !user.emailVerified}">
+                                                {{ user.emailVerified ? ('yes' | translate) : ('no' | translate) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column - Details -->
+                    <div class="col-12 lg:col-8">
+                        <!-- User Information -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-list"></i>
+                                <span>{{ 'user_details' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-user"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'user_username' | translate }}</span>
+                                            <span class="info-value">{{ user.username || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-envelope"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'user_email' | translate }}</span>
+                                            <span class="info-value">{{ user.email || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="user.firstName">
+                                        <div class="info-icon">
+                                            <i class="pi pi-user-edit"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'user_first_name' | translate }}</span>
+                                            <span class="info-value">{{ user.firstName }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="user.lastName">
+                                        <div class="info-icon">
+                                            <i class="pi pi-user-edit"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'user_last_name' | translate }}</span>
+                                            <span class="info-value">{{ user.lastName }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="selectedShop?.shopId">
+                                        <div class="info-icon">
+                                            <i class="pi pi-building"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'shop' | translate }}</span>
+                                            <span class="info-value">{{ selectedShop.name || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="selectedWarehouse?.warehouseId">
+                                        <div class="info-icon">
+                                            <i class="pi pi-warehouse"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'warehouse' | translate }}</span>
+                                            <span class="info-value">{{ selectedWarehouse.name || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="posPin">
+                                        <div class="info-icon">
+                                            <i class="pi pi-key"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'user_pos_pin' | translate }}</span>
+                                            <span class="info-value">****</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="info-item" *ngIf="user.creationDate">
+                                        <div class="info-icon">
+                                            <i class="pi pi-calendar"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'creation_date' | translate }}</span>
+                                            <span class="info-value">{{ user.creationDate | date:'mediumDate' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Roles Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-shield mr-2"></i>
+                    <span>{{ 'user_role' | translate }}</span>
+                    <p-badge [value]="userRealmRoles.length.toString()" class="ml-2" *ngIf="userRealmRoles.length > 0"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <!-- Empty State -->
+                    <div class="empty-state" *ngIf="userRealmRoles.length === 0">
+                        <div class="empty-icon">
+                            <i class="pi pi-shield"></i>
+                        </div>
+                        <h4>{{ 'no_roles_assigned' | translate }}</h4>
+                        <p>{{ 'no_roles_assigned_description' | translate }}</p>
+                    </div>
+
+                    <!-- Roles Grid -->
+                    <div class="grid" *ngIf="userRealmRoles.length > 0">
+                        <div class="col-12 md:col-6 lg:col-4" *ngFor="let role of userRealmRoles">
+                            <div class="role-card">
+                                <div class="role-card-header">
+                                    <i class="pi pi-shield"></i>
+                                    <span class="role-name">{{ role.name }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+            <!-- Activity Log Tab -->
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-history mr-2"></i>
+                    <span>{{ 'activity_log' | translate }}</span>
+                    <p-badge [value]="userEvents.length.toString()" class="ml-2" *ngIf="userEvents.length > 0"></p-badge>
+                </ng-template>
+                
+                <div class="mt-3">
+                    <!-- Loading State -->
+                    <div class="flex justify-content-center p-6" *ngIf="eventsLoading">
+                        <p-progressSpinner styleClass="w-3rem h-3rem" strokeWidth="4"></p-progressSpinner>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div class="empty-state" *ngIf="!eventsLoading && userEvents.length === 0">
+                        <div class="empty-icon">
+                            <i class="pi pi-history"></i>
+                        </div>
+                        <h4>{{ 'no_activity_logs' | translate }}</h4>
+                        <p>{{ 'no_activity_logs_description' | translate }}</p>
+                    </div>
+
+                    <!-- Events Table -->
+                    <div *ngIf="!eventsLoading && userEvents.length > 0">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-history"></i>
+                                <span>{{ 'user_activity_log' | translate }}</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <p-table [value]="userEvents" 
+                                    [paginator]="true" 
+                                    [rows]="20"
+                                    [rowsPerPageOptions]="[10, 20, 50]"
+                                    styleClass="p-datatable-sm p-datatable-striped"
+                                    responsiveLayout="scroll">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th pSortableColumn="time">
+                                                {{ 'date_time' | translate }}
+                                                <p-sortIcon field="time"></p-sortIcon>
+                                            </th>
+                                            <th pSortableColumn="type">
+                                                {{ 'event_type' | translate }}
+                                                <p-sortIcon field="type"></p-sortIcon>
+                                            </th>
+                                            <th>{{ 'ip_address' | translate }}</th>
+                                            <th>{{ 'client' | translate }}</th>
+                                            <th>{{ 'details' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="body" let-event>
+                                        <tr>
+                                            <td>
+                                                <span class="flex align-items-center gap-2">
+                                                    <i class="pi pi-calendar text-500"></i>
+                                                    {{ event.time | date:'medium' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <p-tag 
+                                                    [value]="getEventTypeLabel(event.type || '')" 
+                                                    [severity]="getEventSeverity(event.type || '')"
+                                                    [icon]="getEventIcon(event.type || '')">
+                                                </p-tag>
+                                            </td>
+                                            <td>
+                                                <span class="font-mono">{{ event.ipAddress || 'N/A' }}</span>
+                                            </td>
+                                            <td>{{ event.clientId || 'N/A' }}</td>
+                                            <td>
+                                                <span *ngIf="event.error" class="text-danger">
+                                                    <i class="pi pi-exclamation-triangle mr-1"></i>
+                                                    {{ event.error }}
+                                                </span>
+                                                <span *ngIf="!event.error && event.details">
+                                                    {{ getEventDetails(event) }}
+                                                </span>
+                                                <span *ngIf="!event.error && !event.details">-</span>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="emptymessage">
+                                        <tr>
+                                            <td colspan="5" class="text-center p-4">
+                                                {{ 'no_activity_logs' | translate }}
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+            
+        </p-tabView>
+    </div>
+</div>
+
+<!-- User Form Dialog -->
+<p-dialog [(visible)]="userDialog" 
+    [style]="{width: '90vw', maxWidth: '800px'}"
+    [header]="'edit_user' | translate"
+    [modal]="true" 
+    [draggable]="false" 
+    [resizable]="false"
+    styleClass="p-fluid user-dialog">
+    <ng-template pTemplate="content">
+        <!-- User form will be handled by the parent component's form logic -->
+        <p>{{ 'user_form_loading' | translate }}</p>
+    </ng-template>
+</p-dialog>
+

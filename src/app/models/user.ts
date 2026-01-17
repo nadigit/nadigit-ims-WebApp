@@ -24,6 +24,7 @@ export class User {
     attributes?: {
         shop?: string; // Assuming roles are strings
         warehouse?: string;
+        posPin?: string; // POS PIN for lock screen and manager approval
     };
     // createdTimestamp?: number;
     enabled?: boolean;

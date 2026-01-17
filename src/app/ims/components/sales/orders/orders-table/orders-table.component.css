@@ -1,0 +1,53 @@
+/* ==========================================================================
+   Cost and Profit Styling for Orders Table
+   ========================================================================== */
+
+.cost-cell {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.cost-value {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.profit-cell {
+    font-weight: 600;
+}
+
+.profit-cell.profit-negative {
+    color: #ef4444;
+}
+
+.profit-cell:not(.profit-negative) {
+    color: #22c55e;
+}
+
+.profit-value {
+    font-weight: 600;
+}
+
+.profit-value.profit-negative {
+    color: #ef4444;
+}
+
+.profit-value:not(.profit-negative) {
+    color: #22c55e;
+}
+
+.margin-cell {
+    font-weight: 600;
+}
+
+.margin-cell.high-margin {
+    color: #22c55e;
+}
+
+.margin-cell.medium-margin {
+    color: #f59e0b;
+}
+
+.margin-cell.low-margin {
+    color: #ef4444;
+}

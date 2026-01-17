@@ -975,14 +975,16 @@
                             <ng-template pTemplate="header">
                                 <div class="flex justify-content-between align-items-center p-3">
                                     <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-money-bill text-primary text-xl"></i>
+                                        <i class="pi pi-exchange text-primary text-xl"></i>
                                         <span class="font-bold text-lg">{{ 'collections' | translate }}</span>
                                         <p-tag [value]="filteredCollections.length.toString()" severity="info"></p-tag>
                                     </div>
-                                    <button *ngIf="isAdmin" pButton type="button" icon="pi pi-plus"
-                                        [label]="'new_collection' | translate" class="p-button-sm p-button-success"
-                                        (click)="openNewCollectionDialog()">
-                                    </button>
+                                    <div class="flex align-items-center gap-2" *ngIf="isAdmin">
+                                        <button pButton type="button" icon="pi pi-plus"
+                                            [label]="'new_collection' | translate" class="p-button-sm p-button-success"
+                                            (click)="openNewCollectionDialog()">
+                                        </button>
+                                    </div>
                                 </div>
                             </ng-template>
                             <div class="flex gap-3 mb-3 p-3 border-bottom-1 surface-border">

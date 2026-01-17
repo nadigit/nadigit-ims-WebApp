@@ -43,6 +43,8 @@
                         <th>{{'reference' | translate}}</th>
                         <th>{{'amount' | translate}}</th>
                         <th>{{'balance_after' | translate}}</th>
+                        <th>{{'payment' | translate}}</th>
+                        <th>{{'actions' | translate}}</th>
                     </tr>
                 </ng-template>
 
@@ -66,12 +68,61 @@
                             </span>
                         </td>
                         <td>{{formatBalance(transaction.balanceAfter || 0, account?.currency)}}</td>
+                        <td>
+                            <div *ngIf="hasPayment(transaction)" class="flex flex-column gap-1">
+                                <span class="text-sm text-600">
+                                    {{'payment_id' | translate}}: #{{getPaymentId(transaction)}}
+                                </span>
+                                <p-tag 
+                                    *ngIf="isPaymentStatusPending(transaction)"
+                                    [value]="'pending' | translate" 
+                                    severity="warning">
+                                </p-tag>
+                                <p-tag 
+                                    *ngIf="isPaymentStatusConfirmed(transaction)"
+                                    [value]="'confirmed' | translate" 
+                                    severity="success">
+                                </p-tag>
+                                <button 
+                                    *ngIf="getPaymentId(transaction)"
+                                    pButton 
+                                    pRipple 
+                                    type="button"
+                                    icon="pi pi-eye"
+                                    class="p-button-link p-button-sm p-0"
+                                    [label]="'view_payment' | translate"
+                                    (click)="viewPayment(getPaymentId(transaction)!)">
+                                </button>
+                            </div>
+                            <span *ngIf="!hasPayment(transaction)" class="text-500">-</span>
+                        </td>
+                        <td>
+                            <div *ngIf="hasPayment(transaction) && getPaymentId(transaction)" class="flex gap-1">
+                                <button 
+                                    *ngIf="isPaymentStatusPending(transaction)"
+                                    pButton 
+                                    pRipple 
+                                    type="button"
+                                    icon="pi pi-check-circle"
+                                    [label]="'confirm_payment' | translate"
+                                    class="p-button-success p-button-sm"
+                                    [disabled]="isConfirmingPayment(getPaymentId(transaction))"
+                                    (click)="confirmPayment(transaction)"
+                                    pTooltip="{{'confirm_payment_after_reconciliation_tooltip' | translate}}">
+                                </button>
+                                <i 
+                                    *ngIf="isConfirmingPayment(getPaymentId(transaction))"
+                                    class="pi pi-spin pi-spinner text-primary">
+                                </i>
+                            </div>
+                            <span *ngIf="!hasPayment(transaction) || !getPaymentId(transaction)" class="text-500">-</span>
+                        </td>
                     </tr>
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
                     <tr>
-                        <td colspan="7" class="text-center">
+                        <td colspan="9" class="text-center">
                             {{'no_unreconciled_transactions' | translate}}
                         </td>
                     </tr>

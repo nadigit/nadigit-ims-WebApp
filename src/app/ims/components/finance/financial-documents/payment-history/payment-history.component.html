@@ -1,0 +1,77 @@
+<div class="payment-history-container" *ngIf="allocations && allocations.length > 0">
+  <div class="payment-history-header">
+    <h4>{{ 'payment_history' | translate }}</h4>
+    <p-tag *ngIf="isFullyPaid()" 
+      [value]="'fully_paid' | translate" 
+      severity="success" 
+      icon="pi pi-check-circle"
+      [rounded]="true"></p-tag>
+  </div>
+
+  <p-table [value]="allocations" [paginator]="false" styleClass="p-datatable-sm">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>{{ 'date' | translate }}</th>
+        <th>{{ 'payment_method' | translate }}</th>
+        <th>{{ 'reference' | translate }}</th>
+        <th>{{ 'status' | translate }}</th>
+        <th class="text-right">{{ 'amount' | translate }}</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-allocation>
+      <tr>
+        <td>
+          {{ allocation.payment.paymentDate | date:'shortDate' }}
+        </td>
+        <td>
+          <span class="payment-method-badge">
+            {{ getPaymentMethodLabel(allocation.payment.paymentMethod) }}
+          </span>
+        </td>
+        <td>
+          <div class="flex flex-column gap-1">
+            <span *ngIf="allocation.payment.checkNumber" class="text-sm">
+              {{ 'check' | translate }}: {{ allocation.payment.checkNumber }}
+            </span>
+            <span *ngIf="allocation.payment.transactionId" class="text-sm">
+              {{ 'transaction' | translate }}: {{ allocation.payment.transactionId }}
+            </span>
+            <span *ngIf="!allocation.payment.checkNumber && !allocation.payment.transactionId" class="text-500 text-sm">
+              -
+            </span>
+          </div>
+        </td>
+        <td>
+          <p-tag 
+            [value]="allocation.payment.paymentStatus | translate" 
+            [severity]="getPaymentStatusSeverity(allocation.payment.paymentStatus)"
+            [icon]="getPaymentStatusIcon(allocation.payment.paymentStatus)"
+            [rounded]="true"></p-tag>
+        </td>
+        <td class="text-right font-semibold">
+          {{ allocation.allocatedAmount | currency:currency:'symbol':'1.2-2' }}
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="footer">
+      <tr class="payment-summary-footer">
+        <td colspan="4" class="text-right font-bold">
+          {{ 'total_paid' | translate }}:
+        </td>
+        <td class="text-right font-bold text-primary">
+          {{ getTotalPaid() | currency:currency:'symbol':'1.2-2' }}
+        </td>
+      </tr>
+      <tr class="payment-summary-footer" *ngIf="!isFullyPaid()">
+        <td colspan="4" class="text-right font-bold">
+          {{ 'remaining_balance' | translate }}:
+        </td>
+        <td class="text-right font-bold text-orange-500">
+          {{ getRemainingBalance() | currency:currency:'symbol':'1.2-2' }}
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

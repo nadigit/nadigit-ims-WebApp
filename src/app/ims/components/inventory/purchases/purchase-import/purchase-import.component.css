@@ -1,0 +1,40 @@
+/* Purchase Import Component Styles */
+
+:host ::ng-deep .p-fileupload-basic {
+  width: 100%;
+}
+
+:host ::ng-deep .p-fileupload-basic .p-button {
+  width: 100%;
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.field-checkbox label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.import-step {
+  min-height: 400px;
+}
+
+.purchase-group-card {
+  transition: all 0.3s ease;
+}
+
+.purchase-group-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.purchase-group-card.border-red-300 {
+  border: 2px solid #fca5a5;
+}
+
+.purchase-group-card.border-orange-300 {
+  border: 2px solid #fdba74;
+}
+

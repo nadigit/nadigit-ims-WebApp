@@ -297,6 +297,15 @@ export class StockMovementsComponent implements OnInit {
     this.applyFilters();
   }
 
+  clearFilters() {
+    this.resetFilters();
+  }
+
+  onFilterChange() {
+    // Apply filters when any filter changes
+    this.applyFilters();
+  }
+
   // Navigation to source documents
   navigateToSourceDocument(movement: StockMovement) {
     if (!movement.sourceDocumentType || !movement.sourceDocumentId) {

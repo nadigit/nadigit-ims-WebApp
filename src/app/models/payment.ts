@@ -30,4 +30,11 @@ export class Payment {
     receiptNumber?: string; // Unique identifier for the receipt
     hasReceipt?: boolean; // Indicates if a receipt has been generated for this payment
     direction?: 'INCOMING' | 'OUTGOING'; // Payment direction
+    bankAccountId?: number; // Bank account for bank payment methods
+    creditAmountUsed?: number; // Amount of credit used in this payment
+    
+    // ⚠️ NEW FIELDS for explicit credit selection
+    useCredit?: boolean;                    // Explicit credit selection
+    creditAmountToUse?: number | null;      // Optional specific amount
+    creditToIssue?: number | null;          // Optional manual credit issuance
 } 

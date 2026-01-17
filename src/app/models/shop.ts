@@ -1,4 +1,5 @@
 import { Organization } from "./organization";
+import { BankAccount } from "./bank-account";
 
 export class Shop { 
     shopId?: number;
@@ -10,4 +11,6 @@ export class Shop {
     numberOfEmployees ?: number;
     organization?: Organization;
     creationDate?: Date;
+    defaultBankAccount?: BankAccount;
+    defaultBankAccountId?: number;
 } 

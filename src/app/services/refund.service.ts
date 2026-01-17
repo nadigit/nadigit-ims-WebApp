@@ -52,4 +52,10 @@ export class RefundService {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
+
+  confirmRefund(id: any) {
+    this.loadToken();
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/confirm', {}, { headers: headers });
+  }
 }

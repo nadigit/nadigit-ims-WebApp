@@ -116,4 +116,36 @@
       text-overflow: ellipsis;
       max-width: 150px;
   }
+
+  /* Write-off indicators */
+  .writeoff-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #f59e0b;
+      font-size: 0.875rem;
+      margin-left: 4px;
+      cursor: help;
+  }
+
+  .writeoff-indicator i {
+      font-size: 0.875rem;
+  }
+
+  .has-writeoff {
+      border-left: 2px solid #f59e0b;
+      padding-left: 4px;
+  }
+
+  .quantity-value.has-writeoff {
+      color: #f59e0b;
+      font-weight: 600;
+  }
+
+  .writeoff-warning {
+      display: block;
+      font-size: 0.75rem;
+      color: #dc2626;
+      margin-top: 4px;
+  }
   

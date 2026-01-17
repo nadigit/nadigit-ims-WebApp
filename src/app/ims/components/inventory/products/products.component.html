@@ -1,5 +1,20 @@
 <div class="grid p-fluid">
 	<div class="col-12">
+		<!-- View Toggle (Admin only) -->
+		<div class="flex justify-content-end mb-3" *ngIf="isAdmin">
+			<div class="flex align-items-center gap-2 p-3 surface-ground border-round">
+				<span class="text-600 font-medium">{{ 'view_mode' | translate }}:</span>
+				<button pButton pRipple 
+					[icon]="viewMode === 'standard' ? 'pi pi-list' : 'pi pi-layer-group'"
+					[label]="viewMode === 'standard' ? ('standard_view' | translate) : ('aggregated_view' | translate)"
+					[class]="viewMode === 'standard' ? 'p-button-outlined' : 'p-button-primary'"
+					(click)="toggleViewMode()"
+					pTooltip="{{ viewMode === 'standard' ? ('aggregated_view_tooltip' | translate) : ('standard_view_tooltip' | translate) }}"
+					tooltipPosition="bottom">
+				</button>
+			</div>
+		</div>
+		
 		<!-- List of Products (table and grid view) -->
 		<app-products-table [products]="products" [cols]="cols" (lazyLoadEvent)="onLazyLoad($event)"
 				[totalRecords]="totalRecords"
@@ -9,12 +24,22 @@
 				(editProductEvent)="editProduct($event)" [canDeleteProduct]="canDeleteProduct"
 				(deleteProductEvent)="deleteProduct($event)" [canReadProduct]="canReadProduct"
 				[canAddProduct]="canAddProduct" (addProductEvent)="openNew()"
+				(importProductsEvent)="openImportDialog()"
 				(showProductDetailsEvent)="showProductDetails($event)"
 				[filteredProducts]="filteredProducts" [printOptions]="printOptions"
 				[isAdmin]="isAdmin" [getQuantitySeverity]="getQuantitySeverity"
 				[(selectedProducts)]="selectedProducts" [getMeasureUnit]="getMeasureUnit"
 				(onGlobalFilter)="onGlobalFilter($event)" [getProfitClass]="getProfitClass"
 				[calculateProfit]="calculateProfit"
+				[getAvailableQuantity]="getAvailableQuantity"
+				[hasWriteOffs]="hasWriteOffs"
+				[getWriteOffQuantity]="getWriteOffQuantity"
+				[expandedProducts]="expandedProducts"
+				[isProductRowExpanded]="isProductRowExpanded"
+				[toggleProductRow]="toggleProductRow"
+				[getAggregatedWarehouseStocks]="getAggregatedWarehouseStocks"
+				[viewMode]="viewMode"
+				(showWarehouseDetailsEvent)="showWarehouseDetails($event)"
 				(deactivateScanningEvent)="deactivateScanning()" (activateScanningEvent)="activateScanning()"
 				[categories]="categories" [warehouses]="warehouses" [suppliers]="suppliers" [statuses]="statuses"
 				(exportExcelEvent)="exportExcel()" (exportPdfEvent)="exportPdf()" (applyFiltersEvent)="onApplyFilters($event)"></app-products-table>
@@ -40,6 +65,9 @@
 		(warehouseAdd)="openWarehouseDialog()"
 		(visibleChange)="productDialog = $event">
 	</app-product-form>
+
+	<!-- Product Import Component -->
+	<app-product-import (importSuccess)="onImportSuccess()"></app-product-import>
 
 	<!-- Old form code removed - using app-product-form component instead -->
 
@@ -133,10 +161,22 @@
 										</td>
 										<td style="min-width:10rem;">
 											<span class="p-column-title">{{ 'product_quantity' | translate }}</span>
-											<p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
-												[value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
-												[icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
-											</p-tag>
+											<div class="flex align-items-center gap-2">
+												<p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
+													[value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit, getAvailableQuantity(product)) | translate)"
+													[icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
+													[ngClass]="{'has-writeoff': hasWriteOffs(product)}">
+												</p-tag>
+												<span *ngIf="hasWriteOffs(product)" 
+													  class="writeoff-indicator" 
+													  [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
+													  tooltipPosition="top">
+													<i class="pi pi-exclamation-triangle text-orange-500"></i>
+												</span>
+											</div>
+											<div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
+												<small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+											</div>
 										</td>
 
 										<td style="min-width:10rem;">

@@ -37,6 +37,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     isAdmin: boolean = false;
     isVendor: boolean = false;
     isWarehouseman: boolean = false;
+    isCashier: boolean = false;
     userRoles: any;
     isCashRegisterOpen = false;
     currentSession: any;
@@ -324,6 +325,12 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         this.isAdmin = this.userRoles.includes('ADMIN');
         this.isVendor = this.userRoles.includes('VENDOR');
         this.isWarehouseman = this.userRoles.includes('WAREHOUSEMAN');
+        this.isCashier = this.userRoles.includes('CASHIER');
+        
+        // Redirect CASHIER to POS if not already there
+        if (this.isCashier && !this.router.url.startsWith('/pos')) {
+            this.router.navigate(['/pos']);
+        }
     }
 
     onCashRegisterDialogClosed(): void {

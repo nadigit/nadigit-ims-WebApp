@@ -2,7 +2,8 @@ import { Component, OnDestroy, OnInit, ViewChild, ElementRef, HostListener, Chan
 import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Subject, debounceTime, takeUntil, interval } from 'rxjs';
-import { POSCartDTO, POSCheckoutDTO, POSProductDTO, POSReceiptDTO, PaymentInfo } from 'src/app/models/pos';
+import { POSCartDTO, POSCheckoutDTO, POSProductDTO, POSReceiptDTO, PaymentInfo, PaymentMethod } from 'src/app/models/pos';
+import { paymentMethodOptions, PaymentMethodOption, getPaymentMethodLabel as getSharedPaymentMethodLabel, getPaymentMethodIcon as getSharedPaymentMethodIcon } from 'src/app/shared/payment-utils';
 import { PosService } from 'src/app/services/pos.service';
 import { ShopService } from 'src/app/services/shop.service';
 import { CustomerService } from 'src/app/services/customer.service';
@@ -12,6 +13,8 @@ import { ProductService } from 'src/app/services/product.service';
 import { ReturnService } from 'src/app/services/return.service';
 import { RefundService } from 'src/app/services/refund.service';
 import { BarcodeService } from 'src/app/services/barcode.service';
+import { CustomerCreditService } from 'src/app/services/customer-credit.service';
+import { CreditInfo } from 'src/app/models/credit-info';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
@@ -31,6 +34,7 @@ export class PosComponent implements OnInit, OnDestroy {
   shopId!: number;
   shops: any[] = [];
   customers: any[] = [];
+  isAdmin: boolean = false;
 
   currency: string = 'USD';
 
@@ -38,6 +42,7 @@ export class PosComponent implements OnInit, OnDestroy {
   productsLoading: boolean = false;
   cartSaving: boolean = false;
   taxEnabled: boolean = false;
+  taxRate: number = 0.0; // Tax rate as decimal (e.g., 0.2 for 20%)
 
   // Session & cart
   session: any = null;
@@ -107,6 +112,7 @@ export class PosComponent implements OnInit, OnDestroy {
   isLocked: boolean = false;
   lockPin: string = '';
   lockPinInput: string = '';
+  lockPinError: boolean = false; // Track PIN error state for visual feedback
   autoLockTimer: any = null;
   autoLockMinutes: number = 15; // Configurable
   lastActivity: Date = new Date();
@@ -139,11 +145,12 @@ export class PosComponent implements OnInit, OnDestroy {
   selectedCustomer: any = { customerId: null, fullName: 'Walk-in Customer' }; // Default to walk-in
   customerSuggestions: any[] = [];
   discountAmount = 0;
-  discountType = 'Amount';
+  discountType: 'Amount' | 'Percentage' = 'Amount';
   discountTypes = [
     { label: 'Amount', value: 'Amount' },
     { label: 'Percentage', value: 'Percentage' }
   ];
+  transportAmount = 0;
   orderNotes = '';
   paymentAmount = 0;
   
@@ -153,14 +160,44 @@ export class PosComponent implements OnInit, OnDestroy {
   // Quick payment amounts
   quickAmounts: number[] = [10, 20, 50, 100, 200, 500];
   
-  // Payment methods
-  paymentMethods = [
-    { value: 'cash', label: 'Cash', icon: 'pi pi-money-bill' },
-    { value: 'card', label: 'Card', icon: 'pi pi-credit-card' },
-    { value: 'transfer', label: 'Transfer', icon: 'pi pi-bank' },
-    { value: 'digital_wallet', label: 'Digital Wallet', icon: 'pi pi-mobile' }
-  ];
-  selectedPaymentMethod = 'cash';
+  // Payment methods - use shared utility options directly for radio buttons
+  paymentMethodOptionsList = paymentMethodOptions;
+  // For dropdown, we need just the values
+  paymentMethods: PaymentMethod[] = paymentMethodOptions.map(opt => opt.value as PaymentMethod);
+  
+  // Filtered payment methods - excludes Credit for walk-in customers (updated when customer changes)
+  availablePaymentMethods: PaymentMethod[] = paymentMethodOptions.map(opt => opt.value as PaymentMethod).filter(m => m !== 'Credit'); // Default: no Credit
+  
+  // Update available payment methods based on selected customer
+  private updateAvailablePaymentMethods(): void {
+    // If no customer selected, exclude Credit
+    if (!this.selectedCustomer) {
+      this.availablePaymentMethods = this.paymentMethods.filter(m => m !== 'Credit');
+      return;
+    }
+    
+    const currentCustomerId = this.selectedCustomer?.customerId;
+    const isWalkIn = !currentCustomerId || this.isWalkInCustomer(this.selectedCustomer);
+    
+    // Exclude Credit for walk-in customers, include all for regular customers
+    if (isWalkIn) {
+      this.availablePaymentMethods = this.paymentMethods.filter(m => m !== 'Credit');
+    } else {
+      // Include all payment methods including Credit for regular customers
+      this.availablePaymentMethods = [...this.paymentMethods];
+    }
+  }
+  bankAccounts: any[] = []; // Will be loaded if needed for Transfer/Check/BOE
+  
+  // Credit information
+  creditInfo: CreditInfo | null = null;
+  creditInfoLoading: boolean = false;
+  // Sanitized credit fields for UI/validation (mirrors Orders behavior)
+  outstandingBalance: number = 0;
+  overdueBalance: number = 0;
+  netBalance: number = 0;
+  availableCreditLimit: number = 0;
+  private isProcessingPaymentChange: boolean = false; // Guard to prevent infinite loops
   
   // PWA Actions
   pwaActions = [];
@@ -221,6 +258,7 @@ export class PosComponent implements OnInit, OnDestroy {
     private returnService: ReturnService,
     private refundService: RefundService,
     private barcodeService: BarcodeService,
+    private customerCreditService: CustomerCreditService,
     private translate: TranslateService,
     private translationService: TranslationService,
     private configService: AppConfigurationService,
@@ -268,6 +306,14 @@ export class PosComponent implements OnInit, OnDestroy {
     // Load from local storage if available
     await this.loadFromLocalStorage();
 
+    // Load tax rate from configuration FIRST, before loading cart
+    // This ensures tax calculations are consistent from the start
+    await this.loadTaxRate();
+    
+    // Check if user is admin
+    const userRoles = await this.keycloakService.getUserRoles();
+    this.isAdmin = userRoles.includes('ADMIN');
+    
     await this.initShopsAndSession();
     
     // Set up periodic session state refresh (every 60 seconds)
@@ -279,6 +325,14 @@ export class PosComponent implements OnInit, OnDestroy {
     
     // Load categories
     await this.loadCategories();
+    
+    // Recalculate tax after cart is loaded if tax is enabled
+    // This ensures consistency even if cart was loaded before tax rate
+    if (this.cart && this.taxEnabled && this.taxRate > 0) {
+      this.recalculateTax();
+      this.updateCartTracking();
+      this.saveToLocalStorage();
+    }
     
     // Auto-focus barcode input
     setTimeout(() => this.focusBarcodeInput(), 100);
@@ -304,28 +358,70 @@ export class PosComponent implements OnInit, OnDestroy {
     document.removeEventListener('MSFullscreenChange', this.onFullscreenChange);
   }
 
+  /**
+   * Get shopId for API calls
+   * - For admins: Returns shopId (required)
+   * - For non-admins: Returns undefined (backend will auto-retrieve from JWT)
+   */
+  private getShopIdForApi(): number | undefined {
+    if (this.isAdmin) {
+      // For admins, shopId is required
+      return this.shopId;
+    } else {
+      // For non-admins, return undefined - backend will auto-retrieve from JWT
+      return undefined;
+    }
+  }
+
+  /**
+   * Validate shopId selection for admins
+   */
+  private validateShopIdForAdmin(): boolean {
+    if (this.isAdmin && !this.shopId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('please_select_a_shop'),
+        life: 4000
+      });
+      return false;
+    }
+    return true;
+  }
+
   private async initShopsAndSession() {
     try {
-      (this.shopService as any).loadToken && await (this.shopService as any).loadToken();
-      const shopsObs = this.shopService.getShops();
-      const shopsResult = await firstValueFrom(shopsObs as any);
-      this.shops = Array.isArray(shopsResult) ? shopsResult : [];
+      // For admin users, load shops and allow selection
+      if (this.isAdmin) {
+        (this.shopService as any).loadToken && await (this.shopService as any).loadToken();
+        const shopsObs = this.shopService.getShops();
+        const shopsResult = await firstValueFrom(shopsObs as any);
+        this.shops = Array.isArray(shopsResult) ? shopsResult : [];
 
-      const routeShopId = this.route.snapshot.paramMap.get('shopId');
-      if (routeShopId) {
-        this.shopId = +routeShopId;
-      } else if (this.shops.length > 0) {
-        this.shopId = this.shops[0].shopId;
-      }
+        const routeShopId = this.route.snapshot.paramMap.get('shopId');
+        if (routeShopId) {
+          this.shopId = +routeShopId;
+        } else if (this.shops.length > 0) {
+          this.shopId = this.shops[0].shopId;
+        }
 
-      if (!this.shopId && this.shops.length === 0) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('please_select_a_shop'),
-          life: 4000
-        });
-        return;
+        if (!this.shopId && this.shops.length === 0) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('please_select_a_shop'),
+            life: 4000
+          });
+          return;
+        }
+      } else {
+        // For non-admin users, backend will auto-retrieve shop from JWT token
+        // shopId is optional - we can proceed without it
+        const routeShopId = this.route.snapshot.paramMap.get('shopId');
+        if (routeShopId) {
+          this.shopId = +routeShopId;
+        }
+        // For non-admin, shopId is optional - backend handles it
       }
 
       await this.loadCustomers();
@@ -343,7 +439,7 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async onShopChange() {
-    if (!this.shopId) return;
+    if (!this.shopId || !this.isAdmin) return; // Only allow shop change for admin users
     this.router.navigate(['/pos/shop', this.shopId]);
     this.loading = true;
     await this.ensureSessionAndCart();
@@ -364,11 +460,9 @@ export class PosComponent implements OnInit, OnDestroy {
         // Set default walk-in customer if no customer is set
         if (this.cart && !this.cart.customerId && !this.selectedCustomer?.customerId) {
           this.selectedCustomer = { customerId: null, fullName: 'Walk-in Customer' };
+          this.updateAvailablePaymentMethods();
         }
-        // Sync taxEnabled with cart state
-        if (this.cart) {
-          this.taxEnabled = this.cart.taxEnabled || false;
-        }
+        // Discount, tax, and notes are synced by normalizeCartItems
       } catch {
         // No active cart, create a new one
         const cart$ = await this.posService.createCart(this.session.sessionId);
@@ -377,8 +471,11 @@ export class PosComponent implements OnInit, OnDestroy {
         this.cart = this.normalizeCartItems(newCart);
         // Set default walk-in customer for new cart
         this.selectedCustomer = { customerId: null, fullName: 'Walk-in Customer' };
+        this.updateAvailablePaymentMethods();
+        // Discount, tax values are synced by normalizeCartItems
+        // Reset order notes for new cart
         if (this.cart) {
-          this.taxEnabled = this.cart.taxEnabled || false;
+          this.orderNotes = '';
         }
       }
       this.saveToLocalStorage();
@@ -386,14 +483,15 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private async refreshSessionState() {
-    if (!this.shopId) {
+    // For admins, validate shopId; for non-admins, proceed (backend handles shop)
+    if (this.isAdmin && !this.shopId) {
       this.session = null;
       this.cart = null;
       return;
     }
 
     try {
-      const activeSession$ = await this.posService.getActiveSession(this.shopId);
+      const activeSession$ = await this.posService.getActiveSession(this.getShopIdForApi());
       const session = await firstValueFrom(activeSession$);
       
       // Check if session is actually active
@@ -430,7 +528,12 @@ export class PosComponent implements OnInit, OnDestroy {
         this.saveToLocalStorage();
       }
     } catch (error: any) {
-      // No active session found or error
+      // 404 is expected when there's no active session (e.g., after closing)
+      // Only log non-404 errors to avoid console noise
+      if (error?.status !== 404 && error?.status !== 0) {
+        console.error('Error refreshing session state:', error);
+      }
+      // No active session found or error - this is expected after closing a session
       this.session = null;
       this.cart = null;
       // Clear stale cart from local storage
@@ -440,9 +543,11 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private async loadQuickProducts() {
-    if (!this.shopId) return;
+    // For admins, validate shopId; for non-admins, proceed (backend handles shop)
+    if (this.isAdmin && !this.shopId) return;
+    
     try {
-      const quick$ = await this.posService.getQuickProducts(this.shopId);
+      const quick$ = await this.posService.getQuickProducts(this.getShopIdForApi());
       this.quickProducts = await firstValueFrom(quick$);
       this.filteredQuickProducts = [...this.quickProducts];
       this.applyCategoryFilter();
@@ -566,8 +671,14 @@ export class PosComponent implements OnInit, OnDestroy {
         { customerId: null, fullName: walkInLabel },
         ...this.customers.slice(0, 10) // Show first 10 customers as initial suggestions
       ];
-    } catch (error) {
-      console.error('Error loading customers:', error);
+    } catch (error: any) {
+      // Handle 403 (Forbidden) errors gracefully - user may not have customer read permission
+      // POS can still work with walk-in customers only
+      if (error?.status === 403) {
+        // Silently handle permission errors - expected for users without customer read access
+      } else {
+        console.error('Error loading customers:', error);
+      }
       this.customers = [];
       const walkInLabel = this.translate.instant('walk_in_customer');
       this.customerSuggestions = [{ customerId: null, fullName: walkInLabel }];
@@ -622,8 +733,13 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private async fallbackBarcodeSearch(barcode: string) {
+    // For admins, validate shopId
+    if (this.isAdmin && !this.validateShopIdForAdmin()) {
+      return;
+    }
+
     try {
-      const product$ = await this.posService.getProductByBarcode(barcode, this.shopId);
+      const product$ = await this.posService.getProductByBarcode(barcode, this.getShopIdForApi());
       const product = await firstValueFrom(product$);
       await this.addProductToCart(product, 1);
       this.barcodeInput = '';
@@ -656,7 +772,14 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private async performSearch(query: string) {
-    if (!this.shopId || !query || query.length < 1) {
+    if (!query || query.length < 1) {
+      this.searchSuggestions = [];
+      this.searchResults = [];
+      return;
+    }
+
+    // For admins, validate shopId
+    if (this.isAdmin && !this.validateShopIdForAdmin()) {
       this.searchSuggestions = [];
       this.searchResults = [];
       return;
@@ -745,8 +868,10 @@ export class PosComponent implements OnInit, OnDestroy {
    * Normalize cart items coming from backend/local storage so UI bindings always work,
    * even if backend uses nested product objects instead of flat productName/productReference.
    * Also ensures totals are calculated if missing.
+   * @param cart The cart to normalize
+   * @param syncDiscountTax Whether to sync discount and tax values from cart (default: true)
    */
-  private normalizeCartItems(cart: POSCartDTO | null): POSCartDTO | null {
+  private normalizeCartItems(cart: POSCartDTO | null, syncDiscountTax: boolean = true): POSCartDTO | null {
     if (!cart) {
       return cart;
     }
@@ -757,7 +882,7 @@ export class PosComponent implements OnInit, OnDestroy {
       
       // Always recalculate subtotal from quantity and price
       const quantity = item.quantity || 0;
-      const pricePerUnit = item.pricePerUnit || item.price || 0;
+      const pricePerUnit = item.pricePerUnit || 0;
       const subtotal = quantity * pricePerUnit;
       
       return {
@@ -803,11 +928,30 @@ export class PosComponent implements OnInit, OnDestroy {
       cart.taxEnabled = false;
     }
     
-    // Sync taxEnabled property with cart.taxEnabled
-    this.taxEnabled = cart.taxEnabled;
+    // Recalculate tax if tax is enabled
+    // Always recalculate to ensure consistency, even if tax rate is 0 (will be 0 temporarily)
+    if (cart.taxEnabled) {
+      if (this.taxRate > 0) {
+        const taxableAmount = (cart.subtotal || 0) - (cart.discountAmount || 0);
+        cart.taxAmount = taxableAmount * this.taxRate;
+      } else {
+        // Tax rate not loaded yet, but tax is enabled - set to 0 for now
+        // Will be recalculated when tax rate is loaded via loadTaxRate()
+        cart.taxAmount = 0;
+      }
+    } else {
+      // Tax is disabled, ensure tax amount is 0
+      cart.taxAmount = 0;
+    }
     
-    // Always recalculate total from subtotal, discount, and tax
-    cart.totalAmount = cart.subtotal - (cart.discountAmount || 0) + (cart.taxAmount || 0);
+    // Always recalculate total from subtotal, discount, tax, and transport
+    // Formula: subtotal - discount + tax + transport
+    cart.totalAmount = (cart.subtotal || 0) - (cart.discountAmount || 0) + (cart.taxAmount || 0) + (cart.transportAmount || 0);
+    
+    // Sync all UI values from cart after normalization (unless explicitly disabled)
+    if (syncDiscountTax) {
+      this.syncDiscountAndTaxFromCart();
+    }
 
     return cart;
   }
@@ -827,11 +971,24 @@ export class PosComponent implements OnInit, OnDestroy {
     if (quantity <= 0) {
       return;
     }
-    if (product.quantityAvailable <= 0) {
+    
+    // Pre-validate against net available quantity (quantityAvailable already contains net quantity)
+    const netAvailable = product.quantityAvailable || 0;
+    if (netAvailable <= 0) {
       this.messageService.add({
         severity: 'warn',
-        summary: this.translate.instant('warning'),
+        summary: this.translate.instant('insufficient_stock'),
         detail: this.translate.instant('product_quantity_insufficient'),
+        life: 3000
+      });
+      return;
+    }
+    
+    if (quantity > netAvailable) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('insufficient_stock'),
+        detail: `Only ${netAvailable} units available. Requested: ${quantity}`,
         life: 3000
       });
       return;
@@ -886,12 +1043,22 @@ export class PosComponent implements OnInit, OnDestroy {
       }
     } catch (error: any) {
       console.error('Error adding item to cart:', error);
-      const msg = error?.error?.message || this.translate.instant('error_occurred');
+      // Use user-friendly message if available (from write-off error parsing)
+      const msg = error?.userFriendlyMessage || 
+                  error?.error?.message || 
+                  error?.message ||
+                  this.translate.instant('error_occurred');
+      
+      // Check if it's a stock error
+      const isStockError = error?.error?.code === 'insufficient_stock' || 
+                          msg.toLowerCase().includes('insufficient stock') ||
+                          msg.toLowerCase().includes('written off');
+      
       this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
+        severity: isStockError ? 'warn' : 'error',
+        summary: isStockError ? this.translate.instant('insufficient_stock') : this.translate.instant('error'),
         detail: msg,
-        life: 4000
+        life: 5000
       });
     } finally {
       this.cartSaving = false;
@@ -903,6 +1070,21 @@ export class PosComponent implements OnInit, OnDestroy {
     if (newQuantity <= 0) {
       return;
     }
+    
+    // Pre-validate against net available quantity if available
+    if (item.quantityAvailable !== undefined && item.quantityAvailable !== null) {
+      const netAvailable = item.quantityAvailable;
+      if (newQuantity > netAvailable) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('insufficient_stock'),
+          detail: `Only ${netAvailable} units available. Requested: ${newQuantity}`,
+          life: 3000
+        });
+        return;
+      }
+    }
+    
     this.cartSaving = true;
     try {
       const updated$ = await this.posService.updateCartItem(item.cartItemId, newQuantity);
@@ -911,13 +1093,24 @@ export class PosComponent implements OnInit, OnDestroy {
       this.cart = this.normalizeCartItems(updatedCart);
       this.updateCartTracking();
       this.saveToLocalStorage();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating cart item:', error);
+      // Use user-friendly message if available (from write-off error parsing)
+      const msg = error?.userFriendlyMessage || 
+                  error?.error?.message || 
+                  error?.message ||
+                  this.translate.instant('error_occurred');
+      
+      // Check if it's a stock error
+      const isStockError = error?.error?.code === 'insufficient_stock' || 
+                          msg.toLowerCase().includes('insufficient stock') ||
+                          msg.toLowerCase().includes('written off');
+      
       this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_occurred'),
-        life: 3000
+        severity: isStockError ? 'warn' : 'error',
+        summary: isStockError ? this.translate.instant('insufficient_stock') : this.translate.instant('error'),
+        detail: msg,
+        life: 5000
       });
     } finally {
       this.cartSaving = false;
@@ -952,12 +1145,46 @@ export class PosComponent implements OnInit, OnDestroy {
     if (amount < 0) {
       return;
     }
+    
+    // Validate percentage: should be between 0 and 100
+    if (type === 'Percentage' && amount > 100) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('discount_percentage_cannot_exceed_100'),
+        life: 3000
+      });
+      return;
+    }
+    
+    // Validate amount: should not exceed subtotal
+    if (type === 'Amount' && amount > (this.cart.subtotal || 0)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('discount_amount_cannot_exceed_subtotal'),
+        life: 3000
+      });
+      return;
+    }
+    
     this.cartSaving = true;
     try {
       const updated$ = await this.posService.updateCartDiscount(this.cart.cartId, amount, type);
       const updatedCart = await firstValueFrom(updated$);
-      // Normalize cart to recalculate totals
-      this.cart = this.normalizeCartItems(updatedCart);
+      // Normalize cart to recalculate totals (but don't sync discount values to preserve user input)
+      const previousDiscountAmount = this.discountAmount;
+      const previousDiscountType = this.discountType;
+      this.cart = this.normalizeCartItems(updatedCart, false); // Pass false to skip sync
+      // Restore the discount values that the user entered (keep same numeric value)
+      this.discountAmount = previousDiscountAmount;
+      this.discountType = previousDiscountType;
+      
+      // Recalculate tax after discount change if tax is enabled
+      if (this.taxEnabled && this.taxRate > 0) {
+        this.recalculateTax();
+      }
+      
       this.updateCartTracking();
       this.saveToLocalStorage();
       this.messageService.add({
@@ -979,6 +1206,93 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
+  onDiscountTypeChange() {
+    if (!this.cart || !this.cart.subtotal) return;
+    
+    const subtotal = this.cart.subtotal || 0;
+    if (subtotal <= 0) return;
+    
+    // Keep the same numeric value when switching types, just apply it with the new type
+    // If user entered 5 in Amount, when switching to Percentage, it becomes 5%
+    // The applyDiscount method will handle the calculation based on the type
+    this.applyDiscount(this.discountAmount, this.discountType);
+  }
+
+  onTransportAmountChange(amount: number | null) {
+    if (!this.cart) return;
+    
+    // Handle null/undefined
+    if (amount === null || amount === undefined) {
+      amount = 0;
+    }
+    
+    if (amount < 0) {
+      amount = 0;
+      this.transportAmount = 0;
+    }
+    
+    // Update local state immediately (UI updates in real-time)
+    const userEnteredAmount = amount;
+    this.cart.transportAmount = userEnteredAmount;
+    
+    // Recalculate total immediately with the new transport amount
+    this.cart.totalAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0) + (this.cart.taxAmount || 0) + userEnteredAmount;
+    
+    // Update cart tracking and save to local storage immediately
+    this.updateCartTracking();
+    this.saveToLocalStorage();
+    
+    // Use setTimeout to defer the async API call and avoid change detection issues
+    // This prevents the input from losing focus while typing
+    setTimeout(() => {
+      this.updateTransportAmountOnBackend(userEnteredAmount);
+    }, 0);
+  }
+
+  private async updateTransportAmountOnBackend(amount: number) {
+    if (!this.cart) return;
+    
+    // If the value hasn't changed, don't make an API call
+    if (this.cart.transportAmount === amount) {
+      return;
+    }
+    
+    this.cartSaving = true;
+    try {
+      // Update transport amount on backend
+      const updated$ = await this.posService.updateCartTransport(this.cart.cartId, amount);
+      const updatedCart = await firstValueFrom(updated$);
+      
+      // Ensure the backend response has the transport amount set
+      updatedCart.transportAmount = amount;
+      
+      // Normalize cart to recalculate totals (but don't sync transport amount to preserve user input)
+      this.cart = this.normalizeCartItems(updatedCart, false); // Pass false to skip sync
+      
+      // Restore the transport amount that the user entered (preserve user input)
+      this.transportAmount = amount;
+      this.cart.transportAmount = amount;
+      
+      // Recalculate total to include the transport amount
+      this.cart.totalAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0) + (this.cart.taxAmount || 0) + amount;
+      
+      this.updateCartTracking();
+      this.saveToLocalStorage();
+    } catch (error) {
+      console.error('Error updating transport amount:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_occurred'),
+        life: 3000
+      });
+      // Revert the transport amount on error
+      this.transportAmount = this.cart.transportAmount || 0;
+    } finally {
+      this.cartSaving = false;
+    }
+  }
+
   onTaxSwitchChange() {
     if (!this.cart) return;
     // Use setTimeout to defer the async call to avoid change detection error
@@ -987,21 +1301,106 @@ export class PosComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
+  async loadTaxRate(): Promise<void> {
+    try {
+      const config$ = await this.configService.getConfiguration("tax");
+      const response = await firstValueFrom(config$);
+      this.taxRate = response.value || 0;
+      console.log("Tax rate loaded from configuration:", this.taxRate);
+      
+      // Recalculate tax if cart exists and tax is enabled
+      if (this.cart && this.taxEnabled) {
+        this.recalculateTax();
+        // Update cart tracking and save after recalculation
+        this.updateCartTracking();
+        this.saveToLocalStorage();
+      }
+    } catch (error) {
+      console.error('Error loading tax rate:', error);
+      this.taxRate = 0;
+    }
+  }
+
+  get displayTaxRate(): number {
+    return this.taxRate * 100; // Convert to percentage for display (e.g., 0.2 -> 20)
+  }
+
+  recalculateTax() {
+    if (!this.cart) {
+      return;
+    }
+    
+    // If tax is disabled, set tax to 0 and recalculate total
+    if (!this.taxEnabled) {
+      this.cart.taxAmount = 0;
+      const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
+      this.cart.totalAmount = taxableAmount + (this.cart.transportAmount || 0);
+      return;
+    }
+    
+    // If tax is enabled but tax rate is not loaded yet, set tax to 0 temporarily
+    if (this.taxRate <= 0) {
+      this.cart.taxAmount = 0;
+      const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
+      this.cart.totalAmount = taxableAmount + (this.cart.transportAmount || 0);
+      console.warn('Tax rate not loaded yet, tax amount set to 0 temporarily. Will recalculate when tax rate is available.');
+      return;
+    }
+    
+    // Calculate taxable amount (subtotal - discount)
+    const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
+    
+    // Calculate tax amount using the tax rate from configuration
+    // Same formula as orders component: amount * taxRate
+    const calculatedTaxAmount = taxableAmount * this.taxRate;
+    
+    // Update cart tax amount
+    this.cart.taxAmount = calculatedTaxAmount;
+    // Recalculate total (include transport amount)
+    const transportAmount = this.cart.transportAmount || 0;
+    this.cart.totalAmount = taxableAmount + calculatedTaxAmount + transportAmount;
+  }
+
   async toggleTax() {
     if (!this.cart) return;
     this.cartSaving = true;
+    
+    // Preserve transport amount before normalizing (backend might not return it)
+    const preservedTransportAmount = this.cart.transportAmount || 0;
+    
     try {
       const updated$ = await this.posService.toggleTax(this.cart.cartId, this.taxEnabled);
       const updatedCart = await firstValueFrom(updated$);
       
-      // Normalize cart to recalculate totals
+      // Normalize cart to recalculate totals (this will also sync discount/tax values)
       this.cart = this.normalizeCartItems(updatedCart);
       
-      // Ensure taxEnabled is properly set and sync with local property
-      if (this.cart) {
-        this.cart.taxEnabled = this.cart.taxEnabled ?? this.taxEnabled;
-        this.taxEnabled = this.cart.taxEnabled;
+      // Restore transport amount if it was lost during normalization
+      if (this.cart.transportAmount === 0 && preservedTransportAmount > 0) {
+        this.cart.transportAmount = preservedTransportAmount;
       }
+      
+      // Recalculate tax using the tax rate from configuration
+      // This handles both enabling (recalculate with tax) and disabling (set tax to 0)
+      if (this.taxEnabled && this.taxRate > 0) {
+        this.recalculateTax();
+        // Update cart on backend with recalculated tax
+        if (this.cart.taxAmount !== updatedCart.taxAmount) {
+          // The backend should handle tax calculation, but we can verify it matches
+          console.log('Tax amount calculated:', this.cart.taxAmount, 'Backend tax amount:', updatedCart.taxAmount);
+        }
+      } else {
+        // Tax is disabled, ensure tax amount is 0 and recalculate total
+        if (this.cart) {
+          this.cart.taxAmount = 0;
+          const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
+          const transportAmount = this.cart.transportAmount || 0;
+          this.cart.totalAmount = taxableAmount + transportAmount;
+        }
+      }
+      
+      // Sync transport amount to UI property
+      this.transportAmount = this.cart.transportAmount || 0;
       
       this.updateCartTracking();
       this.saveToLocalStorage();
@@ -1032,6 +1431,9 @@ export class PosComponent implements OnInit, OnDestroy {
     } else {
       this.selectedCustomer = null;
     }
+    
+    // Update available payment methods based on customer
+    this.updateAvailablePaymentMethods();
     
     this.cartSaving = true;
     try {
@@ -1084,7 +1486,7 @@ export class PosComponent implements OnInit, OnDestroy {
   async openHoldCarts() {
     if (!this.shopId) return;
     try {
-      const holds$ = await this.posService.getHoldCarts(this.shopId);
+      const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
       const carts = await firstValueFrom(holds$);
       // Normalize all hold carts
       this.holdCarts = Array.isArray(carts) ? carts.map(cart => this.normalizeCartItems(cart)) : [];
@@ -1203,11 +1605,49 @@ export class PosComponent implements OnInit, OnDestroy {
     try {
       const resumed$ = await this.posService.resumeCart(cart.cartId);
       const resumedCart = await firstValueFrom(resumed$);
+      console.log('Resumed cart from backend:', resumedCart);
+      
+      // Normalize the cart to ensure totals are calculated
       this.cart = this.normalizeCartItems(resumedCart);
       
       // Ensure items array is initialized
       if (this.cart && !this.cart.items) {
         this.cart.items = [];
+      }
+      
+      // Log cart totals after normalization
+      console.log('Cart after normalization:', {
+        cartId: this.cart?.cartId,
+        itemsCount: this.cart?.items?.length || 0,
+        subtotal: this.cart?.subtotal,
+        discountAmount: this.cart?.discountAmount,
+        taxAmount: this.cart?.taxAmount,
+        totalAmount: this.cart?.totalAmount,
+        items: this.cart?.items
+      });
+      
+      // Refresh cart from backend to ensure we have the latest totals
+      // This is important because the backend might have different calculations
+      if (this.cart && this.cart.cartId && this.session) {
+        try {
+          const refreshedCart$ = await this.posService.getCart(this.cart.cartId);
+          const refreshedCart = await firstValueFrom(refreshedCart$);
+          console.log('Refreshed cart from backend:', refreshedCart);
+          this.cart = this.normalizeCartItems(refreshedCart);
+          
+          // Log refreshed totals
+          console.log('Cart after refresh:', {
+            cartId: this.cart?.cartId,
+            itemsCount: this.cart?.items?.length || 0,
+            subtotal: this.cart?.subtotal,
+            discountAmount: this.cart?.discountAmount,
+            taxAmount: this.cart?.taxAmount,
+            totalAmount: this.cart?.totalAmount
+          });
+        } catch (refreshError) {
+          console.warn('Could not refresh cart after resume, using normalized cart:', refreshError);
+          // Continue with normalized cart if refresh fails
+        }
       }
       
       // Update selected customer if cart has a customer
@@ -1224,10 +1664,13 @@ export class PosComponent implements OnInit, OnDestroy {
         this.selectedCustomer = { customerId: null, fullName: 'Walk-in Customer' };
       }
       
+      // Update available payment methods based on customer
+      this.updateAvailablePaymentMethods();
+      
       // Reload hold carts list to reflect changes
       if (this.shopId) {
         try {
-          const holds$ = await this.posService.getHoldCarts(this.shopId);
+          const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
           const carts = await firstValueFrom(holds$);
           this.holdCarts = Array.isArray(carts) ? carts.map(c => this.normalizeCartItems(c)) : [];
         } catch (error) {
@@ -1236,6 +1679,7 @@ export class PosComponent implements OnInit, OnDestroy {
       }
       
       this.holdCartsDialog = false;
+      this.updateCartTracking();
       this.saveToLocalStorage();
       
       this.messageService.add({
@@ -1290,13 +1734,91 @@ export class PosComponent implements OnInit, OnDestroy {
       });
       return;
     }
+    
+    // Sync discount and tax values from cart to ensure fresh values
+    this.syncDiscountAndTaxFromCart();
+    
+    // Reset checkout-specific fields
+    // Default to Cash, but preserve Credit if it was previously selected and is still available
+    let defaultMethod: PaymentMethod = 'Cash';
+    const hadCreditSelected = this.checkoutPayments.some(p => p.method === 'Credit');
+    if (hadCreditSelected && this.isCreditAvailable()) {
+      defaultMethod = 'Credit';
+    }
+    
     this.checkoutPayments = [{
-      method: 'Cash',
+      method: defaultMethod,
       amount: this.cart.totalAmount
     }];
     this.checkoutNotes = '';
     this.printReceipt = true;
+    
+    // Reset all caches (availablePaymentMethods is now computed on demand, no cache needed)
+    this._isCreditPaymentCache = null;
+    this._lastPaymentMethodsHash = '';
+    this._isPaymentValidCache = null;
+    this._lastPaymentValidationHash = '';
+    
+    // Open dialog first to avoid blocking
     this.checkoutDialog = true;
+    
+    // Load credit info asynchronously if customer is selected (don't block dialog opening)
+    if (this.selectedCustomer?.customerId && !this.isWalkInCustomer(this.selectedCustomer)) {
+      // Use setTimeout to load credit info after dialog is rendered
+      setTimeout(() => {
+        this.loadCreditInfo(this.selectedCustomer.customerId);
+      }, 0);
+    } else {
+      this.creditInfo = null;
+    }
+  }
+
+  syncDiscountAndTaxFromCart() {
+    if (!this.cart) {
+      // Reset values if no cart
+      this.discountAmount = 0;
+      this.discountType = 'Amount';
+      this.taxEnabled = false;
+      return;
+    }
+    
+    // Sync discount type from cart
+    this.discountType = this.cart.discountType || 'Amount';
+    
+    // Sync discount amount from cart
+    // If discount type is Percentage, calculate the percentage value from discountAmount and subtotal
+    // Otherwise, use the discount amount directly
+    if (this.discountType === 'Percentage' && this.cart.subtotal > 0 && this.cart.discountAmount > 0) {
+      // Calculate percentage: (discountAmount / subtotal) * 100
+      this.discountAmount = Math.round((this.cart.discountAmount / this.cart.subtotal) * 100 * 100) / 100;
+    } else {
+      // For Amount type, use discountAmount directly
+      this.discountAmount = this.cart.discountAmount || 0;
+    }
+    
+    // Sync transport amount from cart
+    this.transportAmount = this.cart.transportAmount || 0;
+    
+    // Sync tax enabled state from cart
+    const previousTaxEnabled = this.taxEnabled;
+    this.taxEnabled = this.cart.taxEnabled || false;
+    
+    // If tax is enabled and we have a tax rate, recalculate tax to ensure consistency
+    // This handles cases where cart was loaded before tax rate was available
+    if (this.taxEnabled && this.taxRate > 0) {
+      this.recalculateTax();
+    } else if (this.taxEnabled && this.taxRate <= 0) {
+      // Tax is enabled but rate not loaded yet - will be recalculated when rate loads
+      console.log('Tax enabled but rate not loaded yet, will recalculate when rate is available');
+    } else if (!this.taxEnabled && previousTaxEnabled) {
+      // Tax was just disabled, ensure tax amount is 0
+      this.recalculateTax();
+    }
+    
+    // Note: orderNotes is not synced from cart.notes here because:
+    // - orderNotes is for UI editing (not saved to cart until checkout)
+    // - cart.notes might be from a previous transaction
+    // - orderNotes should be reset when creating a new cart, not when loading an existing one
   }
 
   get totalPaid(): number {
@@ -1305,14 +1827,84 @@ export class PosComponent implements OnInit, OnDestroy {
 
   get remainingToPay(): number {
     if (!this.cart) return 0;
-    return (this.cart.totalAmount || 0) - this.totalPaid;
+    const remaining = (this.cart.totalAmount || 0) - this.totalPaid;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  get changeAmount(): number {
+    if (!this.cart) return 0;
+    const change = this.totalPaid - (this.cart.totalAmount || 0);
+    return change > 0 ? change : 0;
+  }
+
+  // Cache for payment validation to avoid repeated calculations
+  private _isPaymentValidCache: boolean | null = null;
+  private _lastPaymentValidationHash: string = '';
+  
+  get isPaymentValid(): boolean {
+    if (!this.cart || !this.checkoutPayments || this.checkoutPayments.length === 0) {
+      this._isPaymentValidCache = false;
+      return false;
+    }
+    
+    // Create hash of relevant state for caching
+    const total = this.cart.totalAmount || 0;
+    const paid = this.totalPaid;
+    const paymentMethodsHash = this.checkoutPayments.map(p => `${p.method}:${p.amount}`).join(',');
+    const creditInfoHash = this.creditInfo ? `${this.creditInfo.availableCreditLimit}` : 'null';
+    const currentHash = `${total}:${paid}:${paymentMethodsHash}:${creditInfoHash}`;
+    
+    // Return cached value if state hasn't changed
+    if (currentHash === this._lastPaymentValidationHash && this._isPaymentValidCache !== null) {
+      return this._isPaymentValidCache;
+    }
+    
+    // Calculate validation
+    let isValid = false;
+    
+    // For Credit payment, validation is different
+    if (this.isCreditPayment()) {
+      // Credit payment is valid if customer is selected and not walk-in
+      if (!this.isCreditAvailable()) {
+        isValid = false;
+      } else if (this.creditInfoLoading) {
+        // Credit info is loading - allow checkout (will be validated in completeCheckout)
+        isValid = true;
+      } else if (!this.creditInfo) {
+        // Credit info not loaded yet - allow checkout if customer is valid (backend will handle)
+        isValid = true;
+      } else {
+        const orderAmount = this.cart?.totalAmount || 0;
+        if (this.isUnlimitedCreditLimit()) {
+          isValid = true;
+        } else {
+          const availableCredit = this.availableCreditLimit || 0;
+          isValid = orderAmount <= availableCredit;
+        }
+      }
+    } else {
+      // Regular payment validation
+      isValid = Math.abs(total - paid) < 0.01 && paid > 0;
+    }
+    
+    // Cache the result
+    this._isPaymentValidCache = isValid;
+    this._lastPaymentValidationHash = currentHash;
+    
+    return isValid;
   }
 
   addPaymentLine() {
+    const remaining = this.remainingToPay;
     this.checkoutPayments.push({
       method: 'Cash',
-      amount: 0
+      amount: remaining > 0 ? remaining : 0
     });
+    // Reset caches when payment line is added
+    this._isCreditPaymentCache = null;
+    this._lastPaymentMethodsHash = '';
+    this._isPaymentValidCache = null;
+    this._lastPaymentValidationHash = '';
   }
 
   removePaymentLine(index: number) {
@@ -1320,6 +1912,124 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     this.checkoutPayments.splice(index, 1);
+    // Reset caches when payment line is removed
+    this._isCreditPaymentCache = null;
+    this._lastPaymentMethodsHash = '';
+    this._isPaymentValidCache = null;
+    this._lastPaymentValidationHash = '';
+  }
+
+  async onPaymentMethodChange(payment: PaymentInfo, index: number) {
+    // Prevent re-entry to avoid infinite loops
+    if (this.isProcessingPaymentChange) {
+      return;
+    }
+    
+    this.isProcessingPaymentChange = true;
+    
+    // Reset all caches when payment method changes
+    this._isCreditPaymentCache = null;
+    this._lastPaymentMethodsHash = '';
+    this._isPaymentValidCache = null;
+    this._lastPaymentValidationHash = '';
+    
+    try {
+      // Clear optional fields when method changes
+      payment.bankAccountId = undefined;
+      payment.checkNumber = undefined;
+      payment.transactionReference = undefined;
+      
+      // Handle Credit payment method
+      if (payment.method === 'Credit') {
+        // Validate walk-in customer first (before making any changes)
+        if (!this.selectedCustomer?.customerId || this.isWalkInCustomer(this.selectedCustomer)) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('credit_not_allowed_walk_in'),
+            life: 5000
+          });
+          // Revert to Cash - use setTimeout to avoid change detection loop
+          setTimeout(() => {
+            payment.method = 'Cash';
+            payment.amount = this.cart?.totalAmount || 0;
+            this.isProcessingPaymentChange = false;
+          }, 0);
+          return;
+        }
+        
+        // Credit must be the only payment method - use setTimeout to avoid change detection loop
+        if (this.checkoutPayments.length > 1) {
+          setTimeout(() => {
+            // Create a new payment object to avoid reference issues
+            const creditPayment: PaymentInfo = {
+              method: 'Credit',
+              amount: this.cart?.totalAmount || 0
+            };
+            this.checkoutPayments = [creditPayment];
+            this.isProcessingPaymentChange = false;
+          }, 0);
+          return;
+        }
+        
+        // Set amount to cart total
+        payment.amount = this.cart?.totalAmount || 0;
+        
+        // Ensure cart has customerId set when Credit is selected
+        if (this.cart && this.selectedCustomer?.customerId && this.cart.customerId !== this.selectedCustomer.customerId) {
+          try {
+            const updated$ = await this.posService.setCustomer(this.cart.cartId, this.selectedCustomer.customerId);
+            const updatedCart = await firstValueFrom(updated$);
+            this.cart = this.normalizeCartItems(updatedCart);
+          } catch (error) {
+            console.error('Error setting customer on cart:', error);
+            // Don't block - continue anyway
+          }
+        }
+        
+        // Load credit info if not already loaded or loading
+        if (!this.creditInfo && !this.creditInfoLoading && this.selectedCustomer?.customerId) {
+          this.loadCreditInfo(this.selectedCustomer.customerId);
+        }
+      }
+      
+      // Load bank accounts if needed for Transfer/Check/BOE
+      if (['Transfer', 'Check', 'BOE'].includes(payment.method) && this.bankAccounts.length === 0) {
+        this.loadBankAccounts();
+      }
+    } finally {
+      // Reset guard after a short delay to allow change detection to complete
+      setTimeout(() => {
+        this.isProcessingPaymentChange = false;
+      }, 100);
+    }
+  }
+
+  needsBankAccount(method: PaymentMethod): boolean {
+    return ['Transfer', 'Check', 'BOE'].includes(method);
+  }
+
+  needsCheckNumber(method: PaymentMethod): boolean {
+    return method === 'Check';
+  }
+
+  needsTransactionReference(method: PaymentMethod): boolean {
+    return method === 'Transfer';
+  }
+
+  async loadBankAccounts() {
+    // TODO: Load bank accounts from service if available
+    // For now, this is a placeholder
+    this.bankAccounts = [];
+  }
+
+  // Use shared payment utility functions
+  getPaymentMethodIcon(method: PaymentMethod): string {
+    return getSharedPaymentMethodIcon(method);
+  }
+
+  getPaymentMethodLabel(method: PaymentMethod): string {
+    return getSharedPaymentMethodLabel(method);
   }
 
   async completeCheckout() {
@@ -1335,40 +2045,244 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const total = this.cart.totalAmount || 0;
+    // Refresh cart from backend before checkout to ensure we have the latest totals
+    // This is critical for resumed carts to avoid payment mismatch errors
+    // Preserve transport amount before refreshing (backend might not return it)
+    const preservedTransportAmount = this.transportAmount || this.cart?.transportAmount || 0;
+    
+    if (this.cart && this.cart.cartId) {
+      try {
+        console.log('Refreshing cart before checkout:', this.cart.cartId);
+        const refreshedCart$ = await this.posService.getCart(this.cart.cartId);
+        const refreshedCart = await firstValueFrom(refreshedCart$);
+        this.cart = this.normalizeCartItems(refreshedCart);
+        
+        // Restore transport amount if it was lost during refresh
+        if (preservedTransportAmount > 0 && (!this.cart.transportAmount || this.cart.transportAmount === 0)) {
+          this.cart.transportAmount = preservedTransportAmount;
+          this.transportAmount = preservedTransportAmount;
+        }
+        
+        console.log('Cart refreshed before checkout:', {
+          cartId: this.cart?.cartId,
+          itemsCount: this.cart?.items?.length || 0,
+          subtotal: this.cart?.subtotal,
+          discountAmount: this.cart?.discountAmount,
+          taxAmount: this.cart?.taxAmount,
+          transportAmount: this.cart?.transportAmount,
+          totalAmount: this.cart?.totalAmount
+        });
+      } catch (refreshError) {
+        console.error('Error refreshing cart before checkout:', refreshError);
+        // Continue with current cart if refresh fails, but log warning
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_refreshing_cart_before_checkout'),
+          life: 3000
+        });
+      }
+    }
+
+    // Recalculate totals to ensure they're correct (including transport amount)
+    // Use preserved transport amount (already declared above)
+    if (this.cart && this.cart.items && this.cart.items.length > 0) {
+      const recalculatedSubtotal = this.cart.items.reduce((sum, item) => {
+        const itemSubtotal = (item.quantity || 0) * (item.pricePerUnit || 0);
+        return sum + itemSubtotal;
+      }, 0);
+      
+      this.cart.subtotal = recalculatedSubtotal;
+      
+      // Ensure transport amount is set (use preserved value if cart doesn't have it)
+      if (!this.cart.transportAmount && preservedTransportAmount > 0) {
+        this.cart.transportAmount = preservedTransportAmount;
+        this.transportAmount = preservedTransportAmount;
+      }
+      
+      // Recalculate total: subtotal - discount + tax + transport
+      const transportAmount = this.cart.transportAmount || 0;
+      this.cart.totalAmount = recalculatedSubtotal - (this.cart.discountAmount || 0) + (this.cart.taxAmount || 0) + transportAmount;
+      
+      console.log('Recalculated cart totals:', {
+        subtotal: this.cart.subtotal,
+        discountAmount: this.cart.discountAmount,
+        taxAmount: this.cart.taxAmount,
+        transportAmount: transportAmount,
+        totalAmount: this.cart.totalAmount
+      });
+    }
+
+    // Calculate total for validation (explicitly including transport amount)
+    const finalTransportAmount = this.cart?.transportAmount || this.transportAmount || 0;
+    const subtotal = this.cart?.subtotal || 0;
+    const discountAmount = this.cart?.discountAmount || 0;
+    const taxAmount = this.cart?.taxAmount || 0;
+    const calculatedTotal = subtotal - discountAmount + taxAmount + finalTransportAmount;
+    
+    // Use the calculated total (which includes transport) for validation
+    const total = calculatedTotal > 0 ? calculatedTotal : (this.cart?.totalAmount || 0);
     const paid = this.totalPaid;
 
-    if (total <= 0 || paid <= 0) {
+    console.log('Checkout validation:', {
+      subtotal: subtotal,
+      discountAmount: discountAmount,
+      taxAmount: taxAmount,
+      transportAmount: finalTransportAmount,
+      calculatedTotal: calculatedTotal,
+      cartTotal: this.cart?.totalAmount,
+      totalUsed: total,
+      totalPaid: paid,
+      difference: Math.abs(total - paid)
+    });
+
+    if (total <= 0) {
       this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('valid_amount_required'),
-        life: 3000
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('cart_total_is_zero_cannot_checkout'),
+        life: 4000
       });
       return;
     }
 
-    const diff = Math.abs(total - paid);
-    if (diff > 0.01) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('payment_amount_invalid'),
-        life: 3000
-      });
-      return;
+    // Validate credit limit if using Credit payment
+    const isCredit = this.isCreditPayment();
+    if (isCredit) {
+      // Ensure customer is selected and not walk-in
+      if (!this.selectedCustomer?.customerId || this.isWalkInCustomer(this.selectedCustomer)) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('credit_not_allowed_walk_in'),
+          life: 5000
+        });
+        return;
+      }
+      
+      // Ensure cart has customerId set (try to update, but don't block if it fails)
+      if (!this.cart.customerId && this.selectedCustomer?.customerId) {
+        // Update cart customerId before checkout
+        try {
+          const updated$ = await this.posService.setCustomer(this.cart.cartId, this.selectedCustomer.customerId);
+          const updatedCart = await firstValueFrom(updated$);
+          this.cart = this.normalizeCartItems(updatedCart);
+        } catch (error) {
+          console.warn('Could not update cart customerId before checkout, will use selectedCustomer:', error);
+          // Don't block checkout - we'll use selectedCustomer.customerId in checkoutDto
+        }
+      }
+      
+      // If credit info is still loading, wait a bit for it to complete (max 2 seconds)
+      if (this.creditInfoLoading) {
+        let waitCount = 0;
+        while (this.creditInfoLoading && waitCount < 20) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          waitCount++;
+        }
+      }
+      
+      // Validate credit limit if credit info is available (optional - backend will also validate)
+      if (this.creditInfo) {
+        const creditValidation = this.validateCreditLimit();
+        if (!creditValidation.valid) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: creditValidation.error || this.translate.instant('credit_limit_exceeded_message'),
+            life: 6000
+          });
+          return;
+        }
+      }
+      // If credit info is not available, proceed anyway - backend will handle validation
+    }
+
+    // For Credit payment, skip amount validation (backend handles it)
+    if (!isCredit) {
+      if (paid <= 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('valid_amount_required'),
+          life: 3000
+        });
+        return;
+      }
+
+      const diff = Math.abs(total - paid);
+      if (diff > 0.01) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('payment_amount_mismatch', { 
+            cartTotal: total.toFixed(2), 
+            paidAmount: paid.toFixed(2),
+            difference: diff.toFixed(2)
+          }),
+          life: 5000
+        });
+        return;
+      }
     }
 
     // Check if offline
     const isOffline = !this.isOnline || this.onlineStatus === 'offline';
 
+    // Clean up payment objects - only include relevant optional fields
+    // For Credit payment, send empty array or Credit payment with amount
+    let cleanedPayments: PaymentInfo[];
+    
+    if (this.isCreditPayment()) {
+      // Credit payment: send Credit payment with amount
+      cleanedPayments = [{
+        method: 'Credit',
+        amount: this.cart?.totalAmount || 0
+      }];
+    } else {
+      cleanedPayments = this.checkoutPayments.map(payment => {
+        const cleaned: PaymentInfo = {
+          method: payment.method,
+          amount: payment.amount
+        };
+        
+        // Add optional fields only if they exist and are relevant
+        if (this.needsBankAccount(payment.method) && payment.bankAccountId) {
+          cleaned.bankAccountId = payment.bankAccountId;
+        }
+        if (this.needsCheckNumber(payment.method) && payment.checkNumber) {
+          cleaned.checkNumber = payment.checkNumber;
+        }
+        if (this.needsTransactionReference(payment.method) && payment.transactionReference) {
+          cleaned.transactionReference = payment.transactionReference;
+        }
+        
+        return cleaned;
+      });
+    }
+
+    // Ensure customerId is set for Credit payments
+    let finalCustomerId = this.cart.customerId;
+    if (isCredit && !finalCustomerId && this.selectedCustomer?.customerId) {
+      finalCustomerId = this.selectedCustomer.customerId;
+    }
+    
     const checkoutDto: POSCheckoutDTO = {
       cartId: this.cart.cartId,
-      customerId: this.cart.customerId,
-      payments: this.checkoutPayments,
+      customerId: finalCustomerId,
+      payments: cleanedPayments,
       notes: this.checkoutNotes,
       printReceipt: this.printReceipt
     };
+    
+    console.log('Checkout DTO:', {
+      cartId: checkoutDto.cartId,
+      customerId: checkoutDto.customerId,
+      selectedCustomerId: this.selectedCustomer?.customerId,
+      cartCustomerId: this.cart.customerId,
+      isCredit: isCredit,
+      payments: checkoutDto.payments
+    });
 
     this.cartSaving = true;
     try {
@@ -1382,8 +2296,10 @@ export class PosComponent implements OnInit, OnDestroy {
         if (this.session) {
           const newCart$ = await this.posService.createCart(this.session.sessionId);
           const newCart = await firstValueFrom(newCart$);
-          // Normalize cart to ensure totals are correct
+          // Normalize cart to ensure totals are correct (this will sync discount/tax values)
           this.cart = this.normalizeCartItems(newCart);
+          // Reset order notes for new cart
+          this.orderNotes = '';
           this.updateCartTracking();
           this.saveToLocalStorage();
         }
@@ -1820,19 +2736,54 @@ export class PosComponent implements OnInit, OnDestroy {
     });
   }
 
+  navigateToProfile() {
+    this.router.navigate(['/profile']);
+  }
+
   async unlockPos() {
-    if (!this.lockPinInput) return;
+    if (!this.lockPinInput || this.lockPinInput.trim() === '') {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('please_enter_pin'),
+        life: 2000
+      });
+      return;
+    }
+    
+    this.lockPinError = false; // Reset error state
     
     try {
-      // Verify PIN - you can integrate with your auth service
+      // Verify PIN from user profile attributes
       const profile = await this.keycloakService.loadUserProfile();
-      // For now, we'll use a simple check - you should implement proper PIN verification
-      // This is a placeholder - implement your actual PIN verification logic
-      const isValid = true; // Replace with actual PIN check
+      
+      // Keycloak attributes are stored as arrays, get the first element if it exists
+      const storedPin = (profile.attributes as any)?.posPin?.[0] || (profile.attributes as any)?.posPin || '';
+      
+      // Check if PIN is required (user has PIN set)
+      if (!storedPin || storedPin === '') {
+        // No PIN set - allow unlock for backward compatibility
+        this.isLocked = false;
+        this.lockPinInput = '';
+        this.lockPinError = false;
+        this.updateActivity();
+        this.focusBarcodeInput();
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('pos_unlocked'),
+          life: 2000
+        });
+        return;
+      }
+      
+      // PIN is set - verify it
+      const isValid = storedPin === this.lockPinInput;
       
       if (isValid) {
         this.isLocked = false;
         this.lockPinInput = '';
+        this.lockPinError = false;
         this.updateActivity();
         this.focusBarcodeInput();
         this.messageService.add({
@@ -1842,22 +2793,34 @@ export class PosComponent implements OnInit, OnDestroy {
           life: 2000
         });
       } else {
+        // Invalid PIN - show error
+        this.lockPinError = true;
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
           detail: this.translate.instant('invalid_pin'),
-          life: 3000
+          life: 4000
         });
-        this.lockPinInput = '';
+        
+        // Clear input after a short delay to allow user to see the error
+        setTimeout(() => {
+          this.lockPinInput = '';
+          this.lockPinError = false;
+        }, 1500);
       }
     } catch (error) {
       console.error('Error unlocking POS:', error);
+      this.lockPinError = true;
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('error_occurred'),
-        life: 3000
+        life: 4000
       });
+      setTimeout(() => {
+        this.lockPinInput = '';
+        this.lockPinError = false;
+      }, 1500);
     }
   }
 
@@ -1911,6 +2874,13 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async confirmSwitchCashier() {
+    // Switch user should logout to Keycloak login page
+    this.switchCashierDialog = false;
+    this.switchCashierPin = '';
+    this.keycloakService.logout(window.location.origin + '/webconsole');
+    return;
+    
+    // Old implementation (commented out - was verifying PIN)
     if (!this.switchCashierPin || this.switchCashierPin.length < 4) {
       this.messageService.add({
         severity: 'warn',
@@ -1979,21 +2949,78 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async confirmManagerApproval() {
-    // Verify manager PIN
-    const isValid = true; // Replace with actual manager PIN check
+    if (!this.lockPinInput || this.lockPinInput.trim() === '') {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('please_enter_pin'),
+        life: 2000
+      });
+      return;
+    }
     
-    if (isValid && this.managerApprovalCallback) {
-      this.managerApprovalCallback();
-      this.managerApprovalDialog = false;
-      this.managerApprovalCallback = null;
-      this.managerApprovalReason = '';
-    } else {
+    this.lockPinError = false; // Reset error state
+    
+    // Verify manager PIN from user profile attributes (same PIN as unlock)
+    try {
+      const profile = await this.keycloakService.loadUserProfile();
+      
+      // Keycloak attributes are stored as arrays, get the first element if it exists
+      const storedPin = (profile.attributes as any)?.posPin?.[0] || (profile.attributes as any)?.posPin || '';
+      
+      // Check if PIN is required (user has PIN set)
+      if (!storedPin || storedPin === '') {
+        // No PIN set - allow approval for backward compatibility
+        if (this.managerApprovalCallback) {
+          this.managerApprovalCallback();
+          this.managerApprovalDialog = false;
+          this.managerApprovalCallback = null;
+          this.managerApprovalReason = '';
+          this.lockPinInput = '';
+          this.lockPinError = false;
+        }
+        return;
+      }
+      
+      // PIN is set - verify it
+      const isValid = storedPin === this.lockPinInput;
+      
+      if (isValid && this.managerApprovalCallback) {
+        this.managerApprovalCallback();
+        this.managerApprovalDialog = false;
+        this.managerApprovalCallback = null;
+        this.managerApprovalReason = '';
+        this.lockPinInput = '';
+        this.lockPinError = false;
+      } else {
+        // Invalid PIN - show error
+        this.lockPinError = true;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('invalid_pin'),
+          life: 4000
+        });
+        
+        // Clear input after a short delay to allow user to see the error
+        setTimeout(() => {
+          this.lockPinInput = '';
+          this.lockPinError = false;
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error verifying manager PIN:', error);
+      this.lockPinError = true;
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('invalid_pin'),
-        life: 3000
+        detail: this.translate.instant('error_occurred'),
+        life: 4000
       });
+      setTimeout(() => {
+        this.lockPinInput = '';
+        this.lockPinError = false;
+      }, 1500);
     }
   }
 
@@ -2121,8 +3148,14 @@ export class PosComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     try {
+      // Validate shopId for admins before starting session
+      if (this.isAdmin && !this.validateShopIdForAdmin()) {
+        this.loading = false;
+        return;
+      }
+
       const started$ = await this.posService.startSession(
-        this.shopId,
+        this.getShopIdForApi(),
         this.sessionCashRegisterId || undefined
       );
       const newSession = await firstValueFrom(started$);
@@ -2140,6 +3173,7 @@ export class PosComponent implements OnInit, OnDestroy {
           const cart$ = await this.posService.createCart(this.session.sessionId);
           this.cart = this.normalizeCartItems(await firstValueFrom(cart$));
           this.selectedCustomer = { customerId: null, fullName: 'Walk-in Customer' };
+          this.updateAvailablePaymentMethods();
         } catch (cartError) {
           console.error('Error creating cart:', cartError);
           // Session is open but cart creation failed, that's okay
@@ -2170,8 +3204,14 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
-  showCloseSessionDialog() {
+  async showCloseSessionDialog() {
+    console.log('showCloseSessionDialog called');
+    console.log('Session:', this.session);
+    console.log('Cart:', this.cart);
+    console.log('IsLocked:', this.isLocked);
+    
     if (!this.session) {
+      console.warn('No active session to close');
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
@@ -2181,17 +3221,78 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Check if there are active carts with items
-    if (this.cart && this.cart.items && this.cart.items.length > 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('cannot_close_session_with_active_cart'),
-        life: 4000
-      });
-      return;
+    // Refresh cart state from backend before checking
+    try {
+      const activeCart$ = await this.posService.getActiveCart(this.session.sessionId);
+      const freshCart = await firstValueFrom(activeCart$);
+      this.cart = freshCart ? this.normalizeCartItems(freshCart) : null;
+      
+      // Check if there are active carts with items
+      if (this.cart && this.cart.items && this.cart.items.length > 0) {
+        console.warn('Cannot close session with active cart items:', this.cart.items.length);
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('cannot_close_session_with_active_cart'),
+          life: 4000
+        });
+        return;
+      }
+    } catch (error: any) {
+      console.error('Error refreshing cart state:', error);
+      // If we can't get the cart, check local state as fallback
+      if (this.cart && this.cart.items && this.cart.items.length > 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('cannot_close_session_with_active_cart'),
+          life: 4000
+        });
+        return;
+      }
     }
     
+    // Check for hold/pending carts before allowing session closure
+    if (this.shopId) {
+      try {
+        this.loading = true;
+        const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
+        const holdCarts = await firstValueFrom(holds$);
+        const activeHoldCarts = Array.isArray(holdCarts) ? holdCarts.filter(cart => 
+          cart && cart.items && cart.items.length > 0
+        ) : [];
+        
+        if (activeHoldCarts.length > 0) {
+          console.warn('Cannot close session with hold carts:', activeHoldCarts.length);
+          this.loading = false;
+          const holdCartsCount = activeHoldCarts.length;
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('cannot_close_session_with_hold_carts', { count: holdCartsCount }),
+            life: 8000
+          });
+          // Open hold carts dialog so user can manage them
+          this.holdCarts = activeHoldCarts.map(cart => this.normalizeCartItems(cart));
+          this.holdCartsDialog = true;
+          return;
+        }
+      } catch (error: any) {
+        console.error('Error checking hold carts:', error);
+        // Don't block session closure if we can't check hold carts
+        // But log the error for debugging
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_checking_hold_carts'),
+          life: 3000
+        });
+      } finally {
+        this.loading = false;
+      }
+    }
+    
+    console.log('Opening close session dialog');
     this.closingSessionNotes = '';
     this.closeSessionDialog = true;
   }
@@ -2207,16 +3308,85 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Final check for active carts
-    if (this.cart && this.cart.items && this.cart.items.length > 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('cannot_close_session_with_active_cart'),
-        life: 4000
-      });
-      this.closeSessionDialog = false;
-      return;
+    // Refresh cart state from backend before closing to ensure we have latest state
+    try {
+      const activeCart$ = await this.posService.getActiveCart(this.session.sessionId);
+      const freshCart = await firstValueFrom(activeCart$);
+      this.cart = freshCart ? this.normalizeCartItems(freshCart) : null;
+      
+      // Check if there are active carts with items
+      if (this.cart && this.cart.items && this.cart.items.length > 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('cannot_close_session_with_active_cart'),
+          life: 4000
+        });
+        this.closeSessionDialog = false;
+        return;
+      }
+      
+      // If there's an active cart (even if empty), cancel it before closing session
+      if (this.cart && this.cart.cartId) {
+        console.log('Canceling empty active cart before closing session:', this.cart.cartId);
+        try {
+          await firstValueFrom(await this.posService.cancelCart(this.cart.cartId));
+          this.cart = null;
+          console.log('Active cart canceled successfully');
+        } catch (cancelError: any) {
+          console.error('Error canceling empty cart:', cancelError);
+          // If cancel fails, still try to proceed - backend will handle it
+        }
+      }
+    } catch (error: any) {
+      console.error('Error refreshing cart state before closing:', error);
+      // If we can't get the cart, check local state as fallback
+      if (this.cart && this.cart.items && this.cart.items.length > 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('cannot_close_session_with_active_cart'),
+          life: 4000
+        });
+        this.closeSessionDialog = false;
+        return;
+      }
+    }
+
+    // Final check for hold/pending carts before closing
+    if (this.shopId) {
+      try {
+        const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
+        const holdCarts = await firstValueFrom(holds$);
+        const activeHoldCarts = Array.isArray(holdCarts) ? holdCarts.filter(cart => 
+          cart && cart.items && cart.items.length > 0
+        ) : [];
+        
+        if (activeHoldCarts.length > 0) {
+          const holdCartsCount = activeHoldCarts.length;
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('cannot_close_session_with_hold_carts', { count: holdCartsCount }),
+            life: 8000
+          });
+          this.closeSessionDialog = false;
+          // Open hold carts dialog so user can manage them
+          this.holdCarts = activeHoldCarts.map(cart => this.normalizeCartItems(cart));
+          this.holdCartsDialog = true;
+          return;
+        }
+      } catch (error: any) {
+        console.error('Error checking hold carts before closing:', error);
+        // Don't block session closure if we can't check hold carts
+        // But show a warning
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_checking_hold_carts'),
+          life: 3000
+        });
+      }
     }
 
     this.loading = true;
@@ -2228,17 +3398,14 @@ export class PosComponent implements OnInit, OnDestroy {
       this.closeSessionDialog = false;
       this.closingSessionNotes = '';
       
-      // Refresh session state from server to confirm it's closed
-      await this.refreshSessionState();
+      // Clear session state immediately since we know it's closed
+      this.session = null;
+      this.cart = null;
+      this.posStorage.saveCart(null);
+      this.saveToLocalStorage();
       
-      // Double-check that session is actually closed
-      if (this.session && this.session.sessionId === sessionId) {
-        // Session still exists, force clear it
-        console.warn('Session still exists after close, forcing clear');
-        this.session = null;
-        this.cart = null;
-        this.saveToLocalStorage();
-      }
+      // Refresh session state from server to confirm (handles 404 gracefully)
+      await this.refreshSessionState();
       
       this.messageService.add({
         severity: 'success',
@@ -2410,9 +3577,193 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
-  onCustomerSelect(customer: any) {
+  onCustomerSelect(event: any) {
+    // PrimeNG AutoComplete emits { originalEvent, value }
+    const customer = event?.value ?? event;
     this.selectedCustomer = customer;
-    this.onCustomerChange(customer.customerId);
+    // Update available payment methods based on customer
+    this.updateAvailablePaymentMethods();
+    this.onCustomerChange(customer?.customerId ?? null);
+    // Load credit info if customer is selected and not walk-in
+    if (customer?.customerId && !this.isWalkInCustomer(customer)) {
+      this.loadCreditInfo(customer.customerId);
+    } else {
+      // Clear credit info for walk-in customers
+      this.creditInfo = null;
+    }
+  }
+
+  // Load credit information for a customer
+  async loadCreditInfo(customerId: number) {
+    if (!customerId) {
+      this.creditInfo = null;
+      this.outstandingBalance = 0;
+      this.overdueBalance = 0;
+      this.netBalance = 0;
+      this.availableCreditLimit = 0;
+      return;
+    }
+    
+    this.creditInfoLoading = true;
+    try {
+      this.customerCreditService.loadToken();
+      const creditInfo$ = await this.customerCreditService.getCreditInfo(customerId);
+      const info = await firstValueFrom(creditInfo$);
+      this.creditInfo = info;
+
+      // Sanitize values to handle invalid/unlimited values
+      this.outstandingBalance = this.sanitizeValue(info.outstandingBalance);
+      this.overdueBalance = this.sanitizeValue(info.overdueBalance);
+      this.netBalance = this.sanitizeValue(info.netBalance);
+      this.availableCreditLimit = this.sanitizeValue(info.availableCreditLimit);
+
+      // Fallback: some backends return availableCredit but not availableCreditLimit
+      const fallbackAvailableCredit = this.sanitizeValue(info.availableCredit);
+      if ((this.availableCreditLimit === 0 || this.availableCreditLimit === undefined) && fallbackAvailableCredit !== 0) {
+        this.availableCreditLimit = fallbackAvailableCredit;
+      }
+
+      // Store original availableCreditLimit for unlimited check
+      this.creditInfo.availableCreditLimit = info.availableCreditLimit;
+    } catch (error: any) {
+      console.error('Error loading credit info:', error);
+      // If customer doesn't have credit account, set to null (not an error)
+      if (error?.status !== 404) {
+        // Only log/show error if it's not a "not found" error
+        console.warn('Could not load credit info for customer:', customerId);
+      }
+      this.creditInfo = null;
+      this.outstandingBalance = 0;
+      this.overdueBalance = 0;
+      this.netBalance = 0;
+      this.availableCreditLimit = 0;
+    } finally {
+      this.creditInfoLoading = false;
+    }
+  }
+
+  // Check if Credit payment method is available
+  isCreditAvailable(): boolean {
+    return !!(this.selectedCustomer?.customerId && !this.isWalkInCustomer(this.selectedCustomer));
+  }
+
+  // Check if current payment uses Credit method (cached to avoid repeated iterations)
+  private _isCreditPaymentCache: boolean | null = null;
+  private _lastPaymentMethodsHash: string = '';
+  
+  isCreditPayment(): boolean {
+    // Create a simple hash of payment methods to detect changes
+    const currentHash = this.checkoutPayments.map(p => p.method).join(',');
+    
+    // Only recalculate if payment methods changed
+    if (currentHash !== this._lastPaymentMethodsHash) {
+      this._isCreditPaymentCache = this.checkoutPayments.some(p => p.method === 'Credit');
+      this._lastPaymentMethodsHash = currentHash;
+    }
+    
+    return this._isCreditPaymentCache || false;
+  }
+
+  // Validate credit limit before checkout
+  validateCreditLimit(): { valid: boolean; error?: string } {
+    if (!this.isCreditPayment() || !this.creditInfo) {
+      return { valid: true };
+    }
+
+    const orderAmount = this.cart?.totalAmount || 0;
+    if (this.isUnlimitedCreditLimit()) {
+      return { valid: true };
+    }
+    const availableCredit = this.availableCreditLimit || 0;
+
+    if (orderAmount > availableCredit) {
+      const creditLimit = this.creditInfo.creditLimit || 0;
+      const outstandingBalance = this.outstandingBalance || 0;
+      
+      return {
+        valid: false,
+        error: this.translate.instant('credit_limit_exceeded_message', {
+          limit: creditLimit.toFixed(2),
+          outstanding: outstandingBalance.toFixed(2),
+          available: availableCredit.toFixed(2),
+          amount: orderAmount.toFixed(2)
+        })
+      };
+    }
+
+    return { valid: true };
+  }
+
+  // Helper method to sanitize invalid values (returns 0 for invalid, or -1 for unlimited)
+  private sanitizeValue(value: any): number {
+    // 0 is a valid value
+    if (value === 0) {
+      return 0;
+    }
+
+    if (value === undefined || value === null) {
+      return 0;
+    }
+
+    const valueStr = String(value).toUpperCase();
+
+    // Check for scientific notation with large exponent (represents unlimited)
+    if (valueStr.includes('E+')) {
+      const match = valueStr.match(/E\+(\d+)/);
+      if (match && parseInt(match[1]) >= 15) {
+        return -1; // Use -1 to represent unlimited
+      }
+    }
+
+    // Convert to number if it's a string
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+
+    // Check if it's 0 after parsing
+    if (numValue === 0) {
+      return 0;
+    }
+
+    const absValue = Math.abs(numValue);
+
+    // Check for invalid values (Infinity, NaN, or extremely large)
+    if (!isFinite(numValue) || isNaN(numValue) ||
+        absValue > 1e15 ||
+        absValue >= Number.MAX_VALUE * 0.9) {
+      return -1; // Use -1 to represent unlimited
+    }
+
+    return numValue;
+  }
+
+  // Check if available credit limit is unlimited
+  isUnlimitedCreditLimit(): boolean {
+    return this.availableCreditLimit === -1 ||
+           (this.creditInfo && this.isInvalidValue(this.creditInfo.availableCreditLimit));
+  }
+
+  // Helper method to check if a value is invalid (for unlimited detection)
+  private isInvalidValue(value: any): boolean {
+    if (value === 0 || value === undefined || value === null) {
+      return false;
+    }
+
+    const valueStr = String(value).toUpperCase();
+    if (valueStr.includes('E+')) {
+      const match = valueStr.match(/E\+(\d+)/);
+      if (match && parseInt(match[1]) >= 15) {
+        return true;
+      }
+    }
+
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (numValue === 0) {
+      return false;
+    }
+
+    const absValue = Math.abs(numValue);
+    return !isFinite(numValue) || isNaN(numValue) ||
+           absValue > 1e15 ||
+           absValue >= Number.MAX_VALUE * 0.9;
   }
 
   addToCart(product: any) {

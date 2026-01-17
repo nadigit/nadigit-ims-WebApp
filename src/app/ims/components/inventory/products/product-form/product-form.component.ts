@@ -48,10 +48,16 @@ export class ProductFormComponent implements OnInit, OnChanges {
   existingImageFile: any = null;
 
   measureUnits: any[] = [];
+  measureUnitsForCurrentType: any[] = []; // Cached measure units for current product type
   attributeTypes: any[] = [];
   costingMethods: any[] = [];
   effectiveCostingMethodLabel = '';
   isCostingMethodNone: boolean = false;
+  productTypeOptions: any[] = [];
+
+  // Expiration date
+  hasExpirationDate: boolean = false;
+  expirationDateValue: Date | null = null;
 
   localProduct: Product = {};
 
@@ -66,9 +72,21 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.loadRecentImages();
-    if (this.product) {
+    if (this.product && Object.keys(this.product).length > 0) {
       this.localProduct = { ...this.product };
+      // Ensure productType is set
+      if (!this.localProduct.productType) {
+        this.localProduct.productType = 'PRODUCT';
+      }
+      this.updateMeasureUnitsForType();
       this.updateEffectiveCostingMethodLabel();
+    } else if (!this.localProduct || Object.keys(this.localProduct).length === 0) {
+      // Initialize with defaults if no product provided
+      this.localProduct = {
+        productType: 'PRODUCT',
+        quantityAvailable: 0
+      };
+      this.updateMeasureUnitsForType();
     }
   }
 
@@ -95,6 +113,14 @@ export class ProductFormComponent implements OnInit, OnChanges {
     if (this.product && Object.keys(this.product).length > 0) {
       // Deep copy to ensure we have a fresh object with all properties
       this.localProduct = { ...this.product };
+      
+      // Set default productType if not set
+      if (!this.localProduct.productType) {
+        this.localProduct.productType = 'PRODUCT';
+      }
+      
+      // Update measure units for the current product type
+      this.updateMeasureUnitsForType();
       
       // Preserve productId when editing
       if (this.product.productId) {
@@ -130,6 +156,19 @@ export class ProductFormComponent implements OnInit, OnChanges {
         this.localProduct.standardCost = this.product.standardCost;
       }
       
+      // Initialize expiration date
+      if (this.product.expirationDate) {
+        this.hasExpirationDate = true;
+        this.expirationDateValue = this.product.expirationDate instanceof Date 
+          ? this.product.expirationDate 
+          : new Date(this.product.expirationDate);
+        this.localProduct.expirationDate = this.product.expirationDate;
+      } else {
+        this.hasExpirationDate = false;
+        this.expirationDateValue = null;
+        this.localProduct.expirationDate = null;
+      }
+      
       this.updateEffectiveCostingMethodLabel();
       
       // Reset image preview when loading existing product with image
@@ -142,19 +181,45 @@ export class ProductFormComponent implements OnInit, OnChanges {
         this.localProduct.productImage = this.product.productImage;
       }
     } else {
-      this.localProduct = {};
+      this.localProduct = {
+        productType: 'PRODUCT', // Default to PRODUCT
+        quantityAvailable: 0 // Default quantity for products
+      };
+      // Initialize expiration date fields
+      this.hasExpirationDate = false;
+      this.expirationDateValue = null;
+      this.localProduct.expirationDate = null;
+      // Update measure units for the default product type
+      this.updateMeasureUnitsForType();
     }
   }
 
   private initializeOptions(): void {
-    this.measureUnits = [
-      { value: 'UNIT', label: this.translate.instant('UNIT') },
-      { value: 'KG', label: this.translate.instant('KG') },
-      { value: 'LITER', label: this.translate.instant('LITER') },
-      { value: 'PIECE', label: this.translate.instant('PIECE') },
-      { value: 'BOX', label: this.translate.instant('BOX') },
-      { value: 'METER', label: this.translate.instant('METER') }
+    this.productTypeOptions = [
+      { label: this.translate.instant('product_type_product'), value: 'PRODUCT' },
+      { label: this.translate.instant('product_type_service'), value: 'SERVICE' }
     ];
+    
+    this.measureUnits = [
+      { value: MeasureUnit.UNIT, label: this.translate.instant('UNIT') },
+      { value: MeasureUnit.KG, label: this.translate.instant('KG') },
+      { value: MeasureUnit.LITER, label: this.translate.instant('LITER') },
+      { value: MeasureUnit.PIECE, label: this.translate.instant('PIECE') },
+      { value: MeasureUnit.BOX, label: this.translate.instant('BOX') },
+      { value: MeasureUnit.METER, label: this.translate.instant('METER') },
+      // Service-specific units
+      { value: MeasureUnit.HOUR, label: this.translate.instant('HOUR') },
+      { value: MeasureUnit.SESSION, label: this.translate.instant('SESSION') },
+      { value: MeasureUnit.DAY, label: this.translate.instant('DAY') },
+      { value: MeasureUnit.MONTH, label: this.translate.instant('MONTH') },
+      { value: MeasureUnit.YEAR, label: this.translate.instant('YEAR') },
+      { value: MeasureUnit.SERVICE_UNIT, label: this.translate.instant('SERVICE_UNIT') }
+    ];
+    
+    // Initialize measure units for current type (default to product units)
+    // This will be updated when product is initialized or type changes
+    this.updateMeasureUnitsForType();
+    
     this.attributeTypes = [
       { label: this.translate.instant('String'), value: 'STRING' },
       { label: this.translate.instant('Integer'), value: 'INTEGER' },
@@ -168,6 +233,64 @@ export class ProductFormComponent implements OnInit, OnChanges {
       { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
       { label: this.translate.instant('costing_method_none'), value: 'NONE' }
     ];
+  }
+
+  // Helper methods for product type
+  isService(): boolean {
+    return this.localProduct.productType === 'SERVICE';
+  }
+
+  isProduct(): boolean {
+    return !this.localProduct.productType || this.localProduct.productType === 'PRODUCT';
+  }
+
+  onProductTypeChange(): void {
+    // When switching to SERVICE, clear product-specific fields
+    if (this.isService()) {
+      this.localProduct.warehouse = null;
+      this.localProduct.quantityAvailable = null;
+      this.localProduct.inventoryStatus = null;
+      // Set default measure unit for services if not set
+      if (!this.localProduct.measureUnit) {
+        this.localProduct.measureUnit = MeasureUnit.SERVICE_UNIT;
+      }
+    } else {
+      // When switching to PRODUCT, clear service-specific fields
+      this.localProduct.serviceProvider = null;
+      this.localProduct.estimatedDurationMinutes = null;
+      this.localProduct.serviceCategory = null;
+      // Set default measure unit for products if not set
+      if (!this.localProduct.measureUnit) {
+        this.localProduct.measureUnit = MeasureUnit.UNIT;
+      }
+      // Set default quantity for products
+      if (this.localProduct.quantityAvailable === null || this.localProduct.quantityAvailable === undefined) {
+        this.localProduct.quantityAvailable = 0;
+      }
+    }
+    
+    // Update cached measure units for current type
+    this.updateMeasureUnitsForType();
+  }
+
+  private updateMeasureUnitsForType(): void {
+    // Safety check: if localProduct is not initialized, default to product units
+    if (!this.localProduct || !this.localProduct.productType) {
+      this.measureUnitsForCurrentType = this.measureUnits.filter(u => 
+        ![MeasureUnit.HOUR, MeasureUnit.SESSION, MeasureUnit.DAY, MeasureUnit.MONTH, MeasureUnit.YEAR, MeasureUnit.SERVICE_UNIT].includes(u.value)
+      );
+      return;
+    }
+    
+    if (this.localProduct.productType === 'SERVICE') {
+      this.measureUnitsForCurrentType = this.measureUnits.filter(u => 
+        [MeasureUnit.HOUR, MeasureUnit.SESSION, MeasureUnit.DAY, MeasureUnit.MONTH, MeasureUnit.YEAR, MeasureUnit.SERVICE_UNIT].includes(u.value)
+      );
+    } else {
+      this.measureUnitsForCurrentType = this.measureUnits.filter(u => 
+        ![MeasureUnit.HOUR, MeasureUnit.SESSION, MeasureUnit.DAY, MeasureUnit.MONTH, MeasureUnit.YEAR, MeasureUnit.SERVICE_UNIT].includes(u.value)
+      );
+    }
   }
 
   private loadRecentImages(): void {
@@ -338,16 +461,28 @@ export class ProductFormComponent implements OnInit, OnChanges {
     this.warehouseAdd.emit();
   }
 
+  onExpirationDateToggle(): void {
+    if (!this.hasExpirationDate) {
+      // Clear expiration date when checkbox is unchecked
+      this.expirationDateValue = null;
+      this.localProduct.expirationDate = null;
+    }
+  }
+
   async saveProduct(): Promise<void> {
     this.submitted = true;
 
+    // Ensure productType is set
+    if (!this.localProduct.productType) {
+      this.localProduct.productType = 'PRODUCT';
+    }
+
+    // Common validations
     if (
       !this.localProduct.name ||
       !this.localProduct.reference ||
-      !this.localProduct.buyingPrice ||
       !this.localProduct.sellingPrice ||
-      !this.localProduct.category ||
-      !this.localProduct.supplier
+      !this.localProduct.category
     ) {
       this.messageService.add({
         severity: 'error',
@@ -358,14 +493,69 @@ export class ProductFormComponent implements OnInit, OnChanges {
       return;
     }
 
-    if (this.isAdmin && !this.localProduct.warehouse) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('warehouse_required'),
-        life: 3000,
-      });
-      return;
+    // Type-specific validations
+    if (this.isProduct()) {
+      // Products require buyingPrice, supplier, and warehouse (if admin)
+      if (!this.localProduct.buyingPrice || this.localProduct.buyingPrice <= 0) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('product_buying_price') + ' ' + this.translate.instant('is_required_label'),
+          life: 3000,
+        });
+        return;
+      }
+
+      if (!this.localProduct.supplier) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('product_supplier') + ' ' + this.translate.instant('is_required_label'),
+          life: 3000,
+        });
+        return;
+      }
+
+      if (this.isAdmin && !this.localProduct.warehouse) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('warehouse_required'),
+          life: 3000,
+        });
+        return;
+      }
+
+      // Ensure quantity is set for products (default to 0)
+      if (this.localProduct.quantityAvailable === null || this.localProduct.quantityAvailable === undefined) {
+        this.localProduct.quantityAvailable = 0;
+      }
+    } else if (this.isService()) {
+      // Services cannot have warehouse or quantity
+      if (this.localProduct.warehouse) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('services_cannot_have_warehouse'),
+          life: 3000,
+        });
+        return;
+      }
+
+      if (this.localProduct.quantityAvailable !== null && this.localProduct.quantityAvailable !== undefined) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('services_cannot_have_quantity'),
+          life: 3000,
+        });
+        return;
+      }
+
+      // Clear service-incompatible fields
+      this.localProduct.warehouse = null;
+      this.localProduct.quantityAvailable = null;
+      this.localProduct.inventoryStatus = null;
     }
 
     // Check for duplicate product
@@ -432,6 +622,33 @@ export class ProductFormComponent implements OnInit, OnChanges {
       });
     }
 
+    // Handle expiration date
+    if (this.hasExpirationDate && this.expirationDateValue) {
+      // Convert Date to ISO string format (YYYY-MM-DD)
+      if (this.expirationDateValue instanceof Date) {
+        this.localProduct.expirationDate = this.expirationDateValue.toISOString().split('T')[0];
+      } else {
+        this.localProduct.expirationDate = this.expirationDateValue;
+      }
+    } else {
+      // Clear expiration date if checkbox is unchecked
+      this.localProduct.expirationDate = null;
+    }
+
+    // Clean up fields based on product type before saving
+    if (this.isService()) {
+      // Services: remove product-specific fields including expiration date
+      this.localProduct.warehouse = null;
+      this.localProduct.quantityAvailable = null;
+      this.localProduct.inventoryStatus = null;
+      this.localProduct.expirationDate = null; // Services don't expire
+    } else {
+      // Products: remove service-specific fields
+      this.localProduct.serviceProvider = null;
+      this.localProduct.estimatedDurationMinutes = null;
+      this.localProduct.serviceCategory = null;
+    }
+
     // For updates, merge original product data with local changes to ensure all fields are preserved
     let productToSave: any;
     if (this.localProduct.productId && this.product?.productId) {
@@ -447,10 +664,15 @@ export class ProductFormComponent implements OnInit, OnChanges {
         warehouse: this.localProduct.warehouse || this.product.warehouse,
         // Ensure attributes are from localProduct (already cleaned)
         attributes: this.localProduct.attributes || this.product.attributes,
+        // Ensure productType is set
+        productType: this.localProduct.productType || 'PRODUCT',
       };
     } else {
       // For new products, use localProduct as-is
-      productToSave = { ...this.localProduct };
+      productToSave = { 
+        ...this.localProduct,
+        productType: this.localProduct.productType || 'PRODUCT'
+      };
     }
 
     // Ensure productId is a number for updates

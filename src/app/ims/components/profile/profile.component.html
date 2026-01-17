@@ -45,6 +45,51 @@
                                         <p-button label="{{'user_change_password' | translate}}" [outlined]="true"
                                             (click)="openChangePassword()"></p-button>
                                     </div>
+                                </li>
+                                <li class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap">
+                                    <div class="text-500 w-6 md:w-2 font-medium">{{'user_pos_pin' | translate}}</div>
+                                    <div class="text-900 w-full md:w-8 md:flex-order-0 flex-order-1">
+                                        <ng-container *ngIf="!isEditingPosPin">
+                                            {{ posPin ? '****' : ('not_set' | translate) }}
+                                        </ng-container>
+                                        <ng-container *ngIf="isEditingPosPin">
+                                            <input 
+                                                type="password" 
+                                                pInputText 
+                                                [(ngModel)]="posPin"
+                                                [placeholder]="'user_pos_pin_placeholder' | translate"
+                                                maxlength="6"
+                                                (input)="onPosPinInput($event)"
+                                                class="form-control" />
+                                            <small class="text-500">{{'user_pos_pin_hint' | translate}}</small>
+                                        </ng-container>
+                                    </div>
+                                    <div class="w-6 md:w-2 flex justify-content-end gap-2">
+                                        <p-button 
+                                            *ngIf="!isEditingPosPin"
+                                            (click)="togglePosPinEdit()"
+                                            icon="pi pi-pencil" 
+                                            [rounded]="true"
+                                            [outlined]="true"
+                                            pTooltip="{{'edit' | translate}}"></p-button>
+                                        <p-button 
+                                            *ngIf="isEditingPosPin"
+                                            (click)="togglePosPinEdit()"
+                                            icon="pi pi-check" 
+                                            [rounded]="true"
+                                            [outlined]="true"
+                                            styleClass="p-button-success"
+                                            pTooltip="{{'save_button' | translate}}"></p-button>
+                                        <p-button 
+                                            *ngIf="isEditingPosPin"
+                                            (click)="cancelPosPinEdit()"
+                                            icon="pi pi-times" 
+                                            [rounded]="true"
+                                            [outlined]="true"
+                                            styleClass="p-button-text"
+                                            pTooltip="{{'cancel' | translate}}"></p-button>
+                                    </div>
+                                </li>
 
                                     <div class="card flex justify-content-center" *ngIf="changePasswordForm">
                                         <p-dialog header="Header" [(visible)]="changePasswordForm" [modal]="true" [style]="{ width: '35rem' }"
@@ -88,7 +133,7 @@
                                                 </p-button>
                                             </ng-template>
                                         </p-dialog>
-                                    </div>                                </li>
+                                    </div>
                                 <li class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-wrap"
                                     *ngIf="user">
                                     <div class="text-500 w-6 md:w-2 font-medium">{{'user_role' | translate}}</div>
@@ -112,7 +157,7 @@
                                     </div>
                                     <div class="w-6 md:w-2 flex justify-content-end">
                                         <p-button (click)="changeLanguage()"
-                                            icon="pi pi-{{languageEdit ? 'check' : 'pencil'}}" [rounded]="true"
+                                            [icon]="'pi pi-' + (languageEdit ? 'check' : 'pencil')" [rounded]="true"
                                             [outlined]="true"></p-button>
                                     </div>
                                 </li>

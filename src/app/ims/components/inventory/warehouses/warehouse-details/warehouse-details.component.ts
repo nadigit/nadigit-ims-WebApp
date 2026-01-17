@@ -17,6 +17,8 @@ import { ReportingService } from 'src/app/utils/reporting.service';
 import { LocationService } from 'src/app/services/location.service';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
+import { InventoryWriteOff } from 'src/app/models/write-off';
+import { WriteOffService } from 'src/app/services/write-off.service';
 
 @Component({
   templateUrl: './warehouse-details.component.html',
@@ -69,6 +71,10 @@ export class WarehouseDetailsComponent implements OnInit {
   deleteWarehouseDialog: boolean = false;
   costingMethods: any[] = [];
 
+  // Write-Offs Management
+  writeOffs: InventoryWriteOff[] = [];
+  writeOffsLoading: boolean = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -84,6 +90,7 @@ export class WarehouseDetailsComponent implements OnInit {
     private categoryService: CategoryService,
     private supplierService: SupplierService,
     private reportingService: ReportingService,
+    private writeOffService: WriteOffService
   ) {
     this.costingMethods = [
       { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
@@ -124,6 +131,7 @@ export class WarehouseDetailsComponent implements OnInit {
         await this.loadWarehouse();
         if (this.warehouse) {
           await this.loadWarehouseDetails();
+          await this.loadWriteOffs(); // Load write-offs for warehouse
           this.lowStockThreshold = await this.getLowStockThreshold();
           // Load form data when needed
           await this.onGetAllCategories();
@@ -658,6 +666,154 @@ export class WarehouseDetailsComponent implements OnInit {
 
   hideProductDialog(): void {
     this.productDialog = false;
+  }
+
+  // ==================== WRITE-OFFS MANAGEMENT ====================
+
+  async loadWriteOffs(): Promise<void> {
+    if (!this.warehouseId) return;
+
+    this.writeOffsLoading = true;
+    try {
+      this.writeOffService.loadToken();
+      const response: any = await firstValueFrom(await this.writeOffService.getWriteOffsByWarehouse(this.warehouseId));
+      
+      if (Array.isArray(response)) {
+        this.writeOffs = response.map((writeOff: any) => ({
+          ...writeOff,
+          // Handle flat format from backend (productId, warehouseId, productName, warehouseName)
+          product: writeOff.product || (writeOff.productId ? {
+            productId: writeOff.productId,
+            name: writeOff.productName,
+            reference: writeOff.productReference
+          } : null),
+          warehouse: writeOff.warehouse || (writeOff.warehouseId ? {
+            warehouseId: writeOff.warehouseId,
+            name: writeOff.warehouseName
+          } : null),
+          writeOffDate: writeOff.writeOffDate ? new Date(writeOff.writeOffDate) : null,
+          approvedDate: writeOff.approvedDate ? new Date(writeOff.approvedDate) : null,
+          rejectedDate: writeOff.rejectedDate ? new Date(writeOff.rejectedDate) : null,
+          creationDate: writeOff.creationDate ? new Date(writeOff.creationDate) : null
+        }));
+      } else {
+        this.writeOffs = [];
+      }
+
+      // Sort write-offs by date (most recent first)
+      this.writeOffs.sort((a, b) => {
+        const dateA = a.writeOffDate ? new Date(a.writeOffDate).getTime() : 0;
+        const dateB = b.writeOffDate ? new Date(b.writeOffDate).getTime() : 0;
+        return dateB - dateA;
+      });
+    } catch (error: any) {
+      console.error('Error loading write-offs:', error);
+      // Don't show error if write-offs endpoint doesn't exist yet (404), just set empty array
+      if (error?.status !== 404) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_loading_write_offs') || 'Could not load write-offs',
+          life: 3000
+        });
+      }
+      this.writeOffs = [];
+    } finally {
+      this.writeOffsLoading = false;
+    }
+  }
+
+  getWriteOffStatusSeverity(status: string | undefined): string {
+    if (!status) return '';
+    const s = status.toUpperCase();
+    if (s === 'PENDING') return 'warning';
+    if (s === 'APPROVED') return 'success';
+    if (s === 'REJECTED') return 'danger';
+    return '';
+  }
+
+  getWriteOffConditionSeverity(condition: string | undefined): string {
+    if (!condition) return '';
+    const c = condition.toUpperCase();
+    if (c === 'DAMAGED' || c === 'UNUSABLE') return 'danger';
+    if (c === 'LOST') return 'warn';
+    if (c === 'EXPIRED') return 'info';
+    return '';
+  }
+
+  getWriteOffConditionLabel(condition: string | undefined): string {
+    if (!condition) return 'N/A';
+    const key = `item_condition_${condition.toLowerCase()}`;
+    return this.translate.instant(key) || condition;
+  }
+
+  getWriteOffSourceTypeLabel(sourceType: string | undefined): string {
+    if (!sourceType) return 'N/A';
+    const key = `write_off_source_type_${sourceType.toLowerCase().replace(/_/g, '_')}`;
+    return this.translate.instant(key) || sourceType;
+  }
+
+  formatWriteOffDate(date: Date | string | null | undefined): string {
+    if (!date) return '-';
+    try {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return d.toLocaleDateString();
+    } catch {
+      return String(date);
+    }
+  }
+
+  formatWriteOffCurrency(amount: number | null | undefined): string {
+    if (amount == null || amount === undefined || isNaN(amount)) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: this.currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+
+  getTotalWriteOffQuantity(): number {
+    return this.writeOffs.reduce((sum, wo) => sum + (wo.quantity || 0), 0);
+  }
+
+  getTotalWriteOffCost(): number {
+    return this.writeOffs.reduce((sum, wo) => sum + (wo.writeOffCost || 0), 0);
+  }
+
+  viewWriteOffDetails(writeOff: InventoryWriteOff) {
+    if (!writeOff.writeOffId) return;
+    this.router.navigate(['/inventory/write-offs', writeOff.writeOffId]);
+  }
+
+  getWriteOffReasonLabel(reason: string | undefined): string {
+    if (!reason) return '-';
+    // Check if reason is a predefined value (uppercase) that needs translation
+    const upperReason = reason.toUpperCase().trim();
+    const translationKey = `write_off_reason_${upperReason.toLowerCase()}`;
+    const translated = this.translate.instant(translationKey);
+    
+    // If translation exists and is different from the key, use it
+    if (translated && translated !== translationKey) {
+      return translated;
+    }
+    
+    // If it's a predefined reason value, try common reason translations
+    if (upperReason === 'DEFECTIVE') {
+      return this.translate.instant('return_reason_defective') || reason;
+    }
+    if (upperReason === 'INCORRECT_ITEM') {
+      return this.translate.instant('return_reason_incorrect_item') || reason;
+    }
+    if (upperReason === 'CHANGE_OF_MIND') {
+      return this.translate.instant('return_reason_change_of_mind') || reason;
+    }
+    if (upperReason === 'OTHER') {
+      return this.translate.instant('return_reason_other') || reason;
+    }
+    
+    // For custom reasons, return as-is
+    return reason;
   }
 }
 

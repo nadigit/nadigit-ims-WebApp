@@ -1,57 +1,63 @@
 <div class="grid">
     <div class="col-12">
+        <!-- Users & Permissions Management Section - Above Card (matching dashboard style) -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'users_menu_title' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'users_roles_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
         <div class="card px-6 py-6">
-            <h5>{{ 'users_menu_title' | translate }}</h5>
-            <!-- <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-                <div class="flex align-items-center mb-3">
-                    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-                    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
-                </div>
-                <p class="m-0 text-600">
-                    {{ 'users_roles_page_description' | translate }}
-                </p>
-                <div class="flex mt-3 gap-2">
-                    <p-tag *ngIf="canAddExpense" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
-                    <p-tag *ngIf="canEditExpense" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
-                    <p-tag *ngIf="canDeleteExpense" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
-                    <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
-                </div>
-            </div> -->
             <p-tabMenu [model]="menuItems" [activeItem]="activeItem" (activeItemChange)="onActiveItemChange($event)" />
             <br>
             <p-toast></p-toast>
-            <p-toolbar styleClass="mb-4">
-                <ng-template pTemplate="left">
-                    <div class="my-2">
-                        <!-- Conditionally render buttons based on the active tab -->
-                        <ng-container *ngIf="activeItem?.icon == 'pi pi-fw pi-user'; else rolesTab">
-                            <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
-                                class="p-button-success mr-2" (click)="openNew()"
-                                pTooltip="{{'add_new_user'|translate}}"></button>
-                            <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
-                                pTooltip="{{'delete_user'|translate}}" class="p-button-danger"
-                                (click)="deleteSelected()"
-                                [disabled]="!selectedUsers || !selectedUsers.length"></button>
-                        </ng-container>
-                        <ng-template #rolesTab>
-                            <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
-                                class="p-button-success mr-2" (click)="openNew()"
-                                pTooltip="{{'add_new_role'|translate}}"></button>
-                            <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
-                                class="p-button-danger" (click)="deleteSelected()"
-                                pTooltip="{{'delete_role'|translate}}"
-                                [disabled]="!selectedRoles || !selectedRoles.length"></button>
-                        </ng-template>
-                    </div>
-                </ng-template>
 
-                <ng-template pTemplate="right">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+            <!-- Action Buttons -->
+            <div class="flex justify-content-end align-items-center mb-4">
+                <div class="flex align-items-center gap-2">
+                    <!-- Conditionally render buttons based on the active tab -->
+                    <ng-container *ngIf="activeItem?.icon == 'pi pi-fw pi-user'; else rolesTab">
+                        <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+                            class="p-button-success" (click)="openNew()"
+                            pTooltip="{{'add_new_user'|translate}}"></button>
+                        <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+                            pTooltip="{{'delete_user'|translate}}" class="p-button-danger"
+                            (click)="deleteSelected()"
+                            [disabled]="!selectedUsers || !selectedUsers.length"></button>
+                    </ng-container>
+                    <ng-template #rolesTab>
+                        <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+                            class="p-button-success" (click)="openNew()"
+                            pTooltip="{{'add_new_role'|translate}}"></button>
+                        <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+                            class="p-button-danger" (click)="deleteSelected()"
+                            pTooltip="{{'delete_role'|translate}}"
+                            [disabled]="!selectedRoles || !selectedRoles.length"></button>
+                    </ng-template>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+                <!-- Global Search -->
+                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                    <i class="pi pi-search"></i>
+                    <input type="text" pInputText 
+                        [placeholder]="'search_label' | translate" 
+                        (input)="onGlobalFilter($event)" class="w-full" />
+                </span>
+
+                <!-- View Toggle & Export -->
+                <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
                         tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
-                        class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
-                </ng-template>
-            </p-toolbar>
+                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
+                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                </div>
+            </div>
 
             <div class="card flex justify-content-center" *ngIf="isLoading">
                 <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
@@ -62,17 +68,8 @@
                 [globalFilterFields]="['username','email','firstName','lastName','enabled','attributes.roles']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                [(selection)]="selectedUsers" selectionMode="multiple" [rowHover]="true" dataKey="id">
-                <ng-template pTemplate="caption">
-                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                        <h5 class="m-0">{{'users_page_title' | translate}}</h5>
-                        <span class="block mt-2 md:mt-0 p-input-icon-left">
-                            <i class="pi pi-search"></i>
-                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
-                                placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
-                        </span>
-                    </div>
-                </ng-template>
+                [(selection)]="selectedUsers" selectionMode="multiple" [rowHover]="true" dataKey="id"
+                styleClass="p-datatable-gridlines">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 3rem">
@@ -86,11 +83,11 @@
                                 field="enabled"></p-sortIcon></th>
                         <th pSortableColumn="roles">{{'user_role' | translate}} <p-sortIcon field="roles"></p-sortIcon>
                         </th>
-                        <th></th>
+                        <th>{{ 'actions' | translate }}</th>
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-user>
-                    <tr>
+                    <tr class="cursor-pointer">
                         <td>
                             <p-tableCheckbox [value]="user"></p-tableCheckbox>
                         </td>
@@ -125,11 +122,13 @@
                             <!-- {{ user.roles ? user.roles : 'N/A' }} -->
                         </td>
                         <td>
-                            <div class="flex">
+                            <div class="flex gap-1">
+                                <button pButton pRipple icon="pi pi-eye" pTooltip="{{'view_details'|translate}}"
+                                    class="p-button-rounded p-button-text p-button-info" (click)="showUserDetails(user); $event.stopPropagation()"></button>
                                 <button pButton pRipple icon="pi pi-pencil" pTooltip="{{'update_user'|translate}}"
-                                    class="p-button-rounded p-button-success mr-2" (click)="editUser(user)"></button>
-                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="deleteUser(user)" pTooltip="{{'delete_user'|translate}}"></button>
+                                    class="p-button-rounded p-button-text p-button-warning" (click)="editUser(user); $event.stopPropagation()"></button>
+                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+                                    (click)="deleteUser(user); $event.stopPropagation()" pTooltip="{{'delete_user'|translate}}"></button>
                             </div>
                         </td>
                     </tr>
@@ -137,21 +136,12 @@
             </p-table>
 
 
-            <p-table #dt *ngIf="activeItem?.icon == 'pi pi-fw pi-shield'" [value]="appRoles" [columns]="rolesCols"
+            <p-table #dtRoles *ngIf="activeItem?.icon == 'pi pi-fw pi-shield'" [value]="appRoles" [columns]="rolesCols"
                 responsiveLayout="scroll" [rows]="20" [globalFilterFields]="['name','description']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                [(selection)]="selectedRoles" selectionMode="multiple" [rowHover]="true" dataKey="id">
-                <ng-template pTemplate="caption">
-                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                        <h5 class="m-0">{{'roles_page_title' | translate}}</h5>
-                        <span class="block mt-2 md:mt-0 p-input-icon-left">
-                            <i class="pi pi-search"></i>
-                            <input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
-                                placeholder="{{'search_label' | translate}}" class="w-full sm:w-auto" />
-                        </span>
-                    </div>
-                </ng-template>
+                [(selection)]="selectedRoles" selectionMode="multiple" [rowHover]="true" dataKey="id"
+                styleClass="p-datatable-gridlines">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 3rem">
@@ -161,11 +151,11 @@
                         </th>
                         <th pSortableColumn="description">{{'role_description' | translate}} <p-sortIcon
                                 field="description"></p-sortIcon></th>
-                        <th></th>
+                        <th>{{ 'actions' | translate }}</th>
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-role>
-                    <tr>
+                    <tr class="cursor-pointer">
                         <td>
                             <p-tableCheckbox [value]="role"></p-tableCheckbox>
                         </td>
@@ -179,11 +169,11 @@
                             {{ role.description ? role.description : 'N/A' }}
                         </td>
                         <td>
-                            <div class="flex">
+                            <div class="flex gap-1">
                                 <button pButton pRipple icon="pi pi-pencil" pTooltip="{{'update_role'|translate}}"
-                                    class="p-button-rounded p-button-success mr-2" (click)="editRole(role)"></button>
-                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning"
-                                    (click)="deleteRole(role)" pTooltip="{{'delete_role'|translate}}"></button>
+                                    class="p-button-rounded p-button-text p-button-warning" (click)="editRole(role); $event.stopPropagation()"></button>
+                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+                                    (click)="deleteRole(role); $event.stopPropagation()" pTooltip="{{'delete_role'|translate}}"></button>
                             </div>
                         </td>
                     </tr>
@@ -264,6 +254,15 @@
                         <small class="ng-dirty ng-invalid"
                             *ngIf="submitted && selectedWarehouse!=''">{{'user_warehouses' | translate}}
                             {{'is_required_label' | translate}}</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="posPin">{{'user_pos_pin' | translate}}</label>
+                        <input type="password" pInputText name="posPin" ngDefaultControl [(ngModel)]="posPin"
+                            [placeholder]="'user_pos_pin_placeholder' | translate" 
+                            maxlength="6" 
+                            (input)="onPosPinInput($event)" />
+                        <small class="text-500">{{'user_pos_pin_hint' | translate}}</small>
                     </div>
 
                 </ng-container>

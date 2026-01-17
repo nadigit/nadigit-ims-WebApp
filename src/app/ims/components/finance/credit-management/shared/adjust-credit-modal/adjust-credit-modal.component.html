@@ -1,0 +1,85 @@
+<p-dialog [(visible)]="visible" 
+          [modal]="true" 
+          [style]="{width: '500px'}"
+          [header]="'adjust_credit' | translate"
+          (onHide)="close()"
+          [closable]="true">
+    <ng-template pTemplate="content">
+        <div class="p-fluid">
+            <div class="field">
+                <label for="amount">
+                    {{ 'adjustment_amount' | translate }} <span class="required-asterisk">*</span>
+                    <span class="text-sm text-500 ml-2">
+                        ({{ 'positive_for_increase' | translate }}, {{ 'negative_for_decrease' | translate }})
+                    </span>
+                </label>
+                <p-inputNumber 
+                    [(ngModel)]="amount" 
+                    [step]="0.01"
+                    mode="currency" 
+                    [currency]="currency"
+                    [ngClass]="{'ng-invalid ng-dirty': submitted && (!amount || amount === 0)}"
+                    styleClass="w-full">
+                </p-inputNumber>
+                <small class="ng-dirty ng-invalid" *ngIf="submitted && (!amount || amount === 0)">
+                    {{ 'amount_cannot_be_zero' | translate }}
+                </small>
+                <div class="mt-2 text-sm" [ngClass]="amount && amount > 0 ? 'text-green-600' : 'text-red-600'" *ngIf="amount && creditAccount">
+                    <div *ngIf="amount > 0">
+                        {{ 'new_balance' | translate }}: {{ ((creditAccount.creditBalance || 0) + amount) | currency:currency:'symbol':'1.2-2' }}
+                    </div>
+                    <div *ngIf="amount < 0">
+                        {{ 'new_balance' | translate }}: {{ ((creditAccount.creditBalance || 0) + amount) | currency:currency:'symbol':'1.2-2' }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="reason">
+                    {{ 'reason' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <textarea 
+                    pInputTextarea 
+                    [(ngModel)]="reason" 
+                    rows="3"
+                    [autoResize]="true"
+                    [ngClass]="{'ng-invalid ng-dirty': submitted && (!reason || reason.trim() === '')}"
+                    placeholder="{{ 'enter_reason_for_adjustment' | translate }}">
+                </textarea>
+                <small class="ng-dirty ng-invalid" *ngIf="submitted && (!reason || reason.trim() === '')">
+                    {{ 'reason_required' | translate }}
+                </small>
+            </div>
+
+            <div class="field">
+                <label for="notes">{{ 'notes' | translate }} ({{ 'optional' | translate }})</label>
+                <textarea 
+                    pInputTextarea 
+                    [(ngModel)]="notes" 
+                    rows="2"
+                    [autoResize]="true"
+                    placeholder="{{ 'enter_additional_notes' | translate }}">
+                </textarea>
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template pTemplate="footer">
+        <button pButton 
+                type="button" 
+                label="{{ 'cancel_button' | translate }}" 
+                icon="pi pi-times"
+                class="p-button-text p-button-danger" 
+                (click)="close()"
+                [disabled]="isSaving"></button>
+        <button pButton 
+                type="button" 
+                label="{{ 'adjust_credit' | translate }}" 
+                icon="pi pi-check"
+                class="p-button-warning" 
+                (click)="saveAdjustment()"
+                [loading]="isSaving"
+                [disabled]="isSaving"></button>
+    </ng-template>
+</p-dialog>
+

@@ -1,10 +1,23 @@
+<!-- Products Management Section - Above Card (matching dashboard style) -->
+<div class="mb-4">
+  <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+    <div>
+      <h2 class="m-0 text-900">{{ 'products_menu_title' | translate }}</h2>
+      <p class="text-600 mt-2 mb-0">{{ 'products_page_description' | translate }}</p>
+    </div>
+  </div>
+</div>
+
 <div class="card">
-  <div class="flex justify-content-between align-items-center mb-4">
-  <h5>{{'products_menu_title' | translate}}</h5>
+  <div class="flex justify-content-end align-items-center mb-4">
     <div class="flex align-items-center gap-2">
       <button pButton pRipple *ngIf="canAddProduct" icon="pi pi-plus"
         [label]="'new_button' | translate" class="p-button-success"
         (click)="addProductEvent.emit()" pTooltip="{{'add_new_product'|translate}}">
+      </button>
+      <button pButton pRipple *ngIf="canAddProduct" icon="pi pi-upload"
+        [label]="'import_products' | translate" class="p-button-info"
+        (click)="importProductsEvent.emit()" pTooltip="{{'import_products_tooltip'|translate}}">
       </button>
       <button pButton pRipple *ngIf="isAdmin" icon="pi pi-folder"
         [label]="'archived_products' | translate" class="p-button-warning"
@@ -14,22 +27,6 @@
   </div>
 
   <p-toast></p-toast>
-  
-  <div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-    <div class="flex align-items-center mb-3">
-      <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-      <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
-    </div>
-    <p class="m-0 text-600">
-      {{ 'products_page_description' | translate }}
-    </p>
-    <div class="flex align-items-center gap-2 mt-3">
-      <p-tag *ngIf="canAddProduct" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
-      <p-tag *ngIf="canEditProduct" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
-      <p-tag *ngIf="canDeleteProduct" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
-      <p-tag *ngIf="canArchiveProduct" value="{{'archive' | translate}}" icon="pi pi-folder" severity="warning"></p-tag>
-    </div>
-  </div>
 
   <!-- Filters Bar -->
   <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
@@ -70,6 +67,20 @@
       (onChange)="onFilterChange()" optionLabel="label" optionValue="value">
     </p-selectButton>
 
+    <!-- Product Type Filter -->
+    <p-dropdown [options]="productTypeOptions" [(ngModel)]="productTypeFilter" 
+      [placeholder]="'filter_by_type' | translate"
+      optionLabel="label" optionValue="value" [showClear]="true"
+      (onChange)="onFilterChange()" styleClass="w-14rem">
+    </p-dropdown>
+
+    <!-- Expiration Status Filter -->
+    <p-dropdown [options]="expirationStatusOptions" [(ngModel)]="expirationStatusFilter" 
+      [placeholder]="'filter_by_expiration_status' | translate"
+      optionLabel="label" optionValue="value" [showClear]="true"
+      (onChange)="onFilterChange()" styleClass="w-14rem">
+    </p-dropdown>
+
     <!-- View Toggle & Export -->
     <div class="flex align-items-center gap-2 ml-auto">
       <p-selectButton [options]="viewOptions" [(ngModel)]="currentView" 
@@ -93,13 +104,13 @@
 
   <!-- List View -->
   <ng-container *ngIf="!isLoading && currentView === 'list'">
-    <p-table #dt [value]="filteredProducts.length ? filteredProducts : products" [rows]="20" [paginator]="true" [lazy]="true"
+    <p-table #dt [value]="(filteredProducts && filteredProducts.length > 0) ? filteredProducts : products" [rows]="20" [paginator]="true" [lazy]="true"
         (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords" [loading]="isLoading"
         [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true" dataKey="productId"
         currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
       [(selection)]="selectedProducts" selectionMode="multiple" [rowHover]="true"
       [globalFilterFields]="['name','reference','category.categoryName','supplier.name','warehouse.name','inventoryStatus']"
-      styleClass="p-datatable-gridlines">
+      [expandedRowKeys]="expandedProducts" styleClass="p-datatable-gridlines">
 
         <!-- HEADER -->
         <ng-template pTemplate="header">
@@ -107,6 +118,7 @@
             <th style="width: 3rem">
               <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
             </th>
+            <th *ngIf="viewMode === 'aggregated'" style="width: 3rem"></th>
           <th pSortableColumn="name">
             {{ 'product' | translate }} <p-sortIcon field="name"></p-sortIcon>
           </th>
@@ -127,12 +139,23 @@
         </ng-template>
 
         <!-- BODY -->
-        <ng-template pTemplate="body" let-product>
+        <ng-template pTemplate="body" let-product let-expanded="expanded">
         <tr (click)="canReadProduct ? showProductDetailsEvent.emit(product) : null" class="cursor-pointer">
             <!-- Checkbox -->
             <td>
               <p-tableCheckbox [value]="product" (click)="$event.stopPropagation()"></p-tableCheckbox>
             </td>
+            
+            <!-- Expand/Collapse Button (Aggregated view only) -->
+            <td *ngIf="viewMode === 'aggregated' && product._aggregated">
+              <button type="button" pButton pRipple class="p-button-text p-button-rounded p-button-plain"
+                [icon]="isProductRowExpanded(product.productId!) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+                (click)="toggleProductRow(product.productId!); $event.stopPropagation()"
+                pTooltip="{{ isProductRowExpanded(product.productId!) ? ('collapse' | translate) : ('expand' | translate) }}"
+                tooltipPosition="top">
+              </button>
+            </td>
+            <td *ngIf="viewMode === 'aggregated' && !product._aggregated"></td>
 
             <!-- Image + Name + Reference -->
             <td style="min-width:15rem;">
@@ -140,7 +163,32 @@
                 <img [src]="product.productImage || 'assets/core-images/no-image.png'" [alt]="product.name"
                   class="w-4rem h-4rem mr-3 border-round shadow-1 object-cover" />
                 <div class="flex flex-column">
-                  <div class="font-bold text-lg">{{ product.name || 'N/A' }}</div>
+                  <div class="flex align-items-center gap-2 flex-wrap">
+                    <span class="font-bold text-lg">{{ product.name || 'N/A' }}</span>
+                    <p-tag [value]="isService(product) ? ('product_type_service' | translate) : ('product_type_product' | translate)"
+                      [severity]="isService(product) ? 'purple' : 'info'"
+                      [icon]="isService(product) ? 'pi pi-cog' : 'pi pi-box'"
+                      styleClass="text-xs">
+                    </p-tag>
+                    <!-- Expiration Badge (Expired/Expiring Soon) -->
+                    <p-tag *ngIf="shouldShowExpirationBadge(product) && getExpirationStatus(product) === 'EXPIRED'"
+                      value="{{ 'expiration_badge_expired' | translate }}"
+                      [severity]="getExpirationSeverity(getExpirationStatus(product))"
+                      [icon]="getExpirationIcon(getExpirationStatus(product))"
+                      styleClass="text-xs">
+                    </p-tag>
+                    <p-tag *ngIf="shouldShowExpirationBadge(product) && getExpirationStatus(product) === 'EXPIRING_SOON'"
+                      [value]="('expiring_soon_days' | translate).replace('{0}', getExpirationDays(product).toString())"
+                      [severity]="getExpirationSeverity(getExpirationStatus(product))"
+                      [icon]="getExpirationIcon(getExpirationStatus(product))"
+                      styleClass="text-xs">
+                    </p-tag>
+                    <!-- Valid Indicator (Subtle green) -->
+                    <span *ngIf="showValidIndicator(product)" class="flex align-items-center gap-1 text-xs text-green-600">
+                      <i class="pi pi-check-circle text-xs"></i>
+                      <span class="text-xs">{{ 'valid_for_days' | translate }}: {{ getExpirationDays(product) }} {{ 'days' | translate }}</span>
+                    </span>
+                  </div>
                 <small class="text-muted">{{ 'ref' | translate }}: {{ product.reference || '—' }}</small>
                   <!-- Attributes -->
                   <div *ngIf="product.attributes?.length" class="mt-2 flex flex-wrap gap-1">
@@ -156,27 +204,56 @@
             <td style="min-width:16rem;">
               <div class="flex flex-column gap-1">
               <div><strong>{{ 'product_category' | translate }}:</strong> {{ product.category?.categoryName || 'N/A' }}</div>
-              <div><strong>{{ 'product_supplier' | translate }}:</strong> {{ product.supplier?.name || 'N/A' }}</div>
-              <div><strong>{{ 'product_warehouse' | translate }}:</strong> {{ product.warehouse?.name || 'N/A' }}</div>
+              <div *ngIf="isProduct(product)"><strong>{{ 'product_supplier' | translate }}:</strong> {{ product.supplier?.name || 'N/A' }}</div>
+              <div *ngIf="isProduct(product)">
+                <strong>{{ 'product_warehouse' | translate }}:</strong> 
+                <span *ngIf="product._aggregated && product._warehouseCount">
+                  <p-tag [value]="product._warehouseCount + ' ' + ('warehouses' | translate)" severity="info" styleClass="text-xs"></p-tag>
+                </span>
+                <span *ngIf="!product._aggregated">{{ product.warehouse?.name || 'N/A' }}</span>
+              </div>
+              <!-- Service-specific info -->
+              <div *ngIf="isService(product) && product.serviceProvider">
+                <strong>{{ 'service_provider' | translate }}:</strong> {{ product.serviceProvider }}
+              </div>
+              <div *ngIf="isService(product) && product.estimatedDurationMinutes">
+                <strong>{{ 'estimated_duration_minutes' | translate }}:</strong> {{ product.estimatedDurationMinutes }} {{ 'minutes' | translate }}
+              </div>
               </div>
             </td>
 
-            <!-- Quantity + Inventory status -->
-            <td style="min-width:10rem;">
-              <p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
-                [value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
-                [icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
-              </p-tag>
-              <div class="mt-2">
-                <span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
-                  {{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
+            <!-- Quantity + Inventory status (Products only) -->
+            <td style="min-width:10rem;" *ngIf="isProduct(product)">
+              <div class="flex align-items-center gap-2">
+                <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
+                  [value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate)"
+                  [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
+                  [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
+                </p-tag>
+                <span *ngIf="hasWriteOffs(product)" 
+                      class="writeoff-indicator" 
+                      [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
+                      tooltipPosition="top">
+                  <i class="pi pi-exclamation-triangle text-orange-500"></i>
                 </span>
               </div>
+              <div class="mt-2" *ngIf="product.inventoryStatus">
+                <span [class]="'product-badge status-' + (product.inventoryStatus || '').toLowerCase()">
+                  {{ 'product_' + (product.inventoryStatus || '').toLowerCase() | translate }}
+                </span>
+              </div>
+              <div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
+                <small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+              </div>
+            </td>
+            <!-- Service info -->
+            <td style="min-width:10rem;" *ngIf="isService(product)">
+              <p-tag [value]="'no_inventory_tracking' | translate" severity="secondary" icon="pi pi-info-circle"></p-tag>
             </td>
 
             <!-- Pricing (visible to admin only) -->
             <td *ngIf="isAdmin" style="min-width:14rem;">
-            <div><strong>{{ 'product_buying_price' | translate }}:</strong> {{ product.buyingPrice }} {{ currency }}</div>
+            <div *ngIf="product.buyingPrice"><strong>{{ 'product_buying_price' | translate }}:</strong> {{ product.buyingPrice }} {{ currency }}</div>
             <div><strong>{{ 'product_selling_price' | translate }}:</strong> {{ product.sellingPrice }} {{ currency }}</div>
               <div *ngIf="product.buyingPrice && product.sellingPrice && isAdmin">
                 <strong>{{ 'profit' | translate }}:</strong>
@@ -209,6 +286,74 @@
           </tr>
         </ng-template>
 
+        <!-- ROW EXPANSION (Aggregated Products Only) -->
+        <ng-template pTemplate="rowexpansion" let-product>
+          <tr *ngIf="viewMode === 'aggregated' && product._aggregated">
+            <td [attr.colspan]="isAdmin ? 9 : 8">
+              <div class="p-3">
+                <div class="mb-3">
+                  <h5 class="m-0">{{ 'warehouse_breakdown' | translate }}</h5>
+                  <p class="text-600 text-sm mt-1">{{ 'warehouse_breakdown_description' | translate }}</p>
+                </div>
+                <p-table [value]="getAggregatedWarehouseStocks(product)" dataKey="warehouseId" responsiveLayout="scroll">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>{{ 'warehouse_name' | translate }}</th>
+                      <th>{{ 'quantity_available' | translate }}</th>
+                      <th>{{ 'net_available_quantity' | translate }}</th>
+                      <th>{{ 'inventory_status' | translate }}</th>
+                      <th *ngIf="product.expirationDate">{{ 'expiration_date' | translate }}</th>
+                      <th style="width: 4rem"></th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-stock>
+                    <tr>
+                      <td>
+                        <strong>{{ stock.warehouseName || 'N/A' }}</strong>
+                      </td>
+                      <td>
+                        <p-tag [severity]="getQuantitySeverity(stock.quantityAvailable)"
+                          [value]="stock.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', stock.quantityAvailable) | translate)"
+                          styleClass="text-xs">
+                        </p-tag>
+                      </td>
+                      <td>
+                        <p-tag [severity]="getQuantitySeverity(stock.netAvailableQuantity)"
+                          [value]="stock.netAvailableQuantity + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', stock.netAvailableQuantity) | translate)"
+                          styleClass="text-xs">
+                        </p-tag>
+                      </td>
+                      <td>
+                        <span [class]="'product-badge status-' + (stock.inventoryStatus || '').toLowerCase()">
+                          {{ 'product_' + (stock.inventoryStatus || '').toLowerCase() | translate }}
+                        </span>
+                      </td>
+                      <td *ngIf="product.expirationDate">
+                        {{ stock.expirationDate ? (stock.expirationDate | date:'dd/MM/yyyy') : 'N/A' }}
+                      </td>
+                      <td>
+                        <button pButton pRipple icon="pi pi-eye" 
+                          class="p-button-rounded p-button-text p-button-info p-button-sm"
+                          [pTooltip]="'view_warehouse_details' | translate"
+                          (click)="viewWarehouseDetails(stock.warehouseId)"
+                          tooltipPosition="top">
+                        </button>
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr>
+                      <td [attr.colspan]="product.expirationDate ? 6 : 5" class="text-center">
+                        {{ 'no_warehouse_stock' | translate }}
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
         <!-- SUMMARY -->
         <ng-template pTemplate="summary">
           <div class="flex align-items-center justify-content-between">
@@ -236,7 +381,7 @@
   <!-- Grid View -->
   <ng-container *ngIf="!isLoading && currentView === 'grid'">
       <div class="grid grid-nogutter">
-      <div class="col-12 md:col-6 lg:col-4 xl:col-3" *ngFor="let product of (filteredProducts.length ? filteredProducts : products)">
+      <div class="col-12 md:col-6 lg:col-4 xl:col-3" *ngFor="let product of ((filteredProducts && filteredProducts.length > 0) ? filteredProducts : products)">
         <div class="product-card m-2 p-3 surface-card border-round shadow-2 hover:shadow-4 transition-all transition-duration-200"
           (click)="canReadProduct ? showProductDetailsEvent.emit(product) : null">
           <!-- Header: Category + Status -->
@@ -245,9 +390,37 @@
               <i class="pi pi-tag mr-2 text-primary"></i>
               <span class="font-semibold text-sm">{{product.category?.categoryName || 'N/A'}}</span>
             </div>
-            <span [class]="'product-badge status-' + product.inventoryStatus?.toLowerCase()">
-              {{'product_' + product.inventoryStatus?.toLowerCase() | translate}}
-            </span>
+            <div class="flex align-items-center gap-2 flex-wrap">
+              <!-- Inventory Status (Products only) -->
+              <span *ngIf="isProduct(product) && product.inventoryStatus" 
+                    [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
+                {{'product_' + product.inventoryStatus.toLowerCase() | translate}}
+              </span>
+              <!-- Service Type Badge -->
+              <p-tag *ngIf="isService(product)"
+                [value]="'product_type_service' | translate"
+                severity="purple"
+                icon="pi pi-cog"
+                styleClass="text-xs">
+              </p-tag>
+              <!-- Expiration Badge (Products only - Expired/Expiring Soon) -->
+              <p-tag *ngIf="isProduct(product) && shouldShowExpirationBadge(product) && getExpirationStatus(product) === 'EXPIRED'"
+                value="{{ 'expiration_badge_expired' | translate }}"
+                [severity]="getExpirationSeverity(getExpirationStatus(product))"
+                [icon]="getExpirationIcon(getExpirationStatus(product))"
+                styleClass="text-xs">
+              </p-tag>
+              <p-tag *ngIf="isProduct(product) && shouldShowExpirationBadge(product) && getExpirationStatus(product) === 'EXPIRING_SOON'"
+                [value]="('expiring_soon_days' | translate).replace('{0}', getExpirationDays(product).toString())"
+                [severity]="getExpirationSeverity(getExpirationStatus(product))"
+                [icon]="getExpirationIcon(getExpirationStatus(product))"
+                styleClass="text-xs">
+              </p-tag>
+              <!-- Valid Indicator (Products only - Subtle green) -->
+              <span *ngIf="isProduct(product) && showValidIndicator(product)" class="flex align-items-center gap-1 text-xs text-green-600">
+                <i class="pi pi-check-circle text-xs"></i>
+              </span>
+            </div>
           </div>
 
           <!-- Image -->
@@ -258,31 +431,82 @@
 
           <!-- Name + Reference -->
           <div class="text-center mb-3">
-            <h4 class="font-bold mb-1 text-overflow-ellipsis overflow-hidden white-space-nowrap">{{product.name}}</h4>
+            <h4 class="font-bold mb-1 text-overflow-ellipsis overflow-hidden white-space-nowrap">{{product.name || 'N/A'}}</h4>
             <small class="text-muted">{{product.reference || '—'}}</small>
+            <!-- Valid Expiration Info (Products only - shown below reference) -->
+            <div *ngIf="isProduct(product) && showValidIndicator(product)" class="mt-1">
+              <span class="text-xs text-green-600">
+                {{ 'valid_for_days' | translate }}: {{ getExpirationDays(product) }} {{ 'days' | translate }}
+              </span>
+            </div>
+            <!-- Service-specific info -->
+            <div *ngIf="isService(product) && product.serviceProvider" class="mt-1">
+              <span class="text-xs text-600">
+                <strong>{{ 'service_provider' | translate }}:</strong> {{ product.serviceProvider }}
+              </span>
+            </div>
+            <div *ngIf="isService(product) && product.estimatedDurationMinutes" class="mt-1">
+              <span class="text-xs text-600">
+                <strong>{{ 'estimated_duration_minutes' | translate }}:</strong> {{ product.estimatedDurationMinutes }} {{ 'minutes' | translate }}
+              </span>
+            </div>
             </div>
 
-          <!-- Stock Quantity -->
-          <div class="flex justify-content-center mb-3">
-            <p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
-              [value]="product.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
-              [icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
-            </p-tag>
+          <!-- Stock Quantity (Products only) -->
+          <div class="flex justify-content-center mb-3" *ngIf="isProduct(product)">
+            <div class="flex flex-column align-items-center gap-2">
+              <div class="flex align-items-center gap-2">
+                <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
+                  [value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate)"
+                  [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
+                  [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
+                </p-tag>
+                <span *ngIf="hasWriteOffs(product)" 
+                      class="writeoff-indicator" 
+                      [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
+                      tooltipPosition="top">
+                  <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                </span>
               </div>
+              <div *ngIf="hasWriteOffs(product)" class="text-xs text-orange-600 text-center">
+                <small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+              </div>
+            </div>
+          </div>
+          <!-- Service Info (Services only) -->
+          <div class="flex justify-content-center mb-3" *ngIf="isService(product)">
+            <p-tag [value]="'no_inventory_tracking' | translate" severity="secondary" icon="pi pi-info-circle"></p-tag>
+          </div>
 
           <!-- Price + Actions -->
-          <div class="flex align-items-center justify-content-between pt-3 border-top-1 surface-border">
-            <span class="text-xl font-semibold text-primary">{{currency}} {{ product.sellingPrice }}</span>
-            <div class="flex gap-1">
-              <button pButton pRipple *ngIf="canEditProduct" icon="pi pi-pencil"
-                class="p-button-rounded p-button-text p-button-sm p-button-warning"
-                (click)="editProductEvent.emit(product); $event.stopPropagation()"></button>
-              <button pButton pRipple *ngIf="canDeleteProduct && product.deletable" icon="pi pi-trash"
-                class="p-button-rounded p-button-text p-button-sm p-button-danger"
-                (click)="deleteProductEvent.emit(product); $event.stopPropagation()"></button>
-              <button pButton pRipple *ngIf="canArchiveProduct && !product.deletable" icon="pi pi-folder"
-                class="p-button-rounded p-button-text p-button-sm p-button-warning"
-                (click)="archiveProductEvent.emit(product); $event.stopPropagation()"></button>
+          <div class="flex flex-column gap-2 pt-3 border-top-1 surface-border">
+            <div class="flex align-items-center justify-content-between">
+              <span class="text-xl font-semibold text-primary">{{currency}} {{ product.sellingPrice || 0 }}</span>
+              <div class="flex gap-1">
+                <button pButton pRipple *ngIf="canReadProduct" icon="pi pi-eye"
+                  class="p-button-rounded p-button-text p-button-sm p-button-info"
+                  [pTooltip]="'view_product' | translate"
+                  (click)="showProductDetailsEvent.emit(product); $event.stopPropagation()"></button>
+                <button pButton pRipple *ngIf="canEditProduct" icon="pi pi-pencil"
+                  class="p-button-rounded p-button-text p-button-sm p-button-warning"
+                  [pTooltip]="'update_product' | translate"
+                  (click)="editProductEvent.emit(product); $event.stopPropagation()"></button>
+                <button pButton pRipple *ngIf="canDeleteProduct && product.deletable" icon="pi pi-trash"
+                  class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                  [pTooltip]="'delete_product' | translate"
+                  (click)="deleteProductEvent.emit(product); $event.stopPropagation()"></button>
+                <button pButton pRipple *ngIf="canArchiveProduct && !product.deletable" icon="pi pi-folder"
+                  class="p-button-rounded p-button-text p-button-sm p-button-warning"
+                  [pTooltip]="'archive_product' | translate"
+                  (click)="archiveProductEvent.emit(product); $event.stopPropagation()"></button>
+              </div>
+            </div>
+            <!-- Buying Price & Profit (Admin only, shown if buying price exists) -->
+            <div *ngIf="isAdmin && product.buyingPrice" class="flex align-items-center justify-content-between text-sm text-600">
+              <span>{{ 'product_buying_price' | translate }}: {{currency}} {{ product.buyingPrice }}</span>
+              <span *ngIf="product.buyingPrice && product.sellingPrice" [class]="getProfitClass(product)">
+                {{ 'profit' | translate }}: {{ calculateProfit(product) | percent:'1.2-2' }}
+              </span>
             </div>
           </div>
         </div>

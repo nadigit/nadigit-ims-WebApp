@@ -1,0 +1,27 @@
+.payment-history-container {
+  margin-top: 1.5rem;
+}
+
+.payment-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.payment-method-badge {
+  padding: 0.25rem 0.5rem;
+  background: var(--surface-100);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.payment-summary-footer {
+  background: var(--surface-50);
+  border-top: 2px solid var(--surface-border);
+}
+
+.payment-summary-footer td {
+  padding: 0.75rem 1rem;
+}

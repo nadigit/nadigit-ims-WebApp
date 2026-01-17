@@ -39,10 +39,10 @@
                                     [rounded]="true"></p-tag>
                             </div>
                             <div class="flex flex-wrap align-items-center gap-4 text-500">
-                                <span class="flex align-items-center gap-2" *ngIf="supplier.supplierId">
+                                <!-- <span class="flex align-items-center gap-2" *ngIf="supplier.supplierId">
                                     <i class="pi pi-id-card"></i>
                                     {{ 'supplier_id' | translate }}: {{ supplier.supplierId }}
-                                </span>
+                                </span> -->
                                 <span class="flex align-items-center gap-2" *ngIf="supplier.country">
                                     <i class="pi pi-globe"></i>
                                     {{ supplier.country | countryTranslate }}
@@ -147,7 +147,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="info-item" *ngIf="supplier.supplierId">
+                                    <!-- <div class="info-item" *ngIf="supplier.supplierId">
                                         <div class="info-icon">
                                             <i class="pi pi-id-card"></i>
                                         </div>
@@ -155,7 +155,7 @@
                                             <span class="info-label">{{ 'supplier_id' | translate }}</span>
                                             <span class="info-value">{{ supplier.supplierId }}</span>
                                         </div>
-                                    </div>
+                                    </div> -->
 
                                     <div class="info-item" *ngIf="supplier.creationDate">
                                         <div class="info-icon">

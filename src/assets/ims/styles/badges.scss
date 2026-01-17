@@ -122,6 +122,11 @@
     }
 
     &.purchase-received {
+        background: hwb(192 78% 10%);
+        color: #256029;
+    }
+
+    &.purchase-completed {
         background: #b9faaf;
         color: #3c774b;
     }

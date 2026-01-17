@@ -1,48 +1,48 @@
 <div class="grid">
 	<div class="col-12">
-		<div class="card px-6 py-6">
-			<h5>{{'warehouses_menu_title' | translate}}</h5>
-			<p-toast></p-toast>
-			<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-				<div class="flex align-items-center mb-3">
-					<i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-					<h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
+		<!-- Warehouses Management Section - Above Card (matching dashboard style) -->
+		<div class="mb-4">
+			<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+				<div>
+					<h2 class="m-0 text-900">{{ 'warehouses_menu_title' | translate }}</h2>
+					<p class="text-600 mt-2 mb-0">{{ 'warehouses_page_description' | translate }}</p>
 				</div>
-				<p class="m-0 text-600">
-					{{ 'warehouses_page_description' | translate }}
-				</p>
-				<div class="flex mt-3 gap-2">
-					<p-tag *ngIf="canAddWarehouse" value="{{'create' | translate}}" icon="pi pi-plus"
-						severity="success"></p-tag>
-					<p-tag *ngIf="canEditWarehouse" value="{{'edit' | translate}}" icon="pi pi-pencil"
-						severity="info"></p-tag>
-					<p-tag *ngIf="canDeleteWarehouse" value="{{'delete' | translate}}" icon="pi pi-trash"
-						severity="danger"></p-tag>
-					<p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
-					<p-tag *ngIf="canReadWarehouse" value="{{'inventory' | translate}}" icon="pi pi-box"
-						severity="help"></p-tag>
+			</div>
+		</div>
+
+		<div class="card px-6 py-6">
+			<p-toast></p-toast>
+
+			<!-- Action Buttons -->
+			<div class="flex justify-content-end align-items-center mb-4">
+				<div class="flex align-items-center gap-2">
+					<button pButton pRipple *ngIf="canAddWarehouse" label="{{'new_button' | translate}}"
+						icon="pi pi-plus" class="p-button-success" (click)="openNew()"></button>
+					<button pButton pRipple *ngIf="canDeleteWarehouse" label="{{'delete_button' | translate}}"
+						icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedWarehouses()"
+						pTooltip="{{'delete_warehouse'|translate}}"
+						[disabled]="!selectedWarehouses || !selectedWarehouses.length"></button>
 				</div>
 			</div>
 
-			<p-toolbar styleClass="mb-4">
-				<ng-template pTemplate="left">
-					<div class="my-2">
-						<button pButton pRipple *ngIf="canAddWarehouse" label="{{'new_button' | translate}}"
-							icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
-						<button pButton pRipple *ngIf="canDeleteWarehouse" label="{{'delete_button' | translate}}"
-							icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedWarehouses()"
-							pTooltip="{{'delete_warehouse'|translate}}"
-							[disabled]="!selectedWarehouses || !selectedWarehouses.length"></button>
-					</div>
-				</ng-template>
+			<!-- Filters Bar -->
+			<div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+				<!-- Global Search -->
+				<span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+					<i class="pi pi-search"></i>
+					<input type="text" pInputText 
+						[placeholder]="'search_label' | translate" 
+						(input)="onGlobalFilter($event)" class="w-full" />
+				</span>
 
-				<ng-template pTemplate="right">
-					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+				<!-- View Toggle & Export -->
+				<div class="flex align-items-center gap-2 ml-auto">
+					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
 						tooltipPosition="bottom" (click)="exportPdf()"></button>
-					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
-						class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
-				</ng-template>
-			</p-toolbar>
+					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
+						pTooltip="XLS" tooltipPosition="bottom"></button>
+				</div>
+			</div>
 
 			<div class="card flex justify-content-center" *ngIf="isLoading">
 				<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
@@ -52,17 +52,8 @@
 				[globalFilterFields]="['name','description','address','country','city','warehouseType']"
 				[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
 				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-				[(selection)]="selectedWarehouses" selectionMode="multiple" [rowHover]="true" dataKey="warehouseId">
-				<ng-template pTemplate="caption">
-					<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-						<h5 class="m-0">{{'warehouses_page_title' | translate}}</h5>
-						<span class="block mt-2 md:mt-0 p-input-icon-left">
-							<i class="pi pi-search"></i>
-							<input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
-								placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
-						</span>
-					</div>
-				</ng-template>
+				[(selection)]="selectedWarehouses" selectionMode="multiple" [rowHover]="true" dataKey="warehouseId"
+				styleClass="p-datatable-gridlines">
 				<ng-template pTemplate="header">
 					<tr>
 						<th style="width: 3rem">
@@ -80,12 +71,13 @@
 							<p-columnFilter type="date" field="creationDate" display="menu" />
 							<p-sortIcon field="creationDate"></p-sortIcon>
 						</th>
-						<th></th>
+						<th>{{ 'actions' | translate }}</th>
 					</tr>
 				</ng-template>
 				<ng-template pTemplate="body" let-warehouse>
 					<tr [pSelectableRow]="warehouse"
-						(click)="canReadWarehouse ? openWarehouseDetails(warehouse) : null">
+						(click)="canReadWarehouse ? openWarehouseDetails(warehouse) : null"
+						class="cursor-pointer">
 
 						<td>
 							<p-tableCheckbox [value]="warehouse" (click)="$event.stopPropagation()"></p-tableCheckbox>
@@ -114,13 +106,13 @@
 							{{ warehouse.creationDate ? (warehouse.creationDate | date:'dd/MM/yyyy') : 'N/A' }}
 						</td>
 						<td>
-							<div class="flex">
+							<div class="flex gap-1">
 								<button pButton pRipple *ngIf="canEditWarehouse" icon="pi pi-pencil"
-									class="p-button-rounded p-button-info mr-2"
+									class="p-button-rounded p-button-text p-button-warning"
 									pTooltip="{{'update_warehouse'|translate}}"
 									(click)="editWarehouse(warehouse); $event.stopPropagation()"></button>
 								<button pButton pRipple *ngIf="canDeleteWarehouse" icon="pi pi-trash"
-									class="p-button-rounded p-button-danger"
+									class="p-button-rounded p-button-text p-button-danger"
 									(click)="deleteWarehouse(warehouse); $event.stopPropagation()"
 									pTooltip="{{'delete_warehouse'|translate}}"></button>
 							</div>

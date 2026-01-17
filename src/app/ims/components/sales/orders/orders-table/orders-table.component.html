@@ -1,22 +1,3 @@
-<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-  <div class="flex align-items-center mb-3">
-    <i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-    <h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
-  </div>
-  <p class="m-0 text-600">
-    {{ 'orders_page_description' | translate }}
-    <!-- <span *ngIf="customers?.length" class="font-semibold">
-                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
-                    </span> -->
-  </p>
-  <div class="flex mt-3 gap-2">
-    <p-tag *ngIf="canAddOrder" value="{{'create' | translate}}" icon="pi pi-plus" severity="success"></p-tag>
-    <p-tag *ngIf="canEditOrder" value="{{'edit' | translate}}" icon="pi pi-pencil" severity="info"></p-tag>
-    <p-tag *ngIf="canDeleteOrder" value="{{'delete' | translate}}" icon="pi pi-trash" severity="danger"></p-tag>
-    <!-- <p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag> -->
-    <p-tag *ngIf="canProcessOrder" value="{{'process' | translate}}" icon="pi pi-cog" severity="help"></p-tag>
-  </div>
-</div>
 
 
 
@@ -90,26 +71,166 @@
       </div>
     </div>
   </div>
+  <div class="col-12 lg:col-6 xl:col-3" *ngIf="totalCost > 0 && isAdmin">
+    <div class="card mb-0">
+      <div class="flex justify-content-between mb-3">
+        <div>
+          <span class="block text-500 font-medium mb-3">{{'order_total_cost' |
+            translate}}</span>
+          <div class="text-900 font-medium text-xl cost-value">{{ totalCost |
+            currency:currency:'symbol':'1.2-2' }}</div>
+        </div>
+        <div class="flex align-items-center justify-content-center bg-gray-100 border-round"
+          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+          <i class="pi pi-dollar text-gray-600 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 lg:col-6 xl:col-3" *ngIf="totalCost > 0 && isAdmin">
+    <div class="card mb-0">
+      <div class="flex justify-content-between mb-3">
+        <div>
+          <span class="block text-500 font-medium mb-3">{{'order_total_profit' |
+            translate}}</span>
+          <div class="text-900 font-medium text-xl profit-value" [ngClass]="{'profit-negative': totalProfit < 0}">
+            {{ totalProfit | currency:currency:'symbol':'1.2-2' }}
+          </div>
+        </div>
+        <div class="flex align-items-center justify-content-center border-round"
+          [ngClass]="{'bg-green-100': totalProfit >= 0, 'bg-red-100': totalProfit < 0}"
+          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
+          <i class="pi text-xl" [ngClass]="{'pi-arrow-up text-green-500': totalProfit >= 0, 'pi-arrow-down text-red-500': totalProfit < 0}"></i>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<p-toolbar styleClass="mb-4">
-  <ng-template pTemplate="left">
-    <div class="my-2">
-      <button pButton pRipple *ngIf="canAddOrder" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
-        class="p-button-success mr-2" (click)="addOrderEvent.emit()" pTooltip="{{'add_new_order'|translate}}"></button>
-      <button pButton pRipple *ngIf="canDeleteOrder" label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
-        class="p-button-danger" (click)="deleteSelectedOrdersEvent.emit()" pTooltip="{{'delete_order'|translate}}"
-        [disabled]="!selectedOrders || !selectedOrders.length"></button>
-    </div>
-  </ng-template>
+<!-- Action Buttons -->
+<div class="flex justify-content-end align-items-center mb-4">
+  <div class="flex align-items-center gap-2">
+    <button pButton pRipple *ngIf="canAddOrder" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+      class="p-button-success" (click)="addOrderEvent.emit()" pTooltip="{{'add_new_order'|translate}}"></button>
+    <button pButton pRipple *ngIf="canDeleteOrder" label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
+      class="p-button-danger" (click)="deleteSelectedOrdersEvent.emit()" pTooltip="{{'delete_order'|translate}}"
+      [disabled]="!selectedOrders || !selectedOrders.length"></button>
+  </div>
+</div>
 
-  <ng-template pTemplate="right">
-    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF" tooltipPosition="bottom"
+<!-- Filters Bar -->
+<div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+  <!-- Global Search -->
+  <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+    <i class="pi pi-search"></i>
+    <input type="text" pInputText 
+      [placeholder]="'search_label' | translate" 
+      (input)="applyGlobalFilter($event)" class="w-full" />
+  </span>
+
+  <!-- Order Status Filter -->
+  <p-dropdown 
+    [(ngModel)]="selectedOrderStatus" 
+    [options]="statuses" 
+    optionLabel="label" 
+    optionValue="value"
+    [showClear]="true"
+    [placeholder]="'filter_by_status' | translate"
+    appendTo="body"
+    styleClass="w-14rem"
+    (onChange)="onFilterChange()">
+    <ng-template let-option pTemplate="item">
+      <span [class]="'order-badge order-' + option.label.toLowerCase()">
+        {{'order_status_'+option.label.toLowerCase() | translate}}</span>
+    </ng-template>
+  </p-dropdown>
+
+  <!-- Payment Status Filter -->
+  <p-dropdown 
+    [(ngModel)]="selectedPaymentStatus" 
+    [options]="paymentStatuses" 
+    optionLabel="label" 
+    optionValue="value"
+    [showClear]="true"
+    [placeholder]="'filter_by_payment_status' | translate"
+    appendTo="body"
+    styleClass="w-14rem"
+    (onChange)="onFilterChange()">
+    <ng-template let-option pTemplate="item">
+      <span [class]="'payment-badge payment-' + option.label.toLowerCase()">
+        {{'order_payment_status_'+option.label.toLowerCase() | translate}}</span>
+    </ng-template>
+  </p-dropdown>
+
+  <!-- Customer Filter -->
+  <p-dropdown 
+    [(ngModel)]="selectedCustomer" 
+    [options]="customers" 
+    [optionLabel]="getCustomerDisplayName"
+    [showClear]="true"
+    [filter]="true"
+    filterBy="firstName,lastName,companyName"
+    [placeholder]="'filter_by_customer' | translate"
+    appendTo="body"
+    styleClass="w-14rem"
+    (onChange)="onFilterChange()">
+    <ng-template let-option pTemplate="item">
+      <span>{{ getCustomerDisplayName(option) }}</span>
+    </ng-template>
+    <ng-template pTemplate="selectedItem" let-selected>
+      <span *ngIf="selected">{{ getCustomerDisplayName(selected) }}</span>
+    </ng-template>
+  </p-dropdown>
+
+  <!-- Shop Filter (Admin Only) -->
+  <p-dropdown 
+    *ngIf="isAdmin"
+    [(ngModel)]="selectedShop" 
+    [options]="shops" 
+    optionLabel="shopName" 
+    [showClear]="true"
+    [filter]="true"
+    filterBy="shopName"
+    [placeholder]="'filter_by_shop' | translate"
+    appendTo="body"
+    styleClass="w-14rem"
+    (onChange)="onFilterChange()">
+  </p-dropdown>
+
+  <!-- Date Range Filters -->
+  <p-calendar 
+    [(ngModel)]="startDate" 
+    [showIcon]="true"
+    dateFormat="dd/mm/yy"
+    [showOnFocus]="false"
+    [placeholder]="'start_date' | translate"
+    appendTo="body"
+    styleClass="w-14rem"
+    (onSelect)="onFilterChange()">
+  </p-calendar>
+
+  <p-calendar 
+    [(ngModel)]="endDate" 
+    [showIcon]="true"
+    dateFormat="dd/mm/yy"
+    [showOnFocus]="false"
+    [minDate]="startDate"
+    [placeholder]="'end_date' | translate"
+    appendTo="body"
+    styleClass="w-14rem"
+    (onSelect)="onFilterChange()">
+  </p-calendar>
+
+  <!-- View Toggle & Export -->
+  <div class="flex align-items-center gap-2 ml-auto">
+    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF" tooltipPosition="bottom"
       (click)="exportPdfEvent.emit()"></button>
-    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcelEvent.emit()" class="p-button-success mr-2" pTooltip="XLS"
-      tooltipPosition="bottom"></button>
-  </ng-template>
-</p-toolbar>
+    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcelEvent.emit()" class="p-button-success"
+      pTooltip="XLS" tooltipPosition="bottom"></button>
+    <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+      pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="resetFilters()"></button>
+  </div>
+</div>
 
 
 
@@ -121,18 +242,7 @@
   [(selection)]="selectedOrders" selectionMode="multiple" [rowHover]="true" dataKey="orderId"
   [expandedRowKeys]="expandedRows" [filterDelay]="0"
   [globalFilterFields]="['reference','customer.firstName','customer.lastName','customer.companyName','shop.shopName','orderStatus','paymentStatus', 'orderDate']"
-  >
-
-  <ng-template pTemplate="caption">
-    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-      <h5 class="m-0">{{ 'orders_page_title' | translate }}</h5>
-      <span class="block mt-2 md:mt-0 p-input-icon-left">
-        <i class="pi pi-search"></i>
-        <input pInputText type="text" (input)="applyGlobalFilter($event)" placeholder="{{ 'search_label' | translate }}"
-          class="w-full sm:w-auto" />
-      </span>
-    </div>
-  </ng-template>
+  styleClass="p-datatable-gridlines">
   <ng-template pTemplate="header">
     <tr>
       <th style="width: 3rem">
@@ -142,93 +252,41 @@
       <th pSortableColumn="reference">{{ 'order_reference' | translate }} <p-sortIcon field="reference"></p-sortIcon>
       </th>
       <th pSortableColumn="orderDate">{{ 'order_date' | translate }}
-        <p-columnFilter type="date" field="orderDate" matchMode="equals" display="menu" />
         <p-sortIcon field="orderDate"></p-sortIcon>
       </th>
-      <th style="min-width: 12rem">
-        <div class="flex justify-content-between align-items-center">
-          {{ 'order_status' | translate }}
-          <p-columnFilter field="orderStatus" matchMode="equals" display="menu">
-            <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-              <p-dropdown [(ngModel)]="value" [options]="statuses" optionLabel="label" optionValue="value"
-                (onChange)="filter($event.value)" (onClear)="filter(null)" appendTo="body"
-                [showClear]="true" placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
-                <ng-template let-option pTemplate="item">
-                  <span [class]="'order-badge order-' + option.label.toLowerCase()">
-                    {{'order_status_'+option.label.toLowerCase() | translate}}</span>
-                </ng-template>
-              </p-dropdown>
-            </ng-template>
-          </p-columnFilter>
-          <p-sortIcon field="orderStatus"></p-sortIcon>
-        </div>
+      <th pSortableColumn="orderStatus" style="min-width: 12rem">
+        {{ 'order_status' | translate }}
+        <p-sortIcon field="orderStatus"></p-sortIcon>
       </th>
       <th pSortableColumn="totalAmount">{{ 'order_total_amount' | translate }} <p-sortIcon
           field="totalAmount"></p-sortIcon>
       </th>
+      <!-- Cost and Profit Columns (if available and user is admin) -->
+      <th pSortableColumn="totalCost" *ngIf="hasCostInfo() && isAdmin">{{ 'order_total_cost' | translate }} <p-sortIcon field="totalCost"></p-sortIcon>
+      </th>
+      <th pSortableColumn="totalProfit" *ngIf="hasCostInfo() && isAdmin">{{ 'order_total_profit' | translate }} <p-sortIcon field="totalProfit"></p-sortIcon>
+      </th>
+      <th pSortableColumn="profitMargin" *ngIf="hasCostInfo() && isAdmin">{{ 'order_profit_margin' | translate }} <p-sortIcon field="profitMargin"></p-sortIcon>
+      </th>
       <th pSortableColumn="totalPaid">{{ 'order_total_paid' | translate }} <p-sortIcon field="totalPaid"></p-sortIcon>
       </th>
-      <th style="min-width: 12rem">
-        <div class="flex justify-content-between align-items-center">
-          {{ 'order_payment_status' | translate }}
-          <p-columnFilter field="paymentStatus" matchMode="equals" display="menu">
-            <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-              <p-dropdown [(ngModel)]="value" [options]="paymentStatuses" optionLabel="label" optionValue="value"
-                (onChange)="filter($event.value)" (onClear)="filter(null)" appendTo="body"
-                [showClear]="true" placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
-                <ng-template let-option pTemplate="item">
-                  <span [class]="'payment-badge payment-' + option.label.toLowerCase()">
-                    {{'order_payment_status_'+option.label.toLowerCase() |
-                    translate}}</span>
-                </ng-template>
-              </p-dropdown>
-            </ng-template>
-          </p-columnFilter>
-          <p-sortIcon field="paymentStatus"></p-sortIcon>
-        </div>
+      <th pSortableColumn="paymentStatus" style="min-width: 12rem">
+        {{ 'order_payment_status' | translate }}
+        <p-sortIcon field="paymentStatus"></p-sortIcon>
       </th>
       <th pSortableColumn="customer">
         {{ 'order_customer' | translate }}
         <p-sortIcon field="customer"></p-sortIcon>
-        <p-columnFilter field="customerId" matchMode="equals" display="menu">
-          <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-            <p-dropdown [(ngModel)]="value" [options]="customers" (onChange)="filter($event.value)"
-              (onClear)="filter(null)" appendTo="body" [showClear]="true"
-              placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
-              <ng-template let-option pTemplate="item">
-                <!-- Display the appropriate name based on customer type -->
-                <span>{{ getCustomerDisplayName(option) }}</span>
-              </ng-template>
-              <ng-template pTemplate="selectedItem" let-selected>
-                <!-- Show selected item with appropriate name -->
-                <span *ngIf="selected">{{ getCustomerDisplayName(selected) }}</span>
-              </ng-template>
-            </p-dropdown>
-          </ng-template>
-        </p-columnFilter>
       </th>
-      <th *ngIf="isAdmin" pSortableColumn="shop">{{ 'order_shop' | translate }}
+      <th *ngIf="isAdmin" pSortableColumn="shop">
+        {{ 'order_shop' | translate }}
         <p-sortIcon field="shop"></p-sortIcon>
-        <p-columnFilter field="shopName" matchMode="equals" display="menu">
-          <ng-template pTemplate="filter" let-value let-filter="filterCallback">
-            <p-dropdown [(ngModel)]="value" [options]="shops" optionLabel="shopName" optionValue="shopName"
-              (onChange)="filter($event.value)" (onClear)="filter(null)" appendTo="body"
-              [showClear]="true" placeholder="{{ 'any_label' | translate }}" [style]="{'min-width': '12rem'}">
-              <ng-template let-option pTemplate="item">
-                <span>{{ option.shopName}}</span>
-              </ng-template>
-              <ng-template pTemplate="selectedItem" let-selected>
-                <span *ngIf="selected">{{ selected.shopName }}</span>
-              </ng-template>
-            </p-dropdown>
-          </ng-template>
-        </p-columnFilter>
       </th>
-      <th></th>
+      <th>{{ 'actions' | translate }}</th>
     </tr>
   </ng-template>
   <ng-template pTemplate="body" let-order let-expanded="expanded">
-    <tr (click)="canProcessOrder ? processOrderEvent.emit(order) : null">
+    <tr (click)="canProcessOrder ? processOrderEvent.emit(order) : null" class="cursor-pointer">
       <td>
         <p-tableCheckbox [value]="order" (click)="$event.stopPropagation()"></p-tableCheckbox>
       </td>
@@ -290,6 +348,25 @@
           </div>
         </ng-template>
       </td>
+      
+      <!-- Cost and Profit Columns (if available and user is admin) -->
+      <td style="min-width:10rem;" *ngIf="hasCostInfo() && isAdmin" class="cost-cell">
+        <span class="p-column-title">{{ 'order_total_cost' | translate }}</span>
+        {{ order.totalCost != null ? (order.totalCost | currency:currency:'symbol':'1.2-2') : 'N/A' }}
+      </td>
+      
+      <td style="min-width:10rem;" *ngIf="hasCostInfo() && isAdmin" class="profit-cell" [ngClass]="{'profit-negative': order.totalProfit != null && order.totalProfit < 0}">
+        <span class="p-column-title">{{ 'order_total_profit' | translate }}</span>
+        {{ order.totalProfit != null ? (order.totalProfit | currency:currency:'symbol':'1.2-2') : 'N/A' }}
+      </td>
+      
+      <td style="min-width:10rem;" *ngIf="hasCostInfo() && isAdmin" class="margin-cell" [ngClass]="getProfitMarginClass(order.profitMargin)">
+        <span class="p-column-title">{{ 'order_profit_margin' | translate }}</span>
+        <span *ngIf="order.profitMargin != null">
+          {{ order.profitMargin | number:'1.2-2' }}%
+        </span>
+        <span *ngIf="order.profitMargin == null">N/A</span>
+      </td>
       <td style="min-width:12rem;" class="font-bold">
         <span class="p-column-title">{{ 'order_total_paid' | translate }}</span>
 
@@ -342,19 +419,19 @@
         {{ order.shop ? order.shop.shopName : 'N/A' }}
       </td>
       <td>
-        <div class="flex">
+        <div class="flex gap-1">
           <button pButton pRipple *ngIf="order.orderStatus ==='Ordered' && canCancelOrder" icon="pi pi-times"
-            class="p-button-rounded p-button-warning mr-2"
+            class="p-button-rounded p-button-text p-button-warning"
             (click)="cancelOrderEvent.emit(order); $event.stopPropagation()"
             pTooltip="{{'cancel_order'|translate}}"></button>
           <button pButton pRipple
             *ngIf="(order.orderStatus ==='Ordered' || order.orderStatus ==='Processing') && canEditOrder"
-            icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+            icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
             (click)="editOrderEvent.emit(order); $event.stopPropagation()" pTooltip="{{'update_order'|translate}}"></button>
           <button pButton pRipple *ngIf="canDeleteOrder" icon="pi pi-trash"
-            class="p-button-rounded p-button-danger mr-2" pTooltip="{{'delete_order'|translate}}"
+            class="p-button-rounded p-button-text p-button-danger" pTooltip="{{'delete_order'|translate}}"
             (click)="deleteOrderEvent.emit(order); $event.stopPropagation()"></button>
-          <button pButton pRipple *ngIf="canProcessOrder" icon="pi pi-cog" class="p-button-rounded p-button mr-2"
+          <button pButton pRipple *ngIf="canProcessOrder" icon="pi pi-cog" class="p-button-rounded p-button-text p-button-success"
             (click)="processOrderEvent.emit(order); $event.stopPropagation()"
             pTooltip="{{'order_processing'|translate}}"></button>
         </div>
@@ -364,7 +441,7 @@
 
   <ng-template pTemplate="rowexpansion" let-order>
     <tr>
-      <td colspan="10">
+      <td [attr.colspan]="hasCostInfo() ? 13 : 10">
         <div class="p-3">
           <p-table [value]="order.orderItems" dataKey="orderItemId" responsiveLayout="scroll">
             <ng-template pTemplate="header">
@@ -381,7 +458,17 @@
       <td><img
           [src]="orderItem.product.productImage ? orderItem.product.productImage : 'assets/core-images/no-image.png'"
           [alt]="orderItem.product.name" width="60" [ngClass]="{'shadow-4': orderItem.product?.productImage}" /></td>
-      <td>{{orderItem.product.name ? orderItem.product.name : 'N/A'}}</td>
+      <td>
+        <div class="flex align-items-center gap-2">
+          <span>{{orderItem.product.name ? orderItem.product.name : 'N/A'}}</span>
+          <p-tag *ngIf="orderItem.product.productType === 'SERVICE' || !orderItem.product.productType || orderItem.product.productType === 'PRODUCT'"
+            [value]="orderItem.product.productType === 'SERVICE' ? ('product_type_service' | translate) : ('product_type_product' | translate)"
+            [severity]="orderItem.product.productType === 'SERVICE' ? 'purple' : 'info'"
+            [icon]="orderItem.product.productType === 'SERVICE' ? 'pi pi-cog' : 'pi pi-box'"
+            styleClass="text-xs">
+          </p-tag>
+        </div>
+      </td>
       <td>{{orderItem.quantity ? orderItem.quantity : 'N/A'}}</td>
       <td>
         <ng-container *ngIf="orderItem.subTotal !== null && orderItem.subTotal !== undefined; else notAvailable">

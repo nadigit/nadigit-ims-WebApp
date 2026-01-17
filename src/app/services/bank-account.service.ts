@@ -245,5 +245,53 @@ export class BankAccountService {
     const body = reason ? { reason } : {};
     return this.http.post<void>(`${this.getBaseUrl()}transactions/${transactionId}/reverse`, body, { headers });
   }
+
+  /**
+   * Get transactions by payment ID
+   */
+  async getTransactionsByPaymentId(paymentId: number): Promise<Observable<BankTransaction[]>> {
+    const headers = await this.getHeaders();
+    // Ensure paymentId is a valid number (not null, undefined, or NaN)
+    if (paymentId == null || isNaN(Number(paymentId))) {
+      throw new Error('Invalid paymentId: must be a valid number');
+    }
+    const params = new HttpParams().set('paymentId', String(Number(paymentId)));
+    return this.http.get<BankTransaction[]>(
+      `${this.getBaseUrl()}transactions`,
+      { headers, params }
+    );
+  }
+
+  /**
+   * Get transactions by refund ID
+   */
+  async getTransactionsByRefundId(refundId: number): Promise<Observable<BankTransaction[]>> {
+    const headers = await this.getHeaders();
+    // Ensure refundId is a valid number (not null, undefined, or NaN)
+    if (refundId == null || isNaN(Number(refundId))) {
+      throw new Error('Invalid refundId: must be a valid number');
+    }
+    const params = new HttpParams().set('refundId', String(Number(refundId)));
+    return this.http.get<BankTransaction[]>(
+      `${this.getBaseUrl()}transactions`,
+      { headers, params }
+    );
+  }
+
+  /**
+   * Get transactions by expense ID
+   */
+  async getTransactionsByExpenseId(expenseId: number): Promise<Observable<BankTransaction[]>> {
+    const headers = await this.getHeaders();
+    // Ensure expenseId is a valid number (not null, undefined, or NaN)
+    if (expenseId == null || isNaN(Number(expenseId))) {
+      throw new Error('Invalid expenseId: must be a valid number');
+    }
+    const params = new HttpParams().set('expenseId', String(Number(expenseId)));
+    return this.http.get<BankTransaction[]>(
+      `${this.getBaseUrl()}transactions`,
+      { headers, params }
+    );
+  }
 }
 

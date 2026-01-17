@@ -20,8 +20,8 @@ export interface POSProductDTO {
   description?: string;
   buyingPrice?: number;
   sellingPrice: number;
-  quantityAvailable: number;
-  inventoryStatus?: string;
+  quantityAvailable: number; // This now contains NET quantity from backend (excluding approved write-offs)
+  inventoryStatus?: string; // Based on net quantity
   categoryName?: string;
   warehouseName?: string;
   barcode?: string;
@@ -50,6 +50,7 @@ export interface POSCartDTO {
   cartId: number;
   posSessionId: number;
   customerId?: number;
+  transportAmount?: number;
   customerName?: string;
   items: POSCartItemDTO[];
   subtotal: number;
@@ -69,7 +70,8 @@ export type PaymentMethod =
   | 'Transfer'
   | 'Check'
   | 'BOE'
-  | 'DIGITAL_WALLET';
+  | 'DIGITAL_WALLET'
+  | 'Credit';
 
 export interface PaymentInfo {
   method: PaymentMethod;

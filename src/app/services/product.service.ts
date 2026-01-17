@@ -138,6 +138,11 @@ export class ProductService {
             }
             break;
 
+          case 'expirationStatus':
+            backendParamName = 'expirationStatus';
+            // expirationStatus should be one of: 'all', 'with_expiration', 'without_expiration', 'expired', 'expiring_soon', 'valid'
+            break;
+
           default:
             // For any other fields, use as-is
             break;
@@ -222,5 +227,114 @@ export class ProductService {
     });
   }
 
-}
+  adjustStock(productId: number, quantityChange: number, reason?: string) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/adjust-stock`;
+    const body: any = { quantityChange };
+    if (reason && reason.trim()) {
+      body.reason = reason.trim();
+    }
+    return this.http.post(url, body, { headers });
+  }
 
+  /**
+   * Get all batches for a product
+   * @param productId Product ID
+   * @returns Observable with array of ProductBatch
+   */
+  getProductBatches(productId: number) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/batches`, { headers });
+  }
+
+  /**
+   * Get specific batch details
+   * @param productId Product ID
+   * @param batchId Batch ID
+   * @returns Observable with ProductBatch
+   */
+  getProductBatch(productId: number, batchId: number) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/batches/${batchId}`, { headers });
+  }
+
+  /**
+   * Get aggregated products grouped by reference
+   * Products with same reference across warehouses are grouped into single records
+   */
+  getAggregatedProducts(
+    page: number,
+    size: number,
+    globalFilter: string = '',
+    sortBy: string = 'creationDate',
+    direction: string = 'DESC',
+    filters?: { [field: string]: any }
+  ) {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+
+    let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}aggregated?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`;
+
+    // Global filter
+    if (globalFilter) {
+      url += `&search=${encodeURIComponent(globalFilter)}`;
+    }
+
+    // Process column filters - similar to getProductsPaginated
+    if (filters) {
+      Object.keys(filters).forEach(field => {
+        const f = filters[field];
+        if (!f || f.value == null || f.value === '') return;
+
+        let value = f.value;
+        let backendParamName = field;
+
+        switch (field) {
+          case 'categoryId':
+            backendParamName = 'categoryId';
+            if (value && typeof value === 'object' && value.categoryId) {
+              value = value.categoryId;
+            }
+            break;
+          case 'supplierId':
+            backendParamName = 'supplierId';
+            if (value && typeof value === 'object' && value.supplierId) {
+              value = value.supplierId;
+            }
+            break;
+          case 'warehouseId':
+            backendParamName = 'warehouseId';
+            if (value && typeof value === 'object' && value.warehouseId) {
+              value = value.warehouseId;
+            }
+            break;
+          case 'expirationStatus':
+            backendParamName = 'expirationStatus';
+            break;
+          default:
+            break;
+        }
+
+        if (value == null || value === '') return;
+        url += `&${encodeURIComponent(backendParamName)}=${encodeURIComponent(value)}`;
+      });
+    }
+
+    return this.http.get(url, { headers });
+  }
+
+  /**
+   * Get aggregated product by reference
+   * Returns a single aggregated product with warehouse breakdown
+   */
+  getAggregatedProductByReference(reference: string) {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}aggregated/${encodeURIComponent(reference)}`;
+    return this.http.get(url, { headers });
+  }
+
+}

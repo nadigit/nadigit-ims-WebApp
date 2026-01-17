@@ -53,6 +53,9 @@ export class ProfileComponent implements OnInit {
 
   public profile?: KeycloakProfile;
   isLoading: boolean = true;
+  
+  posPin: string = '';
+  isEditingPosPin: boolean = false;
 
 
   constructor(private messageService: MessageService,
@@ -93,7 +96,7 @@ export class ProfileComponent implements OnInit {
       confirmPassword: ['', Validators.required]
     });
     console.log(this.user)
-    this.getUserRoles(this.user.id);
+    await this.getUserRoles();
     this.initForm();
 
   }
@@ -159,17 +162,23 @@ export class ProfileComponent implements OnInit {
     response ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating user', life: 3000 })
   }
 
-  getUserRoles(userId) {
-    this.authService.getUserRoles(userId)
-      .subscribe({
-        next: (response: any) => {
-          this.userRoles = response.filter((role: any) => !role.composite);
-          // return response;
-        },
-        error: (err: any) => {
-          console.log(err)
-        }
-      })
+  async getUserRoles() {
+    try {
+      // Get realm roles from the token (not client roles)
+      // Realm roles are in tokenParsed.realm_access.roles
+      const keycloakInstance = this.keycloakService.getKeycloakInstance();
+      
+      // Get realm roles from the parsed token
+      const tokenParsed = keycloakInstance.tokenParsed as any;
+      const realmRoles = tokenParsed?.realm_access?.roles || [];
+      
+      // Convert roles array to Role objects for display
+      this.userRoles = realmRoles.map((roleName: string) => ({ name: roleName } as Role));
+    } catch (error) {
+      // Silently handle errors - roles are optional for display
+      console.warn('Could not load user roles:', error);
+      this.userRoles = [];
+    }
   }
 
 
@@ -190,12 +199,77 @@ export class ProfileComponent implements OnInit {
       try {
         const profile = await this.keycloakService.loadUserProfile();
         this.user = profile;
+        // Load POS PIN from attributes (Keycloak stores attributes as arrays)
+        this.posPin = (profile.attributes as any)?.posPin?.[0] || (profile.attributes as any)?.posPin || '';
         this.isLoading=false;
       } catch (error) {
         console.error("Error loading user profile:", error);
         // Handle error if necessary
       }
     }
+  }
+
+  togglePosPinEdit() {
+    if (this.isEditingPosPin) {
+      this.savePosPin();
+    } else {
+      this.isEditingPosPin = true;
+    }
+  }
+
+  async savePosPin() {
+    if (!this.user?.id) {
+      return;
+    }
+
+    try {
+      // Keycloak attributes need to be sent as arrays
+      const userUpdate = {
+        ...this.user,
+        attributes: {
+          ...(this.user.attributes as any || {}),
+          posPin: this.posPin ? [this.posPin] : []
+        }
+      };
+
+      const success = await this.updateUser(this.user.id, userUpdate);
+      if (success) {
+        this.isEditingPosPin = false;
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('user_updated'),
+          life: 3000
+        });
+      } else {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_updating_user'),
+          life: 3000
+        });
+      }
+    } catch (error) {
+      console.error('Error saving POS PIN:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_occurred'),
+        life: 3000
+      });
+    }
+  }
+
+  cancelPosPinEdit() {
+    // Reload PIN from user profile
+    this.getUser();
+    this.isEditingPosPin = false;
+  }
+
+  onPosPinInput(event: any) {
+    // Only allow numeric characters
+    const value = event.target.value;
+    this.posPin = value.replace(/[^0-9]/g, '');
   }
 
   openChangePassword() {

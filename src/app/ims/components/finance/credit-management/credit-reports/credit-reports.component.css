@@ -1,0 +1,83 @@
+.credit-reports-container {
+    padding: 2rem;
+}
+
+.loading-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.reports-header {
+    margin-bottom: 2rem;
+}
+
+.card-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.card-body {
+    padding: 1rem;
+}
+
+.aging-report {
+    margin-top: 1rem;
+}
+
+/* Outstanding Balance Aging Report Styles */
+.critical-row {
+  background-color: #fff5f5 !important;
+}
+
+.critical-row td {
+  font-weight: 600;
+}
+
+.aging-card {
+    background: var(--surface-50);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--surface-border);
+    text-align: center;
+}
+
+.aging-label {
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.aging-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.aging-percentage {
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+    margin-top: 0.5rem;
+}
+
+.aging-card.critical {
+    border: 2px solid #ef4444;
+    background: #fef2f2;
+}
+
+.outstanding-aging-report {
+    margin-top: 1rem;
+}
+
+.aging-table {
+    margin-top: 2rem;
+}
+
+.aging-chart {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--surface-card);
+    border-radius: 8px;
+}
+

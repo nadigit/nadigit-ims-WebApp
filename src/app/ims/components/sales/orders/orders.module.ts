@@ -44,7 +44,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { DividerModule } from 'primeng/divider';
 import { OrdersTableComponent } from './orders-table/orders-table.component';
 import { OrderDetailsPageComponent } from './order-details-page/order-details-page.component';
-
+import { CheckboxModule } from 'primeng/checkbox';
 @NgModule({
     imports: [
         CommonModule,
@@ -86,7 +86,8 @@ import { OrderDetailsPageComponent } from './order-details-page/order-details-pa
         AutoCompleteModule,
         InputSwitchModule,
         SharedModule,
-        DividerModule
+        DividerModule,
+        CheckboxModule
     ],
     declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent],
     providers: [ReportingService]

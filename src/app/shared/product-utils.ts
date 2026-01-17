@@ -109,3 +109,37 @@ export async function getLowStockThreshold(): Promise<number> {
         return attr.stringValue || '';
     }
   }
+
+/**
+ * Get available quantity for a product (net quantity excluding write-offs)
+ * Use netAvailableQuantity if available, otherwise fallback to quantityAvailable
+ */
+export function getAvailableQuantity(product: Product): number {
+  if (product.netAvailableQuantity !== undefined && product.netAvailableQuantity !== null) {
+    return product.netAvailableQuantity;
+  }
+  return product.quantityAvailable ?? 0;
+}
+
+/**
+ * Check if product has write-offs (net quantity < base quantity)
+ */
+export function hasWriteOffs(product: Product): boolean {
+  if (product.netAvailableQuantity === undefined || product.netAvailableQuantity === null) {
+    return false;
+  }
+  if (product.quantityAvailable === undefined || product.quantityAvailable === null) {
+    return false;
+  }
+  return product.netAvailableQuantity < product.quantityAvailable;
+}
+
+/**
+ * Get write-off quantity (base quantity - net quantity)
+ */
+export function getWriteOffQuantity(product: Product): number {
+  if (!hasWriteOffs(product)) {
+    return 0;
+  }
+  return (product.quantityAvailable ?? 0) - (product.netAvailableQuantity ?? 0);
+}

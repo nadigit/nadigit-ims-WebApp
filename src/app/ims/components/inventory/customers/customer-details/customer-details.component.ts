@@ -13,6 +13,9 @@ import { Order } from 'src/app/models/order';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
 import { LocationService } from 'src/app/services/location.service';
+import { CustomerCreditService } from 'src/app/services/customer-credit.service';
+import { CustomerCreditAccount } from 'src/app/models/customer-credit-account';
+import { CreditInfo } from 'src/app/models/credit-info';
 
 @Component({
   templateUrl: './customer-details.component.html',
@@ -26,9 +29,15 @@ export class CustomerDetailsComponent implements OnInit {
   customerOrders: Order[] = [];
   customerReturns: OrderReturn[] = [];
   customerPayments: Payment[] = [];
+  creditAccount: CustomerCreditAccount | null = null;
+  creditInfo: CreditInfo | null = null; // ⚠️ NEW: Enhanced credit info with outstanding balance, aging, etc.
 
   isLoading: boolean = true;
   currency: string = 'USD';
+  
+  // Expose Math and isFinite for template use
+  Math = Math;
+  isFinite = isFinite;
 
   orderStatusChartData: any;
   monthlySpendingChartData: any;
@@ -55,7 +64,8 @@ export class CustomerDetailsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private locationService: LocationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private creditService: CustomerCreditService
   ) { }
 
   async ngOnInit() {
@@ -74,6 +84,8 @@ export class CustomerDetailsComponent implements OnInit {
       await this.checkPermissions();
       await this.loadCustomer();
       await this.loadCustomerData();
+      await this.loadCreditAccount();
+      await this.loadCreditInfo(); // ⚠️ NEW: Load enhanced credit info
       this.initChartOptions();
       this.isLoading = false;
     });
@@ -161,6 +173,92 @@ export class CustomerDetailsComponent implements OnInit {
       });
       console.error(err);
     }
+  }
+
+  async loadCreditAccount() {
+    try {
+      this.creditService.loadToken();
+      const account$ = await this.creditService.getCreditAccount(this.customerId);
+      const account = await firstValueFrom(account$);
+      this.creditAccount = account;
+    } catch (error: any) {
+      // Account might not exist yet, that's okay
+      if (error?.status !== 404) {
+        console.error('Error loading credit account:', error);
+      }
+    }
+  }
+
+  // ⚠️ NEW: Load enhanced credit info with outstanding balance, aging, etc.
+  async loadCreditInfo() {
+    try {
+      this.creditService.loadToken();
+      const creditInfo$ = await this.creditService.getCreditInfo(this.customerId);
+      this.creditInfo = await firstValueFrom(creditInfo$);
+      
+      // ⚠️ Sanitize invalid values (Infinity, NaN, or extremely large numbers)
+      if (this.creditInfo) {
+        if (this.isInvalidValue(this.creditInfo.netBalance)) {
+          this.creditInfo.netBalance = null as any;
+        }
+        if (this.isInvalidValue(this.creditInfo.availableCreditLimit)) {
+          this.creditInfo.availableCreditLimit = null as any;
+        }
+        if (this.isInvalidValue(this.creditInfo.outstandingBalance)) {
+          this.creditInfo.outstandingBalance = null as any;
+        }
+        if (this.isInvalidValue(this.creditInfo.overdueBalance)) {
+          this.creditInfo.overdueBalance = null as any;
+        }
+      }
+    } catch (error: any) {
+      // Credit info might not be available, that's okay
+      if (error?.status !== 404) {
+        console.error('Error loading credit info:', error);
+      }
+      this.creditInfo = null;
+    }
+  }
+
+  // Helper method to check if a value is invalid
+  private isInvalidValue(value: any): boolean {
+    // 0 is a valid value, so check for it explicitly
+    if (value === 0) {
+      return false; // 0 is valid
+    }
+    
+    if (value === undefined || value === null) {
+      return false; // null/undefined is valid (means no data)
+    }
+    
+    const valueStr = String(value).toUpperCase();
+    
+    // Check for scientific notation with large exponent
+    if (valueStr.includes('E+')) {
+      const match = valueStr.match(/E\+(\d+)/);
+      if (match && parseInt(match[1]) >= 15) {
+        return true; // Exponent >= 15 means extremely large
+      }
+    }
+    
+    // Convert to number if it's a string
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    // Check if it's 0 after parsing
+    if (numValue === 0) {
+      return false; // 0 is valid
+    }
+    
+    const absValue = Math.abs(numValue);
+    
+    // Check for invalid values
+    return !isFinite(numValue) || isNaN(numValue) || 
+           absValue > 1e15 || 
+           absValue >= Number.MAX_VALUE * 0.9;
+  }
+
+  navigateToCreditManagement() {
+    this.router.navigate(['/finance/credit-management/customer', this.customerId]);
   }
 
   prepareCharts(): void {
@@ -255,6 +353,35 @@ export class CustomerDetailsComponent implements OnInit {
       return customer.companyName || 'Unnamed Company';
     }
     return [customer.firstName, customer.lastName].filter(Boolean).join(' ') || 'Unnamed Customer';
+  }
+
+  // ⚠️ NEW: Safely get net balance value (handles invalid/very large numbers)
+  getSafeNetBalance(): number | null {
+    if (!this.creditInfo || this.creditInfo.netBalance === undefined || this.creditInfo.netBalance === null) {
+      return null;
+    }
+    
+    const value = this.creditInfo.netBalance;
+    
+    // Convert to number if it's a string
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    // Check for invalid values (Infinity, NaN, or extremely large numbers like 1.80E+308)
+    // Number.MAX_VALUE is approximately 1.7976931348623157e+308
+    // Values >= 1e15 or close to MAX_VALUE are considered invalid
+    const absValue = Math.abs(numValue);
+    if (!isFinite(numValue) || isNaN(numValue) || 
+        absValue > 1e15 || 
+        absValue >= Number.MAX_VALUE * 0.9 || // Catch values close to MAX_VALUE
+        String(value).toUpperCase().includes('E+')) { // Catch scientific notation strings
+      // If value is invalid, sanitize it in the stored data and return null
+      if (this.creditInfo) {
+        this.creditInfo.netBalance = null as any;
+      }
+      return null;
+    }
+    
+    return numValue;
   }
 
   getTotalSpent(): number {
@@ -496,6 +623,7 @@ export class CustomerDetailsComponent implements OnInit {
 
   refreshData(): void {
     this.loadCustomerData();
+    this.loadCreditInfo(); // ⚠️ NEW: Refresh credit info
     this.messageService.add({
       severity: 'success',
       summary: this.translate.instant('data_refreshed'),

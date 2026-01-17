@@ -1,0 +1,349 @@
+<div class="grid">
+    <div class="col-12">
+        <!-- Write-Offs Management Section -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'write_offs_page_title' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'write_offs_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-content-end align-items-center mb-4">
+                <div class="flex align-items-center gap-2">
+                    <button pButton pRipple *ngIf="canCreateWriteOff" label="{{ 'new_write_off' | translate }}"
+                        icon="pi pi-plus" class="p-button-success" (click)="navigateToCreate()"
+                        pTooltip="{{'create_new_write_off'|translate}}"></button>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+                <!-- Product Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedProduct" 
+                    [options]="products" 
+                    optionLabel="label" 
+                    [filter]="true" 
+                    filterBy="label"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_product' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
+
+                <!-- Warehouse Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedWarehouse" 
+                    [options]="warehouses" 
+                    optionLabel="label" 
+                    [filter]="true" 
+                    filterBy="label"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_warehouse' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
+
+                <!-- Condition Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedCondition" 
+                    [options]="conditionOptions" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_condition' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
+
+                <!-- Source Type Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedSourceType" 
+                    [options]="sourceTypeOptions" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_source_type' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
+
+                <!-- Status Filter -->
+                <p-dropdown 
+                    [(ngModel)]="selectedStatus" 
+                    [options]="statusOptions" 
+                    optionLabel="label" 
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_status' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
+
+                <!-- Date Range Filters -->
+                <p-calendar 
+                    [(ngModel)]="startDate" 
+                    [showIcon]="true"
+                    dateFormat="dd/mm/yy"
+                    [showOnFocus]="false"
+                    [placeholder]="'start_date' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onSelect)="onFilterChange()">
+                </p-calendar>
+
+                <p-calendar 
+                    [(ngModel)]="endDate" 
+                    [showIcon]="true"
+                    dateFormat="dd/mm/yy"
+                    [showOnFocus]="false"
+                    [minDate]="startDate"
+                    [placeholder]="'end_date' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onSelect)="onFilterChange()">
+                </p-calendar>
+
+                <!-- Clear Filters -->
+                <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+                </div>
+            </div>
+
+            <!-- Write-Offs Table -->
+            <p-table 
+                #dt 
+                [value]="writeOffs" 
+                [lazy]="true"
+                (onLazyLoad)="onLazyLoad($event)"
+                [loading]="isLoading"
+                [totalRecords]="totalRecords"
+                [rows]="pageSize"
+                [paginator]="true"
+                [rowsPerPageOptions]="pageSizeOptions"
+                [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
+                responsiveLayout="scroll"
+                [rowHover]="true"
+                sortField="writeOffDate"
+                [sortOrder]="-1"
+                dataKey="writeOffId"
+                styleClass="p-datatable-gridlines">
+
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th pSortableColumn="reference" style="min-width: 10rem">
+                            {{ 'reference' | translate }}
+                            <p-sortIcon field="reference"></p-sortIcon>
+                        </th>
+                        <th style="min-width: 12rem">{{ 'product' | translate }}</th>
+                        <th style="min-width: 10rem">{{ 'warehouse' | translate }}</th>
+                        <th style="min-width: 8rem">{{ 'quantity' | translate }}</th>
+                        <th pSortableColumn="condition" style="min-width: 10rem">
+                            {{ 'condition' | translate }}
+                            <p-sortIcon field="condition"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="writeOffCost" style="min-width: 10rem">
+                            {{ 'cost' | translate }}
+                            <p-sortIcon field="writeOffCost"></p-sortIcon>
+                        </th>
+                        <th style="min-width: 10rem">{{ 'source_type' | translate }}</th>
+                        <th pSortableColumn="status" style="min-width: 10rem">
+                            {{ 'status' | translate }}
+                            <p-sortIcon field="status"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="writeOffDate" style="min-width: 10rem">
+                            {{ 'write_off_date' | translate }}
+                            <p-sortIcon field="writeOffDate"></p-sortIcon>
+                        </th>
+                        <th style="min-width: 12rem">{{ 'actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="body" let-writeOff>
+                    <tr (click)="canReadWriteOff ? viewWriteOffDetails(writeOff) : null"
+                        class="cursor-pointer">
+                        <td>
+                            <span class="p-column-title">{{ 'reference' | translate }}</span>
+                            <strong class="text-primary">#{{ writeOff.reference }}</strong>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'product' | translate }}</span>
+                            <span *ngIf="getProductName(writeOff) && getProductId(writeOff)">
+                                <a *ngIf="canReadProduct" 
+                                    (click)="viewProductDetails(writeOff, $event)"
+                                    class="text-primary cursor-pointer hover:underline">
+                                    {{ getProductName(writeOff) }}
+                                </a>
+                                <span *ngIf="!canReadProduct">{{ getProductName(writeOff) }}</span>
+                            </span>
+                            <span *ngIf="!getProductName(writeOff) || !getProductId(writeOff)" class="text-500">-</span>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'warehouse' | translate }}</span>
+                            <span *ngIf="getWarehouseName(writeOff) && getWarehouseId(writeOff)">
+                                <a *ngIf="canReadWarehouse" 
+                                    (click)="viewWarehouseDetails(writeOff, $event)"
+                                    class="text-primary cursor-pointer hover:underline">
+                                    {{ getWarehouseName(writeOff) }}
+                                </a>
+                                <span *ngIf="!canReadWarehouse">{{ getWarehouseName(writeOff) }}</span>
+                            </span>
+                            <span *ngIf="!getWarehouseName(writeOff) || !getWarehouseId(writeOff)" class="text-500">-</span>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'quantity' | translate }}</span>
+                            <strong>{{ writeOff.quantity || 0 }}</strong>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'condition' | translate }}</span>
+                            <p-tag [value]="getConditionLabel(writeOff.condition)" 
+                                [severity]="getConditionSeverity(writeOff.condition)"
+                                styleClass="text-xs">
+                            </p-tag>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'cost' | translate }}</span>
+                            <strong>{{ writeOff.writeOffCost | currency:currency:'symbol':'1.2-2' }}</strong>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'source_type' | translate }}</span>
+                            <span class="text-600">{{ getSourceTypeLabel(writeOff.sourceType) }}</span>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'status' | translate }}</span>
+                            <p-tag [value]="getStatusLabel(writeOff.status)" 
+                                [severity]="getStatusSeverity(writeOff.status)"
+                                styleClass="text-xs">
+                            </p-tag>
+                        </td>
+                        <td>
+                            <span class="p-column-title">{{ 'write_off_date' | translate }}</span>
+                            {{ writeOff.writeOffDate ? (writeOff.writeOffDate | date:'dd/MM/yyyy') : 'N/A' }}
+                        </td>
+                        <td>
+                            <div class="flex gap-1" (click)="$event.stopPropagation()">
+                                <button 
+                                    pButton 
+                                    pRipple
+                                    *ngIf="canReadWriteOff"
+                                    icon="pi pi-eye" 
+                                    class="p-button-rounded p-button-text p-button-info"
+                                    (click)="viewWriteOffDetails(writeOff)"
+                                    pTooltip="{{ 'view_details' | translate }}">
+                                </button>
+                                <button 
+                                    pButton 
+                                    pRipple
+                                    *ngIf="canApprove(writeOff)"
+                                    icon="pi pi-check" 
+                                    class="p-button-rounded p-button-text p-button-success"
+                                    (click)="openApproveConfirm(writeOff)"
+                                    pTooltip="{{ 'approve_write_off' | translate }}">
+                                </button>
+                                <button 
+                                    pButton 
+                                    pRipple
+                                    *ngIf="canReject(writeOff)"
+                                    icon="pi pi-times" 
+                                    class="p-button-rounded p-button-text p-button-danger"
+                                    (click)="openRejectConfirm(writeOff)"
+                                    pTooltip="{{ 'reject_write_off' | translate }}">
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="10" class="text-center p-4">
+                            <div class="flex flex-column align-items-center justify-content-center">
+                                <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
+                                <h4>{{ 'no_write_offs_found' | translate }}</h4>
+                                <p class="text-500">{{ 'no_write_offs_found_description' | translate }}</p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="loadingbody">
+                    <tr>
+                        <td colspan="10">
+                            <div class="flex justify-content-center align-items-center p-4">
+                                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Confirmation Dialog -->
+<p-confirmDialog></p-confirmDialog>
+
+<p-dialog 
+    [(visible)]="approveConfirmDialog" 
+    [modal]="true" 
+    [style]="{width: '450px'}"
+    [header]="'approve_write_off' | translate"
+    [draggable]="false" 
+    [resizable]="false">
+    <div class="confirmation-content">
+        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+        <span>{{ 'confirm_approve_write_off' | translate }}</span>
+    </div>
+    <ng-template pTemplate="footer">
+        <button pButton pRipple type="button" label="{{ 'cancel' | translate }}" 
+            icon="pi pi-times" class="p-button-text" (click)="approveConfirmDialog = false"></button>
+        <button pButton pRipple type="button" label="{{ 'approve' | translate }}" 
+            icon="pi pi-check" class="p-button-success" (click)="confirmApprove()" [disabled]="isLoading"></button>
+    </ng-template>
+</p-dialog>
+
+<!-- Reject Confirmation Dialog -->
+<p-dialog 
+    [(visible)]="rejectConfirmDialog" 
+    [modal]="true" 
+    [style]="{width: '500px'}"
+    [header]="'reject_write_off' | translate"
+    [draggable]="false" 
+    [resizable]="false">
+    <div class="confirmation-content flex flex-column gap-3">
+        <div class="flex align-items-center">
+            <i class="pi pi-exclamation-triangle mr-3 text-orange-500" style="font-size: 2rem"></i>
+            <span>{{ 'confirm_reject_write_off' | translate }}</span>
+        </div>
+        <div class="flex flex-column gap-2">
+            <label for="rejectionReason">{{ 'rejection_reason' | translate }} ({{ 'optional' | translate }})</label>
+            <textarea 
+                id="rejectionReason" 
+                pInputTextarea 
+                [(ngModel)]="rejectionReason"
+                [rows]="3"
+                [placeholder]="'enter_rejection_reason' | translate"
+                class="w-full">
+            </textarea>
+        </div>
+    </div>
+    <ng-template pTemplate="footer">
+        <button pButton pRipple type="button" label="{{ 'cancel' | translate }}" 
+            icon="pi pi-times" class="p-button-text" (click)="rejectConfirmDialog = false"></button>
+        <button pButton pRipple type="button" label="{{ 'reject' | translate }}" 
+            icon="pi pi-times" class="p-button-danger" (click)="confirmReject()" [disabled]="isLoading"></button>
+    </ng-template>
+</p-dialog>

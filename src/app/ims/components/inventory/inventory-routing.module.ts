@@ -11,7 +11,9 @@ import { AuthGuard } from 'src/app/guards/auth.guard';
         { path: 'warehouses', loadChildren: () => import('./warehouses/warehouses.module').then(m => m.WarehousesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
         { path: 'shops', loadChildren: () => import('./shops/shops.module').then(m => m.ShopsModule), canActivate:[AuthGuard], data : { roles:['ADMIN']} },
         { path: 'purchases', loadChildren: () => import('./purchases/purchases.module').then(m => m.PurchasesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR']} },
+        { path: 'purchase-returns', loadChildren: () => import('./purchase-returns/purchase-returns.module').then(m => m.PurchaseReturnsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR']} },
         { path: 'warehouse-transfers', loadChildren: () => import('./warehouse-transfers/warehouse-transfers.module').then(m => m.WarehouseTransfersModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
+        { path: 'write-offs', loadChildren: () => import('./write-offs/write-offs.module').then(m => m.WriteOffsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
         { path: 'stock-movements', loadChildren: () => import('./stock-movements/stock-movements.module').then(m => m.StockMovementsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
         { path: '**', redirectTo: '/notfound' }
     ])],

@@ -78,6 +78,13 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   cols: any[] = [];
 
   statuses: any[] = [];
+  returnStatuses: any[] = [];
+
+  // Filter properties
+  selectedReturnStatus: string | null = null;
+  selectedCustomer: Customer | null = null;
+  startDate: Date | null = null;
+  endDate: Date | null = null;
 
   rowsPerPageOptions = [20, 50, 100];
 
@@ -216,6 +223,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
     // Initialize table columns and statuses
     this.initializeTableColumns();
+    this.initializeReturnStatuses();
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
   }
@@ -620,8 +628,66 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
 
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  @ViewChild('dt') dt!: Table;
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    }
+  }
+
+  private initializeReturnStatuses() {
+    // Return statuses based on ReturnStatus enum
+    this.returnStatuses = [
+      { label: 'Pending', value: 'PENDING' },
+      { label: 'Processing', value: 'PROCESSING' },
+      { label: 'Partially Refunded', value: 'PARTIALLY_REFUNDED' },
+      { label: 'Completed', value: 'COMPLETED' },
+      { label: 'Cancelled', value: 'CANCELLED' },
+    ];
+  }
+
+  onFilterChange() {
+    // Apply filters to the table
+    if (this.dt) {
+      const filters: any = {};
+      
+      if (this.selectedReturnStatus) {
+        filters['returnStatus'] = { value: this.selectedReturnStatus, matchMode: 'equals' };
+      }
+      
+      if (this.selectedCustomer) {
+        // Filter by customer (using fullName field)
+        filters['fullName'] = { value: this.getCustomerDisplayName(this.selectedCustomer), matchMode: 'contains' };
+      }
+      
+      if (this.startDate || this.endDate) {
+        if (this.startDate && this.endDate) {
+          // Date range filter
+          filters['returnDate'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
+        } else if (this.startDate) {
+          filters['returnDate'] = { value: this.startDate, matchMode: 'dateIs' };
+        } else if (this.endDate) {
+          filters['returnDate'] = { value: this.endDate, matchMode: 'dateIs' };
+        }
+      }
+      
+      this.dt.filters = filters;
+      this.dt.filteredValue = null; // Trigger filtering
+    }
+  }
+
+  clearFilters() {
+    this.selectedReturnStatus = null;
+    this.selectedCustomer = null;
+    this.startDate = null;
+    this.endDate = null;
+    
+    if (this.dt) {
+      this.dt.filters = {};
+      this.dt.filteredValue = null;
+    }
   }
 
   onFilter(dv: DataView, event: Event) {

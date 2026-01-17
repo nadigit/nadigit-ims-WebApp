@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -23,6 +23,8 @@ import { CashMovement } from 'src/app/models/cashMovement';
 import { firstValueFrom, timeout, catchError, of } from 'rxjs';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { CashCollection } from 'src/app/models/cashCollection';
+import { BankAccountService } from 'src/app/services/bank-account.service';
+import { BankAccount } from 'src/app/models/bank-account';
 
 @Component({
   templateUrl: './shops.component.html',
@@ -138,6 +140,7 @@ export class ShopsComponent implements OnInit {
 
   showCashRegisterSessionDialog = false;
 
+  bankAccounts: BankAccount[] = [];
 
   constructor(private messageService: MessageService,
     private shopService: ShopService,
@@ -152,7 +155,8 @@ export class ShopsComponent implements OnInit {
     public keycloakService: KeycloakService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
-    private router: Router) { }
+    private router: Router,
+    private bankAccountService: BankAccountService) { }
 
   async ngOnInit() {
     const defaultStartDate = new Date();
@@ -580,9 +584,14 @@ export class ShopsComponent implements OnInit {
     this.deleteShopsDialog = true;
   }
 
-  editShop(shop: Shop) {
+  async editShop(shop: Shop) {
+    await this.loadBankAccounts();
     this.selectedCountry = {};
     this.shop = { ...shop };
+    // Ensure defaultBankAccount is set if defaultBankAccountId exists
+    if (this.shop.defaultBankAccountId && !this.shop.defaultBankAccount) {
+      this.shop.defaultBankAccount = this.bankAccounts.find(acc => acc.accountId === this.shop.defaultBankAccountId) || undefined;
+    }
     this.shopDialog = true;
     console.log(this.shop.country)
     if (this.shop.country) {
@@ -620,7 +629,18 @@ export class ShopsComponent implements OnInit {
     this.selectedCountry = {};
   }
 
-  openNew() {
+  async loadBankAccounts() {
+    try {
+      const accounts$ = await this.bankAccountService.getBankAccounts(true);
+      const response = await firstValueFrom(accounts$);
+      this.bankAccounts = response as BankAccount[];
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+    }
+  }
+
+  async openNew() {
+    await this.loadBankAccounts();
     this.selectedCountry = {};
     this.shop = {};
     this.submitted = false;
@@ -639,6 +659,14 @@ export class ShopsComponent implements OnInit {
   saveShop() {
     this.submitted = true;
     console.log(this.shop);
+    // Set defaultBankAccountId from defaultBankAccount if it's an object
+    if (this.shop.defaultBankAccount && typeof this.shop.defaultBankAccount === 'object') {
+      this.shop.defaultBankAccountId = (this.shop.defaultBankAccount as BankAccount).accountId;
+    } else if (this.shop.defaultBankAccount && typeof this.shop.defaultBankAccount === 'number') {
+      this.shop.defaultBankAccountId = this.shop.defaultBankAccount;
+    } else if (!this.shop.defaultBankAccount) {
+      this.shop.defaultBankAccountId = undefined;
+    }
     if (this.shop.shopName) {
       if (this.shop.shopId) {
         this.updateShop(this.shop.shopId, this.shop)
@@ -734,8 +762,13 @@ export class ShopsComponent implements OnInit {
     this.cashRegisterDialog = false;
   }
 
-  onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  @ViewChild('dt') dt!: Table;
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (this.dt) {
+      this.dt.filterGlobal(value, 'contains');
+    }
   }
 
 

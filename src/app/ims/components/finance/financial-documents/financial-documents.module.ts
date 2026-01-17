@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { FinancialDocumentsRoutingModule } from './financial-documents-routing.module';
 import { FinancialDocumentsComponent } from './financial-documents.component';
 import { FinancialDocumentDetailsPageComponent } from './financial-document-details-page/financial-document-details-page.component';
+import { PaymentHistoryComponent } from './payment-history/payment-history.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -59,7 +60,7 @@ import { TabViewModule } from 'primeng/tabview';
         CheckboxModule,
         ToggleButtonModule
     ],
-    declarations: [FinancialDocumentsComponent, FinancialDocumentDetailsPageComponent],
+    declarations: [FinancialDocumentsComponent, FinancialDocumentDetailsPageComponent, PaymentHistoryComponent],
     providers: [ReportingService]
 })
 export class FinancialDocumentsModule { }

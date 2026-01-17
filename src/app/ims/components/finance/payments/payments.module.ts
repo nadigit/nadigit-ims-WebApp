@@ -2,7 +2,6 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentsRoutingModule } from './payments-routing.module';
-import { PaymentsComponent } from './payments.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -34,7 +33,7 @@ import { PurchasePaymentDetailsPageComponent } from './purchase-payment-details-
 import { SharedModule } from 'src/app/shared/shared.module';
 import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
-
+import { CheckboxModule } from 'primeng/checkbox';
 
 @NgModule({
     imports: [
@@ -65,9 +64,10 @@ import { DividerModule } from 'primeng/divider';
         TabViewModule,
         SharedModule,
         BadgeModule,
-        DividerModule
+        DividerModule,
+        CheckboxModule
     ],
-    declarations: [PaymentsComponent, PaymentsTableComponent, SalesPaymentsComponent, PurchasePaymentsComponent, SalesPaymentDetailsPageComponent, PurchasePaymentDetailsPageComponent],
+    declarations: [PaymentsTableComponent, SalesPaymentsComponent, PurchasePaymentsComponent, SalesPaymentDetailsPageComponent, PurchasePaymentDetailsPageComponent],
     providers: [ReportingService],
 })
 export class PaymentsModule { }

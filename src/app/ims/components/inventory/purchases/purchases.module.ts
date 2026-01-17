@@ -32,6 +32,10 @@ import { ChipModule } from 'primeng/chip';
 import { BadgeModule } from 'primeng/badge';
 import { TabViewModule } from 'primeng/tabview';
 import { DividerModule } from 'primeng/divider';
+import { CheckboxModule } from 'primeng/checkbox';
+import { SliderModule } from 'primeng/slider';
+import { PurchaseImportComponent } from './purchase-import/purchase-import.component';
+import { ProductsModule } from '../products/products.module';
 
 @NgModule({
     imports: [
@@ -64,9 +68,12 @@ import { DividerModule } from 'primeng/divider';
         ChipModule,
         BadgeModule,
         TabViewModule,
-        DividerModule
+        DividerModule,
+        CheckboxModule,
+        SliderModule,
+        ProductsModule // Import ProductsModule to use ProductFormComponent
     ],
-    declarations: [PurchasesComponent, PurchaseDetailsPageComponent],
+    declarations: [PurchasesComponent, PurchaseDetailsPageComponent, PurchaseImportComponent],
     providers: [ReportingService],
 })
 export class PurchasesModule { }

@@ -211,9 +211,17 @@ export class MyCompanyComponent implements OnInit {
     }
   }
 
-  getLogoImage(path: string) {
+  getLogoImage(path: string | null | undefined) {
     this.imageLoading = true;
     console.log("path: " + path)
+    
+    // If logo path is null, undefined, or empty, this is expected behavior - no error
+    if (!path || path === null || path === undefined || path.trim() === '') {
+      this.logoImageUrl = undefined; // Will show placeholder image
+      this.imageLoading = false;
+      return;
+    }
+    
     // Fetch the logo image using the organizationService
     this.organizationService.getLogoImage(path).subscribe(blob => {
       // Create a URL for the blob response
@@ -224,12 +232,19 @@ export class MyCompanyComponent implements OnInit {
     }, error => {
       console.error('Error fetching logo image:', error);
       this.imageLoading = false;
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_while_fetching_logo_image'),
-        life: 3000
-      });
+      // Only show error if we actually tried to fetch a logo (path exists)
+      // This prevents showing errors when logo is null (expected behavior)
+      if (path && path.trim() !== '') {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_fetching_logo_image'),
+          life: 3000
+        });
+      } else {
+        // Logo is null/empty, just set to undefined to show placeholder
+        this.logoImageUrl = undefined;
+      }
     });
   }
 
@@ -425,6 +440,20 @@ export class MyCompanyComponent implements OnInit {
     this.imagePreviewUrl = null;
     this.organization.logo = null;
     this.uploadedFile = null;
+  }
+
+  /**
+   * Get the full locale name from locale code
+   * @param localeCode The locale code (e.g., 'en', 'fr', 'ar', 'es')
+   * @returns The full locale name (e.g., 'English', 'Français', etc.)
+   */
+  getLocaleName(localeCode: string | null | undefined): string {
+    if (!localeCode) {
+      return 'English'; // Default to English
+    }
+    
+    const locale = this.availableLocales.find(loc => loc.value.toLowerCase() === localeCode.toLowerCase());
+    return locale ? locale.label : localeCode.toUpperCase();
   }
 
 }

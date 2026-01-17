@@ -1,5 +1,5 @@
 import { Customer } from "./customer";
-import { OrderItem } from "./orderItem";
+import { OrderItem, OrderItemCostInfo } from "./orderItem";
 import { OrderReturn } from "./orderReturn";
 import { Payment } from "./payment";
 import { Shop } from "./shop";
@@ -35,4 +35,14 @@ export class Order {
   itemCount?: number;
   returns?: Array<OrderReturn>;
   hasInvoice?: boolean;
+  
+  // ⚠️ NEW FIELDS for payment terms and due dates
+  paymentTermsDays?: number | null;        // Payment terms in days
+  paymentDueDate?: Date | string;          // Calculated due date
+  
+  // ⚠️ NEW FIELDS for cost and profit calculation
+  totalCost?: number;                      // Total cost of goods sold (COGS)
+  totalProfit?: number;                   // Total profit (totalAmount - totalCost)
+  profitMargin?: number;                  // Overall profit margin percentage (0-100)
+  costBreakdown?: OrderItemCostInfo[];    // Detailed breakdown array with cost info per item
 }

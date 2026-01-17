@@ -1,50 +1,112 @@
 <div class="grid">
 	<div class="col-12">
-		<div class="card px-6 py-6">
-			<h5>{{ 'returns_menu_title' | translate }}</h5>
-			<p-toast></p-toast>
-			<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-				<div class="flex align-items-center mb-3">
-					<i class="pi pi-info-circle text-primary mr-2" style="font-size: 1.25rem"></i>
-					<h3 class="m-0 text-900">{{ 'about_this_page' | translate }}</h3>
-				</div>
-				<p class="m-0 text-600">
-					{{ 'returns_page_description' | translate }}
-					<!-- <span *ngIf="customers?.length" class="font-semibold">
-                        Currently showing {{ customers.length }} {{ customers.length === 1 ? 'customer' : 'customers' }}.
-                    </span> -->
-				</p>
-				<div class="flex mt-3 gap-2">
-					<p-tag *ngIf="canAddReturn" value="{{'create' | translate}}" icon="pi pi-plus"
-						severity="success"></p-tag>
-					<p-tag *ngIf="canEditReturn" value="{{'edit' | translate}}" icon="pi pi-pencil"
-						severity="info"></p-tag>
-					<p-tag *ngIf="canDeleteReturn" value="{{'delete' | translate}}" icon="pi pi-trash"
-						severity="danger"></p-tag>
-					<p-tag value="{{'export' | translate}}" icon="pi pi-download" severity="warning"></p-tag>
-					<!-- <p-tag *ngIf="canReadHistory" value="{{'history' | translate}}" icon="pi pi-history" severity="help"></p-tag> -->
+		<!-- Returns Management Section - Above Card (matching dashboard style) -->
+		<div class="mb-4">
+			<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+				<div>
+					<h2 class="m-0 text-900">{{ 'returns_menu_title' | translate }}</h2>
+					<p class="text-600 mt-2 mb-0">{{ 'returns_page_description' | translate }}</p>
 				</div>
 			</div>
-			<p-toolbar styleClass="mb-4">
-				<ng-template pTemplate="left">
-					<div class="my-2">
-						<button pButton pRipple *ngIf="canAddReturn" label="{{ 'new_button' | translate }}"
-							icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"
-							pTooltip="{{'add_new_return'|translate}}"></button>
-						<button pButton pRipple *ngIf="canDeleteReturn" label="{{ 'delete_button' | translate }}"
-							icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedReturns()"
-							pTooltip="{{'delete_return'|translate}}"
-							[disabled]="!selectedReturns || !selectedReturns.length"></button>
-					</div>
-				</ng-template>
+		</div>
 
-				<ng-template pTemplate="right">
-					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning mr-2" pTooltip="PDF"
+		<div class="card px-6 py-6">
+			<p-toast></p-toast>
+
+			<!-- Action Buttons -->
+			<div class="flex justify-content-end align-items-center mb-4">
+				<div class="flex align-items-center gap-2">
+					<button pButton pRipple *ngIf="canAddReturn" label="{{ 'new_button' | translate }}"
+						icon="pi pi-plus" class="p-button-success" (click)="openNew()"
+						pTooltip="{{'add_new_return'|translate}}"></button>
+					<button pButton pRipple *ngIf="canDeleteReturn" label="{{ 'delete_button' | translate }}"
+						icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedReturns()"
+						pTooltip="{{'delete_return'|translate}}"
+						[disabled]="!selectedReturns || !selectedReturns.length"></button>
+				</div>
+			</div>
+
+			<!-- Filters Bar -->
+			<div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+				<!-- Global Search -->
+				<span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+					<i class="pi pi-search"></i>
+					<input type="text" pInputText 
+						[placeholder]="'search_label' | translate" 
+						(input)="onGlobalFilter($event)" class="w-full" />
+				</span>
+
+				<!-- Return Status Filter -->
+				<p-dropdown 
+					[(ngModel)]="selectedReturnStatus" 
+					[options]="returnStatuses" 
+					optionLabel="label" 
+					optionValue="value"
+					[showClear]="true"
+					[placeholder]="'filter_by_status' | translate"
+					appendTo="body"
+					styleClass="w-14rem"
+					(onChange)="onFilterChange()">
+					<ng-template let-option pTemplate="item">
+						<span [class]="'return-badge return-' + option.value.toLowerCase()">
+							{{'return_status_'+option.value.toLowerCase() | translate}}</span>
+					</ng-template>
+				</p-dropdown>
+
+				<!-- Customer Filter -->
+				<p-dropdown 
+					[(ngModel)]="selectedCustomer" 
+					[options]="customers" 
+					[optionLabel]="getCustomerDisplayName"
+					[showClear]="true"
+					[filter]="true"
+					filterBy="firstName,lastName,companyName"
+					[placeholder]="'filter_by_customer' | translate"
+					appendTo="body"
+					styleClass="w-14rem"
+					(onChange)="onFilterChange()">
+					<ng-template let-option pTemplate="item">
+						<span>{{ getCustomerDisplayName(option) }}</span>
+					</ng-template>
+					<ng-template pTemplate="selectedItem" let-selected>
+						<span *ngIf="selected">{{ getCustomerDisplayName(selected) }}</span>
+					</ng-template>
+				</p-dropdown>
+
+				<!-- Date Range Filters -->
+				<p-calendar 
+					[(ngModel)]="startDate" 
+					[showIcon]="true"
+					dateFormat="dd/mm/yy"
+					[showOnFocus]="false"
+					[placeholder]="'start_date' | translate"
+					appendTo="body"
+					styleClass="w-14rem"
+					(onSelect)="onFilterChange()">
+				</p-calendar>
+
+				<p-calendar 
+					[(ngModel)]="endDate" 
+					[showIcon]="true"
+					dateFormat="dd/mm/yy"
+					[showOnFocus]="false"
+					[minDate]="startDate"
+					[placeholder]="'end_date' | translate"
+					appendTo="body"
+					styleClass="w-14rem"
+					(onSelect)="onFilterChange()">
+				</p-calendar>
+
+				<!-- View Toggle & Export -->
+				<div class="flex align-items-center gap-2 ml-auto">
+					<button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
 						tooltipPosition="bottom" (click)="exportPdf()"></button>
-					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()"
-						class="p-button-success mr-2" pTooltip="XLS" tooltipPosition="bottom"></button>
-				</ng-template>
-			</p-toolbar>
+					<button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
+						pTooltip="XLS" tooltipPosition="bottom"></button>
+					<button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+						pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+				</div>
+			</div>
 
 			<div class="card flex justify-content-center" *ngIf="isLoading">
 				<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
@@ -55,18 +117,8 @@
 				[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
 				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
 				[(selection)]="selectedReturns" selectionMode="multiple" [rowHover]="true" dataKey="returnId"
-				[expandedRowKeys]="expandedRows">
-
-				<ng-template pTemplate="caption" *ngIf="!isLoading">
-					<div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-						<h5 class="m-0">{{ 'returns_page_title' | translate }}</h5>
-						<span class="block mt-2 md:mt-0 p-input-icon-left">
-							<i class="pi pi-search"></i>
-							<input pInputText type="text" (input)="onGlobalFilter(dt, $event)"
-								placeholder="{{ 'search_label' | translate }}" class="w-full sm:w-auto" />
-						</span>
-					</div>
-				</ng-template>
+				[expandedRowKeys]="expandedRows"
+				styleClass="p-datatable-gridlines">
 
 				<ng-template pTemplate="header">
 					<tr>
@@ -78,32 +130,14 @@
 								field="reference"></p-sortIcon>
 						</th>
 						<th pSortableColumn="returnDate">{{ 'return_date' | translate }}
-							<p-columnFilter type="date" field="returnDate" display="menu" />
 							<p-sortIcon field="returnDate"></p-sortIcon>
 						</th>
 						<th pSortableColumn="totalRefundableAmount">{{ 'return_refund_amount' | translate }}
 							<p-sortIcon field="totalRefundableAmount"></p-sortIcon>
 						</th>
-						<th style="min-width: 12rem;">
-							<div class="flex justify-content-between align-items-center">
-								{{ 'return_status' | translate }}
-								<p-columnFilter field="returnStatus" matchMode="equals" display="menu">
-									<ng-template pTemplate="filter" let-value let-filter="filterCallback">
-										<p-dropdown [ngModel]="value" [options]="returnStatuses" optionLabel="label"
-											(onChange)="filter($event.value)" [style]="{'min-width': '12rem'}"
-											placeholder="{{ 'any_label' | translate }}">
-
-											<ng-template let-option pTemplate="item">
-												<span [class]="'return-badge return-' + option.value.toLowerCase()">
-													{{ 'return_status_' + option.value.toLowerCase() | translate }}
-												</span>
-											</ng-template>
-
-										</p-dropdown>
-									</ng-template>
-								</p-columnFilter>
-								<p-sortIcon field="returnStatus"></p-sortIcon>
-							</div>
+						<th pSortableColumn="returnStatus" style="min-width: 12rem;">
+							{{ 'return_status' | translate }}
+							<p-sortIcon field="returnStatus"></p-sortIcon>
 						</th>
 
 						<th pSortableColumn="order.reference">{{ 'order_reference' | translate }} <p-sortIcon
@@ -113,30 +147,15 @@
 						<th pSortableColumn="fullName">
 							{{ 'customer' | translate }}
 							<p-sortIcon field="fullName"></p-sortIcon>
-							<p-columnFilter field="fullName" matchMode="contains" display="menu">
-								<ng-template pTemplate="filter" let-value let-filter="filterCallback">
-									<p-dropdown [ngModel]="value" [options]="customers"
-										(onChange)="filter($event.value)" placeholder="{{ 'any_label' | translate }}"
-										[style]="{'min-width': '12rem'}" [optionLabel]="getCustomerDisplayName">
-										<ng-template let-option pTemplate="item">
-											<!-- Display the appropriate name based on customer type -->
-											<span>{{ getCustomerDisplayName(option) }}</span>
-										</ng-template>
-										<ng-template pTemplate="selectedItem" let-selected>
-											<!-- Show selected item with appropriate name -->
-											<span *ngIf="selected">{{ getCustomerDisplayName(selected) }}</span>
-										</ng-template>
-									</p-dropdown>
-								</ng-template>
-							</p-columnFilter>
 						</th>
-						<th></th>
+						<th>{{ 'actions' | translate }}</th>
 					</tr>
 				</ng-template>
 
 				<ng-template pTemplate="body" let-return let-expanded="expanded">
 					<tr [pSelectableRowDisabled]="return.returnStatus !== 'PENDING' && return.returnStatus !== 'PROCESSING'"
-						(click)="canReadReturn ? openReturnDetailsDialog(return) : null">
+						(click)="canReadReturn ? openReturnDetailsDialog(return) : null"
+						class="cursor-pointer">
 						<td>
 							<p-tableCheckbox [value]="return"
 								[disabled]="return.returnStatus !== 'PENDING' && return.returnStatus !== 'PROCESSING'"
@@ -182,17 +201,17 @@
 							}}
 						</td>
 						<td>
-							<div class="flex">
+							<div class="flex gap-1">
 								<button pButton pRipple *ngIf="canEditReturn && (return.returnStatus ==='PENDING')"
-									icon="pi pi-pencil" class="p-button-rounded p-button-info mr-2"
+									icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
 									pTooltip="{{'update_return'|translate}}"
 									(click)="editReturn(return); $event.stopPropagation()"></button>
 								<button pButton pRipple *ngIf="canDeleteReturn && (return.returnStatus ==='PENDING')"
-									icon="pi pi-trash" class="p-button-rounded p-button-danger mr-2"
+									icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
 									pTooltip="{{'delete_return'|translate}}"
 									(click)="deleteReturn(return); $event.stopPropagation()"></button>
 								<button pButton pRipple *ngIf="return.returnStatus ==='PENDING' && canCancelReturn"
-									icon="pi pi-times" class="p-button-rounded p-button-warning mr-2"
+									icon="pi pi-times" class="p-button-rounded p-button-text p-button-warning"
 									(click)="cancelReturn(return); $event.stopPropagation()"
 									pTooltip="{{'cancel_return'|translate}}"></button>
 							</div>

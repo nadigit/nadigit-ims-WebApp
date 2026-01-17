@@ -26,6 +26,11 @@ import { ChipModule } from 'primeng/chip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { TooltipModule } from 'primeng/tooltip';
+import { TabViewModule } from 'primeng/tabview';
+import { BadgeModule } from 'primeng/badge';
+import { TagModule } from 'primeng/tag';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { UserDetailsPageComponent } from './user-details/user-details-page.component';
 
 
 @NgModule({
@@ -54,9 +59,13 @@ import { TooltipModule } from 'primeng/tooltip';
         ChipModule,
         ProgressSpinnerModule,
         MultiSelectModule,
-        TooltipModule
+        TooltipModule,
+        TabViewModule,
+        BadgeModule,
+        TagModule,
+        ConfirmDialogModule
     ],
-    declarations: [UsersComponent],
+    declarations: [UsersComponent, UserDetailsPageComponent],
     providers: [ReportingService],
 })
 export class UsersModule { }

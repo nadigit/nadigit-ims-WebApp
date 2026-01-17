@@ -1,0 +1,262 @@
+/* Enhanced Financial Document Dialog Styles */
+.enhanced-financial-doc-dialog {
+  .issue-document-container {
+    height: calc(90vh - 120px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-panel {
+    border-right: 1px solid var(--surface-border);
+    padding-right: 1.5rem;
+    overflow-y: auto;
+    max-height: 100%;
+  }
+
+  .preview-panel {
+    padding-left: 1.5rem;
+    background: var(--surface-ground);
+    overflow-y: auto;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .preview-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .document-preview-container {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+
+  .preview-html-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: auto;
+    min-height: 400px;
+    max-height: calc(90vh - 200px);
+    padding: 1rem;
+  }
+
+  /* Style the rendered HTML from backend templates */
+  .preview-html-container ::ng-deep {
+    /* Ensure the HTML content is properly displayed */
+    width: 100%;
+  }
+
+  .preview-html-container ::ng-deep body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .preview-html-container ::ng-deep img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .preview-html-container ::ng-deep .logo {
+    max-height: 60px;
+    max-width: 150px;
+  }
+
+  .document-preview {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    min-height: 800px;
+    font-family: 'Arial', sans-serif;
+    color: #333;
+  }
+
+  .preview-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--primary-color);
+  }
+
+  .preview-logo img {
+    max-width: 150px;
+    max-height: 80px;
+    object-fit: contain;
+  }
+
+  .preview-doc-info {
+    text-align: right;
+  }
+
+  .preview-doc-info h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+
+  .preview-doc-info .doc-number {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .preview-dates-section {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .preview-date-item {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .preview-date-item .label {
+    font-weight: 600;
+    color: #666;
+  }
+
+  .preview-customer-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--surface-50);
+    border-radius: 4px;
+  }
+
+  .preview-customer-section h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #666;
+  }
+
+  .preview-customer-section .customer-name {
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .preview-customer-section .customer-details {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+    color: #666;
+  }
+
+  .preview-items-section {
+    margin-bottom: 2rem;
+  }
+
+  .preview-items-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .preview-items-table thead {
+    background: var(--surface-100);
+  }
+
+  .preview-items-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #666;
+    border-bottom: 2px solid var(--surface-border);
+  }
+
+  .preview-items-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .preview-items-table tbody tr:hover {
+    background: var(--surface-50);
+  }
+
+  .preview-totals-section {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--surface-border);
+    text-align: right;
+  }
+
+  .preview-total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+  }
+
+  .preview-total-row.total-amount-row {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+    margin-top: 0.5rem;
+  }
+
+  .total-amount {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--primary-color);
+  }
+
+  .preview-footer-section {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+  }
+
+  .preview-footer-section h5 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #666;
+  }
+
+  .preview-footer-section p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #555;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+  .enhanced-financial-doc-dialog {
+    .form-panel {
+      border-right: none;
+      border-bottom: 1px solid var(--surface-border);
+      padding-right: 0;
+      padding-bottom: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .preview-panel {
+      padding-left: 0;
+      padding-top: 1rem;
+    }
+  }
+}
