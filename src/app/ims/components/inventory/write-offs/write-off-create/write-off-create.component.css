@@ -31,3 +31,45 @@
     border-color: var(--red-500);
 }
 
+/* Product autocomplete display fix */
+.product-autocomplete-wrapper {
+    position: relative;
+}
+
+.product-autocomplete-wrapper ::ng-deep .p-autocomplete-input {
+    color: transparent !important;
+    caret-color: var(--text-color);
+}
+
+.product-autocomplete-wrapper ::ng-deep .p-autocomplete-input:focus {
+    color: transparent !important;
+    caret-color: var(--text-color);
+}
+
+.product-autocomplete-wrapper ::ng-deep .p-autocomplete-input:not(:focus) {
+    color: transparent !important;
+}
+
+.product-display-overlay {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 3rem);
+}
+
+/* Keep overlay visible even when focused - input text stays transparent */
+.product-autocomplete-wrapper:focus-within .product-display-overlay {
+    opacity: 0.8;
+}
+
+/* Keep overlay visible even when focused - just slightly fade it */
+.product-autocomplete-wrapper:focus-within .product-display-overlay {
+    opacity: 0.7;
+}

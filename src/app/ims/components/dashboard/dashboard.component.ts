@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Router } from '@angular/router';
 import { MenuItem, MessageService, SelectItem } from 'primeng/api';
 
 import { Subject, Subscription, catchError, debounceTime, firstValueFrom, forkJoin, of, takeUntil, map, from, switchMap, timeout } from 'rxjs';
@@ -144,6 +145,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Dashboard refresh
   refreshDashboardLoading: boolean = false;
 
+  // Getting Started onboarding card
+  showGettingStartedCard: boolean = true;
+  currentUsername: string = '';
+  dataLoaded: boolean = false; // Track if data has been loaded to prevent flickering
+
   // Private properties for performance optimization
   private destroy$ = new Subject<void>();
   private filterChange$ = new Subject<void>();
@@ -175,7 +181,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private configService: AppConfigurationService,
     public keycloakService: KeycloakService,
     public messageService: MessageService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private router: Router
   ) {
     this.subscription = this.layoutService.configUpdate$
       .pipe(debounceTime(25))
@@ -188,6 +195,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.isLoading = true;
     this.cdr.markForCheck();
+
+    // Get current user's username for user-specific preferences
+    try {
+      const profile = await this.keycloakService.loadUserProfile();
+      this.currentUsername = profile.username || profile.id || 'default';
+    } catch (error) {
+      console.warn('Could not load user profile, using default username');
+      this.currentUsername = 'default';
+    }
+
+    // Load getting started card visibility preference from localStorage (user-specific)
+    const userPreferenceKey = `dashboard_showGettingStarted_${this.currentUsername}`;
+    const savedPreference = localStorage.getItem(userPreferenceKey);
+    this.showGettingStartedCard = savedPreference !== 'false'; // Default to true if not set
 
     // Set a maximum timeout - always show dashboard after 5 seconds even if data isn't loaded
     const maxTimeout = setTimeout(() => {
@@ -521,6 +542,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.updateProductStatus();
         this.updateWarehouseProductCounts();
+        
+        // Mark data as loaded after products are loaded (totalProducts is set in getProducts())
+        this.dataLoaded = true;
+        this.cdr.markForCheck();
         
         // Note: Stock value will be calculated in loadAdminMetrics() with all products
         // for more accurate calculation
@@ -1706,6 +1731,57 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return 'stat-number-medium';
     }
     return 'stat-number-small';
+  }
+
+  hideGettingStartedCard() {
+    this.showGettingStartedCard = false;
+    const userPreferenceKey = `dashboard_showGettingStarted_${this.currentUsername}`;
+    localStorage.setItem(userPreferenceKey, 'false');
+  }
+
+  showGettingStartedCardAgain() {
+    this.showGettingStartedCard = true;
+    const userPreferenceKey = `dashboard_showGettingStarted_${this.currentUsername}`;
+    localStorage.setItem(userPreferenceKey, 'true');
+  }
+
+  shouldShowGettingStartedCard(): boolean {
+    // Only show card after data has been loaded to prevent flickering
+    if (!this.dataLoaded) {
+      return false;
+    }
+    // Show card if user hasn't dismissed it AND system is new (no orders, products, or customers)
+    const isSystemNew = this.totalOrders === 0 || this.totalProducts === 0 || (this.customers && this.customers.length === 0);
+    return this.showGettingStartedCard && isSystemNew;
+  }
+
+  // Quick Actions Navigation Methods
+  navigateToNewOrder() {
+    this.router.navigate(['/sales/orders']);
+  }
+
+  navigateToNewProduct() {
+    this.router.navigate(['/inventory/products']);
+  }
+
+  navigateToNewCustomer() {
+    this.router.navigate(['/sales/customers']);
+  }
+
+  navigateToNewSupplier() {
+    this.router.navigate(['/purchases/suppliers']);
+  }
+
+  navigateToNewPurchase() {
+    this.router.navigate(['/purchases/purchases']);
+  }
+
+  navigateToCustomerPayment() {
+    this.router.navigate(['/finance/payments/sales']);
+  }
+
+  navigateToSupplierPayment() {
+    this.router.navigate(['/finance/payments/purchase']);
   }
 
   async refreshDashboard(): Promise<void> {

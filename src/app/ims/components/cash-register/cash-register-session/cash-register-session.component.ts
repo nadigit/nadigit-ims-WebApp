@@ -106,9 +106,23 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
     this.shopService.getShops().subscribe({
       next: (shops: Shop[]) => {
         this.shops = shops;
+        // Preselect shop if only one exists and no shop is already selected
+        this.applyDefaultShopIfSingle();
       },
       error: (err) => console.error('❌ Failed to load shops:', err),
     });
+  }
+
+  applyDefaultShopIfSingle(): void {
+    // Only preselect if:
+    // 1. User is admin (shop selection is visible)
+    // 2. Only one shop exists
+    // 3. No shop is currently selected
+    if (this.isAdmin && this.shops.length === 1 && !this.shopId) {
+      this.shopId = this.shops[0].shopId;
+      // Load the session for the preselected shop
+      this.loadCurrentSession();
+    }
   }
 
 

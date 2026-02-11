@@ -102,11 +102,31 @@ export class ProductFormComponent implements OnInit, OnChanges {
         // When dialog opens, ensure product is initialized
         // Only reset uploadedFile if user hasn't selected a new file
         this.initializeProduct();
+        this.applyDefaultWarehouseIfSingle();
       } else {
         // When dialog closes, reset form
         this.resetForm();
       }
     }
+    // When warehouses input changes, and we are editing/creating a product, apply default if needed
+    if (changes['warehouses'] && this.visible) {
+      this.applyDefaultWarehouseIfSingle();
+    }
+  }
+
+  /**
+   * UX Helper: if there is exactly one warehouse, preselect it for products
+   * Does NOT override an existing warehouse selection.
+   */
+  private applyDefaultWarehouseIfSingle(): void {
+    if (!this.isProduct()) return;
+    if (!this.warehouses || this.warehouses.length !== 1) return;
+    if (this.localProduct && this.localProduct.warehouse) return;
+
+    this.localProduct = {
+      ...this.localProduct,
+      warehouse: this.warehouses[0]
+    };
   }
 
   private initializeProduct(): void {
@@ -250,6 +270,8 @@ export class ProductFormComponent implements OnInit, OnChanges {
       this.localProduct.warehouse = null;
       this.localProduct.quantityAvailable = null;
       this.localProduct.inventoryStatus = null;
+      this.localProduct.costingMethod = null; // Services don't need costing methods
+      this.localProduct.standardCost = null; // Services don't need standard cost
       // Set default measure unit for services if not set
       if (!this.localProduct.measureUnit) {
         this.localProduct.measureUnit = MeasureUnit.SERVICE_UNIT;
@@ -271,6 +293,10 @@ export class ProductFormComponent implements OnInit, OnChanges {
     
     // Update cached measure units for current type
     this.updateMeasureUnitsForType();
+    // Update effective costing method label (only relevant for products)
+    if (this.isProduct()) {
+      this.updateEffectiveCostingMethodLabel();
+    }
   }
 
   private updateMeasureUnitsForType(): void {
@@ -495,17 +521,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
     // Type-specific validations
     if (this.isProduct()) {
-      // Products require buyingPrice, supplier, and warehouse (if admin)
-      if (!this.localProduct.buyingPrice || this.localProduct.buyingPrice <= 0) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('product_buying_price') + ' ' + this.translate.instant('is_required_label'),
-          life: 3000,
-        });
-        return;
-      }
-
+      // Products require supplier and warehouse (if admin)
       if (!this.localProduct.supplier) {
         this.messageService.add({
           severity: 'error',
@@ -637,11 +653,13 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
     // Clean up fields based on product type before saving
     if (this.isService()) {
-      // Services: remove product-specific fields including expiration date
+      // Services: remove product-specific fields including expiration date and costing methods
       this.localProduct.warehouse = null;
       this.localProduct.quantityAvailable = null;
       this.localProduct.inventoryStatus = null;
       this.localProduct.expirationDate = null; // Services don't expire
+      this.localProduct.costingMethod = null; // Services don't need costing methods
+      this.localProduct.standardCost = null; // Services don't need standard cost
     } else {
       // Products: remove service-specific fields
       this.localProduct.serviceProvider = null;

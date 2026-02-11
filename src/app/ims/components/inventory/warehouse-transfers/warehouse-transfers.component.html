@@ -16,9 +16,17 @@
             <!-- Action Buttons -->
             <div class="flex justify-content-end align-items-center mb-4">
                 <div class="flex align-items-center gap-2">
-                    <button pButton pRipple *ngIf="canAddTransfer" label="{{ 'new_transfer' | translate }}"
-                        icon="pi pi-plus" class="p-button-success" (click)="openNew()"
-                        pTooltip="{{'create_new_transfer'|translate}}"></button>
+                    <span *ngIf="canAddTransfer"
+                          [pTooltip]="hasSingleWarehouse ? ('warehouse_transfer_single_warehouse_warning' | translate) : ('create_new_transfer' | translate)"
+                          tooltipPosition="left">
+                        <button pButton pRipple
+                            label="{{ 'new_transfer' | translate }}"
+                            icon="pi pi-plus"
+                            class="p-button-success"
+                            (click)="openNew()"
+                            [disabled]="hasSingleWarehouse">
+                        </button>
+                    </span>
                 </div>
             </div>
 
@@ -71,6 +79,17 @@
                     appendTo="body"
                     styleClass="w-14rem"
                     (onChange)="onFilterChange()">
+                    <ng-template let-option pTemplate="item">
+                        <span [class]="'transfer-badge transfer-' + option.value.toLowerCase()">
+                            {{('transfer_status_' + option.value.toLowerCase()) | translate}}
+                        </span>
+                    </ng-template>
+                    <ng-template let-selectedOption pTemplate="selectedItem">
+                        <span *ngIf="selectedOption && selectedOption.value"
+                              [class]="'transfer-badge transfer-' + selectedOption.value.toLowerCase()">
+                            {{('transfer_status_' + selectedOption.value.toLowerCase()) | translate}}
+                        </span>
+                    </ng-template>
                 </p-dropdown>
 
                 <!-- Date Range Filters -->
@@ -99,10 +118,20 @@
 
                 <!-- View Toggle & Export -->
                 <div class="flex align-items-center gap-2 ml-auto">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
-                        tooltipPosition="bottom"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" class="p-button-success"
-                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+                        class="p-button-warning" 
+                        pTooltip="PDF"
+                        tooltipPosition="bottom" 
+                        (click)="exportPdf()"
+                        [disabled]="isExporting"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+                        (click)="exportExcel()" 
+                        class="p-button-success"
+                        pTooltip="XLS" 
+                        tooltipPosition="bottom"
+                        [disabled]="isExporting"></button>
                     <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
                         pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
                 </div>
@@ -142,6 +171,7 @@
                         </th>
                         <th style="min-width: 8rem">{{ 'items_count' | translate }}</th>
                         <th style="min-width: 8rem">{{ 'total_quantity' | translate }}</th>
+                        <th style="min-width: 8rem">{{ 'batch_info' | translate }}</th>
                         <th pSortableColumn="creationDate" style="min-width: 10rem">
                             {{ 'created_date' | translate }}
                             <p-sortIcon field="creationDate"></p-sortIcon>
@@ -243,7 +273,7 @@
 
                 <ng-template pTemplate="emptymessage">
                     <tr>
-                        <td colspan="9" class="text-center p-4">
+                        <td colspan="10" class="text-center p-4">
                             <div class="flex flex-column align-items-center justify-content-center">
                                 <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
                                 <h4>{{ 'no_transfers_found' | translate }}</h4>
@@ -275,7 +305,7 @@
                     </label>
                     <p-dropdown 
                         [(ngModel)]="transfer.sourceWarehouse" 
-                        [options]="warehouses" 
+                        [options]="availableSourceWarehouses" 
                         optionLabel="label"
                         optionValue="warehouse"
                         [filter]="true" 
@@ -283,7 +313,7 @@
                         placeholder="{{ 'select_source_warehouse' | translate }}"
                         appendTo="body"
                         (onChange)="onSourceWarehouseChange()"
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !transfer.sourceWarehouse}"
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && (!transfer.sourceWarehouse || isSameWarehouseSelected())}"
                         required>
                         <ng-template pTemplate="selectedItem">
                             <span *ngIf="transfer.sourceWarehouse" class="flex align-items-center gap-2">
@@ -301,6 +331,9 @@
                     <small class="p-error" *ngIf="submitted && !transfer.sourceWarehouse">
                         {{ 'source_warehouse_required' | translate }}
                     </small>
+                    <small class="p-error" *ngIf="submitted && isSameWarehouseSelected()">
+                        {{ 'source_destination_must_differ' | translate }}
+                    </small>
                 </div>
             </div>
 
@@ -311,14 +344,15 @@
                     </label>
                     <p-dropdown 
                         [(ngModel)]="transfer.destinationWarehouse" 
-                        [options]="warehouses" 
+                        [options]="availableDestinationWarehouses" 
                         optionLabel="label"
                         optionValue="warehouse"
                         [filter]="true" 
                         filterBy="label"
                         placeholder="{{ 'select_destination_warehouse' | translate }}"
                         appendTo="body"
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !transfer.destinationWarehouse}"
+                        (onChange)="onDestinationWarehouseChange()"
+                        [ngClass]="{'ng-invalid ng-dirty' : submitted && (!transfer.destinationWarehouse || isSameWarehouseSelected())}"
                         required>
                         <ng-template pTemplate="selectedItem">
                             <span *ngIf="transfer.destinationWarehouse" class="flex align-items-center gap-2">
@@ -335,6 +369,9 @@
                     </p-dropdown>
                     <small class="p-error" *ngIf="submitted && !transfer.destinationWarehouse">
                         {{ 'destination_warehouse_required' | translate }}
+                    </small>
+                    <small class="p-error" *ngIf="submitted && isSameWarehouseSelected()">
+                        {{ 'source_destination_must_differ' | translate }}
                     </small>
                 </div>
             </div>
@@ -373,15 +410,22 @@
             <div class="col-12">
                 <div class="field">
                     <div class="flex justify-content-between align-items-center mb-3">
-                        <label class="font-bold">
-                            {{ 'transfer_items' | translate }} <span class="required-asterisk">*</span>
-                        </label>
+                        <div class="flex-1">
+                            <label class="font-bold">
+                                {{ 'transfer_items' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <small class="p-error block mt-1" *ngIf="hasNoProductsInWarehouse || (transfer.sourceWarehouse && cachedWarehouseProducts.length === 0)">
+                                <i class="pi pi-exclamation-triangle mr-1"></i>
+                                {{ 'source_warehouse_has_no_available_products' | translate }}
+                            </small>
+                        </div>
                         <button 
                             pButton 
                             type="button" 
                             icon="pi pi-plus" 
                             label="{{ 'add_item' | translate }}"
                             (click)="addTransferItem()"
+                            [disabled]="hasNoProductsInWarehouse || (transfer.sourceWarehouse && cachedWarehouseProducts.length === 0)"
                             class="p-button-sm p-button-success">
                         </button>
                     </div>
@@ -399,7 +443,6 @@
                                         [loading]="isProductSuggestionsLoading(i)"
                                         (completeMethod)="filterProductsForWarehouse($event, i)"
                                         [minLength]="0"
-                                        [field]="'name'"
                                         placeholder="{{ 'select_product' | translate }}"
                                         [dropdown]="true"
                                         (onSelect)="onProductSelected(item, $event, i)"
@@ -561,4 +604,21 @@
         <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
             (click)="confirmCancel()"></button>
     </ng-template>
+</p-dialog>
+
+<!-- Export Progress Dialog -->
+<p-dialog 
+    [(visible)]="isExporting" 
+    [modal]="true" 
+    [closable]="false" 
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{width: '450px'}"
+    [header]="'exporting' | translate">
+    <div class="flex flex-column align-items-center gap-3 p-4">
+        <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+        <div class="text-center">
+            <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+        </div>
+    </div>
 </p-dialog>

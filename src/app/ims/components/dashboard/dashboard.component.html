@@ -25,6 +25,172 @@
         </div>
     </div>
 
+    <!-- Getting Started Onboarding Card -->
+    <div class="col-12 mb-4" *ngIf="shouldShowGettingStartedCard()">
+        <p-card styleClass="shadow-2 border-round-lg border-primary-200" [style]="{'background': 'linear-gradient(135deg, var(--primary-50) 0%, var(--surface-0) 100%)'}">
+            <div class="flex flex-column md:flex-row align-items-start md:align-items-center gap-4">
+                <div class="flex align-items-center justify-content-center bg-primary-100 border-round p-3" 
+                     [ngStyle]="{width: '4rem', height: '4rem', minWidth: '4rem'}">
+                    <i class="pi pi-rocket text-primary text-3xl"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex align-items-center justify-content-between mb-2">
+                        <h3 class="m-0 text-900">{{ 'getting_started_title' | translate }}</h3>
+                        <button pButton pRipple 
+                            icon="pi pi-times" 
+                            class="p-button-text p-button-rounded p-button-sm"
+                            [pTooltip]="'hide_this_guide' | translate"
+                            (click)="hideGettingStartedCard()">
+                        </button>
+                    </div>
+                    <p class="text-600 mb-3 m-0">{{ 'getting_started_description' | translate }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button pButton pRipple 
+                            icon="pi pi-box" 
+                            [label]="'create_first_product' | translate"
+                            class="p-button-success"
+                            routerLink="/inventory/products"
+                            [pTooltip]="'getting_started_add_product_tooltip' | translate">
+                        </button>
+                        <button pButton pRipple 
+                            icon="pi pi-user-plus" 
+                            [label]="'add_customer' | translate"
+                            class="p-button-info"
+                            routerLink="/sales/customers"
+                            [pTooltip]="'getting_started_add_customer_tooltip' | translate"
+                            *ngIf="isAdmin || isVendor">
+                        </button>
+                        <button pButton pRipple 
+                            icon="pi pi-shopping-cart" 
+                            [label]="'create_first_order' | translate"
+                            class="p-button-primary"
+                            routerLink="/sales/orders"
+                            [pTooltip]="'getting_started_create_order_tooltip' | translate"
+                            *ngIf="isAdmin || isVendor">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </p-card>
+    </div>
+
+    <!-- Show Getting Started Button (if hidden) -->
+    <div class="col-12 mb-3" *ngIf="!showGettingStartedCard && (totalOrders === 0 || totalProducts === 0 || (customers && customers.length === 0))">
+        <button pButton pRipple 
+            icon="pi pi-info-circle" 
+            [label]="'show_getting_started' | translate"
+            class="p-button-outlined p-button-sm"
+            (click)="showGettingStartedCardAgain()">
+        </button>
+    </div>
+
+    <!-- Quick Actions Section -->
+    <div class="col-12 mb-4">
+        <div class="flex align-items-center gap-2 mb-3">
+            <i class="pi pi-bolt text-primary text-xl"></i>
+            <h3 class="m-0 text-900">{{ 'quick_actions' | translate }}</h3>
+        </div>
+        <div class="grid">
+            <!-- New Order -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isVendor">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToNewOrder()"
+                     [pTooltip]="'create_new_order_tooltip' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon bg-blue-100 border-round p-3">
+                            <i class="pi pi-shopping-cart text-blue-500 text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'new_order' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Product -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isWarehouseman">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToNewProduct()"
+                     [pTooltip]="'create_new_product_tooltip' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon bg-green-100 border-round p-3">
+                            <i class="pi pi-box text-green-500 text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'new_product' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Customer -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isVendor">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToNewCustomer()"
+                     [pTooltip]="'create_new_customer_tooltip' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon bg-purple-100 border-round p-3">
+                            <i class="pi pi-user-plus text-purple-500 text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'new_customer' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Supplier -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isWarehouseman">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToNewSupplier()"
+                     [pTooltip]="'create_new_supplier_tooltip' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon bg-orange-100 border-round p-3">
+                            <i class="pi pi-truck text-orange-500 text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'new_supplier' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Purchase -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isWarehouseman || isVendor">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToNewPurchase()"
+                     [pTooltip]="'create_new_purchase_tooltip' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon bg-cyan-100 border-round p-3">
+                            <i class="pi pi-shopping-bag text-cyan-500 text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'new_purchase' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Payment -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isVendor">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToCustomerPayment()"
+                     [pTooltip]="'add_customer_payment_tooltip' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon bg-teal-100 border-round p-3">
+                            <i class="pi pi-money-bill text-teal-500 text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'customer_payment' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier Payment -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isVendor">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToSupplierPayment()"
+                     [pTooltip]="'add_supplier_payment_tooltip' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon bg-indigo-100 border-round p-3">
+                            <i class="pi pi-credit-card text-indigo-500 text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'supplier_payment' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Actions Section - Admin Only -->
     <!-- <div class="col-12 mb-3" *ngIf="isAdmin">
         <p-card styleClass="shadow-2 border-round-lg">

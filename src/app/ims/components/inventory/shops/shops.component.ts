@@ -25,6 +25,9 @@ import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { CashCollection } from 'src/app/models/cashCollection';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
+import { ShopFormDialogComponent, ShopFormDialogConfig, ShopFormDialogData } from './shop-form-dialog/shop-form-dialog.component';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
 
 @Component({
   templateUrl: './shops.component.html',
@@ -35,7 +38,12 @@ export class ShopsComponent implements OnInit {
 
   Ressource: string = 'SHOPS';
 
-  shopDialog: boolean = false;
+  // Dialog configuration for reusable component
+  shopDialogConfig: ShopFormDialogConfig = {
+    visible: false,
+    mode: 'edit',
+    shop: {},
+  };
 
   deleteShopDialog: boolean = false;
 
@@ -86,6 +94,8 @@ export class ShopsComponent implements OnInit {
   canReadCash: boolean = false;
 
   isLoading: boolean = false;
+  isExporting: boolean = false;
+  exportProgress: string = '';
 
   cashRegisterSettingsDialog: boolean = false;
   currency: any = '';
@@ -156,7 +166,8 @@ export class ShopsComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private router: Router,
-    private bankAccountService: BankAccountService) { }
+    private bankAccountService: BankAccountService,
+    private organizationService: OrganizationService) { }
 
   async ngOnInit() {
     const defaultStartDate = new Date();
@@ -586,17 +597,16 @@ export class ShopsComponent implements OnInit {
 
   async editShop(shop: Shop) {
     await this.loadBankAccounts();
-    this.selectedCountry = {};
-    this.shop = { ...shop };
     // Ensure defaultBankAccount is set if defaultBankAccountId exists
-    if (this.shop.defaultBankAccountId && !this.shop.defaultBankAccount) {
-      this.shop.defaultBankAccount = this.bankAccounts.find(acc => acc.accountId === this.shop.defaultBankAccountId) || undefined;
+    if (shop.defaultBankAccountId && !shop.defaultBankAccount) {
+      shop.defaultBankAccount = this.bankAccounts.find(acc => acc.accountId === shop.defaultBankAccountId) || undefined;
     }
-    this.shopDialog = true;
-    console.log(this.shop.country)
-    if (this.shop.country) {
-      this.onSelectedCountry(this.shop.country)
-    }
+    this.shopDialogConfig = {
+      visible: true,
+      mode: 'edit',
+      shop: { ...shop },
+    };
+    console.log(shop.country)
   }
 
   openShopDetails(shop: Shop): void {
@@ -624,9 +634,22 @@ export class ShopsComponent implements OnInit {
   }
 
   hideDialog() {
-    this.shopDialog = false;
+    this.shopDialogConfig.visible = false;
     this.submitted = false;
-    this.selectedCountry = {};
+  }
+
+  // Shop Form Dialog Event Handlers
+  onShopDialogConfigChange(config: ShopFormDialogConfig) {
+    this.shopDialogConfig = config;
+  }
+
+  onShopSave(dialogData: ShopFormDialogData) {
+    this.shop = dialogData.shop;
+    this.saveShop();
+  }
+
+  onShopCancel() {
+    this.hideDialog();
   }
 
   async loadBankAccounts() {
@@ -641,10 +664,13 @@ export class ShopsComponent implements OnInit {
 
   async openNew() {
     await this.loadBankAccounts();
-    this.selectedCountry = {};
+    this.shopDialogConfig = {
+      visible: true,
+      mode: 'create',
+      shop: {},
+    };
     this.shop = {};
     this.submitted = false;
-    this.shopDialog = true;
   }
 
   async openSettingsDialog() {
@@ -698,7 +724,7 @@ export class ShopsComponent implements OnInit {
           });
       }
       this.shops = [...this.shops];
-      this.shopDialog = false;
+      this.shopDialogConfig.visible = false;
       this.shop = {};
     } else {
       this.messageService.add({
@@ -924,15 +950,6 @@ export class ShopsComponent implements OnInit {
     console.log("clear city")
   }
 
-  onSelectedCountry(event) {
-    if ((this.shop.country != this.selectedCountry) && (this.shop.city == undefined)) this.shop.city = undefined;
-    this.countries.forEach(element => {
-      if (element.name === event) {
-        this.selectedCountry = element;
-      }
-    });
-    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
-  }
 
   filterCountry(value: any, filter: string): boolean {
     // Convert both to lowercase for case-insensitive comparison
@@ -1225,27 +1242,188 @@ export class ShopsComponent implements OnInit {
   }
 
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.shops, 'shops')
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Get filtered shops from table (or all if no filter applied)
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      const filteredShops = this.dt?.filteredValue || this.shops || [];
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Build translated export columns based on organization's default locale
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'shopId': 'ID',
+        'shopName': 'shop_name',
+        'description': 'shop_description',
+        'city': 'shop_city',
+        'country': 'shop_country',
+        'address': 'shop_address'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.cols
+        .filter((col) => col.field !== 'shopId') // Exclude ID column
+        .map((col) => {
+          const translationKey = translationKeyMap[col.field] || col.field;
+          return {
+            title: this.translate.instant(translationKey),
+            dataKey: col.field
+          };
+        });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('shops_menu_title');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, filteredShops, 'shops', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${filteredShops.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedShops = this.shops.map(shop => {
-      // Create a copy of the supplier object to modify
-      const modifiedShop = { ...shop };
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedShop.creationDate;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+      // Get filtered shops from table (or all if no filter applied)
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      const filteredShops = this.dt?.filteredValue || this.shops || [];
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'shopId': 'ID',
+        'shopName': 'shop_name',
+        'description': 'shop_description',
+        'city': 'shop_city',
+        'country': 'shop_country',
+        'address': 'shop_address'
+      };
+      
+      // Clone the shops array to avoid modifying the original array
+      const modifiedShops = filteredShops.map(shop => {
+        // Create a copy of the shop object to modify
+        const modifiedShop = { ...shop };
 
-      return modifiedShop;
-    });
+        // Remove the column you want to exclude
+        delete modifiedShop.creationDate;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedShops, 'shops');
+        return modifiedShop;
+      });
+
+      // Create a translated version of the data with translated headers
+      // For Excel, we need to create objects with translated keys
+      const translatedShops = modifiedShops.map(shop => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          // Exclude ID and creationDate columns
+          if (col.field !== 'creationDate' && col.field !== 'shopId') {
+            const translationKey = translationKeyMap[col.field] || col.field;
+            const translatedHeader = this.translate.instant(translationKey);
+            translated[translatedHeader] = shop[col.field as keyof Shop];
+          }
+        });
+        return translated;
+      });
+
+      // Now, export the translated array to Excel
+      this.reportingService.exportExcel(translatedShops, 'shops');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${translatedShops.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   openNewCollectionDialog(): void {

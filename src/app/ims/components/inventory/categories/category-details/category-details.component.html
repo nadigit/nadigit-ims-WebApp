@@ -537,66 +537,13 @@
 </div>
 
 <!-- Edit Category Dialog -->
-<p-dialog [(visible)]="categoryDialog" [style]="{width: '500px'}"
-    [breakpoints]="{'960px': '90vw', '640px': '95vw'}" [header]="'edit_category' | translate"
-    [modal]="true" [draggable]="false" [resizable]="false" styleClass="p-fluid category-dialog">
-    <ng-template pTemplate="content">
-        <div class="grid p-fluid">
-            <div class="col-12">
-                <div class="field">
-                    <label for="categoryName" class="block mb-2 font-bold">
-                        {{ 'category_name' | translate }} <span class="required-asterisk">*</span>
-                    </label>
-                    <div class="p-inputgroup">
-                        <span class="p-inputgroup-addon">
-                            <i class="pi pi-folder"></i>
-                        </span>
-                        <input type="text" pInputText name="categoryName" [(ngModel)]="category.categoryName"
-                            required [placeholder]="'enter_category_name' | translate"
-                            [ngClass]="{'ng-invalid ng-dirty': submitted && !category.categoryName}" />
-                    </div>
-                    <small class="p-error" *ngIf="submitted && !category.categoryName">
-                        {{ 'category_name' | translate }} {{ 'is_required_label' | translate }}
-                    </small>
-                </div>
-
-                <div class="field">
-                    <label for="description" class="block mb-2 font-bold">
-                        {{ 'category_description' | translate }}
-                    </label>
-                    <textarea pInputTextarea [(ngModel)]="category.description" name="description" rows="3"
-                        [autoResize]="true"
-                        [placeholder]="'enter_category_description' | translate"></textarea>
-                </div>
-
-                <div class="field">
-                    <label for="costingMethod" class="block mb-2 font-bold">
-                        {{ 'category_costing_method' | translate }}
-                    </label>
-                    <p-dropdown appendTo="body" [(ngModel)]="category.costingMethod" name="costingMethod"
-                        [options]="costingMethods" optionLabel="label" optionValue="value"
-                        [placeholder]="'inherit_costing_method' | translate" [showClear]="true"
-                        [disabled]="!isAdmin && category?.categoryId">
-                    </p-dropdown>
-                    <small class="text-color-secondary">
-                        {{ 'costing_method_inheritance_help' | translate }}
-                    </small>
-                </div>
-            </div>
-        </div>
-
-        <div class="required-note mt-3">
-            <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
-        </div>
-    </ng-template>
-
-    <ng-template pTemplate="footer">
-        <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
-            class="p-button-text" (click)="hideDialog()"></button>
-        <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
-            (click)="saveCategory()"></button>
-    </ng-template>
-</p-dialog>
+<app-category-form-dialog
+    [config]="categoryDialogConfig"
+    [submitted]="submitted"
+    (configChange)="onCategoryDialogConfigChange($event)"
+    (save)="onCategorySave($event)"
+    (cancel)="onCategoryCancel()">
+</app-category-form-dialog>
 
 <!-- Product Form Dialog -->
 <app-product-form

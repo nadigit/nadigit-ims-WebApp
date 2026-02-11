@@ -98,6 +98,9 @@ export class PurchasePaymentsComponent implements OnInit {
   isCheckingReconciliation: boolean = false;
   paymentReconciliationCache: Map<number, ReconciliationStatus> = new Map(); // Cache reconciliation status per payment
 
+  // Filter state
+  currentFilters: { [field: string]: any } = {};
+
   constructor(private messageService: MessageService,
     private paymentService: PaymentService,
     private supplierService: SupplierService,
@@ -142,7 +145,18 @@ export class PurchasePaymentsComponent implements OnInit {
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
     await this.loadBankAccounts();
-    this.isLoading = false;
+    
+    // Load suppliers for filter dropdown
+    await this.onGetAllSuppliersWithUnpaidPurchases();
+    
+    // Initial load
+    const initialEvent: any = {
+      first: 0,
+      rows: this.pageSize,
+      sortField: 'paymentDate',
+      sortOrder: -1
+    };
+    this.onLazyLoad(initialEvent);
   }
 
   async loadBankAccounts() {
@@ -916,6 +930,41 @@ export class PurchasePaymentsComponent implements OnInit {
     });
   }
 
+  onFilterChange(filters: any) {
+    // Update current filters from the payments-table component
+    this.currentFilters = {};
+    
+    if (filters.paymentStatus) {
+      this.currentFilters['paymentStatus'] = { value: filters.paymentStatus };
+    }
+    if (filters.paymentMethod) {
+      this.currentFilters['paymentMethod'] = { value: filters.paymentMethod };
+    }
+    if (filters.supplier) {
+      this.currentFilters['supplierId'] = { value: filters.supplier?.supplierId || filters.supplier };
+    }
+    if (filters.startDate) {
+      this.currentFilters['fromDate'] = { value: filters.startDate };
+    }
+    if (filters.endDate) {
+      this.currentFilters['toDate'] = { value: filters.endDate };
+    }
+
+    // Trigger reload with current lazy load event
+    if (this.lastLazyLoadEvent) {
+      this.onLazyLoad(this.lastLazyLoadEvent);
+    } else {
+      // Initial load
+      const initialEvent: any = {
+        first: 0,
+        rows: this.pageSize,
+        sortField: 'paymentDate',
+        sortOrder: -1
+      };
+      this.onLazyLoad(initialEvent);
+    }
+  }
+
   onGlobalFilter(event: { globalFilter: string, context?: 'incoming' | 'outgoing' }) {
     const { globalFilter } = event;
     this.globalFilter = globalFilter;
@@ -940,6 +989,7 @@ export class PurchasePaymentsComponent implements OnInit {
 
   onLazyLoad(event: any) {
     this.lastLazyLoadEvent = event;
+    this.isLoading = true;
 
     // Add sort info to event
     const sortBy = event.sortField || 'paymentDate'; // default sort field
@@ -954,66 +1004,41 @@ export class PurchasePaymentsComponent implements OnInit {
     const sortBy = event?.sortBy || 'paymentDate';
     const direction = event?.direction || 'DESC';
 
-    this.paymentService.getPayments('outgoing', page, size, this.globalFilter, sortBy, direction)
+    this.paymentService.getPayments('outgoing', page, size, this.globalFilter, sortBy, direction, this.currentFilters)
       .subscribe({
         next: (res: any) => {
-          console.log(res);
-          const mappedPayments = res.content.map((p: any) => {
+          console.log('Payments response:', res);
+          
+          // Handle different response structures
+          // Backend may return: { page: { content: [], totalElements: 0 } } or { content: [], totalElements: 0 }
+          const pageContent = res?.page?.content || res?.content || [];
+          const totalElements = res?.page?.totalElements ?? res?.totalElements ?? 0;
+          
+          // Map payments directly without grouping (same behavior as sales payments)
+          this.payments = Array.isArray(pageContent) ? pageContent.map((p: any) => {
             return {
               ...p,
               paymentDate: p.paymentDate ? new Date(p.paymentDate) : null,
               hasReceipt: !!p.receiptNumber
             };
-          });
+          }) : [];
           
-          // ⚠️ NEW: Group payments by transaction ID for multi-purchase payments
-          this.payments = this.groupPaymentsByTransactionId(mappedPayments);
-          this.totalRecords = res.totalElements;
-          console.log(res);
+          this.totalRecords = totalElements;
+          this.isLoading = false;
         },
-        error: (err) => console.error(err)
+        error: (err) => {
+          console.error('Error loading payments:', err);
+          this.payments = [];
+          this.totalRecords = 0;
+          this.isLoading = false;
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_payments') || 'Error loading payments',
+            life: 3000
+          });
+        }
       });
-  }
-
-  // ⚠️ NEW: Group payments by transaction ID
-  // Returns array where payments with same transactionId are grouped together
-  groupPaymentsByTransactionId(payments: Payment[]): Payment[] {
-    const grouped = new Map<string, Payment[]>();
-    
-    // Group payments by transaction ID
-    payments.forEach(payment => {
-      const key = payment.transactionId || `single-${payment.paymentId}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
-      }
-      grouped.get(key)!.push(payment);
-    });
-    
-    // Convert grouped map to array, marking multi-payment groups
-    const result: Payment[] = [];
-    grouped.forEach((paymentList, transactionId) => {
-      if (paymentList.length === 1) {
-        // Single payment - add as is
-        result.push(paymentList[0]);
-      } else {
-        // Multiple payments with same transaction ID - create summary
-        const firstPayment = paymentList[0];
-        const totalAmount = paymentList.reduce((sum, p) => sum + (p.amount || 0), 0);
-        const purchaseCount = paymentList.filter(p => p.purchaseId).length;
-        
-        result.push({
-          ...firstPayment,
-          isMultiPayment: true,
-          paymentCount: paymentList.length,
-          totalAmount: totalAmount,
-          allPayments: paymentList,
-          // Update amount to show total
-          amount: totalAmount
-        } as any);
-      }
-    });
-    
-    return result;
   }
 
 
@@ -1218,22 +1243,27 @@ export class PurchasePaymentsComponent implements OnInit {
   }
 
   async onGetAllSuppliersWithUnpaidPurchases() {
-    await this.supplierService.getSuppliersWithUnpaidPurchases()
-      .subscribe({
-        next: (response: any) => {
-          this.suppliers = response;
-          console.log(this.suppliers);
-        },
-        error: (err: any) => {
-          console.error('Error fetching suppliers with unpaid purchases', err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_purchases'),
-            life: 3000
-          });
-        }
-      })
+    return new Promise<void>((resolve) => {
+      this.supplierService.getSuppliersWithUnpaidPurchases()
+        .subscribe({
+          next: (response: any) => {
+            this.suppliers = Array.isArray(response) ? response : [];
+            console.log(this.suppliers);
+            resolve();
+          },
+          error: (err: any) => {
+            console.error('Error fetching suppliers with unpaid purchases', err);
+            this.suppliers = [];
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_getting_purchases'),
+              life: 3000
+            });
+            resolve();
+          }
+        });
+    });
   }
 
   onSupplierSelect(supplier: Supplier) {
@@ -1465,6 +1495,11 @@ export class PurchasePaymentsComponent implements OnInit {
 
     // Now, export the modified array to Excel
     this.reportingService.exportExcel(modifiedPayments, 'purchase-payments');
+  }
+
+  getSupplierDisplayName(supplier: any): string {
+    if (!supplier) return 'N/A';
+    return supplier.name || 'Unnamed Supplier';
   }
 
   getPaymentStatusSeverity(status: string): string {

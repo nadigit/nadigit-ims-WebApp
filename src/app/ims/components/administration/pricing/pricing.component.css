@@ -1,0 +1,7 @@
+.required-asterisk {
+  color: var(--red-500);
+}
+
+.card {
+  position: relative;
+}

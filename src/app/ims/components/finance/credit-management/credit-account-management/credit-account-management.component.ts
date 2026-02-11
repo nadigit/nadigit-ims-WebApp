@@ -14,6 +14,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { firstValueFrom } from 'rxjs';
 import { CreditStatus } from 'src/app/models/customer-credit-account';
 import { CreditInfo } from 'src/app/models/credit-info';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-credit-account-management',
@@ -57,6 +58,7 @@ export class CreditAccountManagementComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private creditService: CustomerCreditService,
     private customerService: CustomerService,
     private messageService: MessageService,
@@ -88,7 +90,7 @@ export class CreditAccountManagementComponent implements OnInit {
           detail: this.translate.instant('invalid_customer_id'),
           life: 3000
         });
-        this.router.navigate(['/inventory/customers']);
+        this.router.navigate(['/sales/customers']);
         return;
       }
       await this.checkPermissions();
@@ -130,7 +132,7 @@ export class CreditAccountManagementComponent implements OnInit {
           detail: this.translate.instant('customer_not_found'),
           life: 3000
         });
-        this.router.navigate(['/inventory/customers']);
+        this.router.navigate(['/sales/customers']);
       }
     } catch (error) {
       console.error('Error loading customer:', error);
@@ -344,7 +346,7 @@ export class CreditAccountManagementComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/inventory/customers', this.customerId]);
+    this.location.back();
   }
 
   getCustomerDisplayName(customer?: Customer | null): string {

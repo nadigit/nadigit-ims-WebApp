@@ -9,7 +9,6 @@ import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { Category } from 'src/app/models/category';
 import { Product } from 'src/app/models/product';
 import { Supplier } from 'src/app/models/supplier';
-import { UploadEvent } from 'src/app/models/uploadEvent';
 import { Warehouse } from 'src/app/models/warehouse';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { CategoryService } from 'src/app/services/category.service';
@@ -20,6 +19,9 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { getMeasureUnit } from 'src/app/shared/product-utils';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { CategoryFormDialogComponent, CategoryFormDialogConfig, CategoryFormDialogData } from './category-form-dialog/category-form-dialog.component';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
 
 @Component({
   templateUrl: './categories.component.html',
@@ -30,7 +32,13 @@ export class CategoriesComponent implements OnInit {
 
   Ressource: string = "CATEGORIES"
 
-  categoryDialog: boolean = false;
+  // Dialog configuration for reusable component
+  categoryDialogConfig: CategoryFormDialogConfig = {
+    visible: false,
+    mode: 'edit',
+    category: {},
+    isLoading: false
+  };
 
   lowStockThreshold;
 
@@ -54,8 +62,6 @@ export class CategoriesComponent implements OnInit {
 
   exportColumns!: ExportColumn[];
 
-  costingMethods: any[] = [];
-
   // Permissions
   canAddCategory: boolean = false;
   canEditCategory: boolean = false;
@@ -65,11 +71,15 @@ export class CategoriesComponent implements OnInit {
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
   canReadProduct: boolean = false;
+  canAddSupplier: boolean = false;
+  canAddWarehouse: boolean = false;
   isAdmin: boolean = false;
   measureUnits: any[] = [];
   attributeTypes: any[] = [];
   deleteProductDialog: boolean = false;
   isLoading = true;
+  isExporting: boolean = false;
+  exportProgress: string = '';
   currency: string = '';
   selectedProduct: Product;
   productDetailDialog: boolean = false;
@@ -77,8 +87,6 @@ export class CategoriesComponent implements OnInit {
   userRoles: any;
   suppliers: Supplier[] = [];
   warehouses: Warehouse[] = [];
-  imageURL: any;
-  uploadedFile: File | null = null;
   archiveProductDialog: boolean = false;
   constructor(private messageService: MessageService,
     private categoryService: CategoryService,
@@ -92,7 +100,8 @@ export class CategoriesComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-    private router: Router) {
+    private router: Router,
+    private organizationService: OrganizationService) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -107,13 +116,6 @@ export class CategoriesComponent implements OnInit {
       { label: this.translate.instant('Integer'), value: 'INTEGER' },
       { label: this.translate.instant('Double'), value: 'DOUBLE' },
       { label: this.translate.instant('Boolean'), value: 'BOOLEAN' }
-    ];
-    this.costingMethods = [
-      { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
-      { label: this.translate.instant('costing_method_lifo'), value: 'LIFO' },
-      { label: this.translate.instant('costing_method_weighted_average'), value: 'WEIGHTED_AVERAGE' },
-      { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
-      { label: this.translate.instant('costing_method_none'), value: 'NONE' }
     ];
   }
 
@@ -152,8 +154,12 @@ export class CategoriesComponent implements OnInit {
 
   editCategory(category: Category) {
     if (!this.canEditCategory) return;
-    this.category = { ...category };
-    this.categoryDialog = true;
+    this.categoryDialogConfig = {
+      visible: true,
+      mode: 'edit',
+      category: { ...category },
+      isLoading: false
+    };
   }
 
   deleteCategory(category: Category) {
@@ -199,6 +205,8 @@ export class CategoriesComponent implements OnInit {
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
     this.canReadProduct = this.permissionService.canRead('PRODUCTS');
+    this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
+    this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
   }
 
   async confirmDelete() {
@@ -212,16 +220,33 @@ export class CategoriesComponent implements OnInit {
   }
 
   hideDialog() {
-    this.categoryDialog = false;
+    this.categoryDialogConfig.visible = false;
     this.submitted = false;
+  }
+
+  // Category Form Dialog Event Handlers
+  onCategoryDialogConfigChange(config: CategoryFormDialogConfig) {
+    this.categoryDialogConfig = config;
+  }
+
+  onCategorySave(dialogData: CategoryFormDialogData) {
+    this.category = dialogData.category;
+    this.saveCategory();
+  }
+
+  onCategoryCancel() {
+    this.hideDialog();
   }
 
   openNew() {
     if (!this.canAddCategory) return;
-    this.category = {};
+    this.categoryDialogConfig = {
+      visible: true,
+      mode: 'create',
+      category: { costingMethod: 'NONE' },
+      isLoading: false
+    };
     this.submitted = false;
-    this.categoryDialog = true;
-    this.category.costingMethod = 'NONE';
   }
 
   openCategoryDetails(category: Category): void {
@@ -245,7 +270,7 @@ export class CategoriesComponent implements OnInit {
         }
       }
       this.categories = [...this.categories];
-      this.categoryDialog = false;
+      this.categoryDialogConfig.visible = false;
       this.category = {};
     } else {
       this.messageService.add({
@@ -398,27 +423,182 @@ export class CategoriesComponent implements OnInit {
       });
   }
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.categories, 'categories')
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Get filtered categories from table (or all if no filter applied)
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      const filteredCategories = this.dt?.filteredValue || this.categories || [];
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Build translated export columns based on organization's default locale
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'categoryId': 'ID',
+        'categoryName': 'category_name',
+        'description': 'category_description'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.cols
+        .filter((col) => col.field !== 'categoryId') // Exclude ID column
+        .map((col) => {
+          const translationKey = translationKeyMap[col.field] || col.field;
+          return {
+            title: this.translate.instant(translationKey),
+            dataKey: col.field
+          };
+        });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('categories_menu_title');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, filteredCategories, 'categories', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${filteredCategories.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedCategories = this.categories.map(category => {
-      // Create a copy of the supplier object to modify
-      const modifiedCategory = { ...category };
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedCategory.creationDate;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+      // Get filtered categories from table (or all if no filter applied)
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      const filteredCategories = this.dt?.filteredValue || this.categories || [];
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'categoryId': 'ID',
+        'categoryName': 'category_name',
+        'description': 'category_description'
+      };
+      
+      // Clone the categories array to avoid modifying the original array
+      const modifiedCategories = filteredCategories.map(category => {
+        // Create a copy of the category object to modify
+        const modifiedCategory = { ...category };
 
-      return modifiedCategory;
-    });
+        // Remove the column you want to exclude
+        delete modifiedCategory.creationDate;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedCategories, 'categories');
+        return modifiedCategory;
+      });
+
+      // Create a translated version of the data with translated headers
+      // For Excel, we need to create objects with translated keys
+      const translatedCategories = modifiedCategories.map(category => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          // Exclude ID and creationDate columns
+          if (col.field !== 'creationDate' && col.field !== 'categoryId') {
+            const translationKey = translationKeyMap[col.field] || col.field;
+            const translatedHeader = this.translate.instant(translationKey);
+            translated[translatedHeader] = category[col.field as keyof Category];
+          }
+        });
+        return translated;
+      });
+
+      // Now, export the translated array to Excel
+      this.reportingService.exportExcel(translatedCategories, 'categories');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${translatedCategories.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   async getLowStockThreshold(): Promise<number> {
@@ -493,141 +673,14 @@ export class CategoriesComponent implements OnInit {
 
   editProduct(product: Product) {
     if (!this.canEditProduct) return;
-    this.selectedProduct = product;
+    this.selectedProduct = { ...product }; // Create a copy to avoid modifying the original
     this.onGetAllCategories();
     this.onGetAllWarehouses();
     this.onGetAllSuppliers();
     this.productDialog = true;
   }
 
-  addAttribute() {
-    if (!this.selectedProduct.attributes) {
-      this.selectedProduct.attributes = [];
-    }
 
-    this.selectedProduct.attributes.push({
-      attributeName: '',
-      attributeType: 'STRING', // default type
-      value: ''
-    });
-  }
-
-  removeAttribute(index: number) {
-    if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > index) {
-      this.selectedProduct.attributes.splice(index, 1);
-    }
-  }
-
-  editImage() {
-    this.selectedProduct.productImage = null;
-    this.uploadedFile = null;
-  }
-
-  async saveProduct() {
-    this.submitted = true;
-
-    if (
-      this.selectedProduct.name &&
-      this.selectedProduct.reference &&
-      this.selectedProduct.quantityAvailable &&
-      this.selectedProduct.buyingPrice &&
-      this.selectedProduct.sellingPrice &&
-      this.selectedProduct.category &&
-      this.selectedProduct.supplier
-    ) {
-      if (this.isAdmin && !this.selectedProduct.warehouse) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('warehouse_required'),
-          life: 3000,
-        });
-        return;
-      }
-
-      // 🔍 Check for duplicate product with same reference in the same warehouse
-      const isDuplicate = this.products.some((p: any) =>
-        p.reference === this.selectedProduct.reference &&
-        p.warehouse?.warehouseId === this.selectedProduct.warehouse?.warehouseId &&
-        p.productId !== this.selectedProduct.productId // exclude current product if updating
-      );
-
-      if (isDuplicate) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('product_already_exists_in_warehouse'),
-          life: 4000,
-        });
-        return;
-      }
-
-      // 📦 Upload product image if any
-      if (this.uploadedFile) {
-        const filePath = `images/${this.uploadedFile.name}`;
-        const fileRef = this.storage.ref(filePath);
-        const task = this.storage.upload(filePath, this.uploadedFile);
-
-        try {
-          await lastValueFrom(task.snapshotChanges());
-          const url = await lastValueFrom(fileRef.getDownloadURL());
-          this.selectedProduct.productImage = url;
-          this.uploadedFile = null;
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_image'),
-            life: 3000,
-          });
-          return;
-        }
-      }
-
-      // Clean attributes before saving
-      if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > 0) {
-        this.selectedProduct.attributes.forEach(attr => {
-          // strip transient field if it still exists
-          delete attr.value;
-
-          // optionally normalize booleans (Angular checkboxes can send null)
-          if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
-            attr.booleanValue = false;
-          }
-        });
-      }
-
-      // ✏️ Update or add product
-      if (this.selectedProduct.productId) {
-        this.updateProduct(this.selectedProduct.productId, this.selectedProduct)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_updated'),
-            life: 3000,
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000,
-          });
-      }
-
-      // ✅ Reset and close dialog
-      this.productDialog = false;
-      // this.selectedProduct = {};
-    } else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3100,
-      });
-      return;
-    }
-  }
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
@@ -723,18 +776,6 @@ export class CategoriesComponent implements OnInit {
     });
   }
 
-  async onFileUpload(event: UploadEvent): Promise<void> {
-    console.log("in upload");
-    const file = event.files[0];
-
-    // Save the file temporarily and update the imageURL
-    this.imageURL = URL.createObjectURL(file);
-
-    // Store the actual file for later use
-    this.uploadedFile = file;
-
-    // Note: The actual upload to Firebase Storage will happen when the user clicks "Save" in the saveProduct method
-  }
 
   archiveProduct(product: Product) {
     if (!this.canDeleteProduct) return;
@@ -778,6 +819,43 @@ export class CategoriesComponent implements OnInit {
   hideProductDialog() {
     this.productDialog = false;
     this.submitted = false;
+  }
+
+  // Product Form Component Event Handlers
+  onProductSaveSuccess(product: Product): void {
+    console.log('Product saved successfully:', product);
+    this.productDialog = false;
+    this.selectedProduct = {};
+    // Refresh the category products if we're in a category context
+    if (this.category && this.category.categoryId) {
+      this.onGetCategoryProducts();
+    }
+  }
+
+  onProductSaveError(error: any): void {
+    console.error('Product save error:', error);
+    // The error handling is done in the product form component
+  }
+
+  onProductCancel(): void {
+    console.log('Product form cancelled');
+    this.productDialog = false;
+    this.selectedProduct = {};
+  }
+
+  onCategoryAdd(): void {
+    // Handle category add dialog if needed
+    console.log('Category add requested');
+  }
+
+  onSupplierAdd(): void {
+    // Handle supplier add dialog if needed
+    console.log('Supplier add requested');
+  }
+
+  onWarehouseAdd(): void {
+    // Handle warehouse add dialog if needed
+    console.log('Warehouse add requested');
   }
 
 }

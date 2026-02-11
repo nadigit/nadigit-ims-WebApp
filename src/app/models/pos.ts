@@ -78,7 +78,11 @@ export interface PaymentInfo {
   amount: number;
   bankAccountId?: number;
   checkNumber?: string;
+  checkExpirationDate?: string;
+  boeNumber?: string;
+  boeExpirationDate?: string;
   transactionReference?: string;
+  notes?: string;
 }
 
 export interface POSCheckoutDTO {

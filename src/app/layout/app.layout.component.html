@@ -8,10 +8,17 @@
     <div class="layout-main" [ngClass]="{'pos-main': isPosRoute}">
       <p-toast></p-toast>
 
-      <!-- Cash Register Status Section -->
-      <div class="cash-register-section mb-4" *ngIf="(isAdmin || isVendor) && !isPosRoute">
+      <div *ngIf="maintenanceStatus?.enabled" class="maintenance-banner">
+        <i class="pi pi-exclamation-triangle"></i>
+        <div class="banner-text">
+          <div class="title">{{ 'maintenance_mode' | translate }}</div>
+          <div class="message">{{ getMaintenanceBannerText() }}</div>
+        </div>
+      </div>
 
-        <!-- No active session -->
+      <!-- Cash Register Status Section -->
+      <!-- <div class="cash-register-section mb-4" *ngIf="(isAdmin || isVendor) && !isPosRoute">
+
         <div *ngIf="!isCashRegisterOpen" class="cash-register-card p-4 border-round-lg">
           <div class="flex align-items-center justify-content-between">
             <div class="flex align-items-center">
@@ -28,7 +35,6 @@
           </div>
         </div>
 
-        <!-- Active session -->
         <div *ngIf="isCashRegisterOpen" class="cash-register-card p-4 border-round-lg">
           <div class="flex align-items-center justify-content-between">
             <div class="flex align-items-center">
@@ -50,7 +56,7 @@
           </div>
         </div>
 
-      </div>
+      </div> -->
 
       <app-cash-register-session [(visible)]="showCashRegisterDialog" (sessionOpened)="onSessionOpened($event)"
         (sessionClosed)="onSessionClosed()" (dialogClosed)="onCashRegisterDialogClosed()">
@@ -189,14 +195,13 @@
               <!-- License Info -->
               <div class="license-info mt-4 pt-4 border-top-1 surface-border">
                 <div class="flex align-items-center justify-content-between mb-2">
-                  <div>
-                    <p class="text-sm text-600 mb-1">
-                      {{ 'license_expires' | translate }}: 
-                      <span class="font-semibold text-900 m-0">
-                        {{ layoutService.systemInfo?.licenseExpiresAt || 'Loading...' }}
-                      </span>
-                    </p>
-
+                  <div class="flex flex-column">
+                    <span class="text-sm text-600 mb-2">
+                      {{ 'license_expires' | translate }}:
+                    </span>
+                    <span class="text-lg font-semibold text-900" style="letter-spacing: 0.5px;">
+                      {{ formatLicenseExpirationDate() }}
+                    </span>
                   </div>
                   <p-button *ngIf="daysUntilExpiration <= 30 && daysUntilExpiration > 0" icon="pi pi-refresh"
                     [label]="'renew_license' | translate" styleClass="p-button-sm p-button-warning">
@@ -269,12 +274,12 @@
     <!-- Footer -->
     <div class="system-footer text-center p-4 border-round-bottom-xl surface-ground">
       <div class="flex align-items-center justify-content-center gap-4 mb-2">
-        <a href="https://nadigit.com/solutions/nadigit-ims" target="_blank"
+        <a href="https://ims.nadigit.com" target="_blank"
           class="text-600 hover:text-primary transition-colors">
           <i class="pi pi-book text-lg"></i>
           <span class="ml-1 text-sm">{{ 'documentation' | translate }}</span>
         </a>
-        <a href="https://nadigit.com/contact-us" target="_blank" class="text-600 hover:text-primary transition-colors">
+        <a href="https://ims.nadigit.com" target="_blank" class="text-600 hover:text-primary transition-colors">
           <i class="pi pi-question-circle text-lg"></i>
           <span class="ml-1 text-sm">{{ 'help_center' | translate }}</span>
         </a>

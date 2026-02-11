@@ -30,6 +30,7 @@ export class User {
     enabled?: boolean;
 
     creationDate?: Date; // Assuming it's of type any
+    lastLoginDate?: Date | number; // Last login timestamp
     credentials?: Credential[];
     roles?: Role[] = []; // Assuming roles are strings
 

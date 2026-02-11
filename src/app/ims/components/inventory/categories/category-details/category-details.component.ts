@@ -17,6 +17,8 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { getMeasureUnit } from 'src/app/shared/product-utils';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { CategoryFormDialogComponent, CategoryFormDialogConfig, CategoryFormDialogData } from '../category-form-dialog/category-form-dialog.component';
+import { Location } from '@angular/common';
 
 @Component({
   templateUrl: './category-details.component.html',
@@ -62,13 +64,20 @@ export class CategoryDetailsComponent implements OnInit {
   canAddSupplier: boolean = false;
   canAddWarehouse: boolean = false;
 
-  categoryDialog: boolean = false;
+  // Dialog configuration for reusable component
+  categoryDialogConfig: CategoryFormDialogConfig = {
+    visible: false,
+    mode: 'edit',
+    category: {},
+    isLoading: false
+  };
+
   canEditCategory: boolean = false;
-  costingMethods: any[] = [];
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private messageService: MessageService,
     private categoryService: CategoryService,
     private productService: ProductService,
@@ -80,15 +89,7 @@ export class CategoryDetailsComponent implements OnInit {
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-  ) {
-    this.costingMethods = [
-      { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
-      { label: this.translate.instant('costing_method_lifo'), value: 'LIFO' },
-      { label: this.translate.instant('costing_method_weighted_average'), value: 'WEIGHTED_AVERAGE' },
-      { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
-      { label: this.translate.instant('costing_method_none'), value: 'NONE' }
-    ];
-  }
+  ) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -165,7 +166,12 @@ export class CategoryDetailsComponent implements OnInit {
 
   editCategory() {
     if (!this.canEditCategory) return;
-    this.categoryDialog = true;
+    this.categoryDialogConfig = {
+      visible: true,
+      mode: 'edit',
+      category: { ...this.category },
+      isLoading: false
+    };
   }
 
   async saveCategory() {
@@ -178,7 +184,7 @@ export class CategoryDetailsComponent implements OnInit {
           console.error('Error updating category:', error);
         }
       }
-      this.categoryDialog = false;
+      this.categoryDialogConfig.visible = false;
     } else {
       this.messageService.add({
         severity: 'error',
@@ -235,8 +241,22 @@ export class CategoryDetailsComponent implements OnInit {
   }
 
   hideDialog() {
-    this.categoryDialog = false;
+    this.categoryDialogConfig.visible = false;
     this.submitted = false;
+  }
+
+  // Category Form Dialog Event Handlers
+  onCategoryDialogConfigChange(config: CategoryFormDialogConfig) {
+    this.categoryDialogConfig = config;
+  }
+
+  onCategorySave(dialogData: CategoryFormDialogData) {
+    this.category = dialogData.category;
+    this.saveCategory();
+  }
+
+  onCategoryCancel() {
+    this.hideDialog();
   }
 
 
@@ -642,7 +662,7 @@ export class CategoryDetailsComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/inventory/categories']);
+    this.location.back();
   }
 }
 

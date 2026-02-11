@@ -312,6 +312,13 @@ export class UsersComponent implements OnInit {
     this.appRole = { ...appRole };
   }
 
+  showRoleDetails(appRole: Role) {
+    if (!appRole?.name) {
+      return;
+    }
+    this.router.navigate(['/administration/users/roles', appRole.name]);
+  }
+
 
   async confirmDeleteSelected() {
     if (this.activeItem.icon == 'pi pi-fw pi-user') {
@@ -529,6 +536,66 @@ export class UsersComponent implements OnInit {
     // Only allow numeric characters
     const value = event.target.value;
     this.posPin = value.replace(/[^0-9]/g, '');
+  }
+
+  formatLastLoginDate(lastLoginDate: Date | number | null | undefined): string {
+    if (!lastLoginDate) {
+      return this.translate.instant('never') || 'Never';
+    }
+    
+    let date: Date;
+    if (typeof lastLoginDate === 'number') {
+      date = new Date(lastLoginDate);
+    } else {
+      date = new Date(lastLoginDate);
+    }
+    
+    if (isNaN(date.getTime())) {
+      return this.translate.instant('never') || 'Never';
+    }
+    
+    return date.toLocaleString(this.translate.currentLang || 'en', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  async getLastLoginForUser(userId: string): Promise<Date | number | null> {
+    try {
+      await this.authService.loadToken();
+      // Get only LOGIN events, limit to 1, from last 90 days
+      const dateFrom = Date.now() - (90 * 24 * 60 * 60 * 1000);
+      const dateTo = Date.now();
+      
+      const events = await this.authService.getUserEvents(userId, 1, dateFrom, dateTo, 'LOGIN').toPromise();
+      
+      if (Array.isArray(events) && events.length > 0) {
+        const loginEvent = events[0];
+        if (loginEvent && loginEvent.time) {
+          return loginEvent.time;
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching last login for user ${userId}:`, error);
+      // Silently fail - don't show error for each user
+    }
+    return null;
+  }
+
+  getRoleLabel(roleName: string): string {
+    if (!roleName) return '';
+    const key = `user_role_${roleName.toLowerCase()}`;
+    const translated = this.translate.instant(key);
+    if (translated && translated !== key) {
+      return translated;
+    }
+    return roleName
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   saveRole() {

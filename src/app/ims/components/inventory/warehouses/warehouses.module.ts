@@ -25,12 +25,14 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { GalleriaModule } from 'primeng/galleria';
 import { ImageModule } from 'primeng/image';
 import { WarehouseDetailsComponent } from './warehouse-details/warehouse-details.component';
+import { WarehouseFormDialogComponent } from './warehouse-form-dialog/warehouse-form-dialog.component';
 import { CardModule } from 'primeng/card';
 import { AvatarModule } from 'primeng/avatar';
 import { TabViewModule } from 'primeng/tabview';
 import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
 import { CheckboxModule } from 'primeng/checkbox';
+import { InventorySharedModule } from '../shared/inventory-shared.module';
 import { ProductsModule } from '../products/products.module';
 
 @NgModule({
@@ -64,9 +66,11 @@ import { ProductsModule } from '../products/products.module';
         BadgeModule,
         DividerModule,
         CheckboxModule,
+        InventorySharedModule,
         ProductsModule,
     ],
     declarations: [WarehousesComponent, WarehouseDetailsComponent],
     providers: [ReportingService],
+    exports: [],
 })
 export class WarehousesModule { }

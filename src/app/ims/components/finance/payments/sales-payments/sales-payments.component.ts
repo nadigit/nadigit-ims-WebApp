@@ -100,6 +100,9 @@ export class SalesPaymentsComponent implements OnInit {
   isCheckingReconciliation: boolean = false;
   paymentReconciliationCache: Map<number, ReconciliationStatus> = new Map(); // Cache reconciliation status per payment
 
+  // Filter state
+  currentFilters: { [field: string]: any } = {};
+
   constructor(private messageService: MessageService,
     private paymentService: PaymentService,
     private customerService: CustomerService,
@@ -144,7 +147,18 @@ export class SalesPaymentsComponent implements OnInit {
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
     await this.loadBankAccounts();
-    this.isLoading = false;
+    
+    // Load customers for filter dropdown
+    await this.onGetAllCustomersWithUnpaidOrders();
+    
+    // Initial load
+    const initialEvent: any = {
+      first: 0,
+      rows: this.pageSize,
+      sortField: 'paymentDate',
+      sortOrder: -1
+    };
+    this.onLazyLoad(initialEvent);
   }
 
   async loadBankAccounts() {
@@ -889,6 +903,41 @@ export class SalesPaymentsComponent implements OnInit {
     }
   }
 
+  onFilterChange(filters: any) {
+    // Update current filters from the payments-table component
+    this.currentFilters = {};
+    
+    if (filters.paymentStatus) {
+      this.currentFilters['paymentStatus'] = { value: filters.paymentStatus };
+    }
+    if (filters.paymentMethod) {
+      this.currentFilters['paymentMethod'] = { value: filters.paymentMethod };
+    }
+    if (filters.customer) {
+      this.currentFilters['customerId'] = { value: filters.customer?.customerId || filters.customer };
+    }
+    if (filters.startDate) {
+      this.currentFilters['fromDate'] = { value: filters.startDate };
+    }
+    if (filters.endDate) {
+      this.currentFilters['toDate'] = { value: filters.endDate };
+    }
+
+    // Trigger reload with current lazy load event
+    if (this.lastLazyLoadEvent) {
+      this.onLazyLoad(this.lastLazyLoadEvent);
+    } else {
+      // Initial load
+      const initialEvent: any = {
+        first: 0,
+        rows: this.pageSize,
+        sortField: 'paymentDate',
+        sortOrder: -1
+      };
+      this.onLazyLoad(initialEvent);
+    }
+  }
+
   onGlobalFilter(event: { globalFilter: string, context?: 'incoming' | 'outgoing' }) {
     const { globalFilter } = event;
     this.globalFilter = globalFilter;
@@ -913,6 +962,7 @@ export class SalesPaymentsComponent implements OnInit {
 
   onLazyLoad(event: any) {
     this.lastLazyLoadEvent = event;
+    this.isLoading = true;
 
     // Add sort info to event
     const sortBy = event.sortField || 'paymentDate'; // default sort field
@@ -927,25 +977,43 @@ export class SalesPaymentsComponent implements OnInit {
     const sortBy = event?.sortBy || 'paymentDate';
     const direction = event?.direction || 'DESC';
 
-    this.paymentService.getPayments('incoming', page, size, this.globalFilter, sortBy, direction)
+    this.paymentService.getPayments('incoming', page, size, this.globalFilter, sortBy, direction, this.currentFilters)
       .subscribe({
         next: (res: any) => {
-          console.log(res);
-          this.payments = res.content.map((p: any) => {
+          console.log('Payments response:', res);
+          
+          // Handle different response structures
+          // Backend may return: { page: { content: [], totalElements: 0 } } or { content: [], totalElements: 0 }
+          const pageContent = res?.page?.content || res?.content || [];
+          const totalElements = res?.page?.totalElements ?? res?.totalElements ?? 0;
+          
+          this.payments = Array.isArray(pageContent) ? pageContent.map((p: any) => {
             return {
               ...p,
               customerFullName: p.customerType === 'Company'
                 ? p.customerCompany
-                : `${p.customerFirstName} ${p.customerLastName}`,
+                : `${p.customerFirstName || ''} ${p.customerLastName || ''}`.trim() || 'N/A',
               paymentDate: p.paymentDate ? new Date(p.paymentDate) : null,
               creationDate: p.creationDate ? new Date(p.creationDate) : null,
               hasReceipt: !!p.receiptNumber
             };
-          });
-          this.totalRecords = res.totalElements;
-          console.log(res);
+          }) : [];
+          
+          this.totalRecords = totalElements;
+          this.isLoading = false;
         },
-        error: (err) => console.error(err)
+        error: (err) => {
+          console.error('Error loading payments:', err);
+          this.payments = [];
+          this.totalRecords = 0;
+          this.isLoading = false;
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_payments') || 'Error loading payments',
+            life: 3000
+          });
+        }
       });
   }
 
@@ -1122,26 +1190,31 @@ export class SalesPaymentsComponent implements OnInit {
   }
 
   async onGetAllCustomersWithUnpaidOrders() {
-    await this.customerService.getCustomersWithUnpaidOrders()
-      .subscribe({
-        next: (response: any) => {
-          this.customers = response;
-          this.customers = this.customers.map(customer => ({
-            ...customer,
-            fullName: this.getCustomerDisplayName(customer)
-          }));
-          console.log(this.customers);
-        },
-        error: (err: any) => {
-          console.error('Error fetching customers with unpaid orders', err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_customers'),
-            life: 3000
-          });
-        }
-      })
+    return new Promise<void>((resolve) => {
+      this.customerService.getCustomersWithUnpaidOrders()
+        .subscribe({
+          next: (response: any) => {
+            this.customers = Array.isArray(response) ? response : [];
+            this.customers = this.customers.map(customer => ({
+              ...customer,
+              fullName: this.getCustomerDisplayName(customer)
+            }));
+            console.log(this.customers);
+            resolve();
+          },
+          error: (err: any) => {
+            console.error('Error fetching customers with unpaid orders', err);
+            this.customers = [];
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_getting_customers'),
+              life: 3000
+            });
+            resolve();
+          }
+        });
+    });
   }
 
   onCustomerSelect(customer: Customer) {

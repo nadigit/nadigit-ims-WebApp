@@ -200,5 +200,33 @@ export class CustomerCreditService {
     const headers = await this.getHeaders();
     return this.http.post<CustomerCreditTransaction[]>(`${this.getBaseUrl()}process-expired`, {}, { headers });
   }
+
+  /**
+   * Download customer follow-up report in CSV, Excel or PDF format.
+   * Returns the full HTTP response (with Blob body) so caller can read Content-Disposition.
+   */
+  async downloadCustomerFollowupReport(
+    customerId: number,
+    format: 'csv' | 'excel' | 'pdf',
+    includeItems: boolean
+  ): Promise<Observable<any>> {
+    const headers = await this.getHeaders();
+
+    let url = `${this.getBaseUrl()}customer/${customerId}/followup-report`;
+    if (format === 'excel') {
+      url += '/excel';
+    } else if (format === 'pdf') {
+      url += '/pdf';
+    }
+
+    const params = new HttpParams().set('includeItems', includeItems ? 'true' : 'false');
+
+    return this.http.get(url, {
+      headers,
+      params,
+      responseType: 'blob' as 'blob',
+      observe: 'response'
+    });
+  }
 }
 

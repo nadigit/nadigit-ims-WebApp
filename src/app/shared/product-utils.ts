@@ -1,5 +1,6 @@
 import { firstValueFrom } from "rxjs";
 import { Product } from "../models/product";
+import { AppConfigurationService } from "../services/app-configuration.service";
 
 export function getSeverity(status: any) {
     switch (status) {
@@ -80,10 +81,10 @@ export function calculateProfit(product: Product): number {
     return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
 }
 
-export async function getLowStockThreshold(): Promise<number> {
+export async function getLowStockThreshold(configService: AppConfigurationService): Promise<number> {
     let threshold: any;
     try {
-      const value = await firstValueFrom(await this.configService.getConfiguration('lowStockThreshold'));
+      const value = await firstValueFrom(await configService.getConfiguration('lowStockThreshold'));
 
       threshold = (value !== undefined && value !== null && typeof value === 'object' && 'value' in value)
         ? Number((value as { value: any }).value)

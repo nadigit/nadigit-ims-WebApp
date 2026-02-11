@@ -1,9 +1,9 @@
-import { Component, OnInit, ViewChild, OnDestroy, SecurityContext } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy, SecurityContext, ChangeDetectorRef } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
-import { MessageService } from 'primeng/api';
+import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { firstValueFrom, Subject, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError } from 'rxjs/operators';
@@ -17,11 +17,17 @@ import { OrganizationService } from 'src/app/services/organization.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { DatePipe } from '@angular/common';
+
+interface LazyLoadEventExt extends LazyLoadEvent {
+  globalFilter?: string;
+  filters?: { [field: string]: any };
+}
 
 @Component({
   templateUrl: './financial-documents.component.html',
   styleUrls: ['../finance.component.css', './financial-documents.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
@@ -54,6 +60,10 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   exportColumns!: ExportColumn[];
 
   orders: Order[] = [];
+  orderSuggestions: Order[] = []; // For autocomplete suggestions
+  totalOrders: number = 0; // Total orders for lazy loading
+  orderSuggestionsLoading: boolean = false;
+  latestOrderSuggestionToken: number = 0;
 
   docTypeSequences: { [key: string]: number } = {};
 
@@ -74,9 +84,28 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   // Filter properties
   selectedDocType: string | null = null;
   selectedDocStatus: string | null = null;
+  selectedOrigin: string | null = null;
+  selectedOrder: Order | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
   globalFilter: string = '';
+  
+  // Lazy loading properties
+  totalRecords: number = 0;
+  lastLazyLoadEvent: LazyLoadEventExt = {
+    first: 0,
+    rows: 20,
+    sortField: 'createdAt',
+    sortOrder: -1
+  };
+  
+  isExporting: boolean = false;
+  exportProgress: string = '';
+  
+  originOptions = [
+    { label: 'POS', value: 'POS' },
+    { label: 'Back Office', value: 'BACK_OFFICE' }
+  ];
 
   loadingOrders: boolean = false;
   cancelFinancialDocDialog: boolean = false;
@@ -86,8 +115,10 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   safePreviewHtml: SafeHtml | null = null;
   previewLoading: boolean = false;
   previewError: string | null = null;
+  previewIframeSrc: SafeHtml | null = null;
   private previewUpdateSubject = new Subject<any>();
   private destroy$ = new Subject<void>();
+  private previewStyleId: string = 'financial-doc-preview-styles';
   
   // API configuration for file URLs
   apiProtocol: string = (window as any).__env?.apiProtocol || 'http';
@@ -106,7 +137,9 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     private router: Router,
-    private sanitizer: DomSanitizer) {
+    private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef,
+    private datePipe: DatePipe) {
     this.setUserRoles()
     this.loadOrganization();
   }
@@ -145,15 +178,54 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       });
 
     await this.checkPermissions();
-    this.onGetAllFinancialDocs();
-
+    
     this.cols = [
-      { field: 'categoryId', header: this.translateService.instant('category_id') },
-      { field: 'categoryName', header: this.translateService.instant('category_name') },
-      { field: 'description', header: this.translateService.instant('category_description') }
+      { field: 'docNumber', header: this.translateService.instant('document_number') },
+      { field: 'docTitle', header: this.translateService.instant('document_title') },
+      { field: 'docType', header: this.translateService.instant('document_type') },
+      { field: 'docStatus', header: this.translateService.instant('document_status') },
+      { field: 'createdAt', header: this.translateService.instant('creation_date') },
+      { field: 'issuedAt', header: this.translateService.instant('issued_date') },
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+    
+    // Load first page of financial documents
+    await this.loadFinancialDocs();
+
+    // Setup preview update subscription with debounce
+    this.previewUpdateSubject
+      .pipe(
+        debounceTime(500), // Wait 500ms after last change before making API call
+        distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
+        switchMap((previewData) => {
+          this.previewLoading = true;
+          this.previewError = null;
+          return this.financialDocService.getDocumentPreview(previewData).pipe(
+            catchError((error) => {
+              this.handlePreviewError(error);
+              return of(null);
+            })
+          );
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((response: any) => {
+        this.previewLoading = false;
+        if (response && response.html) {
+          this.previewHtml = this.processPreviewHtml(response.html);
+          this.safePreviewHtml = this.sanitizer.sanitize(SecurityContext.HTML, this.previewHtml);
+          this.previewError = null;
+          this.cdr.detectChanges();
+        } else if (response === null) {
+          // Error already handled in catchError
+        } else {
+          this.previewError = this.translate.instant('error_loading_preview') || 'Failed to load preview';
+          this.previewHtml = '';
+          this.safePreviewHtml = null;
+          this.previewIframeSrc = null;
+        }
+      });
 
   }
 
@@ -240,6 +312,14 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
   issueFinancialDoc(financialDoc: FinancialDocument) {
     if (!this.canIssueFinancialDocs) return;
+    
+    // Reset preview state before opening dialog
+    this.previewHtml = '';
+    this.safePreviewHtml = null;
+    this.previewIframeSrc = null;
+    this.previewError = null;
+    this.previewLoading = false;
+    
     this.issueFinancialDocDialog = true;
     this.financialDoc = { ...financialDoc };
     
@@ -264,8 +344,15 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       this.financialDoc.validityEndDate = new Date(this.financialDoc.validityEndDate);
     }
 
-    // Load preview after a short delay to ensure dialog is rendered
+    // Preview will be loaded in onIssueDialogShow() when dialog is fully rendered
+  }
+
+  onIssueDialogShow() {
+    // Load preview when dialog is fully shown
     setTimeout(() => {
+      // Ensure preview state is clean before loading
+      this.previewError = null;
+      this.previewLoading = false;
       this.loadDocumentPreview();
     }, 100);
   }
@@ -281,6 +368,15 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
     this.onIssueFinancialDoc(this.financialDoc.financialDocId);
     this.financialDoc = {};
+  }
+
+  onIssueDialogHide() {
+    // Clean up preview when dialog closes
+    this.previewHtml = '';
+    this.safePreviewHtml = null;
+    this.previewIframeSrc = null;
+    this.previewError = null;
+    this.previewLoading = false;
   }
 
   openIssuedPdf(doc: any): void {
@@ -431,69 +527,152 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
   @ViewChild('dt') dt!: Table;
 
+  onLazyLoad(event: LazyLoadEvent) {
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
+
+    this.updateLastLazyLoadEvent(extendedEvent);
+    this.loadFinancialDocs();
+  }
+
+  updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    this.lastLazyLoadEvent = {
+      first: event.first || 0,
+      rows: event.rows || 20,
+      sortField: event.sortField || 'createdAt',
+      sortOrder: event.sortOrder || -1,
+      globalFilter: event.globalFilter || this.globalFilter,
+      filters: event.filters || this.lastLazyLoadEvent.filters || {}
+    };
+  }
+
   onGlobalFilter(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.globalFilter = value;
-    if (this.dt) {
-      this.dt.filterGlobal(value, 'contains');
-    }
+    this.lastLazyLoadEvent.first = 0;
+    this.loadFinancialDocs();
   }
 
   onFilterChange() {
-    if (this.dt) {
-      const filters: any = {};
+    this.applyFilters();
+  }
 
-      if (this.selectedDocType) {
-        filters['docType'] = { value: this.selectedDocType, matchMode: 'equals' };
-      }
+  applyFilters() {
+    const filters: any = {};
 
-      if (this.selectedDocStatus) {
-        filters['docStatus'] = { value: this.selectedDocStatus, matchMode: 'equals' };
-      }
-
-      if (this.startDate || this.endDate) {
-        if (this.startDate && this.endDate) {
-          filters['createdAt'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
-        } else if (this.startDate) {
-          filters['createdAt'] = { value: this.startDate, matchMode: 'dateIs' };
-        } else if (this.endDate) {
-          filters['createdAt'] = { value: this.endDate, matchMode: 'dateIs' };
-        }
-      }
-
-      this.dt.filters = filters;
-      this.dt.filteredValue = null;
+    if (this.selectedDocType) {
+      filters['docType'] = { value: this.selectedDocType, matchMode: 'equals' };
     }
+
+    if (this.selectedDocStatus) {
+      filters['docStatus'] = { value: this.selectedDocStatus, matchMode: 'equals' };
+    }
+    
+    if (this.selectedOrigin) {
+      filters['origin'] = { value: this.selectedOrigin, matchMode: 'equals' };
+    }
+    
+    if (this.selectedOrder) {
+      filters['orderId'] = { value: this.selectedOrder, matchMode: 'equals' };
+    }
+    
+    if (this.startDate) {
+      filters['documentDateFrom'] = { value: this.startDate, matchMode: 'dateIs' };
+    }
+    
+    if (this.endDate) {
+      filters['documentDateTo'] = { value: this.endDate, matchMode: 'dateIs' };
+    }
+    
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      filters: filters
+    };
+    
+    this.updateLastLazyLoadEvent(lazyEvent);
+    this.loadFinancialDocs();
   }
 
   clearFilters() {
     this.selectedDocType = null;
     this.selectedDocStatus = null;
+    this.selectedOrigin = null;
+    this.selectedOrder = null;
     this.startDate = null;
     this.endDate = null;
     this.globalFilter = '';
-    this.onFilterChange();
-    if (this.dt) {
-      this.dt.filterGlobal('', 'contains');
-    }
+    
+    this.lastLazyLoadEvent.first = 0;
+    this.lastLazyLoadEvent.filters = {};
+    
+    const resetEvent: LazyLoadEvent = {
+      first: 0,
+      rows: this.lastLazyLoadEvent.rows || 20,
+      sortField: 'createdAt',
+      sortOrder: -1
+    };
+    
+    this.onLazyLoad(resetEvent);
+  }
+
+  loadFinancialDocs() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+    
+    // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
+    const filterPayload = filters || {};
+
+    this.financialDocService.getFinancialDocsPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      filterPayload
+    ).subscribe({
+      next: (res: any) => {
+        // Assign the paginated financial documents
+        this.financialDocs = res.page.content.map((doc: any) => {
+          return {
+            ...doc,
+            creationDate: doc.createdAt ? new Date(doc.createdAt) : null,
+            createdAt: doc.createdAt ? new Date(doc.createdAt) : null,
+            issuedAt: doc.issuedAt ? new Date(doc.issuedAt) : null
+          };
+        });
+
+        // Assign total records from backend
+        this.totalRecords = res.totalDocuments || res.page?.totalElements || 0;
+
+        this.isLoading = false;
+        
+        // Trigger change detection to ensure table updates
+        if (this.cdr) {
+          this.cdr.detectChanges();
+        }
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_getting_financial_docs'),
+          life: 3000
+        });
+      }
+    });
   }
 
   async onGetAllFinancialDocs() {
-    this.financialDocService.getFinancialDocs()
-      .subscribe({
-        next: (response: any) => {
-          this.financialDocs = response;
-          console.log(this.financialDoc);
-          this.financialDocs.forEach((financialDoc: any) => (financialDoc.creationDate = new Date(<Date>financialDoc.creationDate)));
-        },
-        error: (err: any) => {
-          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_getting_financial_docs'), life: 3000 });
-          console.log(err);
-        },
-        complete: () => {
-          this.isLoading = false;
-        }
-      })
+    // For backward compatibility, call loadFinancialDocs
+    this.loadFinancialDocs();
   }
 
   async onDeleteFinancialDoc(id: any): Promise<void> {
@@ -501,7 +680,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       this.financialDocService.deleteFinancialDoc(id)
         .subscribe({
           next: (response: any) => {
-            this.onGetAllFinancialDocs();
+            this.loadFinancialDocs();
             this.messageService.add({
               severity: 'success',
               summary: this.translate.instant('successful'),
@@ -523,19 +702,19 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     // Construct payload with only the issuing fields
     const issuePayload: any = {
       documentDate: this.financialDoc.documentDate ? (this.financialDoc.documentDate instanceof Date 
-        ? this.financialDoc.documentDate.toISOString().split('T')[0] 
+        ? this.formatDateLocal(this.financialDoc.documentDate) 
         : this.financialDoc.documentDate) : undefined,
       dueDate: this.financialDoc.dueDate ? (this.financialDoc.dueDate instanceof Date 
-        ? this.financialDoc.dueDate.toISOString().split('T')[0] 
+        ? this.formatDateLocal(this.financialDoc.dueDate) 
         : this.financialDoc.dueDate) : undefined,
       deliveryDate: this.financialDoc.deliveryDate ? (this.financialDoc.deliveryDate instanceof Date 
-        ? this.financialDoc.deliveryDate.toISOString().split('T')[0] 
+        ? this.formatDateLocal(this.financialDoc.deliveryDate) 
         : this.financialDoc.deliveryDate) : undefined,
       validityStartDate: this.financialDoc.validityStartDate ? (this.financialDoc.validityStartDate instanceof Date 
-        ? this.financialDoc.validityStartDate.toISOString().split('T')[0] 
+        ? this.formatDateLocal(this.financialDoc.validityStartDate) 
         : this.financialDoc.validityStartDate) : undefined,
       validityEndDate: this.financialDoc.validityEndDate ? (this.financialDoc.validityEndDate instanceof Date 
-        ? this.financialDoc.validityEndDate.toISOString().split('T')[0] 
+        ? this.formatDateLocal(this.financialDoc.validityEndDate) 
         : this.financialDoc.validityEndDate) : undefined,
       validityDays: this.financialDoc.validityDays,
       paymentTermsDays: this.financialDoc.paymentTermsDays,
@@ -554,7 +733,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
     this.financialDocService.issueFinancialDoc(id, issuePayload).subscribe({
       next: (response: any) => {
-        this.onGetAllFinancialDocs();
+        this.loadFinancialDocs();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
@@ -578,7 +757,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     await this.financialDocService.updateFinancialDoc(id, financialDoc)
       .subscribe({
         next: (response: any) => {
-          this.onGetAllFinancialDocs();
+          this.loadFinancialDocs();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -599,7 +778,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     await this.financialDocService.cancelFinancialDoc(this.financialDoc.financialDocId)
       .subscribe({
         next: (response: any) => {
-          this.onGetAllFinancialDocs();
+          this.loadFinancialDocs();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -623,7 +802,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     await this.financialDocService.saveFinancialDoc(data)
       .subscribe({
         next: (response: any) => {
-          this.onGetAllFinancialDocs();
+          this.loadFinancialDocs();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -645,27 +824,249 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       });
   }
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.financialDocs, 'financialDocs')
+  async exportPdf() {
+    if (this.isExporting) {
+      return;
+    }
+
+    this.isExporting = true;
+    this.exportProgress = this.translate.instant('preparing_export');
+
+    try {
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait'),
+        life: 3000
+      });
+
+      // Fetch all filtered financial documents
+      let allDocs: FinancialDocument[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100;
+
+      while (currentPage < maxPages) {
+        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        const response = await firstValueFrom(
+          this.financialDocService.getFinancialDocsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageDocs = response.page.content || [];
+        if (pageDocs.length === 0) {
+          break;
+        }
+
+        allDocs = allDocs.concat(pageDocs);
+        currentPage++;
+
+        if (pageDocs.length < pageSize) {
+          break;
+        }
+      }
+
+      // Get organization's default locale for translation
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const originalLang = this.translate.currentLang;
+
+      // Temporarily switch language for export
+      if (defaultLocale !== originalLang) {
+        this.translate.use(defaultLocale);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Prepare export data
+      const exportData = allDocs.map((doc: any) => {
+        return {
+          [this.translate.instant('document_number')]: doc.docNumber || 'N/A',
+          [this.translate.instant('document_title')]: doc.docTitle || 'N/A',
+          [this.translate.instant('document_type')]: doc.docType ? this.translate.instant(doc.docType.toLowerCase()) : 'N/A',
+          [this.translate.instant('document_status')]: doc.docStatus ? this.translate.instant(doc.docStatus.toLowerCase()) : 'N/A',
+          [this.translate.instant('creation_date')]: doc.createdAt 
+            ? this.datePipe.transform(doc.createdAt, 'dd/MM/yyyy') || 'N/A'
+            : 'N/A',
+          [this.translate.instant('issued_date')]: doc.issuedAt 
+            ? this.datePipe.transform(doc.issuedAt, 'dd/MM/yyyy') || 'N/A'
+            : 'N/A',
+        };
+      });
+
+      // Translate column headers (excluding financialDocId)
+      const translatedColumns = this.exportColumns
+        .filter(col => col.dataKey !== 'financialDocId')
+        .map(col => ({
+          title: this.translate.instant(col.dataKey === 'docType' ? 'document_type' : col.dataKey === 'docStatus' ? 'document_status' : col.dataKey) || col.title,
+          dataKey: col.dataKey
+        }));
+
+      // Export PDF with title
+      this.reportingService.exportPdf(
+        translatedColumns,
+        exportData,
+        'financial-documents',
+        this.translate.instant('financial_docs_menu_title')
+      );
+
+      // Restore original language
+      if (defaultLocale !== originalLang) {
+        this.translate.use(originalLang);
+      }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('export_completed_successfully') + ` (${allDocs.length} ${this.translate.instant('records')})`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting'),
+        life: 3000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedFinancialDocs = this.financialDocs.map(financialDoc => {
-      // Create a copy of the supplier object to modify
-      const modifiedFinancialDoc = { ...financialDoc };
+  async exportExcel() {
+    if (this.isExporting) {
+      return;
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedFinancialDoc.createdAt;
+    this.isExporting = true;
+    this.exportProgress = this.translate.instant('preparing_export');
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+    try {
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait'),
+        life: 3000
+      });
 
-      return modifiedFinancialDoc;
-    });
+      // Fetch all filtered financial documents
+      let allDocs: FinancialDocument[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedFinancialDocs, 'financialDocs');
+      while (currentPage < maxPages) {
+        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        const response = await firstValueFrom(
+          this.financialDocService.getFinancialDocsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageDocs = response.page.content || [];
+        if (pageDocs.length === 0) {
+          break;
+        }
+
+        allDocs = allDocs.concat(pageDocs);
+        currentPage++;
+
+        if (pageDocs.length < pageSize) {
+          break;
+        }
+      }
+
+      // Get organization's default locale for translation
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const originalLang = this.translate.currentLang;
+
+      // Temporarily switch language for export
+      if (defaultLocale !== originalLang) {
+        this.translate.use(defaultLocale);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Prepare export data (excluding financialDocId and createdAt)
+      const modifiedDocs = allDocs.map((doc: any) => {
+        const modifiedDoc: any = { ...doc };
+        
+        // Format dates
+        if (doc.createdAt) {
+          modifiedDoc.createdAt = this.datePipe.transform(doc.createdAt, 'dd/MM/yyyy') || doc.createdAt;
+        }
+        if (doc.issuedAt) {
+          modifiedDoc.issuedAt = this.datePipe.transform(doc.issuedAt, 'dd/MM/yyyy') || doc.issuedAt;
+        }
+        
+        // Translate enum values
+        if (doc.docType) {
+          modifiedDoc.docType = this.translate.instant(doc.docType.toLowerCase());
+        }
+        if (doc.docStatus) {
+          modifiedDoc.docStatus = this.translate.instant(doc.docStatus.toLowerCase());
+        }
+        if (doc.origin) {
+          modifiedDoc.origin = this.translate.instant(doc.origin.toLowerCase());
+        }
+        
+        // Remove unwanted fields
+        delete modifiedDoc.financialDocId;
+        delete modifiedDoc.order;
+        delete modifiedDoc.items;
+        delete modifiedDoc.previewHtml;
+        
+        return modifiedDoc;
+      });
+
+      // Restore original language
+      if (defaultLocale !== originalLang) {
+        this.translate.use(originalLang);
+      }
+
+      // Export Excel
+      this.reportingService.exportExcel(modifiedDocs, 'financial-documents');
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('export_completed_successfully') + ` (${allDocs.length} ${this.translate.instant('records')})`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting'),
+        life: 3000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
 
@@ -684,26 +1085,74 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   }
 
   getEligibleOrdersForDocType(docType: DocumentType) {
-    this.loadingOrders = true;
-    this.orderService.getEligibleOrdersForDocsByType(docType).subscribe({
-      next: (orders: Order[]) => {
-        this.orders = orders;
-        this.loadingOrders = false;
+    // Reset when doc type changes
+    this.orderSuggestions = [];
+    this.financialDoc.order = null;
+    // Trigger initial load for autocomplete (when minLength is 0)
+    // Defer to avoid change detection error
+    setTimeout(() => {
+      if (this.financialDoc.docType) {
+        this.filterOrders({ query: '' });
+      }
+    }, 100);
+  }
 
-        // ✅ If there are no eligible orders, show a nice message
-        if (!orders || orders.length === 0) {
-          this.messageService.add({
-            severity: 'warn',
-            summary: this.translate.instant('no_orders_available'),
-            detail: this.translate.instant('no_eligible_orders_for_type', { type: docType }),
-            life: 4000
-          });
+  /**
+   * Filter orders for autocomplete
+   */
+  filterOrders(event: any): void {
+    if (!this.financialDoc.docType) {
+      this.orderSuggestions = [];
+      return;
+    }
+
+    const query = (event?.query || '').trim();
+    const requestToken = ++this.latestOrderSuggestionToken;
+
+    // Defer loading state change to avoid change detection error
+    Promise.resolve().then(() => {
+      this.orderSuggestionsLoading = true;
+    });
+
+    // Call the paginated endpoint with search
+    this.orderService.getEligibleOrdersForDocsByTypePaginated(
+      this.financialDoc.docType!,
+      0, // page
+      20, // size
+      'orderDate', // sortBy
+      'DESC', // direction
+      query || null // search
+    ).subscribe({
+      next: (response: any) => {
+        // Check if this is still the latest request
+        if (requestToken !== this.latestOrderSuggestionToken) {
+          return;
         }
+
+        if (response && response.content) {
+          this.orderSuggestions = response.content;
+        } else {
+          this.orderSuggestions = Array.isArray(response) ? response : [];
+        }
+        
+        // Defer loading state change to avoid change detection error
+        Promise.resolve().then(() => {
+          this.orderSuggestionsLoading = false;
+        });
       },
-      error: (err) => {
-        console.error('Error fetching orders', err);
-        this.loadingOrders = false;
-        this.orders = [];
+      error: (error: any) => {
+        console.error('Error while searching orders for autocomplete:', error);
+        
+        // Check if this is still the latest request
+        if (requestToken !== this.latestOrderSuggestionToken) {
+          return;
+        }
+
+        this.orderSuggestions = [];
+        // Defer loading state change to avoid change detection error
+        Promise.resolve().then(() => {
+          this.orderSuggestionsLoading = false;
+        });
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
@@ -712,6 +1161,14 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
         });
       }
     });
+  }
+
+  /**
+   * Get display text for order in autocomplete
+   */
+  getOrderDisplayName(order: Order): string {
+    if (!order) return '';
+    return `#${order.reference} - ${this.currency} ${order.totalAmount?.toFixed(2) || '0.00'}`;
   }
 
   onDocumentDateChange() {
@@ -731,6 +1188,8 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       dueDate.setDate(dueDate.getDate() + this.financialDoc.paymentTermsDays);
       this.financialDoc.dueDate = dueDate;
     }
+    // Refresh preview with new due date (debounced)
+    this.triggerPreviewUpdate();
   }
 
   onDueDateChange() {
@@ -778,6 +1237,8 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
         this.financialDoc.validityStartDate = docDate;
       }
     }
+    // Refresh preview with new validity dates (debounced)
+    this.triggerPreviewUpdate();
   }
 
   getCalculatedValidityEndDate(): Date | null {
@@ -859,6 +1320,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     if (!this.financialDoc?.order?.orderId) {
       this.previewHtml = '';
       this.safePreviewHtml = null;
+      this.previewIframeSrc = null;
       this.previewError = null;
       return;
     }
@@ -868,22 +1330,30 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Process preview HTML to convert file:// URLs and relative paths to HTTP URLs
-   * As per the prompt, backend returns logo paths as /api/organization/uploads/logos/{filename}
+   * Process preview HTML to extract styles and body content
+   * Extracts styles from <head> and injects them into document head
+   * Returns only the body content for display
    */
   private processPreviewHtml(html: string): string {
     if (!html) return html;
     
     const apiBaseUrl = this.getApiBaseUrl();
     
+    // Parse the HTML to extract styles and body content
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Process image URLs in the full HTML
+    let processedHtml = html;
+    
     // Handle relative logo paths: /api/organization/uploads/logos/logo.png
-    html = html.replace(
+    processedHtml = processedHtml.replace(
       /src="(\/api\/organization\/uploads\/logos\/[^"]+)"/g,
       `src="${apiBaseUrl}$1"`
     );
     
     // Handle file:// URIs (fallback - should not occur with updated backend)
-    html = html.replace(
+    processedHtml = processedHtml.replace(
       /src="file:\/\/[^"]*\/uploads\/logos\/([^"]+)"/g,
       (match, filename) => {
         return `src="${apiBaseUrl}/api/organization/uploads/logos/${filename}"`;
@@ -891,7 +1361,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     );
     
     // Handle file:// URIs from backend templates (file:///src/main/resources/public/...)
-    html = html.replace(
+    processedHtml = processedHtml.replace(
       /src="file:\/\/\/src\/main\/resources\/public\/(uploads\/[^"'\s]+)"/g,
       (match, filePath) => {
         // Convert to organization uploads endpoint
@@ -904,9 +1374,34 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     );
     
     // Handle any other file:// URIs (replace with empty or placeholder)
-    html = html.replace(/src="file:\/\/[^"]*"/g, 'src=""');
+    processedHtml = processedHtml.replace(/src="file:\/\/[^"]*"/g, 'src=""');
     
-    return html;
+    // Create a data URL for the iframe
+    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(processedHtml);
+    this.previewIframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(dataUrl);
+    
+    // Also keep the body content for fallback if needed
+    const bodyContent = doc.body.innerHTML || '';
+    return bodyContent;
+  }
+
+
+
+  /**
+   * Format date to YYYY-MM-DD using local timezone (not UTC)
+   * This prevents timezone conversion issues that cause dates to shift by -1 day
+   */
+  private formatDateLocal(date: Date | string): string {
+    if (!date) return '';
+    
+    const dateObj = date instanceof Date ? date : new Date(date);
+    
+    // Use local timezone methods to avoid UTC conversion issues
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
   }
 
   /**
@@ -937,6 +1432,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     // Fallback to empty preview
     this.previewHtml = '';
     this.safePreviewHtml = null;
+    this.previewIframeSrc = null;
   }
 
   /**
@@ -950,19 +1446,19 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
         docType: this.financialDoc.docType,
         orderId: this.financialDoc.order.orderId,
         documentDate: this.financialDoc.documentDate ? (this.financialDoc.documentDate instanceof Date 
-          ? this.financialDoc.documentDate.toISOString().split('T')[0] 
+          ? this.formatDateLocal(this.financialDoc.documentDate) 
           : this.financialDoc.documentDate) : undefined,
         dueDate: this.financialDoc.dueDate ? (this.financialDoc.dueDate instanceof Date 
-          ? this.financialDoc.dueDate.toISOString().split('T')[0] 
+          ? this.formatDateLocal(this.financialDoc.dueDate) 
           : this.financialDoc.dueDate) : undefined,
         deliveryDate: this.financialDoc.deliveryDate ? (this.financialDoc.deliveryDate instanceof Date 
-          ? this.financialDoc.deliveryDate.toISOString().split('T')[0] 
+          ? this.formatDateLocal(this.financialDoc.deliveryDate) 
           : this.financialDoc.deliveryDate) : undefined,
         validityStartDate: this.financialDoc.validityStartDate ? (this.financialDoc.validityStartDate instanceof Date 
-          ? this.financialDoc.validityStartDate.toISOString().split('T')[0] 
+          ? this.formatDateLocal(this.financialDoc.validityStartDate) 
           : this.financialDoc.validityStartDate) : undefined,
         validityEndDate: this.financialDoc.validityEndDate ? (this.financialDoc.validityEndDate instanceof Date 
-          ? this.financialDoc.validityEndDate.toISOString().split('T')[0] 
+          ? this.formatDateLocal(this.financialDoc.validityEndDate) 
           : this.financialDoc.validityEndDate) : undefined,
         paymentTermsDays: this.financialDoc.paymentTermsDays,
         paymentTerms: this.financialDoc.paymentTerms,

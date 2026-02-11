@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
+import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -44,6 +45,145 @@ export class FinancialDocumentsService {
   getFinancialDocs() {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, { headers: headers });
+  }
+
+  getFinancialDocsPaginated(
+    page: number,
+    size: number,
+    globalFilter: string = '',
+    sortBy: string = 'createdAt',
+    direction: string = 'DESC',
+    filters?: { [field: string]: any }
+  ): Observable<any> {
+    this.loadToken(); // Ensure token is loaded
+    let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`;
+
+    if (globalFilter) {
+      url += `&search=${encodeURIComponent(globalFilter)}`;
+    }
+
+    const normalizeFilter = (filter: any) => {
+      if (!filter) return null;
+      if (Array.isArray(filter)) {
+        return filter.find(meta => meta && meta.value !== undefined && meta.value !== null && meta.value !== '');
+      }
+      return filter;
+    };
+
+    if (filters) {
+      Object.keys(filters).forEach(field => {
+        const filterMeta = normalizeFilter(filters[field]);
+        if (!filterMeta || filterMeta.value == null || filterMeta.value === '') {
+          return;
+        }
+
+        let value = filterMeta.value;
+        let backendParamName = field;
+
+        switch (field) {
+          case 'docType':
+            backendParamName = 'docType';
+            if (value && typeof value === 'object') {
+              if (value.value !== undefined && value.value !== null) {
+                value = value.value;
+              } else if (value.label !== undefined && value.label !== null) {
+                value = value.label;
+              } else {
+                value = String(value);
+              }
+            }
+            if (value !== null && value !== undefined) {
+              value = String(value).trim();
+            }
+            break;
+          case 'docStatus':
+            backendParamName = 'docStatus';
+            if (value && typeof value === 'object') {
+              if (value.value !== undefined && value.value !== null) {
+                value = value.value;
+              } else if (value.label !== undefined && value.label !== null) {
+                value = value.label;
+              } else {
+                value = String(value);
+              }
+            }
+            if (value !== null && value !== undefined) {
+              value = String(value).trim();
+            }
+            break;
+          case 'origin':
+            backendParamName = 'origin';
+            if (value && typeof value === 'object') {
+              if (value.value !== undefined && value.value !== null) {
+                value = value.value;
+              } else if (value.label !== undefined && value.label !== null) {
+                value = value.label;
+              } else {
+                value = String(value);
+              }
+            }
+            if (value !== null && value !== undefined) {
+              value = String(value).trim();
+            }
+            break;
+          case 'orderId':
+            backendParamName = 'orderId';
+            if (value && typeof value === 'object' && value.orderId) {
+              value = String(value.orderId);
+            } else if (value && typeof value === 'object' && value.id) {
+              value = String(value.id);
+            }
+            break;
+          case 'documentDateFrom':
+            backendParamName = 'fromDate';
+            value = this.formatDateForBackend(value);
+            break;
+          case 'documentDateTo':
+            backendParamName = 'toDate';
+            value = this.formatDateForBackend(value);
+            break;
+          case 'documentDate':
+            backendParamName = 'documentDate';
+            value = this.formatDateForBackend(value);
+            break;
+          default:
+            break;
+        }
+
+        if (value == null || value === '') {
+          return;
+        }
+        url += `&${encodeURIComponent(backendParamName)}=${encodeURIComponent(value)}`;
+      });
+    }
+    return this.http.get(url, { headers: new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }) });
+  }
+
+  private formatDateForBackend(date: any): string {
+    if (!date) return '';
+    if (date instanceof Date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } else if (typeof date === 'string') {
+      const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (isoDateRegex.test(date)) {
+        return date;
+      }
+      try {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+          const year = parsedDate.getFullYear();
+          const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+          const day = String(parsedDate.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      } catch (e) {
+        console.warn('Date value is not in expected format:', date);
+      }
+    }
+    return '';
   }
 
   getFinancialDoc(id: any) {
@@ -90,12 +230,13 @@ export class FinancialDocumentsService {
     );
   }
 
-  generateReturnNoteFromReturn(returnId: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+  generateReturnNoteFromReturn(returnId: any, options?: { origin?: string }) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
     return this.http.post(
       this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'return-note/return/' + returnId + '/create',
       {},
-      { headers: headers, params: { origin: 'BACK_OFFICE' } }
+      { headers: headers, params: { origin: options?.origin || 'BACK_OFFICE' } }
     );
   }
 
@@ -114,6 +255,66 @@ export class FinancialDocumentsService {
     
     return this.http.post(
       this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'proforma-invoice/order/' + orderId + '/create',
+      {},
+      { headers: headers, params: params }
+    );
+  }
+
+  generatePurchaseOrderFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    
+    let params: any = { origin: options?.origin || 'BACK_OFFICE' };
+    
+    if (options?.documentDate) {
+      const dateStr = options.documentDate instanceof Date 
+        ? options.documentDate.toISOString().split('T')[0]
+        : options.documentDate;
+      params.documentDate = dateStr;
+    }
+    
+    return this.http.post(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'purchase-order/order/' + orderId + '/create',
+      {},
+      { headers: headers, params: params }
+    );
+  }
+
+  generateDeliveryOrderFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    
+    let params: any = { origin: options?.origin || 'BACK_OFFICE' };
+    
+    if (options?.documentDate) {
+      const dateStr = options.documentDate instanceof Date 
+        ? options.documentDate.toISOString().split('T')[0]
+        : options.documentDate;
+      params.documentDate = dateStr;
+    }
+    
+    return this.http.post(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'delivery-note/order/' + orderId + '/create',
+      {},
+      { headers: headers, params: params }
+    );
+  }
+
+  generateQuoteFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    
+    let params: any = { origin: options?.origin || 'BACK_OFFICE' };
+    
+    if (options?.documentDate) {
+      const dateStr = options.documentDate instanceof Date 
+        ? options.documentDate.toISOString().split('T')[0]
+        : options.documentDate;
+      params.documentDate = dateStr;
+    }
+    
+    return this.http.post(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'quote/order/' + orderId + '/create',
       {},
       { headers: headers, params: params }
     );

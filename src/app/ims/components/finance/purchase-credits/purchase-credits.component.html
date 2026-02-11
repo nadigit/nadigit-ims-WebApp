@@ -27,98 +27,154 @@
             </div>
 
             <!-- Filters Bar -->
-            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
-                <!-- Global Search -->
-                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
-                    <i class="pi pi-search"></i>
-                    <input type="text" pInputText 
-                        [placeholder]="'search_label' | translate" 
-                        (input)="onGlobalFilter($event)" class="w-full" />
-                </span>
+            <div class="filter-bar flex flex-column gap-3 mb-4 p-3 surface-ground border-round">
+                <!-- Main Filters Row -->
+                <div class="flex gap-3 flex-wrap align-items-center">
+                    <!-- Global Search -->
+                    <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                        <i class="pi pi-search"></i>
+                        <input type="text" pInputText 
+                            [placeholder]="'search_label' | translate" 
+                            [(ngModel)]="globalFilter"
+                            (input)="onGlobalFilter($event)" class="w-full" />
+                    </span>
 
-                <!-- Credit Status Filter -->
-                <p-dropdown 
-                    [(ngModel)]="selectedCreditStatus" 
-                    [options]="creditStatuses" 
-                    optionLabel="label" 
-                    optionValue="value"
-                    [showClear]="true"
-                    [placeholder]="'filter_by_status' | translate"
-                    appendTo="body"
-                    styleClass="w-14rem"
-                    (onChange)="onFilterChange()">
-                    <ng-template let-option pTemplate="item">
-                        <span [class]="'credit-badge credit-' + option.value.toLowerCase()">
-                            {{ option.label | translate }}
-                        </span>
-                    </ng-template>
-                </p-dropdown>
-
-                <!-- Credit Method Filter -->
-                <p-dropdown 
-                    [(ngModel)]="selectedCreditMethod" 
-                    [options]="creditMethods" 
-                    optionLabel="label" 
-                    optionValue="value"
-                    [showClear]="true"
-                    [placeholder]="'filter_by_credit_method' | translate"
-                    appendTo="body"
-                    styleClass="w-14rem"
-                    (onChange)="onFilterChange()">
-                    <ng-template let-option pTemplate="item">
-                        <span>{{ option.label | translate }}</span>
-                    </ng-template>
-                </p-dropdown>
-
-                <!-- Supplier Filter -->
-                <p-dropdown 
-                    [(ngModel)]="selectedSupplier" 
-                    [options]="suppliers" 
-                    optionLabel="name" 
-                    [showClear]="true"
-                    [filter]="true"
-                    filterBy="name"
-                    [placeholder]="'filter_by_supplier' | translate"
-                    appendTo="body"
-                    styleClass="w-14rem"
-                    (onChange)="onFilterChange()">
-                </p-dropdown>
-
-                <!-- Date Range Filters -->
-                <div class="flex align-items-center gap-2">
-                    <p-calendar 
-                        [(ngModel)]="startDate" 
-                        [showIcon]="true"
-                        dateFormat="dd/mm/yy"
-                        [showOnFocus]="false"
-                        [placeholder]="'start_date' | translate"
+                    <!-- Credit Status Filter -->
+                    <p-dropdown 
+                        [(ngModel)]="selectedCreditStatus" 
+                        [options]="creditStatuses" 
+                        optionLabel="label" 
+                        optionValue="value"
+                        [showClear]="true"
+                        [placeholder]="'filter_by_status' | translate"
                         appendTo="body"
-                        styleClass="w-10rem"
-                        (onSelect)="onFilterChange()"
-                        (onClearClick)="onFilterChange()">
-                    </p-calendar>
-                    <p-calendar 
-                        [(ngModel)]="endDate" 
-                        [showIcon]="true"
-                        dateFormat="dd/mm/yy"
-                        [showOnFocus]="false"
-                        [minDate]="startDate"
-                        [placeholder]="'end_date' | translate"
+                        styleClass="w-14rem"
+                        (onChange)="onFilterChange()">
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'refund-badge refund-' + option.value.toLowerCase()">
+                                {{ ('refund_status_' + option.value.toLowerCase()) | translate }}
+                            </span>
+                        </ng-template>
+                        <ng-template let-selectedOption pTemplate="selectedItem">
+                            <span *ngIf="selectedOption && selectedOption.value"
+                                  [class]="'credit-badge credit-' + selectedOption.value.toLowerCase()">
+                                {{ ('credit_status_' + selectedOption.value.toLowerCase()) | translate }}
+                            </span>
+                        </ng-template>
+                    </p-dropdown>
+
+                    <!-- Credit Method Filter -->
+                    <p-dropdown 
+                        [(ngModel)]="selectedCreditMethod" 
+                        [options]="creditMethods" 
+                        optionLabel="label" 
+                        optionValue="value"
+                        [showClear]="true"
+                        [placeholder]="'filter_by_credit_method' | translate"
                         appendTo="body"
-                        styleClass="w-10rem"
-                        (onSelect)="onFilterChange()"
-                        (onClearClick)="onFilterChange()">
-                    </p-calendar>
+                        styleClass="w-14rem"
+                        (onChange)="onFilterChange()">
+                        <ng-template let-option pTemplate="item">
+                            <p-tag 
+                                [value]="option.label | translate"
+                                [severity]="getPaymentMethodSeverity(option.value)"
+                                [icon]="getPaymentMethodIcon(option.value)"
+                                styleClass="text-xs">
+                            </p-tag>
+                        </ng-template>
+                        <ng-template let-selectedOption pTemplate="selectedItem">
+                            <p-tag 
+                                *ngIf="selectedOption && selectedOption.value; else creditMethodPlaceholder"
+                                [value]="selectedOption.label | translate"
+                                [severity]="getPaymentMethodSeverity(selectedOption.value)"
+                                [icon]="getPaymentMethodIcon(selectedOption.value)"
+                                styleClass="text-xs">
+                            </p-tag>
+                            <ng-template #creditMethodPlaceholder>
+                                <span style="opacity: 0.6;">
+                                    {{ 'filter_by_credit_method' | translate }}
+                                </span>
+                            </ng-template>
+                        </ng-template>
+                    </p-dropdown>
+
+                    <!-- View Toggle & Export -->
+                    <div class="flex align-items-center gap-2 ml-auto">
+                        <button pButton pRipple 
+                            [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+                            class="p-button-warning" 
+                            pTooltip="PDF"
+                            tooltipPosition="bottom" 
+                            (click)="exportPdf()"
+                            [disabled]="isExporting"></button>
+                        <button pButton pRipple 
+                            [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+                            (click)="exportExcel()" 
+                            class="p-button-success"
+                            pTooltip="XLS" 
+                            tooltipPosition="bottom"
+                            [disabled]="isExporting"></button>
+                        <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+                            pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+                    </div>
                 </div>
 
-                <!-- View Toggle & Export -->
-                <div class="flex align-items-center gap-2 ml-auto">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
-                        tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
-                        pTooltip="XLS" tooltipPosition="bottom"></button>
-                    <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
-                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+                <!-- Advanced Filters Toggle -->
+                <div class="flex align-items-center gap-2">
+                    <button pButton pRipple 
+                        [icon]="showAdvancedFilters ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                        [label]="(showAdvancedFilters ? 'hide_advanced_filters' : 'show_advanced_filters') | translate"
+                        class="p-button-text p-button-sm"
+                        (click)="showAdvancedFilters = !showAdvancedFilters">
+                    </button>
+                    <span class="text-500 text-sm" *ngIf="!showAdvancedFilters">
+                        <i class="pi pi-info-circle mr-1"></i>
+                        {{ 'filter_help_text' | translate }}
+                    </span>
+                </div>
+
+                <!-- Advanced Filters (Collapsible) -->
+                <div *ngIf="showAdvancedFilters" class="flex gap-3 flex-wrap align-items-center pt-2 border-top-1 surface-border">
+                    <!-- Supplier Filter -->
+                    <p-dropdown 
+                        [(ngModel)]="selectedSupplier" 
+                        [options]="suppliers" 
+                        optionLabel="name" 
+                        [showClear]="true"
+                        [filter]="true"
+                        filterBy="name"
+                        [placeholder]="'filter_by_supplier' | translate"
+                        appendTo="body"
+                        styleClass="w-14rem"
+                        (onChange)="onFilterChange()">
+                    </p-dropdown>
+
+                    <!-- Date Range Filters -->
+                    <div class="flex align-items-center gap-2">
+                        <p-calendar 
+                            [(ngModel)]="startDate" 
+                            [showIcon]="true"
+                            dateFormat="dd/mm/yy"
+                            [showOnFocus]="false"
+                            [placeholder]="'start_date' | translate"
+                            appendTo="body"
+                            styleClass="w-10rem"
+                            (onSelect)="onFilterChange()"
+                            (onClearClick)="onFilterChange()">
+                        </p-calendar>
+                        <p-calendar 
+                            [(ngModel)]="endDate" 
+                            [showIcon]="true"
+                            dateFormat="dd/mm/yy"
+                            [showOnFocus]="false"
+                            [minDate]="startDate"
+                            [placeholder]="'end_date' | translate"
+                            appendTo="body"
+                            styleClass="w-10rem"
+                            (onSelect)="onFilterChange()"
+                            (onClearClick)="onFilterChange()">
+                        </p-calendar>
+                    </div>
                 </div>
             </div>
 
@@ -131,7 +187,11 @@
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedCredits" selectionMode="multiple" [rowHover]="true" dataKey="creditId"
-                styleClass="p-datatable-gridlines">
+                styleClass="p-datatable-gridlines"
+                [lazy]="true"
+                (onLazyLoad)="onLazyLoad($event)"
+                [loading]="isLoading"
+                [totalRecords]="totalRecords">
 
                 <ng-template pTemplate="header">
                     <tr>
@@ -175,8 +235,8 @@
                         <td>#{{ credit.purchaseReturn?.purchase?.reference || 'N/A' }}</td>
                         <td>{{ credit.amount | currency:currency:'symbol':'1.2-2' }}</td>
                         <td>
-                            <span [class]="'credit-badge credit-' + credit?.status?.toLowerCase()">
-                                {{ credit?.status ? ('credit_status_' +
+                            <span [class]="'refund-badge refund-' + credit?.status?.toLowerCase()">
+                                {{ credit?.status ? ('refund_status_' +
                                 credit?.status?.toLowerCase() | translate) : 'N/A' }}
                             </span>
                         </td>
@@ -227,8 +287,11 @@
                             <div class="flex flex-column align-items-center justify-content-center py-5">
                                 <img src="assets/core-images/no_data_found.png" alt="No Data Found"
                                     style="max-width: 250px; opacity: 0.6;">
-                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                <p class="mt-3 text-900 font-medium text-lg">
                                     {{ 'no_credits_found' | translate }}
+                                </p>
+                                <p class="mt-2 text-600 text-center" style="max-width: 500px;">
+                                    {{ 'no_purchase_credits_found_help' | translate }}
                                 </p>
                             </div>
                         </td>
@@ -327,29 +390,29 @@
                             {{ 'bank_account_required' | translate }}
                         </small>
                     </div>
-                    <div *ngIf="credit.creditMethod === 'Check'" class="field">
+                    <div *ngIf="credit.creditMethod === 'CHECK' || credit.creditMethod === 'Check'" class="field">
                         <label for="checkNumber">{{ 'check_number' | translate }}</label>
                         <input type="text" id="checkNumber" [(ngModel)]="credit.checkNumber"
                             placeholder="{{ 'enter_check_number' | translate }}" class="p-inputtext" />
                     </div>
-                    <div *ngIf="credit.creditMethod === 'Check'" class="field">
+                    <div *ngIf="credit.creditMethod === 'CHECK' || credit.creditMethod === 'Check'" class="field">
                         <label for="checkExpirationDate">{{ 'expiration_date' | translate }}</label>
                         <p-calendar [(ngModel)]="credit.checkExpirationDate" [showIcon]="true"
                             inputId="checkExpirationDate" dateFormat="dd/mm/yy" [showOnFocus]="false"
                             placeholder="{{ 'expiration_date' | translate }}" appendTo="body" />
                     </div>
-                    <div *ngIf="credit.creditMethod === 'BOE'" class="field">
+                    <div *ngIf="credit.creditMethod === 'BOE' || credit.creditMethod === 'Boe'" class="field">
                         <label for="boeNumber">{{ 'boe_number' | translate }}</label>
                         <input type="text" id="boeNumber" [(ngModel)]="credit.boeNumber"
                             placeholder="{{ 'enter_boe_number' | translate }}" class="p-inputtext" />
                     </div>
-                    <div *ngIf="credit.creditMethod === 'BOE'" class="field">
+                    <div *ngIf="credit.creditMethod === 'BOE' || credit.creditMethod === 'Boe'" class="field">
                         <label for="boeExpirationDate">{{ 'expiration_date' | translate }}</label>
                         <p-calendar [(ngModel)]="credit.boeExpirationDate" [showIcon]="true" inputId="boeExpirationDate"
                             dateFormat="dd/mm/yy" [showOnFocus]="false" appendTo="body"
                             placeholder="{{ 'expiration_date' | translate }}" />
                     </div>
-                    <div *ngIf="credit.creditMethod === 'Transfer'" class="field">
+                    <div *ngIf="credit.creditMethod === 'BANK_TRANSFER' || credit.creditMethod === 'Transfer'" class="field">
                         <label for="transactionReference">{{ 'transaction_reference' | translate }}</label>
                         <input type="text" id="transactionReference" [(ngModel)]="credit.transactionReference"
                             placeholder="{{ 'enter_transaction_reference' | translate }}" class="p-inputtext" />
@@ -416,6 +479,23 @@
                 <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
                     (click)="confirmDeleteSelected()"></button>
             </ng-template>
+        </p-dialog>
+
+        <!-- Export Progress Dialog -->
+        <p-dialog 
+            [(visible)]="isExporting" 
+            [modal]="true" 
+            [closable]="false" 
+            [draggable]="false"
+            [resizable]="false"
+            [style]="{width: '450px'}"
+            [header]="'exporting' | translate">
+            <div class="flex flex-column align-items-center gap-3 p-4">
+                <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                <div class="text-center">
+                    <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+                </div>
+            </div>
         </p-dialog>
     </div>
 </div>

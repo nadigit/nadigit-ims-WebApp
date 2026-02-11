@@ -1,0 +1,168 @@
+<div class="role-details-container">
+    <p-toast></p-toast>
+
+    <!-- Loading State -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="role-content" *ngIf="!isLoading && role">
+        <!-- Hero Header Section -->
+        <div class="role-hero">
+            <div class="hero-background"></div>
+            <div class="hero-content">
+                <div class="flex align-items-center gap-2 mb-3">
+                    <button pButton pRipple icon="pi pi-arrow-left"
+                        class="p-button-text p-button-rounded p-button-plain back-button"
+                        [pTooltip]="'back' | translate" tooltipPosition="bottom"
+                        (click)="goBack()"></button>
+                    <span class="text-500 text-sm">{{ 'roles_page_title' | translate }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">{{ getRoleLabel(role.name) }}</span>
+                </div>
+
+                <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+                    <div class="flex align-items-center gap-4">
+                        <div class="role-hero-avatar">
+                            <i class="pi pi-shield"></i>
+                        </div>
+                        <div>
+                            <div class="flex align-items-center gap-3 mb-2">
+                                <h1 class="m-0 text-900 role-title">{{ getRoleLabel(role.name) }}</h1>
+                                <p-tag [value]="getRoleTypeLabel()" [severity]="role.composite ? 'info' : 'success'"></p-tag>
+                            </div>
+                            <div class="flex align-items-center gap-4 text-500 flex-wrap">
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-tag"></i>
+                                    {{ role.name }}
+                                </span>
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-sitemap"></i>
+                                    {{ getRoleScopeLabel() }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card-modern type-card">
+                <div class="stat-icon type">
+                    <i class="pi pi-shield"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'role_type' | translate }}</span>
+                    <div class="stat-value">{{ getRoleTypeLabel() }}</div>
+                </div>
+            </div>
+
+            <div class="stat-card-modern scope-card">
+                <div class="stat-icon scope">
+                    <i class="pi pi-sitemap"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'role_scope' | translate }}</span>
+                    <div class="stat-value">{{ getRoleScopeLabel() }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Section -->
+        <p-tabView styleClass="role-tabs">
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>{{ 'overview' | translate }}</span>
+                </ng-template>
+
+                <div class="grid mt-3">
+                    <div class="col-12 lg:col-6">
+                        <div class="detail-card mb-4">
+                            <div class="card-header">
+                                <i class="pi pi-list"></i>
+                                <span>{{ 'role_information' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-tag"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'role_name' | translate }}</span>
+                                            <span class="info-value">{{ role.name || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-id-card"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'ID' | translate }}</span>
+                                            <span class="info-value">{{ role.id || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-align-left"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'role_description' | translate }}</span>
+                                            <span class="info-value">{{ role.description || 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 lg:col-6">
+                        <div class="detail-card">
+                            <div class="card-header">
+                                <i class="pi pi-cog"></i>
+                                <span>{{ 'role_details' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-shield"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'role_type' | translate }}</span>
+                                            <span class="info-value">{{ getRoleTypeLabel() }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-sitemap"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'role_scope' | translate }}</span>
+                                            <span class="info-value">{{ getRoleScopeLabel() }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="info-item" *ngIf="role.containerId">
+                                        <div class="info-icon">
+                                            <i class="pi pi-box"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'container_id' | translate }}</span>
+                                            <span class="info-value">{{ role.containerId }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+        </p-tabView>
+    </div>
+</div>

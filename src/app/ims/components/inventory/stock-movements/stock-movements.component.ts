@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { LazyLoadEvent, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Router } from '@angular/router';
@@ -12,18 +12,25 @@ import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
+import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { firstValueFrom } from 'rxjs';
+import { DatePipe } from '@angular/common';
 
 @Component({
   templateUrl: './stock-movements.component.html',
   styleUrls: ['./stock-movements.component.css', '../inventory.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
-export class StockMovementsComponent implements OnInit {
+export class StockMovementsComponent implements OnInit, OnDestroy {
   @ViewChild('dt') table!: Table;
 
   // List view
   movements: StockMovement[] = [];
   isLoading: boolean = false;
+  isExporting: boolean = false;
+  exportProgress: string = '';
   totalRecords: number = 0;
   lastLazyLoadEvent?: LazyLoadEvent;
   
@@ -33,8 +40,10 @@ export class StockMovementsComponent implements OnInit {
   selectedMovementType: string | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
+  globalSearchText: string = '';
   pageSize: number = 20;
   pageSizeOptions = [20, 50, 100];
+  private searchTimeout: any;
   
   // Dropdowns
   products: any[] = [];
@@ -45,6 +54,8 @@ export class StockMovementsComponent implements OnInit {
   canReadMovement: boolean = false;
   
   resource: string = 'STOCK_MOVEMENTS';
+  
+  exportColumns!: ExportColumn[];
 
   constructor(
     private movementService: StockMovementService,
@@ -56,13 +67,29 @@ export class StockMovementsComponent implements OnInit {
     private router: Router,
     private permissionService: PermissionService,
     private keycloakService: KeycloakService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private reportingService: ReportingService,
+    private organizationService: OrganizationService,
+    private datePipe: DatePipe
   ) {}
 
   async ngOnInit() {
     await this.setPermissions();
     await this.initializeTranslations();
     await this.loadInitialData();
+    
+    // Initialize export columns
+    this.exportColumns = [
+      { title: this.translateService.instant('date'), dataKey: 'movementDate' },
+      { title: this.translateService.instant('product'), dataKey: 'productName' },
+      { title: this.translateService.instant('warehouse'), dataKey: 'warehouseName' },
+      { title: this.translateService.instant('movement_type'), dataKey: 'movementType' },
+      { title: this.translateService.instant('quantity'), dataKey: 'quantity' },
+      { title: this.translateService.instant('previous_quantity'), dataKey: 'previousQuantity' },
+      { title: this.translateService.instant('new_quantity'), dataKey: 'newQuantity' },
+      { title: this.translateService.instant('reference'), dataKey: 'reference' },
+      { title: this.translateService.instant('performed_by'), dataKey: 'performedBy' }
+    ];
   }
 
   async setPermissions() {
@@ -78,15 +105,13 @@ export class StockMovementsComponent implements OnInit {
     });
 
     this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe((translations) => {
+      // Backend enum values: INBOUND, OUTBOUND, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT
       this.movementTypeOptions = [
-        { label: translations['stock_movement_type_purchase'] || 'Purchase', value: 'PURCHASE' },
-        { label: translations['stock_movement_type_sale'] || 'Sale', value: 'SALE' },
+        { label: translations['stock_movement_type_inbound'] || translations['stock_movement_type_purchase'] || 'Inbound', value: 'INBOUND' },
+        { label: translations['stock_movement_type_outbound'] || translations['stock_movement_type_sale'] || 'Outbound', value: 'OUTBOUND' },
         { label: translations['stock_movement_type_transfer_in'] || 'Transfer In', value: 'TRANSFER_IN' },
         { label: translations['stock_movement_type_transfer_out'] || 'Transfer Out', value: 'TRANSFER_OUT' },
-        { label: translations['stock_movement_type_adjustment'] || 'Adjustment', value: 'ADJUSTMENT' },
-        { label: translations['stock_movement_type_return'] || 'Return', value: 'RETURN' },
-        { label: translations['stock_movement_type_damage'] || 'Damage', value: 'DAMAGE' },
-        { label: translations['stock_movement_type_expiry'] || 'Expiry', value: 'EXPIRY' }
+        { label: translations['stock_movement_type_adjustment'] || 'Adjustment', value: 'ADJUSTMENT' }
       ];
     });
   }
@@ -119,21 +144,74 @@ export class StockMovementsComponent implements OnInit {
 
   async loadProducts() {
     try {
-      this.productService.getProducts().subscribe({
+      // Load token first - productService.loadToken() is not async, so we need to get token directly
+      const token = await this.keycloakService.getToken();
+      this.productService.jwt = token;
+      
+      // Use getProductsPaginated with all required parameters
+      this.productService.getProductsPaginated(0, 1000, '', 'creationDate', 'DESC').subscribe({
         next: (response: any) => {
-          const productsList = Array.isArray(response) ? response : (response?.content || []);
-          this.products = productsList.map((p: Product) => ({
-            label: `${p.reference || ''} - ${p.name || ''}`,
-            value: p.productId,
-            product: p
-          })).slice(0, 100); // Limit to first 100 for performance
+          console.log('Products response:', response);
+          // Handle different response structures: response.page.content, response.content, or direct array
+          let productsList: any[] = [];
+          if (Array.isArray(response)) {
+            productsList = response;
+          } else if (response?.page?.content) {
+            productsList = response.page.content;
+          } else if (response?.content) {
+            productsList = response.content;
+          }
+          
+          if (productsList && productsList.length > 0) {
+            this.products = productsList.map((p: Product) => ({
+              label: `${p.reference || ''} - ${p.name || ''}`,
+              value: p.productId,
+              product: p
+            }));
+            console.log('Products loaded successfully:', this.products.length);
+          } else {
+            console.warn('No products found in response');
+            this.products = [];
+          }
         },
         error: (err: any) => {
-          console.error('Error loading products:', err);
+          console.error('Error loading products with getProductsPaginated:', err);
+          // Fallback to getProducts
+          this.productService.getProducts().subscribe({
+            next: (response: any) => {
+              console.log('Products response (fallback):', response);
+              // Handle different response structures
+              let productsList: any[] = [];
+              if (Array.isArray(response)) {
+                productsList = response;
+              } else if (response?.page?.content) {
+                productsList = response.page.content;
+              } else if (response?.content) {
+                productsList = response.content;
+              }
+              
+              if (productsList && productsList.length > 0) {
+                this.products = productsList.map((p: Product) => ({
+                  label: `${p.reference || ''} - ${p.name || ''}`,
+                  value: p.productId,
+                  product: p
+                }));
+                console.log('Products loaded via getProducts:', this.products.length);
+              } else {
+                console.warn('No products found in fallback response');
+                this.products = [];
+              }
+            },
+            error: (fallbackErr: any) => {
+              console.error('Error loading products (fallback):', fallbackErr);
+              this.products = [];
+            }
+          });
         }
       });
     } catch (error) {
-      console.error('Error loading products:', error);
+      console.error('Error in loadProducts:', error);
+      this.products = [];
     }
   }
 
@@ -164,12 +242,14 @@ export class StockMovementsComponent implements OnInit {
     // Note: Backend hardcodes sort to DESC by movementDate, so we don't send sort parameters
 
     // Extract IDs properly - handle both object and number cases
+    // Dropdowns use optionLabel="label" without optionValue, so selectedProduct/selectedWarehouse is the full object {label, value, product/warehouse}
     let productId: number | undefined = undefined;
     if (this.selectedProduct) {
       if (typeof this.selectedProduct === 'object') {
-        productId = this.selectedProduct.productId || 
-                   (this.selectedProduct as any).value?.productId ||
-                   (this.selectedProduct as any).value;
+        // Check for .value first (from dropdown structure)
+        productId = (this.selectedProduct as any).value || 
+                   this.selectedProduct.productId || 
+                   (this.selectedProduct as any).product?.productId;
       } else if (typeof this.selectedProduct === 'number') {
         productId = this.selectedProduct;
       }
@@ -178,9 +258,10 @@ export class StockMovementsComponent implements OnInit {
     let warehouseId: number | undefined = undefined;
     if (this.selectedWarehouse) {
       if (typeof this.selectedWarehouse === 'object') {
-        warehouseId = this.selectedWarehouse.warehouseId || 
-                     (this.selectedWarehouse as any).value?.warehouseId ||
-                     (this.selectedWarehouse as any).value;
+        // Check for .value first (from dropdown structure)
+        warehouseId = (this.selectedWarehouse as any).value || 
+                     this.selectedWarehouse.warehouseId || 
+                     (this.selectedWarehouse as any).warehouse?.warehouseId;
       } else if (typeof this.selectedWarehouse === 'number') {
         warehouseId = this.selectedWarehouse;
       }
@@ -205,19 +286,43 @@ export class StockMovementsComponent implements OnInit {
       }
     }
 
+    // Get movement type filter - ensure it's a valid string or undefined
+    // const movementType: string | undefined = (this.selectedMovementType && this.selectedMovementType.trim() !== '') 
+    //   ? this.selectedMovementType 
+    //   : undefined;
+    
+    // Get search term from global search
+    const searchTerm: string | undefined = (this.globalSearchText && this.globalSearchText.trim() !== '') 
+      ? this.globalSearchText.trim() 
+      : undefined;
+    
+    // Debug logging
+    console.log('Loading movements with filters:', {
+      productId,
+      warehouseId,
+      // movementType,
+      startStr,
+      endStr,
+      searchTerm,
+      page,
+      rows: rows!
+    });
+
     // Defer the entire loading operation to avoid change detection error
     setTimeout(async () => {
       this.isLoading = true;
       
-      // Backend doesn't support movementType, sortBy, or sortDirection parameters
+      // Backend now supports movementType and search parameters
       // Sorting is hardcoded to DESC by movementDate on the backend
       (await this.movementService.getStockMovements(
         page,
         rows!,
         productId,
         warehouseId,
+        // movementType,
         startStr,
-        endStr
+        endStr,
+        searchTerm
       )).subscribe({
         next: (response: any) => {
           // Map backend DTO fields to model fields
@@ -243,6 +348,7 @@ export class StockMovementsComponent implements OnInit {
             performedBy: dto.performedByName,
             creationDate: dto.movementDate ? new Date(dto.movementDate) : null
           }));
+          
           this.totalRecords = response.totalElements || 0;
           this.isLoading = false;
           this.cdr.markForCheck();
@@ -293,6 +399,7 @@ export class StockMovementsComponent implements OnInit {
     this.selectedMovementType = null;
     this.startDate = null;
     this.endDate = null;
+    this.globalSearchText = '';
     this.pageSize = 20;
     this.applyFilters();
   }
@@ -339,45 +446,479 @@ export class StockMovementsComponent implements OnInit {
     }
   }
 
-  // Status helpers
+  // Status helpers - Updated to match backend enum: INBOUND, OUTBOUND, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT
   getMovementTypeSeverity(type: string | undefined): string {
     if (!type) return '';
     const t = type.toUpperCase();
-    if (t === 'PURCHASE' || t === 'TRANSFER_IN' || t === 'RETURN') return 'success';
-    if (t === 'SALE' || t === 'TRANSFER_OUT') return 'info';
+    if (t === 'INBOUND' || t === 'TRANSFER_IN') return 'success';
+    if (t === 'OUTBOUND' || t === 'TRANSFER_OUT') return 'info';
     if (t === 'ADJUSTMENT') return 'warning';
-    if (t === 'DAMAGE' || t === 'EXPIRY') return 'danger';
     return '';
   }
 
   getMovementTypeIcon(type: string | undefined): string {
     if (!type) return '';
     const t = type.toUpperCase();
-    if (t === 'PURCHASE') return 'pi pi-shopping-cart';
-    if (t === 'SALE') return 'pi pi-shopping-bag';
+    if (t === 'INBOUND') return 'pi pi-arrow-down';
+    if (t === 'OUTBOUND') return 'pi pi-arrow-up';
     if (t === 'TRANSFER_IN') return 'pi pi-arrow-down';
     if (t === 'TRANSFER_OUT') return 'pi pi-arrow-up';
     if (t === 'ADJUSTMENT') return 'pi pi-refresh';
-    if (t === 'RETURN') return 'pi pi-replay';
-    if (t === 'DAMAGE') return 'pi pi-exclamation-triangle';
-    if (t === 'EXPIRY') return 'pi pi-calendar-times';
     return 'pi pi-circle';
   }
 
   getQuantityDisplay(movement: StockMovement): string {
     const quantity = movement.quantity || 0;
     const type = movement.movementType?.toUpperCase();
-    if (type === 'PURCHASE' || type === 'TRANSFER_IN' || type === 'RETURN') {
+    // Backend enum: INBOUND, OUTBOUND, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT
+    if (type === 'INBOUND' || type === 'TRANSFER_IN') {
       return `+${quantity}`;
     }
-    if (type === 'SALE' || type === 'TRANSFER_OUT' || type === 'DAMAGE' || type === 'EXPIRY') {
+    if (type === 'OUTBOUND' || type === 'TRANSFER_OUT') {
       return `-${quantity}`;
     }
+    // For ADJUSTMENT, show sign based on quantity value
     return quantity > 0 ? `+${quantity}` : `${quantity}`;
   }
 
   hasSourceDocument(movement: StockMovement): boolean {
     return !!(movement.sourceDocumentType && movement.sourceDocumentId);
+  }
+
+  ngOnDestroy() {
+    // Clear search timeout on component destroy
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+  }
+
+  onGlobalFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.globalSearchText = value;
+    
+    // Clear existing timeout
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    
+    // Debounce search - wait 500ms after user stops typing
+    this.searchTimeout = setTimeout(() => {
+      this.applyFilters();
+    }, 500);
+  }
+
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered stock movements from backend using current filter parameters
+      // Extract filter values
+      let productId: number | undefined = undefined;
+      if (this.selectedProduct) {
+        if (typeof this.selectedProduct === 'object') {
+          productId = this.selectedProduct.productId || 
+                     (this.selectedProduct as any).value?.productId ||
+                     (this.selectedProduct as any).value;
+        } else if (typeof this.selectedProduct === 'number') {
+          productId = this.selectedProduct;
+        }
+      }
+      
+      let warehouseId: number | undefined = undefined;
+      if (this.selectedWarehouse) {
+        if (typeof this.selectedWarehouse === 'object') {
+          warehouseId = this.selectedWarehouse.warehouseId || 
+                      (this.selectedWarehouse as any).value?.warehouseId ||
+                      (this.selectedWarehouse as any).value;
+        } else if (typeof this.selectedWarehouse === 'number') {
+          warehouseId = this.selectedWarehouse;
+        }
+      }
+      
+      // Format dates
+      let startStr: string | undefined = undefined;
+      let endStr: string | undefined = undefined;
+      
+      if (this.startDate) {
+        startStr = this.formatDateForApi(this.startDate, true);
+        if (!startStr || startStr === '') {
+          startStr = undefined;
+        }
+      }
+      
+      if (this.endDate) {
+        endStr = this.formatDateForApi(this.endDate, false);
+        if (!endStr || endStr === '') {
+          endStr = undefined;
+        }
+      }
+      
+      // Get movement type filter
+      const movementType: string | undefined = (this.selectedMovementType && this.selectedMovementType.trim() !== '') 
+        ? this.selectedMovementType 
+        : undefined;
+      
+      // Get search term from global search
+      const searchTerm: string | undefined = (this.globalSearchText && this.globalSearchText.trim() !== '') 
+        ? this.globalSearchText.trim() 
+        : undefined;
+      
+      // Fetch all movements with current filters - use pagination to get all records
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredMovements: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          await this.movementService.getStockMovements(
+            currentPage,
+            pageSize,
+            productId,
+            warehouseId,
+            movementType,
+            startStr,
+            endStr,
+            searchTerm
+          )
+        );
+        
+        const pageContent = pageResponse?.content || [];
+        allFilteredMovements = allFilteredMovements.concat(pageContent);
+        totalElements = pageResponse?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredMovements.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredMovements.length} / ${totalElements} (${progressPercent}%)`;
+        this.cdr.detectChanges(); // Update UI with progress
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredMovements.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      this.cdr.detectChanges();
+      
+      // Extract movements from response and map to model format
+      const filteredMovements = allFilteredMovements.map((dto: any) => ({
+        movementId: dto.id,
+        product: dto.productId ? {
+          productId: dto.productId,
+          reference: dto.productReference,
+          name: dto.productName
+        } : undefined,
+        warehouse: dto.warehouseId ? {
+          warehouseId: dto.warehouseId,
+          name: dto.warehouseName
+        } : undefined,
+        movementType: dto.type,
+        quantity: dto.quantityChange,
+        previousQuantity: dto.quantityBefore,
+        newQuantity: dto.quantityAfter,
+        sourceDocumentType: dto.sourceType,
+        sourceDocumentId: dto.sourceId,
+        reference: dto.sourceReference,
+        movementDate: dto.movementDate ? new Date(dto.movementDate) : null,
+        performedBy: dto.performedByName,
+        creationDate: dto.movementDate ? new Date(dto.movementDate) : null
+      }));
+      
+      // Prepare movements for export with calculated fields
+      const exportData = filteredMovements.map(movement => ({
+        movementDate: movement.movementDate ? this.datePipe.transform(movement.movementDate, 'short') : 'N/A',
+        productName: movement.product?.name || 'N/A',
+        warehouseName: movement.warehouse?.name || 'N/A',
+        movementType: movement.movementType ? this.translate.instant(`stock_movement_type_${movement.movementType.toLowerCase()}`) : 'N/A',
+        quantity: this.getQuantityDisplay(movement),
+        previousQuantity: movement.previousQuantity || 0,
+        newQuantity: movement.newQuantity || 0,
+        reference: movement.reference || 'N/A',
+        sourceDocument: movement.sourceDocumentType && movement.reference ? `${movement.sourceDocumentType}: ${movement.reference}` : (movement.sourceDocumentType || 'N/A'),
+        performedBy: movement.performedBy || 'N/A'
+      }));
+      
+      // Build translated export columns based on organization's default locale
+      const translationKeyMap: { [key: string]: string } = {
+        'movementDate': 'date',
+        'productName': 'product',
+        'warehouseName': 'warehouse',
+        'movementType': 'movement_type',
+        'quantity': 'quantity',
+        'previousQuantity': 'previous_quantity',
+        'newQuantity': 'new_quantity',
+        'reference': 'reference',
+        'performedBy': 'performed_by'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.exportColumns.map((col) => {
+        const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
+        return {
+          title: this.translate.instant(translationKey),
+          dataKey: col.dataKey
+        };
+      });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('stock_movements_menu_title');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'stock-movements', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${exportData.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
+  }
+
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
+
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered stock movements from backend using current filter parameters
+      // Extract filter values
+      let productId: number | undefined = undefined;
+      if (this.selectedProduct) {
+        if (typeof this.selectedProduct === 'object') {
+          productId = this.selectedProduct.productId || 
+                     (this.selectedProduct as any).value?.productId ||
+                     (this.selectedProduct as any).value;
+        } else if (typeof this.selectedProduct === 'number') {
+          productId = this.selectedProduct;
+        }
+      }
+      
+      let warehouseId: number | undefined = undefined;
+      if (this.selectedWarehouse) {
+        if (typeof this.selectedWarehouse === 'object') {
+          warehouseId = this.selectedWarehouse.warehouseId || 
+                      (this.selectedWarehouse as any).value?.warehouseId ||
+                      (this.selectedWarehouse as any).value;
+        } else if (typeof this.selectedWarehouse === 'number') {
+          warehouseId = this.selectedWarehouse;
+        }
+      }
+      
+      // Format dates
+      let startStr: string | undefined = undefined;
+      let endStr: string | undefined = undefined;
+      
+      if (this.startDate) {
+        startStr = this.formatDateForApi(this.startDate, true);
+        if (!startStr || startStr === '') {
+          startStr = undefined;
+        }
+      }
+      
+      if (this.endDate) {
+        endStr = this.formatDateForApi(this.endDate, false);
+        if (!endStr || endStr === '') {
+          endStr = undefined;
+        }
+      }
+      
+      // Get movement type filter
+      const movementType: string | undefined = (this.selectedMovementType && this.selectedMovementType.trim() !== '') 
+        ? this.selectedMovementType 
+        : undefined;
+      
+      // Get search term from global search
+      const searchTerm: string | undefined = (this.globalSearchText && this.globalSearchText.trim() !== '') 
+        ? this.globalSearchText.trim() 
+        : undefined;
+      
+      // Fetch all movements with current filters - use pagination to get all records
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredMovements: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          await this.movementService.getStockMovements(
+            currentPage,
+            pageSize,
+            productId,
+            warehouseId,
+            movementType,
+            startStr,
+            endStr,
+            searchTerm
+          )
+        );
+        
+        const pageContent = pageResponse?.content || [];
+        allFilteredMovements = allFilteredMovements.concat(pageContent);
+        totalElements = pageResponse?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredMovements.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredMovements.length} / ${totalElements} (${progressPercent}%)`;
+        this.cdr.detectChanges(); // Update UI with progress
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredMovements.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      this.cdr.detectChanges();
+      
+      // Extract movements from response and map to model format
+      const filteredMovements = allFilteredMovements.map((dto: any) => ({
+        movementId: dto.id,
+        product: dto.productId ? {
+          productId: dto.productId,
+          reference: dto.productReference,
+          name: dto.productName
+        } : undefined,
+        warehouse: dto.warehouseId ? {
+          warehouseId: dto.warehouseId,
+          name: dto.warehouseName
+        } : undefined,
+        movementType: dto.type,
+        quantity: dto.quantityChange,
+        previousQuantity: dto.quantityBefore,
+        newQuantity: dto.quantityAfter,
+        sourceDocumentType: dto.sourceType,
+        sourceDocumentId: dto.sourceId,
+        reference: dto.sourceReference,
+        movementDate: dto.movementDate ? new Date(dto.movementDate) : null,
+        performedBy: dto.performedByName,
+        creationDate: dto.movementDate ? new Date(dto.movementDate) : null
+      }));
+      
+      // Prepare movements for export with calculated fields and translated headers
+      const exportData = filteredMovements.map(movement => {
+        const translated: any = {};
+        translated[this.translate.instant('date')] = movement.movementDate ? this.datePipe.transform(movement.movementDate, 'short') : 'N/A';
+        translated[this.translate.instant('product')] = movement.product?.name || 'N/A';
+        translated[this.translate.instant('warehouse')] = movement.warehouse?.name || 'N/A';
+        translated[this.translate.instant('movement_type')] = movement.movementType ? this.translate.instant(`stock_movement_type_${movement.movementType.toLowerCase()}`) : 'N/A';
+        translated[this.translate.instant('quantity')] = this.getQuantityDisplay(movement);
+        translated[this.translate.instant('previous_quantity')] = movement.previousQuantity || 0;
+        translated[this.translate.instant('new_quantity')] = movement.newQuantity || 0;
+        translated[this.translate.instant('reference')] = movement.reference || 'N/A';
+        translated[this.translate.instant('source_document')] = movement.sourceDocumentType && movement.reference ? `${movement.sourceDocumentType}: ${movement.reference}` : (movement.sourceDocumentType || 'N/A');
+        translated[this.translate.instant('performed_by')] = movement.performedBy || 'N/A';
+        return translated;
+      });
+      
+      // Export the translated array to Excel
+      this.reportingService.exportExcel(exportData, 'stock-movements');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${exportData.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 }
 

@@ -62,6 +62,7 @@ export class ProductsTableComponent {
   @Input() toggleProductRow: (productId: number) => void = () => {};
   @Input() getAggregatedWarehouseStocks: (product: any) => any[] = () => [];
   @Input() viewMode: 'standard' | 'aggregated' = 'standard';
+  @Input() isExporting: boolean = false;
 
   @Output() editProductEvent = new EventEmitter<Product>();
   @Output() deleteProductEvent = new EventEmitter<Product>();

@@ -17,7 +17,9 @@
 				[totalRecords]="totalRecords" [totalAmount]="totalAmount" [totalPaid]="totalPaid"
 				[currency]="currency" [canProcessOrder]="canProcessOrder" [remainingBalance]="remainingBalance"
 				[totalCost]="totalCost" [totalProfit]="totalProfit"
-				(processOrderEvent)="showOrderStatus($event)" [canEditOrder]="canEditOrder"
+				(viewOrderEvent)="showOrderStatus($event)" (processOrderEvent)="processOrderFromTable($event)"
+				(deliverOrderEvent)="deliverOrderFromTable($event)" (completeOrderEvent)="completeOrderFromTable($event)"
+				[canEditOrder]="canEditOrder"
 				(editOrderEvent)="editOrder($event)" [canDeleteOrder]="canDeleteOrder"
 				(deleteOrderEvent)="deleteOrder($event)" (deleteSelectedOrdersEvent)="deleteSelectedOrders()"
 				[canAddOrder]="canAddOrder" (addOrderEvent)="openNew()" [canCancelOrder]="canCancelOrder"
@@ -63,6 +65,13 @@
 										filterBy="firstName,lastName,companyName" [disabled]="order.orderId"
 										(onChange)="loadCreditInfo()"
 										[ngClass]="{'ng-invalid ng-dirty' : submitted && !order.customer}">
+
+										<ng-template pTemplate="header" *ngIf="customerPricing?.priceListName">
+											<div class="p-2 text-sm">
+												<i class="pi pi-info-circle mr-2"></i>
+												{{ 'price_list_active' | translate }}: <strong>{{ translatePriceListName(customerPricing.priceListName) }}</strong>
+											</div>
+										</ng-template>
 
 										<ng-template pTemplate="selectedItem">
 											<span *ngIf="order && order.customer" [class]="'product-badge'">
@@ -272,16 +281,30 @@
 											</div>
 										</td>
 										<td>
-											<p-inputNumber [(ngModel)]="product.orderItemPricePerUnit" mode="currency"
-												[currency]="currency" [min]="product.buyingPrice"
-												(onInput)="updateProductSubtotal(product)"
-												[ngClass]="{'p-invalid': submitted && !product.orderItemPricePerUnit}">
-											</p-inputNumber>
+											<div class="flex flex-column gap-1">
+												<p-inputNumber [(ngModel)]="product.orderItemPricePerUnit" mode="currency"
+													[currency]="currency" [min]="product.buyingPrice"
+													(onInput)="onOrderPriceChange(product)"
+													[disabled]="!priceOverrideAllowed"
+													[ngClass]="{'p-invalid': submitted && !product.orderItemPricePerUnit}">
+												</p-inputNumber>
+												<div class="flex align-items-center gap-1 flex-wrap">
+													<p-tag [value]="getPriceSourceLabel(getPriceSource(product))"
+														[severity]="getPriceSourceSeverity(getPriceSource(product))"
+														styleClass="text-xs">
+													</p-tag>
+													<i *ngIf="!priceOverrideAllowed" 
+														class="pi pi-info-circle text-500 text-xs cursor-pointer"
+														pTooltip="{{'price_overrides_disabled' | translate}}"
+														tooltipPosition="top">
+													</i>
+												</div>
+											</div>
 										</td>
 										<td>
 											<p-inputNumber [(ngModel)]="product.orderItemQuantity" [min]="1"
 												[max]="isProduct(product) ? getAvailableQuantity(product) : undefined"
-												(onInput)="updateProductSubtotal(product)"
+												(onInput)="onOrderQuantityChange(product)"
 												[ngClass]="{'p-invalid': submitted && !product.orderItemQuantity}">
 											</p-inputNumber>
 										</td>

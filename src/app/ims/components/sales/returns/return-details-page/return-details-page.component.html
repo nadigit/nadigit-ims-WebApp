@@ -55,15 +55,26 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
+                        <!-- Generate Return Note Button (shown when return note doesn't exist) -->
+                        <button pButton pRipple icon="pi pi-file" 
+                            [label]="'generate_return_note' | translate"
+                            class="p-button-help"
+                            *ngIf="isAdmin && return.returnStatus !== 'CANCELLED' && !returnNoteDocNumber"
+                            [pTooltip]="'generate_return_note' | translate"
+                            (click)="generateReturnNote()"></button>
+                        
+                        <!-- View/Print Return Note Button (shown when return note exists) -->
+                        <button pButton pRipple icon="pi pi-file" 
+                            [label]="'print_return_note' | translate"
+                            class="p-button-help"
+                            *ngIf="isAdmin && return.returnStatus !== 'CANCELLED' && returnNoteDocNumber"
+                            [pTooltip]="'print_return_note' | translate"
+                            (click)="viewReturnNote()"></button>
+                        
                         <button pButton pRipple icon="pi pi-refresh" 
                             [label]="'refresh' | translate"
                             class="p-button-outlined"
                             (click)="refreshReturnDetails()"></button>
-                        <button pButton pRipple icon="pi pi-print" 
-                            [label]="'print_return_note' | translate"
-                            *ngIf="return.returnStatus !== 'CANCELLED'"
-                            class="p-button-help"
-                            (click)="printReturn()"></button>
                     </div>
                 </div>
             </div>
@@ -252,11 +263,21 @@
                             </div>
                             <div class="card-body">
                                 <div class="actions-grid">
-                                    <button pButton pRipple icon="pi pi-print" 
-                                        [label]="'print_return_note' | translate"
-                                        *ngIf="return.returnStatus !== 'CANCELLED'"
+                                    <!-- Generate Return Note Button (shown when return note doesn't exist) -->
+                                    <button pButton pRipple icon="pi pi-file" 
+                                        [label]="'generate_return_note' | translate"
                                         class="p-button-outlined p-button-help"
-                                        (click)="printReturn()"></button>
+                                        *ngIf="isAdmin && return.returnStatus !== 'CANCELLED' && !returnNoteDocNumber"
+                                        [pTooltip]="'generate_return_note' | translate"
+                                        (click)="generateReturnNote()"></button>
+                                    
+                                    <!-- View/Print Return Note Button (shown when return note exists) -->
+                                    <button pButton pRipple icon="pi pi-file" 
+                                        [label]="'print_return_note' | translate"
+                                        class="p-button-outlined p-button-help"
+                                        *ngIf="isAdmin && return.returnStatus !== 'CANCELLED' && returnNoteDocNumber"
+                                        [pTooltip]="'print_return_note' | translate"
+                                        (click)="viewReturnNote()"></button>
                                     
                                     <button pButton pRipple icon="pi pi-eye" 
                                         [label]="'view_order' | translate"

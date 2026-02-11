@@ -49,6 +49,10 @@ import { ProductDetailsPageComponent } from './product-details/product-details-p
 import { ProductFormComponent } from './product-form/product-form.component';
 import { ProductImportComponent } from './product-import/product-import.component';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { InventorySharedModule } from '../shared/inventory-shared.module';
+import { WarehouseFormDialogComponent } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
+import { CategoriesModule } from '../categories/categories.module';
+import { SuppliersModule } from '../../purchases/suppliers/suppliers.module';
 
 
 @NgModule({
@@ -97,8 +101,11 @@ import { SharedModule } from 'src/app/shared/shared.module';
         TabViewModule,
         BadgeModule,
         DividerModule,
+        InventorySharedModule,
+        CategoriesModule,
+        SuppliersModule,
     ],
-    declarations: [ProductsComponent, ProductsTableComponent, ProductDetailsPageComponent, ProductFormComponent, ProductImportComponent],
+    declarations: [ProductsComponent, ProductsTableComponent, ProductDetailsPageComponent, ProductImportComponent],
     providers: [ReportingService, DialogService],
     exports: [ProductFormComponent]
 })

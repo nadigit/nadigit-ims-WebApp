@@ -324,6 +324,26 @@ export class ProfileComponent implements OnInit {
     }
   }
 
+  getDisplayName(): string {
+    const firstName = this.user?.firstName?.trim() || '';
+    const lastName = this.user?.lastName?.trim() || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || this.user?.username || this.user?.email || this.translate.instant('profile');
+  }
+
+  getRoleLabel(roleName: string): string {
+    if (!roleName) return '';
+    const key = `user_role_${roleName.toLowerCase()}`;
+    const translated = this.translate.instant(key);
+    if (translated && translated !== key) {
+      return translated;
+    }
+    return roleName
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   getSeverity(status: any) {
     switch (status) {
       case false:

@@ -1,0 +1,49 @@
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
+
+// PrimeNG imports
+import { DialogModule } from 'primeng/dialog';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { DropdownModule } from 'primeng/dropdown';
+import { InputTextareaModule } from 'primeng/inputtextarea';
+import { FileUploadModule } from 'primeng/fileupload';
+import { ImageModule } from 'primeng/image';
+import { GalleriaModule } from 'primeng/galleria';
+import { CheckboxModule } from 'primeng/checkbox';
+import { CalendarModule } from 'primeng/calendar';
+
+// Shared components
+import { WarehouseFormDialogComponent } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
+import { ProductFormComponent } from '../products/product-form/product-form.component';
+
+@NgModule({
+  declarations: [
+    WarehouseFormDialogComponent,
+    ProductFormComponent
+  ],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TranslateModule,
+    DialogModule,
+    ButtonModule,
+    InputTextModule,
+    InputNumberModule,
+    DropdownModule,
+    InputTextareaModule,
+    FileUploadModule,
+    ImageModule,
+    GalleriaModule,
+    CheckboxModule,
+    CalendarModule
+  ],
+  exports: [
+    WarehouseFormDialogComponent,
+    ProductFormComponent
+  ]
+})
+export class InventorySharedModule { }

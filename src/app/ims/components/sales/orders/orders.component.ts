@@ -1,5 +1,5 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { OrderService } from 'src/app/services/order.service';
@@ -33,6 +33,8 @@ import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
 import { CustomerCreditService } from 'src/app/services/customer-credit.service';
 import { CreditInfo } from 'src/app/models/credit-info';
+import { PricingService } from 'src/app/services/pricing.service';
+import { PriceListItemDTO, CustomerPriceOverrideDTO } from 'src/app/models/pricing';
 
 interface EventItem {
   status?: string;
@@ -256,6 +258,24 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   orderReturnsMap: Map<number, OrderReturn[]> = new Map();
   loadingReturns: Set<number> = new Set();
 
+  // Customer pricing data (new API-based approach)
+  customerPricing: {
+    customerId?: number;
+    customerName?: string;
+    priceListId?: number;
+    priceListName?: string;
+    defaultQuantity?: number;
+    prices?: { [productId: number]: number };
+    priceSources?: { [productId: number]: string };
+  } | null = null;
+
+  // Price override configuration
+  priceOverrideAllowed: boolean = true; // Default to true, will be loaded from config
+
+  // UX helper: single-entity flags
+  hasSingleCustomer: boolean = false;
+  hasSingleShop: boolean = false;
+
   // Permissions
   canAddCustomer: boolean = false;
   canAddShop: boolean = false;
@@ -335,7 +355,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   @ViewChild('dt') dt!: Table;
   @ViewChild('filter') filter!: ElementRef;
 
-  
+  // If set, open this order in edit mode after orders are loaded
+  private pendingEditOrderId: number | null = null;
 
   constructor(private messageService: MessageService,
     private orderService: OrderService,
@@ -357,7 +378,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     public organizationService: OrganizationService,
     private financialDocService: FinancialDocumentsService,
     private storage: AngularFireStorage,
-    private router: Router
+    private router: Router,
+    private pricingService: PricingService,
+    private route: ActivatedRoute
   ) {
     this.loadTaxRate();
 
@@ -402,6 +425,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       }
     });
 
+    // Handle deep links (e.g. editOrderId from order details page)
+    this.route.queryParams.subscribe(params => {
+      const editId = params['editOrderId'];
+      const parsed = editId ? Number(editId) : NaN;
+      if (!isNaN(parsed)) {
+        this.pendingEditOrderId = parsed;
+      }
+    });
+
     // Set up translation and events
     this.initializeTranslations();
 
@@ -415,6 +447,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.checkPermissions(),
       this.onGetOrganization(),
       this.loadBankAccounts(),
+      this.loadPriceOverrideConfig(),
     ]);
 
     // Initialize table columns and statuses
@@ -498,6 +531,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       for (let order of this.orders) {
         if (this.hasReturns(order)) {
           this.loadOrderReturns(order);
+        }
+      }
+
+      // If an edit order was requested (from order details), open it once after data loads
+      if (this.pendingEditOrderId) {
+        const orderToEdit = this.orders.find(o => o.orderId === this.pendingEditOrderId);
+        if (orderToEdit) {
+          this.editOrder(orderToEdit);
+          this.pendingEditOrderId = null;
         }
       }
 
@@ -778,6 +820,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     if (!this.order.customer?.customerId) {
       this.creditInfo = null;
       this.creditAmountUsed = 0;
+      this.customerPricing = null;
+      // Update prices for existing products when customer is cleared
+      this.updatePricesForAllProducts();
       return;
     }
 
@@ -810,6 +855,202 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.creditInfo = null;
       this.creditAmountUsed = 0;
     }
+
+    // Load customer pricing data using new API
+    await this.loadCustomerPricingData();
+  }
+
+  async loadCustomerPricingData() {
+    if (!this.order.customer?.customerId) {
+      this.customerPricing = null;
+      return;
+    }
+
+    try {
+      this.orderService.loadToken();
+      const pricing$ = this.orderService.getCustomerPrices(this.order.customer.customerId, undefined, 1);
+      const pricingData = await firstValueFrom(pricing$);
+      
+      this.customerPricing = pricingData;
+      console.log('Loaded customer pricing data:', pricingData);
+      
+      // Show notification if customer has special pricing
+      if (pricingData.priceListName) {
+        const translatedPriceListName = this.translatePriceListName(pricingData.priceListName);
+        const message = (this.translate.instant('customer_pricing_loaded') || 'Customer pricing loaded: {priceList}').replace('{priceList}', translatedPriceListName);
+        this.messageService.add({
+          severity: 'info',
+          summary: this.translate.instant('info'),
+          detail: message,
+          life: 3000
+        });
+      }
+
+      // Update prices for all products in the order
+      this.updatePricesForAllProducts();
+    } catch (error: any) {
+      console.error('Error loading customer pricing data:', error);
+      this.customerPricing = null;
+      // Don't show error to user, just fallback to standard prices
+      if (error.status !== 404) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_loading_customer_pricing'),
+          life: 3000
+        });
+      }
+    }
+  }
+
+  /**
+   * Get price and price source for a specific product and quantity from customer pricing API
+   * Returns an object with price and priceSource, or null if not available
+   */
+  async getProductPriceForQuantity(productId: number, quantity: number): Promise<{ price: number; priceSource: string } | null> {
+    if (!this.order.customer?.customerId) {
+      return null;
+    }
+
+    try {
+      this.orderService.loadToken();
+      const pricing$ = this.orderService.getCustomerPrices(
+        this.order.customer.customerId,
+        [productId],
+        quantity
+      );
+      const pricingData = await firstValueFrom(pricing$);
+      
+      if (pricingData.prices && pricingData.prices[productId]) {
+        const price = pricingData.prices[productId];
+        const priceSource = pricingData.priceSources?.[productId] || 'DEFAULT';
+        return { price, priceSource };
+      }
+    } catch (error: any) {
+      console.error('Error fetching product price for quantity:', error);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Load price override configuration from app settings
+   */
+  async loadPriceOverrideConfig() {
+    try {
+      const config$ = await this.configService.getConfiguration('pricing.allow.custom.override');
+      const config = await firstValueFrom(config$);
+      this.priceOverrideAllowed = config?.value === 'true' || config?.value === true;
+      console.log('Price override allowed:', this.priceOverrideAllowed);
+    } catch (error: any) {
+      console.warn('Could not load price override configuration, defaulting to true:', error);
+      this.priceOverrideAllowed = true; // Default to true if config not found
+    }
+  }
+
+  /**
+   * Get the effective price for a product
+   * Priority: Custom Price (if override allowed) > Customer Pricing API > Default Selling Price
+   */
+  getEffectivePrice(product: Product, quantity: number = 1): number {
+    // 1. Check if custom price was entered (and overrides are allowed)
+    if (this.priceOverrideAllowed && product['orderItemPricePerUnitManual'] && product.orderItemPricePerUnit) {
+      return product.orderItemPricePerUnit;
+    }
+    
+    // 2. Check if customer pricing is available
+    if (this.customerPricing?.prices && product.productId) {
+      const customerPrice = this.customerPricing.prices[product.productId];
+      if (customerPrice !== undefined && customerPrice !== null) {
+        return customerPrice;
+      }
+    }
+    
+    // 3. Fallback to product selling price
+    return product.sellingPrice || 0;
+  }
+
+  /**
+   * Get price source for a product
+   */
+  getPriceSource(product: Product): string {
+    if (!product.productId) {
+      return 'DEFAULT';
+    }
+
+    // Check if custom price was entered
+    if (this.priceOverrideAllowed && product['orderItemPricePerUnitManual']) {
+      return 'OVERRIDE';
+    }
+
+    // Check customer pricing source
+    if (this.customerPricing?.priceSources) {
+      return this.customerPricing.priceSources[product.productId] || 'DEFAULT';
+    }
+
+    return 'DEFAULT';
+  }
+
+  /**
+   * Translate price list name if it matches known profiles (WHOLESALE, RETAIL)
+   * Otherwise return the name as-is
+   */
+  translatePriceListName(priceListName: string): string {
+    if (!priceListName) return priceListName;
+    
+    const upperName = priceListName.toUpperCase();
+    if (upperName === 'WHOLESALE') {
+      return this.translate.instant('price_list_wholesale') || priceListName;
+    } else if (upperName === 'RETAIL') {
+      return this.translate.instant('price_list_retail') || priceListName;
+    }
+    
+    // Return as-is if no translation found
+    return priceListName;
+  }
+
+  /**
+   * Get price source label for display
+   */
+  getPriceSourceLabel(source: string): string {
+    const labels: { [key: string]: string } = {
+      'OVERRIDE': this.translate.instant('special_price'),
+      'PRICE_LIST': this.customerPricing?.priceListName 
+        ? (this.translate.instant('price_list_label') || 'Price List: {name}').replace('{name}', this.translatePriceListName(this.customerPricing.priceListName))
+        : (this.translate.instant('price_list_label') || 'Price List').replace(': {name}', ''),
+      'RETAIL_LIST': this.translate.instant('retail_price'),
+      'DEFAULT': this.translate.instant('standard_price')
+    };
+    return labels[source] || labels['DEFAULT'];
+  }
+
+  /**
+   * Get price source severity for badge styling
+   */
+  getPriceSourceSeverity(source: string): string {
+    const severities: { [key: string]: string } = {
+      'OVERRIDE': 'warning',
+      'PRICE_LIST': 'info',
+      'RETAIL_LIST': 'success',
+      'DEFAULT': 'secondary'
+    };
+    return severities[source] || severities['DEFAULT'];
+  }
+
+  /**
+   * Update prices for all products in the order based on current customer pricing
+   */
+  updatePricesForAllProducts() {
+    this.targetProducts.forEach((product) => {
+      // Only update if price wasn't manually overridden
+      if (!product['orderItemPricePerUnitManual']) {
+        const quantity = product.orderItemQuantity || 1;
+        const effectivePrice = this.getEffectivePrice(product, quantity);
+        product.orderItemPricePerUnit = effectivePrice;
+      }
+    });
+    this.calculateTotalAmount();
+    this.cdr.detectChanges();
   }
 
   // ⚠️ NEW: Credit selection methods
@@ -1162,6 +1403,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           ...item.product,
           orderItemQuantity: item.quantity,
           orderItemPricePerUnit: item.pricePerUnit,
+          orderItemPricePerUnitManual: true,
         },
         quantity: item.quantity,
         pricePerUnit: item.pricePerUnit,
@@ -1180,6 +1422,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.order.orderItems.forEach(item => {
       item.product.orderItemQuantity = item.quantity;
       item.product.orderItemPricePerUnit = item.pricePerUnit;
+      item.product['orderItemPricePerUnitManual'] = true;
     });
 
     console.log(this.order);
@@ -1341,7 +1584,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     const orderItems: OrderItem[] = this.targetProducts.map((product) => ({
       product,
       quantity: product['orderItemQuantity'],
-      pricePerUnit: product['orderItemPricePerUnit'],
+      pricePerUnit: this.getOrderItemPricePerUnitForPayload(product),
     }));
 
     // ⚠️ REMOVED: Credit limit validation before order creation
@@ -2014,8 +2257,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   selectedPaymentStatus: string | null = null;
   selectedCustomer: Customer | null = null;
   selectedShop: Shop | null = null;
-  startDate: Date | null = null;
-  endDate: Date | null = null;
+  orderDateFrom: Date | null = null;
+  orderDateTo: Date | null = null;
 
   onGlobalFilter(event: { globalFilter: string }) {
     this.scanning = false;
@@ -2035,15 +2278,18 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     paymentStatus?: string | null;
     customer?: Customer | null;
     shop?: Shop | null;
-    startDate?: Date | null;
-    endDate?: Date | null;
+    orderDateFrom?: Date | null;
+    orderDateTo?: Date | null;
   }) {
     this.selectedOrderStatus = filterData.orderStatus ?? null;
     this.selectedPaymentStatus = filterData.paymentStatus ?? null;
     this.selectedCustomer = filterData.customer ?? null;
     this.selectedShop = filterData.shop ?? null;
-    this.startDate = filterData.startDate ?? null;
-    this.endDate = filterData.endDate ?? null;
+    this.orderDateFrom = filterData.orderDateFrom ?? null;
+    this.orderDateTo = filterData.orderDateTo ?? null;
+
+    // Apply filters immediately when filter values change
+    this.applyFilters();
   }
 
   applyFilters() {
@@ -2063,14 +2309,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     if (this.selectedShop) {
       filters.shopName = { value: this.selectedShop.shopName, matchMode: 'equals' };
     }
-    // Backend only supports single orderDate parameter, not date range
-    // If both dates are provided, use startDate (or we could prioritize endDate)
-    // For date range filtering, backend would need to support orderDateFrom and orderDateTo parameters
-    if (this.startDate) {
-      filters.orderDate = { value: this.startDate, matchMode: 'dateIs' };
-    } else if (this.endDate) {
-      // If only endDate is provided, use it as the orderDate filter
-      filters.orderDate = { value: this.endDate, matchMode: 'dateIs' };
+    // NEW: Support date range filtering with fromDate and toDate
+    if (this.orderDateFrom) {
+      filters.orderDateFrom = { value: this.orderDateFrom, matchMode: 'equals' };
+    }
+    if (this.orderDateTo) {
+      filters.orderDateTo = { value: this.orderDateTo, matchMode: 'equals' };
     }
 
     console.log('=== APPLYING FILTERS ===');
@@ -2078,8 +2322,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     console.log('Selected payment status (raw):', this.selectedPaymentStatus, typeof this.selectedPaymentStatus);
     console.log('Selected customer:', this.selectedCustomer);
     console.log('Selected shop:', this.selectedShop);
-    console.log('Start date:', this.startDate);
-    console.log('End date:', this.endDate);
+    console.log('Order date from:', this.orderDateFrom);
+    console.log('Order date to:', this.orderDateTo);
     console.log('Filters object:', JSON.stringify(filters, null, 2));
 
     const lazyEvent: LazyLoadEventExt = {
@@ -2097,8 +2341,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.selectedPaymentStatus = null;
     this.selectedCustomer = null;
     this.selectedShop = null;
-    this.startDate = null;
-    this.endDate = null;
+    this.orderDateFrom = null;
+    this.orderDateTo = null;
 
     const lazyEvent: LazyLoadEventExt = {
       ...this.lastLazyLoadEvent,
@@ -2233,6 +2477,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
             fullName: this.getCustomerDisplayName(customer)
           }));
           console.log(this.customers);
+
+          // UX: if there is only one customer and we are creating a new order, preselect it
+          this.hasSingleCustomer = Array.isArray(this.customers) && this.customers.length === 1;
+          if (this.hasSingleCustomer && (!this.order || !this.order.orderId) && !this.order.customer) {
+            this.order.customer = this.customers[0];
+          }
         },
         error: (err: any) => {
           this.messageService.add({
@@ -2251,6 +2501,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         next: (response: any) => {
           this.shops = response;
           console.log(this.shops);
+
+          // UX: if there is only one shop and we are creating a new order, preselect it
+          this.hasSingleShop = Array.isArray(this.shops) && this.shops.length === 1;
+          if (this.hasSingleShop && (!this.order || !this.order.orderId) && !this.order.shop) {
+            this.order.shop = this.shops[0];
+          }
         },
         error: (err: any) => {
           this.messageService.add({
@@ -2543,6 +2799,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         if (product.productId === item.productId) {
           // Add the orderItemPricePerUnit field and assign the value of sellingPrice from the item
           product.orderItemPricePerUnit = item.sellingPrice;
+          product.orderItemPricePerUnitManual = false;
           product.orderItemQuantity = 1;
         }
       });
@@ -2570,6 +2827,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       const newProduct = {
         ...product,
         orderItemPricePerUnit: product.sellingPrice,
+        orderItemPricePerUnitManual: false,
         orderItemQuantity: 1
       };
       this.targetProducts.push(newProduct);
@@ -2699,6 +2957,75 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('error_while_canceling_order'),
+        life: 3000
+      });
+    }
+  }
+
+  async processOrderFromTable(order: Order) {
+    try {
+      order.orderStatus = "Processing";
+      order.processingDate = new Date();
+      // Update the existing events with the corresponding date from the order
+      await this.editOrderStatus(order.orderId, order);
+      this.loadOrders();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_under_processing'),
+        life: 3000
+      });
+    } catch (error) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_order'),
+        life: 3000
+      });
+    }
+  }
+
+  async deliverOrderFromTable(order: Order) {
+    try {
+      order.orderStatus = "Delivered";
+      order.deliveryDate = new Date();
+      // Update the existing events with the corresponding date from the order
+      await this.editOrderStatus(order.orderId, order);
+      this.loadOrders();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_delivered'),
+        life: 3000
+      });
+    } catch (error) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_order'),
+        life: 3000
+      });
+    }
+  }
+
+  async completeOrderFromTable(order: Order) {
+    try {
+      order.orderStatus = "Completed";
+      order.completeDate = new Date();
+      // Update the existing events with the corresponding date from the order
+      await this.editOrderStatus(order.orderId, order);
+      this.loadOrders();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_completed_text'),
+        life: 3000
+      });
+    } catch (error) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_order'),
         life: 3000
       });
     }
@@ -3079,11 +3406,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     const existingProduct = this.targetProducts.find(p => p.productId === product.productId);
 
     if (!existingProduct) {
+      // Get effective price based on customer pricing
+      const quantity = product.orderItemQuantity ? product.orderItemQuantity : 1;
+      const effectivePrice = this.getEffectivePrice(product, quantity);
+      
       // Add as new product
       const productToAdd = {
         ...product,
-        orderItemQuantity: product.orderItemQuantity ? product.orderItemQuantity : 1,
-        orderItemPricePerUnit: product.orderItemPricePerUnit ? product.orderItemPricePerUnit : product.sellingPrice
+        orderItemQuantity: quantity,
+        orderItemPricePerUnit: effectivePrice
       };
 
       this.targetProducts = [...this.targetProducts, productToAdd];
@@ -3100,26 +3431,36 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       if (this.isProduct(product)) {
         const availableQty = this.getAvailableQuantity(product);
         if (existingProduct.orderItemQuantity < availableQty) {
-        existingProduct.orderItemQuantity += 1;
-        this.targetProducts = [...this.targetProducts];
+          existingProduct.orderItemQuantity += 1;
+          // Recalculate price when quantity changes (if not manually overridden)
+          if (!existingProduct['orderItemPricePerUnitManual']) {
+            // Use async method to get price for new quantity
+            this.updateProductPriceForQuantity(existingProduct);
+          }
+          this.targetProducts = [...this.targetProducts];
 
-        this.messageService.add({
-          severity: 'info',
-          summary: this.translate.instant('info'),
-          detail: this.translate.instant('product_quantity_increased'),
-          life: 3000,
-        });
-      } else {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('max_quantity_reached'),
+          this.messageService.add({
+            severity: 'info',
+            summary: this.translate.instant('info'),
+            detail: this.translate.instant('product_quantity_increased'),
+            life: 3000,
+          });
+        } else {
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: this.translate.instant('max_quantity_reached'),
             life: 3000,
           });
         }
       } else {
         // For services, just increase quantity without stock check
         existingProduct.orderItemQuantity += 1;
+        // Recalculate price when quantity changes (if not manually overridden)
+        if (!existingProduct['orderItemPricePerUnitManual']) {
+          // Use async method to get price for new quantity
+          this.updateProductPriceForQuantity(existingProduct);
+        }
         this.targetProducts = [...this.targetProducts];
 
         this.messageService.add({
@@ -3161,11 +3502,102 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           category: product.category
         },
         quantity: product.orderItemQuantity || 0,
-        pricePerUnit: product.orderItemPricePerUnit || 0,
+        pricePerUnit: this.getOrderItemPricePerUnitForPayload(product) ?? 0,
         subTotal: (product.orderItemQuantity || 0) * (product.orderItemPricePerUnit || 0)
       };
       return orderItem;
     });
+  }
+
+  onOrderPriceChange(product: Product): void {
+    // Only allow manual override if price override is enabled
+    if (this.priceOverrideAllowed) {
+      product['orderItemPricePerUnitManual'] = true;
+      this.updateProductSubtotal(product);
+    } else {
+      // If override is disabled, revert to customer pricing or default
+      product['orderItemPricePerUnitManual'] = false;
+      const quantity = product.orderItemQuantity || 1;
+      product.orderItemPricePerUnit = this.getEffectivePrice(product, quantity);
+      this.updateProductSubtotal(product);
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('price_overrides_disabled'),
+        life: 3000
+      });
+    }
+  }
+
+  onOrderQuantityChange(product: Product): void {
+    // Recalculate price if quantity changed and price wasn't manually overridden
+    if (!product['orderItemPricePerUnitManual']) {
+      // Use async method to get price for new quantity
+      this.updateProductPriceForQuantity(product);
+    }
+    this.updateProductSubtotal(product);
+  }
+
+  /**
+   * Update product price based on current quantity using customer pricing API
+   */
+  async updateProductPriceForQuantity(product: Product): Promise<void> {
+    if (!product.productId) return;
+    
+    const quantity = product.orderItemQuantity || 1;
+    
+    // If customer pricing is available, try to get price for this quantity
+    if (this.order.customer?.customerId) {
+      const pricingResult = await this.getProductPriceForQuantity(product.productId, quantity);
+      if (pricingResult !== null) {
+        product.orderItemPricePerUnit = pricingResult.price;
+        
+        // Update price source in customerPricing so the badge shows correctly
+        if (this.customerPricing) {
+          if (!this.customerPricing.priceSources) {
+            this.customerPricing.priceSources = {};
+          }
+          this.customerPricing.priceSources[product.productId] = pricingResult.priceSource;
+          
+          // Also update the price in the prices object
+          if (!this.customerPricing.prices) {
+            this.customerPricing.prices = {};
+          }
+          this.customerPricing.prices[product.productId] = pricingResult.price;
+        }
+        
+        this.targetProducts = [...this.targetProducts];
+        this.calculateTotalAmount();
+        this.cdr.detectChanges();
+        return;
+      }
+    }
+    
+    // Fallback to current pricing data or default price
+    const effectivePrice = this.getEffectivePrice(product, quantity);
+    product.orderItemPricePerUnit = effectivePrice;
+    
+    // Update price source based on whether price differs from standard
+    if (this.customerPricing && product.productId) {
+      if (!this.customerPricing.priceSources) {
+        this.customerPricing.priceSources = {};
+      }
+      // Check if price matches standard selling price to determine source
+      if (product.sellingPrice && Math.abs(effectivePrice - product.sellingPrice) < 0.01) {
+        // Price matches standard, mark as DEFAULT
+        this.customerPricing.priceSources[product.productId] = 'DEFAULT';
+      } else if (this.customerPricing.priceListName) {
+        // Price is different from standard and customer has price list, mark as PRICE_LIST
+        this.customerPricing.priceSources[product.productId] = 'PRICE_LIST';
+      } else {
+        // No price list but price is different - could be override or default
+        this.customerPricing.priceSources[product.productId] = 'DEFAULT';
+      }
+    }
+    
+    this.targetProducts = [...this.targetProducts];
+    this.calculateTotalAmount();
+    this.cdr.detectChanges();
   }
 
   updateProductSubtotal(product: Product): void {
@@ -3194,6 +3626,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.targetProducts = [...this.targetProducts];
     this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
     this.calculateTotalAmount();
+  }
+
+  private getOrderItemPricePerUnitForPayload(product: Product): number {
+    const manual = !!product['orderItemPricePerUnitManual'];
+    if (manual) {
+      return product['orderItemPricePerUnit'] || 0;
+    }
+    return 0;
   }
 
 

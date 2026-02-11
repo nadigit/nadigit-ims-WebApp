@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, firstValueFrom } from 'rxjs';
-import { InventoryWriteOff, PagedWriteOffResponse } from '../models/write-off';
+import { InventoryWriteOff, PagedWriteOffResponse, CreateWriteOffRequest } from '../models/write-off';
 
 @Injectable({
   providedIn: 'root'
@@ -138,11 +138,11 @@ export class WriteOffService {
     return this.http.get<InventoryWriteOff[]>(url, { headers, params });
   }
 
-  async createWriteOff(writeOff: InventoryWriteOff): Promise<Observable<InventoryWriteOff>> {
+  async createWriteOff(request: CreateWriteOffRequest): Promise<Observable<InventoryWriteOff>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt, 'Content-Type': 'application/json' });
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}`;
-    return this.http.post<InventoryWriteOff>(url, writeOff, { headers });
+    return this.http.post<InventoryWriteOff>(url, request, { headers });
   }
 
   async approveWriteOff(id: number): Promise<Observable<InventoryWriteOff>> {

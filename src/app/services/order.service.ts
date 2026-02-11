@@ -96,6 +96,28 @@ export class OrderService {
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'recent-products-sold', { headers: headers });
   }
 
+  /**
+   * Get customer-specific prices for products
+   * @param customerId Customer ID
+   * @param productIds Optional array of product IDs to get prices for
+   * @param defaultQuantity Quantity to use for price resolution (default: 1)
+   */
+  getCustomerPrices(customerId: number, productIds?: number[], defaultQuantity: number = 1): Observable<any> {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let params = new HttpParams().set('defaultQuantity', defaultQuantity.toString());
+    
+    if (productIds && productIds.length > 0) {
+      productIds.forEach(id => {
+        params = params.append('productIds', id.toString());
+      });
+    }
+    
+    return this.http.get(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'customer/' + customerId + '/prices',
+      { headers: headers, params: params }
+    );
+  }
+
   getMonthlyOrders() {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'monthly', { headers: headers });
@@ -111,17 +133,17 @@ export class OrderService {
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + "/update-status", order, { headers: headers });
   }
 
-  processReturn(orderId: number, returnedItems: any, reason: string, notes: string | null): Observable<any> {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
-    // Build the query parameters
-    let params = new HttpParams()
-      .set('reason', reason);
+  // processReturn(orderId: number, returnedItems: any, reason: string, notes: string | null): Observable<any> {
+  //   let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+  //   // Build the query parameters
+  //   let params = new HttpParams()
+  //     .set('reason', reason);
 
-    if (notes) {
-      params = params.set('notes', notes);
-    }
-    return this.http.post<any>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + orderId + "/returns", returnedItems, { headers: headers, params: params });
-  }
+  //   if (notes) {
+  //     params = params.set('notes', notes);
+  //   }
+  //   return this.http.post<any>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + orderId + "/returns", returnedItems, { headers: headers, params: params });
+  // }
 
   getOrdersReturns(id: any) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
@@ -136,6 +158,40 @@ export class OrderService {
   getEligibleOrdersForDocsByType(docType: any) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + "eligible-financial-docs/" + docType, { headers: headers });
+  }
+
+  /**
+   * Get eligible orders for financial documents by type with pagination
+   * @param docType Document type (INVOICE, PROFORMA_INVOICE, etc.)
+   * @param page Page number (0-indexed)
+   * @param size Page size
+   * @param sortBy Field to sort by (default: "orderDate")
+   * @param direction Sort direction - ASC or DESC (default: "DESC")
+   * @param search Optional search term for order reference or customer name
+   */
+  getEligibleOrdersForDocsByTypePaginated(
+    docType: string,
+    page: number = 0,
+    size: number = 20,
+    sortBy: string = 'orderDate',
+    direction: string = 'DESC',
+    search: string | null = null
+  ): Observable<any> {
+    this.loadToken();
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    
+    // Ensure page and size are integers
+    const pageInt = Math.floor(Number(page)) || 0;
+    const sizeInt = Math.floor(Number(size)) || 20;
+    
+    let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}eligible-financial-docs/${docType}?page=${pageInt}&size=${sizeInt}&sortBy=${encodeURIComponent(sortBy)}&direction=${encodeURIComponent(direction)}`;
+    
+    // Add search parameter only if it has a value
+    if (search && search.trim()) {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+    
+    return this.http.get(url, { headers });
   }
 
   getOrdersPaginated(
@@ -250,37 +306,27 @@ export class OrderService {
             }
             break;
 
-          case 'orderDate':
-            backendParamName = 'orderDate';
-            // Convert date objects to yyyy-MM-dd (ISO format for LocalDate)
-            if (value instanceof Date) {
-              // Use local date components to avoid timezone issues
-              const year = value.getFullYear();
-              const month = String(value.getMonth() + 1).padStart(2, '0');
-              const day = String(value.getDate()).padStart(2, '0');
-              value = `${year}-${month}-${day}`;
-            } else if (value && typeof value === 'string') {
-              // If it's already a string, try to parse and format it
-              try {
-                const date = new Date(value);
-                if (!isNaN(date.getTime())) {
-                  // Use local date components to avoid timezone issues
-                  const year = date.getFullYear();
-                  const month = String(date.getMonth() + 1).padStart(2, '0');
-                  const day = String(date.getDate()).padStart(2, '0');
-                  value = `${year}-${month}-${day}`;
-                }
-              } catch (e) {
-                // If parsing fails, check if it's already in yyyy-MM-dd format
-                const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-                if (!isoDateRegex.test(value)) {
-                  console.warn('Date filter value is not in expected format:', value);
-                }
-                // Use as-is if it matches the expected format
-              }
-            }
-            console.log('Processed orderDate filter:', { original: filterMeta.value, processed: value });
-            break;
+        // NEW: Handle date range filtering
+        case 'orderDateFrom':
+        case 'fromDate':
+          backendParamName = 'fromDate';
+          value = this.formatDateForBackend(value);
+          console.log('Processed fromDate filter:', { original: filterMeta.value, processed: value });
+          break;
+
+        case 'orderDateTo':
+        case 'toDate':
+          backendParamName = 'toDate';
+          value = this.formatDateForBackend(value);
+          console.log('Processed toDate filter:', { original: filterMeta.value, processed: value });
+          break;
+
+        case 'orderDate':
+          // BACKWARD COMPATIBILITY: Keep support for single date
+          backendParamName = 'orderDate';
+          value = this.formatDateForBackend(value);
+          console.log('Processed orderDate filter (backward compatibility):', { original: filterMeta.value, processed: value });
+          break;
 
           // Note: Backend only supports single orderDate, not date range
           // If both startDate and endDate are provided, we'll use startDate only
@@ -304,13 +350,50 @@ export class OrderService {
     }
 
     console.log('Final URL with filters:', url);
-    console.log('All filter parameters:', {
-      orderStatus: filters?.['orderStatus']?.value,
-      paymentStatus: filters?.['paymentStatus']?.value,
-      customerId: filters?.['customerId']?.value,
-      shopName: filters?.['shopName']?.value,
-      orderDate: filters?.['orderDate']?.value
+  console.log('All filter parameters:', {
+    orderStatus: filters?.['orderStatus']?.value,
+    paymentStatus: filters?.['paymentStatus']?.value,
+    customerId: filters?.['customerId']?.value,
+    shopName: filters?.['shopName']?.value,
+    fromDate: filters?.['orderDateFrom']?.value || filters?.['fromDate']?.value,
+    toDate: filters?.['orderDateTo']?.value || filters?.['toDate']?.value,
+    orderDate: filters?.['orderDate']?.value // backward compatibility
     });
     return this.http.get(url, { headers });
+  }
+
+  // Add this helper method for consistent date formatting
+  private formatDateForBackend(date: any): string {
+    if (!date) return '';
+
+    if (date instanceof Date) {
+      // Use local date components to avoid timezone issues
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } else if (typeof date === 'string') {
+      // If it's already a string, try to parse and format it
+      try {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+          // Use local date components to avoid timezone issues
+          const year = parsedDate.getFullYear();
+          const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+          const day = String(parsedDate.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      } catch (e) {
+        // If parsing fails, check if it's already in yyyy-MM-dd format
+        const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (isoDateRegex.test(date)) {
+          return date; // Already in correct format
+        }
+        console.warn('Date value is not in expected format:', date);
+        return date; // Return as-is
+      }
+    }
+
+    return String(date);
   }
 }

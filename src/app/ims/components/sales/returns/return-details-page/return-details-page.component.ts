@@ -10,6 +10,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
+import { FinancialDocument } from 'src/app/models/financialDocument';
 import { Order } from 'src/app/models/order';
 import { Product } from 'src/app/models/product';
 import { Refund } from 'src/app/models/refund';
@@ -37,6 +38,7 @@ export class ReturnDetailsPageComponent implements OnInit {
   Ressource: string = "RETURNS";
   
   lowStockThreshold: number = 10;
+  returnNoteDocNumber: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -134,6 +136,7 @@ export class ReturnDetailsPageComponent implements OnInit {
         this.return.returnDate = new Date(this.return.returnDate as any);
       }
 
+      await this.checkForReturnNote(this.return.returnId);
       this.isLoading = false;
     } catch (error: any) {
       console.error('Error loading return:', error);
@@ -288,26 +291,147 @@ export class ReturnDetailsPageComponent implements OnInit {
     }
   }
 
+  async checkForReturnNote(returnId: number): Promise<void> {
+    try {
+      if (!this.return || !this.return.returnId) {
+        console.log('Return not loaded yet');
+        this.returnNoteDocNumber = null;
+        return;
+      }
+      
+      this.financialDocService.loadToken();
+      const financialDocs = await firstValueFrom(this.financialDocService.getFinancialDocs());
+      
+      // Strategy 1 (BEST): Match by returnId if available in FinancialDocument
+      const matchedByReturnId = (financialDocs as FinancialDocument[]).find(
+        (doc: FinancialDocument) => 
+          doc.docType === 'RETURN_NOTE' && 
+          doc.returnId === returnId &&
+          doc.docStatus !== 'CANCELLED'
+      );
+      
+      if (matchedByReturnId) {
+        this.returnNoteDocNumber = matchedByReturnId.docNumber || null;
+        console.log('Matched return note by returnId:', this.returnNoteDocNumber);
+        return;
+      }
+      
+      // Strategy 2: Match by returnId stored in additionalReferences (format: "RETURN-{returnId}")
+      const returnIdPattern = `RETURN-${returnId}`;
+      const matchedByRef = (financialDocs as FinancialDocument[]).find(
+        (doc: FinancialDocument) => 
+          doc.docType === 'RETURN_NOTE' && 
+          doc.docStatus !== 'CANCELLED' &&
+          (doc.additionalReferences?.includes(returnIdPattern) || 
+           doc.additionalReferences?.includes(`RET-${returnId}`) ||
+           doc.notes?.includes(returnIdPattern))
+      );
+      
+      if (matchedByRef) {
+        this.returnNoteDocNumber = matchedByRef.docNumber || null;
+        console.log('Matched return note by additionalReferences:', this.returnNoteDocNumber);
+        return;
+      }
+      
+      // Strategy 3: Fallback - match by orderId (if only one return note for the order)
+      if (!this.return.order || !this.return.order.orderId) {
+        this.returnNoteDocNumber = null;
+        return;
+      }
+      
+      const orderId = this.return.order.orderId;
+      const returnNotes = (financialDocs as FinancialDocument[]).filter(
+        (doc: FinancialDocument) => {
+          const docOrderId = doc.order?.orderId ? Number(doc.order.orderId) : null;
+          const returnOrderId = orderId ? Number(orderId) : null;
+          return doc.docType === 'RETURN_NOTE' && 
+                 docOrderId === returnOrderId &&
+                 doc.docStatus !== 'CANCELLED';
+        }
+      );
+      
+      console.log('Checking for return note - Return ID:', returnId, 'Order ID:', orderId);
+      console.log('Found return notes for order:', returnNotes.length);
+      
+      if (returnNotes.length === 0) {
+        this.returnNoteDocNumber = null;
+        return;
+      }
+      
+      // If only one return note for this order, use it
+      if (returnNotes.length === 1) {
+        this.returnNoteDocNumber = returnNotes[0].docNumber || null;
+        console.log('Using single return note for order:', this.returnNoteDocNumber);
+        return;
+      }
+      
+      // If multiple return notes exist, try to match by return date
+      if (this.return?.returnDate) {
+        const returnDate = new Date(this.return.returnDate);
+        const matchedByDate = returnNotes.find((doc: FinancialDocument) => {
+          if (!doc.issuedAt && !doc.createdAt) return false;
+          const docDate = doc.issuedAt ? new Date(doc.issuedAt) : new Date(doc.createdAt as any);
+          const diffDays = Math.abs((docDate.getTime() - returnDate.getTime()) / (1000 * 60 * 60 * 24));
+          return diffDays <= 1;
+        });
+        if (matchedByDate) {
+          this.returnNoteDocNumber = matchedByDate.docNumber || null;
+          console.log('Matched return note by date:', this.returnNoteDocNumber);
+          return;
+        }
+      }
+      
+      // Last resort: Use the most recent return note
+      const sortedNotes = returnNotes.sort((a, b) => {
+        const dateA = a.issuedAt ? new Date(a.issuedAt).getTime() : (a.createdAt ? new Date(a.createdAt as any).getTime() : 0);
+        const dateB = b.issuedAt ? new Date(b.issuedAt).getTime() : (b.createdAt ? new Date(b.createdAt as any).getTime() : 0);
+        return dateB - dateA;
+      });
+      
+      this.returnNoteDocNumber = sortedNotes[0]?.docNumber || null;
+      console.log('Using most recent return note:', this.returnNoteDocNumber);
+    } catch (error: any) {
+      console.error('Error checking for return note:', error);
+      this.returnNoteDocNumber = null;
+    }
+  }
+
   generateReturnNote(): void {
     if (!this.return?.returnId) return;
     
-    this.financialDocService.generateReturnNoteFromReturn(this.return.returnId).subscribe({
-      next: (res: any) => {
-        this.financialDocService.printFinancialDoc(res.number);
+    this.financialDocService.generateReturnNoteFromReturn(this.return.returnId, {
+      origin: 'BACK_OFFICE'
+    }).subscribe({
+      next: (response: any) => {
+        // Extract document number from response
+        if (response && response.number) {
+          this.returnNoteDocNumber = response.number;
+        }
+        
         this.messageService.add({
           severity: 'success',
-          summary: this.translate.instant('invoice_generated'),
-          detail: res.number,
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('return_note_generated_successfully') || 'Return note generated successfully',
+          life: 3000
         });
+        // Reload return to get updated document status
+        this.loadReturn();
       },
-      error: () => {
+      error: (error: any) => {
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
-          detail: this.translate.instant('invoice_generation_failed'),
+          detail: this.translate.instant('error_while_generating_return_note') || 'Error while generating return note',
+          life: 3000
         });
       }
     });
+  }
+
+  viewReturnNote(): void {
+    if (this.returnNoteDocNumber) {
+      this.financialDocService.printFinancialDoc(this.returnNoteDocNumber);
+    }
   }
 }
 

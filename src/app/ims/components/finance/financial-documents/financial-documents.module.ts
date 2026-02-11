@@ -29,7 +29,9 @@ import { CalendarModule } from 'primeng/calendar';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ToggleButtonModule } from 'primeng/togglebutton';
 import { TabViewModule } from 'primeng/tabview';
-
+import { InputSwitchModule } from 'primeng/inputswitch';
+import { SharedModule } from 'src/app/shared/shared.module';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 
 @NgModule({
     imports: [
@@ -58,7 +60,10 @@ import { TabViewModule } from 'primeng/tabview';
         CalendarModule,
         TabViewModule,
         CheckboxModule,
-        ToggleButtonModule
+        ToggleButtonModule,
+        SharedModule,
+        AutoCompleteModule,
+        InputSwitchModule
     ],
     declarations: [FinancialDocumentsComponent, FinancialDocumentDetailsPageComponent, PaymentHistoryComponent],
     providers: [ReportingService]

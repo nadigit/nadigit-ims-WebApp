@@ -1019,6 +1019,31 @@ export class ProductDetailsPageComponent implements OnInit {
     return (product.sellingPrice - product.buyingPrice) / product.buyingPrice;
   }
 
+  getEffectiveCostingMethodLabel(product: Product): string {
+    const costingMethods = [
+      { value: 'FIFO', label: this.translate.instant('costing_method_fifo') },
+      { value: 'LIFO', label: this.translate.instant('costing_method_lifo') },
+      { value: 'WEIGHTED_AVERAGE', label: this.translate.instant('costing_method_weighted_average') },
+      { value: 'STANDARD_COST', label: this.translate.instant('costing_method_standard_cost') },
+      { value: 'NONE', label: this.translate.instant('costing_method_none') }
+    ];
+
+    if (product.costingMethod) {
+      const method = costingMethods.find(m => m.value === product.costingMethod);
+      return method?.label || product.costingMethod;
+    } else if (product.category?.costingMethod && product.category.costingMethod !== 'NONE') {
+      const method = costingMethods.find(m => m.value === product.category?.costingMethod);
+      const methodLabel = method?.label || product.category.costingMethod;
+      return this.translate.instant('costing_method_inherited_from_category').replace('{{method}}', methodLabel);
+    } else if (product.warehouse?.organization?.costingMethod && product.warehouse.organization.costingMethod !== 'NONE') {
+      const method = costingMethods.find(m => m.value === product.warehouse?.organization?.costingMethod);
+      const methodLabel = method?.label || product.warehouse.organization.costingMethod;
+      return this.translate.instant('costing_method_inherited_from_organization').replace('{{method}}', methodLabel);
+    } else {
+      return this.translate.instant('costing_method_none');
+    }
+  }
+
   isService(product: Product): boolean {
     if (!product) return false;
     return product.productType === 'SERVICE';

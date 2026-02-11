@@ -51,3 +51,66 @@
 .margin-cell.low-margin {
     color: #ef4444;
 }
+
+/* ==========================================================================
+   Compact Table Styling
+   ========================================================================== */
+
+.compact-amount {
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.amount-with-tooltip {
+    cursor: help;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+}
+
+.profit-cell .text-xs {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    opacity: 0.8;
+}
+
+.profit-cell .cost-value {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.profit-cell .high-margin {
+    color: #22c55e;
+}
+
+.profit-cell .medium-margin {
+    color: #f59e0b;
+}
+
+.profit-cell .low-margin {
+    color: #ef4444;
+}
+
+/* Reduce table cell padding for more compact display */
+::ng-deep .compact-orders-table .p-datatable-tbody > tr > td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+::ng-deep .compact-orders-table .p-datatable-thead > tr > th {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+/* Improve scrollable table appearance */
+::ng-deep .compact-orders-table .p-datatable-wrapper {
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+/* Better horizontal scrolling */
+::ng-deep .compact-orders-table {
+    width: 100%;
+    overflow-x: auto;
+}

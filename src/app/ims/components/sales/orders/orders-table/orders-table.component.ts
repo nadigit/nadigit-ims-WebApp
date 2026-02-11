@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
 import { LazyLoadEvent } from 'primeng/api';
 import { Customer } from 'src/app/models/customer';
 import { Order } from 'src/app/models/order';
@@ -57,14 +58,18 @@ export class OrdersTableComponent {
   selectedPaymentStatus: string | null = null;
   selectedCustomer: Customer | null = null;
   selectedShop: Shop | null = null;
-  startDate: Date | null = null;
-  endDate: Date | null = null;
+  orderDateFrom: Date | null = null;
+  orderDateTo: Date | null = null;
+  showAdvancedFilters = false;
 
   @Output() editOrderEvent = new EventEmitter<Order>();
   @Output() deleteOrderEvent = new EventEmitter<Order>();
   @Output() addOrderEvent = new EventEmitter<void>();
   @Output() confirmOrderEvent = new EventEmitter<Order>();
+  @Output() viewOrderEvent = new EventEmitter<Order>();
   @Output() processOrderEvent = new EventEmitter<Order>();
+  @Output() deliverOrderEvent = new EventEmitter<Order>();
+  @Output() completeOrderEvent = new EventEmitter<Order>();
   @Output() cancelOrderEvent = new EventEmitter<Order>();
   @Output() lazyLoadEvent = new EventEmitter<LazyLoadEventExt>();
   @Output() onGlobalFilter = new EventEmitter<{ globalFilter: string }>();
@@ -80,11 +85,11 @@ export class OrdersTableComponent {
     paymentStatus?: string | null;
     customer?: Customer | null;
     shop?: Shop | null;
-    startDate?: Date | null;
-    endDate?: Date | null;
+    orderDateFrom?: Date | null;
+    orderDateTo?: Date | null;
   }>();
 
-  constructor() { }
+  constructor(private translate: TranslateService) { }
 
   onSelectionChange(event: Payment[]) {
     this.selectedOrdersChange.emit(event);
@@ -99,14 +104,37 @@ export class OrdersTableComponent {
     this.onGlobalFilter.emit({ globalFilter: value });
   }
 
+  onOrderStatusChange(event: any) {
+    console.log('Order status change event:', event);
+    if (event && event.value !== undefined) {
+      this.selectedOrderStatus = event.value;
+      console.log('Set selectedOrderStatus to:', this.selectedOrderStatus);
+    } else {
+      this.selectedOrderStatus = null;
+    }
+  }
+
+  onPaymentStatusChange(event: any) {
+    console.log('Payment status change event:', event);
+    if (event && event.value !== undefined) {
+      this.selectedPaymentStatus = event.value;
+      console.log('Set selectedPaymentStatus to:', this.selectedPaymentStatus);
+    } else {
+      this.selectedPaymentStatus = null;
+    }
+  }
+
   onFilterChange() {
+    console.log('OrdersTable onFilterChange - selectedOrderStatus:', this.selectedOrderStatus, typeof this.selectedOrderStatus);
+    console.log('OrdersTable onFilterChange - selectedPaymentStatus:', this.selectedPaymentStatus, typeof this.selectedPaymentStatus);
+
     this.filterChangeEvent.emit({
       orderStatus: this.selectedOrderStatus,
       paymentStatus: this.selectedPaymentStatus,
       customer: this.selectedCustomer,
       shop: this.selectedShop,
-      startDate: this.startDate,
-      endDate: this.endDate
+      orderDateFrom: this.orderDateFrom,
+      orderDateTo: this.orderDateTo
     });
   }
 
@@ -115,8 +143,8 @@ export class OrdersTableComponent {
     this.selectedPaymentStatus = null;
     this.selectedCustomer = null;
     this.selectedShop = null;
-    this.startDate = null;
-    this.endDate = null;
+    this.orderDateFrom = null;
+    this.orderDateTo = null;
     this.resetFiltersEvent.emit();
   }
 
@@ -137,6 +165,66 @@ export class OrdersTableComponent {
     if (margin >= 30) return 'high-margin';
     if (margin >= 15) return 'medium-margin';
     return 'low-margin';
+  }
+
+  getAmountTooltip(order: Order): string {
+    if (!this.hasReturns || !this.hasReturns(order)) {
+      return `${this.getCustomerDisplayName ? this.getCustomerDisplayName(order.customer!) : 'Order'}: ${order.totalAmount?.toFixed(2) || '0.00'}`;
+    }
+    const original = order.totalAmount || 0;
+    const refunded = this.getTotalRefundedAmount ? this.getTotalRefundedAmount(order) : 0;
+    const net = this.getNetAmount ? this.getNetAmount(order) : original;
+    return `Original: ${original.toFixed(2)}\nRefunded: -${refunded.toFixed(2)}\nNet: ${net.toFixed(2)}`;
+  }
+
+  getPaymentTooltip(order: Order): string {
+    if (!this.hasRefunds || !this.hasRefunds(order)) {
+      return `Paid: ${order.totalPaid?.toFixed(2) || '0.00'}`;
+    }
+    const paid = order.totalPaid || 0;
+    const refunded = order.totalRefunded || 0;
+    const net = paid - refunded;
+    return `Original Payment: ${paid.toFixed(2)}\nRefunds: -${refunded.toFixed(2)}\nNet Paid: ${net.toFixed(2)}`;
+  }
+
+  getProfitTooltip(order: Order): string {
+    if (order.totalCost == null || order.totalProfit == null) {
+      return this.translate.instant('not_available');
+    }
+    const cost = order.totalCost;
+    const profit = order.totalProfit;
+    const margin = order.profitMargin != null ? order.profitMargin.toFixed(2) : this.translate.instant('not_available');
+    const costLabel = this.translate.instant('order_total_cost');
+    const profitLabel = this.translate.instant('order_total_profit');
+    const marginLabel = this.translate.instant('order_profit_margin');
+    return `${costLabel}: ${cost.toFixed(2)}\n${profitLabel}: ${profit.toFixed(2)}\n${marginLabel}: ${margin}%`;
+  }
+
+  getCombinedAmountTooltip(order: Order): string {
+    const amountLabel = this.translate.instant('order_total_amount');
+    const paidLabel = this.translate.instant('order_total_paid');
+    
+    let amountDetails = '';
+    if (this.hasReturns && this.hasReturns(order)) {
+      const original = order.totalAmount || 0;
+      const refunded = this.getTotalRefundedAmount ? this.getTotalRefundedAmount(order) : 0;
+      const net = this.getNetAmount ? this.getNetAmount(order) : original;
+      amountDetails = `${amountLabel}:\n  ${this.translate.instant('original_amount')}: ${original.toFixed(2)}\n  ${this.translate.instant('refunded_amount')}: -${refunded.toFixed(2)}\n  ${this.translate.instant('net_amount')}: ${net.toFixed(2)}`;
+    } else {
+      amountDetails = `${amountLabel}: ${(order.totalAmount || 0).toFixed(2)}`;
+    }
+    
+    let paidDetails = '';
+    if (this.hasRefunds && this.hasRefunds(order)) {
+      const paid = order.totalPaid || 0;
+      const refunded = order.totalRefunded || 0;
+      const net = paid - refunded;
+      paidDetails = `${paidLabel}:\n  ${this.translate.instant('original_payment')}: ${paid.toFixed(2)}\n  ${this.translate.instant('total_refunds')}: -${refunded.toFixed(2)}\n  ${this.translate.instant('net_paid')}: ${net.toFixed(2)}`;
+    } else {
+      paidDetails = `${paidLabel}: ${(order.totalPaid || 0).toFixed(2)}`;
+    }
+    
+    return `${amountDetails}\n\n${paidDetails}`;
   }
 
   clearFilters() {

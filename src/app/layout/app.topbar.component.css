@@ -96,11 +96,12 @@
 
 .notification-item.priority {
   border-left-color: #e55353;
-  background: #2a1b1b; /* darker red shade for priority in dark mode */
+  /* Use theme surfaces instead of hard-coded dark color so it works in both light and dark modes */
+  background: var(--surface-b);
 }
 
 .notification-item.priority:hover {
-  background: #3b1f1f;
+  background: var(--surface-c);
 }
 
 .notification-icon {

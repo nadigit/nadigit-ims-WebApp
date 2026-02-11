@@ -1,0 +1,310 @@
+.backups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.backups-hero {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.hero-background {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(64, 117, 168, 0.08), transparent);
+}
+
+.hero-content {
+  position: relative;
+  padding: 1.5rem 2rem;
+}
+
+.backups-hero-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: rgba(64, 117, 168, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: #4075a8;
+}
+
+.backups-content {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.backup-config-card,
+.backup-list-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.config-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.config-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.config-item .label {
+  font-size: 0.85rem;
+  color: var(--text-color-secondary);
+}
+
+.config-item .value {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.path-item {
+  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--text-color);
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: var(--surface-100);
+  margin-bottom: 0.25rem;
+}
+
+.loading-block {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-color-secondary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.checksum-text {
+  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.8rem;
+}
+
+.details-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.detail-row.full-width {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.detail-row .label {
+  font-weight: 600;
+  color: var(--text-color-secondary);
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+.error-text {
+  color: var(--red-500);
+}
+
+.restore-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.restore-warning {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: rgba(244, 67, 54, 0.08);
+  color: var(--text-color);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  margin-bottom: 1rem;
+}
+
+.restore-warning i {
+  color: var(--red-500);
+  font-size: 1.25rem;
+  margin-top: 0.1rem;
+}
+
+.warning-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.warning-server {
+  color: var(--red-500);
+  font-weight: 600;
+}
+
+.restore-disabled {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: var(--surface-100);
+  color: var(--text-color-secondary);
+  border: 1px dashed var(--surface-border);
+  margin-bottom: 1rem;
+}
+
+.restore-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.restore-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-50);
+}
+
+.settings-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.restore-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.maintenance-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-50);
+}
+
+.maintenance-section .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.section-title {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.maintenance-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.maintenance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.maintenance-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-color-secondary);
+  font-size: 0.9rem;
+}
+
+.form-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-color);
+}
+
+.confirm-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--surface-100);
+}
+
+.confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.confirm-phrase {
+  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--text-color);
+  word-break: break-all;
+}
+
+.restore-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.restore-jobs {
+  margin-top: 1.5rem;
+}

@@ -26,6 +26,14 @@ import { CardModule } from 'primeng/card';
 import { ChartModule } from 'primeng/chart';
 import { TranslateModule } from '@ngx-translate/core';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { SkeletonModule } from 'primeng/skeleton';
+import { TabViewModule } from 'primeng/tabview';
+import { DividerModule } from 'primeng/divider';
+import { BadgeModule } from 'primeng/badge';
+import { InputSwitchModule } from 'primeng/inputswitch';
+import { CheckboxModule } from 'primeng/checkbox';
+import { SelectButtonModule } from 'primeng/selectbutton';
+
 
 @NgModule({
   declarations: [
@@ -55,7 +63,14 @@ import { SharedModule } from 'src/app/shared/shared.module';
     CardModule,
     ChartModule,
     TranslateModule,
-    SharedModule
+    SharedModule,
+    SkeletonModule,
+    TabViewModule,
+    DividerModule,
+    BadgeModule,
+    InputSwitchModule,
+    CheckboxModule,
+    SelectButtonModule
   ],
   exports: [
     CreditBalanceCardComponent,

@@ -19,6 +19,8 @@ import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
 import { InventoryWriteOff } from 'src/app/models/write-off';
 import { WriteOffService } from 'src/app/services/write-off.service';
+import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormDialogData } from '../warehouse-form-dialog/warehouse-form-dialog.component';
+import { Location } from '@angular/common';
 
 @Component({
   templateUrl: './warehouse-details.component.html',
@@ -67,7 +69,13 @@ export class WarehouseDetailsComponent implements OnInit {
   selectedCountry: any = null;
   countries: any = null;
   states: any = null;
-  warehouseDialog: boolean = false;
+  warehouseDialogConfig: WarehouseFormDialogConfig = {
+    visible: false,
+    mode: 'edit',
+    warehouse: {},
+    selectedCountry: {},
+    submitted: false
+  };
   deleteWarehouseDialog: boolean = false;
   costingMethods: any[] = [];
 
@@ -78,6 +86,7 @@ export class WarehouseDetailsComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private messageService: MessageService,
     private warehouseService: WarehouseService,
     private translate: TranslateService,
@@ -276,12 +285,32 @@ export class WarehouseDetailsComponent implements OnInit {
   editWarehouse() {
     if (!this.canEditWarehouse) return;
     this.selectedCountry = {};
-    this.warehouseDialog = true;
+    this.warehouseDialogConfig = {
+      visible: true,
+      mode: 'edit',
+      warehouse: { ...this.warehouse },
+      selectedCountry: {},
+      submitted: false
+    };
     this.onSelectedCountry(this.warehouse.country)
   }
 
+  onWarehouseSave(dialogData: WarehouseFormDialogData) {
+    this.warehouse = dialogData.warehouse;
+    this.selectedCountry = dialogData.selectedCountry;
+    this.saveWarehouse();
+  }
+
+  onWarehouseDialogConfigChange(config: WarehouseFormDialogConfig) {
+    this.warehouseDialogConfig = config;
+  }
+
+  onWarehouseCancel() {
+    this.hideDialog();
+  }
+
   saveWarehouse() {
-    this.submitted = true;
+    this.warehouseDialogConfig.submitted = true;
     if (this.warehouse.name) {
       if (this.warehouse.warehouseId) {
         this.updateWarehouse(this.warehouse.warehouseId, this.warehouse)
@@ -298,7 +327,8 @@ export class WarehouseDetailsComponent implements OnInit {
             life: 3000
           });
       }
-      this.warehouseDialog = false;
+      this.warehouseDialogConfig.visible = false;
+      this.loadWarehouseDetails(); // Reload warehouse details after update
     } else {
       this.messageService.add({
         severity: 'error',
@@ -656,12 +686,13 @@ export class WarehouseDetailsComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/inventory/warehouses']);
+    this.location.back();
   }
 
   hideDialog(): void {
-    this.warehouseDialog = false;
-    this.submitted = false;
+    this.warehouseDialogConfig.visible = false;
+    this.warehouseDialogConfig.submitted = false;
+    this.selectedCountry = {};
   }
 
   hideProductDialog(): void {

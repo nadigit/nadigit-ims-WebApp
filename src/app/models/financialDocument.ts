@@ -4,6 +4,7 @@ import { Payment } from "./payment";
 export interface FinancialDocument {
   financialDocId?: number;                // optional because backend generates it
   order?: Order;               // linked order
+  returnId?: number;           // NEW - linked return (for return notes)
   docType?: string;      // enum
   docStatus?: string;     // enum
   docNumber?: string;          // e.g. INV-2025-0001

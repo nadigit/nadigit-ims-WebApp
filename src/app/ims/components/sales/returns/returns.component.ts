@@ -1,6 +1,6 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { MessageService, SelectItem, MenuItem } from 'primeng/api';
+import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
 import { OrderService } from 'src/app/services/order.service';
@@ -22,6 +22,11 @@ import { CustomerService } from 'src/app/services/customer.service';
 import { Refund } from 'src/app/models/refund';
 import { firstValueFrom } from 'rxjs';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { DatePipe } from '@angular/common';
+import { ShopService } from 'src/app/services/shop.service';
+import { Shop } from 'src/app/models/shop';
 
 
 @Pipe({
@@ -34,10 +39,15 @@ export class FilterProductsPipe implements PipeTransform {
   }
 }
 
+interface LazyLoadEventExt extends LazyLoadEvent {
+  globalFilter?: string;
+  filters?: { [field: string]: any };
+}
+
 @Component({
   templateUrl: './returns.component.html',
   styleUrls: ['./returns.component.css', '../sales.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
@@ -79,12 +89,30 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   statuses: any[] = [];
   returnStatuses: any[] = [];
+  refundStatuses: any[] = [];
 
   // Filter properties
   selectedReturnStatus: string | null = null;
+  selectedRefundStatus: string | null = null;
   selectedCustomer: Customer | null = null;
+  selectedShop: Shop | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
+  globalFilter: string = '';
+  
+  // Lazy loading properties
+  totalRecords: number = 0;
+  lastLazyLoadEvent: LazyLoadEvent = {
+    first: 0,
+    rows: 20,
+    sortField: 'returnDate',
+    sortOrder: -1
+  };
+  
+  isExporting: boolean = false;
+  exportProgress: string = '';
+  
+  shops: Shop[] = [];
 
   rowsPerPageOptions = [20, 50, 100];
 
@@ -163,13 +191,21 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   returnReasons: any[];
 
   itemConditions: any[] = [];
+  
+  // Return refund percentages from app configuration
+  returnRefundPercentages: { [key: string]: number } = {
+    'NEW': 1.0,      // Default: 100%
+    'USED': 0.8,     // Default: 80%
+    'DAMAGED': 0.5   // Default: 50%
+  };
+  conditionRefundMessages: { [key: string]: string } = {};
 
   // Permissions
   canAddReturn: boolean = false;
   canEditReturn: boolean = false;
   canDeleteReturn: boolean = false;
 
-  isLoading: boolean = true;
+  isLoading: boolean = false;
 
   @ViewChild('filter') filter!: ElementRef;
   canReadReturn: boolean = false;
@@ -188,14 +224,17 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     private permissionService: PermissionService,
     private financialDocService: FinancialDocumentsService,
     public keycloakService: KeycloakService,
-    private router: Router
+    private router: Router,
+    private organizationService: OrganizationService,
+    private shopService: ShopService,
+    private datePipe: DatePipe
   ) {
     this.loadTaxRate();
   }
 
   async ngOnInit() {
     this.isLoading = true;
-
+    
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -204,6 +243,9 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     });
 
     this.lowStockThreshold = await this.getLowStockThreshold();
+    
+    // Load return refund percentages
+    await this.loadReturnRefundPercentages();
 
 
     // Set up translation and events
@@ -212,11 +254,11 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
     // Load data
     await Promise.all([
-      this.onGetAllReturns(),
+      this.onGetAllCustomers(),
+      this.onGetAllShops(),
       this.getSourceProducts(),
       this.getTargetProducts(),
       this.initializePickList(),
-      this.onGetAllCustomers(),
       this.setUserRoles(),
       this.checkPermissions(),
     ]);
@@ -226,6 +268,9 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     this.initializeReturnStatuses();
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+    
+    // Load first page of returns
+    await this.loadReturns();
   }
 
   private initializeTranslations() {
@@ -299,7 +344,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     this.canEditReturn = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteReturn = this.permissionService.canDelete(this.Ressource);
     this.canReadReturn = this.permissionService.canRead(this.Ressource);
-    this.canCancelReturn = this.permissionService.canProcess(this.Ressource);
+    this.canCancelReturn = this.permissionService.canCancel(this.Ressource);
   }
 
   async loadTaxRate() {
@@ -455,7 +500,6 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
 
-
   // Update the remaining quantity after return
   updateRemainingQuantity(item: any) {
     item.remainingQuantity = item.quantity - item.returnedQuantity;
@@ -575,12 +619,17 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
     // Prepare Order Items
     const returnItems: ReturnItem[] = this.targetProducts.map((product) => {
-      const refundAmount = product.returnItemPricePerUnit * product.returnItemQuantity;
+      const baseRefund = product.returnItemPricePerUnit * product.returnItemQuantity;
+      const condition = product.returnItemCondition || 'NEW';
+      // Apply refund percentage based on condition
+      const refundPercentage = this.getRefundPercentage(condition);
+      const refundAmount = baseRefund * refundPercentage;
+      
       return {
         product: product,
         returnedQuantity: product.returnItemQuantity,
         refundAmount: refundAmount,
-        condition: product.returnItemCondition || 'NEW', // Default to 'NEW' if not specified
+        condition: condition,
         orderItem: product.orderItem,
         reason: product.returnItemReason || 'INCORRECT_ITEM', // Default to 'INCORRECT_ITEM' if not specified
       } as ReturnItem;
@@ -632,62 +681,94 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   onGlobalFilter(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    if (this.dt) {
-      this.dt.filterGlobal(value, 'contains');
-    }
+    this.globalFilter = value;
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      globalFilter: this.globalFilter
+    };
+
+    this.onLazyLoad(lazyEvent);
   }
 
   private initializeReturnStatuses() {
-    // Return statuses based on ReturnStatus enum
+    // Return statuses based on backend enum: PENDING, PROCESSING, COMPLETED, CANCELLED
     this.returnStatuses = [
       { label: 'Pending', value: 'PENDING' },
       { label: 'Processing', value: 'PROCESSING' },
-      { label: 'Partially Refunded', value: 'PARTIALLY_REFUNDED' },
       { label: 'Completed', value: 'COMPLETED' },
-      { label: 'Cancelled', value: 'CANCELLED' },
+      { label: 'Canceled', value: 'CANCELED' },
     ];
+    
+    // Refund statuses based on backend enum: UNREFUNDED, PARTIALLY_REFUNDED, REFUNDED
+    if (!this.refundStatuses || this.refundStatuses.length === 0) {
+      this.refundStatuses = [
+        { label: 'refund_status_unrefunded', value: 'UNREFUNDED' },
+        { label: 'refund_status_partially_refunded', value: 'PARTIALLY_REFUNDED' },
+        { label: 'refund_status_refunded', value: 'REFUNDED' },
+      ];
+    }
+  }
+
+  applyFilters() {
+    // Build filters object in the format expected by the service
+    // Service expects: { field: { value: ..., matchMode: ... } }
+    const filters: any = {};
+    
+    if (this.selectedReturnStatus) {
+      filters.returnStatus = { value: this.selectedReturnStatus, matchMode: 'equals' };
+    }
+    if (this.selectedRefundStatus) {
+      filters.refundStatus = { value: this.selectedRefundStatus, matchMode: 'equals' };
+    }
+    if (this.selectedCustomer) {
+      // Pass the full customer object - the service will extract customerId from it
+      filters.customerId = { value: this.selectedCustomer, matchMode: 'equals' };
+    }
+    if (this.selectedShop) {
+      // Pass the full shop object - the service will extract shopName from it
+      filters.shopName = { value: this.selectedShop, matchMode: 'equals' };
+    }
+    if (this.startDate) {
+      filters.fromDate = { value: this.startDate, matchMode: 'equals' };
+    }
+    if (this.endDate) {
+      filters.toDate = { value: this.endDate, matchMode: 'equals' };
+    }
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      filters: filters
+    };
+
+    this.updateLastLazyLoadEvent(lazyEvent);
+    this.loadReturns();
   }
 
   onFilterChange() {
-    // Apply filters to the table
-    if (this.dt) {
-      const filters: any = {};
-      
-      if (this.selectedReturnStatus) {
-        filters['returnStatus'] = { value: this.selectedReturnStatus, matchMode: 'equals' };
-      }
-      
-      if (this.selectedCustomer) {
-        // Filter by customer (using fullName field)
-        filters['fullName'] = { value: this.getCustomerDisplayName(this.selectedCustomer), matchMode: 'contains' };
-      }
-      
-      if (this.startDate || this.endDate) {
-        if (this.startDate && this.endDate) {
-          // Date range filter
-          filters['returnDate'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
-        } else if (this.startDate) {
-          filters['returnDate'] = { value: this.startDate, matchMode: 'dateIs' };
-        } else if (this.endDate) {
-          filters['returnDate'] = { value: this.endDate, matchMode: 'dateIs' };
-        }
-      }
-      
-      this.dt.filters = filters;
-      this.dt.filteredValue = null; // Trigger filtering
-    }
+    // Apply filters immediately when filter values change
+    this.applyFilters();
   }
 
   clearFilters() {
     this.selectedReturnStatus = null;
+    this.selectedRefundStatus = null;
     this.selectedCustomer = null;
+    this.selectedShop = null;
     this.startDate = null;
     this.endDate = null;
-    
-    if (this.dt) {
-      this.dt.filters = {};
-      this.dt.filteredValue = null;
-    }
+    this.globalFilter = '';
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      globalFilter: '',
+      filters: {}
+    };
+
+    this.onLazyLoad(lazyEvent);
   }
 
   onFilter(dv: DataView, event: Event) {
@@ -699,6 +780,127 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
 
+  /**
+   * Load return refund percentages from app configuration
+   */
+  async loadReturnRefundPercentages() {
+    try {
+      const configKeys = [
+        'return.refund.percentage.new',
+        'return.refund.percentage.used',
+        'return.refund.percentage.damaged'
+      ];
+
+      for (const key of configKeys) {
+        try {
+          const value$ = await this.configService.getConfigurationValue(key);
+          const value = await firstValueFrom(value$);
+          const percentage = parseFloat(value) || this.getDefaultPercentage(key);
+          
+          // Map config key to condition
+          if (key.includes('new')) {
+            this.returnRefundPercentages['NEW'] = percentage;
+          } else if (key.includes('used')) {
+            this.returnRefundPercentages['USED'] = percentage;
+          } else if (key.includes('damaged')) {
+            this.returnRefundPercentages['DAMAGED'] = percentage;
+          }
+        } catch (error) {
+          console.warn(`Failed to load config ${key}, using default:`, error);
+          // Use default value
+        }
+      }
+
+      // Generate messages for each condition
+      this.generateConditionRefundMessages();
+    } catch (error) {
+      console.error('Error loading return refund percentages:', error);
+      // Use default values
+      this.generateConditionRefundMessages();
+    }
+  }
+
+  /**
+   * Get default percentage for a config key
+   */
+  private getDefaultPercentage(key: string): number {
+    if (key.includes('new')) return 1.0;
+    if (key.includes('used')) return 0.8;
+    if (key.includes('damaged')) return 0.5;
+    return 1.0;
+  }
+
+  /**
+   * Generate refund messages for each condition
+   */
+  private generateConditionRefundMessages() {
+    const conditions = ['NEW', 'USED', 'DAMAGED'];
+    conditions.forEach(condition => {
+      const percentage = this.returnRefundPercentages[condition] || 1.0;
+      const percentageDisplay = Math.round(percentage * 100);
+      const conditionName = this.translate.instant('item_condition_' + condition.toLowerCase());
+      
+      if (percentage === 1.0) {
+        this.conditionRefundMessages[condition] = 
+          this.translate.instant('return_condition_full_refund_message', {
+            condition: conditionName,
+            percentage: percentageDisplay
+          });
+      } else {
+        this.conditionRefundMessages[condition] = 
+          this.translate.instant('return_condition_reduced_refund_message', {
+            condition: conditionName,
+            percentage: percentageDisplay
+          });
+      }
+    });
+  }
+
+  /**
+   * Get refund percentage for a condition
+   */
+  getRefundPercentage(condition: string): number {
+    return this.returnRefundPercentages[condition] || 1.0;
+  }
+
+  /**
+   * Get refund message for a condition
+   */
+  getConditionRefundMessage(condition: string): string {
+    return this.conditionRefundMessages[condition] || '';
+  }
+
+  /**
+   * Handle condition change - update refund amount and show message
+   */
+  onConditionChange(product: any) {
+    // Recalculate refund with new condition
+    if (product.returnItemPricePerUnit && product.returnItemQuantity) {
+      // Get the original price per unit (before condition adjustment)
+      // We need to reverse the percentage to get the base price
+      const currentCondition = product.returnItemCondition || 'NEW';
+      const currentPercentage = this.getRefundPercentage(currentCondition);
+      
+      // If price was already adjusted, we need to recalculate
+      // For simplicity, we'll recalculate from the base order item price
+      const basePrice = product.orderItem?.pricePerUnit || product.orderItemPricePerUnit || product.returnItemPricePerUnit;
+      const refundPercentage = this.getRefundPercentage(currentCondition);
+      product.returnItemPricePerUnit = basePrice * refundPercentage;
+    }
+    
+    // Show message about the condition impact
+    const message = this.getConditionRefundMessage(product.returnItemCondition);
+    if (message) {
+      const severity = this.getRefundPercentage(product.returnItemCondition) === 1.0 ? 'info' : 'warn';
+      this.messageService.add({
+        severity: severity,
+        summary: this.translate.instant('refund_impact') || 'Refund Impact',
+        detail: message,
+        life: 4000
+      });
+    }
+  }
+
   getConditionSeverity(condition: any): string {
     switch (condition) {
       case 'NEW': return 'success';
@@ -709,27 +911,90 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
 
-  async onGetAllReturns() {
+  async onGetAllShops() {
     try {
-      const response = await this.returnService.getReturns().toPromise();
-      console.log(response)
-      this.returns = response as OrderReturn[];
-      this.returns.forEach((returnObj: any) => {
-        returnObj.creationDate = new Date(<Date>returnObj.creationDate)
-        returnObj.returnDate = new Date(<Date>returnObj.returnDate)
-      });
-
-      console.log(this.returns)
-      this.isLoading = false;
-
-    } catch (error) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_while_getting_returns'),
-        life: 3000
-      });
+      const response = await firstValueFrom(this.shopService.getShops()) as Shop[];
+      this.shops = response;
+    } catch (err: any) {
+      console.error('Error loading shops:', err);
     }
+  }
+
+  onLazyLoad(event: LazyLoadEvent) {
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
+
+    this.updateLastLazyLoadEvent(extendedEvent);
+    this.loadReturns();
+  }
+
+  private updateLastLazyLoadEvent(event: LazyLoadEvent) {
+    this.lastLazyLoadEvent = {
+      first: event.first ?? this.lastLazyLoadEvent.first,
+      rows: event.rows ?? this.lastLazyLoadEvent.rows,
+      sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
+      sortOrder: event.sortOrder ?? this.lastLazyLoadEvent.sortOrder,
+      globalFilter: event.globalFilter ?? this.globalFilter,
+      filters: event.filters ?? this.lastLazyLoadEvent.filters
+    };
+  }
+
+  loadReturns() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    
+    // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
+    const filterPayload = filters || {};
+
+    this.returnService.getReturnsPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      filterPayload
+    ).subscribe({
+      next: (res: any) => {
+        // Assign the paginated returns
+        this.returns = res.page.content.map((r: any) => {
+          return {
+            ...r,
+            creationDate: r.creationDate ? new Date(r.creationDate) : null,
+            returnDate: r.returnDate ? new Date(r.returnDate) : null
+          };
+        });
+
+        // Assign total records from backend
+        this.totalRecords = res.totalReturns || res.page?.totalElements || 0;
+
+        this.isLoading = false;
+        
+        // Trigger change detection to ensure table updates
+        if (this.cdr) {
+          this.cdr.detectChanges();
+        }
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_returns'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+  // Keep this method for backward compatibility but make it call loadReturns
+  async onGetAllReturns() {
+    this.loadReturns();
   }
 
   async onDeleteReturn(id: any) {
@@ -737,7 +1002,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       .subscribe({
         next: (response: any) => {
           console.log(response);
-          this.onGetAllReturns();
+          this.loadReturns();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -763,7 +1028,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       .subscribe({
         next: (response: any) => {
           console.log(response);
-          this.onGetAllReturns();
+          this.loadReturns();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -790,7 +1055,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       .subscribe({
         next: (response: any) => {
           console.log(response);
-          this.onGetAllReturns();
+          this.loadReturns();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -817,7 +1082,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     await this.returnService.saveReturn(orderReturn).subscribe({
       next: (response: any) => {
         console.log(response);
-        this.onGetAllReturns();
+        this.loadReturns();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
@@ -912,48 +1177,279 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       })
   }
 
-  exportPdf() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedReturns = this.returns.map(orderReturn => {
-      // Create a copy of the supplier object to modify
-      const modifiedReturn = { ...orderReturn };
-      if (orderReturn.order)
-        modifiedReturn['Order'] = orderReturn.order.orderId;
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedReturn.creationDate;
-      delete modifiedReturn.order;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+      // Fetch all filtered returns from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredReturns: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100; // Safety limit
+      
+      while (currentPage < maxPages) {
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
 
-      return modifiedReturn;
-    });
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1})...` || `Fetching data (${currentPage + 1})...`;
 
-    // Now, export the modified array to PDF
-    this.reportingService.exportPdf(this.exportColumns, modifiedReturns, 'returns')
+        const response = await firstValueFrom(
+          this.returnService.getReturnsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || [];
+        if (pageContent.length === 0) {
+          break; // No more data
+        }
+
+        allFilteredReturns = [...allFilteredReturns, ...pageContent];
+
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || 0;
+        if (allFilteredReturns.length >= totalElements) {
+          break; // All data fetched
+        }
+
+        currentPage++;
+      }
+
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Build translated export columns based on organization's default locale
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'return_reference',
+        'order.reference': 'order_reference',
+        'customer.fullName': 'customer',
+        'returnDate': 'return_date',
+        'status': 'return_status',
+        'totalAmount': 'total_amount',
+        'refundAmount': 'refund_amount'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.exportColumns
+        .filter((col) => col.dataKey !== 'returnId') // Exclude ID column
+        .map((col) => {
+          const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
+          return {
+            title: this.translate.instant(translationKey),
+            dataKey: col.dataKey
+          };
+        });
+      
+      // Prepare data for export
+      const exportData = allFilteredReturns.map(returnObj => {
+        const exportReturn: any = {
+          reference: returnObj.reference || 'N/A',
+          'order.reference': returnObj.order?.reference || 'N/A',
+          'customer.fullName': returnObj.customer ? this.getCustomerDisplayName(returnObj.customer) : 'N/A',
+          returnDate: returnObj.returnDate ? this.datePipe.transform(returnObj.returnDate, 'dd/MM/yyyy') : 'N/A',
+          status: this.translate.instant(`return_status_${returnObj.status?.toLowerCase()}`) || returnObj.status,
+          totalAmount: returnObj.totalAmount || 0,
+          refundAmount: returnObj.refundAmount || 0
+        };
+        return exportReturn;
+      });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('returns_menu_title') || this.translate.instant('returns');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'returns', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredReturns.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedReturns = this.returns.map(orderReturn => {
-      // Create a copy of the supplier object to modify
-      const modifiedReturn = { ...orderReturn };
-      if (orderReturn.order)
-        modifiedReturn['Order'] = orderReturn.order.orderId;
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedReturn.creationDate;
-      delete modifiedReturn.order;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+      // Fetch all filtered returns from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredReturns: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100; // Safety limit
+      
+      while (currentPage < maxPages) {
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
 
-      return modifiedReturn;
-    });
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1})...` || `Fetching data (${currentPage + 1})...`;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedReturns, 'returns');
+        const response = await firstValueFrom(
+          this.returnService.getReturnsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || [];
+        if (pageContent.length === 0) {
+          break; // No more data
+        }
+
+        allFilteredReturns = [...allFilteredReturns, ...pageContent];
+
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || 0;
+        if (allFilteredReturns.length >= totalElements) {
+          break; // All data fetched
+        }
+
+        currentPage++;
+      }
+
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'return_reference',
+        'order.reference': 'order_reference',
+        'customer.fullName': 'customer',
+        'returnDate': 'return_date',
+        'status': 'return_status',
+        'totalAmount': 'total_amount',
+        'refundAmount': 'refund_amount'
+      };
+      
+      // Create translated version of the data with translated headers
+      const translatedReturns = allFilteredReturns.map(returnObj => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          // Exclude creationDate and ID columns
+          if (col.field !== 'creationDate' && col.field !== 'returnId') {
+            const translationKey = translationKeyMap[col.field] || col.field;
+            const translatedHeader = this.translate.instant(translationKey);
+            
+            let value: any = returnObj[col.field as keyof OrderReturn];
+            
+            // Handle nested fields
+            if (col.field === 'order.reference') {
+              value = returnObj.order?.reference || 'N/A';
+            } else if (col.field === 'customer.fullName') {
+              value = returnObj.customer ? this.getCustomerDisplayName(returnObj.customer) : 'N/A';
+            } else if (col.field === 'status') {
+              value = this.translate.instant(`return_status_${value?.toLowerCase()}`) || value;
+            } else if (col.field === 'returnDate') {
+              value = value ? this.datePipe.transform(value, 'dd/MM/yyyy') : 'N/A';
+            }
+            
+            translated[translatedHeader] = value;
+          }
+        });
+        return translated;
+      });
+
+      // Export the translated array to Excel
+      this.reportingService.exportExcel(translatedReturns, 'returns');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredReturns.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   onMoveToTarget(event: any): void {
@@ -1111,11 +1607,14 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   getRefundStatusSeverity(status: string): string {
-    switch (status?.toLowerCase()) {
-      case 'pending': return 'success';
-      case 'processing': return 'info';
-      case 'completed': return 'warning';
-      case 'failed': return 'danger';
+    switch (status?.toUpperCase()) {
+      case 'UNREFUNDED': return 'danger';
+      case 'PARTIALLY_REFUNDED': return 'warning';
+      case 'REFUNDED': return 'success';
+      case 'PENDING': return 'warning';
+      case 'PROCESSING': return 'info';
+      case 'COMPLETED': return 'success';
+      case 'FAILED': return 'danger';
       default: return 'danger';
     }
   }

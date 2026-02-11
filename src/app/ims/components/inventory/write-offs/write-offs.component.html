@@ -63,6 +63,21 @@
                     appendTo="body"
                     styleClass="w-14rem"
                     (onChange)="onFilterChange()">
+                    <ng-template let-option pTemplate="item">
+                        <p-tag 
+                            [value]="getConditionLabel(option.value)" 
+                            [severity]="getConditionSeverity(option.value)"
+                            styleClass="text-xs">
+                        </p-tag>
+                    </ng-template>
+                    <ng-template let-selectedOption pTemplate="selectedItem">
+                        <p-tag 
+                            *ngIf="selectedOption && selectedOption.value"
+                            [value]="getConditionLabel(selectedOption.value)" 
+                            [severity]="getConditionSeverity(selectedOption.value)"
+                            styleClass="text-xs">
+                        </p-tag>
+                    </ng-template>
                 </p-dropdown>
 
                 <!-- Source Type Filter -->
@@ -89,6 +104,21 @@
                     appendTo="body"
                     styleClass="w-14rem"
                     (onChange)="onFilterChange()">
+                    <ng-template let-option pTemplate="item">
+                        <p-tag 
+                            [value]="getStatusLabel(option.value)" 
+                            [severity]="getStatusSeverity(option.value)"
+                            styleClass="text-xs">
+                        </p-tag>
+                    </ng-template>
+                    <ng-template let-selectedOption pTemplate="selectedItem">
+                        <p-tag 
+                            *ngIf="selectedOption && selectedOption.value"
+                            [value]="getStatusLabel(selectedOption.value)" 
+                            [severity]="getStatusSeverity(selectedOption.value)"
+                            styleClass="text-xs">
+                        </p-tag>
+                    </ng-template>
                 </p-dropdown>
 
                 <!-- Date Range Filters -->
@@ -115,8 +145,22 @@
                     (onSelect)="onFilterChange()">
                 </p-calendar>
 
-                <!-- Clear Filters -->
+                <!-- View Toggle & Export -->
                 <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+                        class="p-button-warning" 
+                        pTooltip="PDF"
+                        tooltipPosition="bottom" 
+                        (click)="exportPdf()"
+                        [disabled]="isExporting"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+                        (click)="exportExcel()" 
+                        class="p-button-success"
+                        pTooltip="XLS" 
+                        tooltipPosition="bottom"
+                        [disabled]="isExporting"></button>
                     <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
                         pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
                 </div>
@@ -343,7 +387,30 @@
     <ng-template pTemplate="footer">
         <button pButton pRipple type="button" label="{{ 'cancel' | translate }}" 
             icon="pi pi-times" class="p-button-text" (click)="rejectConfirmDialog = false"></button>
-        <button pButton pRipple type="button" label="{{ 'reject' | translate }}" 
+        <button pButton pRipple type="button" label="{{ 'reject' | translate }}"
             icon="pi pi-times" class="p-button-danger" (click)="confirmReject()" [disabled]="isLoading"></button>
     </ng-template>
+</p-dialog>
+
+<!-- Write Off Create Dialog -->
+<app-write-off-create
+    [(visible)]="showCreateDialog"
+    (writeOffCreated)="onWriteOffCreated()">
+</app-write-off-create>
+
+<!-- Export Progress Dialog -->
+<p-dialog 
+    [(visible)]="isExporting" 
+    [modal]="true" 
+    [closable]="false" 
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{width: '450px'}"
+    [header]="'exporting' | translate">
+    <div class="flex flex-column align-items-center gap-3 p-4">
+        <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+        <div class="text-center">
+            <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+        </div>
+    </div>
 </p-dialog>

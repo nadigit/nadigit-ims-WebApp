@@ -115,7 +115,7 @@
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{'user_role' | translate}}</span>
-                            <p-chip *ngFor="let role of user.roles" label="{{role | titlecase}}" class="mr-2"></p-chip>
+                            <p-chip *ngFor="let role of user.roles" label="{{ getRoleLabel(role) }}" class="mr-2"></p-chip>
                             <!-- <ul>
                                 <li *ngFor="let role of user.roles">{{ role }}</li>
                               </ul> -->
@@ -162,7 +162,7 @@
 
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{'role_name' | translate}}</span>
-                            {{role.name}}
+                            {{ getRoleLabel(role.name) }}
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{'role_description' | translate}} </span>
@@ -170,6 +170,9 @@
                         </td>
                         <td>
                             <div class="flex gap-1">
+                                <button pButton pRipple icon="pi pi-eye" pTooltip="{{'view_details'|translate}}"
+                                    class="p-button-rounded p-button-text p-button-info"
+                                    (click)="showRoleDetails(role); $event.stopPropagation()"></button>
                                 <button pButton pRipple icon="pi pi-pencil" pTooltip="{{'update_role'|translate}}"
                                     class="p-button-rounded p-button-text p-button-warning" (click)="editRole(role); $event.stopPropagation()"></button>
                                 <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
@@ -289,7 +292,7 @@
                                     <div class="flex flex-wrap p-2 align-items-center gap-3">
                                         <div class="flex-1 flex flex-column gap-2">
                                             <span class="font-bold">
-                                                {{ role.name }}
+                                                {{ getRoleLabel(role.name) }}
                                             </span>
                                             <div class="flex align-products-center gap-2">
                                                 <span>

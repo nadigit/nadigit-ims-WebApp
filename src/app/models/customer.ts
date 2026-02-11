@@ -1,3 +1,4 @@
+import { PriceListDTO } from "./pricing";
 
 export class Customer { 
   customerId?: number;
@@ -18,6 +19,7 @@ export class Customer {
   totalOrders?: number;
   totalAmount?: number;
   totalPaid?: number;
+  priceList?: PriceListDTO | null;
 } 
 
 

@@ -21,6 +21,9 @@ import { CategoryService } from 'src/app/services/category.service';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { UploadEvent } from 'src/app/models/uploadEvent';
+import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormDialogData } from './warehouse-form-dialog/warehouse-form-dialog.component';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
 
 
 
@@ -33,7 +36,13 @@ export class WarehousesComponent implements OnInit {
 
   Ressource: string = 'WAREHOUSES';
 
-  warehouseDialog: boolean = false;
+  warehouseDialogConfig: WarehouseFormDialogConfig = {
+    visible: false,
+    mode: 'create',
+    warehouse: {},
+    selectedCountry: {},
+    submitted: false
+  };
 
   deleteWarehouseDialog: boolean = false;
 
@@ -71,6 +80,8 @@ export class WarehousesComponent implements OnInit {
   canReadWarehouse: boolean = false;
 
   isLoading: boolean = true;
+  isExporting: boolean = false;
+  exportProgress: string = '';
 
   currency: any;
 
@@ -107,7 +118,8 @@ export class WarehousesComponent implements OnInit {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
-    private router: Router) {
+    private router: Router,
+    private organizationService: OrganizationService) {
     this.setUserRoles();
 
     this.measureUnits = [
@@ -194,10 +206,15 @@ export class WarehousesComponent implements OnInit {
   editWarehouse(warehouse: Warehouse) {
     if (!this.canEditWarehouse) return;
     this.selectedCountry = {};
-    this.warehouse = { ...warehouse };
-    this.warehouseDialog = true;
-    console.log(this.warehouse.country)
-    this.onSelectedCountry(this.warehouse.country)
+    this.warehouseDialogConfig = {
+      visible: true,
+      mode: 'edit',
+      warehouse: { ...warehouse },
+      selectedCountry: {},
+      submitted: false
+    };
+    console.log(this.warehouseDialogConfig.warehouse.country)
+    this.onSelectedCountry(this.warehouseDialogConfig.warehouse.country)
   }
 
 
@@ -220,17 +237,21 @@ export class WarehousesComponent implements OnInit {
   }
 
   hideDialog() {
-    this.warehouseDialog = false;
-    this.submitted = false;
+    this.warehouseDialogConfig.visible = false;
+    this.warehouseDialogConfig.submitted = false;
     this.selectedCountry = {};
   }
 
   openNew() {
     if (!this.canAddWarehouse) return;
     this.selectedCountry = {};
-    this.warehouse = {};
-    this.submitted = false;
-    this.warehouseDialog = true;
+    this.warehouseDialogConfig = {
+      visible: true,
+      mode: 'create',
+      warehouse: {},
+      selectedCountry: {},
+      submitted: false
+    };
   }
 
   openWarehouseDetails(warehouse: Warehouse) {
@@ -239,8 +260,22 @@ export class WarehousesComponent implements OnInit {
   }
 
 
+  onWarehouseSave(dialogData: WarehouseFormDialogData) {
+    this.warehouse = dialogData.warehouse;
+    this.selectedCountry = dialogData.selectedCountry;
+    this.saveWarehouse();
+  }
+
+  onWarehouseDialogConfigChange(config: WarehouseFormDialogConfig) {
+    this.warehouseDialogConfig = config;
+  }
+
+  onWarehouseCancel() {
+    this.hideDialog();
+  }
+
   saveWarehouse() {
-    this.submitted = true;
+    this.warehouseDialogConfig.submitted = true;
     if (this.warehouse.name) {
       if (this.warehouse.warehouseId) {
         this.updateWarehouse(this.warehouse.warehouseId, this.warehouse)
@@ -272,7 +307,7 @@ export class WarehousesComponent implements OnInit {
           });
       }
       this.warehouses = [...this.warehouses];
-      this.warehouseDialog = false;
+      this.warehouseDialogConfig.visible = false;
       this.warehouse = {};
     } else {
       this.messageService.add({
@@ -404,27 +439,188 @@ export class WarehousesComponent implements OnInit {
     );
   }
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.warehouses, 'warehouses')
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Get filtered warehouses from table (or all if no filter applied)
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      const filteredWarehouses = this.dt?.filteredValue || this.warehouses || [];
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Build translated export columns based on organization's default locale
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'warehouseId': 'ID',
+        'name': 'warehouse_name',
+        'description': 'warehouse_description',
+        'city': 'warehouse_city',
+        'country': 'warehouse_country',
+        'address': 'warehouse_address'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.cols
+        .filter((col) => col.field !== 'warehouseId') // Exclude ID column
+        .map((col) => {
+          const translationKey = translationKeyMap[col.field] || col.field;
+          return {
+            title: this.translate.instant(translationKey),
+            dataKey: col.field
+          };
+        });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('warehouses_menu_title');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, filteredWarehouses, 'warehouses', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${filteredWarehouses.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedWarehouses = this.warehouses.map(warehouse => {
-      // Create a copy of the supplier object to modify
-      const modifiedWarehouse = { ...warehouse };
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedWarehouse.creationDate;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+      // Get filtered warehouses from table (or all if no filter applied)
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      const filteredWarehouses = this.dt?.filteredValue || this.warehouses || [];
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'warehouseId': 'ID',
+        'name': 'warehouse_name',
+        'description': 'warehouse_description',
+        'city': 'warehouse_city',
+        'country': 'warehouse_country',
+        'address': 'warehouse_address'
+      };
+      
+      // Clone the warehouses array to avoid modifying the original array
+      const modifiedWarehouses = filteredWarehouses.map(warehouse => {
+        // Create a copy of the warehouse object to modify
+        const modifiedWarehouse = { ...warehouse };
 
-      return modifiedWarehouse;
-    });
+        // Remove the column you want to exclude
+        delete modifiedWarehouse.creationDate;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedWarehouses, 'warehouses');
+        return modifiedWarehouse;
+      });
+
+      // Create a translated version of the data with translated headers
+      // For Excel, we need to create objects with translated keys
+      const translatedWarehouses = modifiedWarehouses.map(warehouse => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          // Exclude ID and creationDate columns
+          if (col.field !== 'creationDate' && col.field !== 'warehouseId') {
+            const translationKey = translationKeyMap[col.field] || col.field;
+            const translatedHeader = this.translate.instant(translationKey);
+            translated[translatedHeader] = warehouse[col.field as keyof Warehouse];
+          }
+        });
+        return translated;
+      });
+
+      // Now, export the translated array to Excel
+      this.reportingService.exportExcel(translatedWarehouses, 'warehouses');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${translatedWarehouses.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   getMeasureUnit(unit: string, quantity: number): string {
@@ -789,6 +985,31 @@ export class WarehousesComponent implements OnInit {
   hideProductDialog() {
     this.productDialog = false;
     this.submitted = false;
+  }
+
+  // Product Form Component Event Handlers
+  onProductSaveSuccess(product: Product) {
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('product_added'),
+      life: 3000
+    });
+    this.productDialog = false;
+    // TODO: Reload warehouse/product data if needed
+  }
+
+  onProductSaveError(error: any) {
+    this.messageService.add({
+      severity: 'error',
+      summary: this.translate.instant('error'),
+      detail: this.translate.instant('error_adding_product'),
+      life: 3000
+    });
+  }
+
+  onProductCancel() {
+    this.hideProductDialog();
   }
 
 }

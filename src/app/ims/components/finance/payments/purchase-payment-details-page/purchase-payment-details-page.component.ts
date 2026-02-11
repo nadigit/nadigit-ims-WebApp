@@ -24,6 +24,7 @@ import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/s
 export class PurchasePaymentDetailsPageComponent implements OnInit {
   paymentId!: number;
   payment: Payment | null = null;
+  payments: Payment[] = []; // All payments in the transaction
   isLoading: boolean = true;
   currency: string = 'USD';
   
@@ -118,8 +119,64 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
         return;
       }
 
-      // Load purchase details if purchaseId exists
-      if (this.payment.purchaseId) {
+      // Load all payments with the same transaction ID if it exists
+      if (this.payment.transactionId) {
+        try {
+          const transactionPayments = await firstValueFrom(
+            this.paymentService.getPaymentsByTransactionId(this.payment.transactionId)
+          );
+          if (Array.isArray(transactionPayments) && transactionPayments.length > 0) {
+            this.payments = transactionPayments;
+            // Load purchase details for all payments in the transaction
+            for (const payment of this.payments) {
+              if (payment.purchaseId && !payment.purchase) {
+                try {
+                  const purchase = await firstValueFrom(this.purchaseService.getPurchase(payment.purchaseId));
+                  if (Array.isArray(purchase)) {
+                    payment.purchase = purchase[0] as Purchase;
+                  } else {
+                    payment.purchase = purchase as Purchase;
+                  }
+                } catch (error) {
+                  console.error('Error loading purchase:', error);
+                }
+              }
+            }
+          } else {
+            // No other payments found (404) - this is fine, use only the current payment
+            this.payments = [this.payment];
+          }
+        } catch (error: any) {
+          console.error('Error loading payments by transaction ID:', error);
+          const errorMessage = error?.message || 'Unknown error';
+          
+          // Handle specific error cases
+          if (errorMessage.includes('Invalid transaction ID')) {
+            this.messageService.add({
+              severity: 'warn',
+              summary: this.translate.instant('warning'),
+              detail: this.translate.instant('invalid_transaction_id'),
+              life: 4000
+            });
+          } else if (errorMessage.includes('Unauthorized')) {
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('unauthorized_access'),
+              life: 4000
+            });
+          }
+          
+          // Fallback: only the current payment
+          this.payments = [this.payment];
+        }
+      } else {
+        // No transaction ID, only the current payment
+        this.payments = [this.payment];
+      }
+
+      // Load purchase details for the main payment if purchaseId exists
+      if (this.payment.purchaseId && !this.payment.purchase) {
         try {
           const purchase = await firstValueFrom(this.purchaseService.getPurchase(this.payment.purchaseId));
           if (Array.isArray(purchase)) {
@@ -211,8 +268,37 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
   }
 
   getPurchaseRemainingBalance(): number {
+    if (this.hasMultiplePurchases()) {
+      // Calculate total remaining balance across all purchases
+      return this.getTotalPurchaseAmount() - this.getTotalPurchasePaid();
+    }
     if (!this.payment?.purchase?.totalAmount || !this.payment?.purchase?.totalPaid) return 0;
     return this.payment.purchase.totalAmount - this.payment.purchase.totalPaid;
+  }
+
+  getTotalPurchaseAmount(): number {
+    if (this.hasMultiplePurchases()) {
+      return this.getPurchasesInTransaction().reduce((sum, p) => {
+        return sum + (p.purchase?.totalAmount || 0);
+      }, 0);
+    }
+    return this.payment?.purchase?.totalAmount || 0;
+  }
+
+  getTotalPurchasePaid(): number {
+    if (this.hasMultiplePurchases()) {
+      return this.getPurchasesInTransaction().reduce((sum, p) => {
+        return sum + (p.purchase?.totalPaid || 0);
+      }, 0);
+    }
+    return this.payment?.purchase?.totalPaid || 0;
+  }
+
+  getTotalPaymentAmount(): number {
+    if (this.hasMultiplePurchases()) {
+      return this.getTotalAmountForTransaction();
+    }
+    return this.payment?.amount || 0;
   }
 
   isPaymentNotSettled(): boolean {
@@ -275,6 +361,27 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
   viewPurchase(purchaseId: number): void {
     if (!purchaseId) return;
     this.router.navigate(['/inventory/purchases', purchaseId]);
+  }
+
+  hasMultiplePurchases(): boolean {
+    return this.payments && this.payments.length > 1 && 
+           this.payments.some(p => p.purchaseId);
+  }
+
+  getPurchasesInTransaction(): Payment[] {
+    return this.payments.filter(p => p.purchaseId);
+  }
+
+  getTotalAmountForTransaction(): number {
+    return this.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }
+
+  scrollToPayments(): void {
+    // Scroll to payment information section
+    const element = document.querySelector('.payment-information');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   printReceipt(receiptNumber: string): void {

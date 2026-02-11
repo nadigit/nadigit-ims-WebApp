@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, ViewChild, ElementRef, HostListener, ChangeDetectorRef, NgZone } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
 import { Subject, debounceTime, takeUntil, interval } from 'rxjs';
 import { POSCartDTO, POSCheckoutDTO, POSProductDTO, POSReceiptDTO, PaymentInfo, PaymentMethod } from 'src/app/models/pos';
@@ -35,6 +36,7 @@ export class PosComponent implements OnInit, OnDestroy {
   shops: any[] = [];
   customers: any[] = [];
   isAdmin: boolean = false;
+  isVendor: boolean = false;
 
   currency: string = 'USD';
 
@@ -225,6 +227,7 @@ export class PosComponent implements OnInit, OnDestroy {
   activeTab: 'sales' | 'returns' = 'sales';
   returnOrderSearch: string = '';
   returnOrderSuggestions: any[] = [];
+  eligibleOrdersForReturn: any[] = []; // Cached list of eligible orders
   selectedOrderForReturn: any = null;
   returnItems: any[] = [];
   returnDialog: boolean = false;
@@ -233,6 +236,11 @@ export class PosComponent implements OnInit, OnDestroy {
   refundAmount: number = 0;
   refundMethod: string = 'cash';
   refundNotes: string = '';
+  
+  // Immediate refund configuration
+  immediateRefundEnabled: boolean = false;
+  returnRefundPayments: PaymentInfo[] = []; // For split refunds in immediate refund flow
+  returnNotes: string = ''; // General notes for return
   returnReasons = [
     { label: 'Defective', value: 'DEFECTIVE' },
     { label: 'Wrong Item', value: 'INCORRECT_ITEM' },
@@ -246,6 +254,14 @@ export class PosComponent implements OnInit, OnDestroy {
     { label: 'Used', value: 'USED' },
     { label: 'Damaged', value: 'DAMAGED' }
   ];
+  
+  // Return refund percentages from app configuration
+  returnRefundPercentages: { [key: string]: number } = {
+    'NEW': 1.0,      // Default: 100%
+    'USED': 0.8,     // Default: 80%
+    'DAMAGED': 0.5   // Default: 50%
+  };
+  conditionRefundMessages: { [key: string]: string } = {};
 
 
   constructor(
@@ -269,7 +285,8 @@ export class PosComponent implements OnInit, OnDestroy {
     private router: Router,
     private messageService: MessageService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private http: HttpClient
   ) { }
 
   async ngOnInit() {
@@ -287,6 +304,9 @@ export class PosComponent implements OnInit, OnDestroy {
 
     // Setup offline detection
     this.setupOfflineDetection();
+    
+    // Check immediate refund configuration
+    await this.checkImmediateRefundEnabled();
     
     // Setup fullscreen
     this.setupFullscreen();
@@ -310,9 +330,10 @@ export class PosComponent implements OnInit, OnDestroy {
     // This ensures tax calculations are consistent from the start
     await this.loadTaxRate();
     
-    // Check if user is admin
+    // Check if user is admin or vendor
     const userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = userRoles.includes('ADMIN');
+    this.isVendor = userRoles.includes('VENDOR');
     
     await this.initShopsAndSession();
     
@@ -879,6 +900,7 @@ export class PosComponent implements OnInit, OnDestroy {
     const items: any[] = (cart as any).items || (cart as any).cartItems || [];
     (cart as any).items = items.map((item: any) => {
       const product = item.product || item.productDto || {};
+      const manualOverride = item.priceOverride ?? item.manualPriceOverride;
       
       // Always recalculate subtotal from quantity and price
       const quantity = item.quantity || 0;
@@ -887,6 +909,8 @@ export class PosComponent implements OnInit, OnDestroy {
       
       return {
         ...item,
+        manualPriceOverride: manualOverride != null,
+        priceOverride: manualOverride ?? item.priceOverride,
         productName:
           item.productName ||
           product.name ||
@@ -1087,7 +1111,10 @@ export class PosComponent implements OnInit, OnDestroy {
     
     this.cartSaving = true;
     try {
-      const updated$ = await this.posService.updateCartItem(item.cartItemId, newQuantity);
+      const priceOverride = this.getManualPriceOverride(item);
+      const updated$ = priceOverride != null
+        ? await this.posService.updateCartItem(item.cartItemId, newQuantity, priceOverride)
+        : await this.posService.updateCartItem(item.cartItemId, newQuantity);
       const updatedCart = await firstValueFrom(updated$);
       // Normalize cart to recalculate totals
       this.cart = this.normalizeCartItems(updatedCart);
@@ -1115,6 +1142,17 @@ export class PosComponent implements OnInit, OnDestroy {
     } finally {
       this.cartSaving = false;
     }
+  }
+
+  private getManualPriceOverride(item: any): number | null {
+    if (!item) return null;
+    if (item.priceOverride !== undefined && item.priceOverride !== null) {
+      return item.priceOverride;
+    }
+    if (item.manualPriceOverride) {
+      return item.pricePerUnit ?? null;
+    }
+    return null;
   }
 
   async removeItem(item: any) {
@@ -2740,6 +2778,11 @@ export class PosComponent implements OnInit, OnDestroy {
     this.router.navigate(['/profile']);
   }
 
+  exitPos() {
+    // Navigate to dashboard (main application)
+    this.router.navigate(['/']);
+  }
+
   async unlockPos() {
     if (!this.lockPinInput || this.lockPinInput.trim() === '') {
       this.messageService.add({
@@ -3974,42 +4017,252 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // =============== Returns & Refunds Methods ===============
 
-  async searchOrdersForReturn(event: any) {
-    const query = event.query?.toLowerCase() || '';
-    if (!query || query.length < 2) {
-      this.returnOrderSuggestions = [];
-      return;
+  /**
+   * Handle returns tab click - load eligible orders if not already loaded
+   */
+  async onReturnsTabClick() {
+    this.activeTab = 'returns';
+    await this.loadEligibleOrdersForReturn();
+  }
+
+  /**
+   * Load eligible orders for return from backend (called once, cached)
+   */
+  async loadEligibleOrdersForReturn() {
+    if (this.eligibleOrdersForReturn.length > 0) {
+      return; // Already loaded
     }
 
     try {
       (this.orderService as any).loadToken && (this.orderService as any).loadToken();
-      const orders$ = this.orderService.getOrdersPaginated(0, 20, query, 'orderDate', 'DESC');
-      const response: any = await firstValueFrom(orders$);
-      this.returnOrderSuggestions = (response && response['content']) ? response['content'] : [];
+      const response: any = await firstValueFrom(this.orderService.getEligibleOrdersForReturn());
+      // Backend returns List<Order> directly (array)
+      this.eligibleOrdersForReturn = Array.isArray(response) ? response : [];
     } catch (error) {
-      console.error('Error searching orders:', error);
-      this.returnOrderSuggestions = [];
+      console.error('Error loading eligible orders for return:', error);
+      this.eligibleOrdersForReturn = [];
     }
   }
 
-  onOrderSelectForReturn(order: any) {
-    if (order && order.orderItems) {
+  /**
+   * Filter eligible orders for return based on search query (client-side filtering)
+   */
+  async searchOrdersForReturn(event: any) {
+    const query = event.query?.trim() || '';
+    
+    // Load eligible orders if not already loaded
+    if (this.eligibleOrdersForReturn.length === 0) {
+      await this.loadEligibleOrdersForReturn();
+    }
+
+    if (!query || query.length < 2) {
+      // Show all eligible orders if query is too short
+      this.returnOrderSuggestions = this.eligibleOrdersForReturn.slice(0, 20);
+      return;
+    }
+
+    // Filter orders client-side by reference or customer name
+    const queryLower = query.toLowerCase();
+    this.returnOrderSuggestions = this.eligibleOrdersForReturn
+      .filter((order: any) => {
+        // Search by order reference
+        const matchesReference = order.reference?.toLowerCase().includes(queryLower);
+        
+        // Search by customer name
+        const customer = order.customer;
+        const matchesCustomer = customer && (
+          customer.firstName?.toLowerCase().includes(queryLower) ||
+          customer.lastName?.toLowerCase().includes(queryLower) ||
+          customer.companyName?.toLowerCase().includes(queryLower) ||
+          `${customer.firstName || ''} ${customer.lastName || ''}`.toLowerCase().includes(queryLower)
+        );
+        
+        return matchesReference || matchesCustomer;
+      })
+      .slice(0, 20); // Limit to 20 results for autocomplete
+  }
+
+  async onOrderSelectForReturn(event: any) {
+    // PrimeNG autocomplete onSelect passes {originalEvent, value}
+    // The order is in event.value
+    const order = event?.value || event;
+    
+    if (!order) {
+      console.warn('No order selected');
+      return;
+    }
+
+    // Order already has orderItems from the backend response
+    if (order && order.orderItems && order.orderItems.length > 0) {
       this.selectedOrderForReturn = order;
-      this.returnItems = order.orderItems.map((item: any) => ({
-        ...item,
-        returnQuantity: 0,
-        returnReason: 'INCORRECT_ITEM',
-        condition: 'NEW',
-        refundAmount: 0
-      }));
+      // Filter items that have available quantity to return
+      // Available quantity = quantity - (returnedQuantity || 0)
+      this.returnItems = order.orderItems
+        .map((item: any) => {
+          const availableQuantity = item.quantity - (item.returnedQuantity || 0);
+          return {
+            ...item,
+            availableQuantity: availableQuantity, // Store available quantity for validation
+            returnQuantity: 0,
+            returnReason: 'INCORRECT_ITEM',
+            condition: 'NEW',
+            refundAmount: 0
+          };
+        })
+        .filter((item: any) => item.availableQuantity > 0); // Only include items with available quantity > 0
+      
+      // Check if there are any items available for return
+      if (this.returnItems.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_items_available_for_return') || 'No items available for return in this order',
+          life: 3000
+        });
+        return;
+      }
+      
+      // Load return refund percentages when opening the dialog
+      await this.loadReturnRefundPercentages();
+      
+      // Initialize refund payments if immediate refund is enabled
+      if (this.immediateRefundEnabled) {
+        // Wait a bit for returnItems to be fully initialized
+        setTimeout(() => {
+          this.initializeReturnRefundPayments();
+        }, 100);
+      }
+      
       this.returnDialog = true;
+    } else {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('order_has_no_items_to_return') || 'This order has no items available for return',
+        life: 3000
+      });
+    }
+  }
+
+  /**
+   * Load return refund percentages from app configuration
+   */
+  async loadReturnRefundPercentages() {
+    try {
+      const configKeys = [
+        'return.refund.percentage.new',
+        'return.refund.percentage.used',
+        'return.refund.percentage.damaged'
+      ];
+
+      for (const key of configKeys) {
+        try {
+          const value$ = await this.configService.getConfigurationValue(key);
+          const value = await firstValueFrom(value$);
+          const percentage = parseFloat(value) || this.getDefaultPercentage(key);
+          
+          // Map config key to condition
+          if (key.includes('new')) {
+            this.returnRefundPercentages['NEW'] = percentage;
+          } else if (key.includes('used')) {
+            this.returnRefundPercentages['USED'] = percentage;
+          } else if (key.includes('damaged')) {
+            this.returnRefundPercentages['DAMAGED'] = percentage;
+          }
+        } catch (error) {
+          console.warn(`Failed to load config ${key}, using default:`, error);
+          // Use default value
+        }
+      }
+
+      // Generate messages for each condition
+      this.generateConditionRefundMessages();
+    } catch (error) {
+      console.error('Error loading return refund percentages:', error);
+      // Use default values
+      this.generateConditionRefundMessages();
+    }
+  }
+
+  /**
+   * Get default percentage for a config key
+   */
+  private getDefaultPercentage(key: string): number {
+    if (key.includes('new')) return 1.0;
+    if (key.includes('used')) return 0.8;
+    if (key.includes('damaged')) return 0.5;
+    return 1.0;
+  }
+
+  /**
+   * Generate refund messages for each condition
+   */
+  private generateConditionRefundMessages() {
+    const conditions = ['NEW', 'USED', 'DAMAGED'];
+    conditions.forEach(condition => {
+      const percentage = this.returnRefundPercentages[condition] || 1.0;
+      const percentageDisplay = Math.round(percentage * 100);
+      const conditionName = this.translate.instant('item_condition_' + condition.toLowerCase());
+      
+      if (percentage === 1.0) {
+        this.conditionRefundMessages[condition] = 
+          this.translate.instant('return_condition_full_refund_message', {
+            condition: conditionName,
+            percentage: percentageDisplay
+          });
+      } else {
+        this.conditionRefundMessages[condition] = 
+          this.translate.instant('return_condition_reduced_refund_message', {
+            condition: conditionName,
+            percentage: percentageDisplay
+          });
+      }
+    });
+  }
+
+  /**
+   * Get refund percentage for a condition
+   */
+  getRefundPercentage(condition: string): number {
+    return this.returnRefundPercentages[condition] || 1.0;
+  }
+
+  /**
+   * Get refund message for a condition
+   */
+  getConditionRefundMessage(condition: string): string {
+    return this.conditionRefundMessages[condition] || '';
+  }
+
+  /**
+   * Handle condition change - update refund amount and show message
+   */
+  onConditionChange(item: any) {
+    // Recalculate refund with new condition
+    this.calculateReturnItemRefund(item);
+    
+    // Show message about the condition impact
+    const message = this.getConditionRefundMessage(item.condition);
+    if (message) {
+      const severity = this.getRefundPercentage(item.condition) === 1.0 ? 'info' : 'warn';
+      this.messageService.add({
+        severity: severity,
+        summary: this.translate.instant('refund_impact') || 'Refund Impact',
+        detail: message,
+        life: 4000
+      });
     }
   }
 
   calculateReturnItemRefund(item: any) {
     if (item.returnQuantity && item.returnQuantity > 0) {
-      const unitPrice = item.unitPrice || item.sellingPrice || 0;
-      item.refundAmount = unitPrice * item.returnQuantity;
+      // Try multiple price fields to find the correct one
+      const unitPrice = item.pricePerUnit || item.unitPrice || item.sellingPrice || 0;
+      const baseRefund = unitPrice * item.returnQuantity;
+      
+      // Apply refund percentage based on condition
+      const refundPercentage = this.getRefundPercentage(item.condition || 'NEW');
+      item.refundAmount = baseRefund * refundPercentage;
     } else {
       item.refundAmount = 0;
     }
@@ -4022,6 +4275,14 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async processReturn() {
+    // Check if immediate refund is enabled
+    if (this.immediateRefundEnabled) {
+      // Use immediate refund flow
+      await this.submitReturnAndRefund();
+      return;
+    }
+
+    // Standard two-step flow
     if (!this.selectedOrderForReturn) {
       this.messageService.add({
         severity: 'error',
@@ -4043,21 +4304,110 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    try {
-      const returnedItems = itemsToReturn.map(item => ({
-        orderItemId: item.orderItemId || item.id,
-        returnedQuantity: item.returnQuantity,
-        reason: item.returnReason || 'INCORRECT_ITEM',
-        condition: item.condition || 'NEW'
-      }));
+    // Validate that return quantities don't exceed available quantities
+    const invalidItems = itemsToReturn.filter(item => {
+      const availableQuantity = item.availableQuantity || (item.quantity - (item.returnedQuantity || 0));
+      return item.returnQuantity > availableQuantity;
+    });
 
-      (this.orderService as any).loadToken && (this.orderService as any).loadToken();
-      const return$ = this.orderService.processReturn(
-        this.selectedOrderForReturn.orderId,
-        returnedItems,
-        'CUSTOMER_REQUEST',
-        ''
-      );
+    if (invalidItems.length > 0) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('return_quantity_exceeds_available') || 
+                'Return quantity exceeds available quantity for some items',
+        life: 3000
+      });
+      return;
+    }
+
+    try {
+      // Prepare return items in the format expected by ReturnService
+      // Match the structure used in returns component exactly
+      const returnItems = itemsToReturn.map(item => {
+        // In returns component, they use: product.returnItemPricePerUnit * product.returnItemQuantity
+        // The price comes from orderItem.pricePerUnit
+        const pricePerUnit = item.pricePerUnit || 0;
+        const baseRefund = pricePerUnit * item.returnQuantity;
+        const condition = item.condition || 'NEW';
+        const refundPercentage = this.getRefundPercentage(condition);
+        const refundAmount = baseRefund * refundPercentage;
+        
+        // In POS, item IS the OrderItem from order.orderItems
+        // Match the structure from returns component exactly:
+        // - product: full product object (returns component passes: product: product)
+        // - orderItem: the full OrderItem object (returns component passes: orderItem: product.orderItem)
+        // Since item IS the OrderItem, item.product is the product, and item itself is the orderItem
+        
+        // Match the exact structure from returns component
+        // In returns component:
+        // - product: full product object with orderItemPricePerUnit added
+        // - orderItem: full OrderItem object (which includes the full product nested inside)
+        
+        // Ensure product has sellingPrice and add orderItemPricePerUnit like returns component does
+        const product = item.product ? {
+          ...item.product,
+          // Ensure sellingPrice is set (it should already be in the product object)
+          sellingPrice: item.product.sellingPrice || pricePerUnit,
+          // Add orderItemPricePerUnit like returns component does
+          orderItemPricePerUnit: pricePerUnit
+        } : {
+          productId: item.productId,
+          sellingPrice: pricePerUnit,
+          orderItemPricePerUnit: pricePerUnit
+        };
+        
+        // Create orderItem object - match what returns component passes (product.orderItem)
+        // The returns component passes the FULL OrderItem object which includes the full product
+        // Since item IS the OrderItem, we pass it with all its properties
+        const orderItemObj = {
+          orderItemId: item.orderItemId,
+          quantity: item.quantity,
+          returnedQuantity: item.returnedQuantity || 0,
+          pricePerUnit: pricePerUnit,
+          // Include the full product object in orderItem like returns component does
+          product: item.product || {
+            productId: item.productId,
+            sellingPrice: pricePerUnit
+          },
+          // Include other OrderItem properties if they exist
+          ...(item.subTotal !== undefined && { subTotal: item.subTotal }),
+          ...(item.costPerUnit !== undefined && { costPerUnit: item.costPerUnit }),
+          ...(item.totalCost !== undefined && { totalCost: item.totalCost }),
+          ...(item.remainingQuantity !== undefined && { remainingQuantity: item.remainingQuantity }),
+          ...(item.profit !== undefined && { profit: item.profit }),
+          ...(item.profitPerUnit !== undefined && { profitPerUnit: item.profitPerUnit }),
+          ...(item.profitMargin !== undefined && { profitMargin: item.profitMargin })
+        };
+        
+        return {
+          // Pass the full product object like returns component does (with orderItemPricePerUnit)
+          product: product,
+          // Pass the full orderItem object like returns component does (product.orderItem)
+          // This includes the full product nested inside
+          orderItem: orderItemObj,
+          returnedQuantity: item.returnQuantity,
+          condition: condition,
+          reason: item.returnReason || 'INCORRECT_ITEM',
+          refundAmount: refundAmount
+        };
+      });
+
+      // Create OrderReturn object
+      // Match the structure from returns component exactly
+      // The returns component passes the FULL order object, not just orderId
+      const orderReturn = {
+        // Pass the full order object like returns component does
+        // The returns component does: ...this.return (which includes the full order)
+        order: this.selectedOrderForReturn,
+        returnItems: returnItems,
+        returnDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+        notes: this.returnNotes || ''
+      };
+
+      // Use ReturnService instead of OrderService
+      (this.returnService as any).loadToken && (this.returnService as any).loadToken();
+      const return$ = this.returnService.saveReturn(orderReturn);
       
       const returnResult = await firstValueFrom(return$);
       
@@ -4139,6 +4489,8 @@ export class PosComponent implements OnInit, OnDestroy {
     this.returnDialog = false;
     this.selectedOrderForReturn = null;
     this.returnItems = [];
+    this.returnRefundPayments = [];
+    this.returnNotes = '';
     this.returnOrderSearch = '';
   }
 
@@ -4147,6 +4499,307 @@ export class PosComponent implements OnInit, OnDestroy {
     this.selectedReturn = null;
     this.refundAmount = 0;
     this.refundNotes = '';
+  }
+
+  /**
+   * Check if immediate refund is enabled from app configuration
+   */
+  async checkImmediateRefundEnabled() {
+    try {
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('pos.return.refund.immediate')
+      );
+      this.immediateRefundEnabled = config?.value === 'true';
+    } catch (error) {
+      console.error('Error checking immediate refund config:', error);
+      this.immediateRefundEnabled = false; // Default to false
+    }
+  }
+
+  /**
+   * Add a refund payment line for immediate refund flow
+   */
+  addReturnRefundPaymentLine() {
+    const remaining = this.getRemainingRefundAmount();
+    this.returnRefundPayments.push({
+      method: 'Cash',
+      amount: remaining > 0 ? remaining : 0
+    });
+  }
+
+  /**
+   * Remove a refund payment line
+   */
+  removeReturnRefundPaymentLine(index: number) {
+    if (this.returnRefundPayments.length === 1) {
+      return;
+    }
+    this.returnRefundPayments.splice(index, 1);
+  }
+
+  /**
+   * Get total refund amount from payment methods
+   */
+  getTotalRefundPaymentAmount(): number {
+    return this.returnRefundPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }
+
+  /**
+   * Get remaining refundable amount
+   */
+  getRemainingRefundAmount(): number {
+    const totalRefundable = this.getTotalReturnAmount();
+    const totalPaid = this.getTotalRefundPaymentAmount();
+    return totalRefundable - totalPaid;
+  }
+
+  /**
+   * Check if refund payments are valid
+   */
+  isRefundPaymentValid(): boolean {
+    const totalRefundable = this.getTotalReturnAmount();
+    const totalPaid = this.getTotalRefundPaymentAmount();
+    const difference = Math.abs(totalRefundable - totalPaid);
+    
+    // Allow 0.01 tolerance
+    return difference <= 0.01 && this.returnRefundPayments.length > 0 && 
+           this.returnRefundPayments.every(p => p.amount > 0);
+  }
+
+  /**
+   * Handle payment method change for return refunds
+   */
+  async onReturnRefundMethodChange(payment: PaymentInfo, index: number) {
+    // Clear optional fields when method changes
+    payment.bankAccountId = undefined;
+    payment.checkNumber = undefined;
+    payment.transactionReference = undefined;
+    
+    // Load bank accounts if needed for bank methods
+    if (['Transfer', 'Check', 'BOE'].includes(payment.method)) {
+      await this.loadBankAccounts();
+    }
+  }
+
+
+  /**
+   * Submit return with immediate refund (new endpoint)
+   */
+  async submitReturnAndRefund() {
+    if (!this.selectedOrderForReturn) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('no_order_selected'),
+        life: 3000
+      });
+      return;
+    }
+
+    const itemsToReturn = this.returnItems.filter(item => item.returnQuantity > 0);
+    if (itemsToReturn.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('select_items_to_return'),
+        life: 3000
+      });
+      return;
+    }
+
+    // Validate refund payments
+    if (!this.isRefundPaymentValid()) {
+      const totalRefundable = this.getTotalReturnAmount();
+      const totalPaid = this.getTotalRefundPaymentAmount();
+      const difference = Math.abs(totalRefundable - totalPaid);
+      
+      if (this.returnRefundPayments.length === 0) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('at_least_one_refund_method_required') || 'At least one refund method must be specified',
+          life: 3000
+        });
+      } else if (difference > 0.01) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('refund_amount_mismatch') || 
+                   `Total refund amount (${this.formatCurrency(totalPaid)}) does not match refundable amount (${this.formatCurrency(totalRefundable)})`,
+          life: 3000
+        });
+      }
+      return;
+    }
+
+    try {
+      // Build request
+      const request = {
+        orderReturn: {
+          order: {
+            orderId: this.selectedOrderForReturn.orderId
+          },
+          returnItems: itemsToReturn.map(item => ({
+            orderItem: item.orderItemId || item.id ? { orderItemId: item.orderItemId || item.id } : undefined,
+            product: {
+              productId: item.product?.productId || item.productId
+            },
+            returnedQuantity: item.returnQuantity,
+            condition: item.condition || 'NEW',
+            reason: item.returnReason || 'INCORRECT_ITEM'
+          })),
+          notes: this.returnNotes
+        },
+        refunds: this.returnRefundPayments.map(payment => {
+          const refund: any = {
+            method: payment.method,
+            amount: payment.amount
+          };
+          
+          // Add bank account if required
+          if (payment.bankAccountId) {
+            refund.bankAccountId = payment.bankAccountId;
+          }
+          
+          // Add check-specific fields
+          if (payment.method === 'Check') {
+            if (payment.checkNumber) {
+              refund.checkNumber = payment.checkNumber;
+            }
+            if (payment.checkExpirationDate) {
+              // Format date to YYYY-MM-DD
+              const dateValue = payment.checkExpirationDate as any;
+              let date: Date;
+              if (dateValue instanceof Date) {
+                date = dateValue;
+              } else if (typeof dateValue === 'string') {
+                date = new Date(dateValue);
+              } else {
+                date = new Date(dateValue);
+              }
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              refund.checkExpirationDate = `${year}-${month}-${day}`;
+            }
+          }
+          
+          // Add BOE-specific fields
+          if (payment.method === 'BOE') {
+            if (payment.boeNumber) {
+              refund.boeNumber = payment.boeNumber;
+            }
+            if (payment.boeExpirationDate) {
+              // Format date to YYYY-MM-DD
+              const dateValue = payment.boeExpirationDate as any;
+              let date: Date;
+              if (dateValue instanceof Date) {
+                date = dateValue;
+              } else if (typeof dateValue === 'string') {
+                date = new Date(dateValue);
+              } else {
+                date = new Date(dateValue);
+              }
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              refund.boeExpirationDate = `${year}-${month}-${day}`;
+            }
+          }
+          
+          // Add transaction reference for Transfer
+          if (payment.method === 'Transfer' && payment.transactionReference) {
+            refund.transactionReference = payment.transactionReference;
+          }
+          
+          // Add notes if any
+          if (payment.notes) {
+            refund.notes = payment.notes;
+          }
+          
+          return refund;
+        }),
+        notes: this.returnNotes
+      };
+
+      // Call the new endpoint
+      (this.returnService as any).loadToken && (this.returnService as any).loadToken();
+      const response = await firstValueFrom(
+        this.http.post<any>(
+          `${(this.returnService as any).apiProtocol}://${(this.returnService as any).apiHost}:${(this.returnService as any).apiPort}/api/returns/pos/create-and-refund`,
+          request,
+          {
+            headers: new HttpHeaders({
+              'authorization': 'Bearer ' + (this.returnService as any).jwt,
+              'Content-Type': 'application/json'
+            })
+          }
+        )
+      );
+
+      // Handle success
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('return_and_refund_processed_successfully') || 
+                `Return created and refund processed successfully. Reference: ${response.return?.reference || ''}`,
+        life: 5000
+      });
+
+      // Reset and close dialog
+      this.returnDialog = false;
+      this.selectedOrderForReturn = null;
+      this.returnItems = [];
+      this.returnRefundPayments = [];
+      this.returnNotes = '';
+      this.returnOrderSearch = '';
+      
+      // Optionally navigate to return details or refresh
+      if (response.return?.returnId) {
+        // Could navigate to return details page
+        // this.router.navigate(['/returns', response.return.returnId]);
+      }
+    } catch (error: any) {
+      console.error('Error processing return and refund:', error);
+      
+      // Handle specific errors
+      if (error.error?.error === 'pos_immediate_refund_disabled') {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: error.error?.message || 'Immediate refund is disabled. Using standard return process.',
+          life: 4000
+        });
+        // Fallback to standard flow
+        this.immediateRefundEnabled = false;
+        await this.processReturn();
+      } else if (error.error?.field === 'refunds') {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: error.error?.message || 'Invalid refund configuration',
+          life: 3000
+        });
+      } else {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: error.error?.message || this.translate.instant('error_processing_return'),
+          life: 3000
+        });
+      }
+    }
+  }
+
+  /**
+   * Initialize refund payments when opening return dialog with immediate refund enabled
+   */
+  initializeReturnRefundPayments() {
+    const totalRefundable = this.getTotalReturnAmount();
+    this.returnRefundPayments = [{
+      method: 'Cash',
+      amount: totalRefundable > 0 ? totalRefundable : 0
+    }];
   }
 }
 

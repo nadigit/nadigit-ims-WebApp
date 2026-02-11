@@ -328,6 +328,17 @@
                                 </div>
                                     </div>
                                     
+                                    <!-- Costing Method (Products only) -->
+                                    <div class="info-item" *ngIf="isProduct(product)">
+                                        <div class="info-icon">
+                                            <i class="pi pi-calculator"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'product_costing_method' | translate }}</span>
+                                            <span class="info-value">{{ getEffectiveCostingMethodLabel(product) }}</span>
+                                </div>
+                                    </div>
+                                    
                                     <!-- Service-specific fields -->
                                     <div class="info-item" *ngIf="isService(product) && product.serviceProvider">
                                         <div class="info-icon">

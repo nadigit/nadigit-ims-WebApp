@@ -14,6 +14,11 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { DatePipe } from '@angular/common';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { WriteOffCreateComponent } from './write-off-create/write-off-create.component';
+import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   templateUrl: './write-offs.component.html',
@@ -27,6 +32,8 @@ export class WriteOffsComponent implements OnInit {
   writeOffs: InventoryWriteOff[] = [];
   selectedWriteOffs: InventoryWriteOff[] = [];
   isLoading: boolean = false;
+  isExporting: boolean = false;
+  exportProgress: string = '';
   totalRecords: number = 0;
   lastLazyLoadEvent?: LazyLoadEvent;
   isInitialLoad: boolean = true;
@@ -74,6 +81,8 @@ export class WriteOffsComponent implements OnInit {
   currency: string = 'USD';
   
   resource: string = 'INVENTORY_WRITE_OFFS';
+  
+  exportColumns!: ExportColumn[];
 
   constructor(
     private writeOffService: WriteOffService,
@@ -86,7 +95,10 @@ export class WriteOffsComponent implements OnInit {
     private keycloakService: KeycloakService,
     private cdr: ChangeDetectorRef,
     private router: Router,
-    private configService: AppConfigurationService
+    private configService: AppConfigurationService,
+    private reportingService: ReportingService,
+    private organizationService: OrganizationService,
+    private datePipe: DatePipe
   ) {}
 
   async ngOnInit() {
@@ -103,6 +115,19 @@ export class WriteOffsComponent implements OnInit {
     await this.setUserRoles();
     await this.initializeTranslations();
     await this.loadInitialData();
+    
+    // Initialize export columns
+    this.exportColumns = [
+      { title: this.translateService.instant('reference'), dataKey: 'reference' },
+      { title: this.translateService.instant('product'), dataKey: 'productName' },
+      { title: this.translateService.instant('warehouse'), dataKey: 'warehouseName' },
+      { title: this.translateService.instant('quantity'), dataKey: 'quantity' },
+      { title: this.translateService.instant('condition'), dataKey: 'condition' },
+      { title: this.translateService.instant('cost'), dataKey: 'writeOffCost' },
+      { title: this.translateService.instant('source_type'), dataKey: 'sourceType' },
+      { title: this.translateService.instant('status'), dataKey: 'status' },
+      { title: this.translateService.instant('write_off_date'), dataKey: 'writeOffDate' }
+    ];
   }
 
   async setUserRoles() {
@@ -516,8 +541,15 @@ export class WriteOffsComponent implements OnInit {
     });
   }
 
+  showCreateDialog: boolean = false;
+  private lastWriteOffCreated: boolean = false;
+
   navigateToCreate() {
-    this.router.navigate(['/inventory/write-offs/create']);
+    this.showCreateDialog = true;
+  }
+
+  onWriteOffCreated() {
+    this.loadWriteOffs();
   }
 
   getReasonLabel(reason: string | undefined): string {
@@ -548,6 +580,378 @@ export class WriteOffsComponent implements OnInit {
     
     // For custom reasons, return as-is
     return reason;
+  }
+
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered write-offs from backend using current filter parameters
+      const { sortField, sortOrder } = this.lastLazyLoadEvent || { sortField: 'writeOffDate', sortOrder: -1 };
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC';
+      
+      // Extract filter values
+      let productId: number | undefined = undefined;
+      if (this.selectedProduct) {
+        if (typeof this.selectedProduct === 'object') {
+          productId = this.selectedProduct.productId || this.selectedProduct.value?.productId || this.selectedProduct.value;
+        } else if (typeof this.selectedProduct === 'number') {
+          productId = this.selectedProduct;
+        }
+      }
+      
+      let warehouseId: number | undefined = undefined;
+      if (this.selectedWarehouse) {
+        if (typeof this.selectedWarehouse === 'object') {
+          warehouseId = this.selectedWarehouse.warehouseId || this.selectedWarehouse.value?.warehouseId || this.selectedWarehouse.value;
+        } else if (typeof this.selectedWarehouse === 'number') {
+          warehouseId = this.selectedWarehouse;
+        }
+      }
+      
+      // Format dates
+      let startDateStr: string | undefined = undefined;
+      let endDateStr: string | undefined = undefined;
+      
+      if (this.startDate) {
+        startDateStr = this.formatDateForApi(this.startDate, true);
+      }
+      
+      if (this.endDate) {
+        endDateStr = this.formatDateForApi(this.endDate, false);
+      }
+      
+      // Fetch all write-offs with pagination loop
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredWriteOffs: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          await this.writeOffService.searchWriteOffs(
+            currentPage,
+            pageSize,
+            productId,
+            warehouseId,
+            this.selectedCondition || undefined,
+            this.selectedSourceType || undefined,
+            this.selectedStatus || undefined,
+            startDateStr,
+            endDateStr,
+            sortField || 'writeOffDate',
+            direction
+          )
+        );
+        
+        const pageContent = pageResponse?.content || [];
+        allFilteredWriteOffs = allFilteredWriteOffs.concat(pageContent);
+        totalElements = pageResponse?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredWriteOffs.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredWriteOffs.length} / ${totalElements} (${progressPercent}%)`;
+        this.cdr.detectChanges(); // Update UI with progress
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredWriteOffs.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      this.cdr.detectChanges();
+      
+      // Extract write-offs from response
+      const filteredWriteOffs = allFilteredWriteOffs.map((wo: any) => ({
+        ...wo,
+        product: wo.product || (wo.productId ? {
+          productId: wo.productId,
+          name: wo.productName,
+          reference: wo.productReference
+        } : null),
+        warehouse: wo.warehouse || (wo.warehouseId ? {
+          warehouseId: wo.warehouseId,
+          name: wo.warehouseName
+        } : null),
+        writeOffDate: wo.writeOffDate ? new Date(wo.writeOffDate) : null,
+        approvedDate: wo.approvedDate ? new Date(wo.approvedDate) : null,
+        rejectedDate: wo.rejectedDate ? new Date(wo.rejectedDate) : null,
+        creationDate: wo.creationDate ? new Date(wo.creationDate) : null
+      }));
+      
+      // Prepare write-offs for export with calculated fields
+      const exportData = filteredWriteOffs.map(writeOff => ({
+        reference: writeOff.reference || '',
+        productName: this.getProductName(writeOff) || 'N/A',
+        warehouseName: this.getWarehouseName(writeOff) || 'N/A',
+        quantity: writeOff.quantity || 0,
+        condition: writeOff.condition ? this.translate.instant(`item_condition_${writeOff.condition.toLowerCase()}`) : 'N/A',
+        writeOffCost: writeOff.writeOffCost || 0,
+        sourceType: writeOff.sourceType ? this.translate.instant(`write_off_source_type_${writeOff.sourceType.toLowerCase()}`) : 'N/A',
+        status: writeOff.status ? this.translate.instant(`write_off_status_${writeOff.status.toLowerCase()}`) : 'N/A',
+        writeOffDate: writeOff.writeOffDate ? this.datePipe.transform(writeOff.writeOffDate, 'short') : 'N/A'
+      }));
+      
+      // Build translated export columns based on organization's default locale
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'reference',
+        'productName': 'product',
+        'warehouseName': 'warehouse',
+        'quantity': 'quantity',
+        'condition': 'condition',
+        'writeOffCost': 'cost',
+        'sourceType': 'source_type',
+        'status': 'status',
+        'writeOffDate': 'write_off_date'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.exportColumns.map((col) => {
+        const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
+        return {
+          title: this.translate.instant(translationKey),
+          dataKey: col.dataKey
+        };
+      });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('write_offs_menu_title');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'write-offs', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${exportData.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
+  }
+
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
+
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered write-offs from backend using current filter parameters
+      const { sortField, sortOrder } = this.lastLazyLoadEvent || { sortField: 'writeOffDate', sortOrder: -1 };
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC';
+      
+      // Extract filter values
+      let productId: number | undefined = undefined;
+      if (this.selectedProduct) {
+        if (typeof this.selectedProduct === 'object') {
+          productId = this.selectedProduct.productId || this.selectedProduct.value?.productId || this.selectedProduct.value;
+        } else if (typeof this.selectedProduct === 'number') {
+          productId = this.selectedProduct;
+        }
+      }
+      
+      let warehouseId: number | undefined = undefined;
+      if (this.selectedWarehouse) {
+        if (typeof this.selectedWarehouse === 'object') {
+          warehouseId = this.selectedWarehouse.warehouseId || this.selectedWarehouse.value?.warehouseId || this.selectedWarehouse.value;
+        } else if (typeof this.selectedWarehouse === 'number') {
+          warehouseId = this.selectedWarehouse;
+        }
+      }
+      
+      // Format dates
+      let startDateStr: string | undefined = undefined;
+      let endDateStr: string | undefined = undefined;
+      
+      if (this.startDate) {
+        startDateStr = this.formatDateForApi(this.startDate, true);
+      }
+      
+      if (this.endDate) {
+        endDateStr = this.formatDateForApi(this.endDate, false);
+      }
+      
+      // Fetch all write-offs with pagination loop
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredWriteOffs: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          await this.writeOffService.searchWriteOffs(
+            currentPage,
+            pageSize,
+            productId,
+            warehouseId,
+            this.selectedCondition || undefined,
+            this.selectedSourceType || undefined,
+            this.selectedStatus || undefined,
+            startDateStr,
+            endDateStr,
+            sortField || 'writeOffDate',
+            direction
+          )
+        );
+        
+        const pageContent = pageResponse?.content || [];
+        allFilteredWriteOffs = allFilteredWriteOffs.concat(pageContent);
+        totalElements = pageResponse?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredWriteOffs.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredWriteOffs.length} / ${totalElements} (${progressPercent}%)`;
+        this.cdr.detectChanges(); // Update UI with progress
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredWriteOffs.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      this.cdr.detectChanges();
+      
+      // Extract write-offs from response
+      const filteredWriteOffs = allFilteredWriteOffs.map((wo: any) => ({
+        ...wo,
+        product: wo.product || (wo.productId ? {
+          productId: wo.productId,
+          name: wo.productName,
+          reference: wo.productReference
+        } : null),
+        warehouse: wo.warehouse || (wo.warehouseId ? {
+          warehouseId: wo.warehouseId,
+          name: wo.warehouseName
+        } : null),
+        writeOffDate: wo.writeOffDate ? new Date(wo.writeOffDate) : null,
+        approvedDate: wo.approvedDate ? new Date(wo.approvedDate) : null,
+        rejectedDate: wo.rejectedDate ? new Date(wo.rejectedDate) : null,
+        creationDate: wo.creationDate ? new Date(wo.creationDate) : null
+      }));
+      
+      // Prepare write-offs for export with calculated fields and translated headers
+      const exportData = filteredWriteOffs.map(writeOff => {
+        const translated: any = {};
+        translated[this.translate.instant('reference')] = writeOff.reference || '';
+        translated[this.translate.instant('product')] = this.getProductName(writeOff) || 'N/A';
+        translated[this.translate.instant('warehouse')] = this.getWarehouseName(writeOff) || 'N/A';
+        translated[this.translate.instant('quantity')] = writeOff.quantity || 0;
+        translated[this.translate.instant('condition')] = writeOff.condition ? this.translate.instant(`item_condition_${writeOff.condition.toLowerCase()}`) : 'N/A';
+        translated[this.translate.instant('cost')] = writeOff.writeOffCost || 0;
+        translated[this.translate.instant('source_type')] = writeOff.sourceType ? this.translate.instant(`write_off_source_type_${writeOff.sourceType.toLowerCase()}`) : 'N/A';
+        translated[this.translate.instant('status')] = writeOff.status ? this.translate.instant(`write_off_status_${writeOff.status.toLowerCase()}`) : 'N/A';
+        translated[this.translate.instant('write_off_date')] = writeOff.writeOffDate ? this.datePipe.transform(writeOff.writeOffDate, 'short') : 'N/A';
+        return translated;
+      });
+      
+      // Export the translated array to Excel
+      this.reportingService.exportExcel(exportData, 'write-offs');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${exportData.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 }
 

@@ -9,12 +9,13 @@ import { AngularFireStorageModule } from '@angular/fire/compat/storage';
 import { environment } from '../environments/environment';
 import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient, HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
 import {KeycloakAngularModule, KeycloakService} from "keycloak-angular";
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { OrganizationChartModule } from 'primeng/organizationchart';
 import { MessageService } from 'primeng/api';
+import { MaintenanceInterceptor } from './interceptors/maintenance.interceptor';
 
 
 // AoT requires an exported function for factories
@@ -75,6 +76,11 @@ function initializeKeycloak(keycloak: KeycloakService) {
     providers: [
         MessageService,
         TranslateService,
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: MaintenanceInterceptor,
+            multi: true
+        },
         // { provide: LocationStrategy, useClass: HashLocationStrategy },
         {provide : APP_INITIALIZER, deps : [KeycloakService],useFactory : initializeKeycloak, multi : true}
     ],

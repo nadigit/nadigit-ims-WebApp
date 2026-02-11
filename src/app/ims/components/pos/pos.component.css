@@ -381,12 +381,87 @@
 .lock-icon-wrapper{display:inline-flex;padding:1.5rem;background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);border-radius:50%;margin-bottom:1rem}
 .lock-icon-wrapper i{color:#fff}
 .pos-pin-input .p-password{width:100%}
-.pos-pin-input .p-password input{text-align:center;font-size:1.5rem;letter-spacing:.5rem;border:2px solid #e1e8ed;border-radius:12px;padding:1rem;transition:all .3s ease}
+.pos-pin-input .p-password input{text-align:center;font-size:1.5rem;letter-spacing:.5rem;border:2px solid #e1e8ed;border-radius:12px;padding:1rem;transition:all .3s ease;background:#fff;color:#1a202c}
 .pos-pin-input .p-password input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.pos-pin-input .p-password input::placeholder{color:#94a3b8}
 /* PIN Error State */
 .pos-pin-input .p-password.p-invalid input,
 .pos-pin-input .p-password.p-error-shake input{border-color:#ef4444!important;background-color:#fef2f2!important;box-shadow:0 0 0 3px rgba(239,68,68,.1)!important}
 .pos-pin-input .p-password.p-error-shake{animation:pos-shake .5s ease}
+
+/* Lock Screen - Same appearance in both light and dark mode */
+::host-context(.layout-theme-dark) .pos-lock-dialog,
+.layout-theme-dark .pos-lock-dialog {
+  background: #fff !important;
+  color: #1a202c !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
+}
+
+::host-context(.layout-theme-dark) .pos-lock-dialog h2,
+.layout-theme-dark .pos-lock-dialog h2 {
+  color: #1a202c !important;
+}
+
+::host-context(.layout-theme-dark) .pos-lock-dialog p,
+::host-context(.layout-theme-dark) .pos-lock-dialog .text-600,
+::host-context(.layout-theme-dark) .pos-lock-dialog small,
+.layout-theme-dark .pos-lock-dialog p,
+.layout-theme-dark .pos-lock-dialog .text-600,
+.layout-theme-dark .pos-lock-dialog small {
+  color: #64748b !important;
+}
+
+::host-context(.layout-theme-dark) .pos-lock-dialog .text-primary,
+.layout-theme-dark .pos-lock-dialog .text-primary {
+  color: #2563eb !important;
+}
+
+::host-context(.layout-theme-dark) .pos-pin-input .p-password input,
+.layout-theme-dark .pos-pin-input .p-password input {
+  background: #fff !important;
+  color: #1a202c !important;
+  border-color: #e1e8ed !important;
+}
+
+::host-context(.layout-theme-dark) .pos-pin-input .p-password input:focus,
+.layout-theme-dark .pos-pin-input .p-password input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+::host-context(.layout-theme-dark) .pos-pin-input .p-password input::placeholder,
+.layout-theme-dark .pos-pin-input .p-password input::placeholder {
+  color: #94a3b8 !important;
+}
+
+::host-context(.layout-theme-dark) .pos-pin-input .p-password .p-password-toggle,
+::host-context(.layout-theme-dark) .pos-pin-input .p-password .p-password-toggle i,
+.layout-theme-dark .pos-pin-input .p-password .p-password-toggle,
+.layout-theme-dark .pos-pin-input .p-password .p-password-toggle i {
+  color: #64748b !important;
+}
+
+::host-context(.layout-theme-dark) .pos-pin-input .p-password .p-password-toggle:hover,
+::host-context(.layout-theme-dark) .pos-pin-input .p-password .p-password-toggle:hover i,
+.layout-theme-dark .pos-pin-input .p-password .p-password-toggle:hover,
+.layout-theme-dark .pos-pin-input .p-password .p-password-toggle:hover i {
+  color: #1a202c !important;
+}
+
+::host-context(.layout-theme-dark) .pos-pin-input .p-password.p-invalid input,
+::host-context(.layout-theme-dark) .pos-pin-input .p-password.p-error-shake input,
+.layout-theme-dark .pos-pin-input .p-password.p-invalid input,
+.layout-theme-dark .pos-pin-input .p-password.p-error-shake input {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+  color: #1a202c !important;
+}
+
+::host-context(.layout-theme-dark) .pos-pin-input .p-error,
+.layout-theme-dark .pos-pin-input .p-error {
+  color: #dc2626 !important;
+}
 @keyframes pos-shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-8px)}20%,40%,60%,80%{transform:translateX(8px)}}
 .pos-loading-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);display:flex;align-items:center;justify-content:center;z-index:9999}
 .pos-loading-content{text-align:center;color:#fff}

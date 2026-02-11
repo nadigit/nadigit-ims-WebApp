@@ -36,6 +36,9 @@ export class SettingsComponent implements OnInit {
   configs: AppConfiguration[] = [];
   appConfigCurrency: any = null;
   taxPercentage: number;
+  refundPercentageDamaged: number;
+  refundPercentageUsed: number;
+  refundPercentageNew: number;
 
   autoOrderCompleteChecked: boolean = false;
   timezones: any[] = Intl.supportedValuesOf('timeZone').map(tz => ({ label: tz, value: tz }));
@@ -164,6 +167,22 @@ export class SettingsComponent implements OnInit {
             this.taxPercentage = parseFloat(taxConfig.value) * 100;
           }
 
+          // Initialize refund percentages
+          const refundDamagedConfig = params.find(config => config.key === 'return.refund.percentage.damaged');
+          if (refundDamagedConfig) {
+            this.refundPercentageDamaged = parseFloat(refundDamagedConfig.value) * 100;
+          }
+
+          const refundUsedConfig = params.find(config => config.key === 'return.refund.percentage.used');
+          if (refundUsedConfig) {
+            this.refundPercentageUsed = parseFloat(refundUsedConfig.value) * 100;
+          }
+
+          const refundNewConfig = params.find(config => config.key === 'return.refund.percentage.new');
+          if (refundNewConfig) {
+            this.refundPercentageNew = parseFloat(refundNewConfig.value) * 100;
+          }
+
           if (autoOrderComplete) {
             this.autoOrderCompleteChecked = autoOrderComplete.value === 'active';
           }
@@ -244,6 +263,15 @@ export class SettingsComponent implements OnInit {
     if (taxConfig) {
       // Convert the result back to string and update the value
       taxConfig.value = (value / 100).toString();
+    }
+  }
+
+  onRefundPercentageChange(value: number, configKey: string) {
+    // Convert percentage (e.g., 50) back to decimal (e.g., 0.5) and update the config value
+    const refundConfig = this.configs.find(config => config.key === configKey);
+    if (refundConfig) {
+      // Convert the result back to string and update the value
+      refundConfig.value = (value / 100).toString();
     }
   }
 

@@ -262,6 +262,15 @@
                                             <span class="info-value">{{ user.creationDate | date:'mediumDate' }}</span>
                                         </div>
                                     </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="pi pi-sign-in"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'last_login' | translate }}</span>
+                                            <span class="info-value">{{ getLastLoginDate() }}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -293,7 +302,7 @@
                             <div class="role-card">
                                 <div class="role-card-header">
                                     <i class="pi pi-shield"></i>
-                                    <span class="role-name">{{ role.name }}</span>
+                                    <span class="role-name">{{ getRoleLabel(role.name) }}</span>
                                 </div>
                             </div>
                         </div>

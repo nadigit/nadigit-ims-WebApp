@@ -25,7 +25,12 @@ import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
 import { UploadEvent } from 'src/app/models/uploadEvent';
 import { calculateProfit, getAvailableQuantity, getMeasureUnit, getProfitClass, getQuantitySeverity, getWriteOffQuantity, hasWriteOffs } from 'src/app/shared/product-utils';
 import { ProductImportComponent } from './product-import/product-import.component';
-
+import { WarehouseFormDialogConfig, WarehouseFormDialogData } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
+import { CategoryFormDialogConfig, CategoryFormDialogData } from '../categories/category-form-dialog/category-form-dialog.component';
+import { SupplierFormDialogConfig, SupplierFormDialogData } from '../../purchases/suppliers/supplier-form-dialog/supplier-form-dialog.component';
+import { LocationService } from 'src/app/services/location.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -64,11 +69,28 @@ export class ProductsComponent implements OnInit {
 
   productDialog: boolean = false;
 
-  categoryDialog: boolean = false;
+  // Dialog configuration for reusable component
+  categoryDialogConfig: CategoryFormDialogConfig = {
+    visible: false,
+    mode: 'create',
+    category: {},
+    isLoading: false
+  };
 
-  supplierDialog: boolean = false;
+  // Dialog configuration for reusable component
+  supplierDialogConfig: SupplierFormDialogConfig = {
+    visible: false,
+    mode: 'create',
+    supplier: {},
+  };
 
-  warehouseDialog: boolean = false;
+  warehouseDialogConfig: WarehouseFormDialogConfig = {
+    visible: false,
+    mode: 'create',
+    warehouse: {},
+    selectedCountry: {},
+    submitted: false
+  };
 
   deleteProductDialog: boolean = false;
 
@@ -88,6 +110,10 @@ export class ProductsComponent implements OnInit {
   expandedProducts: { [key: number]: boolean } = {}; // Track expanded rows for aggregated products
   
   private readonly VIEW_MODE_STORAGE_KEY = 'productsViewMode';
+
+  // Export state
+  isExporting: boolean = false;
+  exportProgress: string = '';
 
   product: Product = {};
 
@@ -138,7 +164,7 @@ export class ProductsComponent implements OnInit {
 
   isEditMode: boolean = false;
 
-  countries: any = Country.getAllCountries();
+  countries: any = null;
 
   selectedCountry: any = null;
 
@@ -200,6 +226,12 @@ export class ProductsComponent implements OnInit {
   globalFilter: string = '';
   filters: any = {};
   expirationStatusFilter: string | undefined = undefined;
+  // Store current filter values from dropdown filters
+  currentCategoryIds: number[] = [];
+  currentWarehouseIds: number[] = [];
+  currentSupplierIds: number[] = [];
+  currentInventoryStatus: string | undefined = undefined;
+  currentProductType: string | undefined = undefined;
   lastLazyLoadEvent: LazyLoadEventExt = {
     first: 0,
     rows: 20,
@@ -210,6 +242,8 @@ export class ProductsComponent implements OnInit {
   };
   lastSortField: string = 'creationDate';
   lastSortOrder: number = -1; // DESC by default
+  private isInitialLoad: boolean = true;
+  private lazyLoadCallCount: number = 0;
   lastGlobalFilter: string = '';
   @ViewChild('dt') dt!: Table;
   @ViewChild('filter') filter!: ElementRef;
@@ -222,13 +256,15 @@ export class ProductsComponent implements OnInit {
     private warehouseService: WarehouseService,
     private supplierService: SupplierService,
     private storage: AngularFireStorage,
+    private locationService: LocationService,
     private reportingService: ReportingService,
     private configService: AppConfigurationService,
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
-    private router: Router) {
+    private router: Router,
+    private organizationService: OrganizationService) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -254,7 +290,7 @@ export class ProductsComponent implements OnInit {
   }
 
   async ngOnInit() {
-    this.isLoading = true;
+    // Don't set isLoading here - let loadProducts() handle it
     // Load view mode from localStorage (only for admin users)
     await this.checkPermissions();
     if (this.isAdmin) {
@@ -272,6 +308,7 @@ export class ProductsComponent implements OnInit {
     this.lowStockThreshold = await this.getLowStockThreshold();
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
+      this.countries = this.locationService.getAllCountriesWithTranslation();
     });
     this.translate.getTranslation(this.translateService.getPreferredLanguage()).subscribe(translations => {
       this.translations = translations;
@@ -295,7 +332,7 @@ export class ProductsComponent implements OnInit {
 
     });
     // this.onGetAllProducts();
-    await this.loadProducts();
+    this.loadProducts();
     this.onGetAllCategories();
     this.onGetAllWarehouses();
     this.onGetAllSuppliers();
@@ -310,12 +347,9 @@ export class ProductsComponent implements OnInit {
     this.cols = [
       { field: 'name', header: this.translateService.instant('product_name') },
       { field: 'reference', header: this.translateService.instant('product_reference') },
-      { field: 'description', header: this.translateService.instant('product_description') },
       { field: 'quantityAvailable', header: this.translateService.instant('product_quantity') },
       { field: 'buyingPrice', header: this.translateService.instant('product_buying_price') },
-      { field: 'buyingDate', header: this.translateService.instant('product_buying_date') },
       { field: 'sellingPrice', header: this.translateService.instant('product_selling_price') },
-      { field: 'inventoryStatus', header: this.translateService.instant('product_inventory_status') },
       { field: 'Category', header: this.translateService.instant('product_category') },
       { field: 'Warehouse', header: this.translateService.instant('product_warehouse') },
       { field: 'Supplier', header: this.translateService.instant('product_supplier') },
@@ -580,11 +614,19 @@ export class ProductsComponent implements OnInit {
     globalFilter?: string;
   }) {
     this.scanning = false;
-    
-    // ExpirationStatus is a backend filter (batch-aware), so trigger reload when it changes
-    if (event.hasOwnProperty('expirationStatus')) {
+
+    // Store current filter values for export
+    this.currentCategoryIds = event.categoryIds || [];
+    this.currentWarehouseIds = event.warehouseIds || [];
+    this.currentSupplierIds = event.supplierIds || [];
+    this.currentInventoryStatus = event.inventoryStatus;
+    this.currentProductType = event.productType;
+
+    // ExpirationStatus is a backend filter (batch-aware), so trigger reload when it CHANGES
+    const hasExpirationInEvent = Object.prototype.hasOwnProperty.call(event, 'expirationStatus');
+    if (hasExpirationInEvent && event.expirationStatus !== this.expirationStatusFilter) {
       this.expirationStatusFilter = event.expirationStatus;
-      // Trigger reload from backend with expirationStatus filter
+
       const updatedFilters = { ...this.lastLazyLoadEvent.filters };
       if (event.expirationStatus) {
         updatedFilters['expirationStatus'] = { value: event.expirationStatus };
@@ -592,20 +634,21 @@ export class ProductsComponent implements OnInit {
         // Remove expirationStatus filter if cleared
         delete updatedFilters['expirationStatus'];
       }
+
       const lazyEvent: LazyLoadEventExt = {
         ...this.lastLazyLoadEvent,
         first: 0,
         filters: updatedFilters
       };
+
       this.onLazyLoad(lazyEvent);
-      return;
     }
-    
+
     // If all filters are cleared, reset filtered products to show all from backend
     const hasNoFilters = (!event.categoryIds || event.categoryIds.length === 0) &&
       (!event.warehouseIds || event.warehouseIds.length === 0) &&
       (!event.supplierIds || event.supplierIds.length === 0) &&
-      !event.inventoryStatus && !event.productType && !event.globalFilter;
+      !event.inventoryStatus && !event.productType && !event.globalFilter && !event.expirationStatus;
     
     if (hasNoFilters) {
       // Reset filtered products to empty array to show all products from backend (lazy loaded)
@@ -613,7 +656,7 @@ export class ProductsComponent implements OnInit {
       return;
     }
 
-    // Apply filters locally on the current products array
+    // Apply filters locally on the current products array (for the current page)
     // Only filter if we have products loaded
     if (!this.products || this.products.length === 0) {
       this.filteredProducts = [];
@@ -795,20 +838,34 @@ export class ProductsComponent implements OnInit {
 
   openCategoryDialog() {
     if (!this.canAddCategory) return;
+    this.categoryDialogConfig = {
+      visible: true,
+      mode: 'create',
+      category: {},
+      isLoading: false
+    };
     this.category = {};
-    this.categoryDialog = true;
   }
 
   openWarehouseDialog() {
     if (!this.canAddWarehouse) return;
-    this.warehouse = {};
-    this.warehouseDialog = true;
+    this.warehouseDialogConfig = {
+      visible: true,
+      mode: 'create',
+      warehouse: {},
+      selectedCountry: {},
+      submitted: false
+    };
   }
 
   openSupplierDialog() {
     if (!this.canAddSupplier) return;
+    this.supplierDialogConfig = {
+      visible: true,
+      mode: 'create',
+      supplier: {},
+    };
     this.supplier = {};
-    this.supplierDialog = true;
   }
 
   editProduct(product: Product) {
@@ -840,15 +897,44 @@ export class ProductsComponent implements OnInit {
   }
 
   hideCategoryDialog() {
-    this.categoryDialog = false;
+    this.categoryDialogConfig.visible = false;
+  }
+
+  // Category Form Dialog Event Handlers
+  onCategoryDialogConfigChange(config: CategoryFormDialogConfig) {
+    this.categoryDialogConfig = config;
+  }
+
+  onCategorySave(dialogData: CategoryFormDialogData) {
+    this.category = dialogData.category;
+    this.saveCategory();
+  }
+
+  onCategoryCancel() {
+    this.hideCategoryDialog();
   }
 
   hideSupplierDialog() {
-    this.supplierDialog = false;
+    this.supplierDialogConfig.visible = false;
+  }
+
+  // Supplier Form Dialog Event Handlers
+  onSupplierDialogConfigChange(config: SupplierFormDialogConfig) {
+    this.supplierDialogConfig = config;
+  }
+
+  onSupplierSave(dialogData: SupplierFormDialogData) {
+    this.supplier = dialogData.supplier;
+    this.saveSupplier();
+  }
+
+  onSupplierCancel() {
+    this.hideSupplierDialog();
   }
 
   hideWarehouseDialog() {
-    this.warehouseDialog = false;
+    this.warehouseDialogConfig.visible = false;
+    this.warehouseDialogConfig.submitted = false;
   }
 
   openNew() {
@@ -1077,11 +1163,26 @@ export class ProductsComponent implements OnInit {
       return
     }
     this.categories = [...this.categories];
-    this.categoryDialog = false;
+    this.categoryDialogConfig.visible = false;
     this.category = {};
   }
 
+  onWarehouseSave(dialogData: WarehouseFormDialogData) {
+    this.warehouse = dialogData.warehouse;
+    this.selectedCountry = dialogData.selectedCountry;
+    this.saveWarehouse();
+  }
+
+  onWarehouseDialogConfigChange(config: WarehouseFormDialogConfig) {
+    this.warehouseDialogConfig = config;
+  }
+
+  onWarehouseCancel() {
+    this.hideWarehouseDialog();
+  }
+
   saveWarehouse() {
+    this.warehouseDialogConfig.submitted = true;
     if (this.warehouse.name) {
       this.addWarehouse(this.warehouse)
         ? this.messageService.add({
@@ -1106,7 +1207,7 @@ export class ProductsComponent implements OnInit {
       return;
     }
     this.warehouses = [...this.warehouses];
-    this.warehouseDialog = false;
+    this.warehouseDialogConfig.visible = false;
     this.warehouse = {};
   }
 
@@ -1135,7 +1236,7 @@ export class ProductsComponent implements OnInit {
       return;
     }
     this.suppliers = [...this.suppliers];
-    this.supplierDialog = false;
+    this.supplierDialogConfig.visible = false;
     this.supplier = {};
   }
 
@@ -1610,51 +1711,433 @@ export class ProductsComponent implements OnInit {
     this.uploadedFile = null;
   }
 
-  exportPdf() {
-    // Create a copy of the products array to avoid modifying the original array
-    const modifiedProducts = this.products.map(product => {
-      // Create a copy of the product object to modify
-      let modifiedProduct = { ...product };
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      console.log(modifiedProduct.supplier.name)
-      // Replace supplierName with the 'name' field if 'supplier' is an object
-      modifiedProduct['Supplier'] = modifiedProduct.supplier.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
-      modifiedProduct['Warehouse'] = modifiedProduct.warehouse.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
-      modifiedProduct['Category'] = modifiedProduct.category.categoryName || ''; // Use the 'name' field or an empty string if 'name' is undefined
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
 
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered products from backend using current filter parameters
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      
+      // Build filters object from both table filters and dropdown filters
+      const allFilters: any = { ...filters };
+      
+      // Add dropdown filter values to filters object (use first ID for backend, filter client-side for multiple)
+      if (this.currentCategoryIds && this.currentCategoryIds.length > 0) {
+        allFilters['categoryId'] = { value: this.currentCategoryIds[0] };
+      }
+      if (this.currentWarehouseIds && this.currentWarehouseIds.length > 0) {
+        allFilters['warehouseId'] = { value: this.currentWarehouseIds[0] };
+      }
+      if (this.currentSupplierIds && this.currentSupplierIds.length > 0) {
+        allFilters['supplierId'] = { value: this.currentSupplierIds[0] };
+      }
+      if (this.currentInventoryStatus) {
+        allFilters['inventoryStatus'] = { value: this.currentInventoryStatus };
+      }
+      if (this.currentProductType) {
+        allFilters['productType'] = { value: this.currentProductType };
+      }
+      
+      const processedFilters = this.processFilters(allFilters);
+      
+      // Use globalFilter from dropdown if available, otherwise use from lastLazyLoadEvent
+      const searchFilter = this.globalFilter || globalFilter || '';
+      
+      // Fetch all products with pagination loop
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredProducts: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          this.productService.getProductsPaginated(
+            currentPage,
+            pageSize,
+            searchFilter,
+            sortField || 'creationDate',
+            direction,
+            processedFilters
+          )
+        );
+        
+        const pageContent = pageResponse?.page?.content || [];
+        allFilteredProducts = allFilteredProducts.concat(pageContent);
+        totalElements = pageResponse?.page?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredProducts.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredProducts.length} / ${totalElements} (${progressPercent}%)`;
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.page?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredProducts.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Extract products from response
+      let filteredProducts = allFilteredProducts.map((p: any) => ({
+        ...p,
+        productType: p.productType || 'PRODUCT',
+        creationDate: p.creationDate ? new Date(p.creationDate) : null,
+        archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
+        buyingDate: p.buyingDate ? new Date(p.buyingDate) : null,
+      }));
+      
+      // Apply client-side filtering for all dropdown filters to ensure accuracy
+      // Category filter
+      if (this.currentCategoryIds && this.currentCategoryIds.length > 0) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.category?.categoryId && this.currentCategoryIds.includes(product.category.categoryId)
+        );
+      }
+      // Warehouse filter
+      if (this.currentWarehouseIds && this.currentWarehouseIds.length > 0) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.warehouse?.warehouseId && this.currentWarehouseIds.includes(product.warehouse.warehouseId)
+        );
+      }
+      // Supplier filter
+      if (this.currentSupplierIds && this.currentSupplierIds.length > 0) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.supplier?.supplierId && this.currentSupplierIds.includes(product.supplier.supplierId)
+        );
+      }
+      // Inventory status filter
+      if (this.currentInventoryStatus) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.inventoryStatus === this.currentInventoryStatus
+        );
+      }
+      // Product type filter
+      if (this.currentProductType) {
+        filteredProducts = filteredProducts.filter(product => {
+          const productType = product.productType || 'PRODUCT';
+          return productType === this.currentProductType;
+        });
+      }
+      
+      // Create a copy of the products array to avoid modifying the original array
+      const modifiedProducts = filteredProducts.map(product => {
+        // Create a copy of the product object to modify
+        let modifiedProduct = { ...product };
 
-      return modifiedProduct;
-    });
+        // Replace supplierName with the 'name' field if 'supplier' is an object
+        modifiedProduct['Supplier'] = modifiedProduct.supplier?.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
+        modifiedProduct['Warehouse'] = modifiedProduct.warehouse?.name || ''; // Use the 'name' field or an empty string if 'name' is undefined
+        modifiedProduct['Category'] = modifiedProduct.category?.categoryName || ''; // Use the 'name' field or an empty string if 'name' is undefined
 
-    // Now, export the modified array to PDF
-    this.reportingService.exportPdf(this.exportColumns, modifiedProducts, 'products');
+        return modifiedProduct;
+      });
+
+      // Build translated export columns based on organization's default locale
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'name': 'product_name',
+        'reference': 'product_reference',
+        'description': 'product_description',
+        'quantityAvailable': 'product_quantity',
+        'buyingPrice': 'product_buying_price',
+        'buyingDate': 'product_buying_date',
+        'sellingPrice': 'product_selling_price',
+        'inventoryStatus': 'product_inventory_status',
+        'Category': 'product_category',
+        'Warehouse': 'product_warehouse',
+        'Supplier': 'product_supplier'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.cols.map((col) => {
+        const translationKey = translationKeyMap[col.field] || col.field;
+        return {
+          title: this.translate.instant(translationKey),
+          dataKey: col.field
+        };
+      });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('products_menu_title');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, modifiedProducts, 'products', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${modifiedProducts.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedProducts = this.products.map(product => {
-      // Create a copy of the supplier object to modify
-      let modifiedProduct = { ...product };
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      modifiedProduct['Supplier'] = product.supplier.name;
-      modifiedProduct['Category'] = product.category.categoryName;
-      modifiedProduct['Warehouse'] = product.warehouse.name;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Remove the column you want to exclude
-      delete modifiedProduct.creationDate;
-      delete modifiedProduct.productImage;
-      delete modifiedProduct.supplier;
-      delete modifiedProduct.warehouse;
-      delete modifiedProduct.category;
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered products from backend using current filter parameters
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      
+      // Build filters object from both table filters and dropdown filters
+      const allFilters: any = { ...filters };
+      
+      // Add dropdown filter values to filters object (use first ID for backend, filter client-side for multiple)
+      if (this.currentCategoryIds && this.currentCategoryIds.length > 0) {
+        allFilters['categoryId'] = { value: this.currentCategoryIds[0] };
+      }
+      if (this.currentWarehouseIds && this.currentWarehouseIds.length > 0) {
+        allFilters['warehouseId'] = { value: this.currentWarehouseIds[0] };
+      }
+      if (this.currentSupplierIds && this.currentSupplierIds.length > 0) {
+        allFilters['supplierId'] = { value: this.currentSupplierIds[0] };
+      }
+      if (this.currentInventoryStatus) {
+        allFilters['inventoryStatus'] = { value: this.currentInventoryStatus };
+      }
+      if (this.currentProductType) {
+        allFilters['productType'] = { value: this.currentProductType };
+      }
+      
+      const processedFilters = this.processFilters(allFilters);
+      
+      // Use globalFilter from dropdown if available, otherwise use from lastLazyLoadEvent
+      const searchFilter = this.globalFilter || globalFilter || '';
+      
+      // Fetch all products with pagination loop
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredProducts: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          this.productService.getProductsPaginated(
+            currentPage,
+            pageSize,
+            searchFilter,
+            sortField || 'creationDate',
+            direction,
+            processedFilters
+          )
+        );
+        
+        const pageContent = pageResponse?.page?.content || [];
+        allFilteredProducts = allFilteredProducts.concat(pageContent);
+        totalElements = pageResponse?.page?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredProducts.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredProducts.length} / ${totalElements} (${progressPercent}%)`;
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.page?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredProducts.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Extract products from response
+      let filteredProducts = allFilteredProducts.map((p: any) => ({
+        ...p,
+        productType: p.productType || 'PRODUCT',
+        creationDate: p.creationDate ? new Date(p.creationDate) : null,
+        archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
+        buyingDate: p.buyingDate ? new Date(p.buyingDate) : null,
+      }));
+      
+      // Apply client-side filtering for all dropdown filters to ensure accuracy
+      // Category filter
+      if (this.currentCategoryIds && this.currentCategoryIds.length > 0) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.category?.categoryId && this.currentCategoryIds.includes(product.category.categoryId)
+        );
+      }
+      // Warehouse filter
+      if (this.currentWarehouseIds && this.currentWarehouseIds.length > 0) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.warehouse?.warehouseId && this.currentWarehouseIds.includes(product.warehouse.warehouseId)
+        );
+      }
+      // Supplier filter
+      if (this.currentSupplierIds && this.currentSupplierIds.length > 0) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.supplier?.supplierId && this.currentSupplierIds.includes(product.supplier.supplierId)
+        );
+      }
+      // Inventory status filter
+      if (this.currentInventoryStatus) {
+        filteredProducts = filteredProducts.filter(product => 
+          product.inventoryStatus === this.currentInventoryStatus
+        );
+      }
+      // Product type filter
+      if (this.currentProductType) {
+        filteredProducts = filteredProducts.filter(product => {
+          const productType = product.productType || 'PRODUCT';
+          return productType === this.currentProductType;
+        });
+      }
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'name': 'product_name',
+        'reference': 'product_reference',
+        'quantityAvailable': 'product_quantity',
+        'buyingPrice': 'product_buying_price',
+        'sellingPrice': 'product_selling_price',
+        'Category': 'product_category',
+        'Warehouse': 'product_warehouse',
+        'Supplier': 'product_supplier'
+      };
+      
+      // Clone the products array to avoid modifying the original array
+      const modifiedProducts = filteredProducts.map(product => {
+        // Create a copy of the product object to modify
+        let modifiedProduct = { ...product };
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+        modifiedProduct['Supplier'] = product.supplier?.name || '';
+        modifiedProduct['Category'] = product.category?.categoryName || '';
+        modifiedProduct['Warehouse'] = product.warehouse?.name || '';
 
-      return modifiedProduct;
-    });
+        // Remove the column you want to exclude
+        delete modifiedProduct.creationDate;
+        delete modifiedProduct.productImage;
+        delete modifiedProduct.description;
+        delete modifiedProduct.buyingDate;
+        delete modifiedProduct.inventoryStatus;
+        delete modifiedProduct.supplier;
+        delete modifiedProduct.warehouse;
+        delete modifiedProduct.category;
+        delete modifiedProduct.productId; // Exclude productId if it exists
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedProducts, 'products');
+        return modifiedProduct;
+      });
+
+      // Create a translated version of the data with translated headers
+      // For Excel, we need to create objects with translated keys
+      const translatedProducts = modifiedProducts.map(product => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          const translationKey = translationKeyMap[col.field] || col.field;
+          const translatedHeader = this.translate.instant(translationKey);
+          translated[translatedHeader] = product[col.field as keyof Product];
+        });
+        return translated;
+      });
+
+      // Now, export the translated array to Excel
+      this.reportingService.exportExcel(translatedProducts, 'products');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${translatedProducts.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   // Add a method to toggle the editable state
@@ -1666,16 +2149,6 @@ export class ProductsComponent implements OnInit {
     this.supplier.city = undefined;
   }
 
-  onSelectedCountry(event) {
-    if ((this.supplier.country != this.selectedCountry) && (this.supplier.city == undefined)) this.supplier.city = undefined;
-    this.countries.forEach(element => {
-      if (element.name === event) {
-        this.selectedCountry = element;
-      }
-    });
-    this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
-
-  }
 
   // Method to reset scanning when the dialog is hidden
   resetScanning() {
@@ -1847,6 +2320,17 @@ export class ProductsComponent implements OnInit {
   }
 
   onLazyLoad(event: LazyLoadEvent) {
+    this.lazyLoadCallCount++;
+    
+    // Skip if this is the first lazy load call and we've already loaded products manually
+    // This prevents the automatic lazy table trigger from reloading with wrong sort order
+    if (this.lazyLoadCallCount === 1 && this.products.length > 0) {
+      // This is the automatic lazy load trigger after manual load
+      // Skip it to prevent double loading
+      this.isInitialLoad = false;
+      return;
+    }
+    
     const extendedEvent: LazyLoadEventExt = {
       ...event,
       globalFilter: this.globalFilter
@@ -1864,11 +2348,12 @@ export class ProductsComponent implements OnInit {
       return;
     }
 
+    this.isLoading = true;
     const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
 
     const page = first! / rows!;
     const size = rows!;
-    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    const direction = sortOrder === 1 ? 'ASC' : 'DESC';
     const processedFilters = this.processFilters(filters);
 
     console.log('Loading products with parameters:', {
@@ -1919,14 +2404,13 @@ export class ProductsComponent implements OnInit {
   }
 
   loadAggregatedProducts() {
+    this.isLoading = true;
     const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
 
     const page = first! / rows!;
     const size = rows!;
-    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    const direction = sortOrder === 1 ? 'ASC' : 'DESC';
     const processedFilters = this.processFilters(filters);
-
-    this.isLoading = true;
 
     this.productService.getAggregatedProducts(
       page,
@@ -2007,11 +2491,33 @@ export class ProductsComponent implements OnInit {
   }
 
   private updateLastLazyLoadEvent(event: LazyLoadEvent) {
+    // Default to DESC (-1) for newest first
+    const defaultSortOrder = -1; // DESC - newest first
+    let sortOrder = defaultSortOrder;
+    
+    // On initial load (first lazy load call), always use DESC regardless of what the event says
+    // After initial load, respect user's sort choice
+    if (this.isInitialLoad || this.lazyLoadCallCount <= 1) {
+      sortOrder = defaultSortOrder;
+      if (this.lazyLoadCallCount > 0) {
+        this.isInitialLoad = false;
+      }
+    } else {
+      // Use event.sortOrder if provided, otherwise keep current sortOrder
+      if (event.sortOrder !== undefined && event.sortOrder !== null && event.sortOrder !== 0) {
+        if (event.sortOrder === 1 || event.sortOrder === -1) {
+          sortOrder = event.sortOrder;
+        }
+      } else {
+        sortOrder = this.lastLazyLoadEvent.sortOrder ?? defaultSortOrder;
+      }
+    }
+    
     this.lastLazyLoadEvent = {
       first: event.first ?? this.lastLazyLoadEvent.first,
       rows: event.rows ?? this.lastLazyLoadEvent.rows,
       sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
-      sortOrder: event.sortOrder ?? this.lastLazyLoadEvent.sortOrder,
+      sortOrder: sortOrder,
       globalFilter: event.globalFilter ?? this.globalFilter,
       filters: event.filters ?? this.lastLazyLoadEvent.filters
     };

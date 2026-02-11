@@ -27,47 +27,114 @@
             </div>
 
             <!-- Filters Bar -->
-            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
-                <!-- Global Search -->
-                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
-                    <i class="pi pi-search"></i>
-                    <input type="text" pInputText 
-                        [placeholder]="'search_label' | translate" 
-                        (input)="onGlobalFilter($event)" class="w-full" />
+            <div class="filter-bar flex flex-column gap-3 mb-4 p-3 surface-ground border-round">
+                <!-- Main Filters Row -->
+                <div class="flex gap-3 flex-wrap align-items-center">
+                    <!-- Global Search -->
+                    <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                        <i class="pi pi-search"></i>
+                        <input type="text" pInputText 
+                            [placeholder]="'search_label' | translate" 
+                            [(ngModel)]="globalFilter"
+                            (input)="onGlobalFilter($event)" class="w-full" />
+                    </span>
+
+                    <!-- Refund Status Filter -->
+                    <p-dropdown 
+                        [(ngModel)]="selectedRefundStatus" 
+                        [options]="refundStatuses" 
+                        optionLabel="label" 
+                        optionValue="value"
+                        [showClear]="true"
+                        [placeholder]="'filter_by_status' | translate"
+                        appendTo="body"
+                        styleClass="w-14rem"
+                        (onChange)="onFilterChange()">
+                        <ng-template let-option pTemplate="item">
+                            <span [class]="'refund-badge refund-' + option.value.toLowerCase()">
+                                {{ ('refund_status_' + option.value.toLowerCase()) | translate }}
+                            </span>
+                        </ng-template>
+                        <ng-template let-selectedOption pTemplate="selectedItem">
+                            <span *ngIf="selectedOption && selectedOption.value"
+                                  [class]="'refund-badge refund-' + selectedOption.value.toLowerCase()">
+                                {{ ('refund_status_' + selectedOption.value.toLowerCase()) | translate }}
+                            </span>
+                        </ng-template>
+                    </p-dropdown>
+
+                    <!-- Refund Method Filter -->
+                    <p-dropdown 
+                        [(ngModel)]="selectedRefundMethod" 
+                        [options]="refundMethods" 
+                        optionLabel="label" 
+                        optionValue="value"
+                        [showClear]="true"
+                        [placeholder]="'filter_by_refund_method' | translate"
+                        appendTo="body"
+                        styleClass="w-14rem"
+                        (onChange)="onFilterChange()">
+                        <ng-template let-option pTemplate="item">
+                            <p-tag 
+                                [value]="'payment_method_' + option.value.toLowerCase() | translate"
+                                [severity]="getPaymentMethodSeverity(option.value)"
+                                [icon]="getPaymentMethodIcon(option.value)"
+                                styleClass="text-xs">
+                            </p-tag>
+                        </ng-template>
+                        <ng-template let-selectedOption pTemplate="selectedItem">
+                            <p-tag 
+                                *ngIf="selectedRefundMethod; else refundMethodPlaceholder"
+                                [value]="'payment_method_' + selectedRefundMethod.toLowerCase() | translate"
+                                [severity]="getPaymentMethodSeverity(selectedRefundMethod)"
+                                [icon]="getPaymentMethodIcon(selectedRefundMethod)"
+                                styleClass="text-xs">
+                            </p-tag>
+                            <ng-template #refundMethodPlaceholder>
+                                <span style="opacity: 0.6;">
+                                    {{ 'filter_by_refund_method' | translate }}
+                                </span>
+                            </ng-template>
+                        </ng-template>
+                    </p-dropdown>
+
+                    <!-- View Toggle & Export -->
+                    <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+                        class="p-button-warning" 
+                        pTooltip="PDF"
+                        tooltipPosition="bottom" 
+                        [disabled]="isExporting"
+                        (click)="exportPdf()"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+                        (click)="exportExcel()" 
+                        class="p-button-success"
+                        pTooltip="XLS" 
+                        tooltipPosition="bottom"
+                        [disabled]="isExporting"></button>
+                    <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
+                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+                </div>
+            </div>
+
+            <!-- Advanced Filters Toggle -->
+            <div class="flex align-items-center gap-2">
+                <button pButton pRipple 
+                    [icon]="showAdvancedFilters ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                    [label]="(showAdvancedFilters ? 'hide_advanced_filters' : 'show_advanced_filters') | translate"
+                    class="p-button-text p-button-sm"
+                    (click)="showAdvancedFilters = !showAdvancedFilters">
+                </button>
+                <span class="text-500 text-sm" *ngIf="!showAdvancedFilters">
+                    <i class="pi pi-info-circle mr-1"></i>
+                    {{ 'filter_help_text' | translate }}
                 </span>
+            </div>
 
-                <!-- Refund Status Filter -->
-                <p-dropdown 
-                    [(ngModel)]="selectedRefundStatus" 
-                    [options]="refundStatuses" 
-                    optionLabel="label" 
-                    optionValue="value"
-                    [showClear]="true"
-                    [placeholder]="'filter_by_status' | translate"
-                    appendTo="body"
-                    styleClass="w-14rem"
-                    (onChange)="onFilterChange()">
-                    <ng-template let-option pTemplate="item">
-                        <span>{{ option.label | translate }}</span>
-                    </ng-template>
-                </p-dropdown>
-
-                <!-- Refund Method Filter -->
-                <p-dropdown 
-                    [(ngModel)]="selectedRefundMethod" 
-                    [options]="refundMethods" 
-                    optionLabel="label" 
-                    optionValue="value"
-                    [showClear]="true"
-                    [placeholder]="'filter_by_refund_method' | translate"
-                    appendTo="body"
-                    styleClass="w-14rem"
-                    (onChange)="onFilterChange()">
-                    <ng-template let-option pTemplate="item">
-                        <span>{{ option.label | translate }}</span>
-                    </ng-template>
-                </p-dropdown>
-
+            <!-- Advanced Filters (Collapsible) -->
+            <div *ngIf="showAdvancedFilters" class="flex gap-3 flex-wrap align-items-center pt-2 border-top-1 surface-border">
                 <!-- Customer Filter -->
                 <p-dropdown 
                     [(ngModel)]="selectedCustomer" 
@@ -84,7 +151,14 @@
                         <span>{{ getCustomerDisplayName(option) }}</span>
                     </ng-template>
                     <ng-template pTemplate="selectedItem" let-selected>
-                        <span *ngIf="selected">{{ getCustomerDisplayName(selected) }}</span>
+                        <span *ngIf="selected; else customerPlaceholder">
+                            {{ getCustomerDisplayName(selected) }}
+                        </span>
+                        <ng-template #customerPlaceholder>
+                            <span style="opacity: 0.6;">
+                                {{ 'filter_by_customer' | translate }}
+                            </span>
+                        </ng-template>
                     </ng-template>
                 </p-dropdown>
 
@@ -111,25 +185,19 @@
                     styleClass="w-14rem"
                     (onSelect)="onFilterChange()">
                 </p-calendar>
-
-                <!-- View Toggle & Export -->
-                <div class="flex align-items-center gap-2 ml-auto">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
-                        tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
-                        pTooltip="XLS" tooltipPosition="bottom"></button>
-                    <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
-                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
-                </div>
             </div>
+        </div>
 
             <div class="card flex justify-content-center" *ngIf="isLoading">
                 <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
             </div>
 
-            <p-table #dt [value]="refunds" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
-                [globalFilterFields]="['orderReturn.order.reference','amount','status','method','originalPayment.transactionId','notes', 'orderReturn.order.customer.firstName', 'orderReturn.order.customer.lastName', 'orderReturn.order.customer.companyName']"
-                [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+            <p-table #dt [value]="refunds" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" 
+                [lazy]="true"
+                (onLazyLoad)="onLazyLoad($event)"
+                [loading]="isLoading"
+                [totalRecords]="totalRecords"
+                [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedRefunds" selectionMode="multiple" [rowHover]="true" dataKey="refundId"
                 styleClass="p-datatable-gridlines">
@@ -156,9 +224,6 @@
                         </th>
                         <th pSortableColumn="method">{{'refund_method' | translate}}
                             <p-sortIcon field="method"></p-sortIcon>
-                        </th>
-                        <th pSortableColumn="reconciliationStatus">{{'bank_reconciliation_status' | translate}}
-                            <p-sortIcon field="reconciliationStatus"></p-sortIcon>
                         </th>
                         <!-- <th pSortableColumn="originalPayment.transactionId">{{'payment_reference' | translate}}
                             <p-sortIcon field="originalPayment.transactionId"></p-sortIcon>
@@ -208,30 +273,14 @@
                                 [icon]="getPaymentMethodIcon(refund?.refundMethod)">
                             </p-tag>
                         </td>
-                        <td>
-                            <div class="text-center">
-                                <ng-container *ngIf="requiresReconciliation(refund?.refundMethod); else noReconciliationRequired">
-                                    <ng-container *ngIf="getRefundReconciliationStatus(refund) === 'reconciled'; else unreconciledOrUnknown">
-                                        <p-tag value="{{ 'reconciled' | translate }}" severity="success" icon="pi pi-check-circle"></p-tag>
-                                    </ng-container>
-                                    <ng-template #unreconciledOrUnknown>
-                                        <ng-container *ngIf="getRefundReconciliationStatus(refund) === 'unreconciled'; else unknownStatus">
-                                            <p-tag value="{{ 'not_reconciled' | translate }}" severity="warning" icon="pi pi-exclamation-triangle"></p-tag>
-                                        </ng-container>
-                                        <ng-template #unknownStatus>
-                                            <span class="text-color-secondary">-</span>
-                                        </ng-template>
-                                    </ng-template>
-                                </ng-container>
-                                <ng-template #noReconciliationRequired>
-                                    <span class="text-color-secondary">N/A</span>
-                                </ng-template>
-                            </div>
-                        </td>
                         <!-- <td>{{ refund.originalPayment?.transactionId || 'N/A' }}</td> -->
                         <td>{{ refund.refundDate | date:'dd/MM/yyyy' }}</td>
                         <td>
                             <div class="flex gap-1">
+                                <button pButton pRipple *ngIf="canReadRefund"
+                                    icon="pi pi-eye" class="p-button-rounded p-button-text p-button-primary"
+                                    (click)="showRefundDetails(refund); $event.stopPropagation()"
+                                    pTooltip="{{ 'view_refund' | translate }}"></button>
                                 <button pButton pRipple *ngIf="canEditRefund && isRefundValidForUpdate(refund)"
                                     icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
                                     (click)="editRefund(refund); $event.stopPropagation()"
@@ -291,12 +340,15 @@
 
                 <ng-template pTemplate="emptymessage">
                     <tr>
-                        <td colspan="8">
+                        <td colspan="10">
                             <div class="flex flex-column align-items-center justify-content-center py-5">
                                 <img src="assets/core-images/no_data_found.png" alt="No Data Found"
                                     style="max-width: 250px; opacity: 0.6;">
-                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                <p class="mt-3 text-900 font-medium text-lg">
                                     {{ 'no_refunds_found' | translate }}
+                                </p>
+                                <p class="mt-2 text-600 text-center" style="max-width: 500px;">
+                                    {{ 'no_refunds_found_help' | translate }}
                                 </p>
                             </div>
                         </td>
@@ -599,6 +651,23 @@
                     [pTooltip]="(reconciliationStatus && reconciliationStatus.hasTransactions && !reconciliationStatus.allReconciled) ? ('reconciliation_required_tooltip' | translate) : ''"
                     (click)="confirmRefund()"></button>
             </ng-template>
+        </p-dialog>
+
+        <!-- Export Progress Dialog -->
+        <p-dialog 
+            [(visible)]="isExporting" 
+            [modal]="true" 
+            [closable]="false" 
+            [draggable]="false"
+            [resizable]="false"
+            [style]="{width: '450px'}"
+            [header]="'exporting' | translate">
+            <div class="flex flex-column align-items-center gap-3 p-4">
+                <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                <div class="text-center">
+                    <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+                </div>
+            </div>
         </p-dialog>
     </div>
 </div>

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CategoriesRoutingModule } from './categories-routing.module';
 import { CategoriesComponent } from './categories.component';
 import { CategoryDetailsComponent } from './category-details/category-details.component';
+import { CategoryFormDialogComponent } from './category-form-dialog/category-form-dialog.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -31,7 +32,7 @@ import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
 import { ChartModule } from 'primeng/chart';
 import { SharedModule } from 'src/app/shared/shared.module';
-import { ProductsModule } from '../products/products.module';
+import { InventorySharedModule } from '../shared/inventory-shared.module';
 
 
 
@@ -66,9 +67,10 @@ import { ProductsModule } from '../products/products.module';
         DividerModule,
         ChartModule,
         SharedModule,
-        ProductsModule
+        InventorySharedModule
     ],
-    declarations: [CategoriesComponent, CategoryDetailsComponent],
-    providers: [ReportingService]
+    declarations: [CategoriesComponent, CategoryDetailsComponent, CategoryFormDialogComponent],
+    providers: [ReportingService],
+    exports: [CategoryFormDialogComponent]
 })
 export class CategoriesModule { }

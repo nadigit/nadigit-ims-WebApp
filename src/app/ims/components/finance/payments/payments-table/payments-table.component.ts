@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { LazyLoadEvent } from 'primeng/api';
 import { Payment } from 'src/app/models/payment';
-import { getPaymentMethodLabel, paymentMethodOptions } from 'src/app/shared/payment-utils';
+import { getPaymentMethodLabel, getPaymentMethodSeverity, getPaymentMethodIcon, paymentMethodOptions } from 'src/app/shared/payment-utils';
 import { ReconciliationValidationService } from 'src/app/services/reconciliation-validation.service';
 
 @Component({
@@ -103,6 +103,14 @@ export class PaymentsTableComponent implements OnInit {
     return getPaymentMethodLabel(paymentMethod);
   }
 
+  getPaymentMethodSeverity(paymentMethod: string): string {
+    return getPaymentMethodSeverity(paymentMethod);
+  }
+
+  getPaymentMethodIcon(paymentMethod: string): string {
+    return getPaymentMethodIcon(paymentMethod);
+  }
+
   // ⚠️ NEW: Check if payment is part of a multi-order/purchase payment
   isMultiPayment(payment: Payment): boolean {
     return !!(payment as any).isMultiPayment;
@@ -118,13 +126,13 @@ export class PaymentsTableComponent implements OnInit {
   }
 
   private initializePaymentFilters() {
-    // Payment statuses
+    // Payment statuses - synced with backend enum: PENDING, SETTLED, FAILED, REFUNDED, PARTIAL_REFUND
     this.paymentStatuses = [
-      { label: 'Settled', value: 'SETTLED' },
       { label: 'Pending', value: 'PENDING' },
-      { label: 'Overdue', value: 'OVERDUE' },
+      { label: 'Settled', value: 'SETTLED' },
       { label: 'Failed', value: 'FAILED' },
       { label: 'Refunded', value: 'REFUNDED' },
+      { label: 'Partial Refund', value: 'PARTIAL_REFUND' },
     ];
 
     // Payment methods

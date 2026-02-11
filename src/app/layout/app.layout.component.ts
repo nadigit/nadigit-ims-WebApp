@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, Renderer2, ViewChild } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { filter, firstValueFrom, Subscription } from 'rxjs';
+import { filter, firstValueFrom, interval, Subscription } from 'rxjs';
 import { LayoutService } from "./service/app.layout.service";
 import { AppSidebarComponent } from "./app.sidebar.component";
 import { AppTopBarComponent } from './app.topbar.component';
@@ -13,6 +13,8 @@ import { MessageService } from 'primeng/api';
 import { CashRegisterSession } from '../models/cashRegisterSession';
 import { Shop } from '../models/shop';
 import { ShopService } from '../services/shop.service';
+import { MaintenanceStatus } from '../models/maintenance';
+import { MaintenanceService } from '../services/maintenance.service';
 
 @Component({
     selector: 'app-layout',
@@ -22,6 +24,7 @@ import { ShopService } from '../services/shop.service';
 export class AppLayoutComponent implements OnDestroy, OnInit {
 
     overlayMenuOpenSubscription: Subscription;
+    maintenancePollingSub?: Subscription;
 
     menuOutsideClickListener: any;
 
@@ -78,6 +81,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     @ViewChild(AppTopBarComponent) appTopbar!: AppTopBarComponent;
 
     isPosRoute: boolean = false;
+    maintenanceStatus: MaintenanceStatus | null = null;
 
     constructor(public layoutService: LayoutService,
         public renderer: Renderer2,
@@ -87,6 +91,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         private cashRegisterService: CashRegisterService,
         private messageService: MessageService,
         private shopService: ShopService,
+        private maintenanceService: MaintenanceService,
     ) {
 
         // Detect POS routes to hide sidebar/topbar
@@ -130,6 +135,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             .subscribe(() => {
                 this.hideMenu();
                 this.hideProfileMenu();
+                this.loadMaintenanceStatus();
             });
     }
     async ngOnInit(): Promise<void> {
@@ -145,6 +151,8 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
         await this.setUserRoles();
         await this.onGetAllShops();
+        await this.loadMaintenanceStatus();
+        this.startMaintenancePolling();
     }
 
     async loadCashRegisterSession(shopId?: number): Promise<void> {
@@ -296,6 +304,10 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (this.menuOutsideClickListener) {
             this.menuOutsideClickListener();
         }
+        if (this.maintenancePollingSub) {
+            this.maintenancePollingSub.unsubscribe();
+            this.maintenancePollingSub = undefined;
+        }
     }
 
     async login() {
@@ -384,6 +396,57 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             console.log('Copied to clipboard:', text);
         } catch (err) {
             console.error('Failed to copy:', err);
+        }
+    }
+
+    async loadMaintenanceStatus(): Promise<void> {
+        try {
+            const status$ = await this.maintenanceService.getStatus();
+            this.maintenanceStatus = await firstValueFrom(status$);
+        } catch (error) {
+            // Avoid noisy errors for background polling
+            this.maintenanceStatus = this.maintenanceStatus || null;
+        }
+    }
+
+    startMaintenancePolling(): void {
+        if (this.maintenancePollingSub) {
+            return;
+        }
+        this.maintenancePollingSub = interval(30000).subscribe(async () => {
+            await this.loadMaintenanceStatus();
+        });
+    }
+
+    getMaintenanceBannerText(): string {
+        if (!this.maintenanceStatus?.enabled) {
+            return '';
+        }
+        if (this.maintenanceStatus.message) {
+            return `${this.translate.instant('maintenance_banner_message')}: ${this.maintenanceStatus.message}`;
+        }
+        return this.translate.instant('maintenance_banner_active');
+    }
+
+    formatLicenseExpirationDate(): string {
+        const expiresAtStr = this.layoutService.systemInfo?.licenseExpiresAt;
+        if (!expiresAtStr) {
+            return 'Loading...';
+        }
+        try {
+            // Extract just the date part (YYYY-MM-DD) from ISO string
+            const date = new Date(expiresAtStr);
+            if (isNaN(date.getTime())) {
+                return expiresAtStr.split('T')[0]; // Fallback: try to extract date from string
+            }
+            // Format as YYYY-MM-DD
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        } catch (e) {
+            // Fallback: try to extract date part from string
+            return expiresAtStr.split('T')[0] || expiresAtStr;
         }
     }
 

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ShopsRoutingModule } from './shops-routing.module';
 import { ShopsComponent } from './shops.component';
 import { ShopDetailsComponent } from './shop-details/shop-details.component';
+import { ShopFormDialogComponent } from './shop-form-dialog/shop-form-dialog.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -63,7 +64,8 @@ import { DividerModule } from 'primeng/divider';
         BadgeModule,
         DividerModule
     ],
-    declarations: [ShopsComponent, ShopDetailsComponent],
+    declarations: [ShopsComponent, ShopDetailsComponent, ShopFormDialogComponent],
     providers: [ReportingService],
+    exports: [ShopFormDialogComponent],
 })
 export class ShopsModule { }

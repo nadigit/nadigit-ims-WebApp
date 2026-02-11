@@ -1,6 +1,6 @@
-import { Component, EventEmitter, OnInit, ViewChild } from '@angular/core';
+import { Component, EventEmitter, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
-import { MessageService } from 'primeng/api';
+import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateService } from '@ngx-translate/core';
@@ -25,11 +25,19 @@ import { CreditInfo } from 'src/app/models/credit-info';
 import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
 import { BankTransaction } from 'src/app/models/bank-transaction';
 import { firstValueFrom } from 'rxjs';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { DatePipe } from '@angular/common';
+
+interface LazyLoadEventExt extends LazyLoadEvent {
+  globalFilter?: string;
+  filters?: { [field: string]: any };
+}
 
 @Component({
   templateUrl: './refunds.component.html',
   styleUrls: ['./refunds.component.css', '../finance.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class RefundsComponent implements OnInit {
 
@@ -76,12 +84,14 @@ export class RefundsComponent implements OnInit {
   userRoles: any;
   isAdmin: boolean = false;
 
+  // Refund methods - values aligned with backend enum: CASH, CARD, CHECK, TRANSFER, BOE, DIGITAL_WALLET
   refundMethods = [
-    { value: 'Cash', label: 'refund_method_cash' },
-    { value: 'Card', label: 'refund_method_card' },
-    { value: 'Check', label: 'refund_method_check' },
+    { value: 'CASH', label: 'refund_method_cash' },
+    { value: 'CARD', label: 'refund_method_card' },
+    { value: 'CHECK', label: 'refund_method_check' },
+    { value: 'TRANSFER', label: 'refund_method_transfer' },
     { value: 'BOE', label: 'refund_method_boe' },
-    { value: 'Transfer', label: 'refund_method_transfer' },
+    { value: 'DIGITAL_WALLET', label: 'refund_method_digital_wallet' },
   ];
 
   canAddRefund: boolean = false;
@@ -97,8 +107,22 @@ export class RefundsComponent implements OnInit {
   selectedCustomer: Customer | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
+  showAdvancedFilters = false;
   
   maxRefundDate: Date;
+  
+  // Lazy loading properties
+  totalRecords: number = 0;
+  globalFilter: string = '';
+  lastLazyLoadEvent: LazyLoadEventExt = {
+    first: 0,
+    rows: 20,
+    sortField: 'refundDate',
+    sortOrder: -1
+  };
+  
+  isExporting: boolean = false;
+  exportProgress: string = '';
   bankAccounts: BankAccount[] = [];
   showBankAccountField: boolean = false;
   isBankAccountRequired: boolean = false;
@@ -124,14 +148,16 @@ export class RefundsComponent implements OnInit {
     private bankAccountService: BankAccountService,
     private paymentValidationService: PaymentValidationService,
     private customerCreditService: CustomerCreditService,
-    private reconciliationValidationService: ReconciliationValidationService) { }
+    private reconciliationValidationService: ReconciliationValidationService,
+    private organizationService: OrganizationService,
+    private datePipe: DatePipe,
+    private cdr: ChangeDetectorRef) { }
 
   async ngOnInit() {
     this.isLoading = true;
     this.maxRefundDate = new Date(); // Today's date
     this.maxRefundDate.setHours(23, 59, 59, 999); // Include entire current day
     await this.paymentValidationService.loadConfigurations();
-    await this.loadBankAccounts();
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -141,18 +167,22 @@ export class RefundsComponent implements OnInit {
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
-    this.onGetAllRefunds();
-    this.onGetAllCustomersWithUnpaidOrders(),
-      await this.setUserRoles(),
-      await this.checkPermissions();
+    
+    // Load data
+    await Promise.all([
+      this.loadBankAccounts(),
+      this.setUserRoles(),
+      this.checkPermissions(),
+    ]);
+    
     this.cols = [
       { field: 'refundId', header: this.translateService.instant('ID') },
-      { field: 'name', header: this.translateService.instant('refund_name') },
-      { field: 'email', header: this.translateService.instant('refund_email') },
-      { field: 'phoneNumber', header: this.translateService.instant('refund_phone_number') },
-      { field: 'country', header: this.translateService.instant('refund_country') },
-      { field: 'city', header: this.translateService.instant('refund_city') },
-      { field: 'address', header: this.translateService.instant('refund_address') },
+      { field: 'transactionId', header: this.translateService.instant('refund_transaction_id') },
+      { field: 'orderReturn.reference', header: this.translateService.instant('return_reference') },
+      { field: 'amount', header: this.translateService.instant('refund_amount') },
+      { field: 'refundMethod', header: this.translateService.instant('refund_method') },
+      { field: 'status', header: this.translateService.instant('refund_status') },
+      { field: 'refundDate', header: this.translateService.instant('refund_date') },
     ];
 
     this.returnStatuses = [
@@ -163,16 +193,18 @@ export class RefundsComponent implements OnInit {
       { label: 'Processing', value: 'PROCESSING' },
     ];
 
-    // Initialize refund statuses for filters (based on RefundStatus enum)
+    // Initialize refund statuses for filters (based on backend enum: PENDING, SETTLED, PARTIAL_REFUND, FAILED)
     this.refundStatuses = [
       { value: 'PENDING', label: 'refund_status_pending' },
-      { value: 'PROCESSING', label: 'refund_status_processing' },
-      { value: 'COMPLETED', label: 'refund_status_completed' },
-      { value: 'FAILED', label: 'refund_status_failed' },
-      { value: 'CANCELLED', label: 'refund_status_cancelled' }
+      { value: 'SETTLED', label: 'refund_status_settled' },
+      { value: 'PARTIAL_REFUND', label: 'refund_status_partial_refund' },
+      { value: 'FAILED', label: 'refund_status_failed' }
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+    
+    // Load first page of refunds
+    await this.loadRefunds();
   }
 
   async checkPermissions() {
@@ -555,45 +587,73 @@ export class RefundsComponent implements OnInit {
 
   @ViewChild('dt') dt!: Table;
 
+  onLazyLoad(event: LazyLoadEvent) {
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
+
+    this.updateLastLazyLoadEvent(extendedEvent);
+    this.loadRefunds();
+  }
+
+  updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    this.lastLazyLoadEvent = {
+      first: event.first || 0,
+      rows: event.rows || 20,
+      sortField: event.sortField || 'refundDate',
+      sortOrder: event.sortOrder || -1,
+      globalFilter: event.globalFilter || this.globalFilter,
+      filters: event.filters || this.lastLazyLoadEvent.filters || {}
+    };
+  }
+
   onGlobalFilter(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    if (this.dt) {
-      this.dt.filterGlobal(value, 'contains');
-    }
+    this.globalFilter = value;
+    this.lastLazyLoadEvent = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      globalFilter: this.globalFilter
+    };
+    this.loadRefunds();
   }
 
   onFilterChange() {
-    // Apply filters to the table
-    if (this.dt) {
-      const filters: any = {};
-      
-      if (this.selectedRefundStatus) {
-        filters['status'] = { value: this.selectedRefundStatus, matchMode: 'equals' };
-      }
-      
-      if (this.selectedRefundMethod) {
-        filters['method'] = { value: this.selectedRefundMethod, matchMode: 'equals' };
-      }
-      
-      if (this.selectedCustomer) {
-        // Filter by customer (using fullName field)
-        filters['fullName'] = { value: this.getCustomerDisplayName(this.selectedCustomer), matchMode: 'contains' };
-      }
-      
-      if (this.startDate || this.endDate) {
-        if (this.startDate && this.endDate) {
-          // Date range filter
-          filters['refundDate'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
-        } else if (this.startDate) {
-          filters['refundDate'] = { value: this.startDate, matchMode: 'dateIs' };
-        } else if (this.endDate) {
-          filters['refundDate'] = { value: this.endDate, matchMode: 'dateIs' };
-        }
-      }
-      
-      this.dt.filters = filters;
-      this.dt.filteredValue = null; // Trigger filtering
+    this.applyFilters();
+  }
+
+  applyFilters() {
+    const filters: any = {};
+    
+    if (this.selectedRefundStatus) {
+      filters['status'] = { value: this.selectedRefundStatus, matchMode: 'equals' };
     }
+    
+    if (this.selectedRefundMethod) {
+      filters['refundMethod'] = { value: this.selectedRefundMethod, matchMode: 'equals' };
+    }
+    
+    if (this.selectedCustomer) {
+      filters['customerId'] = { value: this.selectedCustomer, matchMode: 'equals' };
+    }
+    
+    if (this.startDate) {
+      filters['refundDateFrom'] = { value: this.startDate, matchMode: 'dateIs' };
+    }
+    
+    if (this.endDate) {
+      filters['refundDateTo'] = { value: this.endDate, matchMode: 'dateIs' };
+    }
+    
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      filters: filters
+    };
+    
+    this.updateLastLazyLoadEvent(lazyEvent);
+    this.loadRefunds();
   }
 
   clearFilters() {
@@ -602,54 +662,110 @@ export class RefundsComponent implements OnInit {
     this.selectedCustomer = null;
     this.startDate = null;
     this.endDate = null;
+    this.globalFilter = '';
     
-    if (this.dt) {
-      this.dt.filters = {};
-      this.dt.filteredValue = null;
-    }
+    this.lastLazyLoadEvent.first = 0;
+    this.lastLazyLoadEvent.filters = {};
+    
+    const resetEvent: LazyLoadEvent = {
+      first: 0,
+      rows: this.lastLazyLoadEvent.rows || 20,
+      sortField: 'refundDate',
+      sortOrder: -1
+    };
+    
+    this.onLazyLoad(resetEvent);
   }
 
   clear(table: Table) {
     table.clear();
   }
 
-  async onGetAllRefunds() {
-    await this.refundService.getRefunds()
-      .subscribe({
-        next: (response: any) => {
-          this.refunds = response;
-          this.refunds.forEach((refund: any) => {
-            refund.creationDate = new Date(<Date>refund.creationDate)
-            refund.refundDate = new Date(<Date>refund.refundDate)
-            if (refund.checkExpirationDate) {
-              refund.checkExpirationDate = new Date(<Date>refund.checkExpirationDate)
-            }
-            if (refund.boeExpirationDate) {
-              refund.boeExpirationDate = new Date(<Date>refund.boeExpirationDate)
-            }
-          });
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_refunds'),
-            life: 3000
-          });
-        },
-        complete: () => {
-          this.isLoading = false;
-          console.log(this.refunds)
+  loadRefunds() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    
+    // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
+    const filterPayload = filters || {};
+
+    this.refundService.getRefundsPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      filterPayload
+    ).subscribe({
+      next: (res: any) => {
+        // Assign the paginated refunds
+        this.refunds = res.page.content.map((r: any) => {
+          return {
+            ...r,
+            creationDate: r.creationDate ? new Date(r.creationDate) : null,
+            refundDate: r.refundDate ? new Date(r.refundDate) : null,
+            checkExpirationDate: r.checkExpirationDate ? new Date(r.checkExpirationDate) : null,
+            boeExpirationDate: r.boeExpirationDate ? new Date(r.boeExpirationDate) : null
+          };
+        });
+
+        // Assign total records from backend
+        this.totalRecords = res.totalRefunds || res.page?.totalElements || 0;
+
+        // Build unique customers list based on current refunds
+        this.loadUniqueCustomersFromRefunds();
+
+        this.isLoading = false;
+        
+        // Trigger change detection to ensure table updates
+        if (this.cdr) {
+          this.cdr.detectChanges();
         }
-      })
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_refunds'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+  /**
+   * Build a unique customers list from the currently loaded refunds,
+   * so the customer filter shows only customers that actually appear
+   * in the refunds table.
+   */
+  private loadUniqueCustomersFromRefunds() {
+    const customerMap = new Map<number, any>();
+
+    this.refunds.forEach(refund => {
+      const customer = refund.orderReturn?.order?.customer;
+      const customerId = customer?.customerId;
+      if (customer && customerId != null && !customerMap.has(customerId)) {
+        customerMap.set(customerId, customer);
+      }
+    });
+
+    this.customers = Array.from(customerMap.values());
+  }
+
+  async onGetAllRefunds() {
+    // For backward compatibility, call loadRefunds
+    this.loadRefunds();
   }
 
   async onDeleteRefund(id: any) {
     await this.refundService.deleteRefund(id)
       .subscribe({
         next: (response: any) => {
-          this.onGetAllRefunds();
+          this.loadRefunds();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -681,7 +797,7 @@ export class RefundsComponent implements OnInit {
             life: 3000
           });
 
-          this.onGetAllRefunds();
+          this.loadRefunds();
           resolve(true);
         },
         error: (err: any) => {
@@ -723,7 +839,7 @@ export class RefundsComponent implements OnInit {
     await this.refundService.updateRefund(id, refund)
       .subscribe({
         next: (response: any) => {
-          this.onGetAllRefunds();
+          this.loadRefunds();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -749,7 +865,7 @@ export class RefundsComponent implements OnInit {
     return new Promise((resolve) => {
       this.refundService.saveRefund(refund).subscribe({
         next: async (response: any) => {
-          this.onGetAllRefunds();
+          this.loadRefunds();
           
           // Check if credit was issued (non-cash refunds)
           const refundMethod = refund.refundMethod || response?.refundMethod;
@@ -801,25 +917,31 @@ export class RefundsComponent implements OnInit {
   }
 
   async onGetAllCustomersWithUnpaidOrders() {
-    await this.customerService.getCustomersWithUnpaidOrders()
-      .subscribe({
-        next: (response: any) => {
-          this.customers = response;
-          this.customers = this.customers.map(customer => ({
-            ...customer,
-            fullName: `${customer.firstName} ${customer.lastName}`
-          }));
-          console.log(this.customers);
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_customers'),
-            life: 3000
-          });
-        }
-      })
+    return new Promise<void>((resolve) => {
+      this.customerService.getCustomersWithUnpaidOrders()
+        .subscribe({
+          next: (response: any) => {
+            this.customers = Array.isArray(response) ? response : [];
+            this.customers = this.customers.map(customer => ({
+              ...customer,
+              fullName: `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim()
+            }));
+            console.log(this.customers);
+            resolve();
+          },
+          error: (err: any) => {
+            console.error('Error fetching customers with unpaid orders', err);
+            this.customers = [];
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('error_while_getting_customers'),
+              life: 3000
+            });
+            resolve();
+          }
+        });
+    });
   }
 
   async loadEligibleReturns() {
@@ -857,27 +979,258 @@ export class RefundsComponent implements OnInit {
     }
   }
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.refunds, 'refunds')
+  async exportPdf() {
+    if (this.isExporting) {
+      return;
+    }
+
+    this.isExporting = true;
+    this.exportProgress = this.translate.instant('preparing_export');
+
+    try {
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait'),
+        life: 3000
+      });
+
+      // Fetch all filtered refunds
+      let allRefunds: Refund[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100;
+
+      while (currentPage < maxPages) {
+        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        const response = await firstValueFrom(
+          this.refundService.getRefundsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageRefunds = response.page.content || [];
+        if (pageRefunds.length === 0) {
+          break;
+        }
+
+        allRefunds = allRefunds.concat(pageRefunds);
+        currentPage++;
+
+        if (pageRefunds.length < pageSize) {
+          break;
+        }
+      }
+
+      // Get organization's default locale for translation
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const originalLang = this.translate.currentLang;
+
+      // Temporarily switch language for export
+      if (defaultLocale !== originalLang) {
+        this.translate.use(defaultLocale);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Prepare export data
+      const exportData = allRefunds.map((refund: any) => {
+        const returnRef = refund.orderReturn?.reference || 'N/A';
+        const customerName = refund.orderReturn?.order?.customer 
+          ? `${refund.orderReturn.order.customer.firstName} ${refund.orderReturn.order.customer.lastName}`.trim() || refund.orderReturn.order.customer.companyName || 'N/A'
+          : 'N/A';
+        return {
+          [this.translate.instant('ID')]: refund.refundId || 'N/A',
+          [this.translate.instant('refund_transaction_id')]: refund.transactionId || 'N/A',
+          [this.translate.instant('return_reference')]: returnRef,
+          [this.translate.instant('refund_amount')]: refund.amount || 0,
+          [this.translate.instant('refund_method')]: refund.refundMethod ? this.translate.instant('payment_method_' + refund.refundMethod.toLowerCase()) : 'N/A',
+          [this.translate.instant('refund_status')]: refund.status ? this.translate.instant('refund_status_' + refund.status.toLowerCase()) : 'N/A',
+          [this.translate.instant('refund_date')]: refund.refundDate 
+            ? this.datePipe.transform(refund.refundDate, 'dd/MM/yyyy') || 'N/A'
+            : 'N/A',
+        };
+      });
+
+      // Translate column headers (excluding refundId)
+      const translatedColumns = this.exportColumns
+        .filter(col => col.dataKey !== 'refundId')
+        .map(col => ({
+          title: this.translate.instant(col.dataKey) || col.title,
+          dataKey: col.dataKey
+        }));
+
+      // Export PDF with title
+      this.reportingService.exportPdf(
+        translatedColumns,
+        exportData,
+        'refunds',
+        this.translate.instant('refunds_menu_title')
+      );
+
+      // Restore original language
+      if (defaultLocale !== originalLang) {
+        this.translate.use(originalLang);
+      }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('export_completed_successfully') + ` (${allRefunds.length} ${this.translate.instant('records')})`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting'),
+        life: 3000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the refunds array to avoid modifying the original array
-    const modifiedRefunds = this.refunds.map(refund => {
-      // Create a copy of the refund object to modify
-      const modifiedRefund = { ...refund };
+  async exportExcel() {
+    if (this.isExporting) {
+      return;
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedRefund.creationDate;
+    this.isExporting = true;
+    this.exportProgress = this.translate.instant('preparing_export');
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedRefund['columnToRemove'];
+    try {
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait'),
+        life: 3000
+      });
 
-      return modifiedRefund;
-    });
+      // Fetch all filtered refunds
+      let allRefunds: Refund[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedRefunds, 'refunds');
+      while (currentPage < maxPages) {
+        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        const response = await firstValueFrom(
+          this.refundService.getRefundsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageRefunds = response.page.content || [];
+        if (pageRefunds.length === 0) {
+          break;
+        }
+
+        allRefunds = allRefunds.concat(pageRefunds);
+        currentPage++;
+
+        if (pageRefunds.length < pageSize) {
+          break;
+        }
+      }
+
+      // Get organization's default locale for translation
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const originalLang = this.translate.currentLang;
+
+      // Temporarily switch language for export
+      if (defaultLocale !== originalLang) {
+        this.translate.use(defaultLocale);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Prepare export data (excluding refundId and creationDate)
+      const modifiedRefunds = allRefunds.map((refund: any) => {
+        const modifiedRefund: any = { ...refund };
+        
+        // Format date
+        if (refund.refundDate) {
+          modifiedRefund.refundDate = this.datePipe.transform(refund.refundDate, 'dd/MM/yyyy') || refund.refundDate;
+        }
+        
+        // Replace nested objects with readable values
+        if (refund.orderReturn) {
+          modifiedRefund.returnReference = refund.orderReturn.reference || 'N/A';
+          if (refund.orderReturn.order?.customer) {
+            const customer = refund.orderReturn.order.customer;
+            modifiedRefund.customerName = `${customer.firstName} ${customer.lastName}`.trim() || customer.companyName || 'N/A';
+          }
+        }
+        
+        // Translate enum values
+        if (refund.refundMethod) {
+          modifiedRefund.refundMethod = this.translate.instant('payment_method_' + refund.refundMethod.toLowerCase());
+        }
+        if (refund.status) {
+          modifiedRefund.status = this.translate.instant('refund_status_' + refund.status.toLowerCase());
+        }
+        
+        // Remove unwanted fields
+        delete modifiedRefund.refundId;
+        delete modifiedRefund.creationDate;
+        delete modifiedRefund.checkExpirationDate;
+        delete modifiedRefund.boeExpirationDate;
+        delete modifiedRefund.bankAccountId;
+        delete modifiedRefund.orderReturn;
+        delete modifiedRefund.transactionId;
+        
+        return modifiedRefund;
+      });
+
+      // Restore original language
+      if (defaultLocale !== originalLang) {
+        this.translate.use(originalLang);
+      }
+
+      // Export Excel
+      this.reportingService.exportExcel(modifiedRefunds, 'refunds');
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('export_completed_successfully') + ` (${allRefunds.length} ${this.translate.instant('records')})`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting'),
+        life: 3000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   getRefundedAmount(orderReturn: OrderReturn): number {

@@ -24,6 +24,7 @@ import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/s
 export class SalesPaymentDetailsPageComponent implements OnInit {
   paymentId!: number;
   payment: Payment | null = null;
+  payments: Payment[] = []; // All payments in the transaction
   isLoading: boolean = true;
   currency: string = 'USD';
   
@@ -118,8 +119,64 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
         return;
       }
 
-      // Load order details if orderId exists
-      if (this.payment.orderId) {
+      // Load all payments with the same transaction ID if it exists
+      if (this.payment.transactionId) {
+        try {
+          const transactionPayments = await firstValueFrom(
+            this.paymentService.getPaymentsByTransactionId(this.payment.transactionId)
+          );
+          if (Array.isArray(transactionPayments) && transactionPayments.length > 0) {
+            this.payments = transactionPayments;
+            // Load order details for all payments in the transaction
+            for (const payment of this.payments) {
+              if (payment.orderId && !payment.order) {
+                try {
+                  const order = await firstValueFrom(this.orderService.getOrder(payment.orderId));
+                  if (Array.isArray(order)) {
+                    payment.order = order[0] as Order;
+                  } else {
+                    payment.order = order as Order;
+                  }
+                } catch (error) {
+                  console.error('Error loading order:', error);
+                }
+              }
+            }
+          } else {
+            // No other payments found (404) - this is fine, use only the current payment
+            this.payments = [this.payment];
+          }
+        } catch (error: any) {
+          console.error('Error loading payments by transaction ID:', error);
+          const errorMessage = error?.message || 'Unknown error';
+          
+          // Handle specific error cases
+          if (errorMessage.includes('Invalid transaction ID')) {
+            this.messageService.add({
+              severity: 'warn',
+              summary: this.translate.instant('warning'),
+              detail: this.translate.instant('invalid_transaction_id'),
+              life: 4000
+            });
+          } else if (errorMessage.includes('Unauthorized')) {
+            this.messageService.add({
+              severity: 'error',
+              summary: this.translate.instant('error'),
+              detail: this.translate.instant('unauthorized_access'),
+              life: 4000
+            });
+          }
+          
+          // Fallback: only the current payment
+          this.payments = [this.payment];
+        }
+      } else {
+        // No transaction ID, only the current payment
+        this.payments = [this.payment];
+      }
+
+      // Load order details for the main payment if orderId exists
+      if (this.payment.orderId && !this.payment.order) {
         try {
           const order = await firstValueFrom(this.orderService.getOrder(this.payment.orderId));
           if (Array.isArray(order)) {
@@ -211,8 +268,44 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
   }
 
   getRemainingBalance(): number {
+    if (this.hasMultipleOrders()) {
+      // Calculate total remaining balance across all orders
+      return this.getTotalOrderAmount() - this.getTotalOrderPaid();
+    }
     if (!this.payment?.order?.totalAmount || !this.payment?.order?.totalPaid) return 0;
     return this.payment.order.totalAmount - this.payment.order.totalPaid;
+  }
+
+  getTotalOrderAmount(): number {
+    if (this.hasMultipleOrders()) {
+      return this.getOrdersInTransaction().reduce((sum, p) => {
+        return sum + (p.order?.totalAmount || 0);
+      }, 0);
+    }
+    return this.payment?.order?.totalAmount || 0;
+  }
+
+  getTotalOrderPaid(): number {
+    if (this.hasMultipleOrders()) {
+      return this.getOrdersInTransaction().reduce((sum, p) => {
+        return sum + (p.order?.totalPaid || 0);
+      }, 0);
+    }
+    return this.payment?.order?.totalPaid || 0;
+  }
+
+  getTotalPaymentAmount(): number {
+    if (this.hasMultipleOrders()) {
+      return this.getTotalAmountForTransaction();
+    }
+    return this.payment?.amount || 0;
+  }
+
+  getTotalCreditUsed(): number {
+    if (this.hasMultipleOrders()) {
+      return this.payments.reduce((sum, p) => sum + (p.creditAmountUsed || 0), 0);
+    }
+    return this.payment?.creditAmountUsed || 0;
   }
 
   isPaymentNotSettled(): boolean {
@@ -275,6 +368,27 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
   viewOrder(orderId: number): void {
     if (!orderId) return;
     this.router.navigate(['/sales/orders', orderId]);
+  }
+
+  hasMultipleOrders(): boolean {
+    return this.payments && this.payments.length > 1 && 
+           this.payments.some(p => p.orderId);
+  }
+
+  getOrdersInTransaction(): Payment[] {
+    return this.payments.filter(p => p.orderId);
+  }
+
+  getTotalAmountForTransaction(): number {
+    return this.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }
+
+  scrollToPayments(): void {
+    // Scroll to payment information section
+    const element = document.querySelector('.payment-information');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   printReceipt(receiptNumber: string): void {

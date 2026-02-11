@@ -50,6 +50,30 @@
   flex: 1 1 0%;
 }
 
+/* Quick Action Cards */
+.quick-action-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  transition: all 0.2s ease;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-action-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.quick-action-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Responsive font sizes for stat numbers */
 @media (max-width: 1200px) {
   .stat-number {

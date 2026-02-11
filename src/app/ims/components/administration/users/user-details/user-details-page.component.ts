@@ -278,6 +278,19 @@ export class UserDetailsPageComponent implements OnInit {
     return `${firstName} ${lastName}`.trim() || this.user.username || '';
   }
 
+  getRoleLabel(roleName: string): string {
+    if (!roleName) return '';
+    const key = `user_role_${roleName.toLowerCase()}`;
+    const translated = this.translate.instant(key);
+    if (translated && translated !== key) {
+      return translated;
+    }
+    return roleName
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   async loadUserEvents(): Promise<void> {
     if (!this.userId) return;
     
@@ -285,8 +298,8 @@ export class UserDetailsPageComponent implements OnInit {
     try {
       await this.authService.loadToken();
       
-      // Get events from last 30 days
-      const dateFrom = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      // Get events from last 365 days to find last login (even if it was a while ago)
+      const dateFrom = Date.now() - (365 * 24 * 60 * 60 * 1000);
       const dateTo = Date.now();
       
       const events = await firstValueFrom(
@@ -358,6 +371,61 @@ export class UserDetailsPageComponent implements OnInit {
       .map(([key, value]) => `${key}: ${value}`)
       .join(', ');
     return details || '-';
+  }
+
+  formatLastLoginDate(lastLoginDate: Date | number | null | undefined): string {
+    if (!lastLoginDate) {
+      // Try to get from events if available
+      const lastLoginEvent = this.userEvents.find(e => e.type === 'LOGIN');
+      if (lastLoginEvent && lastLoginEvent.time) {
+        const date = new Date(lastLoginEvent.time);
+        return date.toLocaleString(this.translate.currentLang || 'en', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+      return this.translate.instant('never') || 'Never';
+    }
+    
+    let date: Date;
+    if (typeof lastLoginDate === 'number') {
+      date = new Date(lastLoginDate);
+    } else {
+      date = new Date(lastLoginDate);
+    }
+    
+    if (isNaN(date.getTime())) {
+      return this.translate.instant('never') || 'Never';
+    }
+    
+    return date.toLocaleString(this.translate.currentLang || 'en', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  getLastLoginDate(): string {
+    // First try to get from user object if backend provides it
+    if (this.user?.lastLoginDate) {
+      return this.formatLastLoginDate(this.user.lastLoginDate);
+    }
+    
+    // Otherwise, extract from user events (most recent LOGIN event)
+    if (this.userEvents && this.userEvents.length > 0) {
+      // Find the most recent LOGIN event (events are already sorted by time descending)
+      const lastLoginEvent = this.userEvents.find(e => e.type === 'LOGIN' && e.time);
+      if (lastLoginEvent && lastLoginEvent.time) {
+        return this.formatLastLoginDate(lastLoginEvent.time);
+      }
+    }
+    
+    return this.translate.instant('never') || 'Never';
   }
 }
 

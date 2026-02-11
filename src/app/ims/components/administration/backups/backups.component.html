@@ -1,0 +1,539 @@
+<div class="backups-container">
+  <p-toast></p-toast>
+  <p-confirmDialog></p-confirmDialog>
+
+  <div class="backups-hero">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+      <div class="flex align-items-center gap-2 mb-3">
+        <button
+          pButton
+          pRipple
+          icon="pi pi-arrow-left"
+          class="p-button-text p-button-rounded p-button-plain back-button"
+          [pTooltip]="'back' | translate"
+          tooltipPosition="bottom"
+          (click)="goBack()"></button>
+        <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'backups_management' | translate }}</span>
+      </div>
+
+      <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+        <div class="flex align-items-center gap-4">
+          <div class="backups-hero-icon">
+            <i class="pi pi-database"></i>
+          </div>
+          <div>
+            <div class="flex align-items-center gap-3 mb-2">
+              <h1 class="m-0 text-900">{{ 'backups_management' | translate }}</h1>
+              <p-tag *ngIf="pollingActive" [value]="'polling_backups' | translate" severity="info" icon="pi pi-sync"></p-tag>
+            </div>
+            <div class="flex align-items-center gap-3 text-500">
+              <span class="flex align-items-center gap-2">
+                <i class="pi pi-shield"></i>
+                {{ 'manage_backups_and_retention' | translate }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            pButton
+            icon="pi pi-refresh"
+            class="p-button-outlined"
+            [label]="'refresh' | translate"
+            (click)="refresh()"
+            [disabled]="isLoadingBackups"></button>
+          <button
+            pButton
+            icon="pi pi-plus"
+            class="p-button-success"
+            [label]="'create_full_backup' | translate"
+            (click)="triggerFullBackup()"
+            [disabled]="isCreating || isLoadingConfig || (config && !config.enabled)">
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="backups-content">
+    <div class="backup-config-card">
+      <div class="card-header">
+        <h3 class="m-0">{{ 'backup_config' | translate }}</h3>
+        <p-tag
+          *ngIf="config"
+          [value]="config.enabled ? ('enabled' | translate) : ('disabled' | translate)"
+          [severity]="config.enabled ? 'success' : 'warning'">
+        </p-tag>
+      </div>
+      <div class="card-body" *ngIf="!isLoadingConfig; else configLoading">
+        <div *ngIf="config; else configEmpty">
+          <div class="config-grid">
+            <div class="config-item">
+              <span class="label">{{ 'base_directory' | translate }}</span>
+              <span class="value">{{ config.baseDir || '-' }}</span>
+            </div>
+            <div class="config-item">
+              <span class="label">{{ 'retention_days' | translate }}</span>
+              <span class="value">{{ config.retentionDays }}</span>
+            </div>
+            <div class="config-item">
+              <span class="label">{{ 'cron_schedule' | translate }}</span>
+              <span class="value">{{ config.cron || '-' }}</span>
+            </div>
+            <div class="config-item full-width">
+              <span class="label">{{ 'include_paths' | translate }}</span>
+              <div class="value">
+                <div *ngIf="config.includePaths?.length > 0; else noPaths">
+                  <div class="path-item" *ngFor="let path of config.includePaths">{{ path }}</div>
+                </div>
+                <ng-template #noPaths>
+                  <span>-</span>
+                </ng-template>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ng-template #configEmpty>
+          <p class="text-500 m-0">{{ 'no_backup_config' | translate }}</p>
+        </ng-template>
+      </div>
+      <ng-template #configLoading>
+        <div class="loading-block">
+          <p-progressSpinner [style]="{width: '28px', height: '28px'}"></p-progressSpinner>
+          <span>{{ 'loading' | translate }}</span>
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="backup-list-card">
+      <div class="card-header">
+        <h3 class="m-0">{{ 'backup_list' | translate }}</h3>
+      </div>
+      <p-table
+        [value]="backups"
+        [loading]="isLoadingBackups"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>{{ 'created_at' | translate }}</th>
+            <th>{{ 'status' | translate }}</th>
+            <th>{{ 'type' | translate }}</th>
+            <th>{{ 'created_by' | translate }}</th>
+            <th>{{ 'size' | translate }}</th>
+            <th>{{ 'checksum' | translate }}</th>
+            <th class="text-right">{{ 'actions' | translate }}</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-job>
+          <tr>
+            <td>{{ job.createdAt | date:'short' }}</td>
+            <td>
+              <p-tag [value]="getStatusLabel(job.status)" [severity]="getStatusSeverity(job.status)"></p-tag>
+            </td>
+            <td>{{ job.backupType || '-' }}</td>
+            <td>{{ job.createdBy || '-' }}</td>
+            <td>{{ formatBytes(job.sizeBytes) }}</td>
+            <td>
+              <span
+                *ngIf="job.checksumSha256; else checksumEmpty"
+                [pTooltip]="job.checksumSha256"
+                tooltipPosition="top"
+                class="checksum-text">
+                {{ job.checksumSha256 | slice:0:12 }}...
+              </span>
+              <ng-template #checksumEmpty>-</ng-template>
+            </td>
+            <td class="text-right">
+              <div class="actions">
+                <button
+                  pButton
+                  icon="pi pi-download"
+                  class="p-button-text"
+                  [pTooltip]="'download' | translate"
+                  tooltipPosition="top"
+                  (click)="download(job)"
+                  [disabled]="job.status !== 'SUCCESS'"></button>
+                <button
+                  pButton
+                  icon="pi pi-eye"
+                  class="p-button-text"
+                  [pTooltip]="'details' | translate"
+                  tooltipPosition="top"
+                  (click)="openDetails(job)"></button>
+                <button
+                  pButton
+                  icon="pi pi-trash"
+                  class="p-button-text p-button-danger"
+                  [pTooltip]="'delete' | translate"
+                  tooltipPosition="top"
+                  (click)="confirmDelete(job)"
+                  [disabled]="job.status === 'RUNNING'"></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" class="text-center text-500 py-4">
+              {{ 'no_backups_found' | translate }}
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+
+    <div class="restore-card">
+      <div class="card-header">
+        <div class="flex align-items-center gap-2">
+          <h3 class="m-0">{{ 'restore_management' | translate }}</h3>
+          <p-tag *ngIf="restorePollingActive" [value]="'polling_restores' | translate" severity="info" icon="pi pi-sync"></p-tag>
+        </div>
+        <p-tag
+          *ngIf="restoreConfig"
+          [value]="restoreConfig.enabled ? ('enabled' | translate) : ('disabled' | translate)"
+          [severity]="restoreConfig.enabled ? 'success' : 'warning'">
+        </p-tag>
+      </div>
+
+      <div class="restore-warning">
+        <i class="pi pi-exclamation-triangle"></i>
+        <div class="warning-text">
+          <div>{{ 'restore_warning_line_1' | translate }}</div>
+          <div>{{ 'restore_warning_line_2' | translate }}</div>
+          <div *ngIf="restoreConfig?.warning" class="warning-server">{{ restoreConfig.warning }}</div>
+        </div>
+      </div>
+
+      <div *ngIf="restoreConfig && !restoreConfig.enabled" class="restore-disabled">
+        <i class="pi pi-lock"></i>
+        <span>{{ getRestoreDisabledMessage() }}</span>
+      </div>
+
+      <div class="restore-form" *ngIf="!isLoadingRestoreConfig; else restoreConfigLoading">
+        <div class="restore-settings-section" *ngIf="!isLoadingRestoreSettings; else restoreSettingsLoading">
+          <div class="section-header">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-sliders-h"></i>
+              <span class="section-title">{{ 'restore_settings' | translate }}</span>
+            </div>
+            <p-tag
+              [value]="isRestoreEnabled() ? ('enabled' | translate) : ('disabled' | translate)"
+              [severity]="isRestoreEnabled() ? 'success' : 'warning'">
+            </p-tag>
+          </div>
+          <div class="settings-status">
+            <span class="label">{{ 'restore_server_master' | translate }}</span>
+            <p-tag
+              [value]="restoreSettings?.serverMasterEnabled ? ('enabled' | translate) : ('disabled' | translate)"
+              [severity]="restoreSettings?.serverMasterEnabled ? 'success' : 'warning'">
+            </p-tag>
+          </div>
+          <div class="settings-status">
+            <span class="label">{{ 'restore_db_toggle' | translate }}</span>
+            <p-tag
+              [value]="restoreSettings?.enabled ? ('enabled' | translate) : ('disabled' | translate)"
+              [severity]="restoreSettings?.enabled ? 'success' : 'warning'">
+            </p-tag>
+          </div>
+          <div class="restore-settings-actions">
+            <button
+              pButton
+              icon="pi pi-check-circle"
+              class="p-button-success"
+              [label]="'enable_restore' | translate"
+              (click)="confirmEnableRestore()"
+              [disabled]="isUpdatingRestoreSettings || !restoreSettings?.serverMasterEnabled || restoreSettings?.enabled">
+            </button>
+            <button
+              pButton
+              icon="pi pi-times-circle"
+              class="p-button-outlined"
+              [label]="'disable_restore' | translate"
+              (click)="confirmDisableRestore()"
+              [disabled]="isUpdatingRestoreSettings || !restoreSettings?.enabled">
+            </button>
+          </div>
+          <div *ngIf="!restoreSettings?.serverMasterEnabled" class="restore-disabled">
+            <i class="pi pi-lock"></i>
+            <span>{{ 'restore_disabled_server_master' | translate }}</span>
+          </div>
+        </div>
+        <ng-template #restoreSettingsLoading>
+          <div class="loading-block">
+            <p-progressSpinner [style]="{width: '28px', height: '28px'}"></p-progressSpinner>
+            <span>{{ 'loading' | translate }}</span>
+          </div>
+        </ng-template>
+
+        <div class="maintenance-section">
+          <div class="section-header">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-shield"></i>
+              <span class="section-title">{{ 'maintenance_mode' | translate }}</span>
+            </div>
+            <p-tag
+              [value]="maintenanceStatus?.enabled ? ('enabled' | translate) : ('disabled' | translate)"
+              [severity]="maintenanceStatus?.enabled ? 'success' : 'warning'">
+            </p-tag>
+          </div>
+          <p class="text-500 m-0">
+            {{ 'maintenance_step_description' | translate }}
+          </p>
+          <div class="maintenance-message">
+            <label class="label">{{ 'maintenance_message' | translate }}</label>
+            <textarea
+              pInputTextarea
+              [rows]="2"
+              [(ngModel)]="maintenanceMessage"
+              [placeholder]="'maintenance_message_placeholder' | translate"
+              [disabled]="maintenanceStatus?.enabled || isUpdatingMaintenance">
+            </textarea>
+          </div>
+          <div class="maintenance-actions">
+            <button
+              pButton
+              icon="pi pi-lock"
+              class="p-button-warning"
+              [label]="'enable_maintenance' | translate"
+              (click)="confirmEnableMaintenance()"
+              [disabled]="isUpdatingMaintenance || maintenanceStatus?.enabled || !isRestoreEnabled()">
+            </button>
+            <button
+              pButton
+              icon="pi pi-lock-open"
+              class="p-button-outlined"
+              [label]="'disable_maintenance' | translate"
+              (click)="confirmDisableMaintenance()"
+              [disabled]="isUpdatingMaintenance || !maintenanceStatus?.enabled || hasRunningRestoreJobs()">
+            </button>
+          </div>
+          <div *ngIf="maintenanceStatus?.enabled" class="maintenance-note">
+            <i class="pi pi-info-circle"></i>
+            <span>
+              {{ 'maintenance_enabled_note' | translate }}
+              <span *ngIf="maintenanceStatus?.message"> - {{ maintenanceStatus?.message }}</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label>{{ 'select_backup' | translate }}</label>
+            <p-dropdown
+              [options]="backupOptions"
+              [placeholder]="'select_backup' | translate"
+              optionLabel="label"
+              optionValue="value"
+              [(ngModel)]="selectedRestoreBackup"
+              (onChange)="onRestoreBackupChange($event.value)"
+              [disabled]="!isRestoreEnabled() || backupOptions.length === 0">
+            </p-dropdown>
+          </div>
+          <div class="form-field">
+            <label>{{ 'file_mode' | translate }}</label>
+            <p-dropdown
+              [options]="[
+                { label: ('file_mode_overwrite' | translate), value: 'OVERWRITE' },
+                { label: ('file_mode_keep_old' | translate), value: 'KEEP_OLD_FILES' }
+              ]"
+              [(ngModel)]="restoreForm.fileMode"
+              [disabled]="!isRestoreEnabled()">
+            </p-dropdown>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <p-checkbox [(ngModel)]="restoreForm.restoreDatabase" binary="true" [disabled]="!isRestoreEnabled()"></p-checkbox>
+          <span>{{ 'restore_database' | translate }}</span>
+        </div>
+        <div class="toggle-row">
+          <p-checkbox [(ngModel)]="restoreForm.restoreFiles" binary="true" [disabled]="!isRestoreEnabled()"></p-checkbox>
+          <span>{{ 'restore_files' | translate }}</span>
+        </div>
+        <div class="toggle-row">
+          <p-checkbox [(ngModel)]="restoreForm.createSafetyBackup" binary="true" [disabled]="!isRestoreEnabled()"></p-checkbox>
+          <span>{{ 'create_safety_backup' | translate }}</span>
+        </div>
+
+        <div class="confirm-row" *ngIf="selectedRestoreBackup">
+          <div class="confirm-header">
+            <span class="label">{{ 'confirm_phrase' | translate }}</span>
+            <button
+              pButton
+              icon="pi pi-copy"
+              class="p-button-text"
+              [label]="'copy_confirm_phrase' | translate"
+              (click)="copyConfirmPhrase()"
+            [disabled]="!isRestoreEnabled()">
+            </button>
+          </div>
+          <div class="confirm-phrase">{{ getExpectedConfirmPhrase() }}</div>
+          <input
+            pInputText
+            type="text"
+            [(ngModel)]="restoreForm.confirmPhrase"
+            [placeholder]="'confirm_phrase_placeholder' | translate"
+            [disabled]="!isRestoreEnabled()">
+        </div>
+
+        <div class="restore-actions">
+          <button
+            pButton
+            icon="pi pi-play"
+            class="p-button-danger"
+            [label]="'start_restore' | translate"
+            (click)="startRestore()"
+            [disabled]="isRestoring || !isRestoreEnabled() || !selectedRestoreBackup || !isConfirmPhraseValid() || !maintenanceStatus?.enabled">
+          </button>
+        </div>
+      </div>
+
+      <ng-template #restoreConfigLoading>
+        <div class="loading-block">
+          <p-progressSpinner [style]="{width: '28px', height: '28px'}"></p-progressSpinner>
+          <span>{{ 'loading' | translate }}</span>
+        </div>
+      </ng-template>
+
+      <div class="restore-jobs">
+        <div class="card-header">
+          <h3 class="m-0">{{ 'restore_jobs' | translate }}</h3>
+        </div>
+        <p-table
+          [value]="restoreJobs"
+          [loading]="isLoadingRestoreJobs"
+          [paginator]="true"
+          [rows]="10"
+          [rowsPerPageOptions]="[10, 20, 50]"
+          responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>{{ 'status' | translate }}</th>
+              <th>{{ 'created_at' | translate }}</th>
+              <th>{{ 'source_backup' | translate }}</th>
+              <th>{{ 'safety_backup' | translate }}</th>
+              <th>{{ 'rollback_status' | translate }}</th>
+              <th class="text-right">{{ 'actions' | translate }}</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-job>
+            <tr>
+              <td>
+                <p-tag [value]="getRestoreStatusLabel(job.status)" [severity]="getRestoreStatusSeverity(job.status)"></p-tag>
+              </td>
+              <td>{{ job.createdAt | date:'short' }}</td>
+              <td>{{ job.sourceBackupJobId ? ('#' + job.sourceBackupJobId) : '-' }}</td>
+              <td>{{ job.safetyBackupJobId ? ('#' + job.safetyBackupJobId) : '-' }}</td>
+              <td>{{ getRollbackLabel(job) }}</td>
+              <td class="text-right">
+                <button
+                  pButton
+                  icon="pi pi-eye"
+                  class="p-button-text"
+                  [pTooltip]="'details' | translate"
+                  tooltipPosition="top"
+                  (click)="selectedRestoreJob = job; detailsDialog = true">
+                </button>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="6" class="text-center text-500 py-4">
+                {{ 'no_restore_jobs_found' | translate }}
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+  </div>
+
+  <p-dialog
+    [(visible)]="detailsDialog"
+    [modal]="true"
+    [style]="{width: '520px'}"
+    [header]="selectedJob ? ('backup_details' | translate) : ('restore_details' | translate)"
+    [draggable]="false"
+    [resizable]="false">
+    <div *ngIf="selectedJob" class="details-grid">
+      <div class="detail-row">
+        <span class="label">{{ 'status' | translate }}</span>
+        <p-tag [value]="getStatusLabel(selectedJob.status)" [severity]="getStatusSeverity(selectedJob.status)"></p-tag>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'type' | translate }}</span>
+        <span>{{ selectedJob.backupType || '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'created_at' | translate }}</span>
+        <span>{{ selectedJob.createdAt | date:'medium' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'started_at' | translate }}</span>
+        <span>{{ selectedJob.startedAt | date:'medium' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'finished_at' | translate }}</span>
+        <span>{{ selectedJob.finishedAt | date:'medium' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'size' | translate }}</span>
+        <span>{{ formatBytes(selectedJob.sizeBytes) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'checksum' | translate }}</span>
+        <span class="break-all">{{ selectedJob.checksumSha256 || '-' }}</span>
+      </div>
+      <div class="detail-row full-width" *ngIf="selectedJob.errorMessage">
+        <span class="label">{{ 'error_message' | translate }}</span>
+        <span class="error-text">{{ selectedJob.errorMessage }}</span>
+      </div>
+    </div>
+    <div *ngIf="!selectedJob && selectedRestoreJob" class="details-grid">
+      <div class="detail-row">
+        <span class="label">{{ 'status' | translate }}</span>
+        <p-tag [value]="getRestoreStatusLabel(selectedRestoreJob.status)" [severity]="getRestoreStatusSeverity(selectedRestoreJob.status)"></p-tag>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'source_backup' | translate }}</span>
+        <span>{{ selectedRestoreJob.sourceBackupJobId ? ('#' + selectedRestoreJob.sourceBackupJobId) : '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'safety_backup' | translate }}</span>
+        <span>{{ selectedRestoreJob.safetyBackupJobId ? ('#' + selectedRestoreJob.safetyBackupJobId) : '-' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'created_at' | translate }}</span>
+        <span>{{ selectedRestoreJob.createdAt | date:'medium' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'started_at' | translate }}</span>
+        <span>{{ selectedRestoreJob.startedAt | date:'medium' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'finished_at' | translate }}</span>
+        <span>{{ selectedRestoreJob.finishedAt | date:'medium' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">{{ 'rollback_status' | translate }}</span>
+        <span>{{ getRollbackLabel(selectedRestoreJob) }}</span>
+      </div>
+      <div class="detail-row full-width" *ngIf="selectedRestoreJob.errorMessage">
+        <span class="label">{{ 'error_message' | translate }}</span>
+        <span class="error-text">{{ selectedRestoreJob.errorMessage }}</span>
+      </div>
+      <div class="detail-row full-width" *ngIf="selectedRestoreJob.rollbackErrorMessage">
+        <span class="label">{{ 'rollback_error_message' | translate }}</span>
+        <span class="error-text">{{ selectedRestoreJob.rollbackErrorMessage }}</span>
+      </div>
+    </div>
+  </p-dialog>
+</div>

@@ -10,24 +10,48 @@ export enum WriteOffStatus {
 }
 
 export enum WriteOffSourceType {
+  MANUAL_ADJUSTMENT = 'MANUAL_ADJUSTMENT',
   ORDER_RETURN = 'ORDER_RETURN',
   PURCHASE_RETURN = 'PURCHASE_RETURN',
-  MANUAL_ADJUSTMENT = 'MANUAL_ADJUSTMENT',
   EXPIRATION = 'EXPIRATION',
   DAMAGE_INCIDENT = 'DAMAGE_INCIDENT',
   THEFT = 'THEFT',
   QUALITY_CONTROL = 'QUALITY_CONTROL'
 }
 
+// Request interface for creating write-offs
+export interface CreateWriteOffRequest {
+  productId: number;
+  warehouseId: number;
+  quantity: number;
+  condition: ItemCondition | string;
+  batchId?: number;
+  reason?: string;
+  sourceType?: WriteOffSourceType | string;
+  notes?: string;
+}
+
 export interface InventoryWriteOff {
   writeOffId?: number;
   reference?: string; // e.g., "WOF-2026-00001"
+  // Request fields (IDs)
+  productId?: number;
+  warehouseId?: number;
+  batchId?: number;
+  // Response fields (full details)
+  productName?: string;
+  productReference?: string;
+  warehouseName?: string;
+  batchNumber?: string;
+  batchExpirationDate?: string;
+  // Legacy fields (for backward compatibility)
   product?: Product;
   warehouse?: Warehouse;
-  batch?: ProductBatch | null; // Optional - if from specific batch
+  batch?: ProductBatch | null;
+  // Common fields
   quantity: number;
   condition: ItemCondition | string; // DAMAGED, UNUSABLE, LOST, EXPIRED
-  sourceType: WriteOffSourceType | string; // ORDER_RETURN, PURCHASE_RETURN, MANUAL_ADJUSTMENT, etc.
+  sourceType: WriteOffSourceType | string; // MANUAL_ADJUSTMENT, ORDER_RETURN, etc.
   writeOffCost?: number; // Total cost (quantity * buying price)
   reason?: string;
   sourceReference?: string; // Reference to return/order

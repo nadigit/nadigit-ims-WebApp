@@ -86,34 +86,40 @@
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'payment_amount' | translate }}</span>
-                    <div class="stat-value">{{ payment.amount | number:'1.2-2' }}</div>
+                    <div class="stat-value">{{ getTotalPaymentAmount() | number:'1.2-2' }}</div>
                     <span class="stat-sub">{{ currency }}</span>
+                    <small class="text-500 text-xs" *ngIf="hasMultiplePurchases()">
+                        {{ 'multiple_payments_in_transaction' | translate: { count: payments.length } }}
+                    </small>
                 </div>
             </div>
             
-            <div class="stat-card-modern" *ngIf="payment.purchase">
+            <div class="stat-card-modern" *ngIf="hasMultiplePurchases() || payment.purchase">
                 <div class="stat-icon purchase">
                     <i class="pi pi-receipt"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'purchase_total' | translate }}</span>
-                    <div class="stat-value">{{ payment.purchase.totalAmount | number:'1.2-2' }}</div>
+                    <div class="stat-value">{{ getTotalPurchaseAmount() | number:'1.2-2' }}</div>
                     <span class="stat-sub">{{ currency }}</span>
+                    <small class="text-500 text-xs" *ngIf="hasMultiplePurchases()">
+                        {{ getPurchasesInTransaction().length }} {{ 'purchases' | translate }}
+                    </small>
                 </div>
             </div>
             
-            <div class="stat-card-modern" *ngIf="payment.purchase">
+            <div class="stat-card-modern" *ngIf="hasMultiplePurchases() || payment.purchase">
                 <div class="stat-icon paid">
                     <i class="pi pi-check-circle"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'paid_amount' | translate }}</span>
-                    <div class="stat-value">{{ payment.purchase.totalPaid | number:'1.2-2' }}</div>
+                    <div class="stat-value">{{ getTotalPurchasePaid() | number:'1.2-2' }}</div>
                     <span class="stat-sub">{{ currency }}</span>
                 </div>
             </div>
             
-            <div class="stat-card-modern" *ngIf="payment.purchase">
+            <div class="stat-card-modern" *ngIf="hasMultiplePurchases() || payment.purchase">
                 <div class="stat-icon remaining" [class.zero]="getPurchaseRemainingBalance() <= 0">
                     <i class="pi pi-hourglass"></i>
                 </div>
@@ -186,7 +192,10 @@
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'payment_amount' | translate }}</span>
-                                            <span class="info-value text-primary font-bold text-xl">{{ payment.amount | number:'1.2-2' }} {{ currency }}</span>
+                                            <span class="info-value text-primary font-bold text-xl">{{ getTotalPaymentAmount() | number:'1.2-2' }} {{ currency }}</span>
+                                            <small class="text-500 text-xs block mt-1" *ngIf="hasMultiplePurchases()">
+                                                {{ 'multiple_payments_in_transaction' | translate: { count: payments.length } }}
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
@@ -337,8 +346,82 @@
                     
                     <!-- Right Column - Purchase & Actions -->
                     <div class="col-12 lg:col-6">
-                        <!-- Purchase Card -->
-                        <div class="detail-card mb-4" *ngIf="payment?.purchaseId">
+                        <!-- Multiple Purchases Card -->
+                        <div class="detail-card mb-4" *ngIf="hasMultiplePurchases()">
+                            <div class="card-header">
+                                <i class="pi pi-receipt"></i>
+                                <span>{{ 'multiple_purchases' | translate }}</span>
+                                <p-badge [value]="getPurchasesInTransaction().length.toString()" 
+                                    severity="info" class="ml-2"></p-badge>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3 p-3 border-round surface-100">
+                                    <div class="flex align-items-center justify-content-between mb-2">
+                                        <span class="text-600 font-semibold">{{ 'transaction_id' | translate }}:</span>
+                                        <span class="font-mono font-bold">{{ payment?.transactionId }}</span>
+                                    </div>
+                                    <div class="flex align-items-center justify-content-between">
+                                        <span class="text-600 font-semibold">{{ 'total_payment_amount' | translate }}:</span>
+                                        <span class="font-bold text-primary text-xl">{{ getTotalAmountForTransaction() | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
+                                    <div class="mt-2 pt-2 border-top-1 surface-border">
+                                        <small class="text-500">
+                                            <i class="pi pi-info-circle mr-1"></i>
+                                            {{ 'multiple_payments_in_transaction' | translate: { count: payments.length } }}
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <p-table [value]="getPurchasesInTransaction()" 
+                                    styleClass="p-datatable-sm"
+                                    [paginator]="false"
+                                    [rows]="10">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th>{{ 'purchase_reference' | translate }}</th>
+                                            <th>{{ 'amount' | translate }}</th>
+                                            <th>{{ 'actions' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="body" let-paymentItem>
+                                        <tr>
+                                            <td>
+                                                <div class="flex align-items-center gap-2">
+                                                    <i class="pi pi-receipt text-primary"></i>
+                                                    <span class="font-semibold">
+                                                        #{{ paymentItem.purchaseReference || paymentItem.purchase?.reference || paymentItem.purchaseId }}
+                                                    </span>
+                                                </div>
+                                                <small class="text-500" *ngIf="paymentItem.purchase?.dateOfPurchase">
+                                                    {{ paymentItem.purchase.dateOfPurchase | date:'shortDate' }}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <span class="font-semibold">{{ paymentItem.amount | number:'1.2-2' }} {{ currency }}</span>
+                                            </td>
+                                            <td>
+                                                <button pButton pRipple 
+                                                    icon="pi pi-external-link" 
+                                                    [pTooltip]="'view_purchase' | translate"
+                                                    class="p-button-rounded p-button-text p-button-sm"
+                                                    (click)="viewPurchase(paymentItem.purchaseId)"></button>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                                
+                                <div class="mt-3">
+                                    <button pButton pRipple 
+                                        icon="pi pi-list" 
+                                        [label]="'click_to_view_all_payments' | translate"
+                                        class="p-button-outlined p-button-sm w-full"
+                                        (click)="scrollToPayments()"></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Single Purchase Card -->
+                        <div class="detail-card mb-4" *ngIf="payment?.purchaseId && !hasMultiplePurchases()">
                             <div class="card-header">
                                 <i class="pi pi-receipt"></i>
                                 <span>{{ 'purchase_information' | translate }}</span>
@@ -352,7 +435,7 @@
                                     <div class="purchase-details mt-3" *ngIf="payment?.purchase">
                                         <div class="purchase-detail-row">
                                             <span class="purchase-label">{{ 'purchase_date' | translate }}</span>
-                                            <span class="purchase-value">{{ payment.purchase.purchaseDate | date:'shortDate' }}</span>
+                                            <span class="purchase-value">{{ payment.purchase.dateOfPurchase | date:'shortDate' }}</span>
                                         </div>
                                         <div class="purchase-detail-row">
                                             <span class="purchase-label">{{ 'total_amount' | translate }}</span>

@@ -14,6 +14,7 @@ import { FinancialDocumentsService } from 'src/app/services/financial-documents.
 import { Product } from 'src/app/models/product';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
+import { FinancialDocument } from 'src/app/models/financialDocument';
 import { firstValueFrom } from 'rxjs';
 import { getPaymentStatusSeverity } from 'src/app/shared/payment-utils';
 
@@ -53,6 +54,21 @@ export class OrderDetailsPageComponent implements OnInit {
   images: any[] = [];
   
   taxRate: number = 0.0;
+  proformaInvoiceDocNumber: string | null = null;
+  invoiceDocNumber: string | null = null;
+  purchaseOrderDocNumber: string | null = null;
+  deliveryOrderDocNumber: string | null = null;
+  quoteDocNumber: string | null = null;
+  
+  // Status guide visibility (persisted in localStorage)
+  showStatusGuide: boolean = true;
+
+  // Financial document generation loading flags
+  isGeneratingInvoice: boolean = false;
+  isGeneratingProformaInvoice: boolean = false;
+  isGeneratingPurchaseOrder: boolean = false;
+  isGeneratingDeliveryOrder: boolean = false;
+  isGeneratingQuote: boolean = false;
   
   responsiveOptions: any[] = [
     {
@@ -90,6 +106,10 @@ export class OrderDetailsPageComponent implements OnInit {
     // Load token first
     this.orderService.loadToken();
     
+    // Load status guide visibility preference from localStorage
+    const savedPreference = localStorage.getItem('orderDetails_showStatusGuide');
+    this.showStatusGuide = savedPreference !== 'false'; // Default to true if not set
+    
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -117,6 +137,16 @@ export class OrderDetailsPageComponent implements OnInit {
       await this.initializeEvents();
       await this.loadOrder();
     });
+  }
+
+  hideStatusGuide() {
+    this.showStatusGuide = false;
+    localStorage.setItem('orderDetails_showStatusGuide', 'false');
+  }
+
+  showStatusGuideAgain() {
+    this.showStatusGuide = true;
+    localStorage.setItem('orderDetails_showStatusGuide', 'true');
   }
 
   async initializeEvents() {
@@ -218,6 +248,11 @@ export class OrderDetailsPageComponent implements OnInit {
 
       await this.onGetOrderPayments(this.order.orderId);
       await this.onGetAllOrderReturn(this.order.orderId);
+      await this.checkForProformaInvoice(this.order.orderId);
+      await this.checkForInvoice(this.order.orderId);
+      await this.checkForPurchaseOrder(this.order.orderId);
+      await this.checkForDeliveryOrder(this.order.orderId);
+      await this.checkForQuote(this.order.orderId);
       
       this.images = [];
       if (this.order.orderItems) {
@@ -449,6 +484,16 @@ export class OrderDetailsPageComponent implements OnInit {
     }
   }
 
+  // Navigate back to orders list and open the order in edit mode
+  editOrder(): void {
+    if (!this.order || !this.order.orderId) {
+      return;
+    }
+    this.router.navigate(['/sales/orders'], {
+      queryParams: { editOrderId: this.order.orderId }
+    });
+  }
+
   getOrderSubtotal(): number {
     if (!this.order?.orderItems) return 0;
     return this.order.orderItems.reduce((total, item) =>
@@ -596,6 +641,8 @@ export class OrderDetailsPageComponent implements OnInit {
   }
 
   generateInvoice(order: Order) {
+    if (!order?.orderId) { return; }
+    this.isGeneratingInvoice = true;
     this.financialDocService.generateInvoiceFromOrder(order.orderId).subscribe({
       next: (response: any) => {
         this.messageService.add({
@@ -604,7 +651,7 @@ export class OrderDetailsPageComponent implements OnInit {
           detail: this.translate.instant('invoice_generated_successfully'),
           life: 3000
         });
-        // Reload order to get updated invoice status
+        // Reload order to get updated document status
         this.loadOrder();
       },
       error: (error: any) => {
@@ -614,11 +661,54 @@ export class OrderDetailsPageComponent implements OnInit {
           detail: this.translate.instant('error_while_generating_invoice'),
           life: 3000
         });
+      },
+      complete: () => {
+        this.isGeneratingInvoice = false;
       }
     });
   }
 
+  async checkForProformaInvoice(orderId: number): Promise<void> {
+    try {
+      this.financialDocService.loadToken();
+      const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
+      const financialDocs = this.extractFinancialDocs(response);
+      const proformaInvoice = financialDocs.find(
+        (doc: FinancialDocument) => 
+          doc.docType === 'PROFORMA_INVOICE' && 
+          doc.order?.orderId === orderId
+      );
+      
+      this.proformaInvoiceDocNumber = proformaInvoice?.docNumber || null;
+    } catch (error: any) {
+      console.error('Error checking for proforma invoice:', error);
+      // Don't show error to user, just log it
+      this.proformaInvoiceDocNumber = null;
+    }
+  }
+
+  async checkForInvoice(orderId: number): Promise<void> {
+    try {
+      this.financialDocService.loadToken();
+      const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
+      const financialDocs = this.extractFinancialDocs(response);
+      const invoice = financialDocs.find(
+        (doc: FinancialDocument) => 
+          doc.docType === 'INVOICE' && 
+          doc.order?.orderId === orderId
+      );
+      
+      this.invoiceDocNumber = invoice?.docNumber || null;
+    } catch (error: any) {
+      console.error('Error checking for invoice:', error);
+      // Don't show error to user, just log it
+      this.invoiceDocNumber = null;
+    }
+  }
+
   generateProformaInvoice(order: Order) {
+    if (!order?.orderId) { return; }
+    this.isGeneratingProformaInvoice = true;
     this.financialDocService.generateProformaInvoiceFromOrder(order.orderId, {
       origin: 'BACK_OFFICE'
     }).subscribe({
@@ -639,8 +729,325 @@ export class OrderDetailsPageComponent implements OnInit {
           detail: this.translate.instant('error_while_generating_proforma_invoice') || 'Error while generating proforma invoice',
           life: 3000
         });
+      },
+      complete: () => {
+        this.isGeneratingProformaInvoice = false;
       }
     });
+  }
+
+  viewProformaInvoice() {
+    if (this.proformaInvoiceDocNumber) {
+      this.financialDocService.printFinancialDoc(this.proformaInvoiceDocNumber);
+    }
+  }
+
+  viewInvoice() {
+    if (this.invoiceDocNumber) {
+      this.financialDocService.printFinancialDoc(this.invoiceDocNumber);
+    }
+  }
+
+  async checkForPurchaseOrder(orderId: number): Promise<void> {
+    try {
+      this.financialDocService.loadToken();
+      const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
+      const financialDocs = this.extractFinancialDocs(response);
+      const purchaseOrder = financialDocs.find(
+        (doc: FinancialDocument) => 
+          doc.docType === 'PURCHASE_ORDER' && 
+          doc.order?.orderId === orderId
+      );
+      
+      this.purchaseOrderDocNumber = purchaseOrder?.docNumber || null;
+    } catch (error: any) {
+      console.error('Error checking for purchase order:', error);
+      this.purchaseOrderDocNumber = null;
+    }
+  }
+
+  async checkForDeliveryOrder(orderId: number): Promise<void> {
+    try {
+      this.financialDocService.loadToken();
+      const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
+      const financialDocs = this.extractFinancialDocs(response);
+      const deliveryOrder = financialDocs.find(
+        (doc: FinancialDocument) => 
+          doc.docType === 'DELIVERY_NOTE' && 
+          doc.order?.orderId === orderId
+      );
+      
+      this.deliveryOrderDocNumber = deliveryOrder?.docNumber || null;
+    } catch (error: any) {
+      console.error('Error checking for delivery order:', error);
+      this.deliveryOrderDocNumber = null;
+    }
+  }
+
+  generatePurchaseOrder(order: Order) {
+    if (!order?.orderId) { return; }
+    this.isGeneratingPurchaseOrder = true;
+    this.financialDocService.generatePurchaseOrderFromOrder(order.orderId).subscribe({
+      next: (response: any) => {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('purchase_order_generated') || 'Purchase order generated successfully',
+          life: 3000
+        });
+        // Reload order to get updated document status
+        this.loadOrder();
+      },
+      error: (error: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_generating_purchase_order') || 'Error generating purchase order',
+          life: 3000
+        });
+      },
+      complete: () => {
+        this.isGeneratingPurchaseOrder = false;
+      }
+    });
+  }
+
+  generateDeliveryOrder(order: Order) {
+    if (!order?.orderId) { return; }
+    this.isGeneratingDeliveryOrder = true;
+    this.financialDocService.generateDeliveryOrderFromOrder(order.orderId).subscribe({
+      next: async (response: any) => {
+        // Try to extract the generated delivery note document number directly from the response
+        const docNumber =
+          response?.docNumber ||
+          response?.document?.docNumber ||
+          response?.financialDocument?.docNumber ||
+          response?.data?.docNumber;
+
+        if (docNumber) {
+          this.deliveryOrderDocNumber = docNumber;
+        } else if (this.order?.orderId) {
+          // Fallback: re-check from backend if response shape is unknown
+          await this.checkForDeliveryOrder(this.order.orderId);
+        }
+
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('delivery_order_generated') || 'Delivery order generated successfully',
+          life: 3000
+        });
+
+        // Reload order to refresh timeline and other document flags
+        this.loadOrder();
+      },
+      error: (error: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_generating_delivery_order') || 'Error generating delivery order',
+          life: 3000
+        });
+      },
+      complete: () => {
+        this.isGeneratingDeliveryOrder = false;
+      }
+    });
+  }
+
+  viewPurchaseOrder() {
+    if (this.purchaseOrderDocNumber) {
+      this.financialDocService.printFinancialDoc(this.purchaseOrderDocNumber);
+    }
+  }
+
+  viewDeliveryOrder() {
+    if (this.deliveryOrderDocNumber) {
+      this.financialDocService.printFinancialDoc(this.deliveryOrderDocNumber);
+    }
+  }
+
+  async checkForQuote(orderId: number): Promise<void> {
+    try {
+      this.financialDocService.loadToken();
+      const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
+      const financialDocs = this.extractFinancialDocs(response);
+      const quote = financialDocs.find(
+        (doc: FinancialDocument) => 
+          doc.docType === 'QUOTE' && 
+          doc.order?.orderId === orderId
+      );
+      
+      this.quoteDocNumber = quote?.docNumber || null;
+    } catch (error: any) {
+      console.error('Error checking for quote:', error);
+      this.quoteDocNumber = null;
+    }
+  }
+
+  generateQuote(order: Order) {
+    if (!order?.orderId) { return; }
+    this.isGeneratingQuote = true;
+    this.financialDocService.generateQuoteFromOrder(order.orderId).subscribe({
+      next: (response: any) => {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('quote_generated_successfully') || 'Quote generated successfully',
+          life: 3000
+        });
+        // Reload order to get updated document status
+        this.loadOrder();
+      },
+      error: (error: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_generating_quote') || 'Error while generating quote',
+          life: 3000
+        });
+      },
+      complete: () => {
+        this.isGeneratingQuote = false;
+      }
+    });
+  }
+
+  viewQuote() {
+    if (this.quoteDocNumber) {
+      this.financialDocService.printFinancialDoc(this.quoteDocNumber);
+    }
+  }
+
+  /**
+   * Normalize various possible financial documents API response shapes
+   * into a simple FinancialDocument[] for local lookups.
+   */
+  private extractFinancialDocs(response: any): FinancialDocument[] {
+    if (!response) {
+      return [];
+    }
+
+    if (Array.isArray(response)) {
+      return response as FinancialDocument[];
+    }
+
+    if (Array.isArray(response.page?.content)) {
+      return response.page.content as FinancialDocument[];
+    }
+
+    if (Array.isArray(response.content)) {
+      return response.content as FinancialDocument[];
+    }
+
+    return [];
+  }
+
+  // Helper methods to check document eligibility based on order status
+  isQuoteEligible(): boolean {
+    if (!this.order) return false;
+    const status = this.order.orderStatus;
+    return status === 'Ordered' || status === 'Processing' || status === 'Delivered' || status === 'Completed';
+  }
+
+  isPurchaseOrderEligible(): boolean {
+    if (!this.order) return false;
+    const status = this.order.orderStatus;
+    return status === 'Ordered' || status === 'Processing' || status === 'Delivered' || status === 'Completed';
+  }
+
+  isDeliveryNoteEligible(): boolean {
+    if (!this.order) return false;
+    const status = this.order.orderStatus;
+    return status === 'Processing' || status === 'Delivered' || status === 'Completed';
+  }
+
+  isInvoiceEligible(): boolean {
+    if (!this.order) return false;
+    const status = this.order.orderStatus;
+    // Invoice eligible: Processing, Delivered, Completed (not Ordered, Canceled, Return_Pending, Returned)
+    return status !== 'Ordered' && status !== 'Canceled' && status !== 'Return_Pending' && status !== 'Returned';
+  }
+
+  async processOrder() {
+    if (!this.order || this.order.orderStatus !== 'Ordered') return;
+    
+    try {
+      this.order.orderStatus = 'Processing';
+      this.order.processingDate = new Date();
+      await firstValueFrom(this.orderService.updateOrderStatus(this.order.orderId, this.order));
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_under_processing'),
+        life: 3000
+      });
+      
+      // Reload order to refresh the UI
+      await this.loadOrder();
+    } catch (error: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_order'),
+        life: 3000
+      });
+    }
+  }
+
+  async deliverOrder() {
+    if (!this.order || this.order.orderStatus !== 'Processing') return;
+    
+    try {
+      this.order.orderStatus = 'Delivered';
+      this.order.deliveryDate = new Date();
+      await firstValueFrom(this.orderService.updateOrderStatus(this.order.orderId, this.order));
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_delivered'),
+        life: 3000
+      });
+      
+      // Reload order to refresh the UI
+      await this.loadOrder();
+    } catch (error: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_order'),
+        life: 3000
+      });
+    }
+  }
+
+  async completeOrder() {
+    if (!this.order || this.order.orderStatus !== 'Delivered') return;
+    
+    try {
+      this.order.orderStatus = 'Completed';
+      this.order.completeDate = new Date();
+      await firstValueFrom(this.orderService.updateOrderStatus(this.order.orderId, this.order));
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('order_completed_text'),
+        life: 3000
+      });
+      
+      // Reload order to refresh the UI
+      await this.loadOrder();
+    } catch (error: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_order'),
+        life: 3000
+      });
+    }
   }
 
   viewProductDetails(product: Product) {

@@ -12,13 +12,14 @@ import { KeycloakService } from 'keycloak-angular';
 import { Purchase } from 'src/app/models/purchase';
 import { Expense } from 'src/app/models/expense';
 import { LocationService } from 'src/app/services/location.service';
-import { DatePipe } from '@angular/common';
+import { DatePipe, Location } from '@angular/common';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
 import { CashMovement } from 'src/app/models/cashMovement';
 import { CashCollection } from 'src/app/models/cashCollection';
 import { CashRegister } from 'src/app/models/cashRegister';
 import { ReportingService } from 'src/app/utils/reporting.service';
+import { ShopFormDialogComponent, ShopFormDialogConfig, ShopFormDialogData } from '../shop-form-dialog/shop-form-dialog.component';
 
 @Component({
   templateUrl: './shop-details.component.html',
@@ -50,10 +51,14 @@ export class ShopDetailsComponent implements OnInit {
   isAdmin: boolean = false;
   userRoles: any;
 
-  shopDialog: boolean = false;
+  // Dialog configuration for reusable component
+  shopDialogConfig: ShopFormDialogConfig = {
+    visible: false,
+    mode: 'edit',
+    shop: {},
+  };
+
   submitted: boolean = false;
-  selectedCountry: any = null;
-  states: any = null;
   countries: any;
 
   // Cash Register properties
@@ -91,6 +96,7 @@ export class ShopDetailsComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private messageService: MessageService,
     private shopService: ShopService,
     private translate: TranslateService,
@@ -926,17 +932,30 @@ export class ShopDetailsComponent implements OnInit {
 
   editShop(): void {
     if (!this.shop) return;
-    this.selectedCountry = {};
-    this.shopDialog = true;
-    if (this.shop.country) {
-      this.onSelectedCountry(this.shop.country);
-    }
+    this.shopDialogConfig = {
+      visible: true,
+      mode: 'edit',
+      shop: { ...this.shop },
+    };
   }
 
   hideDialog(): void {
-    this.shopDialog = false;
+    this.shopDialogConfig.visible = false;
     this.submitted = false;
-    this.selectedCountry = {};
+  }
+
+  // Shop Form Dialog Event Handlers
+  onShopDialogConfigChange(config: ShopFormDialogConfig) {
+    this.shopDialogConfig = config;
+  }
+
+  onShopSave(dialogData: ShopFormDialogData) {
+    this.shop = dialogData.shop;
+    this.saveShop();
+  }
+
+  onShopCancel() {
+    this.hideDialog();
   }
 
   onChangeCountry(): void {
@@ -945,18 +964,6 @@ export class ShopDetailsComponent implements OnInit {
     }
   }
 
-  onSelectedCountry(event: any): void {
-    if (!this.shop) return;
-    if ((this.shop.country !== this.selectedCountry) && (this.shop.city === undefined)) {
-      this.shop.city = undefined;
-    }
-    this.countries.forEach((element: any) => {
-      if (element.name === event) {
-        this.selectedCountry = element;
-      }
-    });
-    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
-  }
 
   filterCountry(value: any, filter: string): boolean {
     const normalizedFilter = filter.toLowerCase();
@@ -994,7 +1001,7 @@ export class ShopDetailsComponent implements OnInit {
         detail: this.translate.instant('shop_updated'),
         life: 3000
       });
-      this.shopDialog = false;
+      this.shopDialogConfig.visible = false;
       await this.loadShop();
       await this.loadShopDetails();
       this.calculateShopStats();
@@ -1018,7 +1025,7 @@ export class ShopDetailsComponent implements OnInit {
         detail: this.translate.instant('shop_added'),
         life: 3000
       });
-      this.shopDialog = false;
+      this.shopDialogConfig.visible = false;
       this.router.navigate(['/inventory/shops']);
     } catch (error) {
       console.error('Error adding shop:', error);
@@ -1036,7 +1043,7 @@ export class ShopDetailsComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/inventory/shops']);
+    this.location.back();
   }
 }
 

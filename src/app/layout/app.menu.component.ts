@@ -55,21 +55,24 @@ export class AppMenuComponent implements OnInit {
 
     // --- Menu Items ---
     const inventoryItems = [
-      { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/inventory/suppliers'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/inventory/customers'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/inventory/warehouses'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
       { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/shops'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
       { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/inventory/purchases'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
-      { label: translations['purchase_returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/inventory/purchase-returns'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
       { label: translations['warehouse_transfers_menu_title'], icon: 'pi pi-fw pi-arrow-right-arrow-left', routerLink: ['/inventory/warehouse-transfers'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['write_offs_menu_title'] || translations['write_offs'], icon: 'pi pi-fw pi-minus-circle', routerLink: ['/inventory/write-offs'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
       { label: translations['stock_movements_menu_title'], icon: 'pi pi-fw pi-chart-line', routerLink: ['/inventory/stock-movements'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
     ];
 
+    const purchasesItems = [
+      { label: translations['purchases_menu_title'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/purchases/purchases'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      { label: translations['suppliers_menu_title'], icon: 'pi pi-fw pi-truck', routerLink: ['/purchases/suppliers'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      { label: translations['purchase_returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/purchases/purchase-returns'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+    ];
+
     const salesItems = [
       { label: translations['orders_menu_title'], icon: 'pi pi-fw pi-shopping-cart', routerLink: ['/sales/orders'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+      { label: translations['customers_menu_title'], icon: 'pi pi-fw pi-users', routerLink: ['/sales/customers'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['returns_menu_title'], icon: 'pi pi-fw pi-replay', routerLink: ['/sales/returns'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['pos_menu_title'], icon: 'pi pi-fw pi-desktop', routerLink: ['/pos'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN', 'CASHIER'] },
     ];
@@ -88,8 +91,10 @@ export class AppMenuComponent implements OnInit {
 
     const administrationItems = [
       { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/administration/users'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['pricing_menu_title'] || translations['pricing'] || 'Pricing', icon: 'pi pi-fw pi-tags', routerLink: ['/administration/pricing'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
       { label: translations['my_company'] || 'My Company', icon: 'pi pi-fw pi-sitemap', routerLink: ['/administration/my-company'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
       { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/administration/settings'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['backups_menu_title'] || 'Backups', icon: 'pi pi-fw pi-database', routerLink: ['/administration/backups'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
     ];
 
     const systemItems = [
@@ -110,6 +115,11 @@ export class AppMenuComponent implements OnInit {
         label: translations['inventory'],
         icon: 'pi pi-fw pi-briefcase',
         items: inventoryItems
+      },
+      {
+        label: translations['purchases'],
+        icon: 'pi pi-fw pi-shopping-bag',
+        items: purchasesItems
       },
       {
         label: translations['sales'],

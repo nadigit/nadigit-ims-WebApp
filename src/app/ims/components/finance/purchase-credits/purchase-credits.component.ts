@@ -1,6 +1,6 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
-import { MessageService } from 'primeng/api';
+import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateService } from '@ngx-translate/core';
@@ -15,11 +15,22 @@ import { PurchaseReturn } from 'src/app/models/purchaseReturn';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { DatePipe } from '@angular/common';
+import { SupplierService } from 'src/app/services/supplier.service';
+import { Supplier } from 'src/app/models/supplier';
+import { firstValueFrom } from 'rxjs';
+
+interface LazyLoadEventExt extends LazyLoadEvent {
+  globalFilter?: string;
+  filters?: { [field: string]: any };
+}
 
 @Component({
   templateUrl: './purchase-credits.component.html',
   styleUrls: ['./purchase-credits.component.css', '../finance.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class PurchaseCreditsComponent implements OnInit {
 
@@ -41,11 +52,11 @@ export class PurchaseCreditsComponent implements OnInit {
   userRoles: any;
   isAdmin: boolean = false;
   creditMethods = [
-    { value: 'Cash', label: 'credit_method_cash' },
-    { value: 'Card', label: 'credit_method_card' },
-    { value: 'Check', label: 'credit_method_check' },
+    { value: 'CASH', label: 'credit_method_cash' },
+    { value: 'CHECK', label: 'credit_method_check' },
+    { value: 'BANK_TRANSFER', label: 'credit_method_transfer' },
     { value: 'BOE', label: 'credit_method_boe' },
-    { value: 'Transfer', label: 'credit_method_transfer' },
+    { value: 'CREDIT_NOTE', label: 'credit_method_credit_note' },
   ];
   canAddCredit: boolean = false;
   canEditCredit: boolean = false;
@@ -65,8 +76,21 @@ export class PurchaseCreditsComponent implements OnInit {
   selectedSupplier: any = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
-  suppliers: any[] = []; // Unique suppliers from credits
+  showAdvancedFilters = false;
+  suppliers: Supplier[] = []; // Unique suppliers from credits
   globalFilter: string = '';
+  
+  // Lazy loading properties
+  totalRecords: number = 0;
+  lastLazyLoadEvent: LazyLoadEventExt = {
+    first: 0,
+    rows: 20,
+    sortField: 'creditDate',
+    sortOrder: -1
+  };
+  
+  isExporting: boolean = false;
+  exportProgress: string = '';
 
   constructor(
     private messageService: MessageService,
@@ -80,7 +104,11 @@ export class PurchaseCreditsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private router: Router,
-    private paymentValidationService: PaymentValidationService
+    private paymentValidationService: PaymentValidationService,
+    private organizationService: OrganizationService,
+    private supplierService: SupplierService,
+    private datePipe: DatePipe,
+    private cdr: ChangeDetectorRef
   ) { }
 
   async ngOnInit() {
@@ -96,10 +124,14 @@ export class PurchaseCreditsComponent implements OnInit {
       this.translate.use(lang);
     });
     await this.paymentValidationService.loadConfigurations();
-    this.onGetAllCredits();
-    await this.loadBankAccounts();
-    await this.setUserRoles();
-    await this.checkPermissions();
+    
+    // Load data
+    await Promise.all([
+      this.onGetAllSuppliers(),
+      this.loadBankAccounts(),
+      this.setUserRoles(),
+      this.checkPermissions(),
+    ]);
     this.cols = [
       { field: 'creditId', header: this.translateService.instant('ID') },
       { field: 'transactionId', header: this.translateService.instant('credit_transaction_id') },
@@ -111,10 +143,14 @@ export class PurchaseCreditsComponent implements OnInit {
     ];
     this.creditStatuses = [
       { value: 'PENDING', label: 'credit_status_pending' },
-      { value: 'PROCESSING', label: 'credit_status_processing' },
-      { value: 'COMPLETED', label: 'credit_status_completed' }
+      { value: 'SETTLED', label: 'credit_status_settled' },
+      { value: 'FAILED', label: 'credit_status_failed' },
+      { value: 'PARTIAL_REFUND', label: 'credit_status_partial_refund' }
     ];
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+    
+    // Load first page of credits
+    await this.loadCredits();
   }
 
   async checkPermissions() {
@@ -185,7 +221,7 @@ export class PurchaseCreditsComponent implements OnInit {
     await this.loadBankAccounts();
     this.credit = {};
     this.credit.creditDate = new Date();
-    this.credit.creditMethod = 'Cash';
+    this.credit.creditMethod = 'CASH';
     this.credit.status = 'PENDING';
     this.submitted = false;
     await this.updateBankAccountFieldVisibility();
@@ -283,7 +319,7 @@ export class PurchaseCreditsComponent implements OnInit {
     }
 
     if (
-      this.credit.creditMethod === 'Check' &&
+      (this.credit.creditMethod === 'CHECK' || this.credit.creditMethod === 'Check') &&
       (!this.credit.checkNumber || !this.credit.checkExpirationDate)
     ) {
       this.messageService.add({
@@ -295,7 +331,7 @@ export class PurchaseCreditsComponent implements OnInit {
     }
 
     if (
-      this.credit.creditMethod === 'BOE' &&
+      (this.credit.creditMethod === 'BOE' || this.credit.creditMethod === 'Boe') &&
       (!this.credit.boeNumber || !this.credit.boeExpirationDate)
     ) {
       this.messageService.add({
@@ -365,8 +401,22 @@ export class PurchaseCreditsComponent implements OnInit {
   onGlobalFilter(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.globalFilter = value;
-    if (this.dt) {
-      this.dt.filterGlobal(value, 'contains');
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      globalFilter: this.globalFilter
+    };
+
+    this.onLazyLoad(lazyEvent);
+  }
+
+  async onGetAllSuppliers() {
+    try {
+      const response = await firstValueFrom(this.supplierService.getSuppliers()) as Supplier[];
+      this.suppliers = response;
+    } catch (err: any) {
+      console.error('Error loading suppliers:', err);
     }
   }
 
@@ -380,38 +430,50 @@ export class PurchaseCreditsComponent implements OnInit {
         }
       }
     });
-    this.suppliers = Array.from(supplierMap.values());
+    // Merge with existing suppliers list
+    const existingSupplierIds = new Set(this.suppliers.map(s => s.supplierId));
+    Array.from(supplierMap.values()).forEach(supplier => {
+      if (!existingSupplierIds.has(supplier.supplierId)) {
+        this.suppliers.push(supplier);
+      }
+    });
+  }
+
+  applyFilters() {
+    // Build filters object in the format expected by the service
+    // Service expects: { field: { value: ..., matchMode: ... } }
+    const filters: any = {};
+    
+    if (this.selectedCreditStatus) {
+      filters.status = { value: this.selectedCreditStatus, matchMode: 'equals' };
+    }
+    if (this.selectedCreditMethod) {
+      filters.creditMethod = { value: this.selectedCreditMethod, matchMode: 'equals' };
+    }
+    if (this.selectedSupplier) {
+      // Pass the full supplier object - the service will extract supplierId from it
+      filters.supplierId = { value: this.selectedSupplier, matchMode: 'equals' };
+    }
+    if (this.startDate) {
+      filters.fromDate = { value: this.startDate, matchMode: 'equals' };
+    }
+    if (this.endDate) {
+      filters.toDate = { value: this.endDate, matchMode: 'equals' };
+    }
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      filters: filters
+    };
+
+    this.updateLastLazyLoadEvent(lazyEvent);
+    this.loadCredits();
   }
 
   onFilterChange() {
-    if (this.dt) {
-      const filters: any = {};
-
-      if (this.selectedCreditStatus) {
-        filters['status'] = { value: this.selectedCreditStatus, matchMode: 'equals' };
-      }
-
-      if (this.selectedCreditMethod) {
-        filters['creditMethod'] = { value: this.selectedCreditMethod, matchMode: 'equals' };
-      }
-
-      if (this.selectedSupplier) {
-        filters['purchaseReturn.purchase.supplier.name'] = { value: this.selectedSupplier.name, matchMode: 'equals' };
-      }
-
-      if (this.startDate || this.endDate) {
-        if (this.startDate && this.endDate) {
-          filters['creditDate'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
-        } else if (this.startDate) {
-          filters['creditDate'] = { value: this.startDate, matchMode: 'dateIs' };
-        } else if (this.endDate) {
-          filters['creditDate'] = { value: this.endDate, matchMode: 'dateIs' };
-        }
-      }
-
-      this.dt.filters = filters;
-      this.dt.filteredValue = null;
-    }
+    // Apply filters immediately when filter values change
+    this.applyFilters();
   }
 
   clearFilters() {
@@ -421,55 +483,121 @@ export class PurchaseCreditsComponent implements OnInit {
     this.startDate = null;
     this.endDate = null;
     this.globalFilter = '';
-    this.onFilterChange();
-    if (this.dt) {
-      this.dt.filterGlobal('', 'contains');
-    }
+
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      globalFilter: '',
+      filters: {}
+    };
+
+    this.onLazyLoad(lazyEvent);
   }
 
   clear(table: Table) {
     table.clear();
   }
 
-  async onGetAllCredits() {
-    await this.purchaseCreditService.getCredits().subscribe({
-      next: (response: any) => {
-        this.credits = response;
-        this.credits.forEach((credit: any) => {
+  onLazyLoad(event: LazyLoadEvent) {
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
+
+    this.updateLastLazyLoadEvent(extendedEvent);
+    this.loadCredits();
+  }
+
+  updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    this.lastLazyLoadEvent = {
+      first: event.first || 0,
+      rows: event.rows || 20,
+      sortField: event.sortField || 'creditDate',
+      sortOrder: event.sortOrder || -1,
+      globalFilter: event.globalFilter || this.globalFilter,
+      filters: event.filters || this.lastLazyLoadEvent.filters || {}
+    };
+  }
+
+  loadCredits() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    
+    // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
+    const filterPayload = filters || {};
+
+    console.log('Loading credits with parameters:', {
+      page,
+      size,
+      sortField,
+      direction,
+      globalFilter,
+      filters: filterPayload
+    });
+
+    this.purchaseCreditService.getCreditsPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      filterPayload
+    ).subscribe({
+      next: (res: any) => {
+        console.log('Paginated credits response:', res);
+        // Assign the paginated credits
+        this.credits = res.page.content.map((c: any) => {
           // Normalize purchaseCreditId to creditId for consistency
-          if (credit.purchaseCreditId && !credit.creditId) {
-            credit.creditId = credit.purchaseCreditId;
+          if (c.purchaseCreditId && !c.creditId) {
+            c.creditId = c.purchaseCreditId;
           }
-          credit.creationDate = new Date(<Date>credit.creationDate);
-          credit.creditDate = new Date(<Date>credit.creditDate);
-          if (credit.checkExpirationDate) {
-            credit.checkExpirationDate = new Date(<Date>credit.checkExpirationDate);
-          }
-          if (credit.boeExpirationDate) {
-            credit.boeExpirationDate = new Date(<Date>credit.boeExpirationDate);
-          }
+          return {
+            ...c,
+            creationDate: c.creationDate ? new Date(c.creationDate) : null,
+            creditDate: c.creditDate ? new Date(c.creditDate) : null,
+            checkExpirationDate: c.checkExpirationDate ? new Date(c.checkExpirationDate) : null,
+            boeExpirationDate: c.boeExpirationDate ? new Date(c.boeExpirationDate) : null
+          };
         });
+
+        // Assign total records from backend
+        this.totalRecords = res.page?.totalElements || res.totalCredits || 0;
+
+        // Load unique suppliers from credits
         this.loadUniqueSuppliers();
+
+        this.isLoading = false;
+        
+        // Trigger change detection to ensure table updates
+        if (this.cdr) {
+          this.cdr.detectChanges();
+        }
       },
       error: (err: any) => {
         console.error(err);
+        this.isLoading = false;
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
           detail: this.translate.instant('error_while_getting_credits'),
           life: 3000
         });
-      },
-      complete: () => {
-        this.isLoading = false;
       }
     });
+  }
+
+  // Keep this method for backward compatibility but make it call loadCredits
+  async onGetAllCredits() {
+    this.loadCredits();
   }
 
   async onDeleteCredit(id: any) {
     await this.purchaseCreditService.deleteCredit(id).subscribe({
       next: (response: any) => {
-        this.onGetAllCredits();
+        this.loadCredits();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
@@ -492,7 +620,7 @@ export class PurchaseCreditsComponent implements OnInit {
   async updateCredit(id: any, credit: any): Promise<any> {
     await this.purchaseCreditService.updateCredit(id, credit).subscribe({
       next: (response: any) => {
-        this.onGetAllCredits();
+        this.loadCredits();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
@@ -518,7 +646,7 @@ export class PurchaseCreditsComponent implements OnInit {
     return new Promise((resolve) => {
       this.purchaseCreditService.saveCredit(credit).subscribe({
         next: () => {
-          this.onGetAllCredits();
+          this.loadCredits();
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('successful'),
@@ -570,17 +698,276 @@ export class PurchaseCreditsComponent implements OnInit {
     }
   }
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.credits, 'purchase-credits');
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Fetch all filtered credits from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredCredits: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100; // Safety limit
+      
+      while (currentPage < maxPages) {
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1})...` || `Fetching data (${currentPage + 1})...`;
+
+        const response = await firstValueFrom(
+          this.purchaseCreditService.getCreditsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || [];
+        if (pageContent.length === 0) {
+          break; // No more data
+        }
+
+        allFilteredCredits = [...allFilteredCredits, ...pageContent];
+
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || 0;
+        if (allFilteredCredits.length >= totalElements) {
+          break; // All data fetched
+        }
+
+        currentPage++;
+      }
+
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Build translated export columns based on organization's default locale
+      const translationKeyMap: { [key: string]: string } = {
+        'transactionId': 'credit_transaction_id',
+        'purchaseReturn.purchase.reference': 'purchase_reference',
+        'amount': 'amount',
+        'status': 'credit_status',
+        'creditMethod': 'credit_method',
+        'creditDate': 'credit_date'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.exportColumns
+        .filter((col) => col.dataKey !== 'creditId') // Exclude ID column
+        .map((col) => {
+          const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
+          return {
+            title: this.translate.instant(translationKey),
+            dataKey: col.dataKey
+          };
+        });
+      
+      // Prepare data for export
+      const exportData = allFilteredCredits.map(credit => {
+        const exportCredit: any = {
+          transactionId: credit.transactionId || 'N/A',
+          'purchaseReturn.purchase.reference': credit.purchaseReturn?.purchase?.reference || 'N/A',
+          amount: credit.amount || 0,
+          status: this.translate.instant(`credit_status_${credit.status?.toLowerCase()}`) || credit.status,
+          creditMethod: this.translate.instant(`credit_method_${credit.creditMethod?.toLowerCase()}`) || credit.creditMethod,
+          creditDate: credit.creditDate ? this.datePipe.transform(credit.creditDate, 'dd/MM/yyyy') : 'N/A'
+        };
+        return exportCredit;
+      });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('purchase_credits_menu_title') || this.translate.instant('purchase_credits');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchase-credits', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredCredits.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    const modifiedCredits = this.credits.map(credit => {
-      const modifiedCredit = { ...credit };
-      delete modifiedCredit.creationDate;
-      return modifiedCredit;
-    });
-    this.reportingService.exportExcel(modifiedCredits, 'purchase-credits');
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
+
+      // Fetch all filtered credits from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredCredits: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100; // Safety limit
+      
+      while (currentPage < maxPages) {
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1})...` || `Fetching data (${currentPage + 1})...`;
+
+        const response = await firstValueFrom(
+          this.purchaseCreditService.getCreditsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || [];
+        if (pageContent.length === 0) {
+          break; // No more data
+        }
+
+        allFilteredCredits = [...allFilteredCredits, ...pageContent];
+
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || 0;
+        if (allFilteredCredits.length >= totalElements) {
+          break; // All data fetched
+        }
+
+        currentPage++;
+      }
+
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'transactionId': 'credit_transaction_id',
+        'purchaseReturn.purchase.reference': 'purchase_reference',
+        'amount': 'amount',
+        'status': 'credit_status',
+        'creditMethod': 'credit_method',
+        'creditDate': 'credit_date'
+      };
+      
+      // Create translated version of the data with translated headers
+      const translatedCredits = allFilteredCredits.map(credit => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          // Exclude creationDate and ID columns
+          if (col.field !== 'creationDate' && col.field !== 'creditId') {
+            const translationKey = translationKeyMap[col.field] || col.field;
+            const translatedHeader = this.translate.instant(translationKey);
+            
+            let value: any = credit[col.field as keyof PurchaseCredit];
+            
+            // Handle nested fields
+            if (col.field === 'purchaseReturn.purchase.reference') {
+              value = credit.purchaseReturn?.purchase?.reference || 'N/A';
+            } else if (col.field === 'status') {
+              value = this.translate.instant(`credit_status_${value?.toLowerCase()}`) || value;
+            } else if (col.field === 'creditMethod') {
+              value = this.translate.instant(`credit_method_${value?.toLowerCase()}`) || value;
+            } else if (col.field === 'creditDate') {
+              value = value ? this.datePipe.transform(value, 'dd/MM/yyyy') : 'N/A';
+            }
+            
+            translated[translatedHeader] = value;
+          }
+        });
+        return translated;
+      });
+
+      // Export the translated array to Excel
+      this.reportingService.exportExcel(translatedCredits, 'purchase-credits');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredCredits.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   getCreditedAmount(purchaseReturn: PurchaseReturn): number {
@@ -671,7 +1058,7 @@ export class PurchaseCreditsComponent implements OnInit {
   async confirmCredit(id: any) {
     await this.purchaseCreditService.confirmCredit(id).subscribe({
       next: (response: any) => {
-        this.onGetAllCredits();
+        this.loadCredits();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),

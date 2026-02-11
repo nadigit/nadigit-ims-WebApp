@@ -190,7 +190,8 @@
         color: #694382;
     }
 
-    &.payment-partial-refund {
+    &.payment-partial-refund,
+    &.payment-partial_refund {
         background: #ECCFFF;
         color: #694382;
     }
@@ -203,6 +204,10 @@
 
 .refund-badge {
     &.refund-unpaid {
+        background: #efa7af;
+        color: #C63737;
+    }
+    &.refund-unrefunded {
         background: #efa7af;
         color: #C63737;
     }
@@ -222,14 +227,20 @@
         color: #3c774b;
     }
 
+    &.refund-refunded {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+
     &.refund-settled {
         background: #b9faaf;
         color: #3c774b;
-    }   
-
-    &.refund-partial-refund {
-        background: #ECCFFF;
-        color: #694382;
+    }
+    
+    &.refund-partially_refunded,
+    &.refund-partial_refund {
+        background: #ebc3dd;
+        color: #82437f;
     }
 
     &.refund-failed {

@@ -17,7 +17,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
 import { CardModule } from 'primeng/card';
 import { SharedModule } from 'src/app/shared/shared.module';
-
+import { ReportingService } from 'src/app/utils/reporting.service';
 @NgModule({
     imports: [
         CommonModule,
@@ -38,7 +38,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
         CardModule,
         SharedModule
     ],
-    declarations: [StockMovementsComponent]
+    declarations: [StockMovementsComponent],
+    providers: [ReportingService]
 })
 export class StockMovementsModule { }
 

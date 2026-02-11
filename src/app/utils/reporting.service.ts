@@ -13,14 +13,34 @@ export interface ExportColumn {
 
 export class ReportingService {
 
-    exportPdf(exportColumns, object, type) {
+    exportPdf(exportColumns, object, type, title?: string) {
         Promise.all([
             import('jspdf'),
             import('jspdf-autotable')
           ]).then(([jsPDF, autoTable]) => {
             const doc = new jsPDF.default('p', 'px', 'a4');
             let PDF_EXTENSION = '.pdf';
-            autoTable.default(doc, { columns: exportColumns, body: object });
+            
+            // Add title if provided
+            if (title) {
+              doc.setFontSize(16);
+              doc.setFont(undefined, 'bold');
+              // Get page width and center the title
+              const pageWidth = doc.internal.pageSize.getWidth();
+              const textWidth = doc.getTextWidth(title);
+              const xPosition = (pageWidth - textWidth) / 2;
+              doc.text(title, xPosition, 20);
+              // Start table below the title
+              autoTable.default(doc, { 
+                columns: exportColumns, 
+                body: object,
+                startY: 30,
+                margin: { top: 30 }
+              });
+            } else {
+              autoTable.default(doc, { columns: exportColumns, body: object });
+            }
+            
             doc.save(type + new Date().getTime() + PDF_EXTENSION);
           });
     }

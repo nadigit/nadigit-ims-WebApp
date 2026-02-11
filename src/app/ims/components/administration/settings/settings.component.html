@@ -162,8 +162,18 @@
 													<span class="value-unit">{{ 'days' | translate }}</span>
 												</span>
 
+												<span *ngIf="config.key === 'product.expiration.warning.days'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'days' | translate }}</span>
+												</span>
+
+												<span *ngIf="config.key === 'notification.retention.days'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'days' | translate }}</span>
+												</span>
+
 												<!-- Boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account'" class="value-text">
+												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled'" class="value-text">
 													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
 														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
 												</span>
@@ -216,10 +226,18 @@
 													config.key !== 'tax' && config.key !== 'cashRegDefaultOpeningBalance' &&
 													config.key !== 'returnWindow' &&
 													config.key !== 'refundWindow' &&
+													config.key !== 'product.expiration.warning.days' &&
+													config.key !== 'notification.retention.days' &&
 													config.key !== 'app.timezone' &&
 													config.key !== 'autoOrderComplete' &&
 													config.key !== 'cash.register.auto.open.session' &&
 													config.key !== 'payment.bank.methods.require.account' &&
+													config.key !== 'restore.enabled' &&
+													config.key !== 'pos.return.refund.immediate' &&
+													config.key !== 'writeoff.auto.expired.batches' &&
+													config.key !== 'writeoff.auto.approve' &&
+													config.key !== 'pricing.allow.custom.override' &&
+													config.key !== 'order.backoffice.auto.status.enabled' &&
 													config.key !== 'payment.bank.methods.minimum.amount' &&
 													config.key !== 'return.refund.percentage.damaged' &&
 													config.key !== 'return.refund.percentage.used' &&
@@ -261,14 +279,15 @@
 												<!-- For currency selection -->
 												<div *ngIf="config.key == 'currency'" class="edit-field">
 													<p-dropdown [options]="currenciesList" [(ngModel)]="config.value" optionValue="symbol"
-														optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}" class="w-full">
+														optionLabel="name" placeholder="{{ 'select_currency_option' | translate }}" class="w-full"
+														appendTo="body">
 													</p-dropdown>
 												</div>
 
 												<!-- For tax as percentage -->
 												<div *ngIf="config.key == 'tax'" class="edit-field">
 													<input [(ngModel)]="taxPercentage" type="number" pInputText class="w-full"
-														(ngModelChange)="onTaxChange($event)" />
+														(ngModelChange)="onTaxChange($event)" min="0" max="100" step="0.01" />
 													<span class="edit-unit">%</span>
 												</div>
 
@@ -287,30 +306,43 @@
 													<span class="edit-unit">{{'days' |translate}}</span>
 												</div>
 
+												<div *ngIf="config.key == 'product.expiration.warning.days'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" [min]="0" />
+													<span class="edit-unit">{{'days' |translate}}</span>
+												</div>
+
+												<div *ngIf="config.key == 'notification.retention.days'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" [min]="0" />
+													<span class="edit-unit">{{'days' |translate}}</span>
+												</div>
+
 												<!-- Auto order completion as enabled/disabled dropdown -->
 												<div *ngIf="config.key == 'autoOrderComplete'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="autoOrderOptions"
 														optionLabel="label"
 														optionValue="value"
-														placeholder="{{ 'enabled' | translate }}" class="w-full">
+														placeholder="{{ 'enabled' | translate }}" class="w-full"
+														appendTo="body">
 													</p-dropdown>
 												</div>
 
 												<!-- Edit mode for timezone -->
 												<div *ngIf="config.key === 'app.timezone'" class="edit-field">
 													<p-dropdown [options]="timezones" [(ngModel)]="config.value" optionLabel="label"
-														optionValue="value" placeholder="{{ 'select_timezone_option' | translate }}" class="w-full">
+														optionValue="value" placeholder="{{ 'select_timezone_option' | translate }}" class="w-full"
+														appendTo="body">
 													</p-dropdown>
 												</div>
 
 												<!-- Edit mode for boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account'" class="edit-field">
+												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="booleanOptions"
 														optionLabel="label"
 														optionValue="value"
-														placeholder="{{ 'enabled' | translate }}" class="w-full">
+														placeholder="{{ 'enabled' | translate }}" class="w-full"
+														appendTo="body">
 													</p-dropdown>
 												</div>
 
@@ -321,10 +353,24 @@
 												</div>
 
 												<!-- Edit mode for refund percentages -->
-												<div *ngIf="config.key === 'return.refund.percentage.damaged' || 
-													config.key === 'return.refund.percentage.used' || 
-													config.key === 'return.refund.percentage.new'" class="edit-field">
-													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" min="0" max="1" step="0.01" />
+												<div *ngIf="config.key === 'return.refund.percentage.damaged'" class="edit-field">
+													<input [(ngModel)]="refundPercentageDamaged" type="number" pInputText class="w-full"
+														(ngModelChange)="onRefundPercentageChange($event, 'return.refund.percentage.damaged')" 
+														min="0" max="100" step="0.01" />
+													<span class="edit-unit">%</span>
+												</div>
+
+												<div *ngIf="config.key === 'return.refund.percentage.used'" class="edit-field">
+													<input [(ngModel)]="refundPercentageUsed" type="number" pInputText class="w-full"
+														(ngModelChange)="onRefundPercentageChange($event, 'return.refund.percentage.used')" 
+														min="0" max="100" step="0.01" />
+													<span class="edit-unit">%</span>
+												</div>
+
+												<div *ngIf="config.key === 'return.refund.percentage.new'" class="edit-field">
+													<input [(ngModel)]="refundPercentageNew" type="number" pInputText class="w-full"
+														(ngModelChange)="onRefundPercentageChange($event, 'return.refund.percentage.new')" 
+														min="0" max="100" step="0.01" />
 													<span class="edit-unit">%</span>
 												</div>
 
@@ -338,7 +384,8 @@
 														[options]="booleanOptions"
 														optionLabel="label"
 														optionValue="value"
-														placeholder="{{ 'enabled' | translate }}" class="w-full">
+														placeholder="{{ 'enabled' | translate }}" class="w-full"
+														appendTo="body">
 													</p-dropdown>
 												</div>
 
@@ -355,7 +402,8 @@
 														[options]="booleanOptions"
 														optionLabel="label"
 														optionValue="value"
-														placeholder="{{ 'enabled' | translate }}" class="w-full">
+														placeholder="{{ 'enabled' | translate }}" class="w-full"
+														appendTo="body">
 													</p-dropdown>
 												</div>
 

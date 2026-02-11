@@ -546,106 +546,16 @@
 </div>
 
 <!-- Edit Shop Dialog -->
-<p-dialog [(visible)]="shopDialog" [style]="{width: '500px'}" [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
-    [header]="(shop?.shopId ? ('update_shop' | translate) : ('add_shop' | translate))" [modal]="true"
-    [draggable]="false" [resizable]="false" styleClass="p-fluid shop-dialog">
-    <ng-template pTemplate="content">
-        <div class="grid p-fluid">
-            <div class="col-12">
-                <div class="field">
-                    <label for="name" class="block mb-2 font-bold">
-                        {{ 'shop_name' | translate }} <span class="required-asterisk">*</span>
-                    </label>
-                    <div class="p-inputgroup">
-                        <span class="p-inputgroup-addon">
-                            <i class="pi pi-building"></i>
-                        </span>
-                        <input type="text" pInputText name="name" [(ngModel)]="shop.shopName" required
-                            [placeholder]="'enter_shop_name' | translate"
-                            [ngClass]="{'ng-invalid ng-dirty': submitted && !shop.shopName}" />
-                    </div>
-                    <small class="p-error" *ngIf="submitted && !shop.shopName">
-                        {{ 'shop_name' | translate }} {{ 'is_required_label' | translate }}
-                    </small>
-                </div>
-
-                <div class="field">
-                    <label for="description" class="block mb-2 font-bold">
-                        {{ 'shop_description' | translate }}
-                    </label>
-                    <textarea pInputTextarea [(ngModel)]="shop.description" rows="3" [autoResize]="true"
-                        [placeholder]="'enter_shop_description' | translate"></textarea>
-                </div>
-
-                <div class="grid">
-                    <div class="field col-12 md:col-6">
-                        <label for="country" class="block mb-2 font-bold">
-                            {{ 'shop_country' | translate }}
-                        </label>
-                        <p-dropdown [(ngModel)]="shop.country" (onChange)="onSelectedCountry(shop.country)"
-                            name="country" [options]="countries" optionValue="name" optionLabel="translatedName"
-                            [filter]="true" [filterFields]="['name', 'translatedName']" [filterBy]="filterCountry"
-                            [showClear]="true" [placeholder]="'select_country_option' | translate">
-                            <ng-template pTemplate="selectedItem">
-                                <span *ngIf="shop && shop.country" class="flex align-items-center gap-2">
-                                    <i class="pi pi-globe"></i>
-                                    {{ shop.country | countryTranslate }}
-                                </span>
-                            </ng-template>
-                            <ng-template let-option pTemplate="item">
-                                <span class="flex align-items-center gap-2">
-                                    <i class="pi pi-globe"></i>
-                                    {{ option.translatedName }}
-                                </span>
-                            </ng-template>
-                        </p-dropdown>
-                    </div>
-
-                    <div class="field col-12 md:col-6" *ngIf="shop.country">
-                        <label for="city" class="block mb-2 font-bold">
-                            {{ 'shop_city' | translate }}
-                        </label>
-                        <p-dropdown [(ngModel)]="shop.city" name="city" [options]="states" optionLabel="name"
-                            optionValue="name" [filter]="true" filterBy="name" [showClear]="true"
-                            [placeholder]="'select_city_option' | translate">
-                            <ng-template pTemplate="selectedItem">
-                                <span *ngIf="shop && shop.city" class="flex align-items-center gap-2">
-                                    <i class="pi pi-map-marker"></i>
-                                    {{ shop.city }}
-                                </span>
-                            </ng-template>
-                            <ng-template let-option pTemplate="item">
-                                <span class="flex align-items-center gap-2">
-                                    <i class="pi pi-map-marker"></i>
-                                    {{ option.name }}
-                                </span>
-                            </ng-template>
-                        </p-dropdown>
-                    </div>
-                </div>
-
-                <div class="field">
-                    <label for="address" class="block mb-2 font-bold">
-                        {{ 'shop_address' | translate }}
-                    </label>
-                    <textarea pInputTextarea [(ngModel)]="shop.address" name="address" rows="2" [autoResize]="true"
-                        [placeholder]="'enter_shop_address' | translate"></textarea>
-                </div>
-            </div>
-        </div>
-
-        <div class="required-note mt-3">
-            <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
-        </div>
-    </ng-template>
-
-    <ng-template pTemplate="footer">
-        <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
-            class="p-button-text" (click)="hideDialog()"></button>
-        <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
-            (click)="saveShop()"></button>
-    </ng-template>
-</p-dialog>
+<app-shop-form-dialog
+    [config]="shopDialogConfig"
+    [countries]="countries"
+    [bankAccounts]="[]"
+    [currency]="currency"
+    [submitted]="submitted"
+    (configChange)="onShopDialogConfigChange($event)"
+    (save)="onShopSave($event)"
+    (cancel)="onShopCancel()">
+</app-shop-form-dialog>
 
 <!-- Cash Register Dialog -->
 <p-dialog [(visible)]="cashRegisterDialog" [header]="'cash_register' | translate" [modal]="true"

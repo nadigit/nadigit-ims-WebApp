@@ -31,6 +31,21 @@
     appendTo="body"
     styleClass="w-14rem"
     (onChange)="onFilterChange()">
+    <ng-template let-option pTemplate="item">
+      <span [class]="'payment-badge payment-' + option.value.toLowerCase()" style="display: inline-block;">
+        {{ 'payment_status_' + option.value.toLowerCase() | translate }}
+      </span>
+    </ng-template>
+    <ng-template let-selectedOption pTemplate="selectedItem">
+      <span *ngIf="selectedPaymentStatus; else placeholderTemplate"
+            [class]="'payment-badge payment-' + selectedPaymentStatus.toLowerCase()"
+            style="display: inline-block;">
+        {{ ('payment_status_' + selectedPaymentStatus.toLowerCase()) | translate }}
+      </span>
+      <ng-template #placeholderTemplate>
+        <span style="opacity: 0.6;">{{ 'filter_by_status' | translate }}</span>
+      </ng-template>
+    </ng-template>
   </p-dropdown>
 
   <!-- Payment Method Filter -->
@@ -44,6 +59,26 @@
     appendTo="body"
     styleClass="w-14rem"
     (onChange)="onFilterChange()">
+    <ng-template let-option pTemplate="item">
+      <p-tag 
+        [value]="getPaymentMethodLabel(option.value) | translate"
+        [severity]="getPaymentMethodSeverity(option.value)"
+        [icon]="getPaymentMethodIcon(option.value)"
+        styleClass="text-xs">
+      </p-tag>
+    </ng-template>
+    <ng-template let-selectedOption pTemplate="selectedItem">
+      <p-tag 
+        *ngIf="selectedPaymentMethod; else placeholderTemplate"
+        [value]="getPaymentMethodLabel(selectedPaymentMethod) | translate"
+        [severity]="getPaymentMethodSeverity(selectedPaymentMethod)"
+        [icon]="getPaymentMethodIcon(selectedPaymentMethod)"
+        styleClass="text-xs">
+      </p-tag>
+      <ng-template #placeholderTemplate>
+        <span style="opacity: 0.6;">{{ 'filter_by_payment_method' | translate }}</span>
+      </ng-template>
+    </ng-template>
   </p-dropdown>
 
   <!-- Customer Filter (for incoming payments) -->
@@ -224,8 +259,8 @@
           <div class="text-center">
             <ng-container *ngIf="payment?.paymentMethod; else noMethod">
               <p-tag [value]="getPaymentMethodLabel(payment.paymentMethod) | translate"
-                [severity]="paymentMethodSeverityEvent.emit(payment.paymentMethod)"
-                [icon]="paymentMethodIconEvent.emit(payment.paymentMethod)">
+                [severity]="getPaymentMethodSeverity(payment.paymentMethod)"
+                [icon]="getPaymentMethodIcon(payment.paymentMethod)">
               </p-tag>
             </ng-container>
             <ng-template #noMethod>

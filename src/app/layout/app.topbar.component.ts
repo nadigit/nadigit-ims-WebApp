@@ -396,7 +396,8 @@ export class AppTopBarComponent implements OnInit {
       'inventory audit': 'inventory_audit',
       'write-off created': 'write_off_created_notification',
       'write-off approved': 'write_off_approved_notification',
-      'write-off rejected': 'write_off_rejected_notification'
+      'write-off rejected': 'write_off_rejected_notification',
+      'credit account created': 'credit_account_created_notification'
     };
 
     // Also check for case-insensitive matching and partial matches
@@ -417,6 +418,11 @@ export class AppTopBarComponent implements OnInit {
         }
         if (titleLower.includes('rejected')) {
           return 'write_off_rejected_notification';
+        }
+      }
+      if (titleLower.includes('credit account')) {
+        if (titleLower.includes('created')) {
+          return 'credit_account_created_notification';
         }
       }
     }
@@ -450,10 +456,19 @@ export class AppTopBarComponent implements OnInit {
     // Handle expiration notifications
     if (notification.title === 'product expired' || 
         (notification.title && notification.title.toLowerCase().includes('expired'))) {
-      const productName = notification.message?.match(/\(([^)]+)\)/)?.[1] || 
-                         notification.message?.split(' - ')?.[0] ||
-                         notification.message?.split(' has expired')?.[0] ||
-                         'Product';
+      // Try to extract product name from the raw backend message in a locale-agnostic way
+      let productName =
+        notification.message?.match(/\(([^)]+)\)/)?.[1] ||            // text in parentheses
+        notification.message?.match(/'([^']+)'/)?.[1] ||              // text in single quotes
+        notification.message?.split(' - ')?.[0] ||
+        notification.message?.split(/has expired|a expiré|ha expirado/i)?.[0] ||
+        '';
+
+      // Fallback if we couldn't extract a meaningful name (or got a template placeholder like "{product}")
+      if (!productName || productName.includes('{')) {
+        productName = this.translate.instant('product') || 'Product';
+      }
+
       return this.translate.instant('product_x_has_expired', { product: productName });
     }
     
@@ -565,6 +580,41 @@ export class AppTopBarComponent implements OnInit {
           }
         );
       }
+    }
+
+    // Handle credit account created notification
+    if (notification.title === 'credit account created' || 
+        (notification.title && notification.title.toLowerCase().includes('credit account'))) {
+      // Backend format: "Credit account created for customer: mohamed zarioh"
+      // Try multiple regex patterns to handle variations
+      let customerName = 'Customer';
+      const message = notification.message || '';
+      
+      // Pattern 1: "Credit account created for customer: name"
+      let regex = /Credit account created for customer:\s*(.+)/i;
+      let matches = message.match(regex);
+      if (matches && matches[1]) {
+        customerName = matches[1].trim();
+      } else {
+        // Pattern 2: "Credit account created for customer:name" (no space after colon)
+        regex = /Credit account created for customer:?\s*(.+)/i;
+        matches = message.match(regex);
+        if (matches && matches[1]) {
+          customerName = matches[1].trim();
+        } else {
+          // Pattern 3: Try to extract anything after "customer:"
+          regex = /customer:?\s*(.+)/i;
+          matches = message.match(regex);
+          if (matches && matches[1]) {
+            customerName = matches[1].trim();
+          }
+        }
+      }
+      
+      return this.translate.instant(
+        'credit_account_created_for_customer',
+        { customer: customerName }
+      );
     }
 
     // Handle write-off created notification

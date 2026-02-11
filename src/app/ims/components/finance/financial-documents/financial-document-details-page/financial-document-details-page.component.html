@@ -509,9 +509,9 @@
 							</div>
 							<div class="card-body">
 								<div class="order-summary-list">
-									<div class="summary-row" *ngIf="financialDoc.order.orderId">
-										<span class="summary-label">{{ 'order_number' | translate }}</span>
-										<span class="summary-value font-bold">#{{ financialDoc.order.orderId }}</span>
+									<div class="summary-row" *ngIf="financialDoc.order.reference">
+										<span class="summary-label">{{ 'order_reference' | translate }}</span>
+										<span class="summary-value font-bold">{{ financialDoc.order.reference }}</span>
 									</div>
 									<div class="summary-row" *ngIf="financialDoc.order.orderDate">
 										<span class="summary-label">{{ 'order_date' | translate }}</span>

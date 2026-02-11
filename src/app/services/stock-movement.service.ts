@@ -30,8 +30,10 @@ export class StockMovementService {
     size: number = 20,
     productId?: number,
     warehouseId?: number,
+    movementType?: string,
     start?: string,
-    end?: string
+    end?: string,
+    search?: string
   ): Promise<Observable<PagedStockMovementResponse>> {
     await this.ensureTokenLoaded();
     const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
@@ -46,11 +48,17 @@ export class StockMovementService {
     if (warehouseId != null) {
       params = params.set('warehouseId', warehouseId.toString());
     }
+    if (movementType && movementType.trim() !== '') {
+      params = params.set('movementType', movementType);
+    }
     if (start && start.trim() !== '') {
       params = params.set('start', start);
     }
     if (end && end.trim() !== '') {
       params = params.set('end', end);
+    }
+    if (search && search.trim() !== '') {
+      params = params.set('search', search.trim());
     }
 
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}`;

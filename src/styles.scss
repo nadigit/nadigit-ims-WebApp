@@ -11,96 +11,490 @@ $gutter: 1rem;
 @import "assets/ims/styles/code.css";
 
 /* =====================================================
-   RTL Support
+   Enhanced RTL Support
    ===================================================== */
 [dir="rtl"],
-.rtl {
+html[dir="rtl"],
+body[dir="rtl"],
+.rtl,
+html.rtl,
+body.rtl {
   direction: rtl;
   text-align: right;
 }
 
-[dir="rtl"] .p-inputtext,
-[dir="rtl"] .p-dropdown,
-[dir="rtl"] .p-calendar,
-[dir="rtl"] .p-button {
-  direction: rtl;
-}
+/* =====================================================
+   Layout RTL Fixes
+   ===================================================== */
 
-/* RTL adjustments for PrimeNG components */
-[dir="rtl"] .p-datatable .p-datatable-thead > tr > th,
-[dir="rtl"] .p-datatable .p-datatable-tbody > tr > td {
-  text-align: right;
-}
-
-[dir="rtl"] .p-menu,
-[dir="rtl"] .p-tieredmenu {
-  text-align: right;
-}
-
-[dir="rtl"] .p-sidebar {
+/* Sidebar positioning */
+[dir="rtl"] .layout-sidebar,
+html[dir="rtl"] .layout-sidebar,
+body[dir="rtl"] .layout-sidebar {
   left: auto !important;
-  right: 0 !important;
+  right: 2rem !important;
+  transition: transform $transitionDuration, right $transitionDuration !important;
 }
 
-[dir="rtl"] .p-sidebar-right {
-  right: auto !important;
-  left: 0 !important;
+/* Main container margins and padding */
+[dir="rtl"] .layout-main-container,
+html[dir="rtl"] .layout-main-container,
+body[dir="rtl"] .layout-main-container {
+  padding-left: 2rem !important;
+  padding-right: 4rem !important;
+  margin-left: 0 !important;
 }
 
-/* RTL adjustments for flex utilities */
-[dir="rtl"] .flex {
-  flex-direction: row-reverse;
+/* Static layout mode - sidebar on right */
+@media (min-width: 992px) {
+  [dir="rtl"] .layout-wrapper.layout-static .layout-main-container,
+  html[dir="rtl"] .layout-wrapper.layout-static .layout-main-container {
+    margin-left: 0 !important;
+    margin-right: 300px !important;
+  }
+
+  [dir="rtl"] .layout-wrapper.layout-static.layout-static-inactive .layout-main-container,
+  html[dir="rtl"] .layout-wrapper.layout-static.layout-static-inactive .layout-main-container {
+    margin-right: 0 !important;
+    padding-right: 2rem !important;
+  }
+
+  [dir="rtl"] .layout-wrapper.layout-static.layout-static-inactive .layout-sidebar,
+  html[dir="rtl"] .layout-wrapper.layout-static.layout-static-inactive .layout-sidebar {
+    transform: translateX(100%) !important;
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  /* Overlay mode */
+  [dir="rtl"] .layout-wrapper.layout-overlay .layout-sidebar,
+  html[dir="rtl"] .layout-wrapper.layout-overlay .layout-sidebar {
+    transform: translateX(100%) !important;
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  [dir="rtl"] .layout-wrapper.layout-overlay.layout-overlay-active .layout-sidebar,
+  html[dir="rtl"] .layout-wrapper.layout-overlay.layout-overlay-active .layout-sidebar {
+    transform: translateX(0) !important;
+  }
 }
 
-[dir="rtl"] .ml-auto {
+/* Mobile responsive */
+@media (max-width: 991px) {
+  [dir="rtl"] .layout-sidebar,
+  html[dir="rtl"] .layout-sidebar {
+    transform: translateX(100%) !important;
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  [dir="rtl"] .layout-wrapper.layout-mobile-active .layout-sidebar,
+  html[dir="rtl"] .layout-wrapper.layout-mobile-active .layout-sidebar {
+    transform: translateX(0) !important;
+  }
+
+  [dir="rtl"] .layout-main-container,
+  html[dir="rtl"] .layout-main-container {
+    padding-right: 2rem !important;
+    padding-left: 2rem !important;
+  }
+}
+
+/* Menu items - swap margins */
+[dir="rtl"] .layout-menu ul a .layout-menuitem-icon,
+html[dir="rtl"] .layout-menu ul a .layout-menuitem-icon {
+  margin-right: 0 !important;
+  margin-left: 0.5rem !important;
+}
+
+[dir="rtl"] .layout-menu ul a .layout-submenu-toggler,
+html[dir="rtl"] .layout-menu ul a .layout-submenu-toggler {
   margin-left: 0 !important;
   margin-right: auto !important;
 }
 
-[dir="rtl"] .mr-auto {
+[dir="rtl"] .layout-menu ul li a,
+html[dir="rtl"] .layout-menu ul li a {
+  margin-left: 0 !important;
+  margin-right: 1rem !important;
+}
+
+[dir="rtl"] .layout-menu ul li li a,
+html[dir="rtl"] .layout-menu ul li li a {
+  margin-right: 2rem !important;
+}
+
+[dir="rtl"] .layout-menu ul li li li a,
+html[dir="rtl"] .layout-menu ul li li li a {
+  margin-right: 2.5rem !important;
+}
+
+[dir="rtl"] .layout-menu ul li li li li a,
+html[dir="rtl"] .layout-menu ul li li li li a {
+  margin-right: 3rem !important;
+}
+
+[dir="rtl"] .layout-menu ul li li li li li a,
+html[dir="rtl"] .layout-menu ul li li li li li a {
+  margin-right: 3.5rem !important;
+}
+
+[dir="rtl"] .layout-menu ul li li li li li li a,
+html[dir="rtl"] .layout-menu ul li li li li li li a {
+  margin-right: 4rem !important;
+}
+
+/* Menu rotation fix */
+[dir="rtl"] .layout-menu a.active-menuitem > .layout-submenu-toggler,
+[dir="rtl"] .layout-menu li.active-menuitem > a .layout-submenu-toggler,
+html[dir="rtl"] .layout-menu a.active-menuitem > .layout-submenu-toggler,
+html[dir="rtl"] .layout-menu li.active-menuitem > a .layout-submenu-toggler {
+  transform: rotate(180deg) !important;
+}
+
+/* =====================================================
+   PrimeNG Components RTL
+   ===================================================== */
+
+[dir="rtl"] .p-inputtext,
+[dir="rtl"] .p-dropdown,
+[dir="rtl"] .p-calendar,
+[dir="rtl"] .p-button,
+[dir="rtl"] .p-inputnumber,
+[dir="rtl"] .p-inputtextarea,
+html[dir="rtl"] .p-inputtext,
+html[dir="rtl"] .p-dropdown,
+html[dir="rtl"] .p-calendar,
+html[dir="rtl"] .p-button,
+html[dir="rtl"] .p-inputnumber,
+html[dir="rtl"] .p-inputtextarea {
+  direction: rtl;
+  text-align: right;
+}
+
+/* PrimeNG Tables */
+[dir="rtl"] .p-datatable .p-datatable-thead > tr > th,
+[dir="rtl"] .p-datatable .p-datatable-tbody > tr > td,
+html[dir="rtl"] .p-datatable .p-datatable-thead > tr > th,
+html[dir="rtl"] .p-datatable .p-datatable-tbody > tr > td {
+  text-align: right;
+}
+
+/* PrimeNG Menus */
+[dir="rtl"] .p-menu,
+[dir="rtl"] .p-tieredmenu,
+[dir="rtl"] .p-menubar,
+html[dir="rtl"] .p-menu,
+html[dir="rtl"] .p-tieredmenu,
+html[dir="rtl"] .p-menubar {
+  text-align: right;
+  direction: rtl;
+}
+
+/* PrimeNG Sidebar */
+[dir="rtl"] .p-sidebar,
+html[dir="rtl"] .p-sidebar {
+  left: auto !important;
+  right: 0 !important;
+}
+
+[dir="rtl"] .p-sidebar-right,
+html[dir="rtl"] .p-sidebar-right {
+  right: auto !important;
+  left: 0 !important;
+}
+
+/* PrimeNG Dialog */
+[dir="rtl"] .p-dialog .p-dialog-header .p-dialog-header-icon,
+html[dir="rtl"] .p-dialog .p-dialog-header .p-dialog-header-icon {
+  left: auto !important;
+  right: 1rem !important;
+}
+
+/* PrimeNG Dropdown */
+[dir="rtl"] .p-dropdown-trigger,
+html[dir="rtl"] .p-dropdown-trigger {
+  left: 0 !important;
+  right: auto !important;
+}
+
+[dir="rtl"] .p-dropdown-panel,
+html[dir="rtl"] .p-dropdown-panel {
+  direction: rtl;
+  text-align: right;
+}
+
+/* PrimeNG Input Icons */
+[dir="rtl"] .p-input-icon-left > i,
+[dir="rtl"] .p-input-icon-left > .p-input-icon,
+html[dir="rtl"] .p-input-icon-left > i,
+html[dir="rtl"] .p-input-icon-left > .p-input-icon {
+  left: auto !important;
+  right: 0.75rem !important;
+}
+
+[dir="rtl"] .p-input-icon-right > i,
+[dir="rtl"] .p-input-icon-right > .p-input-icon,
+html[dir="rtl"] .p-input-icon-right > i,
+html[dir="rtl"] .p-input-icon-right > .p-input-icon {
+  right: auto !important;
+  left: 0.75rem !important;
+}
+
+[dir="rtl"] .p-input-icon-left > input,
+html[dir="rtl"] .p-input-icon-left > input {
+  padding-left: 2.5rem !important;
+  padding-right: 0.75rem !important;
+}
+
+[dir="rtl"] .p-input-icon-right > input,
+html[dir="rtl"] .p-input-icon-right > input {
+  padding-right: 2.5rem !important;
+  padding-left: 0.75rem !important;
+}
+
+/* PrimeNG Calendar */
+[dir="rtl"] .p-calendar .p-inputtext,
+html[dir="rtl"] .p-calendar .p-inputtext {
+  padding-right: 2.5rem !important;
+  padding-left: 0.75rem !important;
+}
+
+[dir="rtl"] .p-calendar .p-datepicker-trigger,
+html[dir="rtl"] .p-calendar .p-datepicker-trigger {
+  left: 0 !important;
+  right: auto !important;
+}
+
+[dir="rtl"] .p-datepicker,
+html[dir="rtl"] .p-datepicker {
+  direction: rtl;
+}
+
+/* PrimeNG SplitButton */
+[dir="rtl"] .p-splitbutton .p-splitbutton-defaultbutton,
+html[dir="rtl"] .p-splitbutton .p-splitbutton-defaultbutton {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-top-left-radius: var(--border-radius) !important;
+  border-bottom-left-radius: var(--border-radius) !important;
+}
+
+[dir="rtl"] .p-splitbutton .p-splitbutton-menubutton,
+html[dir="rtl"] .p-splitbutton .p-splitbutton-menubutton {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: var(--border-radius) !important;
+  border-bottom-right-radius: var(--border-radius) !important;
+  border-right: 1px solid !important;
+  border-left: none !important;
+}
+
+/* =====================================================
+   Flexbox RTL Fixes
+   ===================================================== */
+
+/* Don't reverse all flex containers - only specific ones that need it */
+[dir="rtl"] .flex.justify-content-start,
+html[dir="rtl"] .flex.justify-content-start {
+  justify-content: flex-end !important;
+}
+
+[dir="rtl"] .flex.justify-content-end,
+html[dir="rtl"] .flex.justify-content-end {
+  justify-content: flex-start !important;
+}
+
+/* justify-content-between should work fine as-is in RTL */
+/* justify-content-center should work fine as-is in RTL */
+
+/* Auto margins */
+[dir="rtl"] .ml-auto,
+html[dir="rtl"] .ml-auto {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+[dir="rtl"] .mr-auto,
+html[dir="rtl"] .mr-auto {
   margin-right: 0 !important;
   margin-left: auto !important;
 }
 
-/* Swap margin-left/right in RTL */
+/* =====================================================
+   PrimeFlex Utility Classes RTL
+   ===================================================== */
+
+/* Margin utilities - swap left/right */
+[dir="rtl"] .ml-0 { margin-left: 0 !important; margin-right: 0 !important; }
 [dir="rtl"] .ml-1 { margin-left: 0 !important; margin-right: 0.25rem !important; }
 [dir="rtl"] .ml-2 { margin-left: 0 !important; margin-right: 0.5rem !important; }
 [dir="rtl"] .ml-3 { margin-left: 0 !important; margin-right: 0.75rem !important; }
+[dir="rtl"] .ml-4 { margin-left: 0 !important; margin-right: 1rem !important; }
+[dir="rtl"] .ml-5 { margin-left: 0 !important; margin-right: 1.25rem !important; }
+[dir="rtl"] .ml-6 { margin-left: 0 !important; margin-right: 1.5rem !important; }
+
+[dir="rtl"] .mr-0 { margin-right: 0 !important; margin-left: 0 !important; }
 [dir="rtl"] .mr-1 { margin-right: 0 !important; margin-left: 0.25rem !important; }
 [dir="rtl"] .mr-2 { margin-right: 0 !important; margin-left: 0.5rem !important; }
 [dir="rtl"] .mr-3 { margin-right: 0 !important; margin-left: 0.75rem !important; }
+[dir="rtl"] .mr-4 { margin-right: 0 !important; margin-left: 1rem !important; }
+[dir="rtl"] .mr-5 { margin-right: 0 !important; margin-left: 1.25rem !important; }
+[dir="rtl"] .mr-6 { margin-right: 0 !important; margin-left: 1.5rem !important; }
 
-/* RTL padding adjustments */
+/* Padding utilities - swap left/right */
+[dir="rtl"] .pl-0 { padding-left: 0 !important; padding-right: 0 !important; }
 [dir="rtl"] .pl-1 { padding-left: 0 !important; padding-right: 0.25rem !important; }
 [dir="rtl"] .pl-2 { padding-left: 0 !important; padding-right: 0.5rem !important; }
 [dir="rtl"] .pl-3 { padding-left: 0 !important; padding-right: 0.75rem !important; }
+[dir="rtl"] .pl-4 { padding-left: 0 !important; padding-right: 1rem !important; }
+[dir="rtl"] .pl-5 { padding-left: 0 !important; padding-right: 1.25rem !important; }
+[dir="rtl"] .pl-6 { padding-left: 0 !important; padding-right: 1.5rem !important; }
+
+[dir="rtl"] .pr-0 { padding-right: 0 !important; padding-left: 0 !important; }
 [dir="rtl"] .pr-1 { padding-right: 0 !important; padding-left: 0.25rem !important; }
 [dir="rtl"] .pr-2 { padding-right: 0 !important; padding-left: 0.5rem !important; }
 [dir="rtl"] .pr-3 { padding-right: 0 !important; padding-left: 0.75rem !important; }
+[dir="rtl"] .pr-4 { padding-right: 0 !important; padding-left: 1rem !important; }
+[dir="rtl"] .pr-5 { padding-right: 0 !important; padding-left: 1.25rem !important; }
+[dir="rtl"] .pr-6 { padding-right: 0 !important; padding-left: 1.5rem !important; }
 
-/* RTL text alignment */
-[dir="rtl"] .text-left {
+/* Text alignment */
+[dir="rtl"] .text-left,
+html[dir="rtl"] .text-left {
   text-align: right !important;
 }
 
-[dir="rtl"] .text-right {
+[dir="rtl"] .text-right,
+html[dir="rtl"] .text-right {
   text-align: left !important;
 }
 
-/* RTL layout adjustments */
-[dir="rtl"] .layout-sidebar {
-  left: auto;
-  right: 0;
+/* =====================================================
+   Topbar RTL Fixes
+   ===================================================== */
+
+[dir="rtl"] .layout-topbar,
+html[dir="rtl"] .layout-topbar {
+  direction: rtl;
 }
 
-[dir="rtl"] .layout-main-container {
-  margin-left: 0;
-  margin-right: 20rem;
+[dir="rtl"] .layout-topbar .layout-topbar-logo,
+html[dir="rtl"] .layout-topbar .layout-topbar-logo {
+  margin-right: 0 !important;
+  margin-left: 2rem !important;
 }
 
-@media screen and (max-width: 991px) {
-  [dir="rtl"] .layout-main-container {
-    margin-right: 0;
+/* =====================================================
+   Grid System RTL
+   ===================================================== */
+
+/* Grid columns should work naturally in RTL */
+[dir="rtl"] .grid,
+html[dir="rtl"] .grid {
+  direction: rtl;
+}
+
+/* =====================================================
+   Common Component Fixes
+   ===================================================== */
+
+/* Cards and containers */
+[dir="rtl"] .p-card .p-card-body,
+[dir="rtl"] .p-card .p-card-content,
+html[dir="rtl"] .p-card .p-card-body,
+html[dir="rtl"] .p-card .p-card-content {
+  text-align: right;
+}
+
+/* Border radius adjustments for RTL */
+[dir="rtl"] .border-left,
+html[dir="rtl"] .border-left {
+  border-left: none !important;
+  border-right: 1px solid var(--surface-border) !important;
+}
+
+[dir="rtl"] .border-right,
+html[dir="rtl"] .border-right {
+  border-right: none !important;
+  border-left: 1px solid var(--surface-border) !important;
+}
+
+/* Icons in buttons and links */
+[dir="rtl"] .p-button .p-button-icon-left,
+html[dir="rtl"] .p-button .p-button-icon-left {
+  margin-right: 0 !important;
+  margin-left: 0.5rem !important;
+}
+
+[dir="rtl"] .p-button .p-button-icon-right,
+html[dir="rtl"] .p-button .p-button-icon-right {
+  margin-left: 0 !important;
+  margin-right: 0.5rem !important;
+}
+
+/* Input groups */
+[dir="rtl"] .p-inputgroup .p-inputgroup-addon:first-child,
+html[dir="rtl"] .p-inputgroup .p-inputgroup-addon:first-child {
+  border-top-right-radius: var(--border-radius) !important;
+  border-bottom-right-radius: var(--border-radius) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-right: 1px solid var(--surface-border) !important;
+  border-left: none !important;
+}
+
+[dir="rtl"] .p-inputgroup .p-inputgroup-addon:last-child,
+html[dir="rtl"] .p-inputgroup .p-inputgroup-addon:last-child {
+  border-top-left-radius: var(--border-radius) !important;
+  border-bottom-left-radius: var(--border-radius) !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-left: 1px solid var(--surface-border) !important;
+  border-right: none !important;
+}
+
+[dir="rtl"] .p-inputgroup .p-inputtext:first-child,
+html[dir="rtl"] .p-inputgroup .p-inputtext:first-child {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+[dir="rtl"] .p-inputgroup .p-inputtext:last-child,
+html[dir="rtl"] .p-inputgroup .p-inputtext:last-child {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* TabView */
+[dir="rtl"] .p-tabview .p-tabview-nav li,
+html[dir="rtl"] .p-tabview .p-tabview-nav li {
+  direction: rtl;
+}
+
+/* Tooltip positioning */
+[dir="rtl"] .p-tooltip-right .p-tooltip-arrow,
+html[dir="rtl"] .p-tooltip-right .p-tooltip-arrow {
+  border-right-color: transparent !important;
+  border-left-color: var(--surface-900) !important;
+}
+
+[dir="rtl"] .p-tooltip-left .p-tooltip-arrow,
+html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
+  border-left-color: transparent !important;
+  border-right-color: var(--surface-900) !important;
+}
+
+/* =====================================================
+   Responsive RTL Fixes
+   ===================================================== */
+
+@media (max-width: 991px) {
+  [dir="rtl"] .layout-main-container,
+  html[dir="rtl"] .layout-main-container {
+    padding-right: 1rem !important;
+    padding-left: 1rem !important;
   }
 }
 

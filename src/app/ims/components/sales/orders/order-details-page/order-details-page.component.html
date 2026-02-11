@@ -57,25 +57,65 @@
                         </div>
                     </div>
                     
-                    <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-file-edit" 
-                            [label]="'generate_proforma_invoice' | translate"
-                            class="p-button-warning"
-                            *ngIf="isAdmin && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
-                                && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned'"
-                            [pTooltip]="'preliminary_invoice_info' | translate"
-                            (click)="generateProformaInvoice(order)"></button>
-                        <button pButton pRipple icon="pi pi-print" 
-                            [label]="'generate_invoice' | translate"
-                            class="p-button-help"
-                            *ngIf="isAdmin && !order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
-                                && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned'"
-                            (click)="generateInvoice(order)"></button>
-                        <button pButton pRipple icon="pi pi-print" 
-                            [label]="'print_invoice' | translate"
-                            class="p-button-help"
-                            *ngIf="order.hasInvoice && isAdmin"
-                            (click)="financialDocService.printFinancialDoc(order.activeInvoiceNumber)"></button>
+                    <div class="flex flex-column gap-2 md:align-items-end">
+                        <div class="flex flex-wrap gap-2 action-buttons justify-content-end">
+                            <!-- Show Status Guide Button (if hidden) -->
+                            <button pButton pRipple 
+                                icon="pi pi-info-circle" 
+                                [label]="'show_status_guide' | translate"
+                                class="p-button-text p-button-sm"
+                                *ngIf="!showStatusGuide"
+                                [pTooltip]="'show_status_guide' | translate"
+                                (click)="showStatusGuideAgain()">
+                            </button>
+
+                            <!-- Edit Order Button -->
+                            <button pButton pRipple icon="pi pi-pencil"
+                                [label]="'update_order' | translate"
+                                class="p-button-warning"
+                                *ngIf="canEdit && (order.orderStatus !== 'Completed' && order.orderStatus !== 'Canceled')"
+                                [pTooltip]="'update_order' | translate"
+                                (click)="editOrder()">
+                            </button>
+
+                            <!-- Primary Document Button based on Order Status -->
+                            <!-- Quote for Ordered status -->
+                            <button pButton pRipple icon="pi pi-file" 
+                                [label]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
+                                class="p-button-secondary"
+                                *ngIf="isAdmin && order.orderStatus === 'Ordered' && isQuoteEligible()"
+                                [pTooltip]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
+                                [loading]="!quoteDocNumber && isGeneratingQuote"
+                                (click)="quoteDocNumber ? viewQuote() : generateQuote(order)"></button>
+                            
+                            <!-- Purchase Order for Processing status -->
+                            <button pButton pRipple icon="pi pi-shopping-cart" 
+                                [label]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
+                                class="p-button-info"
+                                *ngIf="isAdmin && order.orderStatus === 'Processing' && isPurchaseOrderEligible()"
+                                [pTooltip]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
+                                [loading]="!purchaseOrderDocNumber && isGeneratingPurchaseOrder"
+                                (click)="purchaseOrderDocNumber ? viewPurchaseOrder() : generatePurchaseOrder(order)"></button>
+                            
+                            <!-- Delivery Order for Delivered status -->
+                            <button pButton pRipple icon="pi pi-truck" 
+                                [label]="deliveryOrderDocNumber ? ('view_delivery_order' | translate) : ('generate_delivery_order' | translate)"
+                                class="p-button-success"
+                                *ngIf="isAdmin && order.orderStatus === 'Delivered' && isDeliveryNoteEligible()"
+                                [pTooltip]="deliveryOrderDocNumber ? ('view_delivery_order' | translate) : ('generate_delivery_order' | translate)"
+                                [loading]="!deliveryOrderDocNumber && isGeneratingDeliveryOrder"
+                                (click)="deliveryOrderDocNumber ? viewDeliveryOrder() : generateDeliveryOrder(order)"></button>
+                            
+                            <!-- Invoice for Completed status or when invoice exists -->
+                            <button pButton pRipple icon="pi pi-print" 
+                                [label]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
+                                class="p-button-help"
+                                *ngIf="isAdmin && (order.orderStatus === 'Completed' || invoiceDocNumber) && isInvoiceEligible()"
+                                [pTooltip]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
+                                [loading]="!invoiceDocNumber && isGeneratingInvoice"
+                                (click)="invoiceDocNumber ? viewInvoice() : generateInvoice(order)"></button>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -164,6 +204,7 @@
                     <span class="stat-sub">{{ 'margin' | translate }}</span>
                 </div>
             </div>
+
         </div>
 
         <!-- Tabs Section -->
@@ -306,6 +347,76 @@
                     
                     <!-- Right Column - Payments & Actions -->
                     <div class="col-12 lg:col-8">
+                        <!-- Show Status Guide Button (if hidden) -->
+                        <div class="mb-4" *ngIf="!showStatusGuide">
+                            <button pButton pRipple 
+                                icon="pi pi-info-circle" 
+                                [label]="'show_status_guide' | translate"
+                                class="p-button-outlined p-button-sm"
+                                [pTooltip]="'show_status_guide' | translate"
+                                (click)="showStatusGuideAgain()">
+                            </button>
+                        </div>
+
+                        <!-- Status Guide Card (Dismissible) -->
+                        <div class="detail-card mb-4" *ngIf="showStatusGuide && order">
+                            <div class="card-header">
+                                <div class="flex align-items-center justify-content-between w-full">
+                                    <div class="flex align-items-center gap-2">
+                                        <i class="pi pi-info-circle"></i>
+                                        <span>{{ 'status_legend' | translate }}</span>
+                                    </div>
+                                    <button pButton pRipple 
+                                        icon="pi pi-times" 
+                                        class="p-button-text p-button-rounded p-button-sm"
+                                        [pTooltip]="'hide_this_guide' | translate"
+                                        (click)="hideStatusGuide()">
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-list text-sm text-600">
+                                    <div class="info-item mb-2">
+                                        <strong>{{ 'order_status' | translate }}:</strong>
+                                        <span class="ml-1">{{ 'order_status_legend' | translate }}</span>
+                                    </div>
+                                    <div class="info-item mb-3">
+                                        <strong>{{ 'order_payment_status' | translate }}:</strong>
+                                        <span class="ml-1">{{ 'payment_status_legend' | translate }}</span>
+                                    </div>
+                                    <div class="mt-3 pt-3 border-top-1 surface-border">
+                                        <div class="flex align-items-start gap-2">
+                                            <i class="pi pi-arrow-right text-primary mt-1"></i>
+                                            <div class="flex-1">
+                                                <span class="text-xs text-500 font-semibold block mb-1">
+                                                    {{ 'next_steps' | translate }}:
+                                                </span>
+                                                <span class="text-sm text-700 block">
+                                                    <ng-container [ngSwitch]="order.orderStatus">
+                                                        <span *ngSwitchCase="'Ordered'">
+                                                            {{ 'order_next_step_ordered' | translate }}
+                                                        </span>
+                                                        <span *ngSwitchCase="'Processing'">
+                                                            {{ 'order_next_step_processing' | translate }}
+                                                        </span>
+                                                        <span *ngSwitchCase="'Delivered'">
+                                                            {{ 'order_next_step_delivered' | translate }}
+                                                        </span>
+                                                        <span *ngSwitchCase="'Completed'">
+                                                            {{ 'order_next_step_completed' | translate }}
+                                                        </span>
+                                                        <span *ngSwitchDefault>
+                                                            {{ 'order_next_step_default' | translate }}
+                                                        </span>
+                                                    </ng-container>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Payments Card -->
                         <div class="detail-card mb-4" *ngIf="orderPayments.length > 0">
                             <div class="card-header">
@@ -335,26 +446,84 @@
 
                         <!-- Quick Actions Card -->
                         <div class="detail-card" 
-                            *ngIf="!order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
-                                && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned' || order.hasInvoice">
+                            *ngIf="(canProcess && (order.orderStatus === 'Ordered' || order.orderStatus === 'Processing' || order.orderStatus === 'Delivered')) 
+                                || (isAdmin && (isQuoteEligible() || isPurchaseOrderEligible() || isDeliveryNoteEligible() || isInvoiceEligible() || proformaInvoiceDocNumber))">
                             <div class="card-header">
                                 <i class="pi pi-bolt"></i>
                                 <span>{{ 'quick_actions' | translate }}</span>
                             </div>
                             <div class="card-body">
                                 <div class="actions-grid">
-                                    <button pButton pRipple icon="pi pi-print" 
-                                        [label]="'generate_invoice' | translate"
-                                        class="p-button-outlined p-button-help"
-                                        *ngIf="isAdmin && !order.hasInvoice && order.orderStatus !== 'Ordered' && order.orderStatus !== 'Canceled' 
-                                            && order.orderStatus !== 'Return_Pending' && order.orderStatus !== 'Returned'"
-                                        (click)="generateInvoice(order)"></button>
+                                    <!-- Status Update Buttons -->
+                                    <!-- Process Order Button (shown when status is Ordered) -->
+                                    <button pButton pRipple icon="pi pi-cog" 
+                                        [label]="'process_order_button' | translate"
+                                        class="p-button-outlined p-button-success"
+                                        *ngIf="canProcess && order.orderStatus === 'Ordered'"
+                                        [pTooltip]="'process_order_button' | translate"
+                                        (click)="processOrder()"></button>
                                     
+                                    <!-- Deliver Order Button (shown when status is Processing) -->
+                                    <button pButton pRipple icon="pi pi-truck" 
+                                        [label]="'deliver_order_button' | translate"
+                                        class="p-button-outlined p-button-info"
+                                        *ngIf="canProcess && order.orderStatus === 'Processing'"
+                                        [pTooltip]="'deliver_order_button' | translate"
+                                        (click)="deliverOrder()"></button>
+                                    
+                                    <!-- Complete Order Button (shown when status is Delivered) -->
+                                    <button pButton pRipple icon="pi pi-check-circle" 
+                                        [label]="'complete_order_button' | translate"
+                                        class="p-button-outlined p-button-success"
+                                        *ngIf="canProcess && order.orderStatus === 'Delivered'"
+                                        [pTooltip]="'complete_order_button' | translate"
+                                        (click)="completeOrder()"></button>
+                                    
+                                    <!-- Document Generation Buttons (all except primary) -->
+                                    <!-- Quote (when not Ordered or when already shown in header) -->
+                                    <button pButton pRipple icon="pi pi-file" 
+                                        [label]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
+                                        class="p-button-outlined p-button-secondary"
+                                        *ngIf="isAdmin && isQuoteEligible() && order.orderStatus !== 'Ordered'"
+                                        [pTooltip]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
+                                        [loading]="!quoteDocNumber && isGeneratingQuote"
+                                        (click)="quoteDocNumber ? viewQuote() : generateQuote(order)"></button>
+                                    
+                                    <!-- Proforma Invoice -->
+                                    <button pButton pRipple icon="pi pi-file-edit" 
+                                        [label]="proformaInvoiceDocNumber ? ('print_proforma_invoice' | translate) : ('generate_proforma_invoice' | translate)"
+                                        class="p-button-outlined p-button-warning"
+                                        *ngIf="isAdmin && isInvoiceEligible()"
+                                        [pTooltip]="proformaInvoiceDocNumber ? ('print_proforma_invoice' | translate) : ('preliminary_invoice_info' | translate)"
+                                        [loading]="!proformaInvoiceDocNumber && isGeneratingProformaInvoice"
+                                        (click)="proformaInvoiceDocNumber ? viewProformaInvoice() : generateProformaInvoice(order)"></button>
+                                    
+                                    <!-- Purchase Order (when not Processing or when already shown in header) -->
+                                    <button pButton pRipple icon="pi pi-shopping-cart" 
+                                        [label]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
+                                        class="p-button-outlined p-button-info"
+                                        *ngIf="isAdmin && isPurchaseOrderEligible() && order.orderStatus !== 'Processing'"
+                                        [pTooltip]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
+                                        [loading]="!purchaseOrderDocNumber && isGeneratingPurchaseOrder"
+                                        (click)="purchaseOrderDocNumber ? viewPurchaseOrder() : generatePurchaseOrder(order)"></button>
+                                    
+                                    <!-- Delivery Order (when not Delivered or when already shown in header) -->
+                                    <button pButton pRipple icon="pi pi-truck" 
+                                        [label]="deliveryOrderDocNumber ? ('generate_delivery_order' | translate) : ('generate_delivery_order' | translate)"
+                                        class="p-button-outlined p-button-success"
+                                        *ngIf="isAdmin && isDeliveryNoteEligible() && order.orderStatus !== 'Delivered'"
+                                        [pTooltip]="deliveryOrderDocNumber ? ('generate_delivery_order' | translate) : ('generate_delivery_order' | translate)"
+                                        [loading]="!deliveryOrderDocNumber && isGeneratingDeliveryOrder"
+                                        (click)="deliveryOrderDocNumber ? viewDeliveryOrder() : generateDeliveryOrder(order)"></button>
+                                    
+                                    <!-- Invoice (when not Completed or when already shown in header) -->
                                     <button pButton pRipple icon="pi pi-print" 
-                                        [label]="'print_invoice' | translate"
+                                        [label]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
                                         class="p-button-outlined p-button-help"
-                                        *ngIf="order.hasInvoice && isAdmin"
-                                        (click)="financialDocService.printFinancialDoc(order.activeInvoiceNumber)"></button>
+                                        *ngIf="isAdmin && isInvoiceEligible() && order.orderStatus !== 'Completed' && !invoiceDocNumber"
+                                        [pTooltip]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
+                                        [loading]="!invoiceDocNumber && isGeneratingInvoice"
+                                        (click)="invoiceDocNumber ? viewInvoice() : generateInvoice(order)"></button>
                                 </div>
                             </div>
                         </div>
@@ -451,7 +620,7 @@
                                         <tr class="total-footer">
                                             <td [attr.colspan]="hasCostInfo() ? 4 : 4" class="text-right font-bold">{{ 'subtotal' | translate }}:</td>
                                             <td class="font-bold text-primary text-xl">{{ getOrderSubtotal() | number:'1.2-2' }} {{ currency }}</td>
-                                            <td *ngIf="hasCostInfo()" colspan="2" class="text-right font-bold cost-cell">{{ 'total_cost' | translate }}:</td>
+                                            <td *ngIf="hasCostInfo()" colspan="1" class="text-right font-bold cost-cell">{{ 'total_cost' | translate }}:</td>
                                             <td *ngIf="hasCostInfo()" class="font-bold cost-value text-xl">{{ order.totalCost | number:'1.2-2' }} {{ currency }}</td>
                                             <td *ngIf="hasCostInfo()" colspan="2" class="text-right font-bold profit-cell">{{ 'total_profit' | translate }}:</td>
                                             <td *ngIf="hasCostInfo()" class="font-bold profit-value text-xl" [ngClass]="{'profit-negative': order.totalProfit < 0}">

@@ -61,7 +61,7 @@
           type="button"
           class="pos-tab-btn"
           [class.active]="activeTab === 'returns'"
-          (click)="activeTab = 'returns'">
+          (click)="onReturnsTabClick()">
           <i class="pi pi-undo"></i>
           <span>{{ 'returns_refunds' | translate }}</span>
         </button>
@@ -154,14 +154,14 @@
               (click)="navigateToProfile()"
               [pTooltip]="'profile_page_title' | translate">
             </button>
-            <button
+            <!-- <button
               pButton
               icon="pi pi-sign-out"
               class="p-button-text p-button-sm"
               (click)="switchCashier()"
               [disabled]="isLocked || !session"
               [pTooltip]="'switch_cashier' | translate">
-            </button>
+            </button> -->
           </div>
         </div>
         
@@ -180,6 +180,17 @@
       
       <!-- Action Buttons -->
       <div class="flex align-items-center gap-2">
+        <!-- Exit POS Button (Admin & Vendor Only) -->
+        <button
+          *ngIf="isAdmin || isVendor"
+          pButton
+          icon="pi pi-sign-out"
+          (click)="exitPos()"
+          class="p-button-rounded p-button-text p-button-secondary"
+          [disabled]="isLocked"
+          [pTooltip]="'exit_pos' | translate">
+        </button>
+        
         <!-- PWA Actions -->
         <p-speedDial
           *ngIf="canInstallPwa || updateAvailable"
@@ -930,6 +941,7 @@
             [dropdown]="true"
             [forceSelection]="false"
             field="reference"
+            appendTo="body"
             styleClass="w-full">
             <ng-template let-order pTemplate="item">
               <div class="pos-order-suggestion">
@@ -1729,7 +1741,7 @@
   </p-dialog>
 
   <!-- Switch Cashier Dialog -->
-  <p-dialog
+  <!-- <p-dialog
     [(visible)]="switchCashierDialog"
     [header]="'switch_cashier' | translate"
     [modal]="true"
@@ -1743,7 +1755,7 @@
         <p class="text-600 mb-4">{{ 'enter_cashier_pin' | translate }}</p>
       </div>
       
-      <div class="pos-pin-input">
+      <div class="pos-pin-input flex justify-content-center">
         <p-password
           [(ngModel)]="switchCashierPin"
           [feedback]="false"
@@ -1751,6 +1763,7 @@
           (onSubmit)="confirmSwitchCashier()"
           [placeholder]="'enter_pin' | translate"
           [inputStyle]="{ 'text-align': 'center', 'font-size': '1.25rem', 'letter-spacing': '0.3rem' }"
+          [style]="{ width: '100%', maxWidth: '300px' }"
           autofocus
           [promptLabel]="''">
         </p-password>
@@ -1774,7 +1787,7 @@
         [disabled]="!switchCashierPin || switchCashierPin.length < 4">
       </button>
     </ng-template>
-  </p-dialog>
+  </p-dialog> -->
   
   <!-- Return Dialog -->
   <p-dialog
@@ -1807,15 +1820,18 @@
                     <div class="font-semibold mb-1">{{ item.product?.name || item.productName }}</div>
                     <div class="text-600 text-sm mb-2">
                       {{ 'quantity' | translate }}: {{ item.quantity }} • 
-                      {{ formatCurrency(item.unitPrice || item.sellingPrice || 0) }} {{ 'per_unit' | translate }}
+                      {{ 'returned' | translate }}: {{ item.returnedQuantity || 0 }} • 
+                      {{ 'available' | translate }}: {{ item.availableQuantity || (item.quantity - (item.returnedQuantity || 0)) }} • 
+                      {{ formatCurrency(item.pricePerUnit || item.sellingPrice || 0) }} {{ 'per_unit' | translate }}
                     </div>
                     <div class="flex align-items-center gap-2">
                       <label class="text-sm font-semibold">{{ 'return_quantity' | translate }}:</label>
                       <p-inputNumber
                         [(ngModel)]="item.returnQuantity"
                         [min]="0"
-                        [max]="item.quantity"
+                        [max]="item.availableQuantity || (item.quantity - (item.returnedQuantity || 0))"
                         (onInput)="calculateReturnItemRefund(item)"
+                        (onChange)="calculateReturnItemRefund(item)"
                         styleClass="w-8rem">
                       </p-inputNumber>
                     </div>
@@ -1834,7 +1850,14 @@
                       [options]="returnReasons"
                       optionLabel="label"
                       optionValue="value"
+                      appendTo="body"
                       styleClass="w-full">
+                      <ng-template let-option pTemplate="item">
+                        {{ ('return_reason_' + option.value.toLowerCase()) | translate }}
+                      </ng-template>
+                      <ng-template let-option pTemplate="selectedItem">
+                        {{ ('return_reason_' + option.value.toLowerCase()) | translate }}
+                      </ng-template>
                     </p-dropdown>
                   </div>
                   <div class="col-12 md:col-6">
@@ -1844,8 +1867,27 @@
                       [options]="itemConditions"
                       optionLabel="label"
                       optionValue="value"
-                      styleClass="w-full">
+                      appendTo="body"
+                      styleClass="w-full"
+                      (onChange)="onConditionChange(item)">
+                      <ng-template let-option pTemplate="item">
+                        {{ ('item_condition_' + option.value.toLowerCase()) | translate }}
+                      </ng-template>
+                      <ng-template let-option pTemplate="selectedItem">
+                        {{ ('item_condition_' + option.value.toLowerCase()) | translate }}
+                      </ng-template>
                     </p-dropdown>
+                    <!-- Condition refund impact message -->
+                    <small *ngIf="item.condition && getConditionRefundMessage(item.condition)" 
+                           class="block mt-1 text-sm"
+                           [ngClass]="{
+                             'text-green-600': getRefundPercentage(item.condition) === 1.0,
+                             'text-orange-600': getRefundPercentage(item.condition) < 1.0
+                           }">
+                      <i [class]="getRefundPercentage(item.condition) === 1.0 ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'" 
+                         class="mr-1"></i>
+                      {{ getConditionRefundMessage(item.condition) }}
+                    </small>
                   </div>
                 </div>
               </div>
@@ -1868,14 +1910,224 @@
                 </span>
               </div>
             </div>
+
+            <!-- Refund Methods Section (Immediate Refund Only) -->
+            <div *ngIf="immediateRefundEnabled" class="mt-4">
+              <h5 class="mb-3 flex align-items-center gap-2">
+                <i class="pi pi-credit-card text-primary"></i>
+                {{ 'refund_methods' | translate }}
+              </h5>
+              
+              <div class="pos-refund-payment-lines mb-3" *ngIf="returnRefundPayments && returnRefundPayments.length > 0">
+                <div class="pos-payment-line mb-3 p-3 surface-card border-round" 
+                     *ngFor="let payment of returnRefundPayments; let i = index">
+                  <div class="flex align-items-center justify-content-between mb-2">
+                    <label class="text-sm font-semibold">{{ 'refund_method' | translate }} {{ i + 1 }}</label>
+                    <button
+                      pButton
+                      type="button"
+                      icon="pi pi-times"
+                      class="p-button-text p-button-rounded p-button-danger p-button-sm"
+                      (click)="removeReturnRefundPaymentLine(i)"
+                      *ngIf="returnRefundPayments.length > 1"
+                      [pTooltip]="'remove' | translate">
+                    </button>
+                  </div>
+                  
+                  <div class="grid">
+                    <div class="col-12 mb-2">
+                      <label class="block text-600 mb-1 text-sm">{{ 'method' | translate }}</label>
+                      <p-dropdown
+                        [(ngModel)]="payment.method"
+                        [options]="availablePaymentMethods"
+                        [placeholder]="'select_payment_method' | translate"
+                        appendTo="body"
+                        styleClass="w-full"
+                        (onChange)="onReturnRefundMethodChange(payment, i)">
+                        <ng-template let-option pTemplate="item">
+                          <div class="flex align-items-center">
+                            <i [class]="getPaymentMethodIcon(option)" class="mr-2"></i>
+                            <span>{{ getPaymentMethodLabel(option) | translate }}</span>
+                          </div>
+                        </ng-template>
+                        <ng-template pTemplate="selectedItem">
+                          <div class="flex align-items-center" *ngIf="payment.method">
+                            <i [class]="getPaymentMethodIcon(payment.method)" class="mr-2"></i>
+                            <span>{{ getPaymentMethodLabel(payment.method) | translate }}</span>
+                          </div>
+                          <span *ngIf="!payment.method">{{ 'select_payment_method' | translate }}</span>
+                        </ng-template>
+                      </p-dropdown>
+                    </div>
+                    
+                    <div class="col-12 mb-2">
+                      <label class="block text-600 mb-1 text-sm">{{ 'amount' | translate }}</label>
+                      <p-inputNumber
+                        [(ngModel)]="payment.amount"
+                        [min]="0"
+                        [max]="getTotalReturnAmount()"
+                        mode="decimal"
+                        [minFractionDigits]="2"
+                        [maxFractionDigits]="2"
+                        styleClass="w-full"
+                        [showButtons]="true">
+                      </p-inputNumber>
+                    </div>
+
+                    <!-- Bank Account (for Transfer, Check, BOE) -->
+                    <div class="col-12 mb-2" *ngIf="['Transfer', 'Check', 'BOE'].includes(payment.method)">
+                      <label class="block text-600 mb-1 text-sm">
+                        {{ 'bank_account' | translate }}
+                        <span class="text-red-500">*</span>
+                      </label>
+                      <p-dropdown
+                        [(ngModel)]="payment.bankAccountId"
+                        [options]="bankAccounts"
+                        optionLabel="accountName"
+                        optionValue="bankAccountId"
+                        appendTo="body"
+                        styleClass="w-full"
+                        [placeholder]="'select_bank_account' | translate">
+                      </p-dropdown>
+                    </div>
+
+                    <!-- Check Number (for Check) -->
+                    <div class="col-12 mb-2" *ngIf="payment.method === 'Check'">
+                      <label class="block text-600 mb-1 text-sm">
+                        {{ 'check_number' | translate }}
+                        <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        pInputText
+                        type="text"
+                        [(ngModel)]="payment.checkNumber"
+                        [placeholder]="'enter_check_number' | translate"
+                        class="w-full">
+                    </div>
+
+                    <!-- Check Expiration Date (for Check) -->
+                    <div class="col-12 mb-2" *ngIf="payment.method === 'Check'">
+                      <label class="block text-600 mb-1 text-sm">{{ 'check_expiration_date' | translate }}</label>
+                      <p-calendar
+                        [(ngModel)]="payment.checkExpirationDate"
+                        [dateFormat]="'yy-mm-dd'"
+                        [showIcon]="true"
+                        appendTo="body"
+                        styleClass="w-full"
+                        [placeholder]="'select_date' | translate">
+                      </p-calendar>
+                    </div>
+
+                    <!-- BOE Number (for BOE) -->
+                    <div class="col-12 mb-2" *ngIf="payment.method === 'BOE'">
+                      <label class="block text-600 mb-1 text-sm">
+                        {{ 'boe_number' | translate }}
+                        <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        pInputText
+                        type="text"
+                        [(ngModel)]="payment.boeNumber"
+                        [placeholder]="'enter_boe_number' | translate"
+                        class="w-full">
+                    </div>
+
+                    <!-- BOE Expiration Date (for BOE) -->
+                    <div class="col-12 mb-2" *ngIf="payment.method === 'BOE'">
+                      <label class="block text-600 mb-1 text-sm">{{ 'boe_expiration_date' | translate }}</label>
+                      <p-calendar
+                        [(ngModel)]="payment.boeExpirationDate"
+                        [dateFormat]="'yy-mm-dd'"
+                        [showIcon]="true"
+                        appendTo="body"
+                        styleClass="w-full"
+                        [placeholder]="'select_date' | translate">
+                      </p-calendar>
+                    </div>
+
+                    <!-- Transaction Reference (for Transfer) -->
+                    <div class="col-12 mb-2" *ngIf="payment.method === 'Transfer'">
+                      <label class="block text-600 mb-1 text-sm">{{ 'transaction_reference' | translate }}</label>
+                      <input
+                        pInputText
+                        type="text"
+                        [(ngModel)]="payment.transactionReference"
+                        [placeholder]="'enter_transaction_reference' | translate"
+                        class="w-full">
+                    </div>
+
+                    <!-- Notes (optional) -->
+                    <div class="col-12 mb-2">
+                      <label class="block text-600 mb-1 text-sm">{{ 'notes' | translate }}</label>
+                      <textarea
+                        pInputTextarea
+                        [(ngModel)]="payment.notes"
+                        [placeholder]="'add_notes' | translate"
+                        rows="2"
+                        styleClass="w-full">
+                      </textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <button
+                  pButton
+                  type="button"
+                  [label]="'add_refund_method' | translate"
+                  icon="pi pi-plus"
+                  class="p-button-outlined p-button-sm w-full"
+                  (click)="addReturnRefundPaymentLine()"
+                  [disabled]="getRemainingRefundAmount() <= 0">
+                </button>
+              </div>
+
+              <div class="pos-summary-item mb-3 p-3 surface-100 border-round">
+                <div class="flex justify-content-between align-items-center mb-2">
+                  <span class="font-semibold">{{ 'total_refundable' | translate }}:</span>
+                  <span class="font-bold text-xl">{{ formatCurrency(getTotalReturnAmount()) }}</span>
+                </div>
+                <div class="flex justify-content-between align-items-center mb-2">
+                  <span>{{ 'total_refunded' | translate }}:</span>
+                  <span class="font-semibold">{{ formatCurrency(getTotalRefundPaymentAmount()) }}</span>
+                </div>
+                <div class="flex justify-content-between align-items-center">
+                  <span>{{ 'remaining' | translate }}:</span>
+                  <span [ngClass]="{
+                    'text-green-600 font-bold': getRemainingRefundAmount() === 0,
+                    'text-orange-600 font-semibold': getRemainingRefundAmount() > 0 && getRemainingRefundAmount() < getTotalReturnAmount(),
+                    'text-red-600 font-semibold': getRemainingRefundAmount() < 0
+                  }">
+                    {{ formatCurrency(getRemainingRefundAmount()) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- General Notes -->
+            <div class="mt-4" *ngIf="immediateRefundEnabled">
+              <label class="block text-600 mb-2 font-semibold">
+                <i class="pi pi-file-edit mr-2"></i>
+                {{ 'notes' | translate }}
+              </label>
+              <textarea
+                pInputTextarea
+                [(ngModel)]="returnNotes"
+                [placeholder]="'add_return_notes' | translate"
+                rows="3"
+                styleClass="w-full">
+              </textarea>
+            </div>
+
             <div class="mt-4">
               <button
                 pButton
-                [label]="'process_return' | translate"
+                [label]="immediateRefundEnabled ? ('process_return_and_refund' | translate) : ('process_return' | translate)"
                 icon="pi pi-check"
                 class="w-full p-button-lg p-button-success"
                 (click)="processReturn()"
-                [disabled]="getTotalReturnAmount() === 0">
+                [disabled]="getTotalReturnAmount() === 0 || (immediateRefundEnabled && !isRefundPaymentValid())">
               </button>
               <button
                 pButton

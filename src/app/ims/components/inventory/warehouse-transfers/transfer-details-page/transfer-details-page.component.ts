@@ -10,6 +10,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { TranslationService } from 'src/app/services/translation.service';
 import { BatchMetadataUtil } from 'src/app/utils/batch-metadata.util';
 import { firstValueFrom } from 'rxjs';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 @Component({
   selector: 'app-transfer-details-page',
@@ -34,6 +35,8 @@ export class TransferDetailsPageComponent implements OnInit {
   completeConfirmDialog: boolean = false;
   cancelConfirmDialog: boolean = false;
 
+  currency: any;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -43,11 +46,18 @@ export class TransferDetailsPageComponent implements OnInit {
     private translate: TranslateService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
-    private translateService: TranslationService
+    private translateService: TranslationService,
+    private configService: AppConfigurationService
   ) {}
 
   async ngOnInit() {
     this.isLoading = true;
+
+    this.configService.currency$.subscribe(currency => {
+      if (currency) {
+        this.currency = currency;
+      }
+    });
 
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
@@ -228,9 +238,10 @@ export class TransferDetailsPageComponent implements OnInit {
 
   formatCurrency(amount: number | null | undefined): string {
     if (amount == null || amount === undefined || isNaN(amount)) return '-';
+    const currencyCode = this.currency || 'USD';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: currencyCode,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);

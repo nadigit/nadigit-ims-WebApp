@@ -38,10 +38,20 @@
 
                 <!-- View Toggle & Export -->
                 <div class="flex align-items-center gap-2 ml-auto">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
-                        tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
-                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+                        class="p-button-warning" 
+                        pTooltip="PDF"
+                        tooltipPosition="bottom" 
+                        (click)="exportPdf()"
+                        [disabled]="isExporting"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+                        (click)="exportExcel()" 
+                        class="p-button-success"
+                        pTooltip="XLS" 
+                        tooltipPosition="bottom"
+                        [disabled]="isExporting"></button>
                 </div>
             </div>
 
@@ -139,161 +149,16 @@
             </p-table>
         </div>
 
-        <p-dialog [(visible)]="shopDialog" [style]="{width: '500px'}" [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
-            header="{{ 'shop_details' | translate }}" [modal]="true" [draggable]="false" [resizable]="false"
-            class="p-fluid shop-dialog">
-            <ng-template pTemplate="content">
-                <div class="grid p-fluid">
-                    <div class="col-12">
-                        <!-- Shop Name -->
-                        <div class="field">
-                            <label for="name" class="block mb-2 font-bold">
-                                {{ 'shop_name' | translate }} <span class="required-asterisk">*</span>
-                            </label>
-                            <div class="p-inputgroup">
-                                <span class="p-inputgroup-addon">
-                                    <i class="pi pi-shopping-bag"></i>
-                                </span>
-                                <input type="text" pInputText name="name" [(ngModel)]="shop.shopName" required
-                                    placeholder="{{ 'enter_shop_name' | translate }}"
-                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !shop.shopName}" />
-                            </div>
-                            <small class="p-error" *ngIf="submitted && !shop.shopName">
-                                {{ 'shop_name' | translate }} {{ 'is_required_label' | translate }}
-                            </small>
-                        </div>
-
-                        <!-- Shop Description -->
-                        <div class="field">
-                            <label for="description" class="block mb-2 font-bold">
-                                {{ 'shop_description' | translate }}
-                            </label>
-                            <div class="p-inputgroup">
-                                <span class="p-inputgroup-addon">
-                                    <i class="pi pi-align-left"></i>
-                                </span>
-                                <textarea pInputTextarea [(ngModel)]="shop.description" rows="3" [autoResize]="true"
-                                    placeholder="{{ 'enter_shop_description' | translate }}"></textarea>
-                            </div>
-                        </div>
-
-                        <!-- Location Fields -->
-                        <div class="grid">
-                            <!-- Country Field -->
-                            <div class="field col-12 md:col-6">
-                                <label for="country" class="block mb-2 font-bold">
-                                    {{ 'shop_country' | translate }}
-                                </label>
-                                <p-dropdown [(ngModel)]="shop.country" (onChange)="onSelectedCountry(shop.country)"
-                                    name="country" [options]="countries" optionValue="name" optionLabel="translatedName"
-                                    [filter]="true" [filterFields]="['name', 'translatedName']"
-                                    [filterBy]="filterCountry" [showClear]="true"
-                                    placeholder="{{ 'select_country_option' | translate }}">
-
-                                    <ng-template pTemplate="selectedItem">
-                                        <span *ngIf="shop && shop.country" class="flex align-items-center gap-2">
-                                            <i class="pi pi-globe"></i>
-                                            {{ shop.country | countryTranslate }}
-                                        </span>
-                                    </ng-template>
-
-                                    <ng-template let-option pTemplate="item">
-                                        <span class="flex align-items-center gap-2">
-                                            <i class="pi pi-globe"></i>
-                                            {{ option.translatedName }}
-                                        </span>
-                                    </ng-template>
-                                </p-dropdown>
-                            </div>
-
-                            <!-- City Field (shown when country is selected) -->
-                            <div class="field col-12 md:col-6" *ngIf="shop.country">
-                                <label for="city" class="block mb-2 font-bold">
-                                    {{ 'shop_city' | translate }}
-                                </label>
-                                <p-dropdown [(ngModel)]="shop.city" name="city" [options]="states" optionLabel="name"
-                                    optionValue="name" [filter]="true" filterBy="name" [showClear]="true"
-                                    placeholder="{{ 'select_city_option' | translate }}">
-                                    <ng-template pTemplate="selectedItem">
-                                        <span *ngIf="shop && shop.city" class="flex align-items-center gap-2">
-                                            <i class="pi pi-map-marker"></i>
-                                            {{shop?.city? shop.city : ('select_city_option' | translate )}}
-                                        </span>
-                                    </ng-template>
-                                    <ng-template let-option pTemplate="item">
-                                        <span class="flex align-items-center gap-2">
-                                            <i class="pi pi-map-marker"></i>
-                                            {{option.name}}
-                                        </span>
-                                    </ng-template>
-                                </p-dropdown>
-                            </div>
-                        </div>
-
-                        <!-- Shop Address -->
-                        <div class="field">
-                            <label for="address" class="block mb-2 font-bold">
-                                {{ 'shop_address' | translate }}
-                            </label>
-                            <div class="p-inputgroup">
-                                <span class="p-inputgroup-addon">
-                                    <i class="pi pi-map"></i>
-                                </span>
-                                <textarea pInputTextarea [(ngModel)]="shop.address" name="address" rows="3"
-                                    [autoResize]="true" placeholder="{{ 'enter_shop_address' | translate }}"></textarea>
-                            </div>
-                        </div>
-
-                        <!-- Default Bank Account -->
-                        <div class="field">
-                            <label for="defaultBankAccount" class="block mb-2 font-bold">
-                                {{ 'default_bank_account' | translate }}
-                            </label>
-                            <p-dropdown [(ngModel)]="shop.defaultBankAccount" [options]="bankAccounts" 
-                                optionLabel="accountName" optionValue="accountId" [filter]="true" 
-                                filterBy="accountName,bank.name" [showClear]="true"
-                                placeholder="{{ 'select_default_bank_account' | translate }}"
-                                name="defaultBankAccount">
-                                <ng-template let-account pTemplate="item">
-                                    <div class="flex align-items-center justify-content-between">
-                                        <div>
-                                            <div class="font-semibold">{{ account.accountName }}</div>
-                                            <div class="text-sm text-gray-500">{{ account.bank?.name }}</div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="font-semibold">{{ account.currentBalance | currency:currency:'symbol':'1.2-2' }}</div>
-                                            <div class="text-xs text-gray-500">{{ account.accountType }}</div>
-                                        </div>
-                                    </div>
-                                </ng-template>
-                                <ng-template let-account pTemplate="selectedItem">
-                                    <span *ngIf="account">{{ account.accountName }}</span>
-                                </ng-template>
-                            </p-dropdown>
-                            <small class="text-500 mt-1">
-                                {{ 'default_bank_account_hint' | translate }}
-                            </small>
-                        </div>
-
-                    </div>
-                </div>
-
-                <div class="required-note mt-3">
-                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
-                        translate}}</small>
-                </div>
-            </ng-template>
-
-            <ng-template pTemplate="footer">
-                <div class="flex justify-content-between align-items-center w-full">
-                    <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
-                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
-                    <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
-                        class="p-button-raised" (click)="saveShop()"></button>
-                </div>
-            </ng-template>
-        </p-dialog>
-
+        <app-shop-form-dialog
+            [config]="shopDialogConfig"
+            [countries]="countries"
+            [bankAccounts]="bankAccounts"
+            [currency]="currency"
+            [submitted]="submitted"
+            (configChange)="onShopDialogConfigChange($event)"
+            (save)="onShopSave($event)"
+            (cancel)="onShopCancel()">
+        </app-shop-form-dialog>
 
         <p-dialog [(visible)]="deleteShopDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
             [style]="{width:'450px'}">
@@ -1043,6 +908,23 @@
             (sessionClosed)="onSessionClosed($event)"
             (dialogClosed)="onCashRegisterSessionDialogClosed()">
         </app-cash-register-session>
+
+        <!-- Export Progress Dialog -->
+        <p-dialog 
+            [(visible)]="isExporting" 
+            [modal]="true" 
+            [closable]="false" 
+            [draggable]="false"
+            [resizable]="false"
+            [style]="{width: '450px'}"
+            [header]="'exporting' | translate">
+            <div class="flex flex-column align-items-center gap-3 p-4">
+                <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                <div class="text-center">
+                    <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+                </div>
+            </div>
+        </p-dialog>
 
     </div>
 </div>

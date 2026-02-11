@@ -1,0 +1,310 @@
+<div class="grid">
+    <div class="col-12">
+        <!-- Suppliers Management Section - Above Card (matching dashboard style) -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'suppliers_menu_title' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'suppliers_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-content-end align-items-center mb-4">
+                <div class="flex align-items-center gap-2">
+                    <button pButton pRipple *ngIf="canAddSupplier" label="{{ 'new_button' | translate }}"
+                        icon="pi pi-plus" class="p-button-success" (click)="openNew()"
+                        pTooltip="{{'add_new_supplier'|translate}}"></button>
+                    <button pButton pRipple *ngIf="canDeleteSupplier" label="{{ 'delete_button' | translate }}"
+                        icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedSuppliers()"
+                        pTooltip="{{'delete_supplier'|translate}}"
+                        [disabled]="!selectedSuppliers || !selectedSuppliers.length"></button>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+                <!-- Global Search -->
+                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                    <i class="pi pi-search"></i>
+                    <input type="text" pInputText 
+                        [placeholder]="'search_label' | translate" 
+                        (input)="onGlobalFilter($event)" class="w-full" />
+                </span>
+
+                <!-- View Toggle & Export -->
+                <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+                        class="p-button-warning" 
+                        pTooltip="PDF"
+                        tooltipPosition="bottom" 
+                        (click)="exportPdf()"
+                        [disabled]="isExporting"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+                        (click)="exportExcel()" 
+                        class="p-button-success"
+                        pTooltip="XLS" 
+                        tooltipPosition="bottom"
+                        [disabled]="isExporting"></button>
+                </div>
+            </div>
+
+            <div class="card flex justify-content-center" *ngIf="isLoading">
+                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            </div>
+
+            <p-table #dt [value]="suppliers" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="20"
+                [globalFilterFields]="['name','email','email','country','city','phoneNumber','address']"
+                [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+                [(selection)]="selectedSuppliers" selectionMode="multiple" [rowHover]="true" dataKey="supplierId"
+                styleClass="p-datatable-gridlines">
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th style="width: 3rem">
+                            <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                        </th>
+                        <th pSortableColumn="name">
+                            {{ 'supplier' | translate }} <p-sortIcon field="name"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="address">
+                            {{ 'supplier_address' | translate }} <p-sortIcon field="address"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="totalPurchases">
+                            {{ 'total_purchases' | translate }} <p-sortIcon field="totalPurchases"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="totalAmount">
+                            {{ 'purchase_total_amount' | translate }} <p-sortIcon field="totalAmount"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="totalPaid">
+                            {{ 'purchase_total_paid' | translate }} <p-sortIcon field="totalPaid"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="remainingBalance">
+                            {{ 'purchase_remaining_balance' | translate }} <p-sortIcon field="remainingBalance"></p-sortIcon>
+                        </th>
+                        <th>{{ 'actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-supplier>
+                    <tr (click)="canReadSupplier ? openSupplierDetails(supplier) : null" class="cursor-pointer">
+                        <td>
+                            <p-tableCheckbox [value]="supplier" (click)="$event.stopPropagation()"></p-tableCheckbox>
+                        </td>
+
+                        <td style="min-width:16rem;">
+                            <span class="p-column-title">{{ 'supplier' | translate }}</span>
+
+                            <div class="flex flex-column gap-1">
+                                <!-- Supplier Name -->
+                                <div>
+                                    <strong><span>{{ supplier.name.toUpperCase() || 'N/A' }}</span></strong>
+                                </div>
+
+                                <!-- Supplier Email -->
+                                <div *ngIf="supplier.email">
+                                    <i class="pi pi-envelope text-primary mr-1"></i>
+                                    <a [href]="'mailto:' + supplier.email" class="text-primary hover:underline"
+                                        (click)="$event.stopPropagation()">
+                                        {{ supplier.email }}
+                                    </a>
+                                </div>
+
+                                <!-- Supplier Phone -->
+                                <div *ngIf="supplier.phoneNumber">
+                                    <i class="pi pi-phone text-success mr-1"></i>
+                                    <a [href]="'tel:' + supplier.phoneNumber" class="text-success hover:underline"
+                                        (click)="$event.stopPropagation()">
+                                        {{ supplier.phoneNumber }}
+                                    </a>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'supplier_address' | translate }}</span>
+                            {{
+                                (supplier.city && supplier.country)
+                                ? (supplier.city + ', ' + (supplier.country | countryTranslate))
+                                : supplier.city
+                                ? supplier.city
+                                : supplier.country
+                                ? (supplier.country | countryTranslate)
+                                : 'N/A'
+                            }}
+                        </td>
+                        <td style="min-width:10rem;">
+                            <span class="p-column-title">{{ 'purchase_total_orders' | translate }}</span>
+                            {{supplier.totalPurchases || 0}}
+                        </td>
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'purchase_total_amount' | translate }}</span>
+                            {{supplier.totalAmount | currency:currency:'symbol':'1.2-2'}}
+                        </td>
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'purchase_total_paid' | translate }}</span>
+                            {{supplier.totalPaid | currency:currency:'symbol':'1.2-2'}}
+                        </td>
+                        <td style="min-width:10rem;" class="font-bold">
+                            <span class="p-column-title">{{ 'purchase_remaining_balance' | translate }}</span>
+                            <span [ngClass]="{
+                                    'text-red-600 font-bold': (supplier.totalAmount - supplier.totalPaid) > 0,
+                                    'text-green-600': (supplier.totalAmount - supplier.totalPaid) <= 0
+                                }">
+                                {{ (supplier.totalAmount - supplier.totalPaid) | currency:currency:'symbol':'1.2-2' }}
+                            </span>
+                            <ng-container *ngIf="(supplier.totalAmount - supplier.totalPaid) > 0">
+                                <p-tag value="{{'due' | translate}}" severity="danger" class="ml-2"
+                                    icon="pi pi-exclamation-triangle">
+                                </p-tag>
+                            </ng-container>
+                        </td>
+                        <td>
+                            <div class="flex gap-1">
+                                <button pButton pRipple *ngIf="canEditSupplier" icon="pi pi-pencil"
+                                    class="p-button-rounded p-button-text p-button-warning"
+                                    pTooltip="{{'update_supplier'|translate}}"
+                                    (click)="editSupplier(supplier); $event.stopPropagation()"></button>
+                                <button pButton pRipple *ngIf="canDeleteSupplier" icon="pi pi-trash"
+                                    class="p-button-rounded p-button-text p-button-danger"
+                                    (click)="deleteSupplier(supplier); $event.stopPropagation()"
+                                    pTooltip="{{'delete_supplier'|translate}}"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{'total_suppliers' | translate}} {{suppliers ? suppliers.length : 0 }}.
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="8">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_suppliers_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <app-supplier-form-dialog
+            [config]="supplierDialogConfig"
+            [countries]="countries"
+            [submitted]="submitted"
+            (configChange)="onSupplierDialogConfigChange($event)"
+            (save)="onSupplierSave($event)"
+            (cancel)="onSupplierCancel()">
+        </app-supplier-form-dialog>
+
+        <p-dialog [(visible)]="deleteSupplierDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="supplier">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>{{supplier.name}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteSupplierDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="deleteSuppliersDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span>{{'delete_selected_confirmation_msg' | translate}}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteSuppliersDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmDeleteSelected()"></button>
+            </ng-template>
+        </p-dialog>
+
+
+
+        <!-- Product Form Component -->
+        <app-product-form
+            [visible]="productDialog"
+            [product]="selectedProduct"
+            [categories]="categories"
+            [suppliers]="suppliers"
+            [warehouses]="warehouses"
+            [currency]="currency"
+            [isAdmin]="isAdmin"
+            [canAddCategory]="canAddCategory"
+            [canAddSupplier]="canAddSupplier"
+            [canAddWarehouse]="canAddWarehouse"
+            [existingProducts]="supplierProducts"
+            (saveSuccess)="onProductFormSaveSuccess($event)"
+            (saveError)="onProductFormSaveError($event)"
+            (cancel)="hideProductDialog()"
+            (categoryAdd)="openCategoryDialog()"
+            (supplierAdd)="openSupplierDialog()"
+            (warehouseAdd)="openWarehouseDialog()"
+            (visibleChange)="productDialog = $event">
+        </app-product-form>
+
+        <p-dialog [(visible)]="deleteProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="selectedProduct">{{'delete_confirmation_msg_with_param' | translate}}
+                    <b>{{selectedProduct.name}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="deleteProductDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmProductDelete()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog [(visible)]="archiveProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
+            [style]="{width:'450px'}">
+            <div class="flex align-items-center justify-content-center">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
+                <span *ngIf="selectedProduct">{{'archive_confirmation_msg_with_param' | translate}}
+                    <b>{{selectedProduct.name}}</b>?</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
+                    (click)="archiveProductDialog = false"></button>
+                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                    (click)="confirmArchive()"></button>
+            </ng-template>
+        </p-dialog>
+
+        <!-- Export Progress Dialog -->
+        <p-dialog 
+            [(visible)]="isExporting" 
+            [modal]="true" 
+            [closable]="false" 
+            [draggable]="false"
+            [resizable]="false"
+            [style]="{width: '450px'}"
+            [header]="'exporting' | translate">
+            <div class="flex flex-column align-items-center gap-3 p-4">
+                <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                <div class="text-center">
+                    <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+                </div>
+            </div>
+        </p-dialog>
+    </div>
+</div>

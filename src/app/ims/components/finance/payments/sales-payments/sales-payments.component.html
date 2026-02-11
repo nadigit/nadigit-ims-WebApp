@@ -28,7 +28,10 @@
                 (paymentMethodIconEvent)="getPaymentMethodIcon($event)"
                 (paymentMethodSeverityEvent)="getPaymentMethodSeverity($event)"
                 (exportPdfEvent)="exportPdf()"
-                (exportExcelEvent)="exportExcel()">
+                (exportExcelEvent)="exportExcel()"
+                (filterChangeEvent)="onFilterChange($event)"
+                [customers]="customers"
+                [getCustomerDisplayName]="getCustomerDisplayName">
             </app-payments-table>
         </div>
 

@@ -1,6 +1,6 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
-import { MessageService } from 'primeng/api';
+import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { ExpenseService } from 'src/app/services/expense.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -19,11 +19,19 @@ import { BankTransaction } from 'src/app/models/bank-transaction';
 import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
 import { firstValueFrom } from 'rxjs';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { DatePipe } from '@angular/common';
+
+interface LazyLoadEventExt extends LazyLoadEvent {
+  globalFilter?: string;
+  filters?: { [field: string]: any };
+}
 
 @Component({
   templateUrl: './expenses.component.html',
   styleUrls: ['../finance.component.css', './expenses.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class ExpensesComponent implements OnInit {
 
@@ -58,6 +66,21 @@ export class ExpensesComponent implements OnInit {
   endDate: Date | null = null;
   
   paymentMethods: any[] = [];
+  
+  // Lazy loading properties
+  totalRecords: number = 0;
+  globalFilter: string = '';
+  lastLazyLoadEvent: LazyLoadEventExt = {
+    first: 0,
+    rows: 20,
+    sortField: 'dateOfExpense',
+    sortOrder: -1
+  };
+  private isInitialLoad: boolean = true;
+  private lazyLoadCallCount: number = 0;
+  
+  isExporting: boolean = false;
+  exportProgress: string = '';
 
   rowsPerPageOptions = [20, 50, 100];
 
@@ -97,7 +120,10 @@ export class ExpensesComponent implements OnInit {
     private bankAccountService: BankAccountService,
     private router: Router,
     private paymentValidationService: PaymentValidationService,
-    private reconciliationValidationService: ReconciliationValidationService) { }
+    private reconciliationValidationService: ReconciliationValidationService,
+    private organizationService: OrganizationService,
+    private datePipe: DatePipe,
+    private cdr: ChangeDetectorRef) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -113,11 +139,15 @@ export class ExpensesComponent implements OnInit {
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
     });
-    this.onGetAllExpenses();
-    this.onGetAllShops();
-    await this.loadBankAccounts();
-    await this.checkPermissions();
-    await this.setUserRoles();
+    
+    // Load data
+    await Promise.all([
+      this.onGetAllShops(),
+      this.loadBankAccounts(),
+      this.checkPermissions(),
+      this.setUserRoles(),
+    ]);
+    
     this.initializePaymentMethods();
     this.cols = [
       { field: 'id', header: this.translateService.instant('ID') },
@@ -128,6 +158,9 @@ export class ExpensesComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+    
+    // Load initial expenses - the lazy table will also trigger, but we'll prevent double loading
+    await this.loadExpenses();
   }
 
   private async setUserRoles() {
@@ -460,9 +493,9 @@ export class ExpensesComponent implements OnInit {
 
   onGlobalFilter(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    if (this.dt) {
-      this.dt.filterGlobal(value, 'contains');
-    }
+    this.globalFilter = value;
+    this.lastLazyLoadEvent.first = 0;
+    this.loadExpenses();
   }
 
   private initializePaymentMethods() {
@@ -473,34 +506,89 @@ export class ExpensesComponent implements OnInit {
     }));
   }
 
-  onFilterChange() {
-    // Apply filters to the table
-    if (this.dt) {
-      const filters: any = {};
-      
-      if (this.selectedPaymentMethod) {
-        filters['paymentMethod'] = { value: this.selectedPaymentMethod, matchMode: 'equals' };
+  onLazyLoad(event: LazyLoadEvent) {
+    this.lazyLoadCallCount++;
+    
+    // Skip if this is the first lazy load call and we've already loaded expenses manually
+    // This prevents the automatic lazy table trigger from reloading with wrong sort order
+    if (this.lazyLoadCallCount === 1 && this.expenses.length > 0) {
+      // This is the automatic lazy load trigger after manual load
+      // Skip it to prevent double loading
+      this.isInitialLoad = false;
+      return;
+    }
+    
+    const extendedEvent: LazyLoadEventExt = {
+      ...event,
+      globalFilter: this.globalFilter
+    };
+
+    this.updateLastLazyLoadEvent(extendedEvent);
+    this.loadExpenses();
+  }
+
+  updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    // Default to DESC (-1) for newest first
+    const defaultSortOrder = -1; // DESC - newest first
+    let sortOrder = defaultSortOrder;
+    
+    // On initial load (first lazy load call), always use DESC regardless of what the event says
+    // After initial load, respect user's sort choice
+    if (this.isInitialLoad || this.lazyLoadCallCount <= 1) {
+      sortOrder = defaultSortOrder;
+      if (this.lazyLoadCallCount > 0) {
+        this.isInitialLoad = false;
       }
-      
-      if (this.selectedShop) {
-        // Filter by shop.shopName
-        filters['shop.shopName'] = { value: this.selectedShop.shopName, matchMode: 'equals' };
-      }
-      
-      if (this.startDate || this.endDate) {
-        if (this.startDate && this.endDate) {
-          // Date range filter
-          filters['dateOfExpense'] = { value: [this.startDate, this.endDate], matchMode: 'dateBetween' };
-        } else if (this.startDate) {
-          filters['dateOfExpense'] = { value: this.startDate, matchMode: 'dateIs' };
-        } else if (this.endDate) {
-          filters['dateOfExpense'] = { value: this.endDate, matchMode: 'dateIs' };
+    } else {
+      // Only use event.sortOrder if it's explicitly 1 (ASC) or -1 (DESC)
+      if (event.sortOrder !== undefined && event.sortOrder !== null && event.sortOrder !== 0) {
+        if (event.sortOrder === 1 || event.sortOrder === -1) {
+          sortOrder = event.sortOrder;
         }
       }
-      
-      this.dt.filters = filters;
-      this.dt.filteredValue = null; // Trigger filtering
     }
+    
+    this.lastLazyLoadEvent = {
+      first: event.first || 0,
+      rows: event.rows || 20,
+      sortField: event.sortField || 'dateOfExpense',
+      sortOrder: sortOrder,
+      globalFilter: event.globalFilter || this.globalFilter,
+      filters: event.filters || this.lastLazyLoadEvent.filters || {}
+    };
+  }
+
+  onFilterChange() {
+    this.applyFilters();
+  }
+
+  applyFilters() {
+    const filters: any = {};
+    
+    if (this.selectedPaymentMethod) {
+      filters['paymentMethod'] = { value: this.selectedPaymentMethod, matchMode: 'equals' };
+    }
+    
+    if (this.selectedShop) {
+      filters['shopName'] = { value: this.selectedShop.shopName, matchMode: 'equals' };
+    }
+    
+    if (this.startDate) {
+      filters['dateOfExpenseFrom'] = { value: this.startDate, matchMode: 'dateIs' };
+    }
+    
+    if (this.endDate) {
+      filters['dateOfExpenseTo'] = { value: this.endDate, matchMode: 'dateIs' };
+    }
+    
+    const lazyEvent: LazyLoadEventExt = {
+      ...this.lastLazyLoadEvent,
+      first: 0,
+      filters: filters
+    };
+    
+    this.updateLastLazyLoadEvent(lazyEvent);
+    this.loadExpenses();
   }
 
   clearFilters() {
@@ -508,36 +596,82 @@ export class ExpensesComponent implements OnInit {
     this.selectedShop = null;
     this.startDate = null;
     this.endDate = null;
+    this.globalFilter = '';
     
-    if (this.dt) {
-      this.dt.filters = {};
-      this.dt.filteredValue = null;
-    }
+    this.lastLazyLoadEvent.first = 0;
+    this.lastLazyLoadEvent.filters = {};
+    
+    const resetEvent: LazyLoadEvent = {
+      first: 0,
+      rows: this.lastLazyLoadEvent.rows || 20,
+      sortField: 'dateOfExpense',
+      sortOrder: -1
+    };
+    
+    this.onLazyLoad(resetEvent);
   }
 
   clear(table: Table) {
     table.clear();
   }
 
-  async onGetAllExpenses() {
-    await this.expenseService.getExpenses()
-      .subscribe({
-        next: (response: any) => {
-          this.expenses = response;
-          this.expenses.forEach((expense: any) => {
-            expense.creationDate = new Date(<Date>expense.creationDate)
-            expense.dateOfExpense = new Date(<Date>expense.dateOfExpense)
-            expense.checkExpirationDate = new Date(<Date>expense.checkExpirationDate)
-            expense.boeExpirationDate = new Date(<Date>expense.boeExpirationDate)
-          });
-        },
-        error: (err: any) => {
-          console.error(err)
-        },
-        complete: () => {
-          this.isLoading = false;
+  loadExpenses() {
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+
+    const page = first! / rows!;
+    const size = rows!;
+    const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+    
+    // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
+    const filterPayload = filters || {};
+
+    this.expenseService.getExpensesPaginated(
+      page,
+      size,
+      globalFilter || '',
+      sortField!,
+      direction,
+      filterPayload
+    ).subscribe({
+      next: (res: any) => {
+        // Assign the paginated expenses
+        this.expenses = res.page.content.map((e: any) => {
+          return {
+            ...e,
+            creationDate: e.creationDate ? new Date(e.creationDate) : null,
+            dateOfExpense: e.dateOfExpense ? new Date(e.dateOfExpense) : null,
+            checkExpirationDate: e.checkExpirationDate ? new Date(e.checkExpirationDate) : null,
+            boeExpirationDate: e.boeExpirationDate ? new Date(e.boeExpirationDate) : null
+          };
+        });
+
+        // Assign total records from backend
+        this.totalRecords = res.totalExpenses || res.page?.totalElements || 0;
+
+        this.isLoading = false;
+        // Don't set isInitialLoad = false here - let onLazyLoad handle it
+        
+        // Trigger change detection to ensure table updates
+        if (this.cdr) {
+          this.cdr.detectChanges();
         }
-      })
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_expenses'),
+          life: 3000
+        });
+      }
+    });
+  }
+
+  async onGetAllExpenses() {
+    // For backward compatibility, call loadExpenses
+    this.loadExpenses();
   }
 
   async onDeleteExpense(id: any) {
@@ -568,7 +702,7 @@ export class ExpensesComponent implements OnInit {
         next: (response: any) => {
           // Clear cache for this expense
           this.expenseReconciliationCache.delete(id);
-          this.onGetAllExpenses();
+          this.loadExpenses();
           this.messageService.add({
             severity: 'success',
             summary: this.translateService.instant('successful'),
@@ -606,22 +740,22 @@ export class ExpensesComponent implements OnInit {
       })
   }
 
-  async onGetAllShops() {
-    await this.shopService.getShops().subscribe({
-      next: (response: any) => {
-        this.shops = response;
-        console.log(this.shops);
-      },
-      error: (err: any) => {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translateService.instant('error'),
-          detail: this.translateService.instant('error_getting_shops'),
-          life: 3000,
-        });
-        console.log(err);
-      },
-    });
+  async onGetAllShops(): Promise<Shop[]> {
+    try {
+      const response = await firstValueFrom(this.shopService.getShops()) as Shop[];
+      this.shops = response;
+      console.log(this.shops);
+      return response;
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translateService.instant('error'),
+        detail: this.translateService.instant('error_getting_shops'),
+        life: 3000,
+      });
+      console.log(err);
+      return [];
+    }
   }
 
   async loadBankAccounts() {
@@ -667,11 +801,11 @@ export class ExpensesComponent implements OnInit {
   private performUpdateExpense(id: any, expense: any, resolve: Function) {
     this.expenseService.updateExpense(id, expense)
       .subscribe({
-        next: (response: Expense) => {
-          // Clear cache for this expense
-          this.expenseReconciliationCache.delete(id);
-          this.onGetAllExpenses();
-          this.messageService.add({
+          next: (response: Expense) => {
+            // Clear cache for this expense
+            this.expenseReconciliationCache.delete(id);
+            this.loadExpenses();
+            this.messageService.add({
             severity: 'success',
             summary: this.translateService.instant('successful'),
             detail: this.translateService.instant('expense_updated'),
@@ -716,7 +850,7 @@ export class ExpensesComponent implements OnInit {
       this.expenseService.saveExpense(data)
         .subscribe({
           next: (response: Expense) => {
-            this.onGetAllExpenses();
+            this.loadExpenses();
             this.messageService.add({
               severity: 'success',
               summary: this.translateService.instant('successful'),
@@ -782,27 +916,239 @@ export class ExpensesComponent implements OnInit {
     }
   }
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.expenses, 'expenses')
+  async exportPdf() {
+    if (this.isExporting) {
+      return;
+    }
+
+    this.isExporting = true;
+    this.exportProgress = this.translate.instant('preparing_export');
+
+    try {
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait'),
+        life: 3000
+      });
+
+      // Fetch all filtered expenses
+      let allExpenses: Expense[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100;
+
+      while (currentPage < maxPages) {
+        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        const response = await firstValueFrom(
+          this.expenseService.getExpensesPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageExpenses = response.page.content || [];
+        if (pageExpenses.length === 0) {
+          break;
+        }
+
+        allExpenses = allExpenses.concat(pageExpenses);
+        currentPage++;
+
+        if (pageExpenses.length < pageSize) {
+          break;
+        }
+      }
+
+      // Get organization's default locale for translation
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const originalLang = this.translate.currentLang;
+
+      // Temporarily switch language for export
+      if (defaultLocale !== originalLang) {
+        this.translate.use(defaultLocale);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Prepare export data
+      const exportData = allExpenses.map((expense: any) => {
+        const shopName = expense.shop?.shopName || expense.shop?.name || 'N/A';
+        return {
+          [this.translate.instant('ID')]: expense.id || 'N/A',
+          [this.translate.instant('expense_purpose')]: expense.purpose || 'N/A',
+          [this.translate.instant('expense_date')]: expense.dateOfExpense 
+            ? this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') || 'N/A'
+            : 'N/A',
+          [this.translate.instant('expense_amount')]: expense.amount || 0,
+          [this.translate.instant('shop')]: shopName,
+        };
+      });
+
+      // Translate column headers (excluding ID)
+      const translatedColumns = this.exportColumns
+        .filter(col => col.dataKey !== 'id')
+        .map(col => ({
+          title: this.translate.instant(col.dataKey === 'shop' ? 'shop' : col.dataKey) || col.title,
+          dataKey: col.dataKey
+        }));
+
+      // Export PDF with title
+      this.reportingService.exportPdf(
+        translatedColumns,
+        exportData,
+        'expenses',
+        this.translate.instant('expenses_menu_title')
+      );
+
+      // Restore original language
+      if (defaultLocale !== originalLang) {
+        this.translate.use(originalLang);
+      }
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('export_completed_successfully') + ` (${allExpenses.length} ${this.translate.instant('records')})`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting'),
+        life: 3000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the expenses array to avoid modifying the original array
-    const modifiedExpenses = this.expenses.map(expense => {
-      // Create a copy of the expense object to modify
-      const modifiedExpense = { ...expense };
+  async exportExcel() {
+    if (this.isExporting) {
+      return;
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedExpense.creationDate;
+    this.isExporting = true;
+    this.exportProgress = this.translate.instant('preparing_export');
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedExpense['columnToRemove'];
+    try {
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait'),
+        life: 3000
+      });
 
-      return modifiedExpense;
-    });
+      // Fetch all filtered expenses
+      let allExpenses: Expense[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      const maxPages = 100;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedExpenses, 'expenses');
+      while (currentPage < maxPages) {
+        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+
+        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+        const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+        const filterPayload = filters || {};
+
+        const response = await firstValueFrom(
+          this.expenseService.getExpensesPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField!,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageExpenses = response.page.content || [];
+        if (pageExpenses.length === 0) {
+          break;
+        }
+
+        allExpenses = allExpenses.concat(pageExpenses);
+        currentPage++;
+
+        if (pageExpenses.length < pageSize) {
+          break;
+        }
+      }
+
+      // Get organization's default locale for translation
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const originalLang = this.translate.currentLang;
+
+      // Temporarily switch language for export
+      if (defaultLocale !== originalLang) {
+        this.translate.use(defaultLocale);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Prepare export data (excluding ID and creationDate)
+      const modifiedExpenses = allExpenses.map((expense: any) => {
+        const modifiedExpense: any = { ...expense };
+        const shopName = expense.shop?.shopName || expense.shop?.name || 'N/A';
+        
+        // Format date
+        if (expense.dateOfExpense) {
+          modifiedExpense.dateOfExpense = this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') || expense.dateOfExpense;
+        }
+        
+        // Replace shop object with shop name
+        modifiedExpense.shop = shopName;
+        
+        // Remove unwanted fields
+        delete modifiedExpense.id;
+        delete modifiedExpense.creationDate;
+        delete modifiedExpense.checkExpirationDate;
+        delete modifiedExpense.boeExpirationDate;
+        delete modifiedExpense.bankAccountId;
+        delete modifiedExpense.receipt;
+        
+        return modifiedExpense;
+      });
+
+      // Restore original language
+      if (defaultLocale !== originalLang) {
+        this.translate.use(originalLang);
+      }
+
+      // Export Excel
+      this.reportingService.exportExcel(modifiedExpenses, 'expenses');
+
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('export_completed_successfully') + ` (${allExpenses.length} ${this.translate.instant('records')})`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting'),
+        life: 3000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   showExpenseDetails(expense: any) {

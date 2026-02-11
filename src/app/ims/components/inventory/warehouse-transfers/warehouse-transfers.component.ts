@@ -14,6 +14,10 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { DatePipe } from '@angular/common';
+import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   templateUrl: './warehouse-transfers.component.html',
@@ -27,6 +31,8 @@ export class WarehouseTransfersComponent implements OnInit {
   transfers: WarehouseTransfer[] = [];
   selectedTransfers: WarehouseTransfer[] = [];
   isLoading: boolean = false;
+  isExporting: boolean = false;
+  exportProgress: string = '';
   totalRecords: number = 0;
   lastLazyLoadEvent?: LazyLoadEvent;
   isInitialLoad: boolean = true;
@@ -42,7 +48,10 @@ export class WarehouseTransfersComponent implements OnInit {
   
   // Dropdowns
   warehouses: any[] = [];
+  availableSourceWarehouses: any[] = [];
+  availableDestinationWarehouses: any[] = [];
   statusOptions: any[] = [];
+  hasSingleWarehouse: boolean = false;
   
   // Product autocomplete (per item)
   productSuggestionsMap: Map<number, Product[]> = new Map();
@@ -57,6 +66,7 @@ export class WarehouseTransfersComponent implements OnInit {
   sourceProducts: Product[] = [];
   submitted: boolean = false;
   isSaving: boolean = false;
+  hasNoProductsInWarehouse: boolean = false;
   
   // Detail view (for confirmation dialogs)
   selectedTransfer: WarehouseTransfer = {};
@@ -73,6 +83,8 @@ export class WarehouseTransfersComponent implements OnInit {
   isAdmin: boolean = false;
   
   resource: string = 'WAREHOUSE_TRANSFERS';
+  
+  exportColumns!: ExportColumn[];
 
   constructor(
     private transferService: WarehouseTransferService,
@@ -84,7 +96,9 @@ export class WarehouseTransfersComponent implements OnInit {
     private permissionService: PermissionService,
     private keycloakService: KeycloakService,
     private cdr: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private reportingService: ReportingService,
+    private organizationService: OrganizationService
   ) {}
 
   async ngOnInit() {
@@ -92,6 +106,18 @@ export class WarehouseTransfersComponent implements OnInit {
     await this.setUserRoles();
     await this.initializeTranslations();
     await this.loadInitialData();
+    
+    // Initialize export columns
+    this.exportColumns = [
+      { title: this.translateService.instant('reference'), dataKey: 'reference' },
+      { title: this.translateService.instant('source_warehouse'), dataKey: 'sourceWarehouseName' },
+      { title: this.translateService.instant('destination_warehouse'), dataKey: 'destinationWarehouseName' },
+      { title: this.translateService.instant('status'), dataKey: 'status' },
+      { title: this.translateService.instant('items_count'), dataKey: 'itemsCount' },
+      { title: this.translateService.instant('total_quantity'), dataKey: 'totalQuantity' },
+      { title: this.translateService.instant('batch_info'), dataKey: 'batchInfo' },
+      { title: this.translateService.instant('created_by'), dataKey: 'createdBy' }
+    ];
   }
 
   async setUserRoles() {
@@ -138,6 +164,19 @@ export class WarehouseTransfersComponent implements OnInit {
             value: w.warehouseId,
             warehouse: w
           }));
+          // Initialize available warehouses lists
+          this.updateAvailableWarehouses();
+          // UX: detect single-warehouse scenario
+          this.hasSingleWarehouse = this.warehouses.length === 1;
+
+          if (this.hasSingleWarehouse) {
+            this.messageService.add({
+              severity: 'info',
+              summary: this.translate.instant('information'),
+              detail: this.translate.instant('warehouse_transfer_single_warehouse_warning') || 'You cannot create transfers because only one warehouse exists.',
+              life: 5000
+            });
+          }
         },
         error: (err: any) => {
           console.error('Error loading warehouses:', err);
@@ -145,6 +184,26 @@ export class WarehouseTransfersComponent implements OnInit {
       });
     } catch (error) {
       console.error('Error loading warehouses:', error);
+    }
+  }
+
+  updateAvailableWarehouses() {
+    // Update available source warehouses (exclude destination)
+    if (!this.transfer.destinationWarehouse?.warehouseId) {
+      this.availableSourceWarehouses = this.warehouses;
+    } else {
+      this.availableSourceWarehouses = this.warehouses.filter(
+        (w: any) => w.warehouse?.warehouseId !== this.transfer.destinationWarehouse?.warehouseId
+      );
+    }
+
+    // Update available destination warehouses (exclude source)
+    if (!this.transfer.sourceWarehouse?.warehouseId) {
+      this.availableDestinationWarehouses = this.warehouses;
+    } else {
+      this.availableDestinationWarehouses = this.warehouses.filter(
+        (w: any) => w.warehouse?.warehouseId !== this.transfer.sourceWarehouse?.warehouseId
+      );
     }
   }
 
@@ -305,6 +364,18 @@ export class WarehouseTransfersComponent implements OnInit {
 
   // Create Transfer Form Methods
   openNew() {
+    // Initialize available warehouses when opening dialog
+    this.updateAvailableWarehouses();
+    if (this.hasSingleWarehouse) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('warehouse_transfer_single_warehouse_warning') || 'You cannot create transfers because only one warehouse exists.',
+        life: 4000
+      });
+      return;
+    }
+
     this.transfer = {};
     this.transferItems = [];
     this.sourceProducts = [];
@@ -317,11 +388,39 @@ export class WarehouseTransfersComponent implements OnInit {
   }
 
   onSourceWarehouseChange() {
+    // Clear destination warehouse if it's the same as source
+    if (this.transfer.destinationWarehouse?.warehouseId === this.transfer.sourceWarehouse?.warehouseId) {
+      this.transfer.destinationWarehouse = null as any;
+    }
+    
+    // Update available warehouses lists
+    this.updateAvailableWarehouses();
+    
+    // Reset products availability flag
+    this.hasNoProductsInWarehouse = false;
+    
     if (this.transfer.sourceWarehouse?.warehouseId) {
       this.loadSourceProducts();
     } else {
       this.sourceProducts = [];
+      this.cachedWarehouseProducts = [];
     }
+  }
+
+  onDestinationWarehouseChange() {
+    // Clear source warehouse if it's the same as destination
+    if (this.transfer.sourceWarehouse?.warehouseId === this.transfer.destinationWarehouse?.warehouseId) {
+      this.transfer.sourceWarehouse = null as any;
+      this.sourceProducts = [];
+    }
+    
+    // Update available warehouses lists
+    this.updateAvailableWarehouses();
+  }
+
+  isSameWarehouseSelected(): boolean {
+    return this.transfer.sourceWarehouse?.warehouseId === this.transfer.destinationWarehouse?.warehouseId &&
+           this.transfer.sourceWarehouse?.warehouseId !== undefined;
   }
 
   async loadSourceProducts() {
@@ -329,6 +428,7 @@ export class WarehouseTransfersComponent implements OnInit {
     if (!warehouseId) {
       this.sourceProducts = [];
       this.cachedWarehouseProducts = [];
+      this.hasNoProductsInWarehouse = false;
       return;
     }
 
@@ -344,16 +444,31 @@ export class WarehouseTransfersComponent implements OnInit {
           this.cachedWarehouseProducts = products.filter(
             (p: Product) => p.quantityAvailable && p.quantityAvailable > 0
           );
+          
+          // Check if warehouse has no available products
+          this.hasNoProductsInWarehouse = this.cachedWarehouseProducts.length === 0;
+          
+          if (this.hasNoProductsInWarehouse) {
+            this.messageService.add({
+              severity: 'warn',
+              summary: this.translate.instant('warning'),
+              detail: this.translate.instant('source_warehouse_has_no_available_products'),
+              life: 5000
+            });
+          }
+          
           console.log(`Cached ${this.cachedWarehouseProducts.length} products for warehouse ${warehouseId}`);
         },
         error: (err: any) => {
           console.error('Error loading products for warehouse:', err);
           this.cachedWarehouseProducts = [];
+          this.hasNoProductsInWarehouse = true;
         }
       });
     } catch (error) {
       console.error('Error loading products:', error);
       this.cachedWarehouseProducts = [];
+      this.hasNoProductsInWarehouse = true;
     }
   }
 
@@ -423,7 +538,7 @@ export class WarehouseTransfersComponent implements OnInit {
 
   addTransferItem() {
     const newItem: TransferItem = {
-      product: {} as Product,
+      product: null as any,
       quantity: 1,
       notes: ''
     };
@@ -510,6 +625,17 @@ export class WarehouseTransfersComponent implements OnInit {
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('source_destination_must_differ'),
+        life: 3000
+      });
+      return;
+    }
+
+    // Check if source warehouse has available products
+    if (this.hasNoProductsInWarehouse || this.cachedWarehouseProducts.length === 0) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('source_warehouse_has_no_available_products'),
         life: 3000
       });
       return;
@@ -779,5 +905,374 @@ export class WarehouseTransfersComponent implements OnInit {
 
   getTotalQuantity(transfer: WarehouseTransfer): number {
     return transfer.transferItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+  }
+
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered transfers from backend using current filter parameters
+      const { sortField, sortOrder } = this.lastLazyLoadEvent || { sortField: 'creationDate', sortOrder: -1 };
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC'; // Backend expects uppercase
+      
+      // Extract warehouse IDs properly
+      let sourceId: number | undefined = undefined;
+      if (this.selectedSourceWarehouse) {
+        if (typeof this.selectedSourceWarehouse === 'object') {
+          sourceId = this.selectedSourceWarehouse.warehouseId || 
+                     (this.selectedSourceWarehouse as any).value?.warehouseId ||
+                     (this.selectedSourceWarehouse as any).value;
+        } else if (typeof this.selectedSourceWarehouse === 'number') {
+          sourceId = this.selectedSourceWarehouse;
+        }
+      }
+      
+      let destId: number | undefined = undefined;
+      if (this.selectedDestinationWarehouse) {
+        if (typeof this.selectedDestinationWarehouse === 'object') {
+          destId = this.selectedDestinationWarehouse.warehouseId || 
+                   (this.selectedDestinationWarehouse as any).value?.warehouseId ||
+                   (this.selectedDestinationWarehouse as any).value;
+        } else if (typeof this.selectedDestinationWarehouse === 'number') {
+          destId = this.selectedDestinationWarehouse;
+        }
+      }
+      
+      // Format dates
+      let startDateStr: string | undefined = undefined;
+      let endDateStr: string | undefined = undefined;
+      
+      if (this.startDate) {
+        startDateStr = this.formatDateForApi(this.startDate, true);
+        if (!startDateStr || startDateStr === '') {
+          startDateStr = undefined;
+        }
+      }
+      
+      if (this.endDate) {
+        endDateStr = this.formatDateForApi(this.endDate, false);
+        if (!endDateStr || endDateStr === '') {
+          endDateStr = undefined;
+        }
+      }
+      
+      // Fetch all transfers with pagination loop
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredTransfers: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          await this.transferService.searchTransfers(
+            currentPage,
+            pageSize,
+            sourceId,
+            destId,
+            this.selectedStatus || undefined,
+            startDateStr,
+            endDateStr,
+            sortField || 'creationDate',
+            direction
+          )
+        );
+        
+        const pageContent = pageResponse?.content || [];
+        allFilteredTransfers = allFilteredTransfers.concat(pageContent);
+        totalElements = pageResponse?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredTransfers.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredTransfers.length} / ${totalElements} (${progressPercent}%)`;
+        this.cdr.detectChanges(); // Update UI with progress
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredTransfers.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      this.cdr.detectChanges();
+      
+      // Extract transfers from response
+      const filteredTransfers = allFilteredTransfers.map((t: any) => ({
+        ...t,
+        transferDate: t.transferDate ? new Date(t.transferDate) : null,
+        creationDate: t.creationDate ? new Date(t.creationDate) : null,
+        initiatedDate: t.initiatedDate ? new Date(t.initiatedDate) : null,
+        completedDate: t.completedDate ? new Date(t.completedDate) : null,
+        cancelledDate: t.cancelledDate ? new Date(t.cancelledDate) : null
+      }));
+      
+      // Prepare transfers for export with calculated fields
+      const exportData = filteredTransfers.map(transfer => ({
+        reference: transfer.reference || '',
+        sourceWarehouseName: transfer.sourceWarehouse?.name || 'N/A',
+        destinationWarehouseName: transfer.destinationWarehouse?.name || 'N/A',
+        status: transfer.status ? this.translate.instant(`transfer_status_${transfer.status.toLowerCase()}`) : 'N/A',
+        itemsCount: this.getItemsCount(transfer),
+        totalQuantity: this.getTotalQuantity(transfer),
+        batchInfo: this.hasBatchInfo(transfer) ? this.translate.instant('batch_tracked') : this.translate.instant('no'),
+        createdBy: transfer.createdBy || 'N/A'
+      }));
+      
+      // Build translated export columns based on organization's default locale
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'reference',
+        'sourceWarehouseName': 'source_warehouse',
+        'destinationWarehouseName': 'destination_warehouse',
+        'status': 'status',
+        'itemsCount': 'items_count',
+        'totalQuantity': 'total_quantity',
+        'batchInfo': 'batch_info',
+        'createdBy': 'created_by'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.exportColumns.map((col) => {
+        const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
+        return {
+          title: this.translate.instant(translationKey),
+          dataKey: col.dataKey
+        };
+      });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('warehouse_transfers_menu_title');
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'warehouse-transfers', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${exportData.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
+  }
+
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
+
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered transfers from backend using current filter parameters
+      const { sortField, sortOrder } = this.lastLazyLoadEvent || { sortField: 'creationDate', sortOrder: -1 };
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC'; // Backend expects uppercase
+      
+      // Extract warehouse IDs properly
+      let sourceId: number | undefined = undefined;
+      if (this.selectedSourceWarehouse) {
+        if (typeof this.selectedSourceWarehouse === 'object') {
+          sourceId = this.selectedSourceWarehouse.warehouseId || 
+                     (this.selectedSourceWarehouse as any).value?.warehouseId ||
+                     (this.selectedSourceWarehouse as any).value;
+        } else if (typeof this.selectedSourceWarehouse === 'number') {
+          sourceId = this.selectedSourceWarehouse;
+        }
+      }
+      
+      let destId: number | undefined = undefined;
+      if (this.selectedDestinationWarehouse) {
+        if (typeof this.selectedDestinationWarehouse === 'object') {
+          destId = this.selectedDestinationWarehouse.warehouseId || 
+                   (this.selectedDestinationWarehouse as any).value?.warehouseId ||
+                   (this.selectedDestinationWarehouse as any).value;
+        } else if (typeof this.selectedDestinationWarehouse === 'number') {
+          destId = this.selectedDestinationWarehouse;
+        }
+      }
+      
+      // Format dates
+      let startDateStr: string | undefined = undefined;
+      let endDateStr: string | undefined = undefined;
+      
+      if (this.startDate) {
+        startDateStr = this.formatDateForApi(this.startDate, true);
+        if (!startDateStr || startDateStr === '') {
+          startDateStr = undefined;
+        }
+      }
+      
+      if (this.endDate) {
+        endDateStr = this.formatDateForApi(this.endDate, false);
+        if (!endDateStr || endDateStr === '') {
+          endDateStr = undefined;
+        }
+      }
+      
+      // Fetch all transfers with pagination loop
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredTransfers: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000; // Fetch in chunks of 1000
+      let hasMore = true;
+      let totalElements = 0;
+      
+      while (hasMore) {
+        const pageResponse: any = await firstValueFrom(
+          await this.transferService.searchTransfers(
+            currentPage,
+            pageSize,
+            sourceId,
+            destId,
+            this.selectedStatus || undefined,
+            startDateStr,
+            endDateStr,
+            sortField || 'creationDate',
+            direction
+          )
+        );
+        
+        const pageContent = pageResponse?.content || [];
+        allFilteredTransfers = allFilteredTransfers.concat(pageContent);
+        totalElements = pageResponse?.totalElements || 0;
+        
+        // Update progress
+        const progressPercent = totalElements > 0 
+          ? Math.min(100, Math.round((allFilteredTransfers.length / totalElements) * 100))
+          : 0;
+        this.exportProgress = `${this.translate.instant('fetching_data') || 'Fetching data'}... ${allFilteredTransfers.length} / ${totalElements} (${progressPercent}%)`;
+        this.cdr.detectChanges(); // Update UI with progress
+        
+        // Check if there are more pages
+        const totalPages = pageResponse?.totalPages || 0;
+        hasMore = currentPage + 1 < totalPages && allFilteredTransfers.length < totalElements;
+        currentPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Export stopped at 100 pages to prevent excessive data fetching');
+          break;
+        }
+      }
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      this.cdr.detectChanges();
+      
+      // Extract transfers from response
+      const filteredTransfers = allFilteredTransfers.map((t: any) => ({
+        ...t,
+        transferDate: t.transferDate ? new Date(t.transferDate) : null,
+        creationDate: t.creationDate ? new Date(t.creationDate) : null,
+        initiatedDate: t.initiatedDate ? new Date(t.initiatedDate) : null,
+        completedDate: t.completedDate ? new Date(t.completedDate) : null,
+        cancelledDate: t.cancelledDate ? new Date(t.cancelledDate) : null
+      }));
+      
+      // Prepare transfers for export with calculated fields and translated headers
+      const exportData = filteredTransfers.map(transfer => {
+        const translated: any = {};
+        translated[this.translate.instant('reference')] = transfer.reference || '';
+        translated[this.translate.instant('source_warehouse')] = transfer.sourceWarehouse?.name || 'N/A';
+        translated[this.translate.instant('destination_warehouse')] = transfer.destinationWarehouse?.name || 'N/A';
+        translated[this.translate.instant('status')] = transfer.status ? this.translate.instant(`transfer_status_${transfer.status.toLowerCase()}`) : 'N/A';
+        translated[this.translate.instant('items_count')] = this.getItemsCount(transfer);
+        translated[this.translate.instant('total_quantity')] = this.getTotalQuantity(transfer);
+        translated[this.translate.instant('batch_info')] = this.hasBatchInfo(transfer) ? this.translate.instant('batch_tracked') : this.translate.instant('no');
+        translated[this.translate.instant('created_by')] = transfer.createdBy || 'N/A';
+        return translated;
+      });
+      
+      // Export the translated array to Excel
+      this.reportingService.exportExcel(exportData, 'warehouse-transfers');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${exportData.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 }
