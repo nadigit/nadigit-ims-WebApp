@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -23,22 +24,22 @@ export class FinancialDocumentsService {
   }
 
   saveFinancialDoc(data: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('financial document', data, 'financialDocId', 'documentNumber'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers, params: { origin: 'BACK_OFFICE' } })
   }
 
   updateFinancialDoc(id: any, financialDoc: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated financial document');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, financialDoc, { headers: headers });
   }
 
   issueFinancialDoc(id: any, financialDoc: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Issued financial document');
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/issue', financialDoc, { headers: headers });
   }
 
   deleteFinancialDoc(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted financial document');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
 
@@ -193,7 +194,7 @@ export class FinancialDocumentsService {
   }
 
   cancelFinancialDoc(docId: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Cancelled financial document');
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + docId + '/cancel', { headers: headers })
   }
 
@@ -213,7 +214,7 @@ export class FinancialDocumentsService {
   }
 
   generateReceiptFromPOS(paymentId: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated POS receipt');
     return this.http.post(
       this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'receipt/payment/' + paymentId + '/create',
       {},
@@ -222,7 +223,7 @@ export class FinancialDocumentsService {
   }
 
   generateInvoiceFromOrder(orderId: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated invoice from order');
     return this.http.post(
       this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'invoice/order/' + orderId + '/create',
       {},
@@ -232,7 +233,7 @@ export class FinancialDocumentsService {
 
   generateReturnNoteFromReturn(returnId: any, options?: { origin?: string }) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated return note');
     return this.http.post(
       this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'return-note/return/' + returnId + '/create',
       {},
@@ -242,7 +243,7 @@ export class FinancialDocumentsService {
 
   generateProformaInvoiceFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated proforma invoice');
     
     let params: any = { origin: options?.origin || 'BACK_OFFICE' };
     
@@ -262,7 +263,7 @@ export class FinancialDocumentsService {
 
   generatePurchaseOrderFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated purchase order');
     
     let params: any = { origin: options?.origin || 'BACK_OFFICE' };
     
@@ -282,7 +283,7 @@ export class FinancialDocumentsService {
 
   generateDeliveryOrderFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated delivery note');
     
     let params: any = { origin: options?.origin || 'BACK_OFFICE' };
     
@@ -302,7 +303,7 @@ export class FinancialDocumentsService {
 
   generateQuoteFromOrder(orderId: any, options?: { origin?: string; documentDate?: Date | string }) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated quote');
     
     let params: any = { origin: options?.origin || 'BACK_OFFICE' };
     

@@ -1,4 +1,5 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { AuthenticationService } from 'src/app/services/authentication.service';
 import { User } from 'src/app/models/user';
@@ -34,7 +35,7 @@ export class ProfileComponent implements OnInit {
 
   languageEdit: boolean = false;
 
-  userRoles: Role[] = []
+  userRoles: any;
 
   submitted: boolean = false;
 
@@ -57,6 +58,8 @@ export class ProfileComponent implements OnInit {
   posPin: string = '';
   isEditingPosPin: boolean = false;
 
+  isAdmin: boolean = false;
+
 
   constructor(private messageService: MessageService,
     private translate: TranslateService,
@@ -64,6 +67,7 @@ export class ProfileComponent implements OnInit {
     private formBuilder: FormBuilder,
     public keycloakService: KeycloakService,
     private authService: AuthenticationService,
+    private router: Router
     ) {
   }
 
@@ -194,11 +198,17 @@ export class ProfileComponent implements OnInit {
     }
   }
 
+  private async setUserRoles() {
+    this.userRoles = await this.keycloakService.getUserRoles();
+    this.isAdmin = this.userRoles.includes('ADMIN');
+  }
+
   async getUser() {
     if (this.keycloakService.isLoggedIn()) {
       try {
         const profile = await this.keycloakService.loadUserProfile();
         this.user = profile;
+        await this.setUserRoles();
         // Load POS PIN from attributes (Keycloak stores attributes as arrays)
         this.posPin = (profile.attributes as any)?.posPin?.[0] || (profile.attributes as any)?.posPin || '';
         this.isLoading=false;
@@ -270,6 +280,10 @@ export class ProfileComponent implements OnInit {
     // Only allow numeric characters
     const value = event.target.value;
     this.posPin = value.replace(/[^0-9]/g, '');
+  }
+
+  navigateToNotificationPreferences(): void {
+    this.router.navigate(['/profile/notifications']);
   }
 
   openChangePassword() {

@@ -1194,49 +1194,6 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
         life: 3000
       });
 
-      // Fetch all filtered returns from backend using pagination
-      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
-      let allFilteredReturns: any[] = [];
-      let currentPage = 0;
-      const pageSize = 1000;
-      const maxPages = 100; // Safety limit
-      
-      while (currentPage < maxPages) {
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
-
-        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1})...` || `Fetching data (${currentPage + 1})...`;
-
-        const response = await firstValueFrom(
-          this.returnService.getReturnsPaginated(
-            currentPage,
-            pageSize,
-            globalFilter || '',
-            sortField!,
-            direction,
-            filterPayload
-          )
-        );
-
-        const pageContent = response.page?.content || [];
-        if (pageContent.length === 0) {
-          break; // No more data
-        }
-
-        allFilteredReturns = [...allFilteredReturns, ...pageContent];
-
-        // Check if there are more pages
-        const totalElements = response.page?.totalElements || 0;
-        if (allFilteredReturns.length >= totalElements) {
-          break; // All data fetched
-        }
-
-        currentPage++;
-      }
-
-      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
-      
       // Load token and get organization's default locale
       await this.organizationService.loadToken();
       const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
@@ -1248,41 +1205,111 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       
       // Wait for translations to load
       await firstValueFrom(this.translate.getTranslation(defaultLocale));
+
+      // Fetch all filtered returns from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredReturns: any[] = [];
+      const pageSize = 1000;
+      let currentPage = 0;
+      let hasMorePages = true;
+      const maxPages = 100; // Safety limit
       
-      // Build translated export columns based on organization's default locale
-      const translationKeyMap: { [key: string]: string } = {
-        'reference': 'return_reference',
-        'order.reference': 'order_reference',
-        'customer.fullName': 'customer',
-        'returnDate': 'return_date',
-        'status': 'return_status',
-        'totalAmount': 'total_amount',
-        'refundAmount': 'refund_amount'
-      };
+      // Build filters object from component filter properties
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
       
-      const translatedExportColumns: ExportColumn[] = this.exportColumns
-        .filter((col) => col.dataKey !== 'returnId') // Exclude ID column
-        .map((col) => {
-          const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
-          return {
-            title: this.translate.instant(translationKey),
-            dataKey: col.dataKey
-          };
+      // Ensure token is loaded
+      this.returnService.loadToken();
+      
+      // Fetch all pages
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
+          this.returnService.getReturnsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField || 'returnDate',
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || response.content || response || [];
+        allFilteredReturns = allFilteredReturns.concat(pageContent);
+
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || response.totalElements || response.total || 0;
+        hasMorePages = allFilteredReturns.length < totalElements && pageContent.length > 0;
+        currentPage++;
+      }
+
+      // Check if we have data to export
+      if (allFilteredReturns.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
         });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
+      }
+
+      // Debug: Log the fetched data
+      console.log('Fetched returns for export:', allFilteredReturns.length, allFilteredReturns);
+
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
       
-      // Prepare data for export
+      // Create export columns that match the export data keys
+      const exportColumns: ExportColumn[] = [
+        { title: this.translate.instant('return_reference'), dataKey: 'reference' },
+        { title: this.translate.instant('order_reference'), dataKey: 'orderReference' },
+        { title: this.translate.instant('customer'), dataKey: 'customerName' },
+        { title: this.translate.instant('return_date'), dataKey: 'returnDate' },
+        { title: this.translate.instant('return_status'), dataKey: 'status' },
+        { title: this.translate.instant('total_amount'), dataKey: 'totalAmount' },
+        { title: this.translate.instant('paid_amount'), dataKey: 'refundAmount' }
+      ];
+      
+      const translatedExportColumns: ExportColumn[] = exportColumns;
+      
+      // Prepare data for export - ensure all dataKeys match the export data keys
       const exportData = allFilteredReturns.map(returnObj => {
+        // Get customer display name
+        let customerName = 'N/A';
+        if (returnObj.order?.customer) {
+          customerName = this.getCustomerDisplayName(returnObj.order.customer);
+        }
+        
+        // Translate status
+        const rawStatus: string = returnObj.returnStatus || '';
+        let statusLabel: string = rawStatus;
+        if (rawStatus) {
+          const key = `return_status_${rawStatus.toLowerCase()}`;
+          const translated = this.translate.instant(key);
+          statusLabel = translated && translated !== key ? translated : rawStatus;
+        }
+        
         const exportReturn: any = {
           reference: returnObj.reference || 'N/A',
-          'order.reference': returnObj.order?.reference || 'N/A',
-          'customer.fullName': returnObj.customer ? this.getCustomerDisplayName(returnObj.customer) : 'N/A',
+          orderReference: returnObj.order?.reference || 'N/A',
+          customerName: customerName,
           returnDate: returnObj.returnDate ? this.datePipe.transform(returnObj.returnDate, 'dd/MM/yyyy') : 'N/A',
-          status: this.translate.instant(`return_status_${returnObj.status?.toLowerCase()}`) || returnObj.status,
-          totalAmount: returnObj.totalAmount || 0,
-          refundAmount: returnObj.refundAmount || 0
+          status: statusLabel,
+          totalAmount: returnObj.totalRefundableAmount || 0,
+          refundAmount: returnObj.refunds?.reduce((sum: number, refund: any) => sum + (refund.amount || 0), 0) || 0
         };
         return exportReturn;
       });
+      
+      // Debug: Log the export data
+      console.log('Export data prepared:', exportData.length, exportData);
+      console.log('Export columns:', translatedExportColumns);
       
       // Get translated title for PDF
       const pdfTitle = this.translate.instant('returns_menu_title') || this.translate.instant('returns');
@@ -1331,49 +1358,6 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
         life: 3000
       });
 
-      // Fetch all filtered returns from backend using pagination
-      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
-      let allFilteredReturns: any[] = [];
-      let currentPage = 0;
-      const pageSize = 1000;
-      const maxPages = 100; // Safety limit
-      
-      while (currentPage < maxPages) {
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
-
-        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1})...` || `Fetching data (${currentPage + 1})...`;
-
-        const response = await firstValueFrom(
-          this.returnService.getReturnsPaginated(
-            currentPage,
-            pageSize,
-            globalFilter || '',
-            sortField!,
-            direction,
-            filterPayload
-          )
-        );
-
-        const pageContent = response.page?.content || [];
-        if (pageContent.length === 0) {
-          break; // No more data
-        }
-
-        allFilteredReturns = [...allFilteredReturns, ...pageContent];
-
-        // Check if there are more pages
-        const totalElements = response.page?.totalElements || 0;
-        if (allFilteredReturns.length >= totalElements) {
-          break; // All data fetched
-        }
-
-        currentPage++;
-      }
-
-      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
-      
       // Load token and get organization's default locale
       await this.organizationService.loadToken();
       const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
@@ -1385,43 +1369,89 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       
       // Wait for translations to load
       await firstValueFrom(this.translate.getTranslation(defaultLocale));
+
+      // Fetch all filtered returns from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredReturns: any[] = [];
+      const pageSize = 1000;
+      let currentPage = 0;
+      let hasMorePages = true;
+      const maxPages = 100; // Safety limit
       
-      // Map column field names to translation keys
-      const translationKeyMap: { [key: string]: string } = {
-        'reference': 'return_reference',
-        'order.reference': 'order_reference',
-        'customer.fullName': 'customer',
-        'returnDate': 'return_date',
-        'status': 'return_status',
-        'totalAmount': 'total_amount',
-        'refundAmount': 'refund_amount'
-      };
+      // Build filters object from component filter properties
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
+      
+      // Ensure token is loaded
+      this.returnService.loadToken();
+      
+      // Fetch all pages
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
+          this.returnService.getReturnsPaginated(
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortField || 'returnDate',
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || response.content || response || [];
+        allFilteredReturns = allFilteredReturns.concat(pageContent);
+
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || response.totalElements || response.total || 0;
+        hasMorePages = allFilteredReturns.length < totalElements && pageContent.length > 0;
+        currentPage++;
+      }
+
+      // Check if we have data to export
+      if (allFilteredReturns.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
+        });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
+      }
+
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
       
       // Create translated version of the data with translated headers
       const translatedReturns = allFilteredReturns.map(returnObj => {
-        const translated: any = {};
-        this.cols.forEach(col => {
-          // Exclude creationDate and ID columns
-          if (col.field !== 'creationDate' && col.field !== 'returnId') {
-            const translationKey = translationKeyMap[col.field] || col.field;
-            const translatedHeader = this.translate.instant(translationKey);
-            
-            let value: any = returnObj[col.field as keyof OrderReturn];
-            
-            // Handle nested fields
-            if (col.field === 'order.reference') {
-              value = returnObj.order?.reference || 'N/A';
-            } else if (col.field === 'customer.fullName') {
-              value = returnObj.customer ? this.getCustomerDisplayName(returnObj.customer) : 'N/A';
-            } else if (col.field === 'status') {
-              value = this.translate.instant(`return_status_${value?.toLowerCase()}`) || value;
-            } else if (col.field === 'returnDate') {
-              value = value ? this.datePipe.transform(value, 'dd/MM/yyyy') : 'N/A';
-            }
-            
-            translated[translatedHeader] = value;
-          }
-        });
+        // Get customer display name
+        let customerName = 'N/A';
+        if (returnObj.order?.customer) {
+          customerName = this.getCustomerDisplayName(returnObj.order.customer);
+        }
+        
+        // Translate status
+        const rawStatus: string = returnObj.returnStatus || '';
+        let statusLabel: string = rawStatus;
+        if (rawStatus) {
+          const key = `return_status_${rawStatus.toLowerCase()}`;
+          const translated = this.translate.instant(key);
+          statusLabel = translated && translated !== key ? translated : rawStatus;
+        }
+        
+        const translated: any = {
+          [this.translate.instant('return_reference')]: returnObj.reference || 'N/A',
+          [this.translate.instant('order_reference')]: returnObj.order?.reference || 'N/A',
+          [this.translate.instant('customer')]: customerName,
+          [this.translate.instant('return_date')]: returnObj.returnDate ? this.datePipe.transform(returnObj.returnDate, 'dd/MM/yyyy') : 'N/A',
+          [this.translate.instant('return_status')]: statusLabel,
+          [this.translate.instant('total_amount')]: returnObj.totalRefundableAmount || 0,
+          [this.translate.instant('paid_amount')]: returnObj.refunds?.reduce((sum: number, refund: any) => sum + (refund.amount || 0), 0) || 0
+        };
         return translated;
       });
 

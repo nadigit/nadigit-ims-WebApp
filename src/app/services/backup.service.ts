@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
 import { BackupConfig, BackupJob } from '../models/backup';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -42,7 +43,7 @@ export class BackupService {
   }
 
   async triggerFullBackup(): Promise<Observable<BackupJob>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Triggered full system backup');
     return this.http.post<BackupJob>(`${this.getBaseUrl()}/full`, {}, { headers });
   }
 
@@ -56,7 +57,7 @@ export class BackupService {
   }
 
   async deleteBackup(id: number): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Deleted backup');
     return this.http.delete<void>(`${this.getBaseUrl()}/${id}`, { headers });
   }
 }

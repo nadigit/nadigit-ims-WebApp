@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { BehaviorSubject, Observable, catchError, firstValueFrom, map, throwError } from 'rxjs';
 import { environment } from 'src/environments/environment';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -41,7 +42,7 @@ export class AppConfigurationService {
   }
 
   async saveConfiguration(data: any): Promise<Observable<any>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated system configuration');
     return this.http.post(
       this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema,
       data,

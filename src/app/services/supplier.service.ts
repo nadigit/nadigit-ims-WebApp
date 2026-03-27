@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
 import { environment } from 'src/environments/environment';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -24,15 +25,15 @@ export class SupplierService {
   }
 
   saveSupplier(data: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('supplier', data, 'supplierId', 'supplierName'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers })
   }
   updateSupplier(id: any, supplier: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated supplier');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, supplier, { headers: headers });
   }
   deleteSupplier(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted supplier');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
   getSuppliers() {

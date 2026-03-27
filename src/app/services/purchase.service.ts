@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -23,15 +24,15 @@ export class PurchaseService {
   }
 
   savePurchase(data: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('purchase', data, 'purchaseId', 'reference'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers })
   }
   updatePurchase(id: any, data: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated purchase');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, data, { headers: headers });
   }
   deletePurchase(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted purchase');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
   getPurchases() {
@@ -54,7 +55,7 @@ export class PurchaseService {
   }
 
   updatePurchaseStatus(id: any, purchase: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated purchase status');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + "/update-status", purchase, { headers: headers });
   }
 

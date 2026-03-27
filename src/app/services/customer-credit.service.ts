@@ -8,6 +8,7 @@ import { CreditInfo } from '../models/credit-info';
 import { CreditCheck } from '../models/credit-check';
 import { CreditAging } from '../models/credit-aging';
 import { CreditStatus } from '../models/customer-credit-account';
+import { withAudit } from '../utils/audit-action';
 
 export interface Page<T> {
   content: T[];
@@ -58,24 +59,24 @@ export class CustomerCreditService {
   }
 
   async updateCreditAccount(accountId: number, account: Partial<CustomerCreditAccount>): Promise<Observable<CustomerCreditAccount>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated customer credit account');
     return this.http.put<CustomerCreditAccount>(`${this.getBaseUrl()}account/${accountId}`, account, { headers });
   }
 
   async setCreditLimit(customerId: number, limit: number): Promise<Observable<CustomerCreditAccount>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated customer credit limit');
     const params = new HttpParams().set('creditLimit', limit.toString());
     return this.http.put<CustomerCreditAccount>(`${this.getBaseUrl()}account/customer/${customerId}/limit`, {}, { headers, params });
   }
 
   async setCreditTerms(customerId: number, termsDays: number | null): Promise<Observable<CustomerCreditAccount>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated customer credit terms');
     const params = new HttpParams().set('creditTermsDays', termsDays !== null ? termsDays.toString() : '');
     return this.http.put<CustomerCreditAccount>(`${this.getBaseUrl()}account/customer/${customerId}/terms`, {}, { headers, params });
   }
 
   async updateCreditStatus(customerId: number, status: CreditStatus): Promise<Observable<CustomerCreditAccount>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated customer credit status');
     const params = new HttpParams().set('status', status);
     return this.http.put<CustomerCreditAccount>(`${this.getBaseUrl()}account/customer/${customerId}/status`, {}, { headers, params });
   }
@@ -98,7 +99,7 @@ export class CustomerCreditService {
     description?: string, 
     expirationDate?: string
   ): Promise<Observable<CustomerCreditTransaction>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Issued customer credit');
     let params = new HttpParams().set('amount', amount.toString());
     if (description) {
       params = params.set('description', description);
@@ -115,7 +116,7 @@ export class CustomerCreditService {
     reason?: string, 
     notes?: string
   ): Promise<Observable<CustomerCreditTransaction>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Adjusted customer credit');
     let params = new HttpParams().set('amount', amount.toString());
     if (reason) {
       params = params.set('reason', reason);
@@ -127,7 +128,7 @@ export class CustomerCreditService {
   }
 
   async reverseTransaction(transactionId: number, reason?: string): Promise<Observable<CustomerCreditTransaction>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Reversed credit transaction');
     let params = new HttpParams();
     if (reason) {
       params = params.set('reason', reason);
@@ -197,7 +198,7 @@ export class CustomerCreditService {
   }
 
   async processExpiredCredits(): Promise<Observable<CustomerCreditTransaction[]>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Processed expired credits');
     return this.http.post<CustomerCreditTransaction[]>(`${this.getBaseUrl()}process-expired`, {}, { headers });
   }
 

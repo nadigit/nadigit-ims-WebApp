@@ -1,7 +1,9 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
+import { Expense, ExpenseConfig } from '../models/expense';
 
 @Injectable({
   providedIn: 'root'
@@ -23,15 +25,15 @@ export class ExpenseService {
   }
 
   saveExpense(data: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), auditSaveAction('expense', data, 'id', 'reference'));
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
   }
   updateExpense(id: any, data: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Updated expense');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , data, {headers:headers});
   }
   deleteExpense(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Deleted expense');
     return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers});
   }
   getExpenses() {
@@ -161,8 +163,61 @@ export class ExpenseService {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
+
+  getExpenseConfig(): Observable<ExpenseConfig> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}config`;
+    return this.http.get<ExpenseConfig>(url, { headers });
+  }
+
+  approveExpense(id: number): Observable<unknown> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${id}/approve`;
+    return this.http.post(url, {}, { headers });
+  }
+
+  rejectExpense(id: number, reason?: string): Observable<unknown> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams();
+    if (reason != null && reason !== '') {
+      params = params.set('reason', reason);
+    }
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${id}/reject`;
+    return this.http.post(url, {}, { headers, params });
+  }
+
+  uploadExpenseAttachment(expenseId: number, file: File): Observable<unknown> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${expenseId}/attachments`;
+    return this.http.post(url, formData, { headers });
+  }
+
+  deleteExpenseAttachment(expenseId: number, attachmentId: number): Observable<unknown> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${expenseId}/attachments/${attachmentId}`;
+    return this.http.delete(url, { headers });
+  }
   getMonthlyOrders() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'monthly',{headers:headers});
   }
+}
+
+/** Omit server-managed / read-only fields from expense create/update JSON bodies. */
+export function buildExpenseWritePayload(expense: Partial<Expense>): Record<string, unknown> {
+  const raw = { ...(expense as Record<string, unknown>) };
+  const omit = [
+    'attachments', 'status', 'approvedBy', 'approvedDate', 'approvalDate',
+    'rejectedBy', 'rejectedDate', 'rejectionReason', 'createdBy', 'submissionDate',
+    'reimbursementDate', 'reimbursedBy', 'approvalNotes', 'lastUpdated'
+  ];
+  omit.forEach((k) => delete raw[k]);
+  return raw;
 }

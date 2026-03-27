@@ -28,6 +28,8 @@ export class PaymentsTableComponent implements OnInit {
   @Input() suppliers: any[] = []; // Suppliers for filtering (for outgoing payments)
   @Input() getCustomerDisplayName?: (customer: any) => string; // Function to get customer display name
   @Input() getSupplierDisplayName?: (supplier: any) => string; // Function to get supplier display name
+  @Input() isExporting: boolean = false; // Export loading state
+  @Input() exportProgress: string = ''; // Export progress message
 
   // Filter properties
   selectedPaymentStatus: string | null = null;

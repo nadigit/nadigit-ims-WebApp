@@ -6,14 +6,18 @@ import { KeycloakProfile } from 'keycloak-js';
 import { AuthenticationService } from './services/authentication.service';
 import { AppConfigurationService } from './services/app-configuration.service';
 import { TranslateService } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
+import { BackendStatusService } from './services/backend-status.service';
 
 @Component({
     selector: 'app-root',
-    templateUrl: './app.component.html'
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit {
 
     public profile?: KeycloakProfile;
+    backendUnavailable$!: Observable<boolean>;
 
 
     constructor(private primengConfig: PrimeNGConfig,
@@ -22,10 +26,23 @@ export class AppComponent implements OnInit {
         public keycloakService: KeycloakService,
         private authService: AuthenticationService,
         private configService: AppConfigurationService,
+        private backendStatusService: BackendStatusService,
     ) { }
 
     async ngOnInit() {
         this.primengConfig.ripple = true;
+
+        // Track backend availability for global UX banner
+        this.backendUnavailable$ = this.backendStatusService.backendUnavailable$;
+        
+        // Add/remove body class when backend status changes
+        this.backendUnavailable$.subscribe(isUnavailable => {
+            if (isUnavailable) {
+                document.body.classList.add('backend-unavailable');
+            } else {
+                document.body.classList.remove('backend-unavailable');
+            }
+        });
 
         // Set app language
         const preferredLang = this.translateService.getPreferredLanguage();

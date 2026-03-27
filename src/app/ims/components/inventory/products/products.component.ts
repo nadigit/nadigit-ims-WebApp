@@ -24,6 +24,7 @@ import { DialogService } from 'primeng/dynamicdialog';
 import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
 import { UploadEvent } from 'src/app/models/uploadEvent';
 import { calculateProfit, getAvailableQuantity, getMeasureUnit, getProfitClass, getQuantitySeverity, getWriteOffQuantity, hasWriteOffs } from 'src/app/shared/product-utils';
+import { getExpirationStatus, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
 import { ProductImportComponent } from './product-import/product-import.component';
 import { WarehouseFormDialogConfig, WarehouseFormDialogData } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
 import { CategoryFormDialogConfig, CategoryFormDialogData } from '../categories/category-form-dialog/category-form-dialog.component';
@@ -642,6 +643,24 @@ export class ProductsComponent implements OnInit {
       };
 
       this.onLazyLoad(lazyEvent);
+      
+      // For expirationStatus we rely on backend filtering (batch-aware),
+      // so ensure table uses the fresh backend data instead of stale local filters.
+      this.filteredProducts = [];
+
+      // If there are no other dropdown/global filters, we can return early
+      // and let the lazy load response drive what the user sees.
+      const hasOtherFilters =
+        (event.categoryIds && event.categoryIds.length > 0) ||
+        (event.warehouseIds && event.warehouseIds.length > 0) ||
+        (event.supplierIds && event.supplierIds.length > 0) ||
+        !!event.inventoryStatus ||
+        !!event.productType ||
+        !!event.globalFilter;
+
+      if (!hasOtherFilters) {
+        return;
+      }
     }
 
     // If all filters are cleared, reset filtered products to show all from backend
@@ -651,8 +670,19 @@ export class ProductsComponent implements OnInit {
       !event.inventoryStatus && !event.productType && !event.globalFilter && !event.expirationStatus;
     
     if (hasNoFilters) {
-      // Reset filtered products to empty array to show all products from backend (lazy loaded)
+      // Clear any previously selected expiration status so it no longer affects future loads
+      this.expirationStatusFilter = undefined;
+
+      // Reset table-level filtered products so it falls back to full backend list
       this.filteredProducts = [];
+
+      // Also reset backend filters and trigger a fresh lazy load so all filters are cleared server-side
+      const lazyEvent: LazyLoadEventExt = {
+        ...this.lastLazyLoadEvent,
+        first: 0,
+        filters: {}
+      };
+      this.onLazyLoad(lazyEvent);
       return;
     }
 
@@ -2388,6 +2418,15 @@ export class ProductsComponent implements OnInit {
         this.totalRecords = res.totalProducts;
         console.log('Products:', this.products);
 
+        // Apply expiration status filter locally if set
+        if (this.expirationStatusFilter) {
+          this.filteredProducts = this.products.filter(p =>
+            this.matchesExpirationStatus(p, this.expirationStatusFilter!)
+          );
+        } else {
+          this.filteredProducts = [];
+        }
+
         this.isLoading = false;
       },
       error: (err: any) => {
@@ -2449,6 +2488,16 @@ export class ProductsComponent implements OnInit {
         } as any));
 
         this.totalRecords = res.totalElements;
+
+        // Apply expiration status filter locally if set
+        if (this.expirationStatusFilter) {
+          this.filteredProducts = this.products.filter(p =>
+            this.matchesExpirationStatus(p, this.expirationStatusFilter!)
+          );
+        } else {
+          this.filteredProducts = [];
+        }
+
         this.isLoading = false;
         console.log('Products:', this.products);
       },
@@ -2463,6 +2512,41 @@ export class ProductsComponent implements OnInit {
         });
       }
     });
+  }
+
+  /**
+   * Local helper to evaluate expiration status for a product against the selected filter key.
+   * This complements backend filtering and guarantees visible UI changes even if the backend
+   * ignores the expirationStatus parameter.
+   */
+  private matchesExpirationStatus(product: Product, filterKey: string): boolean {
+    if (!filterKey || filterKey === 'all') {
+      return true;
+    }
+
+    const hasExpirationDate = !!product?.expirationDate;
+
+    // Handle products without expiration date first
+    if (!hasExpirationDate) {
+      return filterKey === 'without_expiration';
+    }
+
+    const status: ExpirationStatus | null = getExpirationStatus(product, 7);
+
+    switch (filterKey) {
+      case 'with_expiration':
+        return !!status; // any defined status means it has expiration
+      case 'without_expiration':
+        return !status;
+      case 'expired':
+        return status === 'EXPIRED';
+      case 'expiring_soon':
+        return status === 'EXPIRING_SOON';
+      case 'valid':
+        return status === 'VALID';
+      default:
+        return true;
+    }
   }
 
   toggleViewMode() {

@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -23,7 +24,7 @@ export class OrderService {
   }
 
   saveOrder(data: any): Observable<any> {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('order', data, 'orderId', 'reference'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers }).pipe(
       catchError((error: HttpErrorResponse) => {
         // Handle insufficient stock errors with write-off details
@@ -64,11 +65,11 @@ export class OrderService {
     return errorMessage;
   }
   updateOrder(id: any, order: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated order');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, order, { headers: headers });
   }
   deleteOrder(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted order');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
   getOrders() {
@@ -129,7 +130,7 @@ export class OrderService {
   }
 
   updateOrderStatus(id: any, order: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated order status');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + "/update-status", order, { headers: headers });
   }
 

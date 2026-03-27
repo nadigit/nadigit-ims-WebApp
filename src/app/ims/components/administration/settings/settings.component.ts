@@ -88,6 +88,14 @@ export class SettingsComponent implements OnInit {
     this.location.back();
   }
 
+  navigateToEmailConfig(): void {
+    this.router.navigate(['/administration/settings/email']);
+  }
+
+  navigateToNotificationRecipients(): void {
+    this.router.navigate(['/administration/settings/email/recipients']);
+  }
+
   async ngOnInit() {
     this.isLoading = true;
 
@@ -154,8 +162,10 @@ export class SettingsComponent implements OnInit {
     try {
       (await this.appConfigService.getAllConfigurations()).subscribe({
         next: (params: AppConfiguration[]) => {
-          // Only keep non-editable configs
-          const nonEditableConfigs = params.filter(config => config.editable);
+          // Only keep non-editable configs and exclude email-related configurations
+          const nonEditableConfigs = params.filter(config => 
+            config.editable && !config.key?.startsWith('email.')
+          );
 
           this.configs = nonEditableConfigs.sort((a, b) => a.id - b.id);
 
@@ -430,7 +440,7 @@ export class SettingsComponent implements OnInit {
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
-          detail: this.translate.instant('bank_updated'),
+          detail: this.translate.instant('bank_updated_successfully'),
           life: 3000
         });
       } else {
@@ -438,7 +448,7 @@ export class SettingsComponent implements OnInit {
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
-          detail: this.translate.instant('bank_created'),
+          detail: this.translate.instant('bank_created_successfully'),
           life: 3000
         });
       }

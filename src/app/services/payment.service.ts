@@ -4,6 +4,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
 import { Payment } from 'src/app/models/payment';
 import { environment } from 'src/environments/environment';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -39,23 +40,23 @@ export class PaymentService {
   //   return this.http.post(url, null, { headers, params });
   // }
   savePayment(payment: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('payment', payment, 'paymentId', 'reference'));
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}process`;
     return this.http.post(url, payment, { headers });
   }
 
   updatePayment(id: any, payment: any) {
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated payment');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, payment, { headers: headers });
   }
 
   confirmPayment(id: any) {
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Confirmed payment');
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/confirm', { headers: headers });
   }
 
   deletePayment(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted payment');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
   getPayment(id: any) {
@@ -248,13 +249,13 @@ export class PaymentService {
   }
 
   processMultiOrderPayment(request: any): Observable<Payment> {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Processed multi-order payment');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}process-multi-order`;
     return this.http.post<Payment>(url, request, { headers });
   }
 
   processMultiPurchasePayment(request: any): Observable<Payment> {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Processed multi-purchase payment');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}process-multi-purchase`;
     return this.http.post<Payment>(url, request, { headers });
   }

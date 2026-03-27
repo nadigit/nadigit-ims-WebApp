@@ -143,7 +143,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             await this.login();
         }
 
-        await this.loadCashRegisterSession();
+        // await this.loadCashRegisterSession();
 
         this.layoutService.systemInfoLoaded$.subscribe(() => {
             this.calculateDaysUntilExpiration();

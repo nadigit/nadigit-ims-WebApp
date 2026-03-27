@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -22,19 +23,19 @@ export class PurchaseCreditService {
 
   saveCredit(data: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('purchase credit', data, 'creditId', 'reference'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers });
   }
 
   updateCredit(id: any, credit: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated purchase credit');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, credit, { headers: headers });
   }
 
   deleteCredit(id: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted purchase credit');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
 
@@ -58,7 +59,7 @@ export class PurchaseCreditService {
 
   confirmCredit(id: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Confirmed purchase credit');
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/confirm', {}, { headers: headers });
   }
 

@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
 import { RestoreConfig, RestoreJob, RestoreRequest, RestoreSettings } from '../models/restore';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -47,12 +48,12 @@ export class RestoreService {
   }
 
   async updateSettings(enabled: boolean): Promise<Observable<RestoreSettings>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated restore settings');
     return this.http.post<RestoreSettings>(`${this.getBaseUrl()}/settings`, { enabled }, { headers });
   }
 
   async triggerRestore(backupId: number, payload: RestoreRequest): Promise<Observable<RestoreJob>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Triggered system restore');
     return this.http.post<RestoreJob>(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}/api/backups/${backupId}/restore`,
       payload,

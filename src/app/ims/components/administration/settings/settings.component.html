@@ -97,6 +97,44 @@
 			</div>
 		</div>
 
+		<!-- Email & Notification Management Cards -->
+		<div class="grid mb-4">
+			<div class="col-12 md:col-6">
+				<div class="card cursor-pointer hover:shadow-3 transition-duration-150" 
+					(click)="navigateToEmailConfig()"
+					style="border-left: 4px solid var(--primary-500);">
+					<div class="flex align-items-center gap-3">
+						<div class="flex align-items-center justify-content-center bg-primary-100 border-round p-3" 
+							style="width: 4rem; height: 4rem;">
+							<i class="pi pi-envelope text-primary text-2xl"></i>
+						</div>
+						<div class="flex-1">
+							<h3 class="m-0 mb-1 text-900">{{ 'email_configuration' | translate }}</h3>
+							<p class="text-600 m-0 text-sm">{{ 'email_configuration_description' | translate }}</p>
+						</div>
+						<i class="pi pi-arrow-right text-400"></i>
+					</div>
+				</div>
+			</div>
+			<div class="col-12 md:col-6">
+				<div class="card cursor-pointer hover:shadow-3 transition-duration-150" 
+					(click)="navigateToNotificationRecipients()"
+					style="border-left: 4px solid var(--orange-500);">
+					<div class="flex align-items-center gap-3">
+						<div class="flex align-items-center justify-content-center bg-orange-100 border-round p-3" 
+							style="width: 4rem; height: 4rem;">
+							<i class="pi pi-users text-orange-500 text-2xl"></i>
+						</div>
+						<div class="flex-1">
+							<h3 class="m-0 mb-1 text-900">{{ 'notification_recipients' | translate }}</h3>
+							<p class="text-600 m-0 text-sm">{{ 'notification_recipients_description' | translate }}</p>
+						</div>
+						<i class="pi pi-arrow-right text-400"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Tabs Section -->
 		<p-tabView styleClass="settings-tabs" [(activeIndex)]="activeTabIndex">
 
@@ -173,7 +211,7 @@
 												</span>
 
 												<!-- Boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled'" class="value-text">
+												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered'" class="value-text">
 													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
 														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
 												</span>
@@ -238,6 +276,8 @@
 													config.key !== 'writeoff.auto.approve' &&
 													config.key !== 'pricing.allow.custom.override' &&
 													config.key !== 'order.backoffice.auto.status.enabled' &&
+													config.key !== 'cash.register.auto.schedule.enabled' &&
+													config.key !== 'pos.credit.order.auto.delivered' &&
 													config.key !== 'payment.bank.methods.minimum.amount' &&
 													config.key !== 'return.refund.percentage.damaged' &&
 													config.key !== 'return.refund.percentage.used' &&
@@ -336,7 +376,7 @@
 												</div>
 
 												<!-- Edit mode for boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled'" class="edit-field">
+												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="booleanOptions"
 														optionLabel="label"

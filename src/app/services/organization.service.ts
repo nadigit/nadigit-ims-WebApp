@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { catchError, Observable, throwError } from 'rxjs';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -23,15 +24,15 @@ export class OrganizationService {
   }
 
   saveOrganization(data: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), auditSaveAction('organization', data, 'organizationId', 'organizationName'));
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
   }
   updateOrganization(id: any, supplier: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Updated organization');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+'/'+id , supplier, {headers:headers});
   }
   deleteOrganization(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Deleted organization');
     return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+'/'+id,{headers:headers});
   }
   getOrganization() {
@@ -43,7 +44,7 @@ export class OrganizationService {
     const formData = new FormData();
     formData.append('logo', file); // Append the file to FormData
 
-    const headers = new HttpHeaders({ 'Authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'Authorization': 'Bearer ' + this.jwt }), 'Uploaded organization logo');
     console.log(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/upload-logo')
 
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/upload-logo', formData, { headers: headers, responseType: 'text' })

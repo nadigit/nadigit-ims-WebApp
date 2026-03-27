@@ -22,6 +22,9 @@ import { ChipModule } from 'primeng/chip';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TranslateModule } from '@ngx-translate/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { InputSwitchModule } from 'primeng/inputswitch';
+import { DividerModule } from 'primeng/divider';
+import { NotificationPreferencesComponent } from './notification-preferences/notification-preferences.component';
 
 
 
@@ -49,8 +52,13 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
         CheckboxModule,
         ReactiveFormsModule,
         TranslateModule,
-        ProgressSpinnerModule
+        ProgressSpinnerModule,
+        InputSwitchModule,
+        DividerModule
     ],
-    declarations: [ProfileComponent]
+    declarations: [
+        ProfileComponent,
+        NotificationPreferencesComponent
+    ]
 })
 export class ProfileModule { }

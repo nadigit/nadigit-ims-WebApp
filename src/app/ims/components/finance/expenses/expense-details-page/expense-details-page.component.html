@@ -1,6 +1,9 @@
 <div class="expense-details-container">
     <p-toast></p-toast>
 
+    <p-message *ngIf="expenseConfigLoaded && requireApproval && expense" severity="info" styleClass="mb-3 w-full" [closable]="false"
+        [text]="'expense_approval_workflow_hint' | translate"></p-message>
+
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
@@ -234,6 +237,75 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Approval metadata -->
+                        <div class="detail-card mb-4" *ngIf="expense?.status === 'APPROVED' || expense?.status === 'REJECTED'">
+                            <div class="card-header">
+                                <i class="pi pi-verified"></i>
+                                <span>{{ 'expense_approval_section' | translate }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-grid" *ngIf="expense?.status === 'APPROVED'">
+                                    <div class="info-grid-item" *ngIf="expense.approvedBy">
+                                        <span class="info-label">{{ 'approved_by' | translate }}</span>
+                                        <span class="info-value">{{ expense.approvedBy }}</span>
+                                    </div>
+                                    <div class="info-grid-item" *ngIf="expense.approvedDate || expense.approvalDate">
+                                        <span class="info-label">{{ 'approved_date' | translate }}</span>
+                                        <span class="info-value">{{ formatDateTime((expense.approvedDate || expense.approvalDate)!) }}</span>
+                                    </div>
+                                </div>
+                                <div class="info-grid" *ngIf="expense?.status === 'REJECTED'">
+                                    <div class="info-grid-item" *ngIf="expense.rejectedBy">
+                                        <span class="info-label">{{ 'rejected_by' | translate }}</span>
+                                        <span class="info-value">{{ expense.rejectedBy }}</span>
+                                    </div>
+                                    <div class="info-grid-item" *ngIf="expense.rejectedDate">
+                                        <span class="info-label">{{ 'rejected_date' | translate }}</span>
+                                        <span class="info-value">{{ formatDateTime(expense.rejectedDate) }}</span>
+                                    </div>
+                                    <div class="info-grid-item col-12" *ngIf="expense.rejectionReason">
+                                        <span class="info-label">{{ 'rejection_reason' | translate }}</span>
+                                        <span class="info-value">{{ expense.rejectionReason }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attachments -->
+                        <div class="detail-card mb-4">
+                            <div class="card-header flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="pi pi-paperclip mr-2"></i>
+                                    {{ 'expense_attachments' | translate }}
+                                </span>
+                                <input #fileInp type="file" style="display:none" (change)="onAttachmentFileSelected($event)" [disabled]="!canUploadAttachments() || attachmentUploading" />
+                                <button pButton pRipple type="button" class="p-button-sm p-button-outlined" icon="pi pi-upload"
+                                    [label]="'upload_attachment' | translate"
+                                    [disabled]="!canUploadAttachments() || attachmentUploading"
+                                    [loading]="attachmentUploading"
+                                    (click)="fileInp.click()"></button>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-color-secondary text-sm m-0 mb-3" *ngIf="canUploadAttachments()">{{ 'expense_attachments_hint' | translate }}</p>
+                                <p class="text-color-secondary m-0" *ngIf="!expense.attachments?.length">{{ 'expense_attachments_empty' | translate }}</p>
+                                <div class="flex flex-column gap-2" *ngIf="expense.attachments?.length">
+                                    <div class="flex align-items-center justify-content-between p-2 surface-ground border-round" *ngFor="let att of expense.attachments">
+                                        <div class="flex align-items-center gap-2 min-w-0">
+                                            <i [class]="attachmentIcon(att.contentType)"></i>
+                                            <span class="font-medium text-overflow-ellipsis">{{ att.originalFilename || att.fileUrl }}</span>
+                                        </div>
+                                        <div class="flex align-items-center gap-2 flex-shrink-0">
+                                            <span class="text-sm text-color-secondary">{{ formatDateTime(att.uploadedAt) }}</span>
+                                            <a *ngIf="resolveAttachmentUrl(att)" [href]="resolveAttachmentUrl(att)" target="_blank" rel="noopener" pButton pRipple class="p-button-text p-button-sm" icon="pi pi-download" [pTooltip]="'download' | translate"></a>
+                                            <button pButton pRipple type="button" class="p-button-text p-button-danger p-button-sm" icon="pi pi-trash"
+                                                *ngIf="canEdit"
+                                                (click)="deleteAttachment(att)" [pTooltip]="'delete' | translate"></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Right Column - Shop & Actions -->
@@ -343,6 +415,15 @@
                             </div>
                             <div class="card-body">
                                 <div class="info-list">
+                                    <div class="info-item" *ngIf="expense.createdBy">
+                                        <div class="info-icon audit">
+                                            <i class="pi pi-user"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'created_by' | translate }}</span>
+                                            <span class="info-value">{{ expense.createdBy }}</span>
+                                        </div>
+                                    </div>
                                     <div class="info-item" *ngIf="expense.creationDate">
                                         <div class="info-icon audit">
                                             <i class="pi pi-clock"></i>
@@ -369,7 +450,7 @@
             </p-tabPanel>
             
             <!-- Timeline Tab -->
-            <p-tabPanel *ngIf="expense?.approvalDate || expense?.reimbursementDate || expense?.submissionDate">
+            <p-tabPanel *ngIf="expenseEvents.length > 0">
                 <ng-template pTemplate="header">
                     <i class="pi pi-history mr-2"></i>
                     <span>{{ 'timeline' | translate }}</span>
@@ -382,42 +463,29 @@
                             <span>{{ 'status_history' | translate }}</span>
                         </div>
                         <div class="card-body">
-                            <div class="expense-timeline" *ngIf="expenseEvents.length > 0; else noTimeline">
+                            <div class="expense-timeline">
                                 <div class="timeline-item" *ngFor="let event of expenseEvents; let i = index"
-                                    [class.completed]="event.date"
-                                    [class.current]="isCurrentStatus(event.status)">
+                                    [class.completed]="event.date">
                                     <div class="timeline-marker">
-                                        <div class="marker-icon" [ngClass]="'status-' + event.status?.toLowerCase()">
+                                        <div class="marker-icon">
                                             <i [class]="event.icon"></i>
                                         </div>
                                         <div class="marker-line" *ngIf="i < expenseEvents.length - 1"></div>
                                     </div>
                                     <div class="timeline-content">
                                         <div class="timeline-header">
-                                            <span class="timeline-status">{{ 'expense_status_' + event.status?.toLowerCase() | translate }}</span>
+                                            <span class="timeline-status">{{ event.labelKey | translate }}</span>
                                             <span class="timeline-date" *ngIf="event.date">{{ event.date | date:'medium' }}</span>
                                         </div>
-                                        <div class="timeline-details" *ngIf="getTimelineDetails(event.status)">
-                                            <span class="timeline-detail" *ngIf="event.status === 'Approved' && expense?.approvedBy">
-                                                <i class="pi pi-user"></i> {{ 'approved_by' | translate }}: {{ expense.approvedBy }}
-                                            </span>
-                                            <span class="timeline-detail" *ngIf="event.status === 'Reimbursed' && expense?.reimbursedBy">
-                                                <i class="pi pi-user"></i> {{ 'reimbursed_by' | translate }}: {{ expense.reimbursedBy }}
-                                            </span>
+                                        <div class="timeline-details" *ngIf="event.by">
+                                            <span class="timeline-detail"><i class="pi pi-user"></i> {{ event.by }}</span>
                                         </div>
-                                        <div class="timeline-notes" *ngIf="event.status === 'Approved' && expense?.approvalNotes">
-                                            <i class="pi pi-comment"></i>
-                                            <span>{{ expense.approvalNotes }}</span>
+                                        <div class="timeline-notes" *ngIf="event.reason">
+                                            <span>{{ event.reason }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <ng-template #noTimeline>
-                                <div class="empty-timeline">
-                                    <i class="pi pi-clock"></i>
-                                    <span>{{ 'no_timeline_events' | translate }}</span>
-                                </div>
-                            </ng-template>
                         </div>
                     </div>
                 </div>
@@ -425,6 +493,36 @@
             
         </p-tabView>
     </div>
+
+    <p-dialog [(visible)]="approveConfirmDialog" [modal]="true" [style]="{width: '450px'}" [header]="'approve_expense' | translate" [draggable]="false" [resizable]="false">
+        <div class="flex align-items-start gap-3">
+            <i class="pi pi-exclamation-triangle text-xl"></i>
+            <span>{{ 'confirm_approve_expense' | translate }}</span>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton type="button" class="p-button-text" icon="pi pi-times" [label]="'cancel' | translate" (click)="approveConfirmDialog = false"></button>
+            <button pButton type="button" class="p-button-success" icon="pi pi-check" [label]="'approve' | translate"
+                (click)="confirmApprove()" [disabled]="isApprovalActionLoading" [loading]="isApprovalActionLoading"></button>
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="rejectConfirmDialog" [modal]="true" [style]="{width: '500px'}" [header]="'reject_expense' | translate" [draggable]="false" [resizable]="false">
+        <div class="flex flex-column gap-3">
+            <div class="flex align-items-start gap-3">
+                <i class="pi pi-exclamation-triangle text-orange-500 text-xl"></i>
+                <span>{{ 'confirm_reject_expense' | translate }}</span>
+            </div>
+            <div class="flex flex-column gap-2">
+                <label for="rejR">{{ 'rejection_reason' | translate }} ({{ 'optional' | translate }})</label>
+                <textarea id="rejR" pInputTextarea [(ngModel)]="rejectionReason" rows="3" class="w-full" [placeholder]="'enter_rejection_reason' | translate"></textarea>
+            </div>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton type="button" class="p-button-text" icon="pi pi-times" [label]="'cancel' | translate" (click)="rejectConfirmDialog = false"></button>
+            <button pButton type="button" class="p-button-danger" icon="pi pi-times" [label]="'reject' | translate"
+                (click)="confirmReject()" [disabled]="isApprovalActionLoading" [loading]="isApprovalActionLoading"></button>
+        </ng-template>
+    </p-dialog>
 
     <!-- Empty State -->
     <div class="expense-content" *ngIf="!isLoading && !expense">

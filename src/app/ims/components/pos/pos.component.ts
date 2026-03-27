@@ -162,32 +162,45 @@ export class PosComponent implements OnInit, OnDestroy {
   // Quick payment amounts
   quickAmounts: number[] = [10, 20, 50, 100, 200, 500];
   
-  // Payment methods - use shared utility options directly for radio buttons
-  paymentMethodOptionsList = paymentMethodOptions;
+  // Payment methods - all options for reference
+  private allPaymentMethodOptions = paymentMethodOptions;
   // For dropdown, we need just the values
   paymentMethods: PaymentMethod[] = paymentMethodOptions.map(opt => opt.value as PaymentMethod);
   
-  // Filtered payment methods - excludes Credit for walk-in customers (updated when customer changes)
+  // Selected payment method from quick checkout panel radio buttons
+  selectedPaymentMethod: PaymentMethod = 'Cash';
+  
+  // Filtered payment method options for radio buttons (updated when customer changes)
+  paymentMethodOptionsList = paymentMethodOptions.filter(opt => opt.value !== 'Credit'); // Default: no Credit
+  // Filtered payment methods for dropdown (updated when customer changes)
   availablePaymentMethods: PaymentMethod[] = paymentMethodOptions.map(opt => opt.value as PaymentMethod).filter(m => m !== 'Credit'); // Default: no Credit
   
   // Update available payment methods based on selected customer
   private updateAvailablePaymentMethods(): void {
-    // If no customer selected, exclude Credit
-    if (!this.selectedCustomer) {
-      this.availablePaymentMethods = this.paymentMethods.filter(m => m !== 'Credit');
-      return;
-    }
+    const isCreditAllowed = this.isCreditAllowedForCustomer();
     
-    const currentCustomerId = this.selectedCustomer?.customerId;
-    const isWalkIn = !currentCustomerId || this.isWalkInCustomer(this.selectedCustomer);
-    
-    // Exclude Credit for walk-in customers, include all for regular customers
-    if (isWalkIn) {
-      this.availablePaymentMethods = this.paymentMethods.filter(m => m !== 'Credit');
-    } else {
+    if (isCreditAllowed) {
       // Include all payment methods including Credit for regular customers
       this.availablePaymentMethods = [...this.paymentMethods];
+      this.paymentMethodOptionsList = [...this.allPaymentMethodOptions];
+    } else {
+      // Exclude Credit for walk-in customers or no customer
+      this.availablePaymentMethods = this.paymentMethods.filter(m => m !== 'Credit');
+      this.paymentMethodOptionsList = this.allPaymentMethodOptions.filter(opt => opt.value !== 'Credit');
+      // Reset selected method if it was Credit
+      if (this.selectedPaymentMethod === 'Credit') {
+        this.selectedPaymentMethod = 'Cash';
+      }
     }
+  }
+  
+  // Check if Credit payment is allowed for the current customer
+  private isCreditAllowedForCustomer(): boolean {
+    if (!this.selectedCustomer) {
+      return false;
+    }
+    const currentCustomerId = this.selectedCustomer?.customerId;
+    return !!currentCustomerId && !this.isWalkInCustomer(this.selectedCustomer);
   }
   bankAccounts: any[] = []; // Will be loaded if needed for Transfer/Check/BOE
   
@@ -1777,11 +1790,11 @@ export class PosComponent implements OnInit, OnDestroy {
     this.syncDiscountAndTaxFromCart();
     
     // Reset checkout-specific fields
-    // Default to Cash, but preserve Credit if it was previously selected and is still available
-    let defaultMethod: PaymentMethod = 'Cash';
-    const hadCreditSelected = this.checkoutPayments.some(p => p.method === 'Credit');
-    if (hadCreditSelected && this.isCreditAvailable()) {
-      defaultMethod = 'Credit';
+    // Use the selected payment method from the quick panel radio buttons as default
+    // Fall back to Cash if the selected method is not available (e.g., Credit for walk-in)
+    let defaultMethod: PaymentMethod = this.selectedPaymentMethod || 'Cash';
+    if (!this.availablePaymentMethods.includes(defaultMethod)) {
+      defaultMethod = 'Cash';
     }
     
     this.checkoutPayments = [{

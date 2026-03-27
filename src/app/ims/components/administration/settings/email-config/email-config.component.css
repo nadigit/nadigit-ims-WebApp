@@ -1,0 +1,11 @@
+.required-asterisk {
+  color: var(--red-500);
+}
+
+.field {
+  margin-bottom: 1.5rem;
+}
+
+.field-checkbox {
+  margin-bottom: 1rem;
+}

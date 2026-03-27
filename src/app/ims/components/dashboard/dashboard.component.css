@@ -74,6 +74,41 @@
   justify-content: center;
 }
 
+/* Getting Started card — theme-aware gradient (light primary-50 reads as “white” in dark mode) */
+:host ::ng-deep .getting-started-card.p-card {
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--surface-0) 100%);
+  border: 1px solid var(--primary-200);
+}
+
+:host-context(.layout-theme-dark) ::ng-deep .getting-started-card.p-card {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary-color) 26%, var(--surface-card)) 0%,
+    var(--surface-card) 100%
+  );
+  border-color: var(--surface-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+:host ::ng-deep .getting-started-card .getting-started-icon-wrap {
+  background: var(--primary-100);
+  border: 1px solid transparent;
+}
+
+:host-context(.layout-theme-dark) ::ng-deep .getting-started-card .getting-started-icon-wrap {
+  background: color-mix(in srgb, var(--primary-color) 22%, var(--surface-ground));
+  border-color: var(--surface-border);
+}
+
+:host-context(.layout-theme-dark) ::ng-deep .getting-started-card .getting-started-dismiss.p-button.p-button-text {
+  color: var(--text-color-secondary);
+}
+
+:host-context(.layout-theme-dark) ::ng-deep .getting-started-card .getting-started-dismiss.p-button.p-button-text:hover {
+  color: var(--text-color);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* Responsive font sizes for stat numbers */
 @media (max-width: 1200px) {
   .stat-number {

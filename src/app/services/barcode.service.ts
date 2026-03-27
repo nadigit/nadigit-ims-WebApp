@@ -10,6 +10,7 @@ import {
   BarcodeFormat,
   BarcodeFormatOption
 } from '../models/barcode';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -47,7 +48,7 @@ export class BarcodeService {
    */
   generateBarcode(request: BarcodeRequestDTO): Observable<BarcodeResponseDTO> {
     const url = this.getBaseUrl();
-    return this.http.post<BarcodeResponseDTO>(url, request, { headers: this.getHeaders() });
+    return this.http.post<BarcodeResponseDTO>(url, request, { headers: withAudit(this.getHeaders(), 'Generated barcode') });
   }
 
   /**
@@ -57,7 +58,7 @@ export class BarcodeService {
   autoGenerateBarcode(productId: number, type: BarcodeType = 'BARCODE'): Observable<BarcodeResponseDTO> {
     const url = `${this.getBaseUrl()}/${productId}/auto`;
     const params = new HttpParams().set('type', type);
-    return this.http.post<BarcodeResponseDTO>(url, null, { headers: this.getHeaders(), params });
+    return this.http.post<BarcodeResponseDTO>(url, null, { headers: withAudit(this.getHeaders(), 'Auto-generated barcode'), params });
   }
 
   /**
@@ -84,7 +85,7 @@ export class BarcodeService {
    */
   updateBarcode(barcodeId: number, request: Partial<BarcodeRequestDTO>): Observable<BarcodeResponseDTO> {
     const url = `${this.getBaseUrl()}/${barcodeId}`;
-    return this.http.put<BarcodeResponseDTO>(url, request, { headers: this.getHeaders() });
+    return this.http.put<BarcodeResponseDTO>(url, request, { headers: withAudit(this.getHeaders(), 'Updated barcode') });
   }
 
   /**
@@ -93,7 +94,7 @@ export class BarcodeService {
    */
   deleteBarcode(barcodeId: number): Observable<void> {
     const url = `${this.getBaseUrl()}/${barcodeId}`;
-    return this.http.delete<void>(url, { headers: this.getHeaders() });
+    return this.http.delete<void>(url, { headers: withAudit(this.getHeaders(), 'Deleted barcode') });
   }
 
   /**
@@ -102,7 +103,7 @@ export class BarcodeService {
    */
   setPrimaryBarcode(barcodeId: number): Observable<BarcodeResponseDTO> {
     const url = `${this.getBaseUrl()}/${barcodeId}/set-primary`;
-    return this.http.put<BarcodeResponseDTO>(url, null, { headers: this.getHeaders() });
+    return this.http.put<BarcodeResponseDTO>(url, null, { headers: withAudit(this.getHeaders(), 'Set primary barcode') });
   }
 
   // ==================== SCANNING ====================
@@ -160,7 +161,7 @@ export class BarcodeService {
       .set('columns', columns.toString());
     
     return this.http.post(url, barcodeIds, { 
-      headers: this.getHeaders(), 
+      headers: withAudit(this.getHeaders(), 'Printed barcodes'), 
       params,
       responseType: 'blob' 
     });
@@ -191,7 +192,7 @@ export class BarcodeService {
       barcodeType,
       barcodeFormat
     };
-    return this.http.post<BarcodeResponseDTO[]>(url, body, { headers: this.getHeaders() });
+    return this.http.post<BarcodeResponseDTO[]>(url, body, { headers: withAudit(this.getHeaders(), 'Bulk generated barcodes') });
   }
 
   // ==================== FORMAT INFORMATION ====================

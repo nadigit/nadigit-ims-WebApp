@@ -1,0 +1,70 @@
+/* Backend Unavailable Banner */
+.backend-unavailable-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 193, 7, 0.15);
+  border-bottom: 2px solid rgba(255, 193, 7, 0.4);
+  color: var(--text-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.3s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.backend-unavailable-banner i {
+  color: var(--yellow-500);
+  font-size: 1.25rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.backend-unavailable-banner .banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.backend-unavailable-banner .title {
+  font-weight: 600;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.backend-unavailable-banner .message {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Add top padding to body when banner is visible to prevent content overlap */
+:host-context(body) {
+  padding-top: 0;
+}
+
+/* Ensure layout content accounts for banner height */
+:host ::ng-deep .layout-wrapper {
+  padding-top: 0;
+}
+
+/* When banner is visible, add margin to first child of router-outlet */
+:host ::ng-deep router-outlet ~ * {
+  margin-top: 0;
+}

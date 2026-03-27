@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, firstValueFrom } from 'rxjs';
 import { InventoryWriteOff, PagedWriteOffResponse, CreateWriteOffRequest } from '../models/write-off';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -140,21 +141,21 @@ export class WriteOffService {
 
   async createWriteOff(request: CreateWriteOffRequest): Promise<Observable<InventoryWriteOff>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt, 'Content-Type': 'application/json' });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt, 'Content-Type': 'application/json' }), 'Created inventory write-off');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}`;
     return this.http.post<InventoryWriteOff>(url, request, { headers });
   }
 
   async approveWriteOff(id: number): Promise<Observable<InventoryWriteOff>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Approved write-off');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}/${id}/approve`;
     return this.http.post<InventoryWriteOff>(url, {}, { headers });
   }
 
   async rejectWriteOff(id: number, reason?: string): Promise<Observable<InventoryWriteOff>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Rejected write-off');
     let params = new HttpParams();
     if (reason) {
       params = params.set('reason', reason);

@@ -10,6 +10,9 @@
             </div>
         </div>
 
+        <p-message *ngIf="expenseConfigLoaded && requireApproval" severity="info" styleClass="mb-3 w-full" [closable]="false"
+            [text]="'expense_approval_workflow_hint' | translate"></p-message>
+
         <div class="card px-6 py-6">
             <p-toast></p-toast>
 
@@ -68,6 +71,18 @@
                     (onChange)="onFilterChange()">
                 </p-dropdown>
 
+                <p-dropdown
+                    [(ngModel)]="selectedExpenseStatus"
+                    [options]="expenseStatusFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'filter_by_expense_status' | translate"
+                    appendTo="body"
+                    styleClass="w-14rem"
+                    (onChange)="onFilterChange()">
+                </p-dropdown>
+
                 <!-- Date Range Filters -->
                 <p-calendar 
                     [(ngModel)]="startDate" 
@@ -100,6 +115,7 @@
                         pTooltip="PDF"
                         tooltipPosition="bottom" 
                         [disabled]="isExporting"
+                        [loading]="isExporting"
                         (click)="exportPdf()"></button>
                     <button pButton pRipple 
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
@@ -107,9 +123,11 @@
                         class="p-button-success"
                         pTooltip="XLS" 
                         tooltipPosition="bottom"
-                        [disabled]="isExporting"></button>
+                        [disabled]="isExporting"
+                        [loading]="isExporting"></button>
                     <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
-                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"
+                        [disabled]="isExporting"></button>
                 </div>
             </div>
 
@@ -141,6 +159,7 @@
                                 field="amount"></p-sortIcon></th>
                         <th pSortableColumn="shop">{{ 'expense_shop' | translate }}<p-sortIcon
                                 field="shop"></p-sortIcon></th>
+                        <th>{{ 'expense_status' | translate }}</th>
                         <th>{{ 'actions' | translate }}</th>
                     </tr>
                 </ng-template>
@@ -174,8 +193,25 @@
                             <span class="p-column-title">{{ 'expense_shop' | translate }}</span>
                             {{ expense.shop ? expense.shop.shopName : 'N/A' }}
                         </td>
+                        <td style="min-width:8rem;">
+                            <span class="p-column-title">{{ 'expense_status' | translate }}</span>
+                            <p-tag *ngIf="expense.status"
+                                [value]="getExpenseStatusLabel(expense.status)"
+                                [severity]="getExpenseWorkflowSeverity(expense.status)"
+                                [icon]="getExpenseWorkflowIcon(expense.status)"
+                                [rounded]="true"></p-tag>
+                            <span *ngIf="!expense.status">—</span>
+                        </td>
                         <td>
                             <div class="flex gap-1">
+                                <button pButton pRipple *ngIf="canApproveExpenseRow(expense)"
+                                    icon="pi pi-check" class="p-button-rounded p-button-text p-button-success"
+                                    [pTooltip]="'approve_expense' | translate"
+                                    (click)="openApproveDialog(expense, $event)"></button>
+                                <button pButton pRipple *ngIf="canRejectExpenseRow(expense)"
+                                    icon="pi pi-times" class="p-button-rounded p-button-text p-button-danger"
+                                    [pTooltip]="'reject_expense' | translate"
+                                    (click)="openRejectDialog(expense, $event)"></button>
                                 <button pButton pRipple *ngIf="canEditExpense && isExpenseFinalized(expense)"
                                     icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
                                     [disabled]="!canEditExpenseBasedOnReconciliation(expense)"
@@ -191,14 +227,18 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="summary">
-                    <div class="flex align-items-center justify-content-between">
-                        {{'total_expenses' | translate}} {{expenses ? expenses.length : 0 }}.
+                    <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-2">
+                        <span>{{ 'table_page_total_hint' | translate: { count: totalRecords } }}</span>
+                        <span *ngIf="totalAmountFiltered != null" class="font-semibold">
+                            {{ 'expense_filtered_total_amount' | translate }}:
+                            {{ totalAmountFiltered | currency: currency:'symbol':'1.2-2' }}
+                        </span>
                     </div>
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
                     <tr>
-                        <td colspan="8">
+                        <td colspan="9">
                             <div class="flex flex-column align-items-center justify-content-center py-5">
                                 <img src="assets/core-images/no_data_found.png" alt="No Data Found"
                                     style="max-width: 250px; opacity: 0.6;">
@@ -421,6 +461,51 @@
                     <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
                 </div>
             </div>
+        </p-dialog>
+
+        <p-dialog
+            [(visible)]="approveExpenseDialog"
+            [modal]="true"
+            [style]="{width: '450px'}"
+            [header]="'approve_expense' | translate"
+            [draggable]="false"
+            [resizable]="false">
+            <div class="confirmation-content flex align-items-start gap-3">
+                <i class="pi pi-exclamation-triangle text-xl"></i>
+                <span>{{ 'confirm_approve_expense' | translate }}</span>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton type="button" class="p-button-text" icon="pi pi-times" [label]="'cancel' | translate"
+                    (click)="approveExpenseDialog = false"></button>
+                <button pButton type="button" class="p-button-success" icon="pi pi-check" [label]="'approve' | translate"
+                    (click)="confirmApproveExpense()" [disabled]="isApprovalActionLoading" [loading]="isApprovalActionLoading"></button>
+            </ng-template>
+        </p-dialog>
+
+        <p-dialog
+            [(visible)]="rejectExpenseDialog"
+            [modal]="true"
+            [style]="{width: '500px'}"
+            [header]="'reject_expense' | translate"
+            [draggable]="false"
+            [resizable]="false">
+            <div class="flex flex-column gap-3">
+                <div class="flex align-items-start gap-3">
+                    <i class="pi pi-exclamation-triangle text-orange-500 text-xl"></i>
+                    <span>{{ 'confirm_reject_expense' | translate }}</span>
+                </div>
+                <div class="flex flex-column gap-2">
+                    <label for="expenseRejectReason">{{ 'rejection_reason' | translate }} ({{ 'optional' | translate }})</label>
+                    <textarea id="expenseRejectReason" pInputTextarea [(ngModel)]="rejectionReason" rows="3" class="w-full"
+                        [placeholder]="'enter_rejection_reason' | translate"></textarea>
+                </div>
+            </div>
+            <ng-template pTemplate="footer">
+                <button pButton type="button" class="p-button-text" icon="pi pi-times" [label]="'cancel' | translate"
+                    (click)="rejectExpenseDialog = false"></button>
+                <button pButton type="button" class="p-button-danger" icon="pi pi-times" [label]="'reject' | translate"
+                    (click)="confirmRejectExpense()" [disabled]="isApprovalActionLoading" [loading]="isApprovalActionLoading"></button>
+            </ng-template>
         </p-dialog>
     </div>
 </div>

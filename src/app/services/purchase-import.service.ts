@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, firstValueFrom } from 'rxjs';
 import { PurchaseImportOptions, ImportValidationResult, PurchaseImportPreview, PurchaseImportResult, ParsedInvoiceData } from '../models/purchase-import.model';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -109,7 +110,7 @@ export class PurchaseImportService {
    * Execute import
    */
   async executeImport(file: File, options: PurchaseImportOptions = {}): Promise<Observable<PurchaseImportResult>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Imported purchases from file');
     const formData = this.buildFormData(file, options);
 
     return this.http.post<PurchaseImportResult>(
@@ -236,7 +237,7 @@ export class PurchaseImportService {
     productMappings: Record<string, string> = {},
     options: PurchaseImportOptions = {}
   ): Promise<Observable<PurchaseImportResult>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Imported purchase from invoice');
     const formData = new FormData();
     formData.append('file', file);
 

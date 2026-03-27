@@ -5,6 +5,7 @@ import { BehaviorSubject, from, Observable, switchMap, timeout, catchError, of }
 import { CashRegisterSession } from '../models/cashRegisterSession';
 import { CashMovement } from '../models/cashMovement';
 import { CashCollection } from '../models/cashCollection';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -78,7 +79,7 @@ export class CashRegisterService {
    * Open a new cash register session with an opening amount
    */
   async openSession(shopId: number, openingAmount: number, notes?: string): Promise<Observable<CashRegisterSession>> {
-    const headers = await this.getAuthHeaders();
+    const headers = withAudit(await this.getAuthHeaders(), 'Opened cash register session');
 
     const params = new HttpParams()
       .set('openingAmount', openingAmount.toString())
@@ -111,7 +112,7 @@ export class CashRegisterService {
 
 
   async closeSession(sessionId: number, declaredClosingAmount: number, notes?: string): Promise<Observable<CashRegisterSession>> {
-    const headers = await this.getAuthHeaders();
+    const headers = withAudit(await this.getAuthHeaders(), 'Closed cash register session');
 
     const params = new HttpParams()
       .set('declaredClosingAmount', declaredClosingAmount.toString())
@@ -189,7 +190,7 @@ export class CashRegisterService {
   }
 
   async addCollection(shopId: number, amount: number, notes?: string): Promise<Observable<CashCollection>> {
-    const headers = await this.getAuthHeaders();
+    const headers = withAudit(await this.getAuthHeaders(), 'Added cash collection');
 
     const params = new HttpParams()
       .set('amount', amount.toString())
@@ -203,14 +204,14 @@ export class CashRegisterService {
   }
 
   async depositMoney(registerId: number, data: any) {
-    const headers = await this.getAuthHeaders();
+    const headers = withAudit(await this.getAuthHeaders(), 'Deposited money to register');
     return this.http.post(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${registerId}/deposit`, data, { headers}
     );
   }
 
   async withdrawMoney(registerId: number, data: any) {
-    const headers = await this.getAuthHeaders();
+    const headers = withAudit(await this.getAuthHeaders(), 'Withdrew money from register');
     return this.http.post(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${registerId}/withdraw`, data, { headers}
     );

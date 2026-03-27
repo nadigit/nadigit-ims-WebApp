@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
-import { Expense } from 'src/app/models/expense';
+import { Expense, ExpenseAttachment, ExpenseConfig } from 'src/app/models/expense';
 import { ExpenseService } from 'src/app/services/expense.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
@@ -23,13 +23,30 @@ export class ExpenseDetailsPageComponent implements OnInit {
   isLoading: boolean = true;
   currency: string = 'USD';
   expenseEvents: any[] = [];
-  
+
   canEdit: boolean = false;
   canDelete: boolean = false;
   canRead: boolean = false;
   isAdmin: boolean = false;
   userRoles: any;
-  Ressource: string = "EXPENSES";
+  userShopId: number | null = null;
+  Ressource: string = 'EXPENSES';
+
+  requireApproval: boolean = false;
+  expenseConfigLoaded: boolean = false;
+
+  approveConfirmDialog: boolean = false;
+  rejectConfirmDialog: boolean = false;
+  rejectionReason: string = '';
+  isApprovalActionLoading: boolean = false;
+
+  attachmentUploading: boolean = false;
+  readonly maxAttachmentBytes = 5 * 1024 * 1024;
+  readonly maxAttachments = 10;
+
+  private readonly apiProtocol: string = (window as any).__env?.apiProtocol || 'http';
+  private readonly apiHost: string = (window as any).__env?.apiHost || 'localhost';
+  private readonly apiPort: string = (window as any).__env?.apiPort || '8090';
 
   constructor(
     private route: ActivatedRoute,
@@ -46,10 +63,9 @@ export class ExpenseDetailsPageComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
-    
-    // Load token first
+
     this.expenseService.loadToken();
-    
+
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -74,19 +90,39 @@ export class ExpenseDetailsPageComponent implements OnInit {
       }
       await this.checkPermissions();
       await this.setUserRoles();
+      await this.loadUserShopId();
+      await this.loadExpenseConfig();
       await this.loadExpense();
     });
   }
 
+  private async loadExpenseConfig(): Promise<void> {
+    try {
+      const cfg = await firstValueFrom(this.expenseService.getExpenseConfig()) as ExpenseConfig;
+      this.requireApproval = !!cfg?.requireApproval;
+    } catch {
+      this.requireApproval = false;
+    } finally {
+      this.expenseConfigLoaded = true;
+    }
+  }
+
+  private async loadUserShopId(): Promise<void> {
+    try {
+      const profile = await this.keycloakService.loadUserProfile();
+      const raw = profile?.attributes?.['shop']?.[0];
+      this.userShopId = raw != null && raw !== '' ? Number(raw) : null;
+    } catch {
+      this.userShopId = null;
+    }
+  }
+
   async loadExpense(): Promise<void> {
     try {
-      // Ensure token is loaded
       this.expenseService.loadToken();
-      
+
       const response = await firstValueFrom(this.expenseService.getExpense(this.expenseId));
-      console.log('Expense API response:', response);
-      
-      // Handle different response formats
+
       if (Array.isArray(response)) {
         this.expense = response[0] as Expense;
       } else if (response && typeof response === 'object') {
@@ -94,7 +130,7 @@ export class ExpenseDetailsPageComponent implements OnInit {
       } else {
         throw new Error('Unexpected response format from API');
       }
-      
+
       if (!this.expense || !this.expense.id) {
         this.messageService.add({
           severity: 'error',
@@ -138,68 +174,277 @@ export class ExpenseDetailsPageComponent implements OnInit {
     this.location.back();
   }
 
-  generateExpenseEvents() {
-    if (!this.expense) return;
-    
-    this.expenseEvents = [
-      {
-        status: 'Recorded',
-        date: this.expense?.creationDate,
-        icon: 'pi pi-plus-circle',
-        button: 'Submit for Approval'
+  hasExpenseApprovalRole(): boolean {
+    const r = this.userRoles || [];
+    return r.includes('ADMIN') || r.includes('ACCOUNTANT') || r.includes('WAREHOUSEMAN');
+  }
+
+  canApproveExpense(): boolean {
+    const e = this.expense;
+    if (!e || e.status !== 'PENDING') {
+      return false;
+    }
+    if (!this.hasExpenseApprovalRole()) {
+      return false;
+    }
+    if (this.isAdmin) {
+      return true;
+    }
+    if (this.userShopId == null || e.shop?.shopId == null) {
+      return false;
+    }
+    return Number(e.shop.shopId) === Number(this.userShopId);
+  }
+
+  canRejectExpense(): boolean {
+    return this.canApproveExpense();
+  }
+
+  canUploadAttachments(): boolean {
+    const e = this.expense;
+    if (!e) {
+      return false;
+    }
+    if (e.status === 'REJECTED') {
+      return false;
+    }
+    return true;
+  }
+
+  openApproveDialog(): void {
+    this.approveConfirmDialog = true;
+  }
+
+  confirmApprove(): void {
+    if (!this.expense?.id) {
+      return;
+    }
+    this.isApprovalActionLoading = true;
+    this.expenseService.approveExpense(this.expense.id).subscribe({
+      next: () => {
+        this.isApprovalActionLoading = false;
+        this.approveConfirmDialog = false;
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('expense_approved_success'),
+          life: 3000
+        });
+        this.loadExpense();
       },
-      {
-        status: 'Pending',
-        date: this.expense?.submissionDate,
-        icon: 'pi pi-clock',
-        button: 'Approve Expense'
-      },
-      {
-        status: 'Approved',
-        date: this.expense?.approvalDate,
-        icon: 'pi pi-check-circle',
-        button: 'Mark as Reimbursed'
-      },
-      {
-        status: 'Reimbursed',
-        date: this.expense?.reimbursementDate,
-        icon: 'pi pi-flag-fill',
-        button: null
+      error: (err: any) => {
+        this.isApprovalActionLoading = false;
+        const msg = err?.error?.message || err?.message || this.translate.instant('expense_approve_error');
+        const severity = err?.status === 403 ? 'error' : err?.status === 409 ? 'warn' : 'error';
+        this.messageService.add({ severity, summary: this.translate.instant('error'), detail: msg, life: 5000 });
       }
-    ].filter(event => event.date != null || event.status === 'Recorded');
+    });
   }
 
-  getExpenseStatusSeverity(status: string): string {
-    const severityMap: { [key: string]: string } = {
-      'Recorded': 'info',
-      'Pending': 'warning',
-      'Approved': 'success',
-      'Reimbursed': 'help',
-      'Rejected': 'danger'
-    };
-    return severityMap[status] || 'info';
+  openRejectDialog(): void {
+    this.rejectionReason = '';
+    this.rejectConfirmDialog = true;
   }
 
-  getExpenseStatusSeverityTag(status: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
-    const severityMap: { [key: string]: 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined } = {
-      'Recorded': 'info',
-      'Pending': 'warn',
-      'Approved': 'success',
-      'Reimbursed': 'secondary',
-      'Rejected': 'danger'
-    };
-    return severityMap[status] || 'info';
+  confirmReject(): void {
+    if (!this.expense?.id) {
+      return;
+    }
+    this.isApprovalActionLoading = true;
+    this.expenseService.rejectExpense(this.expense.id, this.rejectionReason || undefined).subscribe({
+      next: () => {
+        this.isApprovalActionLoading = false;
+        this.rejectConfirmDialog = false;
+        this.rejectionReason = '';
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('expense_rejected_success'),
+          life: 3000
+        });
+        this.loadExpense();
+      },
+      error: (err: any) => {
+        this.isApprovalActionLoading = false;
+        const msg = err?.error?.message || err?.message || this.translate.instant('expense_reject_error');
+        const severity = err?.status === 403 ? 'error' : err?.status === 409 ? 'warn' : 'error';
+        this.messageService.add({ severity, summary: this.translate.instant('error'), detail: msg, life: 5000 });
+      }
+    });
   }
 
-  getExpenseStatusIcon(status: string): string {
-    const iconMap: { [key: string]: string } = {
-      'Recorded': 'pi pi-plus-circle',
-      'Pending': 'pi pi-clock',
-      'Approved': 'pi pi-check-circle',
-      'Reimbursed': 'pi pi-flag-fill',
-      'Rejected': 'pi pi-times-circle'
-    };
-    return iconMap[status] || 'pi pi-question-circle';
+  resolveAttachmentUrl(att: ExpenseAttachment): string {
+    const url = att?.fileUrl || '';
+    if (!url) {
+      return '';
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    const path = url.startsWith('/') ? url : `/${url}`;
+    return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${path}`;
+  }
+
+  onAttachmentFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !this.expense?.id) {
+      return;
+    }
+    if (this.expense.attachments && this.expense.attachments.length >= this.maxAttachments) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('expense_attachment_max_count'),
+        life: 4000
+      });
+      return;
+    }
+    if (file.size > this.maxAttachmentBytes) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('expense_attachment_file_too_large'),
+        life: 5000
+      });
+      return;
+    }
+    this.attachmentUploading = true;
+    this.expenseService.uploadExpenseAttachment(this.expense.id, file).subscribe({
+      next: () => {
+        this.attachmentUploading = false;
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('expense_attachment_uploaded'),
+          life: 3000
+        });
+        this.loadExpense();
+      },
+      error: (err: any) => {
+        this.attachmentUploading = false;
+        const msg = err?.error?.message || err?.message || this.translate.instant('expense_attachment_upload_failed');
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: msg,
+          life: 5000
+        });
+      }
+    });
+  }
+
+  deleteAttachment(att: ExpenseAttachment): void {
+    if (!this.expense?.id || !att?.id) {
+      return;
+    }
+    this.expenseService.deleteExpenseAttachment(this.expense.id, att.id).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('expense_attachment_deleted'),
+          life: 3000
+        });
+        this.loadExpense();
+      },
+      error: (err: any) => {
+        const msg = err?.error?.message || err?.message || this.translate.instant('error');
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: msg,
+          life: 5000
+        });
+      }
+    });
+  }
+
+  attachmentIcon(contentType: string | undefined): string {
+    const c = (contentType || '').toLowerCase();
+    if (c.includes('pdf')) {
+      return 'pi pi-file-pdf';
+    }
+    if (c.includes('image')) {
+      return 'pi pi-image';
+    }
+    return 'pi pi-file';
+  }
+
+  generateExpenseEvents() {
+    if (!this.expense) {
+      return;
+    }
+    const e = this.expense;
+    this.expenseEvents = [];
+    if (e.creationDate) {
+      this.expenseEvents.push({
+        key: 'created',
+        labelKey: 'expense_event_created',
+        date: e.creationDate,
+        icon: 'pi pi-plus-circle'
+      });
+    }
+    const st = String(e.status || '').toUpperCase();
+    if (st === 'PENDING') {
+      this.expenseEvents.push({
+        key: 'pending',
+        labelKey: 'expense_status_pending',
+        date: e.creationDate,
+        icon: 'pi pi-clock'
+      });
+    }
+    if (st === 'APPROVED' || st === 'REJECTED') {
+      const ad = e.approvedDate || e.approvalDate;
+      if (st === 'APPROVED' && ad) {
+        this.expenseEvents.push({
+          key: 'approved',
+          labelKey: 'expense_approved_event',
+          date: ad,
+          icon: 'pi pi-check-circle',
+          by: e.approvedBy
+        });
+      }
+      if (st === 'REJECTED') {
+        this.expenseEvents.push({
+          key: 'rejected',
+          labelKey: 'expense_rejected_event',
+          date: e.rejectedDate,
+          icon: 'pi pi-times-circle',
+          by: e.rejectedBy,
+          reason: e.rejectionReason
+        });
+      }
+    }
+  }
+
+  getExpenseStatusSeverityTag(status: string | undefined): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
+    const s = String(status || '').toUpperCase();
+    if (s === 'PENDING') {
+      return 'warn';
+    }
+    if (s === 'APPROVED') {
+      return 'success';
+    }
+    if (s === 'REJECTED') {
+      return 'danger';
+    }
+    return 'secondary';
+  }
+
+  getExpenseStatusIcon(status: string | undefined): string {
+    const s = String(status || '').toUpperCase();
+    if (s === 'PENDING') {
+      return 'pi pi-clock';
+    }
+    if (s === 'APPROVED') {
+      return 'pi pi-check-circle';
+    }
+    if (s === 'REJECTED') {
+      return 'pi pi-times-circle';
+    }
+    return 'pi pi-info-circle';
   }
 
   getPaymentMethodSeverity(method: string): string {
@@ -212,23 +457,13 @@ export class ExpenseDetailsPageComponent implements OnInit {
 
   getPaymentMethodSeverityTag(method: string): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
     const severityMap: { [key: string]: 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined } = {
-      'Cash': 'success',
-      'Card': 'info',
-      'Transfer': 'secondary',
-      'Check': 'warn',
-      'BOE': 'contrast'
+      Cash: 'success',
+      Card: 'info',
+      Transfer: 'secondary',
+      Check: 'warn',
+      BOE: 'contrast'
     };
     return severityMap[method] || 'secondary';
-  }
-
-  isCurrentStatus(status: string): boolean {
-    return this.expense?.status?.toLowerCase() === status?.toLowerCase();
-  }
-
-  getTimelineDetails(status: string): boolean {
-    if (status === 'Approved' && this.expense?.approvedBy) return true;
-    if (status === 'Reimbursed' && this.expense?.reimbursedBy) return true;
-    return false;
   }
 
   hasExpensePaymentMethodDetails(): boolean {
@@ -238,28 +473,36 @@ export class ExpenseDetailsPageComponent implements OnInit {
   }
 
   previewReceipt(receiptUrl: string): void {
-    if (!receiptUrl) return;
+    if (!receiptUrl) {
+      return;
+    }
     window.open(receiptUrl, '_blank');
   }
 
-  printExpenseReceipt(expense: any): void {
+  printExpenseReceipt(expense: Expense): void {
     console.log('Print expense receipt:', expense);
-    // Implement print functionality
   }
 
-  exportExpenseToPDF(expense: any): void {
+  exportExpenseToPDF(expense: Expense): void {
     console.log('Export expense to PDF:', expense);
-    // Implement PDF export functionality
   }
 
-  uploadReceipt(expense: any): void {
+  uploadReceipt(expense: Expense): void {
     console.log('Upload receipt for expense:', expense);
-    // Implement upload functionality
   }
 
-  duplicateExpense(expense: any): void {
+  duplicateExpense(expense: Expense): void {
     console.log('Duplicate expense:', expense);
-    // Implement duplicate functionality
+  }
+
+  formatDateTime(iso: string | undefined): string {
+    if (!iso) {
+      return '—';
+    }
+    try {
+      return new Date(iso).toLocaleString(this.translate.currentLang || 'en');
+    } catch {
+      return iso;
+    }
   }
 }
-

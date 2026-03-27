@@ -825,119 +825,128 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   }
 
   async exportPdf() {
-    if (this.isExporting) {
-      return;
-    }
-
-    this.isExporting = true;
-    this.exportProgress = this.translate.instant('preparing_export');
-
+    if (this.isExporting) { return; }
     try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
       this.messageService.add({
         severity: 'info',
         summary: this.translate.instant('exporting'),
-        detail: this.translate.instant('exporting_pdf_please_wait'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
         life: 3000
       });
 
-      // Fetch all filtered financial documents
-      let allDocs: FinancialDocument[] = [];
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredDocs: any[] = [];
       let currentPage = 0;
       const pageSize = 1000;
+      let hasMorePages = true;
       const maxPages = 100;
 
-      while (currentPage < maxPages) {
-        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
 
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
+      this.financialDocService.loadToken();
 
-        const response = await firstValueFrom(
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
           this.financialDocService.getFinancialDocsPaginated(
             currentPage,
             pageSize,
             globalFilter || '',
-            sortField!,
+            sortField || 'createdAt',
             direction,
             filterPayload
           )
         );
 
-        const pageDocs = response.page.content || [];
-        if (pageDocs.length === 0) {
-          break;
-        }
+        const pageContent = response.page?.content || response.content || [];
+        allFilteredDocs = allFilteredDocs.concat(pageContent);
 
-        allDocs = allDocs.concat(pageDocs);
+        const totalElements = response.page?.totalElements || response.totalElements || 0;
+        hasMorePages = allFilteredDocs.length < totalElements && pageContent.length > 0;
         currentPage++;
+      }
 
-        if (pageDocs.length < pageSize) {
-          break;
+      if (allFilteredDocs.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
+        });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
+      }
+
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+
+      const exportColumns: ExportColumn[] = [
+        { title: this.translate.instant('document_number'), dataKey: 'docNumber' },
+        { title: this.translate.instant('document_title'), dataKey: 'docTitle' },
+        { title: this.translate.instant('document_type'), dataKey: 'docType' },
+        { title: this.translate.instant('document_status'), dataKey: 'docStatus' },
+        { title: this.translate.instant('creation_date'), dataKey: 'createdAt' }
+      ];
+
+      const pdfTitle = this.translate.instant('financial_docs_menu_title') || this.translate.instant('financial_documents');
+
+      const exportData = allFilteredDocs.map(doc => {
+        // Translate doc type using uppercase key
+        const rawDocType: string = doc.docType || '';
+        let docTypeLabel: string = rawDocType;
+        if (rawDocType) {
+          const key = rawDocType.toUpperCase();
+          const translated = this.translate.instant(key);
+          docTypeLabel = translated && translated !== key ? translated : rawDocType;
         }
-      }
 
-      // Get organization's default locale for translation
-      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
-      const defaultLocale = organization?.defaultLocale || 'en';
-      const originalLang = this.translate.currentLang;
+        // Translate doc status using uppercase key
+        const rawDocStatus: string = doc.docStatus || '';
+        let docStatusLabel: string = rawDocStatus;
+        if (rawDocStatus) {
+          const key = rawDocStatus.toUpperCase();
+          const translated = this.translate.instant(key);
+          docStatusLabel = translated && translated !== key ? translated : rawDocStatus;
+        }
 
-      // Temporarily switch language for export
-      if (defaultLocale !== originalLang) {
-        this.translate.use(defaultLocale);
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // Prepare export data
-      const exportData = allDocs.map((doc: any) => {
-        return {
-          [this.translate.instant('document_number')]: doc.docNumber || 'N/A',
-          [this.translate.instant('document_title')]: doc.docTitle || 'N/A',
-          [this.translate.instant('document_type')]: doc.docType ? this.translate.instant(doc.docType.toLowerCase()) : 'N/A',
-          [this.translate.instant('document_status')]: doc.docStatus ? this.translate.instant(doc.docStatus.toLowerCase()) : 'N/A',
-          [this.translate.instant('creation_date')]: doc.createdAt 
-            ? this.datePipe.transform(doc.createdAt, 'dd/MM/yyyy') || 'N/A'
-            : 'N/A',
-          [this.translate.instant('issued_date')]: doc.issuedAt 
-            ? this.datePipe.transform(doc.issuedAt, 'dd/MM/yyyy') || 'N/A'
-            : 'N/A',
+        const exportItem: any = {
+          docNumber: doc.docNumber || 'N/A',
+          docTitle: doc.docTitle || 'N/A',
+          docType: docTypeLabel,
+          docStatus: docStatusLabel,
+          createdAt: doc.createdAt ? this.datePipe.transform(doc.createdAt, 'dd/MM/yyyy') : 'N/A'
         };
+        return exportItem;
       });
 
-      // Translate column headers (excluding financialDocId)
-      const translatedColumns = this.exportColumns
-        .filter(col => col.dataKey !== 'financialDocId')
-        .map(col => ({
-          title: this.translate.instant(col.dataKey === 'docType' ? 'document_type' : col.dataKey === 'docStatus' ? 'document_status' : col.dataKey) || col.title,
-          dataKey: col.dataKey
-        }));
-
-      // Export PDF with title
-      this.reportingService.exportPdf(
-        translatedColumns,
-        exportData,
-        'financial-documents',
-        this.translate.instant('financial_docs_menu_title')
-      );
-
-      // Restore original language
-      if (defaultLocale !== originalLang) {
-        this.translate.use(originalLang);
-      }
-
+      this.reportingService.exportPdf(exportColumns, exportData, 'financial-documents', pdfTitle);
+      this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('export_completed_successfully') + ` (${allDocs.length} ${this.translate.instant('records')})`,
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredDocs.length} records exported.`,
         life: 3000
       });
     } catch (error) {
-      console.error('Error exporting PDF:', error);
+      console.error('Error exporting financial documents PDF:', error);
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_exporting'),
-        life: 3000
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
       });
     } finally {
       this.isExporting = false;
@@ -946,122 +955,131 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   }
 
   async exportExcel() {
-    if (this.isExporting) {
-      return;
-    }
-
-    this.isExporting = true;
-    this.exportProgress = this.translate.instant('preparing_export');
-
+    if (this.isExporting) { return; }
     try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
       this.messageService.add({
         severity: 'info',
         summary: this.translate.instant('exporting'),
-        detail: this.translate.instant('exporting_excel_please_wait'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
         life: 3000
       });
 
-      // Fetch all filtered financial documents
-      let allDocs: FinancialDocument[] = [];
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredDocs: any[] = [];
       let currentPage = 0;
       const pageSize = 1000;
+      let hasMorePages = true;
       const maxPages = 100;
 
-      while (currentPage < maxPages) {
-        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
 
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === -1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
+      this.financialDocService.loadToken();
 
-        const response = await firstValueFrom(
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
           this.financialDocService.getFinancialDocsPaginated(
             currentPage,
             pageSize,
             globalFilter || '',
-            sortField!,
+            sortField || 'createdAt',
             direction,
             filterPayload
           )
         );
 
-        const pageDocs = response.page.content || [];
-        if (pageDocs.length === 0) {
-          break;
-        }
+        const pageContent = response.page?.content || response.content || [];
+        allFilteredDocs = allFilteredDocs.concat(pageContent);
 
-        allDocs = allDocs.concat(pageDocs);
+        const totalElements = response.page?.totalElements || response.totalElements || 0;
+        hasMorePages = allFilteredDocs.length < totalElements && pageContent.length > 0;
         currentPage++;
-
-        if (pageDocs.length < pageSize) {
-          break;
-        }
       }
 
-      // Get organization's default locale for translation
-      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
-      const defaultLocale = organization?.defaultLocale || 'en';
-      const originalLang = this.translate.currentLang;
-
-      // Temporarily switch language for export
-      if (defaultLocale !== originalLang) {
-        this.translate.use(defaultLocale);
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (allFilteredDocs.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
+        });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
       }
 
-      // Prepare export data (excluding financialDocId and createdAt)
-      const modifiedDocs = allDocs.map((doc: any) => {
-        const modifiedDoc: any = { ...doc };
-        
-        // Format dates
-        if (doc.createdAt) {
-          modifiedDoc.createdAt = this.datePipe.transform(doc.createdAt, 'dd/MM/yyyy') || doc.createdAt;
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+
+      const translatedDocs = allFilteredDocs.map(doc => {
+        // Translate doc type using uppercase key
+        const rawDocType: string = doc.docType || '';
+        let docTypeLabel: string = rawDocType;
+        if (rawDocType) {
+          const key = rawDocType.toUpperCase();
+          const translated = this.translate.instant(key);
+          docTypeLabel = translated && translated !== key ? translated : rawDocType;
         }
-        if (doc.issuedAt) {
-          modifiedDoc.issuedAt = this.datePipe.transform(doc.issuedAt, 'dd/MM/yyyy') || doc.issuedAt;
+
+        // Translate doc status using uppercase key
+        const rawDocStatus: string = doc.docStatus || '';
+        let docStatusLabel: string = rawDocStatus;
+        if (rawDocStatus) {
+          const key = rawDocStatus.toUpperCase();
+          const translated = this.translate.instant(key);
+          docStatusLabel = translated && translated !== key ? translated : rawDocStatus;
         }
-        
-        // Translate enum values
-        if (doc.docType) {
-          modifiedDoc.docType = this.translate.instant(doc.docType.toLowerCase());
-        }
-        if (doc.docStatus) {
-          modifiedDoc.docStatus = this.translate.instant(doc.docStatus.toLowerCase());
-        }
+
+        // Translate origin if present
+        let originLabel: string = doc.origin || '';
         if (doc.origin) {
-          modifiedDoc.origin = this.translate.instant(doc.origin.toLowerCase());
+          const key = doc.origin.toLowerCase();
+          const translated = this.translate.instant(key);
+          originLabel = translated && translated !== key ? translated : doc.origin;
         }
-        
-        // Remove unwanted fields
-        delete modifiedDoc.financialDocId;
-        delete modifiedDoc.order;
-        delete modifiedDoc.items;
-        delete modifiedDoc.previewHtml;
-        
-        return modifiedDoc;
+
+        const translated: any = {
+          [this.translate.instant('document_number')]: doc.docNumber || 'N/A',
+          [this.translate.instant('document_title')]: doc.docTitle || 'N/A',
+          [this.translate.instant('document_type')]: docTypeLabel,
+          [this.translate.instant('document_status')]: docStatusLabel,
+          [this.translate.instant('creation_date')]: doc.createdAt ? this.datePipe.transform(doc.createdAt, 'dd/MM/yyyy') : 'N/A'
+        };
+
+        if (doc.origin) {
+          translated[this.translate.instant('origin')] = originLabel;
+        }
+
+        return translated;
       });
 
-      // Restore original language
-      if (defaultLocale !== originalLang) {
-        this.translate.use(originalLang);
-      }
-
-      // Export Excel
-      this.reportingService.exportExcel(modifiedDocs, 'financial-documents');
-
+      this.reportingService.exportExcel(translatedDocs, 'financial-documents');
+      this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('export_completed_successfully') + ` (${allDocs.length} ${this.translate.instant('records')})`,
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredDocs.length} records exported.`,
         life: 3000
       });
     } catch (error) {
-      console.error('Error exporting Excel:', error);
+      console.error('Error exporting financial documents Excel:', error);
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_exporting'),
-        life: 3000
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
       });
     } finally {
       this.isExporting = false;

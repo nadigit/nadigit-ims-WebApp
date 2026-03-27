@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
 import { environment } from 'src/environments/environment';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -23,15 +24,15 @@ export class ReturnService {
   }
 
   saveReturn(data: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), auditSaveAction('order return', data, 'returnId', 'reference'));
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
   }
   updateReturn(id: any, orderReturn: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Updated order return');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , orderReturn, {headers:headers});
   }
   deleteReturn(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Deleted order return');
     return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers});
   }
   getReturns() {
@@ -50,7 +51,7 @@ export class ReturnService {
   }
 
   cancelReturn(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Cancelled order return');
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema + id + '/cancel', {headers:headers});
   }
 

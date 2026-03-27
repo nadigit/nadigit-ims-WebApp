@@ -63,6 +63,9 @@ import { AuthGuard } from './guards/auth.guard';
 
                     // Profile
                     { path: 'profile', loadChildren: () => import('./ims/components/profile/profile.module').then(m => m.ProfileModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN', 'CASHIER'] } },
+                    
+                    // Notifications
+                    { path: 'notifications', loadChildren: () => import('./ims/components/notifications/notifications.module').then(m => m.NotificationsModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN', 'CASHIER'] } },
                     // { path: 'pages', loadChildren: () => import('./ims/components/pages/pages.module').then(m => m.PagesModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] } }
                 ]
             },

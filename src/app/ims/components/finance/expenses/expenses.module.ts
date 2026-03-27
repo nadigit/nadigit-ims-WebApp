@@ -24,6 +24,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
 import { TabViewModule } from 'primeng/tabview';
 import { DividerModule } from 'primeng/divider';
+import { MessageModule } from 'primeng/message';
 import { ExpenseDetailsPageComponent } from './expense-details-page/expense-details-page.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 
@@ -53,6 +54,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
         TagModule,
         TabViewModule,
         DividerModule,
+        MessageModule,
         SharedModule
     ],
     declarations: [ExpensesComponent, ExpenseDetailsPageComponent],

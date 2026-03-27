@@ -1,0 +1,33 @@
+.notification-list {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  transition: all 0.2s;
+}
+
+.notification-item:hover {
+  background: var(--surface-hover) !important;
+  transform: translateX(2px);
+}
+
+.notification-icon {
+  flex-shrink: 0;
+}
+
+.severity-high {
+  color: var(--red-500);
+}
+
+.severity-medium {
+  color: var(--orange-500);
+}
+
+.severity-low {
+  color: var(--blue-500);
+}
+
+.severity-info {
+  color: var(--primary-500);
+}

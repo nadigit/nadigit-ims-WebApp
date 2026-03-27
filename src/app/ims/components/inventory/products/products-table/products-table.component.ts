@@ -98,6 +98,7 @@ export class ProductsTableComponent {
   // Filter properties
   globalFilter: string = '';
   categoryFilters: Category[] = [];
+  showAdvancedFilters = false;
   warehouseFilters: Warehouse[] = [];
   supplierFilters: Supplier[] = [];
   inventoryStatusFilter: string | undefined = undefined;
@@ -130,14 +131,24 @@ export class ProductsTableComponent {
       { label: this.translate.instant('product_outofstock'), value: 'OUTOFSTOCK' }
     ];
 
+    // Use a disabled first option as a visual placeholder ("Filtrer par type", etc.)
+    // so that the label is always visible even before the user opens the dropdown.
     this.productTypeOptions = [
-      { label: this.translate.instant('all'), value: undefined },
+      {
+        label: this.translate.instant('filter_by_type'),
+        value: null,
+        disabled: true
+      },
       { label: this.translate.instant('product_type_product'), value: 'PRODUCT' },
       { label: this.translate.instant('product_type_service'), value: 'SERVICE' }
     ];
 
     this.expirationStatusOptions = [
-      { label: this.translate.instant('all'), value: undefined },
+      {
+        label: this.translate.instant('filter_by_expiration_status'),
+        value: null,
+        disabled: true
+      },
       { label: this.translate.instant('with_expiration'), value: 'with_expiration' },
       { label: this.translate.instant('without_expiration'), value: 'without_expiration' },
       { label: this.translate.instant('expired'), value: 'expired' },

@@ -38,10 +38,20 @@
 
                 <!-- View Toggle & Export -->
                 <div class="flex align-items-center gap-2 ml-auto">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
-                        tooltipPosition="bottom" (click)="exportPdf()"></button>
-                    <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
-                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+                        class="p-button-warning" 
+                        pTooltip="PDF"
+                        tooltipPosition="bottom" 
+                        (click)="exportPdf()"
+                        [disabled]="isExporting"></button>
+                    <button pButton pRipple 
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+                        (click)="exportExcel()" 
+                        class="p-button-success"
+                        pTooltip="XLS" 
+                        tooltipPosition="bottom"
+                        [disabled]="isExporting"></button>
                 </div>
             </div>
 
@@ -348,6 +358,23 @@
                 <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
                     (click)="confirmDeleteSelected()"></button>
             </ng-template>
+        </p-dialog>
+
+        <!-- Export Progress Dialog -->
+        <p-dialog 
+            [(visible)]="isExporting" 
+            [modal]="true" 
+            [closable]="false" 
+            [draggable]="false"
+            [resizable]="false"
+            [style]="{width: '450px'}"
+            [header]="'exporting' | translate">
+            <div class="flex flex-column align-items-center gap-3 p-4">
+                <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                <div class="text-center">
+                    <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+                </div>
+            </div>
         </p-dialog>
     </div>
 </div>

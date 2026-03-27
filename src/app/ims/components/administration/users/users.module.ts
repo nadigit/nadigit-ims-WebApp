@@ -32,6 +32,8 @@ import { TagModule } from 'primeng/tag';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { UserDetailsPageComponent } from './user-details/user-details-page.component';
 import { RoleDetailsPageComponent } from './role-details/role-details-page.component';
+import { AuditLogTableComponent } from './audit-log/audit-log-table.component';
+import { CalendarModule } from 'primeng/calendar';
 
 
 @NgModule({
@@ -64,9 +66,10 @@ import { RoleDetailsPageComponent } from './role-details/role-details-page.compo
         TabViewModule,
         BadgeModule,
         TagModule,
-        ConfirmDialogModule
+        ConfirmDialogModule,
+        CalendarModule
     ],
-    declarations: [UsersComponent, UserDetailsPageComponent, RoleDetailsPageComponent],
+    declarations: [UsersComponent, UserDetailsPageComponent, RoleDetailsPageComponent, AuditLogTableComponent],
     providers: [ReportingService],
 })
 export class UsersModule { }

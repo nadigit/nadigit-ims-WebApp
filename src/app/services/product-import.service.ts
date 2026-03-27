@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, firstValueFrom } from 'rxjs';
 import { ImportOptions, ImportValidationResult, ImportPreview, ImportResult } from '../models/product-import.model';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -107,7 +108,7 @@ export class ProductImportService {
    * Execute import
    */
   executeImport(file: File, options: ImportOptions = {}): Observable<ImportResult> {
-    const headers = this.getHeaders();
+    const headers = withAudit(this.getHeaders(), 'Imported products from file');
     const formData = new FormData();
     formData.append('file', file);
     

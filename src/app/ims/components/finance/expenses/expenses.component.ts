@@ -2,13 +2,13 @@ import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
-import { ExpenseService } from 'src/app/services/expense.service';
+import { ExpenseService, buildExpenseWritePayload } from 'src/app/services/expense.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
-import { Expense } from 'src/app/models/expense';
+import { Expense, ExpenseStatus } from 'src/app/models/expense';
 import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
@@ -62,8 +62,21 @@ export class ExpensesComponent implements OnInit {
   // Filter properties
   selectedPaymentMethod: string | null = null;
   selectedShop: Shop | null = null;
+  /** null = all statuses */
+  selectedExpenseStatus: ExpenseStatus | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
+
+  requireApproval: boolean = false;
+  expenseConfigLoaded: boolean = false;
+  userShopId: number | null = null;
+  totalAmountFiltered: number | null = null;
+
+  approveExpenseDialog: boolean = false;
+  rejectExpenseDialog: boolean = false;
+  expensePendingAction: Expense | null = null;
+  rejectionReason: string = '';
+  isApprovalActionLoading: boolean = false;
   
   paymentMethods: any[] = [];
   
@@ -137,8 +150,10 @@ export class ExpensesComponent implements OnInit {
       }
     });
     this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang); // Use the translate service to update language
+      this.translate.use(lang);
+      this.refreshExpenseStatusFilterOptions();
     });
+    this.refreshExpenseStatusFilterOptions();
     
     // Load data
     await Promise.all([
@@ -146,8 +161,11 @@ export class ExpensesComponent implements OnInit {
       this.loadBankAccounts(),
       this.checkPermissions(),
       this.setUserRoles(),
+      this.loadUserShopId(),
     ]);
-    
+
+    await this.loadExpenseConfig();
+
     this.initializePaymentMethods();
     this.cols = [
       { field: 'id', header: this.translateService.instant('ID') },
@@ -155,17 +173,189 @@ export class ExpensesComponent implements OnInit {
       { field: 'dateOfExpense', header: this.translateService.instant('expense_date') },
       { field: 'amount', header: this.translateService.instant('expense_amount') },
       { field: 'shop', header: this.translateService.instant('shop') },
+      { field: 'status', header: this.translateService.instant('expense_status') },
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
     
-    // Load initial expenses - the lazy table will also trigger, but we'll prevent double loading
-    await this.loadExpenses();
+    // Initial load: apply default status filter for approvers when approval workflow is on
+    if (this.selectedExpenseStatus) {
+      this.applyFilters();
+    } else {
+      this.loadExpenses();
+    }
   }
 
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
+  }
+
+  private async loadUserShopId(): Promise<void> {
+    try {
+      const profile = await this.keycloakService.loadUserProfile();
+      const raw = profile?.attributes?.['shop']?.[0];
+      this.userShopId = raw != null && raw !== '' ? Number(raw) : null;
+    } catch {
+      this.userShopId = null;
+    }
+  }
+
+  private async loadExpenseConfig(): Promise<void> {
+    try {
+      const cfg = await firstValueFrom(this.expenseService.getExpenseConfig());
+      this.requireApproval = !!cfg?.requireApproval;
+      if (this.requireApproval && this.hasExpenseApprovalRole()) {
+        this.selectedExpenseStatus = 'PENDING';
+      }
+    } catch (e) {
+      console.warn('Expense config unavailable, using defaults', e);
+      this.requireApproval = false;
+    } finally {
+      this.expenseConfigLoaded = true;
+    }
+  }
+
+  hasExpenseApprovalRole(): boolean {
+    const r = this.userRoles || [];
+    return r.includes('ADMIN') || r.includes('ACCOUNTANT') || r.includes('WAREHOUSEMAN');
+  }
+
+  canApproveExpenseRow(expense: Expense): boolean {
+    if (!expense || expense.status !== 'PENDING') {
+      return false;
+    }
+    if (!this.hasExpenseApprovalRole()) {
+      return false;
+    }
+    if (this.isAdmin) {
+      return true;
+    }
+    if (this.userShopId == null || expense.shop?.shopId == null) {
+      return false;
+    }
+    return Number(expense.shop.shopId) === Number(this.userShopId);
+  }
+
+  canRejectExpenseRow(expense: Expense): boolean {
+    return this.canApproveExpenseRow(expense);
+  }
+
+  openApproveDialog(expense: Expense, event?: Event): void {
+    event?.stopPropagation();
+    this.expensePendingAction = expense;
+    this.approveExpenseDialog = true;
+  }
+
+  openRejectDialog(expense: Expense, event?: Event): void {
+    event?.stopPropagation();
+    this.expensePendingAction = expense;
+    this.rejectionReason = '';
+    this.rejectExpenseDialog = true;
+  }
+
+  confirmApproveExpense(): void {
+    const exp = this.expensePendingAction;
+    if (!exp?.id) {
+      return;
+    }
+    this.isApprovalActionLoading = true;
+    this.expenseService.approveExpense(exp.id).subscribe({
+      next: () => {
+        this.isApprovalActionLoading = false;
+        this.approveExpenseDialog = false;
+        this.expensePendingAction = null;
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('expense_approved_success'),
+          life: 3000
+        });
+        this.loadExpenses();
+      },
+      error: (err: any) => {
+        this.isApprovalActionLoading = false;
+        const msg = err?.error?.message || err?.message || this.translate.instant('expense_approve_error');
+        const severity = err?.status === 403 ? 'error' : err?.status === 409 ? 'warn' : 'error';
+        this.messageService.add({
+          severity,
+          summary: this.translate.instant('error'),
+          detail: msg,
+          life: 5000
+        });
+      }
+    });
+  }
+
+  confirmRejectExpense(): void {
+    const exp = this.expensePendingAction;
+    if (!exp?.id) {
+      return;
+    }
+    this.isApprovalActionLoading = true;
+    this.expenseService.rejectExpense(exp.id, this.rejectionReason || undefined).subscribe({
+      next: () => {
+        this.isApprovalActionLoading = false;
+        this.rejectExpenseDialog = false;
+        this.rejectionReason = '';
+        this.expensePendingAction = null;
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('expense_rejected_success'),
+          life: 3000
+        });
+        this.loadExpenses();
+      },
+      error: (err: any) => {
+        this.isApprovalActionLoading = false;
+        const msg = err?.error?.message || err?.message || this.translate.instant('expense_reject_error');
+        const severity = err?.status === 403 ? 'error' : err?.status === 409 ? 'warn' : 'error';
+        this.messageService.add({
+          severity,
+          summary: this.translate.instant('error'),
+          detail: msg,
+          life: 5000
+        });
+      }
+    });
+  }
+
+  getExpenseStatusLabel(status: string | undefined): string {
+    if (!status) {
+      return '-';
+    }
+    const key = `expense_status_${String(status).toLowerCase()}`;
+    const t = this.translate.instant(key);
+    return t !== key ? t : status;
+  }
+
+  getExpenseWorkflowSeverity(status: string | undefined): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
+    const s = String(status || '').toUpperCase();
+    if (s === 'PENDING') {
+      return 'warn';
+    }
+    if (s === 'APPROVED') {
+      return 'success';
+    }
+    if (s === 'REJECTED') {
+      return 'danger';
+    }
+    return 'secondary';
+  }
+
+  getExpenseWorkflowIcon(status: string | undefined): string {
+    const s = String(status || '').toUpperCase();
+    if (s === 'PENDING') {
+      return 'pi pi-clock';
+    }
+    if (s === 'APPROVED') {
+      return 'pi pi-check-circle';
+    }
+    if (s === 'REJECTED') {
+      return 'pi pi-times-circle';
+    }
+    return 'pi pi-info-circle';
   }
 
   async checkPermissions() {
@@ -454,20 +644,23 @@ export class ExpensesComponent implements OnInit {
       this.expense.boeExpirationDate = `${year}-${month}-${day}`; // Convert to string format
     }
     if (this.expense.purpose) {
-      console.log(this.expense)
+      const payload = buildExpenseWritePayload(this.expense);
 
       let savedExpense: Expense | null = null;
       if (this.expense.id) {
-        savedExpense = await this.updateExpense(this.expense.id, this.expense);
+        savedExpense = await this.updateExpense(this.expense.id, payload);
       } else {
-        savedExpense = await this.addExpense(this.expense);
+        savedExpense = await this.addExpense(payload);
       }
 
-      // 🔹 Record bank transaction if payment method requires it
+      // Bank posting on server runs after approval when workflow is on; avoid duplicate client-side bank tx until approved
+      const approved =
+        !savedExpense?.status || String(savedExpense.status).toUpperCase() === 'APPROVED';
+      const pm = (savedExpense?.paymentMethod || '').toUpperCase();
       const requiresBankAccount =
         savedExpense &&
-        savedExpense.paymentMethod &&
-        ['BANK_TRANSFER', 'CHECK', 'BOE'].includes(savedExpense.paymentMethod);
+        approved &&
+        ['BANK_TRANSFER', 'CHECK', 'BOE', 'TRANSFER'].includes(pm);
 
       if (requiresBankAccount && this.selectedBankAccount && savedExpense) {
         await this.recordBankTransaction(savedExpense);
@@ -572,6 +765,10 @@ export class ExpensesComponent implements OnInit {
     if (this.selectedShop) {
       filters['shopName'] = { value: this.selectedShop.shopName, matchMode: 'equals' };
     }
+
+    if (this.selectedExpenseStatus) {
+      filters['expenseStatus'] = { value: this.selectedExpenseStatus, matchMode: 'equals' };
+    }
     
     if (this.startDate) {
       filters['dateOfExpenseFrom'] = { value: this.startDate, matchMode: 'dateIs' };
@@ -594,6 +791,7 @@ export class ExpensesComponent implements OnInit {
   clearFilters() {
     this.selectedPaymentMethod = null;
     this.selectedShop = null;
+    this.selectedExpenseStatus = null;
     this.startDate = null;
     this.endDate = null;
     this.globalFilter = '';
@@ -647,6 +845,8 @@ export class ExpensesComponent implements OnInit {
 
         // Assign total records from backend
         this.totalRecords = res.totalExpenses || res.page?.totalElements || 0;
+        this.totalAmountFiltered =
+          res.totalAmount != null ? res.totalAmount : (res.page?.totalAmount != null ? res.page.totalAmount : null);
 
         this.isLoading = false;
         // Don't set isInitialLoad = false here - let onLazyLoad handle it
@@ -799,7 +999,8 @@ export class ExpensesComponent implements OnInit {
   }
 
   private performUpdateExpense(id: any, expense: any, resolve: Function) {
-    this.expenseService.updateExpense(id, expense)
+    const payload = buildExpenseWritePayload(expense);
+    this.expenseService.updateExpense(id, payload)
       .subscribe({
           next: (response: Expense) => {
             // Clear cache for this expense
@@ -851,11 +1052,17 @@ export class ExpensesComponent implements OnInit {
         .subscribe({
           next: (response: Expense) => {
             this.loadExpenses();
+            const pending =
+              this.requireApproval &&
+              response?.status &&
+              String(response.status).toUpperCase() === 'PENDING';
             this.messageService.add({
               severity: 'success',
               summary: this.translateService.instant('successful'),
-              detail: this.translateService.instant('expense_added'),
-              life: 3000
+              detail: pending
+                ? this.translateService.instant('expense_submitted_pending_approval')
+                : this.translateService.instant('expense_added'),
+              life: pending ? 5000 : 3000
             });
             resolve(response);
           },
@@ -917,117 +1124,110 @@ export class ExpensesComponent implements OnInit {
   }
 
   async exportPdf() {
-    if (this.isExporting) {
-      return;
-    }
-
-    this.isExporting = true;
-    this.exportProgress = this.translate.instant('preparing_export');
-
+    if (this.isExporting) { return; }
     try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
       this.messageService.add({
         severity: 'info',
         summary: this.translate.instant('exporting'),
-        detail: this.translate.instant('exporting_pdf_please_wait'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
         life: 3000
       });
 
-      // Fetch all filtered expenses
-      let allExpenses: Expense[] = [];
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredExpenses: any[] = [];
       let currentPage = 0;
       const pageSize = 1000;
+      let hasMorePages = true;
       const maxPages = 100;
 
-      while (currentPage < maxPages) {
-        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
 
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === 1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
+      this.expenseService.loadToken();
 
-        const response = await firstValueFrom(
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
           this.expenseService.getExpensesPaginated(
             currentPage,
             pageSize,
             globalFilter || '',
-            sortField!,
+            sortField || 'dateOfExpense',
             direction,
             filterPayload
           )
         );
 
-        const pageExpenses = response.page.content || [];
-        if (pageExpenses.length === 0) {
-          break;
-        }
+        const pageContent = response.page?.content || response.content || [];
+        allFilteredExpenses = allFilteredExpenses.concat(pageContent);
 
-        allExpenses = allExpenses.concat(pageExpenses);
+        const totalElements = response.page?.totalElements || response.totalElements || 0;
+        hasMorePages = allFilteredExpenses.length < totalElements && pageContent.length > 0;
         currentPage++;
-
-        if (pageExpenses.length < pageSize) {
-          break;
-        }
       }
 
-      // Get organization's default locale for translation
-      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
-      const defaultLocale = organization?.defaultLocale || 'en';
-      const originalLang = this.translate.currentLang;
-
-      // Temporarily switch language for export
-      if (defaultLocale !== originalLang) {
-        this.translate.use(defaultLocale);
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (allFilteredExpenses.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
+        });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
       }
 
-      // Prepare export data
-      const exportData = allExpenses.map((expense: any) => {
-        const shopName = expense.shop?.shopName || expense.shop?.name || 'N/A';
-        return {
-          [this.translate.instant('ID')]: expense.id || 'N/A',
-          [this.translate.instant('expense_purpose')]: expense.purpose || 'N/A',
-          [this.translate.instant('expense_date')]: expense.dateOfExpense 
-            ? this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') || 'N/A'
-            : 'N/A',
-          [this.translate.instant('expense_amount')]: expense.amount || 0,
-          [this.translate.instant('shop')]: shopName,
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+
+      const exportColumns: ExportColumn[] = [
+        { title: this.translate.instant('expense_purpose'), dataKey: 'purpose' },
+        { title: this.translate.instant('expense_date'), dataKey: 'dateOfExpense' },
+        { title: this.translate.instant('expense_amount'), dataKey: 'amount' },
+        { title: this.translate.instant('shop'), dataKey: 'shop' },
+        { title: this.translate.instant('expense_status'), dataKey: 'expenseStatus' }
+      ];
+
+      const pdfTitle = this.translate.instant('expenses_menu_title') || this.translate.instant('expenses');
+
+      const exportData = allFilteredExpenses.map(expense => {
+        const exportItem: any = {
+          purpose: expense.purpose || 'N/A',
+          dateOfExpense: expense.dateOfExpense ? this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') : 'N/A',
+          amount: expense.amount || 0,
+          shop: expense.shop?.shopName || expense.shop?.name || 'N/A',
+          expenseStatus: expense.status ? this.translate.instant(`expense_status_${String(expense.status).toLowerCase()}`) : 'N/A'
         };
+        return exportItem;
       });
 
-      // Translate column headers (excluding ID)
-      const translatedColumns = this.exportColumns
-        .filter(col => col.dataKey !== 'id')
-        .map(col => ({
-          title: this.translate.instant(col.dataKey === 'shop' ? 'shop' : col.dataKey) || col.title,
-          dataKey: col.dataKey
-        }));
-
-      // Export PDF with title
-      this.reportingService.exportPdf(
-        translatedColumns,
-        exportData,
-        'expenses',
-        this.translate.instant('expenses_menu_title')
-      );
-
-      // Restore original language
-      if (defaultLocale !== originalLang) {
-        this.translate.use(originalLang);
-      }
-
+      this.reportingService.exportPdf(exportColumns, exportData, 'expenses', pdfTitle);
+      this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('export_completed_successfully') + ` (${allExpenses.length} ${this.translate.instant('records')})`,
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredExpenses.length} records exported.`,
         life: 3000
       });
     } catch (error) {
-      console.error('Error exporting PDF:', error);
+      console.error('Error exporting expenses PDF:', error);
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_exporting'),
-        life: 3000
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
       });
     } finally {
       this.isExporting = false;
@@ -1036,114 +1236,102 @@ export class ExpensesComponent implements OnInit {
   }
 
   async exportExcel() {
-    if (this.isExporting) {
-      return;
-    }
-
-    this.isExporting = true;
-    this.exportProgress = this.translate.instant('preparing_export');
-
+    if (this.isExporting) { return; }
     try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
       this.messageService.add({
         severity: 'info',
         summary: this.translate.instant('exporting'),
-        detail: this.translate.instant('exporting_excel_please_wait'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
         life: 3000
       });
 
-      // Fetch all filtered expenses
-      let allExpenses: Expense[] = [];
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredExpenses: any[] = [];
       let currentPage = 0;
       const pageSize = 1000;
+      let hasMorePages = true;
       const maxPages = 100;
 
-      while (currentPage < maxPages) {
-        this.exportProgress = this.translate.instant('fetching_data') + ` (${currentPage + 1})...`;
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
 
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === 1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
+      this.expenseService.loadToken();
 
-        const response = await firstValueFrom(
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
           this.expenseService.getExpensesPaginated(
             currentPage,
             pageSize,
             globalFilter || '',
-            sortField!,
+            sortField || 'dateOfExpense',
             direction,
             filterPayload
           )
         );
 
-        const pageExpenses = response.page.content || [];
-        if (pageExpenses.length === 0) {
-          break;
-        }
+        const pageContent = response.page?.content || response.content || [];
+        allFilteredExpenses = allFilteredExpenses.concat(pageContent);
 
-        allExpenses = allExpenses.concat(pageExpenses);
+        const totalElements = response.page?.totalElements || response.totalElements || 0;
+        hasMorePages = allFilteredExpenses.length < totalElements && pageContent.length > 0;
         currentPage++;
-
-        if (pageExpenses.length < pageSize) {
-          break;
-        }
       }
 
-      // Get organization's default locale for translation
-      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
-      const defaultLocale = organization?.defaultLocale || 'en';
-      const originalLang = this.translate.currentLang;
-
-      // Temporarily switch language for export
-      if (defaultLocale !== originalLang) {
-        this.translate.use(defaultLocale);
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (allFilteredExpenses.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
+        });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
       }
 
-      // Prepare export data (excluding ID and creationDate)
-      const modifiedExpenses = allExpenses.map((expense: any) => {
-        const modifiedExpense: any = { ...expense };
-        const shopName = expense.shop?.shopName || expense.shop?.name || 'N/A';
-        
-        // Format date
-        if (expense.dateOfExpense) {
-          modifiedExpense.dateOfExpense = this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') || expense.dateOfExpense;
-        }
-        
-        // Replace shop object with shop name
-        modifiedExpense.shop = shopName;
-        
-        // Remove unwanted fields
-        delete modifiedExpense.id;
-        delete modifiedExpense.creationDate;
-        delete modifiedExpense.checkExpirationDate;
-        delete modifiedExpense.boeExpirationDate;
-        delete modifiedExpense.bankAccountId;
-        delete modifiedExpense.receipt;
-        
-        return modifiedExpense;
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+
+      const translatedExpenses = allFilteredExpenses.map(expense => {
+        const translated: any = {
+          [this.translate.instant('expense_purpose')]: expense.purpose || 'N/A',
+          [this.translate.instant('expense_date')]: expense.dateOfExpense ? this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') : 'N/A',
+          [this.translate.instant('expense_amount')]: expense.amount || 0,
+          [this.translate.instant('shop')]: expense.shop?.shopName || expense.shop?.name || 'N/A',
+          [this.translate.instant('expense_status')]: expense.status
+            ? this.translate.instant(`expense_status_${String(expense.status).toLowerCase()}`)
+            : 'N/A'
+        };
+        return translated;
       });
 
-      // Restore original language
-      if (defaultLocale !== originalLang) {
-        this.translate.use(originalLang);
-      }
-
-      // Export Excel
-      this.reportingService.exportExcel(modifiedExpenses, 'expenses');
-
+      this.reportingService.exportExcel(translatedExpenses, 'expenses');
+      this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('export_completed_successfully') + ` (${allExpenses.length} ${this.translate.instant('records')})`,
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredExpenses.length} records exported.`,
         life: 3000
       });
     } catch (error) {
-      console.error('Error exporting Excel:', error);
+      console.error('Error exporting expenses Excel:', error);
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_exporting'),
-        life: 3000
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
       });
     } finally {
       this.isExporting = false;
@@ -1156,48 +1344,15 @@ export class ExpensesComponent implements OnInit {
     this.router.navigate(['/finance/expenses', expense.id]);
   }
 
+  expenseStatusFilterOptions: { label: string; value: ExpenseStatus | null }[] = [];
 
-  // Status methods
-  getExpenseStatusSeverity(status: string): string {
-    const severityMap: { [key: string]: string } = {
-      'Recorded': 'info',
-      'Pending': 'warning',
-      'Approved': 'success',
-      'Reimbursed': 'help',
-      'Rejected': 'danger'
-    };
-    return severityMap[status] || 'info';
-  }
-
-  getExpenseStatusIcon(status: string): string {
-    const iconMap: { [key: string]: string } = {
-      'Recorded': 'pi pi-plus-circle',
-      'Pending': 'pi pi-clock',
-      'Approved': 'pi pi-check-circle',
-      'Reimbursed': 'pi pi-flag-fill',
-      'Rejected': 'pi pi-times-circle'
-    };
-    return iconMap[status] || 'pi pi-question-circle';
-  }
-
-  getExpenseActionButtonIcon(status: string): string {
-    const iconMap: { [key: string]: string } = {
-      'Recorded': 'pi pi-arrow-right',
-      'Pending': 'pi pi-check',
-      'Approved': 'pi pi-dollar',
-      'Reimbursed': 'pi pi-flag'
-    };
-    return iconMap[status] || 'pi pi-arrow-right';
-  }
-
-  getExpenseActionButtonSeverity(status: string): string {
-    const severityMap: { [key: string]: string } = {
-      'Recorded': 'primary',
-      'Pending': 'warning',
-      'Approved': 'success',
-      'Reimbursed': 'help'
-    };
-    return severityMap[status] || 'primary';
+  private refreshExpenseStatusFilterOptions(): void {
+    this.expenseStatusFilterOptions = [
+      { label: this.translate.instant('all'), value: null },
+      { label: this.translate.instant('expense_status_pending'), value: 'PENDING' },
+      { label: this.translate.instant('expense_status_approved'), value: 'APPROVED' },
+      { label: this.translate.instant('expense_status_rejected'), value: 'REJECTED' }
+    ];
   }
 
 }

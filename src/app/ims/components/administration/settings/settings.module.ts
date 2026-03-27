@@ -28,6 +28,11 @@ import { TagModule } from 'primeng/tag';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TooltipModule } from 'primeng/tooltip';
+import { InputSwitchModule } from 'primeng/inputswitch';
+import { DividerModule } from 'primeng/divider';
+import { EmailConfigComponent } from './email-config/email-config.component';
+import { NotificationRecipientsComponent } from './notification-recipients/notification-recipients.component';
+import { ReactiveFormsModule } from '@angular/forms';
 
 
 @NgModule({
@@ -37,6 +42,7 @@ import { TooltipModule } from 'primeng/tooltip';
         TableModule,
         FileUploadModule,
         FormsModule,
+        ReactiveFormsModule,
         ButtonModule,
         RippleModule,
         ToastModule,
@@ -57,12 +63,18 @@ import { TooltipModule } from 'primeng/tooltip';
         TagModule,
         CheckboxModule,
         SelectButtonModule,
-        TooltipModule
+        TooltipModule,
+        InputSwitchModule,
+        DividerModule
     ],
     schemas: [
         CUSTOM_ELEMENTS_SCHEMA, // or NO_ERRORS_SCHEMA
     ],
-    declarations: [SettingsComponent],
+    declarations: [
+        SettingsComponent,
+        EmailConfigComponent,
+        NotificationRecipientsComponent
+    ],
     providers: [ReportingService],
 })
 export class SettingsModule { }

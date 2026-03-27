@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { environment } from 'src/environments/environment';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root',
@@ -23,17 +24,17 @@ export class ShopService {
 
   // Example for saving a shop, the same approach applies to other methods
   saveShop(data: any) {
-    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ authorization: 'Bearer ' + this.jwt }), auditSaveAction('shop', data, 'shopId', 'shopName'));
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema, data, { headers });
   }
 
   updateShop(id: any, supplier: any) {
-    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ authorization: 'Bearer ' + this.jwt }), 'Updated shop');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id, supplier, { headers });
   }
 
   deleteShop(id: any) {
-    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ authorization: 'Bearer ' + this.jwt }), 'Deleted shop');
     return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + id, { headers });
   }
 
@@ -83,7 +84,7 @@ export class ShopService {
   }
 
   updateCashRegister(shopId: any, cashRegister: any) {
-    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ authorization: 'Bearer ' + this.jwt }), 'Updated cash register configuration');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + '/' + shopId + '/cash-register', cashRegister, { headers });
   }
 

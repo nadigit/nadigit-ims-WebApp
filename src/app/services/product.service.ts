@@ -3,6 +3,7 @@ import { AuthenticationService } from './authentication.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { environment } from 'src/environments/environment';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -23,15 +24,15 @@ export class ProductService {
   }
 
   saveProduct(data: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('product', data, 'productId', 'reference'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers })
   }
   updateProduct(id: any, product: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated product');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, product, { headers: headers });
   }
   deleteProduct(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted product');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
   getProducts() {
@@ -43,7 +44,7 @@ export class ProductService {
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
   deactivateProduct(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deactivated product');
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/deactivate', { headers: headers })
   }
   getInactiveProducts() {
@@ -51,7 +52,7 @@ export class ProductService {
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'inactive', { headers: headers });
   }
   reactivateProduct(id: any) {
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Reactivated product');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/reactivate', { headers: headers });
   }
   getProductsOfLastWeek() {
@@ -229,7 +230,7 @@ export class ProductService {
 
   adjustStock(productId: number, quantityChange: number, reason?: string) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Adjusted product stock');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/adjust-stock`;
     const body: any = { quantityChange };
     if (reason && reason.trim()) {

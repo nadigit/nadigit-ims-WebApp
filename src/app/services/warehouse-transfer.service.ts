@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, firstValueFrom } from 'rxjs';
 import { WarehouseTransfer, PagedTransferResponse } from '../models/warehouseTransfer';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -27,28 +28,28 @@ export class WarehouseTransferService {
 
   async createTransfer(transfer: WarehouseTransfer): Promise<Observable<WarehouseTransfer>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Created warehouse transfer');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}`;
     return this.http.post<WarehouseTransfer>(url, transfer, { headers });
   }
 
   async initiateTransfer(id: number): Promise<Observable<WarehouseTransfer>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Initiated warehouse transfer');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}/${id}/initiate`;
     return this.http.post<WarehouseTransfer>(url, {}, { headers });
   }
 
   async completeTransfer(id: number): Promise<Observable<WarehouseTransfer>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Completed warehouse transfer');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}/${id}/complete`;
     return this.http.post<WarehouseTransfer>(url, {}, { headers });
   }
 
   async cancelTransfer(id: number): Promise<Observable<WarehouseTransfer>> {
     await this.ensureTokenLoaded();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Cancelled warehouse transfer');
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}/${id}/cancel`;
     return this.http.post<WarehouseTransfer>(url, {}, { headers });
   }

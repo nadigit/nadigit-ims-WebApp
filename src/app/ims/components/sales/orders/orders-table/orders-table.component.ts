@@ -29,6 +29,7 @@ export class OrdersTableComponent {
   @Input() totalCost = 0;
   @Input() totalProfit = 0;
   @Input() isLoading = false;
+  @Input() isExporting = false;
   @Input() isAdmin = false;
   @Input() canEditOrder = false;
   @Input() canDeleteOrder = false;

@@ -27,23 +27,23 @@
 
     <!-- Getting Started Onboarding Card -->
     <div class="col-12 mb-4" *ngIf="shouldShowGettingStartedCard()">
-        <p-card styleClass="shadow-2 border-round-lg border-primary-200" [style]="{'background': 'linear-gradient(135deg, var(--primary-50) 0%, var(--surface-0) 100%)'}">
+        <p-card styleClass="getting-started-card shadow-2 border-round-lg">
             <div class="flex flex-column md:flex-row align-items-start md:align-items-center gap-4">
-                <div class="flex align-items-center justify-content-center bg-primary-100 border-round p-3" 
+                <div class="getting-started-icon-wrap flex align-items-center justify-content-center border-round p-3" 
                      [ngStyle]="{width: '4rem', height: '4rem', minWidth: '4rem'}">
-                    <i class="pi pi-rocket text-primary text-3xl"></i>
+                    <i class="pi pi-star text-primary text-3xl"></i>
                 </div>
                 <div class="flex-1">
                     <div class="flex align-items-center justify-content-between mb-2">
-                        <h3 class="m-0 text-900">{{ 'getting_started_title' | translate }}</h3>
+                        <h3 class="m-0 text-color">{{ 'getting_started_title' | translate }}</h3>
                         <button pButton pRipple 
                             icon="pi pi-times" 
-                            class="p-button-text p-button-rounded p-button-sm"
+                            class="getting-started-dismiss p-button-text p-button-rounded p-button-sm"
                             [pTooltip]="'hide_this_guide' | translate"
                             (click)="hideGettingStartedCard()">
                         </button>
                     </div>
-                    <p class="text-600 mb-3 m-0">{{ 'getting_started_description' | translate }}</p>
+                    <p class="text-color-secondary mb-3 m-0">{{ 'getting_started_description' | translate }}</p>
                     <div class="flex flex-wrap gap-2">
                         <button pButton pRipple 
                             icon="pi pi-box" 

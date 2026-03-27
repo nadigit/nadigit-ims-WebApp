@@ -24,7 +24,7 @@
 				(deleteOrderEvent)="deleteOrder($event)" (deleteSelectedOrdersEvent)="deleteSelectedOrders()"
 				[canAddOrder]="canAddOrder" (addOrderEvent)="openNew()" [canCancelOrder]="canCancelOrder"
 				(cancelOrderEvent)="cancelOrderFromTable($event)" (viewProductDetailsEvent)="viewProductDetails($event)"
-				[isAdmin]="isAdmin"
+				[isAdmin]="isAdmin" [isLoading]="isLoading" [isExporting]="isExporting"
 				[getCustomerDisplayName]="getCustomerDisplayName"
 				[isReturnedStatus]="isReturnedStatus" [getReturnTooltip]="getReturnTooltip"
 				[isRowExpanded]="isRowExpanded" [toggleRow]="toggleRow" [(selectedOrders)]="selectedOrders"
@@ -36,9 +36,6 @@
 				(applyFiltersEvent)="applyFilters()" (resetFiltersEvent)="resetFilters()"
 				(filterChangeEvent)="onFilterChange($event)"></app-orders-table>
 		</div>
-
-
-
 
 		<p-dialog [(visible)]="orderDialog" [style]="{width: '95vw', maxWidth: '1200px', height: '95vh'}"
 			header="{{ 'order_details' | translate }}" [modal]="true" class="p-fluid pos-dialog" [draggable]="false"
@@ -159,7 +156,11 @@
 													<small>{{ product.category?.categoryName }} • {{ currency }} {{
 														product.sellingPrice }}</small>
 													<small *ngIf="isProduct(product)" class="block mt-1">
-														{{ 'stock' | translate }}: {{ product.quantityAvailable || 0 }}
+														<span>{{ 'stock' | translate }}: {{ getAvailableQuantity(product) }}</span>
+														<span *ngIf="hasWriteOffs(product)" class="text-orange-600 ml-2">
+															<i class="pi pi-exclamation-triangle text-xs"></i>
+															{{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }}
+														</span>
 													</small>
 													<small *ngIf="isService(product) && product.serviceProvider" class="block mt-1">
 														{{ 'service_provider' | translate }}: {{ product.serviceProvider }}
@@ -748,8 +749,14 @@
 			<ng-template pTemplate="footer">
 				<button pButton label="{{'close' | translate}}" icon="pi pi-times" class="p-button-text"
 					(click)="closeReceiptDialog()"></button>
-				<button pButton label="{{'generate_and_print' | translate}}" icon="pi pi-print" class="p-button-success"
-					(click)="generateReceipt()"></button>
+				<button
+					pButton
+					label="{{'generate_and_print' | translate}}"
+					icon="pi pi-print"
+					class="p-button-success"
+					[loading]="loadingReceipt"
+					(click)="generateReceipt()">
+				</button>
 			</ng-template>
 		</p-dialog>
 
@@ -1027,8 +1034,6 @@
 					(click)="confirmDeleteSelected()"></button>
 			</ng-template>
 		</p-dialog>
-
-
 
 		<p-dialog [(visible)]="shopDialog" [style]="{width: '500px'}" [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
 			header="{{ 'shop_details' | translate }}" [modal]="true" [draggable]="false" [resizable]="false"
@@ -1683,6 +1688,23 @@
 				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
 					(click)="confirmArchive()"></button>
 			</ng-template>
+		</p-dialog>
+
+		<!-- Export Progress Dialog -->
+		<p-dialog 
+			[(visible)]="isExporting" 
+			[modal]="true" 
+			[closable]="false" 
+			[draggable]="false"
+			[resizable]="false"
+			[style]="{width: '450px'}"
+			[header]="'exporting' | translate">
+			<div class="flex flex-column align-items-center gap-3 p-4">
+				<p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+				<div class="text-center">
+					<p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+				</div>
+			</div>
 		</p-dialog>
 
 	</div>

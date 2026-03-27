@@ -1,0 +1,145 @@
+<div class="grid">
+  <div class="col-12">
+    <!-- Header -->
+    <div class="mb-4">
+      <div class="flex align-items-center gap-2 mb-3">
+        <button pButton pRipple icon="pi pi-arrow-left"
+          class="p-button-text p-button-rounded p-button-plain"
+          [pTooltip]="'back' | translate" tooltipPosition="bottom"
+          (click)="goBack()"></button>
+        <span class="text-500 text-sm">{{ 'profile_page_title' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'notification_preferences' | translate }}</span>
+      </div>
+      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+        <div>
+          <h2 class="m-0 text-900">{{ 'notification_preferences' | translate }}</h2>
+          <p class="text-600 mt-2 mb-0">{{ 'notification_preferences_description' | translate }}</p>
+        </div>
+      </div>
+    </div>
+
+    <p-toast></p-toast>
+
+    <!-- Loading State -->
+    <div class="card flex justify-content-center" *ngIf="isLoading">
+      <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+    </div>
+
+    <!-- Preferences Form -->
+    <div class="card" *ngIf="!isLoading">
+      <!-- Email Notifications Info -->
+      <div class="mb-4 p-3 surface-ground border-round">
+        <div class="flex align-items-start gap-2">
+          <i class="pi pi-info-circle text-primary mt-1"></i>
+          <div>
+            <div class="font-medium mb-1">{{ 'email_notifications' | translate }}</div>
+            <div class="text-sm text-600">{{ 'email_notifications_managed_by_admin' | translate }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Push Notifications -->
+      <div class="field mb-4">
+        <div class="flex align-items-center justify-content-between">
+          <div class="flex flex-column">
+            <label class="font-medium mb-2">{{ 'push_notifications' | translate }}</label>
+            <span class="text-sm text-600">{{ 'push_notifications_description' | translate }}</span>
+          </div>
+          <p-inputSwitch 
+            [(ngModel)]="preferences.pushNotifications"
+            (onChange)="onPreferenceChange()"
+            [binary]="true"></p-inputSwitch>
+        </div>
+      </div>
+
+      <!-- Filter Options -->
+      <p-divider></p-divider>
+      <div class="mb-4">
+        <h3 class="mb-3">{{ 'filter_options' | translate }}</h3>
+
+        <div class="field mb-4">
+          <div class="flex align-items-center justify-content-between">
+            <div class="flex flex-column">
+              <label class="font-medium mb-2">{{ 'working_hours_only' | translate }}</label>
+              <span class="text-sm text-600">{{ 'working_hours_only_description' | translate }}</span>
+            </div>
+            <p-inputSwitch 
+              [(ngModel)]="preferences.workingHoursOnly"
+              (onChange)="onPreferenceChange()"
+              [binary]="true"></p-inputSwitch>
+          </div>
+        </div>
+
+        <div class="field mb-4">
+          <div class="flex align-items-center justify-content-between">
+            <div class="flex flex-column">
+              <label class="font-medium mb-2">{{ 'priority_only' | translate }}</label>
+              <span class="text-sm text-600">{{ 'priority_only_description' | translate }}</span>
+            </div>
+            <p-inputSwitch 
+              [(ngModel)]="preferences.priorityOnly"
+              (onChange)="onPreferenceChange()"
+              [binary]="true"></p-inputSwitch>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mute Notification Types -->
+      <p-divider></p-divider>
+      <div class="mb-4">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <h3 class="m-0">{{ 'mute_notification_types' | translate }}</h3>
+          <div class="flex gap-2">
+            <button 
+              pButton 
+              pRipple 
+              type="button"
+              label="{{ 'mute_all' | translate }}" 
+              icon="pi pi-volume-off"
+              class="p-button-outlined p-button-sm"
+              (click)="muteAll()"></button>
+            <button 
+              pButton 
+              pRipple 
+              type="button"
+              label="{{ 'unmute_all' | translate }}" 
+              icon="pi pi-volume-up"
+              class="p-button-outlined p-button-sm"
+              (click)="unmuteAll()"></button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="col-12 md:col-6" *ngFor="let type of notificationTypes">
+            <div class="field-checkbox">
+              <p-checkbox 
+                [binary]="true"
+                [ngModel]="isTypeMuted(type.value)"
+                [inputId]="'type-' + type.value"
+                (onChange)="toggleMuteType(type.value)"></p-checkbox>
+              <label [for]="'type-' + type.value" [class]="{'text-500': isTypeMuted(type.value)}">
+                {{ ('notification_type_' + type.value.toLowerCase()) | translate }}
+                <span *ngIf="isTypeMuted(type.value)" class="text-sm">({{ 'muted' | translate }})</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div class="flex justify-content-end">
+        <button 
+          pButton 
+          pRipple 
+          type="button"
+          label="{{ 'save_preferences' | translate }}" 
+          icon="pi pi-save"
+          class="p-button-primary"
+          (click)="savePreferences()"
+          [loading]="isSaving"
+          [disabled]="isSaving"></button>
+      </div>
+    </div>
+  </div>
+</div>

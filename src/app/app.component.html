@@ -1,1 +1,9 @@
+<div *ngIf="backendUnavailable$ | async" class="backend-unavailable-banner">
+  <i class="pi pi-exclamation-triangle"></i>
+  <div class="banner-text">
+    <div class="title">{{ 'backend_unavailable_title' | translate }}</div>
+    <div class="message">{{ 'backend_unavailable_message' | translate }}</div>
+  </div>
+</div>
+
 <router-outlet></router-outlet>

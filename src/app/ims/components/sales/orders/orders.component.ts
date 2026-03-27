@@ -35,6 +35,8 @@ import { CustomerCreditService } from 'src/app/services/customer-credit.service'
 import { CreditInfo } from 'src/app/models/credit-info';
 import { PricingService } from 'src/app/services/pricing.service';
 import { PriceListItemDTO, CustomerPriceOverrideDTO } from 'src/app/models/pricing';
+import { DatePipe } from '@angular/common';
+import { Organization } from 'src/app/models/organization';
 
 interface EventItem {
   status?: string;
@@ -64,7 +66,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
 @Component({
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.css', '../sales.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
@@ -291,6 +293,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   canDeleteProduct: boolean = false;
   canReadProduct: boolean = false;
   isLoading: boolean = true;
+  isExporting: boolean = false;
+  exportProgress: string = '';
   productDetailDialog: boolean = false;
   lowStockThreshold;
   imagePreviewUrl: string | null = null;
@@ -380,7 +384,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private storage: AngularFireStorage,
     private router: Router,
     private pricingService: PricingService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private datePipe: DatePipe
   ) {
     this.loadTaxRate();
 
@@ -701,14 +706,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   private initializeTableColumns() {
+    // Columns used for export only (table headers are defined in OrdersTable)
+    // Desired export columns: reference, total amount, items count, customer, order date
     this.cols = [
-      { field: 'orderId', header: this.translateService.instant('order_id') },
-      { field: 'orderStatus', header: this.translateService.instant('order_status') },
-      { field: 'Customer', header: this.translateService.instant('order_customer') },
-      { field: 'orderDate', header: this.translateService.instant('order_ordered_on') },
-      { field: 'deliveryDate', header: this.translateService.instant('order_delivered_on') },
-      { field: 'completeDate', header: this.translateService.instant('order_completed_on') },
+      { field: 'reference', header: this.translateService.instant('order_reference') },
       { field: 'totalAmount', header: this.translateService.instant('order_total_amount') },
+      { field: 'itemsCount', header: this.translateService.instant('order_items') },
+      { field: 'Customer', header: this.translateService.instant('order_customer') },
+      { field: 'orderDate', header: this.translateService.instant('order_date') },
     ];
   }
 
@@ -1339,13 +1344,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   getSourceProducts(): Product[] {
     if (this.order && this.order.orderItems && this.order.orderItems.length > 0) {
       return this.products.filter(product =>
-        (product.productType === 'SERVICE' || (product.quantityAvailable !== null && product.quantityAvailable !== undefined && product.quantityAvailable > 0)) &&
+        (product.productType === 'SERVICE' || (this.getAvailableQuantity(product) > 0)) &&
         !this.order.orderItems.some(targetProduct => targetProduct.product.productId === product.productId)
       );
     } else {
       return this.products.filter(product => 
         product.productType === 'SERVICE' || 
-        (product.quantityAvailable !== null && product.quantityAvailable !== undefined && product.quantityAvailable > 0)
+        (this.getAvailableQuantity(product) > 0)
       );
     }
   }
@@ -1662,7 +1667,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           await this.processPayment(savedOrder);
         } else if (paymentsToInclude.length > 0) {
           console.log('Payment was included in order creation, no need to process separately');
-          // Optionally refresh the order to see the payment
+
+          // Refresh the order from backend so we get the persisted payment entity
           if (savedOrder.orderId) {
             try {
               savedOrder = await firstValueFrom(this.orderService.getOrder(savedOrder.orderId));
@@ -1670,6 +1676,46 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
               console.warn('Could not refresh order after creation:', error);
             }
           }
+
+          // Try to open the receipt dialog using the latest payment on the saved order
+          const savedPayments: any[] = (savedOrder as any)?.payments || [];
+          if (savedPayments.length > 0) {
+            const latestPayment = savedPayments[savedPayments.length - 1];
+            try {
+              this.showReceiptDialog(savedOrder, latestPayment);
+            } catch (err) {
+              console.warn('Could not open receipt dialog after order creation:', err);
+            }
+          }
+        }
+
+        // As a final safety net, if a payment section was shown and we still haven't
+        // opened the receipt dialog (e.g. backend attached payments differently),
+        // fetch payments by orderId and open the dialog with the latest payment.
+        if (this.showPaymentSection && savedOrder?.orderId && !this.receiptDialogVisible) {
+          try {
+            this.paymentService.loadToken();
+          } catch {
+            // ignore token load issues; the request will fail and be logged below
+          }
+
+          this.paymentService.getPaymentsByOrderId(savedOrder.orderId).subscribe({
+            next: (response: any) => {
+              const payments: any[] = Array.isArray(response) ? response : (response || []);
+              if (!payments.length || this.receiptDialogVisible) {
+                return;
+              }
+              const latest = payments[payments.length - 1];
+              try {
+                this.showReceiptDialog(savedOrder, latest);
+              } catch (err) {
+                console.warn('Could not open receipt dialog after fetching order payments:', err);
+              }
+            },
+            error: (err: any) => {
+              console.warn('Could not fetch payments for newly created order:', err);
+            }
+          });
         }
       }
 
@@ -2122,6 +2168,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   generateReceipt() {
     const { order, payment } = this.receiptData;
+    if (!payment?.paymentId) {
+      return;
+    }
+
+    this.loadingReceipt = true;
+
     this.financialDocService.generateReceiptFromPOS(payment.paymentId).subscribe({
       next: (res: any) => {
         this.receiptDialogVisible = false;
@@ -2134,6 +2186,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           summary: this.translate.instant('receipt_generated'),
           detail: res.number,
         });
+
+        this.resetForms();
       },
       error: () => {
         this.messageService.add({
@@ -2141,9 +2195,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           summary: this.translate.instant('error'),
           detail: this.translate.instant('receipt_generation_failed'),
         });
+      },
+      complete: () => {
+        this.loadingReceipt = false;
       }
     });
-    this.resetForms();
   }
 
   generateInvoice(order: Order) {
@@ -2408,7 +2464,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           buyingDate: p.buyingDate ? new Date(p.buyingDate) : null,
         }));
 
-        this.filteredProducts = this.selectedCategory ? [...this.products] : [];
+        // Filter products by category and net available quantity
+        if (this.selectedCategory) {
+          this.filteredProducts = this.products.filter((product: Product) => 
+            product.productType === 'SERVICE' || this.getAvailableQuantity(product) > 0
+          );
+        } else {
+          this.filteredProducts = [];
+        }
 
         // Assign totals from backend
         this.totalRecords = res.totalProducts;
@@ -2452,7 +2515,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     await this.productService.getQuickProducts()
       .subscribe({
         next: (response: any) => {
-          this.quickProducts = response;
+          // Filter out products with no net available quantity (excluding services)
+          this.quickProducts = response.filter((product: Product) => 
+            product.productType === 'SERVICE' || this.getAvailableQuantity(product) > 0
+          );
           console.log(this.quickProducts);
           this.cdr.markForCheck();
         },
@@ -2703,48 +2769,344 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  exportPdf() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedOrders = this.orders.map(order => {
-      // Create a copy of the supplier object to modify
-      const modifiedOrder = { ...order };
-      if (order.customer)
-        modifiedOrder['Customer'] = order.customer.firstName + ' ' + order.customer.lastName;
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedOrder.creationDate;
-      delete modifiedOrder.customer;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
-
-      return modifiedOrder;
-    });
-
-    // Now, export the modified array to PDF
-    this.reportingService.exportPdf(this.exportColumns, modifiedOrders, 'orders')
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered orders from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredOrders: any[] = [];
+      const pageSize = 1000;
+      let currentPage = 0;
+      let hasMorePages = true;
+      const maxPages = 100; // Safety limit
+      
+      // Build filters object from component filter properties (same as loadOrders)
+      const { sortField, sortOrder } = this.lastLazyLoadEvent;
+      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...this.lastLazyLoadEvent.filters };
+      
+      // Ensure token is loaded
+      this.orderService.loadToken();
+      
+      // Fetch all pages
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+        
+        const response: any = await firstValueFrom(
+          this.orderService.getOrdersPaginated(
+            currentPage,
+            pageSize,
+            this.lastLazyLoadEvent.globalFilter || '',
+            sortField || 'orderDate',
+            direction,
+            filterPayload
+          )
+        );
+        
+        const pageContent = response.page?.content || response.content || response || [];
+        allFilteredOrders = allFilteredOrders.concat(pageContent);
+        
+        // Check if there are more pages
+        const totalElements = response.totalOrders || response.page?.totalElements || response.totalElements || response.total || 0;
+        // Keep loading while we haven't fetched all elements and the backend still returns data
+        hasMorePages = allFilteredOrders.length < totalElements && pageContent.length > 0;
+        currentPage++;
+      }
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Build translated export columns based on organization's default locale
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'order_reference',
+        'totalAmount': 'order_total_amount',
+        'itemsCount': 'order_items',
+        'Customer': 'order_customer',
+        'orderDate': 'order_date'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.exportColumns
+        .filter((col) => col.dataKey !== 'creationDate') // Exclude creationDate
+        .map((col) => {
+          const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
+          return {
+            title: this.translate.instant(translationKey),
+            dataKey: col.dataKey
+          };
+        });
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('orders_menu_title') || this.translate.instant('orders');
+      
+      // Prepare orders for export with formatted fields
+      const exportData = allFilteredOrders.map(order => {
+        const exportItem: any = { ...order };
+        
+        // Format dates as numeric date (dd/MM/yyyy)
+        if (exportItem.orderDate) {
+          const date = exportItem.orderDate instanceof Date 
+            ? exportItem.orderDate 
+            : new Date(exportItem.orderDate);
+          exportItem.orderDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        if (exportItem.deliveryDate) {
+          const date = exportItem.deliveryDate instanceof Date 
+            ? exportItem.deliveryDate 
+            : new Date(exportItem.deliveryDate);
+          exportItem.deliveryDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        if (exportItem.completeDate) {
+          const date = exportItem.completeDate instanceof Date 
+            ? exportItem.completeDate 
+            : new Date(exportItem.completeDate);
+          exportItem.completeDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        // Extract customer display name (handles Particular vs Company)
+        if (exportItem.customer) {
+          if (typeof exportItem.customer === 'object') {
+            exportItem.Customer = this.getCustomerDisplayName(exportItem.customer);
+          } else {
+            exportItem.Customer = exportItem.customer;
+          }
+        } else {
+          exportItem.Customer = 'N/A';
+        }
+        
+        // Compute items count from order items
+        const items = exportItem.orderItems;
+        exportItem.itemsCount = Array.isArray(items) ? items.length : 0;
+        
+        // Remove unwanted fields
+        delete exportItem.creationDate;
+        delete exportItem.customer;
+        
+        return exportItem;
+      });
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'orders', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredOrders.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting orders PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedOrders = this.orders.map(order => {
-      // Create a copy of the supplier object to modify
-      const modifiedOrder = { ...order };
-      if (order.customer)
-        modifiedOrder['Customer'] = order.customer.firstName + ' ' + order.customer.lastName;
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedOrder.creationDate;
-      delete modifiedOrder.customer;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered orders from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredOrders: any[] = [];
+      const pageSize = 1000;
+      let currentPage = 0;
+      let hasMorePages = true;
+      const maxPages = 100; // Safety limit
+      
+      // Build filters object from component filter properties (same as loadOrders)
+      const { sortField, sortOrder } = this.lastLazyLoadEvent;
+      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...this.lastLazyLoadEvent.filters };
+      
+      // Ensure token is loaded
+      this.orderService.loadToken();
+      
+      // Fetch all pages
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+        
+        const response: any = await firstValueFrom(
+          this.orderService.getOrdersPaginated(
+            currentPage,
+            pageSize,
+            this.lastLazyLoadEvent.globalFilter || '',
+            sortField || 'orderDate',
+            direction,
+            filterPayload
+          )
+        );
+        
+        const pageContent = response.page?.content || response.content || response || [];
+        allFilteredOrders = allFilteredOrders.concat(pageContent);
+        
+        // Check if there are more pages
+        const totalElements = response.totalOrders || response.page?.totalElements || response.totalElements || response.total || 0;
+        // Keep loading while we haven't fetched all elements and the backend still returns data
+        hasMorePages = allFilteredOrders.length < totalElements && pageContent.length > 0;
+        currentPage++;
+      }
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'order_reference',
+        'totalAmount': 'order_total_amount',
+        'itemsCount': 'order_items',
+        'Customer': 'order_customer',
+        'orderDate': 'order_date'
+      };
+      
+      // Prepare orders for export with formatted fields
+      const modifiedOrders = allFilteredOrders.map(order => {
+        const modifiedOrder: any = { ...order };
 
-      return modifiedOrder;
-    });
+        // Format dates as numeric date (dd/MM/yyyy)
+        if (modifiedOrder.orderDate) {
+          const date = modifiedOrder.orderDate instanceof Date 
+            ? modifiedOrder.orderDate 
+            : new Date(modifiedOrder.orderDate);
+          modifiedOrder.orderDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        if (modifiedOrder.deliveryDate) {
+          const date = modifiedOrder.deliveryDate instanceof Date 
+            ? modifiedOrder.deliveryDate 
+            : new Date(modifiedOrder.deliveryDate);
+          modifiedOrder.deliveryDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        if (modifiedOrder.completeDate) {
+          const date = modifiedOrder.completeDate instanceof Date 
+            ? modifiedOrder.completeDate 
+            : new Date(modifiedOrder.completeDate);
+          modifiedOrder.completeDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        // Extract customer display name (handles Particular vs Company)
+        if (modifiedOrder.customer) {
+          if (typeof modifiedOrder.customer === 'object') {
+            modifiedOrder.Customer = this.getCustomerDisplayName(modifiedOrder.customer);
+          } else {
+            modifiedOrder.Customer = modifiedOrder.customer;
+          }
+        } else {
+          modifiedOrder.Customer = 'N/A';
+        }
+        
+        // Compute items count from order items
+        const items = modifiedOrder.orderItems;
+        modifiedOrder.itemsCount = Array.isArray(items) ? items.length : 0;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedOrders, 'orders');
+        // Remove unwanted fields
+        delete modifiedOrder.creationDate;
+        delete modifiedOrder.customer;
+
+        return modifiedOrder;
+      });
+
+      // Create a translated version of the data with translated headers
+      // For Excel, we need to create objects with translated keys
+      const translatedOrders = modifiedOrders.map(order => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          // Exclude creationDate
+          if (col.field !== 'creationDate') {
+            const translationKey = translationKeyMap[col.field] || col.field;
+            const translatedHeader = this.translate.instant(translationKey);
+            translated[translatedHeader] = (order as any)[col.field];
+          }
+        });
+        return translated;
+      });
+
+      // Now, export the translated array to Excel
+      this.reportingService.exportExcel(translatedOrders, 'orders');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredOrders.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting orders Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   onChangeCountry() {
@@ -3337,7 +3699,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     );
 
     return products.filter(product =>
-      (product?.productType === 'SERVICE' || (product?.quantityAvailable ?? 0) > 0) &&
+      (product?.productType === 'SERVICE' || (this.getAvailableQuantity(product) > 0)) &&
       !selectedProductIds.has(product.productId)
     );
   }

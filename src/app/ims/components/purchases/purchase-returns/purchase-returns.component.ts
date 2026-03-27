@@ -18,6 +18,9 @@ import { PurchaseService } from 'src/app/services/purchase.service';
 import { Product } from 'src/app/models/product';
 import { PurchaseCredit } from 'src/app/models/purchaseCredit';
 import { firstValueFrom } from 'rxjs';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import { DatePipe } from '@angular/common';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -36,7 +39,7 @@ export class FilterProductsPipe implements PipeTransform {
 @Component({
   templateUrl: './purchase-returns.component.html',
   styleUrls: ['./purchase-returns.component.css', '../purchases.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
@@ -96,6 +99,9 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
   canReadReturn: boolean = false;
   canCancelReturn: boolean = false;
   isLoading: boolean = true;
+  isExporting: boolean = false;
+  exportProgress: string = '';
+  isInitialLoad: boolean = true; // Flag to prevent double loading
   lowStockThreshold: number = 10;
   Math = Math;
 
@@ -111,7 +117,9 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private organizationService: OrganizationService,
+    private datePipe: DatePipe
   ) {
     this.loadTaxRate();
   }
@@ -135,6 +143,8 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
     
     // Load first page via paginated endpoint
+    // The table has *ngIf="!isLoading" so it won't render until after this completes,
+    // preventing the double call from onLazyLoad
     await this.loadReturns();
     
     // Check for purchaseId query parameter to pre-select purchase
@@ -189,12 +199,14 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private initializeTableColumns() {
+    // Align exported columns with the actual purchase returns table
     this.cols = [
-      { field: 'purchaseId', header: this.translateService.instant('purchase_id') },
-      { field: 'purchaseStatus', header: this.translateService.instant('purchase_status') },
-      { field: 'supplier', header: this.translateService.instant('supplier') },
-      { field: 'dateOfPurchase', header: this.translateService.instant('purchase_date') },
-      { field: 'totalAmount', header: this.translateService.instant('purchase_total_amount') },
+      { field: 'reference', header: this.translateService.instant('return_reference') },
+      { field: 'returnDate', header: this.translateService.instant('return_date') },
+      { field: 'totalCreditableAmount', header: this.translateService.instant('return_refund_amount') },
+      { field: 'returnStatus', header: this.translateService.instant('return_status') },
+      { field: 'purchaseReference', header: this.translateService.instant('purchase_reference') },
+      { field: 'supplierName', header: this.translateService.instant('supplier') }
     ];
   }
 
@@ -584,6 +596,13 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   onLazyLoad(event: LazyLoadEvent) {
+    // Skip the initial lazy load event if we've already loaded in ngOnInit
+    // This prevents double loading on initial page load
+    if (this.isInitialLoad) {
+      this.isInitialLoad = false;
+      return;
+    }
+
     const extendedEvent: LazyLoadEventExt = {
       ...event,
       globalFilter: this.globalFilter
@@ -874,19 +893,54 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
     try {
-      this.isLoading = true;
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
 
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered returns from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
       let allReturns: PurchaseReturn[] = [];
-      let currentPage = 0;
       const pageSize = 1000;
-      const maxPages = 100;
-
-      while (currentPage < maxPages) {
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === 1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
-
+      let currentPage = 0;
+      let hasMorePages = true;
+      const maxPages = 100; // Safety limit
+      
+      // Build filters object from component filter properties
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
+      
+      // Ensure token is loaded
+      this.purchaseReturnService.loadToken();
+      
+      // Fetch all pages
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+        
         const response = await firstValueFrom(
           this.purchaseReturnService.getReturnsPaginated(
             currentPage,
@@ -897,53 +951,152 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
             filterPayload
           )
         );
-
-        const pageContent = response.page?.content || [];
-        if (pageContent.length === 0) {
-          break;
-        }
-
-        allReturns = [...allReturns, ...pageContent];
-
-        const totalElements = response.page?.totalElements || 0;
-        if (allReturns.length >= totalElements) {
-          break;
-        }
-
+        
+        const pageContent = response.page?.content || response.content || response || [];
+        allReturns = allReturns.concat(pageContent);
+        
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || response.totalElements || response.total || 0;
+        hasMorePages = allReturns.length < totalElements && pageContent.length === pageSize;
         currentPage++;
       }
-
-      const modifiedReturns = allReturns.map(purchaseReturn => {
-        const modifiedReturn: any = { ...purchaseReturn };
-        if (purchaseReturn.purchase) {
-          modifiedReturn['purchase.reference'] = purchaseReturn.purchase.reference;
-          modifiedReturn['purchase.supplier.name'] = purchaseReturn.purchase.supplier?.name;
-        }
-        delete modifiedReturn.creationDate;
-        delete modifiedReturn.purchase;
-        return modifiedReturn;
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Build translated export columns based on organization's default locale
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'return_reference',
+        'returnDate': 'return_date',
+        'totalCreditableAmount': 'return_refund_amount',
+        'returnStatus': 'return_status',
+        'purchaseReference': 'purchase_reference',
+        'supplierName': 'supplier'
+      };
+      
+      const translatedExportColumns: ExportColumn[] = this.exportColumns.map((col) => {
+        const translationKey = translationKeyMap[col.dataKey] || col.dataKey;
+        return {
+          title: this.translate.instant(translationKey),
+          dataKey: col.dataKey
+        };
       });
-
-      this.reportingService.exportPdf(this.exportColumns, modifiedReturns, 'purchase-returns');
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('purchase_returns_menu_title') || this.translate.instant('purchase_returns');
+      
+      // Prepare returns for export with formatted fields
+      const exportData = allReturns.map(purchaseReturn => {
+        const purchase: any = purchaseReturn.purchase || {};
+        const supplier: any = purchase.supplier || {};
+        
+        const rawStatus: string = purchaseReturn.returnStatus || '';
+        let statusLabel: string = rawStatus;
+        if (rawStatus) {
+          const key = `return_status_${rawStatus.toLowerCase()}`;
+          const translated = this.translate.instant(key);
+          statusLabel = translated && translated !== key ? translated : rawStatus;
+        }
+        
+        // Format return date as numeric date (dd/MM/yyyy)
+        let formattedReturnDate: string = '';
+        if (purchaseReturn.returnDate) {
+          const date = purchaseReturn.returnDate instanceof Date 
+            ? purchaseReturn.returnDate 
+            : new Date(purchaseReturn.returnDate);
+          formattedReturnDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        } else if (purchaseReturn.creationDate) {
+          const date = purchaseReturn.creationDate instanceof Date 
+            ? purchaseReturn.creationDate 
+            : new Date(purchaseReturn.creationDate);
+          formattedReturnDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        return {
+          reference: purchaseReturn.reference || '',
+          returnDate: formattedReturnDate,
+          totalCreditableAmount: purchaseReturn.totalCreditableAmount ?? 0,
+          returnStatus: statusLabel,
+          purchaseReference: purchase.reference || '',
+          supplierName: supplier.name || ''
+        };
+      });
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchase-returns', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allReturns.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting purchase returns PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
     } finally {
-      this.isLoading = false;
+      this.isExporting = false;
+      this.exportProgress = '';
     }
   }
 
   async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
     try {
-      this.isLoading = true;
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      // Fetch all filtered returns from backend using pagination
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
       let allReturns: PurchaseReturn[] = [];
-      let currentPage = 0;
       const pageSize = 1000;
-      const maxPages = 100;
-
-      while (currentPage < maxPages) {
-        const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-        const direction = sortOrder === 1 ? 'ASC' : 'DESC';
-        const filterPayload = filters || {};
-
+      let currentPage = 0;
+      let hasMorePages = true;
+      const maxPages = 100; // Safety limit
+      
+      // Build filters object from component filter properties
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...filters };
+      
+      // Ensure token is loaded
+      this.purchaseReturnService.loadToken();
+      
+      // Fetch all pages
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+        
         const response = await firstValueFrom(
           this.purchaseReturnService.getReturnsPaginated(
             currentPage,
@@ -954,36 +1107,102 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
             filterPayload
           )
         );
-
-        const pageContent = response.page?.content || [];
-        if (pageContent.length === 0) {
-          break;
-        }
-
-        allReturns = [...allReturns, ...pageContent];
-
-        const totalElements = response.page?.totalElements || 0;
-        if (allReturns.length >= totalElements) {
-          break;
-        }
-
+        
+        const pageContent = response.page?.content || response.content || response || [];
+        allReturns = allReturns.concat(pageContent);
+        
+        // Check if there are more pages
+        const totalElements = response.page?.totalElements || response.totalElements || response.total || 0;
+        hasMorePages = allReturns.length < totalElements && pageContent.length === pageSize;
         currentPage++;
       }
-
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'reference': 'return_reference',
+        'returnDate': 'return_date',
+        'totalCreditableAmount': 'return_refund_amount',
+        'returnStatus': 'return_status',
+        'purchaseReference': 'purchase_reference',
+        'supplierName': 'supplier'
+      };
+      
+      // Prepare returns for export with formatted fields
       const modifiedReturns = allReturns.map(purchaseReturn => {
-        const modifiedReturn: any = { ...purchaseReturn };
-        if (purchaseReturn.purchase) {
-          modifiedReturn['purchase.reference'] = purchaseReturn.purchase.reference;
-          modifiedReturn['purchase.supplier.name'] = purchaseReturn.purchase.supplier?.name;
+        const purchase: any = purchaseReturn.purchase || {};
+        const supplier: any = purchase.supplier || {};
+        
+        const rawStatus: string = purchaseReturn.returnStatus || '';
+        let statusLabel: string = rawStatus;
+        if (rawStatus) {
+          const key = `return_status_${rawStatus.toLowerCase()}`;
+          const translated = this.translate.instant(key);
+          statusLabel = translated && translated !== key ? translated : rawStatus;
         }
-        delete modifiedReturn.creationDate;
-        delete modifiedReturn.purchase;
-        return modifiedReturn;
+        
+        // Format return date as numeric date (dd/MM/yyyy)
+        let formattedReturnDate: string = '';
+        if (purchaseReturn.returnDate) {
+          const date = purchaseReturn.returnDate instanceof Date 
+            ? purchaseReturn.returnDate 
+            : new Date(purchaseReturn.returnDate);
+          formattedReturnDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        } else if (purchaseReturn.creationDate) {
+          const date = purchaseReturn.creationDate instanceof Date 
+            ? purchaseReturn.creationDate 
+            : new Date(purchaseReturn.creationDate);
+          formattedReturnDate = this.datePipe.transform(date, 'dd/MM/yyyy') || '';
+        }
+        
+        return {
+          reference: purchaseReturn.reference || '',
+          returnDate: formattedReturnDate,
+          totalCreditableAmount: purchaseReturn.totalCreditableAmount ?? 0,
+          returnStatus: statusLabel,
+          purchaseReference: purchase.reference || '',
+          supplierName: supplier.name || ''
+        };
       });
 
-      this.reportingService.exportExcel(modifiedReturns, 'purchase-returns');
+      // Create a translated version of the data with translated headers
+      // For Excel, we need to create objects with translated keys
+      const translatedReturns = modifiedReturns.map(returnData => {
+        const translated: any = {};
+        this.cols.forEach(col => {
+          const field = col.field;
+          const translationKey = translationKeyMap[field] || field;
+          const translatedHeader = this.translate.instant(translationKey);
+          translated[translatedHeader] = (returnData as any)[field];
+        });
+        return translated;
+      });
+
+      // Now, export the translated array to Excel
+      this.reportingService.exportExcel(translatedReturns, 'purchase-returns');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allReturns.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting purchase returns Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
     } finally {
-      this.isLoading = false;
+      this.isExporting = false;
+      this.exportProgress = '';
     }
   }
 

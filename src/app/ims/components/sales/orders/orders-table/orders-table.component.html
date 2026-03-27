@@ -161,12 +161,23 @@
 
     <!-- View Toggle & Export -->
     <div class="flex align-items-center gap-2 ml-auto">
-      <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF" tooltipPosition="bottom"
-        (click)="exportPdfEvent.emit()"></button>
-      <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcelEvent.emit()" class="p-button-success"
-        pTooltip="XLS" tooltipPosition="bottom"></button>
+      <button pButton pRipple 
+        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+        class="p-button-warning" 
+        pTooltip="PDF" 
+        tooltipPosition="bottom"
+        (click)="exportPdfEvent.emit()"
+        [disabled]="isExporting"></button>
+      <button pButton pRipple 
+        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+        (click)="exportExcelEvent.emit()" 
+        class="p-button-success"
+        pTooltip="XLS" 
+        tooltipPosition="bottom"
+        [disabled]="isExporting"></button>
       <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary"
-        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="resetFilters()"></button>
+        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="resetFilters()"
+        [disabled]="isExporting"></button>
     </div>
   </div>
 

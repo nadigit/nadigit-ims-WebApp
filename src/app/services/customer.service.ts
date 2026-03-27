@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { environment } from 'src/environments/environment';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -23,15 +24,15 @@ export class CustomerService {
   }
 
   saveCustomer(data: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), auditSaveAction('customer', data, 'customerId', 'customerName'));
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema, data, {headers:headers})
   }
   updateCustomer(id: any, customer: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Updated customer');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , customer, {headers:headers});
   }
   deleteCustomer(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Deleted customer');
     return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers});
   }
   getCustomers() {

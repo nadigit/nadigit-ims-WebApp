@@ -106,6 +106,7 @@
                         pTooltip="PDF"
                         tooltipPosition="bottom" 
                         [disabled]="isExporting"
+                        [loading]="isExporting"
                         (click)="exportPdf()"></button>
                     <button pButton pRipple 
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
@@ -113,9 +114,11 @@
                         class="p-button-success"
                         pTooltip="XLS" 
                         tooltipPosition="bottom"
-                        [disabled]="isExporting"></button>
+                        [disabled]="isExporting"
+                        [loading]="isExporting"></button>
                     <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
-                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
+                        pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"
+                        [disabled]="isExporting"></button>
                 </div>
             </div>
 
@@ -311,7 +314,7 @@
                                         </p>
                                         <p>
                                             <strong>
-                                                {{'processed by' | translate}}:
+                                                {{'processed_by' | translate}}:
                                             </strong> {{ refund.createdBy ||
                                             'System' }}
                                         </p>

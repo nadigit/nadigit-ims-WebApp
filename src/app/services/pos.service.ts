@@ -11,6 +11,7 @@ import {
   POSReceiptDTO,
   PageResponse
 } from '../models/pos';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -46,7 +47,7 @@ export class PosService {
   // =============== Session Management ===============
 
   async startSession(shopId?: number, cashRegisterSessionId?: number): Promise<Observable<POSSessionDTO>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Started POS session');
     let params = new HttpParams();
     if (shopId !== undefined && shopId !== null) {
       params = params.set('shopId', shopId.toString());
@@ -67,7 +68,7 @@ export class PosService {
   }
 
   async endSession(sessionId: number): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Ended POS session');
     return this.http.post<void>(`${this.getBaseUrl()}sessions/${sessionId}/end`, {}, { headers });
   }
 
@@ -119,7 +120,7 @@ export class PosService {
   // =============== Cart Management ===============
 
   async createCart(sessionId: number, customerId?: number): Promise<Observable<POSCartDTO>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Created POS cart');
     let params = new HttpParams().set('sessionId', sessionId.toString());
     if (customerId !== undefined) {
       params = params.set('customerId', customerId.toString());
@@ -256,7 +257,7 @@ export class PosService {
   }
 
   async holdCart(cartId: number): Promise<Observable<POSCartDTO>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Held POS cart');
     return this.http.post<POSCartDTO>(`${this.getBaseUrl()}carts/${cartId}/hold`, {}, { headers });
   }
 
@@ -270,19 +271,19 @@ export class PosService {
   }
 
   async resumeCart(cartId: number): Promise<Observable<POSCartDTO>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Resumed POS cart');
     return this.http.post<POSCartDTO>(`${this.getBaseUrl()}carts/${cartId}/resume`, {}, { headers });
   }
 
   async cancelCart(cartId: number): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Cancelled POS cart');
     return this.http.post<void>(`${this.getBaseUrl()}carts/${cartId}/cancel`, {}, { headers });
   }
 
   // =============== Checkout ===============
 
   async checkout(cartId: number, checkoutDto: POSCheckoutDTO): Promise<Observable<POSReceiptDTO>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Completed POS checkout');
     return this.http.post<POSReceiptDTO>(`${this.getBaseUrl()}carts/${cartId}/checkout`, checkoutDto, {
       headers
     });

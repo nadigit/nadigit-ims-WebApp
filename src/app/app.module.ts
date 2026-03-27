@@ -16,6 +16,8 @@ import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { OrganizationChartModule } from 'primeng/organizationchart';
 import { MessageService } from 'primeng/api';
 import { MaintenanceInterceptor } from './interceptors/maintenance.interceptor';
+import { BackendUnavailableInterceptor } from './interceptors/backend-unavailable.interceptor';
+
 
 
 // AoT requires an exported function for factories
@@ -79,6 +81,11 @@ function initializeKeycloak(keycloak: KeycloakService) {
         {
             provide: HTTP_INTERCEPTORS,
             useClass: MaintenanceInterceptor,
+            multi: true
+        },
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: BackendUnavailableInterceptor,
             multi: true
         },
         // { provide: LocationStrategy, useClass: HashLocationStrategy },

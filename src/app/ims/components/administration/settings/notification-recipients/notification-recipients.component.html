@@ -1,0 +1,134 @@
+<div class="grid">
+  <div class="col-12">
+    <!-- Header -->
+    <div class="mb-4">
+      <div class="flex align-items-center gap-2 mb-3">
+        <button pButton pRipple icon="pi pi-arrow-left"
+          class="p-button-text p-button-rounded p-button-plain"
+          [pTooltip]="'back' | translate" tooltipPosition="bottom"
+          (click)="goBack()"></button>
+        <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'email_configuration' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'notification_recipients' | translate }}</span>
+      </div>
+      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+        <div>
+          <h2 class="m-0 text-900">{{ 'notification_recipients' | translate }}</h2>
+          <p class="text-600 mt-2 mb-0">{{ 'notification_recipients_description' | translate }}</p>
+        </div>
+      </div>
+    </div>
+
+    <p-toast></p-toast>
+
+    <!-- Loading State -->
+    <div class="card flex justify-content-center" *ngIf="isLoading">
+      <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+    </div>
+
+    <!-- Recipients Management -->
+    <div class="card" *ngIf="!isLoading">
+      <!-- Add Recipient -->
+      <div class="mb-4">
+        <label class="block mb-2 font-medium">{{ 'add_recipient' | translate }}</label>
+        <div class="flex gap-2">
+          <span class="p-input-icon-left flex-1">
+            <i class="pi pi-envelope"></i>
+            <input 
+              type="email" 
+              pInputText 
+              [(ngModel)]="newRecipient"
+              [placeholder]="'enter_email_address' | translate"
+              (keypress)="onKeyPress($event)"
+              class="w-full" />
+          </span>
+          <button 
+            pButton 
+            pRipple 
+            type="button"
+            label="{{ 'add' | translate }}" 
+            icon="pi pi-plus"
+            class="p-button-primary"
+            (click)="addRecipient()"></button>
+        </div>
+      </div>
+
+      <!-- Current Recipients -->
+      <div class="mb-4">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <label class="font-medium">
+            {{ 'current_recipients' | translate }} ({{ recipients.length }})
+          </label>
+        </div>
+        
+        <div *ngIf="recipients.length === 0" class="text-center p-4 text-500">
+          <i class="pi pi-inbox text-4xl mb-3"></i>
+          <p>{{ 'no_recipients_configured' | translate }}</p>
+        </div>
+
+        <div *ngIf="recipients.length > 0" class="recipients-list">
+          <div 
+            *ngFor="let recipient of recipients" 
+            class="recipient-item flex align-items-center justify-content-between p-3 mb-2 border-round surface-ground">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-envelope text-primary"></i>
+              <span>{{ recipient }}</span>
+            </div>
+            <button 
+              pButton 
+              pRipple 
+              type="button"
+              icon="pi pi-trash" 
+              class="p-button-text p-button-danger p-button-rounded"
+              [pTooltip]="'remove_recipient' | translate"
+              (click)="removeRecipient(recipient)"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bulk Operations -->
+      <p-divider></p-divider>
+      
+      <div class="mb-3">
+        <div class="flex align-items-center justify-content-between mb-2">
+          <label class="font-medium">{{ 'bulk_operations' | translate }}</label>
+          <button 
+            pButton 
+            pRipple 
+            type="button"
+            [label]="(showBulkInput ? 'hide' : 'show') | translate"
+            icon="pi pi-chevron-down"
+            class="p-button-text p-button-sm"
+            (click)="showBulkInput = !showBulkInput"></button>
+        </div>
+        
+        <div *ngIf="showBulkInput" class="mt-3">
+          <label class="block mb-2">{{ 'set_multiple_emails' | translate }}</label>
+          <textarea 
+            pInputTextarea 
+            [(ngModel)]="bulkRecipients"
+            [placeholder]="'comma_separated_emails' | translate"
+            [rows]="4"
+            class="w-full"></textarea>
+          <small class="text-500">{{ 'comma_separated_emails_hint' | translate }}</small>
+          <div class="flex gap-2 mt-3">
+            <button 
+              pButton 
+              pRipple 
+              type="button"
+              label="{{ 'replace_all_recipients' | translate }}" 
+              icon="pi pi-refresh"
+              class="p-button-warning"
+              (click)="replaceAllRecipients()"
+              [loading]="isSaving"
+              [disabled]="isSaving || !bulkRecipients.trim()"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

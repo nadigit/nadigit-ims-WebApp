@@ -833,7 +833,13 @@ export class ShopsComponent implements OnInit {
           console.log(this.shops);
         },
         error: (err: any) => {
-          console.log(err)
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_shops'),
+            life: 3000,
+          });
+          console.log(err);
         },
         complete: () => {
           this.isLoading = false;

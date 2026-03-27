@@ -21,11 +21,14 @@ import { BankAccount } from 'src/app/models/bank-account';
 import { BankTransaction } from 'src/app/models/bank-transaction';
 import { firstValueFrom } from 'rxjs';
 import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
+import { DatePipe } from '@angular/common';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
 
 @Component({
   templateUrl: './purchase-payments.component.html',
   styleUrls: ['./purchase-payments.component.css', '../../finance.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class PurchasePaymentsComponent implements OnInit {
 
@@ -101,6 +104,10 @@ export class PurchasePaymentsComponent implements OnInit {
   // Filter state
   currentFilters: { [field: string]: any } = {};
 
+  // Export state
+  isExporting: boolean = false;
+  exportProgress: string = '';
+
   constructor(private messageService: MessageService,
     private paymentService: PaymentService,
     private supplierService: SupplierService,
@@ -114,7 +121,9 @@ export class PurchasePaymentsComponent implements OnInit {
     private financialDocService: FinancialDocumentsService,
     private bankAccountService: BankAccountService,
     private router: Router,
-    private reconciliationValidationService: ReconciliationValidationService) { }
+    private reconciliationValidationService: ReconciliationValidationService,
+    private organizationService: OrganizationService,
+    private datePipe: DatePipe) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -1477,24 +1486,228 @@ export class PurchasePaymentsComponent implements OnInit {
   }
 
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.payments, 'purchase-payments')
+  async exportPdf() {
+    if (this.isExporting) { return; }
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredPayments: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      let hasMorePages = true;
+      const maxPages = 100;
+
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent || {};
+      const sortBy = sortField || 'paymentDate';
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...this.currentFilters };
+
+      this.paymentService.loadToken();
+
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
+          this.paymentService.getPayments(
+            'outgoing',
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortBy,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || response.content || [];
+        allFilteredPayments = allFilteredPayments.concat(pageContent);
+
+        const totalElements = response.page?.totalElements || response.totalElements || 0;
+        hasMorePages = allFilteredPayments.length < totalElements && pageContent.length > 0;
+        currentPage++;
+      }
+
+      if (allFilteredPayments.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
+        });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
+      }
+
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+
+      const exportColumns: ExportColumn[] = [
+        { title: this.translate.instant('payment_transaction_id'), dataKey: 'transactionId' },
+        { title: this.translate.instant('purchase_reference'), dataKey: 'purchaseReference' },
+        { title: this.translate.instant('supplier'), dataKey: 'supplierName' },
+        { title: this.translate.instant('amount'), dataKey: 'amount' },
+        { title: this.translate.instant('payment_status'), dataKey: 'paymentStatus' },
+        { title: this.translate.instant('payment_method'), dataKey: 'paymentMethod' },
+        { title: this.translate.instant('payment_date'), dataKey: 'paymentDate' }
+      ];
+
+      const pdfTitle = this.translate.instant('purchase_payments') || this.translate.instant('outgoing_payments');
+
+      const exportData = allFilteredPayments.map(payment => {
+        const exportItem: any = {
+          transactionId: payment.transactionId || 'N/A',
+          purchaseReference: payment.purchaseReference || 'N/A',
+          supplierName: payment.supplierName || 'N/A',
+          amount: payment.amount || 0,
+          paymentStatus: payment.paymentStatus ? this.translate.instant(`payment_status_${payment.paymentStatus.toLowerCase()}`) : 'N/A',
+          paymentMethod: payment.paymentMethod ? this.translate.instant(getPaymentMethodLabel(payment.paymentMethod)) : 'N/A',
+          paymentDate: payment.paymentDate ? this.datePipe.transform(payment.paymentDate, 'dd/MM/yyyy') : 'N/A'
+        };
+        return exportItem;
+      });
+
+      this.reportingService.exportPdf(exportColumns, exportData, 'purchase-payments', pdfTitle);
+      this.translate.use(currentLang);
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredPayments.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting purchase payments PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the payments array to avoid modifying the original array
-    const modifiedPayments = this.payments.map(payment => {
-      // Create a copy of the payment object to modify
-      const modifiedPayment = { ...payment };
+  async exportExcel() {
+    if (this.isExporting) { return; }
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Remove the column you want to exclude
-      delete modifiedPayment.creationDate;
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
 
-      return modifiedPayment;
-    });
+      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
+      let allFilteredPayments: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      let hasMorePages = true;
+      const maxPages = 100;
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedPayments, 'purchase-payments');
+      const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent || {};
+      const sortBy = sortField || 'paymentDate';
+      const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+      const filterPayload: any = { ...this.currentFilters };
+
+      this.paymentService.loadToken();
+
+      while (hasMorePages && currentPage < maxPages) {
+        this.exportProgress = `${this.translate.instant('fetching_data')} (${currentPage + 1}...)` || `Fetching data... (${currentPage + 1}...)`;
+
+        const response: any = await firstValueFrom(
+          this.paymentService.getPayments(
+            'outgoing',
+            currentPage,
+            pageSize,
+            globalFilter || '',
+            sortBy,
+            direction,
+            filterPayload
+          )
+        );
+
+        const pageContent = response.page?.content || response.content || [];
+        allFilteredPayments = allFilteredPayments.concat(pageContent);
+
+        const totalElements = response.page?.totalElements || response.totalElements || 0;
+        hasMorePages = allFilteredPayments.length < totalElements && pageContent.length > 0;
+        currentPage++;
+      }
+
+      if (allFilteredPayments.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('no_data_to_export') || 'No data available to export',
+          life: 3000
+        });
+        this.isExporting = false;
+        this.exportProgress = '';
+        this.translate.use(currentLang);
+        return;
+      }
+
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+
+      const translatedPayments = allFilteredPayments.map(payment => {
+        const translated: any = {
+          [this.translate.instant('payment_transaction_id')]: payment.transactionId || 'N/A',
+          [this.translate.instant('purchase_reference')]: payment.purchaseReference || 'N/A',
+          [this.translate.instant('supplier')]: payment.supplierName || 'N/A',
+          [this.translate.instant('amount')]: payment.amount || 0,
+          [this.translate.instant('payment_status')]: payment.paymentStatus ? this.translate.instant(`payment_status_${payment.paymentStatus.toLowerCase()}`) : 'N/A',
+          [this.translate.instant('payment_method')]: payment.paymentMethod ? this.translate.instant(getPaymentMethodLabel(payment.paymentMethod)) : 'N/A',
+          [this.translate.instant('payment_date')]: payment.paymentDate ? this.datePipe.transform(payment.paymentDate, 'dd/MM/yyyy') : 'N/A'
+        };
+        return translated;
+      });
+
+      this.reportingService.exportExcel(translatedPayments, 'purchase-payments');
+      this.translate.use(currentLang);
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${allFilteredPayments.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting purchase payments Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   getSupplierDisplayName(supplier: any): string {

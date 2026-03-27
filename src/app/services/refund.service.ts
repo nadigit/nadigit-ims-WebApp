@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { environment } from 'src/environments/environment';
 import { Observable } from 'rxjs';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -32,16 +33,16 @@ export class RefundService {
   // }
 
   saveRefund(refund: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), auditSaveAction('refund', refund, 'refundId', 'reference'));
     return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema , refund, {headers:headers});
   }
   
   updateRefund(id: any, refund: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Updated refund');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , refund, {headers:headers});
   }
   deleteRefund(id: any) {
-    let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Deleted refund');
     return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers});
   }
   getRefunds() {
@@ -197,7 +198,7 @@ export class RefundService {
 
   confirmRefund(id: any) {
     this.loadToken();
-    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Confirmed refund');
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/confirm', {}, { headers: headers });
   }
 }

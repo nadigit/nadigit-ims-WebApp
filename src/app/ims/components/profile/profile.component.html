@@ -129,6 +129,24 @@
 
             <!-- Right Column -->
             <div class="col-12 lg:col-7">
+                <!-- Notification Preferences Card -->
+                <div *ngIf="isAdmin" class="detail-card mb-4 cursor-pointer hover:shadow-3 transition-duration-150" 
+                    (click)="navigateToNotificationPreferences()"
+                    [pTooltip]="'click_to_view' | translate">
+                    <div class="card-header">
+                        <div class="flex align-items-center justify-content-between w-full">
+                            <div class="flex align-items-center gap-2">
+                                <i class="pi pi-bell"></i>
+                                <span>{{ 'notification_preferences' | translate }}</span>
+                            </div>
+                            <i class="pi pi-arrow-right text-400"></i>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-600 m-0">{{ 'notification_preferences_description' | translate }}</p>
+                    </div>
+                </div>
+
                 <div class="detail-card mb-4">
                     <div class="card-header">
                         <i class="pi pi-list"></i>

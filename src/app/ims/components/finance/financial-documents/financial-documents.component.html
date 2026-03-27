@@ -62,23 +62,26 @@
 
 				<!-- View Toggle & Export -->
 				<div class="flex align-items-center gap-2 ml-auto">
-					<button pButton pRipple 
-						[icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
-						class="p-button-warning" 
-						pTooltip="PDF"
-						tooltipPosition="bottom" 
-						[disabled]="isExporting"
-						(click)="exportPdf()"></button>
-					<button pButton pRipple 
-						[icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
-						(click)="exportExcel()" 
-						class="p-button-success"
-						pTooltip="XLS" 
-						tooltipPosition="bottom"
-						[disabled]="isExporting"></button>
-					<button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary"
-						pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom"
-						(click)="clearFilters()"></button>
+				<button pButton pRipple 
+					[icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
+					class="p-button-warning" 
+					pTooltip="PDF"
+					tooltipPosition="bottom" 
+					[disabled]="isExporting"
+					[loading]="isExporting"
+					(click)="exportPdf()"></button>
+				<button pButton pRipple 
+					[icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
+					(click)="exportExcel()" 
+					class="p-button-success"
+					pTooltip="XLS" 
+					tooltipPosition="bottom"
+					[disabled]="isExporting"
+					[loading]="isExporting"></button>
+				<button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary"
+					pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom"
+					(click)="clearFilters()"
+					[disabled]="isExporting"></button>
 				</div>
 			</div>
 

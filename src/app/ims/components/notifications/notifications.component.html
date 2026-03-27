@@ -1,0 +1,150 @@
+<div class="grid">
+  <div class="col-12">
+    <!-- Header -->
+    <div class="mb-4">
+      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+        <div>
+          <h2 class="m-0 text-900">
+            <i class="pi pi-bell mr-2"></i>
+            {{ 'notifications' | translate }}
+            <p-badge *ngIf="unreadCount > 0" [value]="unreadCount" severity="danger" class="ml-2"></p-badge>
+          </h2>
+          <p class="text-600 mt-2 mb-0">{{ 'notifications_description' | translate }}</p>
+        </div>
+        <div class="flex gap-2">
+          <button 
+            pButton 
+            pRipple 
+            type="button"
+            label="{{ 'mark_all_read' | translate }}" 
+            icon="pi pi-check"
+            class="p-button-outlined"
+            (click)="markAllAsRead()"
+            [disabled]="unreadCount === 0"></button>
+          <button 
+            pButton 
+            pRipple 
+            type="button"
+            label="{{ 'clear_all' | translate }}" 
+            icon="pi pi-trash"
+            class="p-button-outlined p-button-danger"
+            (click)="clearAll()"
+            [disabled]="notifications.length === 0"></button>
+        </div>
+      </div>
+    </div>
+
+    <p-toast></p-toast>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+      <div class="flex gap-3 flex-wrap align-items-center">
+        <!-- Tabs -->
+        <p-selectButton 
+          [options]="[
+            {label: ('all' | translate), value: 'all'},
+            {label: ('unread' | translate) + (unreadCount > 0 ? ' (' + unreadCount + ')' : ''), value: 'unread'},
+            {label: ('priority' | translate), value: 'priority'}
+          ]"
+          [(ngModel)]="activeTab"
+          (onChange)="onTabChange(activeTab)"
+          optionLabel="label"
+          optionValue="value">
+        </p-selectButton>
+
+        <!-- Type Filter -->
+        <p-dropdown 
+          [options]="notificationTypes" 
+          [(ngModel)]="selectedType"
+          (onChange)="onTypeFilterChange()"
+          optionLabel="label" 
+          optionValue="value"
+          [placeholder]="'filter_by_type' | translate"
+          [showClear]="true"
+          styleClass="w-14rem">
+        </p-dropdown>
+
+        <!-- Search -->
+        <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+          <i class="pi pi-search"></i>
+          <input 
+            type="text" 
+            pInputText 
+            [(ngModel)]="searchText"
+            (input)="onSearchChange()"
+            [placeholder]="'search_notifications' | translate"
+            class="w-full" />
+        </span>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="card flex justify-content-center" *ngIf="isLoading">
+      <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="card" *ngIf="!isLoading">
+      <!-- Empty State -->
+      <div *ngIf="groupedNotifications.length === 0" class="text-center p-6">
+        <i class="pi pi-inbox text-6xl text-400 mb-3"></i>
+        <h3 class="text-500">{{ 'no_notifications' | translate }}</h3>
+        <p class="text-400">{{ 'all_caught_up' | translate }}</p>
+      </div>
+
+      <!-- Grouped Notifications -->
+      <div *ngFor="let group of groupedNotifications" class="mb-4">
+        <h4 class="text-700 mb-3">{{ (group.label | translate) }}</h4>
+        
+        <div class="notification-list">
+          <div 
+            *ngFor="let notification of group.notifications"
+            class="notification-item p-3 mb-2 border-round cursor-pointer"
+            [ngClass]="{
+              'surface-ground': !notification.read,
+              'border-left-3': !notification.read,
+              'border-primary': !notification.read && notification.priority === 'HIGH',
+              'border-red-500': !notification.read && notification.priority === 'URGENT'
+            }"
+            (click)="handleNotificationClick(notification)">
+            <div class="flex align-items-start gap-3">
+              <div class="notification-icon">
+                <i [class]="'pi ' + getTypeIcon(notification.type) + ' text-xl ' + getSeverityClass(notification.severity)"></i>
+              </div>
+              <div class="flex-1">
+                <div class="flex align-items-start justify-content-between mb-1">
+                  <div class="flex-1">
+                    <h5 class="m-0" [ngClass]="{'font-bold': !notification.read}">
+                      {{ notification.title }}
+                    </h5>
+                    <p class="text-600 text-sm mt-1 mb-0">{{ notification.message }}</p>
+                  </div>
+                  <div class="flex gap-2 ml-3">
+                    <button 
+                      pButton 
+                      pRipple 
+                      type="button"
+                      icon="pi pi-times" 
+                      class="p-button-text p-button-rounded p-button-sm"
+                      [pTooltip]="'delete' | translate"
+                      (click)="deleteNotification(notification); $event.stopPropagation()"></button>
+                  </div>
+                </div>
+                <div class="flex align-items-center gap-2 mt-2">
+                  <p-tag 
+                    [value]="notification.type || 'N/A'"
+                    [severity]="notification.severity === 'HIGH' || notification.severity === 'URGENT' ? 'danger' : 'info'"
+                    styleClass="text-xs"></p-tag>
+                  <span class="text-xs text-500">{{ formatDate(notification.creationDate) }}</span>
+                  <span *ngIf="!notification.read" class="text-xs">
+                    <p-badge value="unread" severity="info"></p-badge>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

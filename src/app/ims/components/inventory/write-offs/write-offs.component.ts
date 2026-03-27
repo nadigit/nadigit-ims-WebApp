@@ -210,9 +210,15 @@ export class WriteOffsComponent implements OnInit {
   async loadProducts() {
     try {
       // Load a list of products for filtering (could be limited/paginated)
+      // Ensure token is loaded for this paginated endpoint
+      this.productService.loadToken();
       this.productService.getProductsPaginated(0, 1000).subscribe({
         next: (response: any) => {
-          const productsList = Array.isArray(response) ? response : (response?.content || []);
+          // Support different backend page shapes: plain array, {content:[]}, or {page:{content:[]}}
+          const productsList = Array.isArray(response)
+            ? response
+            : (response?.page?.content || response?.content || []);
+
           this.products = productsList.map((p: Product) => ({
             label: `${p.name} (${p.reference})`,
             value: p.productId,
@@ -725,7 +731,8 @@ export class WriteOffsComponent implements OnInit {
         writeOffCost: writeOff.writeOffCost || 0,
         sourceType: writeOff.sourceType ? this.translate.instant(`write_off_source_type_${writeOff.sourceType.toLowerCase()}`) : 'N/A',
         status: writeOff.status ? this.translate.instant(`write_off_status_${writeOff.status.toLowerCase()}`) : 'N/A',
-        writeOffDate: writeOff.writeOffDate ? this.datePipe.transform(writeOff.writeOffDate, 'short') : 'N/A'
+        // Date-only (no time) for export
+        writeOffDate: writeOff.writeOffDate ? this.datePipe.transform(writeOff.writeOffDate, 'yyyy-MM-dd') : 'N/A'
       }));
       
       // Build translated export columns based on organization's default locale
@@ -923,7 +930,8 @@ export class WriteOffsComponent implements OnInit {
         translated[this.translate.instant('cost')] = writeOff.writeOffCost || 0;
         translated[this.translate.instant('source_type')] = writeOff.sourceType ? this.translate.instant(`write_off_source_type_${writeOff.sourceType.toLowerCase()}`) : 'N/A';
         translated[this.translate.instant('status')] = writeOff.status ? this.translate.instant(`write_off_status_${writeOff.status.toLowerCase()}`) : 'N/A';
-        translated[this.translate.instant('write_off_date')] = writeOff.writeOffDate ? this.datePipe.transform(writeOff.writeOffDate, 'short') : 'N/A';
+        // Date-only (no time) for export
+        translated[this.translate.instant('write_off_date')] = writeOff.writeOffDate ? this.datePipe.transform(writeOff.writeOffDate, 'yyyy-MM-dd') : 'N/A';
         return translated;
       });
       

@@ -21,6 +21,9 @@ import { CreditInfo } from 'src/app/models/credit-info';
 import { PricingService } from 'src/app/services/pricing.service';
 import { PriceListDTO } from 'src/app/models/pricing';
 import { CustomerFormDialogComponent, CustomerFormDialogConfig, CustomerFormDialogData } from './customer-form-dialog/customer-form-dialog.component';
+import { DatePipe } from '@angular/common';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
 
 @Pipe({ name: 'absolute' })
 export class AbsolutePipe implements PipeTransform {
@@ -32,7 +35,7 @@ export class AbsolutePipe implements PipeTransform {
 @Component({
   templateUrl: './customers.component.html',
   styleUrls: ['./customers.component.css', '../sales.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, DatePipe]
 })
 export class CustomersComponent implements OnInit {
 
@@ -90,6 +93,8 @@ export class CustomersComponent implements OnInit {
   canDeleteCustomer: boolean = false;
   canReadHistory: boolean = false;
   isLoading: boolean = true;
+  isExporting: boolean = false;
+  exportProgress: string = '';
   currency: any;
   paymentStatuses: { label: string; value: string; }[];
   
@@ -120,7 +125,9 @@ export class CustomersComponent implements OnInit {
     private permissionService: PermissionService,
     private router: Router,
     private customerCreditService: CustomerCreditService,
-    private pricingService: PricingService) { }
+    private pricingService: PricingService,
+    private organizationService: OrganizationService,
+    private datePipe: DatePipe) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -830,27 +837,221 @@ export class CustomersComponent implements OnInit {
     }
   }
 
-  exportPdf() {
-    this.reportingService.exportPdf(this.exportColumns, this.customers, 'customers')
+  async exportPdf() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
+
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
+        life: 3000
+      });
+
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
+      
+      // Build translated export columns based on organization's default locale
+      // Exclude customerId, customerType, firstName, lastName, companyName (we'll use Name instead)
+      const translationKeyMap: { [key: string]: string } = {
+        'Name': 'customer_name',
+        'email': 'customer_email',
+        'country': 'customer_country',
+        'city': 'customer_city',
+        'address': 'customer_address',
+        'zip': 'customer_zip',
+        'phoneNumber': 'customer_phone_number'
+      };
+      
+      // Define export columns explicitly (excluding IDs and customerType)
+      const exportColumns: ExportColumn[] = [
+        { title: this.translate.instant('customer_name'), dataKey: 'Name' },
+        { title: this.translate.instant('customer_email'), dataKey: 'email' },
+        { title: this.translate.instant('customer_country'), dataKey: 'country' },
+        { title: this.translate.instant('customer_city'), dataKey: 'city' },
+        { title: this.translate.instant('customer_address'), dataKey: 'address' },
+        { title: this.translate.instant('customer_zip'), dataKey: 'zip' },
+        { title: this.translate.instant('customer_phone_number'), dataKey: 'phoneNumber' }
+      ];
+      
+      const translatedExportColumns: ExportColumn[] = exportColumns;
+      
+      // Get translated title for PDF
+      const pdfTitle = this.translate.instant('customers_menu_title') || this.translate.instant('customers');
+      
+      // Prepare customers for export with formatted fields
+      const exportData = this.customers.map(customer => {
+        const exportItem: any = {};
+        
+        // Create Name field: Company name for Company, firstname + lastname for Particular
+        if (customer.customerType === 'Company') {
+          exportItem.Name = customer.companyName || 'N/A';
+        } else {
+          // Particular customer
+          const firstName = customer.firstName || '';
+          const lastName = customer.lastName || '';
+          exportItem.Name = (firstName + ' ' + lastName).trim() || 'N/A';
+        }
+        
+        // Add other fields
+        exportItem.email = customer.email || 'N/A';
+        exportItem.country = customer.country || 'N/A';
+        exportItem.city = customer.city || 'N/A';
+        exportItem.address = customer.address || 'N/A';
+        exportItem.zip = customer.zip || 'N/A';
+        exportItem.phoneNumber = customer.phoneNumber || 'N/A';
+        
+        return exportItem;
+      });
+      
+      // Export with translated headers and title
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'customers', pdfTitle);
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${this.customers.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting customers PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
-  exportExcel() {
-    // Clone the suppliers array to avoid modifying the original array
-    const modifiedCustomers = this.customers.map(customer => {
-      // Create a copy of the supplier object to modify
-      const modifiedCustomer = { ...customer };
+  async exportExcel() {
+    if (this.isExporting) {
+      return; // Prevent multiple simultaneous exports
+    }
 
-      // Remove the column you want to exclude
-      delete modifiedCustomer.creationDate;
+    try {
+      this.isExporting = true;
+      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
+      
+      // Show initial loading message
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('exporting'),
+        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
+        life: 3000
+      });
 
-      // Alternatively, if the columnToRemove is a property with a known name, you can use:
-      // delete modifiedSupplier['columnToRemove'];
+      // Load token and get organization's default locale
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      const defaultLocale = organization?.defaultLocale || 'en';
+      
+      // Temporarily switch to organization's default locale for translations
+      const currentLang = this.translate.currentLang;
+      this.translate.use(defaultLocale);
+      
+      // Wait for translations to load
+      await firstValueFrom(this.translate.getTranslation(defaultLocale));
+      
+      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
+      
+      // Map column field names to translation keys
+      const translationKeyMap: { [key: string]: string } = {
+        'Name': 'customer_name',
+        'email': 'customer_email',
+        'country': 'customer_country',
+        'city': 'customer_city',
+        'address': 'customer_address',
+        'zip': 'customer_zip',
+        'phoneNumber': 'customer_phone_number'
+      };
+      
+      // Prepare customers for export with formatted fields
+      const modifiedCustomers = this.customers.map(customer => {
+        const modifiedCustomer: any = {};
+        
+        // Create Name field: Company name for Company, firstname + lastname for Particular
+        if (customer.customerType === 'Company') {
+          modifiedCustomer.Name = customer.companyName || 'N/A';
+        } else {
+          // Particular customer
+          const firstName = customer.firstName || '';
+          const lastName = customer.lastName || '';
+          modifiedCustomer.Name = (firstName + ' ' + lastName).trim() || 'N/A';
+        }
+        
+        // Add other fields
+        modifiedCustomer.email = customer.email || 'N/A';
+        modifiedCustomer.country = customer.country || 'N/A';
+        modifiedCustomer.city = customer.city || 'N/A';
+        modifiedCustomer.address = customer.address || 'N/A';
+        modifiedCustomer.zip = customer.zip || 'N/A';
+        modifiedCustomer.phoneNumber = customer.phoneNumber || 'N/A';
 
-      return modifiedCustomer;
-    });
+        return modifiedCustomer;
+      });
 
-    // Now, export the modified array to Excel
-    this.reportingService.exportExcel(modifiedCustomers, 'customers');
+      // Create a translated version of the data with translated headers
+      // For Excel, we need to create objects with translated keys
+      const translatedCustomers = modifiedCustomers.map(customer => {
+        const translated: any = {};
+        Object.keys(customer).forEach(field => {
+          const translationKey = translationKeyMap[field] || field;
+          const translatedHeader = this.translate.instant(translationKey);
+          translated[translatedHeader] = customer[field];
+        });
+        return translated;
+      });
+
+      // Now, export the translated array to Excel
+      this.reportingService.exportExcel(translatedCustomers, 'customers');
+      
+      // Restore original language
+      this.translate.use(currentLang);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${this.customers.length} records exported.`,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error exporting customers Excel:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
+        life: 5000
+      });
+    } finally {
+      this.isExporting = false;
+      this.exportProgress = '';
+    }
   }
 
   next() {

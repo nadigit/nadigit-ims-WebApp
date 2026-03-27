@@ -1,0 +1,12 @@
+.recipients-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.recipient-item {
+  transition: all 0.2s;
+}
+
+.recipient-item:hover {
+  background: var(--surface-hover) !important;
+}

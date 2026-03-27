@@ -1,0 +1,357 @@
+<div class="audit-log-container">
+    <p-toast></p-toast>
+
+    <!-- Main Card -->
+    <div class="detail-card">
+        <div class="card-header">
+            <i class="pi pi-history"></i>
+            <span>{{ 'activity_history' | translate }}</span>
+            <button pButton pRipple 
+                [icon]="showFilterPanel ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                [label]="(showFilterPanel ? 'hide_filters' : 'show_filters') | translate"
+                class="p-button-text p-button-sm"
+                style="margin-left: auto;"
+                (click)="showFilterPanel = !showFilterPanel"
+                *ngIf="showFilters">
+            </button>
+        </div>
+        
+        <div class="card-body" [class.p-0]="!showFilterPanel || !showFilters">
+            <!-- Filter Panel -->
+            <div class="filter-panel p-3 surface-ground border-round" *ngIf="showFilterPanel && showFilters" style="margin: 0;">
+        <div class="grid">
+            <!-- Date Range -->
+            <div class="col-12 md:col-6">
+                <label class="block mb-2">{{ 'start_date' | translate }}</label>
+                <p-calendar [(ngModel)]="startDate" 
+                    [showTime]="true" 
+                    [showIcon]="true"
+                    dateFormat="yy-mm-dd"
+                    [placeholder]="'select_start_date' | translate"
+                    appendTo="body"
+                    styleClass="w-full">
+                </p-calendar>
+            </div>
+            <div class="col-12 md:col-6">
+                <label class="block mb-2">{{ 'end_date' | translate }}</label>
+                <p-calendar [(ngModel)]="endDate" 
+                    [showTime]="true" 
+                    [showIcon]="true"
+                    dateFormat="yy-mm-dd"
+                    [placeholder]="'select_end_date' | translate"
+                    appendTo="body"
+                    styleClass="w-full">
+                </p-calendar>
+            </div>
+
+            <!-- Action Type -->
+            <div class="col-12 md:col-6">
+                <label class="block mb-2">{{ 'action_type' | translate }}</label>
+                <p-multiSelect [options]="actionTypes" 
+                    [(ngModel)]="selectedActionTypes"
+                    optionLabel="label" 
+                    optionValue="value"
+                    [placeholder]="'select_action_type' | translate"
+                    [showClear]="true"
+                    [filter]="true"
+                    display="chip"
+                    styleClass="w-full">
+                </p-multiSelect>
+            </div>
+
+            <!-- Resource Type -->
+            <div class="col-12 md:col-6">
+                <label class="block mb-2">{{ 'resource_type' | translate }}</label>
+                <p-multiSelect [options]="resourceTypes" 
+                    [(ngModel)]="selectedResourceTypes"
+                    optionLabel="label" 
+                    optionValue="value"
+                    [placeholder]="'select_resource_type' | translate"
+                    [showClear]="true"
+                    [filter]="true"
+                    display="chip"
+                    styleClass="w-full">
+                </p-multiSelect>
+            </div>
+
+            <!-- Success Status -->
+            <div class="col-12 md:col-6">
+                <label class="block mb-2">{{ 'status' | translate }}</label>
+                <p-dropdown [options]="successStatusOptions" 
+                    [(ngModel)]="selectedSuccessStatus"
+                    optionLabel="label" 
+                    optionValue="value"
+                    [placeholder]="'select_status' | translate"
+                    [showClear]="true"
+                    styleClass="w-full">
+                </p-dropdown>
+            </div>
+
+            <!-- Search -->
+            <div class="col-12 md:col-6">
+                <label class="block mb-2">{{ 'search' | translate }}</label>
+                <span class="p-input-icon-left w-full">
+                    <i class="pi pi-search"></i>
+                    <input type="text" 
+                        pInputText 
+                        [(ngModel)]="searchText"
+                        [placeholder]="'search_by_resource_name' | translate"
+                        (keyup.enter)="filterBySearch()"
+                        class="w-full">
+                </span>
+            </div>
+        </div>
+
+        <!-- Filter Actions -->
+        <div class="flex justify-content-end gap-2 mt-3">
+            <button pButton pRipple 
+                [label]="'clear_filters' | translate"
+                icon="pi pi-filter-slash"
+                class="p-button-outlined p-button-secondary"
+                (click)="clearFilters()">
+            </button>
+            <button pButton pRipple 
+                [label]="'apply_filters' | translate"
+                icon="pi pi-check"
+                class="p-button-primary"
+                (click)="applyFilters()">
+            </button>
+        </div>
+    </div>
+
+            <!-- Empty State (shown only after loading completes with no results) -->
+            <div class="empty-state p-6" *ngIf="!loading && auditLogs.length === 0">
+                <div class="empty-icon">
+                    <i class="pi pi-history"></i>
+                </div>
+                <h4>{{ 'no_audit_logs' | translate }}</h4>
+                <p>{{ 'no_audit_logs_description' | translate }}</p>
+            </div>
+
+            <!-- Audit Logs Table (always in DOM so onLazyLoad can fire; PrimeNG handles loading overlay) -->
+            <div [hidden]="!loading && auditLogs.length === 0" [class.mt-3]="showFilterPanel && showFilters" [class.p-0]="!showFilterPanel || !showFilters">
+                <p-table [value]="auditLogs" 
+                    [lazy]="true"
+                    [paginator]="true"
+                    [rows]="20"
+                    [totalRecords]="totalRecords"
+                    [rowsPerPageOptions]="[10, 20, 50, 100]"
+                    (onLazyLoad)="onLazyLoad($event)"
+                    [sortField]="filters.sortBy"
+                    [sortOrder]="filters.sortDir === 'ASC' ? 1 : -1"
+                    styleClass="p-datatable-sm p-datatable-striped"
+                    responsiveLayout="scroll"
+                    [loading]="loading">
+                    
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th pSortableColumn="timestamp" style="width: 180px">
+                                {{ 'timestamp' | translate }}
+                                <p-sortIcon field="timestamp"></p-sortIcon>
+                            </th>
+                            <th pSortableColumn="actionType" style="width: 250px">
+                                {{ 'action' | translate }}
+                                <p-sortIcon field="actionType"></p-sortIcon>
+                            </th>
+                            <th style="width: 200px">{{ 'resource' | translate }}</th>
+                            <th style="width: 100px">{{ 'status' | translate }}</th>
+                            <th style="width: 120px">{{ 'ip_address' | translate }}</th>
+                            <th style="width: 100px">{{ 'actions' | translate }}</th>
+                        </tr>
+                    </ng-template>
+
+                    <ng-template pTemplate="body" let-log>
+                        <tr>
+                            <td>
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-calendar text-500"></i>
+                                    {{ formatTimestamp(log.timestamp) }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="flex flex-column gap-1">
+                                    <p-tag 
+                                        [value]="getActionTypeLabel(log.actionType)" 
+                                        severity="info"
+                                        [icon]="'pi pi-info-circle'">
+                                    </p-tag>
+                                    <span class="text-500 text-xs" *ngIf="log.actionDescription">
+                                        {{ translateDescription(log.actionDescription) }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="flex flex-column">
+                                    <span class="font-medium">{{ getResourceTypeLabel(log.resourceType) }}</span>
+                                    <span class="text-500 text-sm" *ngIf="log.resourceName">
+                                        {{ log.resourceName }}
+                                    </span>
+                                    <span class="text-500 text-sm" *ngIf="!log.resourceName && log.resourceId">
+                                        ID: {{ log.resourceId }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <p-tag 
+                                    [value]="getStatusLabel(log.success)" 
+                                    [severity]="getStatusSeverity(log.success)"
+                                    [icon]="getStatusIcon(log.success)">
+                                </p-tag>
+                            </td>
+                            <td>
+                                <span class="font-mono text-sm">{{ log.clientIp || 'N/A' }}</span>
+                            </td>
+                            <td>
+                                <button pButton pRipple 
+                                    icon="pi pi-eye"
+                                    class="p-button-text p-button-sm"
+                                    [pTooltip]="'view_details' | translate"
+                                    (click)="viewDetails(log)">
+                                </button>
+                            </td>
+                        </tr>
+                    </ng-template>
+
+                    <ng-template pTemplate="emptymessage">
+                        <tr>
+                            <td colspan="6" class="text-center p-4">
+                                {{ 'no_audit_logs' | translate }}
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Dialog -->
+<p-dialog [(visible)]="showDetailDialog" 
+    [header]="'audit_log_details' | translate"
+    [modal]="true"
+    [closable]="true"
+    [style]="{width: '550px'}"
+    [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
+    styleClass="audit-log-detail-dialog">
+
+    <div *ngIf="selectedLog" class="audit-detail-content">
+
+        <!-- Header -->
+        <div class="audit-detail-header mb-4 flex align-items-center gap-3">
+            <div class="audit-icon-large" [ngClass]="{'bg-green-100 text-green-600': selectedLog.success, 'bg-red-100 text-red-600': !selectedLog.success}">
+                <i [class]="selectedLog.success ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="m-0 text-900">{{ getActionTypeLabel(selectedLog.actionType) }}</h3>
+                <p class="text-600 m-0 mt-1">{{ formatTimestamp(selectedLog.timestamp) }}</p>
+            </div>
+        </div>
+
+        <!-- Badges -->
+        <div class="flex flex-wrap gap-2 mb-4">
+            <p-tag [value]="getStatusLabel(selectedLog.success)" 
+                [severity]="getStatusSeverity(selectedLog.success)"
+                [icon]="getStatusIcon(selectedLog.success)"></p-tag>
+            <p-tag [value]="getResourceTypeLabel(selectedLog.resourceType)" 
+                severity="info" icon="pi pi-database"></p-tag>
+            <p-tag *ngIf="selectedLog.httpMethod"
+                [value]="selectedLog.httpMethod" 
+                severity="warning"></p-tag>
+        </div>
+
+        <!-- Description Section -->
+        <div *ngIf="selectedLog.actionDescription" class="audit-message-section mb-4 p-3 border-round-lg surface-100">
+            <h4 class="text-600 text-sm mb-2">{{ 'description' | translate }}</h4>
+            <p class="text-900 line-height-3 m-0">{{ translateDescription(selectedLog.actionDescription) }}</p>
+        </div>
+
+        <!-- User & Action Details Grid -->
+        <div class="grid m-0 mb-3 p-3 border-round-lg surface-50">
+            <div class="col-6 audit-grid-item">
+                <span class="text-600 text-sm">{{ 'username' | translate }}</span>
+                <p class="font-semibold text-900 m-0 mt-1">{{ selectedLog.username || 'N/A' }}</p>
+            </div>
+            <div class="col-6 audit-grid-item">
+                <span class="text-600 text-sm">{{ 'email' | translate }}</span>
+                <p class="font-semibold text-900 m-0 mt-1">{{ selectedLog.userEmail || 'N/A' }}</p>
+            </div>
+            <div class="col-6 audit-grid-item">
+                <span class="text-600 text-sm">{{ 'role' | translate }}</span>
+                <p class="font-semibold text-900 m-0 mt-1">{{ selectedLog.userRole || 'N/A' }}</p>
+            </div>
+            <div class="col-6 audit-grid-item">
+                <span class="text-600 text-sm">{{ 'ip_address' | translate }}</span>
+                <p class="font-semibold text-900 m-0 mt-1 font-mono">{{ selectedLog.clientIp || 'N/A' }}</p>
+            </div>
+        </div>
+
+        <!-- Resource Section -->
+        <div *ngIf="selectedLog.resourceId || selectedLog.resourceName" class="audit-resource-section mb-4 p-3 border-round-lg surface-50">
+            <h4 class="text-600 text-sm mb-2">{{ 'resource_information' | translate }}</h4>
+            <div class="grid m-0">
+                <div class="col-6" *ngIf="selectedLog.resourceId">
+                    <strong class="text-sm">{{ 'resource_id' | translate }}:</strong>
+                    <span class="ml-1 font-mono text-sm">{{ selectedLog.resourceId }}</span>
+                </div>
+                <div class="col-6" *ngIf="selectedLog.resourceName">
+                    <strong class="text-sm">{{ 'resource_name' | translate }}:</strong>
+                    <span class="ml-1 text-sm">{{ selectedLog.resourceName }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Request Path -->
+        <div *ngIf="selectedLog.requestPath" class="audit-request-section mb-4 p-3 border-round-lg surface-100">
+            <h4 class="text-600 text-sm mb-2">{{ 'request_path' | translate }}</h4>
+            <p class="text-900 m-0 font-mono text-sm" style="word-break: break-all;">{{ selectedLog.requestPath }}</p>
+        </div>
+
+        <!-- Response / Error Section -->
+        <div *ngIf="selectedLog.responseSummary || selectedLog.errorMessage" 
+            class="mb-4 p-3 border-round-lg" 
+            [ngClass]="{'bg-green-50': selectedLog.success && !selectedLog.errorMessage, 'bg-red-50': selectedLog.errorMessage}">
+            <h4 class="text-600 text-sm mb-2">{{ (selectedLog.errorMessage ? 'error_message' : 'response_summary') | translate }}</h4>
+            <p class="m-0 text-sm" [ngClass]="{'text-green-700': selectedLog.success && !selectedLog.errorMessage, 'text-red-700': selectedLog.errorMessage}">
+                {{ selectedLog.errorMessage || translateResponseSummary(selectedLog.responseSummary) }}
+            </p>
+        </div>
+
+        <!-- Context Section -->
+        <div *ngIf="selectedLog.shopId || selectedLog.warehouseId" class="audit-context-section mb-3 p-3 border-round-lg surface-50">
+            <h4 class="text-600 text-sm mb-2">{{ 'context_information' | translate }}</h4>
+            <div class="grid m-0">
+                <div class="col-6" *ngIf="selectedLog.shopId">
+                    <strong class="text-sm">{{ 'shop_id' | translate }}:</strong>
+                    <span class="ml-1 text-sm">{{ selectedLog.shopId }}</span>
+                </div>
+                <div class="col-6" *ngIf="selectedLog.warehouseId">
+                    <strong class="text-sm">{{ 'warehouse_id' | translate }}:</strong>
+                    <span class="ml-1 text-sm">{{ selectedLog.warehouseId }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Agent -->
+        <div *ngIf="selectedLog.userAgent" class="mb-3 p-3 border-round-lg surface-50">
+            <h4 class="text-600 text-sm mb-2">{{ 'user_agent' | translate }}</h4>
+            <p class="text-700 m-0 text-xs" style="word-break: break-all;">{{ selectedLog.userAgent }}</p>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="flex gap-2 mt-4 justify-content-end border-top-1 surface-border pt-3">
+            <button pButton pRipple 
+                icon="pi pi-copy" 
+                [label]="'copy_details' | translate"
+                class="p-button-outlined p-button-sm"
+                (click)="copyDetails(selectedLog)">
+            </button>
+            <button pButton pRipple 
+                icon="pi pi-external-link" 
+                [label]="'view_resource' | translate"
+                class="p-button-outlined p-button-sm"
+                (click)="navigateToResource(selectedLog)"
+                *ngIf="selectedLog.resourceId">
+            </button>
+        </div>
+    </div>
+</p-dialog>

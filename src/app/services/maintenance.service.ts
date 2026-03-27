@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
 import { MaintenanceStatus } from '../models/maintenance';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -37,12 +38,12 @@ export class MaintenanceService {
   }
 
   async enableMaintenance(payload: { message?: string | null }): Promise<Observable<MaintenanceStatus>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Enabled maintenance mode');
     return this.http.post<MaintenanceStatus>(`${this.getBaseUrl()}/enable`, payload, { headers });
   }
 
   async disableMaintenance(): Promise<Observable<MaintenanceStatus>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Disabled maintenance mode');
     return this.http.post<MaintenanceStatus>(`${this.getBaseUrl()}/disable`, {}, { headers });
   }
 }

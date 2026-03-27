@@ -5,6 +5,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { Bank } from '../models/bank';
 import { BankAccount } from '../models/bank-account';
 import { BankTransaction, AccountSummary, TransactionFilter, PageResponse } from '../models/bank-transaction';
+import { withAudit } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -40,7 +41,7 @@ export class BankAccountService {
   // ==================== Banks Management ====================
 
   async createBank(bank: Bank): Promise<Observable<Bank>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Created new bank');
     return this.http.post<Bank>(`${this.getBaseUrl()}banks`, bank, { headers });
   }
 
@@ -59,19 +60,19 @@ export class BankAccountService {
   }
 
   async updateBank(id: number, bank: Bank): Promise<Observable<Bank>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated bank');
     return this.http.put<Bank>(`${this.getBaseUrl()}banks/${id}`, bank, { headers });
   }
 
   async deleteBank(id: number): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Deleted bank');
     return this.http.delete<void>(`${this.getBaseUrl()}banks/${id}`, { headers });
   }
 
   // ==================== Bank Accounts Management ====================
 
   async createBankAccount(account: BankAccount): Promise<Observable<BankAccount>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Created bank account');
     return this.http.post(this.getBaseUrl(), account, { 
       headers, 
       responseType: 'text',
@@ -170,17 +171,17 @@ export class BankAccountService {
   }
 
   async recalculateBalance(id: number): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Recalculated account balance');
     return this.http.post<void>(`${this.getBaseUrl()}${id}/recalculate-balance`, {}, { headers });
   }
 
   async updateBankAccount(id: number, account: BankAccount): Promise<Observable<BankAccount>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Updated bank account');
     return this.http.put<BankAccount>(`${this.getBaseUrl()}${id}`, account, { headers });
   }
 
   async deleteBankAccount(id: number): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Deleted bank account');
     return this.http.delete<void>(`${this.getBaseUrl()}${id}`, { headers });
   }
 
@@ -205,7 +206,7 @@ export class BankAccountService {
   // ==================== Transactions Management ====================
 
   async recordTransaction(accountId: number, transaction: BankTransaction): Promise<Observable<BankTransaction>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Recorded bank transaction');
     return this.http.post<BankTransaction>(`${this.getBaseUrl()}${accountId}/transactions`, transaction, { headers });
   }
 
@@ -231,17 +232,17 @@ export class BankAccountService {
   }
 
   async reconcileTransaction(transactionId: number): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Reconciled bank transaction');
     return this.http.post<void>(`${this.getBaseUrl()}transactions/${transactionId}/reconcile`, {}, { headers });
   }
 
   async reconcileBatch(transactionIds: number[]): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Reconciled batch of transactions');
     return this.http.post<void>(`${this.getBaseUrl()}transactions/reconcile-batch`, transactionIds, { headers });
   }
 
   async reverseTransaction(transactionId: number, reason?: string): Promise<Observable<void>> {
-    const headers = await this.getHeaders();
+    const headers = withAudit(await this.getHeaders(), 'Reversed bank transaction');
     const body = reason ? { reason } : {};
     return this.http.post<void>(`${this.getBaseUrl()}transactions/${transactionId}/reverse`, body, { headers });
   }

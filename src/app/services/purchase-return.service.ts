@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
+import { withAudit, auditSaveAction } from '../utils/audit-action';
 
 @Injectable({
   providedIn: 'root'
@@ -22,19 +23,19 @@ export class PurchaseReturnService {
 
   saveReturn(data: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('purchase return', data, 'returnId', 'reference'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers });
   }
 
   updateReturn(id: any, purchaseReturn: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated purchase return');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, purchaseReturn, { headers: headers });
   }
 
   deleteReturn(id: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted purchase return');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
   }
 
@@ -196,7 +197,7 @@ export class PurchaseReturnService {
 
   cancelReturn(id: any) {
     this.loadToken();
-    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Cancelled purchase return');
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/cancel', {}, { headers: headers });
   }
 
