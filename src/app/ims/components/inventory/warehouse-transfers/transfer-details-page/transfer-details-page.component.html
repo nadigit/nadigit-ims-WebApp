@@ -1,6 +1,14 @@
 <div class="transfer-details-container">
     <p-toast></p-toast>
 
+    <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="mb-3 w-full"
+        [closable]="false" [text]="'warehouse_transfer_manual_workflow_hint' | translate"></p-message>
+
+    <div *ngIf="transferAutoApply && !isLoading" class="mx-3 mt-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
+        <i class="pi pi-info-circle mt-1"></i>
+        <span>{{ 'warehouse_transfer_auto_apply_hint' | translate }}</span>
+    </div>
+
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">

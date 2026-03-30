@@ -37,6 +37,9 @@ export class TransferDetailsPageComponent implements OnInit {
 
   currency: any;
 
+  transferAutoApply: boolean = false;
+  transferWorkflowConfigLoaded: boolean = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -77,8 +80,21 @@ export class TransferDetailsPageComponent implements OnInit {
       }
       await this.checkPermissions();
       await this.setUserRoles();
+      await this.loadTransferWorkflowConfig();
       await this.loadTransfer();
     });
+  }
+
+  private async loadTransferWorkflowConfig(): Promise<void> {
+    try {
+      const cfg = await firstValueFrom(await this.transferService.getTransferConfig());
+      this.transferAutoApply = !!cfg?.autoApply;
+    } catch (e) {
+      console.warn('Could not load warehouse transfer config', e);
+      this.transferAutoApply = false;
+    } finally {
+      this.transferWorkflowConfigLoaded = true;
+    }
   }
 
   async loadTransfer(): Promise<void> {

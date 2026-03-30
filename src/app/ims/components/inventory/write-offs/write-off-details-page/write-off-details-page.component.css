@@ -170,6 +170,14 @@
     background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
+.stat-icon.cost {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.stat-icon.condition {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
 .stat-icon.destination {
     background: linear-gradient(135deg, #22c55e, #16a34a);
 }

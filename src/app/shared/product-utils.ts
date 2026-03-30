@@ -112,8 +112,8 @@ export async function getLowStockThreshold(configService: AppConfigurationServic
   }
 
 /**
- * Get available quantity for a product (net quantity excluding write-offs)
- * Use netAvailableQuantity if available, otherwise fallback to quantityAvailable
+ * Sellable quantity for orders/POS: prefers `netAvailableQuantity` from the API when present
+ * (aligned with admin setting `sales.stock.include.approved.writeoff.quantity`).
  */
 export function getAvailableQuantity(product: Product): number {
   if (product.netAvailableQuantity !== undefined && product.netAvailableQuantity !== null) {

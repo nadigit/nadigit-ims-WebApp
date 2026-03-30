@@ -26,6 +26,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { TabViewModule } from 'primeng/tabview';
 import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
+import { MessageModule } from 'primeng/message';
 import { ReportingService } from 'src/app/utils/reporting.service';
 
 @NgModule({
@@ -54,7 +55,8 @@ import { ReportingService } from 'src/app/utils/reporting.service';
         SharedModule,
         TabViewModule,
         BadgeModule,
-        DividerModule
+        DividerModule,
+        MessageModule
     ],
     declarations: [WarehouseTransfersComponent, TransferDetailsPageComponent],
     providers: [ReportingService],

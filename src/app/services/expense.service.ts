@@ -204,6 +204,14 @@ export class ExpenseService {
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${expenseId}/attachments/${attachmentId}`;
     return this.http.delete(url, { headers });
   }
+
+  /** Authenticated binary download for previews (img src / blob URLs). Plain GET /api/files/... returns 401 without Bearer. */
+  getExpenseAttachmentBlob(expenseId: number, attachmentId: number): Observable<Blob> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${expenseId}/attachments/${attachmentId}/content`;
+    return this.http.get(url, { headers, responseType: 'blob' });
+  }
   getMonthlyOrders() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'monthly',{headers:headers});
@@ -214,7 +222,7 @@ export class ExpenseService {
 export function buildExpenseWritePayload(expense: Partial<Expense>): Record<string, unknown> {
   const raw = { ...(expense as Record<string, unknown>) };
   const omit = [
-    'attachments', 'status', 'approvedBy', 'approvedDate', 'approvalDate',
+    'attachments', 'reference', 'receipt', 'status', 'approvedBy', 'approvedDate', 'approvalDate',
     'rejectedBy', 'rejectedDate', 'rejectionReason', 'createdBy', 'submissionDate',
     'reimbursementDate', 'reimbursedBy', 'approvalNotes', 'lastUpdated'
   ];

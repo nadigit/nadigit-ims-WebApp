@@ -31,6 +31,7 @@ import { CashRegisterSessionModule } from 'src/app/ims/components/cash-register/
 import { AvatarModule } from 'primeng/avatar';
 import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
+import { PaginatorModule } from 'primeng/paginator';
 
 
 @NgModule({
@@ -62,7 +63,8 @@ import { DividerModule } from 'primeng/divider';
         CashRegisterSessionModule,
         AvatarModule,
         BadgeModule,
-        DividerModule
+        DividerModule,
+        PaginatorModule
     ],
     declarations: [ShopsComponent, ShopDetailsComponent, ShopFormDialogComponent],
     providers: [ReportingService],

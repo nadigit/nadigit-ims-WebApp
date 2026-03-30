@@ -72,6 +72,16 @@ export class PosService {
     return this.http.post<void>(`${this.getBaseUrl()}sessions/${sessionId}/end`, {}, { headers });
   }
 
+  /** ADMIN only — paginated POS session history for back-office / shop details. */
+  async getSessionHistory(shopId: number, page: number = 0, size: number = 20): Promise<Observable<PageResponse<POSSessionDTO>>> {
+    const headers = await this.getHeaders();
+    const params = new HttpParams()
+      .set('shopId', shopId.toString())
+      .set('page', page.toString())
+      .set('size', size.toString());
+    return this.http.get<PageResponse<POSSessionDTO>>(`${this.getBaseUrl()}sessions/history`, { headers, params });
+  }
+
   // =============== Product Search ===============
 
   async searchProducts(query: string | null, shopId?: number, page: number = 0, size: number = 20): Promise<Observable<PageResponse<POSProductDTO>>> {
@@ -193,26 +203,37 @@ export class PosService {
   }
 
   /**
-   * Parse stock error message to extract net available quantity and write-off info
-   * Format: "Net available quantity (excluding X write-offs): Y, Requested: Z"
+   * Parse stock error message for friendlier display (backend may use net vs gross wording).
    */
   private parseStockError(errorMessage: string): string {
     if (!errorMessage) return '';
-    
-    // Extract net available quantity and write-off info from error message
+
+    const sellableMatch = errorMessage.match(
+      /Sellable quantity \(excluding (\d+) units on approved write-offs\): (\d+)/i
+    );
+    if (sellableMatch) {
+      const writeOffs = sellableMatch[1];
+      const sellable = sellableMatch[2];
+      return `Insufficient stock. Only ${sellable} units available (${writeOffs} units on approved write-offs).`;
+    }
+
     const netQtyMatch = errorMessage.match(/Net available quantity \(excluding (\d+) write-offs\): (\d+)/);
     if (netQtyMatch) {
       const writeOffs = netQtyMatch[1];
       const netAvailable = netQtyMatch[2];
       return `Insufficient stock. Only ${netAvailable} units available (${writeOffs} units written off).`;
     }
-    
-    // Fallback: try to extract any quantity information
+
+    const availableSimple = errorMessage.match(/Insufficient stock\. Available:\s*(\d+)/i);
+    if (availableSimple) {
+      return `Insufficient stock. Only ${availableSimple[1]} units available.`;
+    }
+
     const simpleMatch = errorMessage.match(/Net available quantity[:\s]+(\d+)/);
     if (simpleMatch) {
       return `Insufficient stock. Only ${simpleMatch[1]} units available.`;
     }
-    
+
     return errorMessage;
   }
 

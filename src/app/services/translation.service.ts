@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject } from 'rxjs';
 import moment from 'moment';
 import 'moment/locale/fr';
@@ -20,7 +21,7 @@ export class TranslationService {
   private currentLang = new BehaviorSubject<string>(this.getPreferredLanguage()); // Initial language based on preference
 
   // Initialize RTL on service creation
-  constructor() {
+  constructor(private readonly translate: TranslateService) {
     // Apply RTL on initial load
     const initialLang = this.getPreferredLanguage();
     const isRTL = initialLang === 'ar';
@@ -80,18 +81,12 @@ export class TranslationService {
     localStorage.setItem('preferredLanguage', this.currentLang.getValue());
   }
 
-  // Instant translation method
+  /**
+   * Synchronous lookup for the current ngx-translate language.
+   * The previous implementation called an async loader without awaiting it, so it always returned the key.
+   */
   public instant(key: string): string {
-    // You might need to modify this based on your actual translation storage logic
-    const translations = this.getTranslations();
-    return translations[key] || key; // Return the translation or the key itself if not found
-  }
-
-  private async getTranslations() {
-    const lang = this.currentLang.getValue();
-    // Use dynamic import to load the JSON file based on the language
-    const translations = await import(`../../assets/i18n/${lang}.json`);
-    return translations;
+    return this.translate.instant(key);
   }
 
   public relativeTime(date: string | Date): string {

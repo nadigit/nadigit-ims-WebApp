@@ -57,6 +57,8 @@ export class ProductsTableComponent {
   @Input() getAvailableQuantity: (product: Product) => number = (product) => getAvailableQuantity(product);
   @Input() hasWriteOffs: (product: Product) => boolean = (product) => hasWriteOffs(product);
   @Input() getWriteOffQuantity: (product: Product) => number = (product) => getWriteOffQuantity(product);
+  /** When true, sales exclude approved write-offs; main stock column is sellable (net) quantity. */
+  @Input() strictSellableStockExcludesWriteoffs = false;
   @Input() expandedProducts: { [key: number]: boolean } = {};
   @Input() isProductRowExpanded: (productId: number) => boolean = () => false;
   @Input() toggleProductRow: (productId: number) => void = () => {};

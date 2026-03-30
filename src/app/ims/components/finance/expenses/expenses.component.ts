@@ -22,6 +22,10 @@ import { PaymentValidationService } from 'src/app/services/payment-validation.se
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { DatePipe } from '@angular/common';
+import {
+  canDeleteExpenseByWorkflowStatus as expenseWorkflowAllowsDelete,
+  canEditExpenseByWorkflowStatus as expenseWorkflowAllowsEdit
+} from 'src/app/shared/expense-workflow-utils';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -121,6 +125,9 @@ export class ExpensesComponent implements OnInit {
   isCheckingReconciliation: boolean = false;
   expenseReconciliationCache: Map<number, ReconciliationStatus> = new Map(); // Cache reconciliation status per expense
 
+  /** Set in constructor from `router.navigate(..., { state: { openEditExpensePayload } })` (e.g. expense details). */
+  private pendingOpenEditExpense: Expense | null = null;
+
   constructor(private messageService: MessageService,
     private expenseService: ExpenseService,
     private configService: AppConfigurationService,
@@ -136,7 +143,13 @@ export class ExpensesComponent implements OnInit {
     private reconciliationValidationService: ReconciliationValidationService,
     private organizationService: OrganizationService,
     private datePipe: DatePipe,
-    private cdr: ChangeDetectorRef) { }
+    private cdr: ChangeDetectorRef) {
+    const nav = this.router.getCurrentNavigation();
+    const st = nav?.extras?.state as { openEditExpensePayload?: Expense } | undefined;
+    if (st?.openEditExpensePayload) {
+      this.pendingOpenEditExpense = st.openEditExpensePayload;
+    }
+  }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -168,7 +181,7 @@ export class ExpensesComponent implements OnInit {
 
     this.initializePaymentMethods();
     this.cols = [
-      { field: 'id', header: this.translateService.instant('ID') },
+      { field: 'reference', header: this.translateService.instant('expense_reference') },
       { field: 'purpose', header: this.translateService.instant('expense_purpose') },
       { field: 'dateOfExpense', header: this.translateService.instant('expense_date') },
       { field: 'amount', header: this.translateService.instant('expense_amount') },
@@ -177,6 +190,14 @@ export class ExpensesComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+
+    if (this.pendingOpenEditExpense) {
+      const toEdit = this.pendingOpenEditExpense;
+      this.pendingOpenEditExpense = null;
+      if (this.canEditExpense && expenseWorkflowAllowsEdit(toEdit)) {
+        await this.editExpense(toEdit);
+      }
+    }
     
     // Initial load: apply default status filter for approvers when approval workflow is on
     if (this.selectedExpenseStatus) {
@@ -330,32 +351,13 @@ export class ExpensesComponent implements OnInit {
     return t !== key ? t : status;
   }
 
-  getExpenseWorkflowSeverity(status: string | undefined): 'success' | 'secondary' | 'info' | 'warn' | 'danger' | 'contrast' | undefined {
-    const s = String(status || '').toUpperCase();
-    if (s === 'PENDING') {
-      return 'warn';
+  /** CSS classes aligned with global badges (orders / returns). */
+  getExpenseStatusBadgeClass(status: string | undefined): string {
+    if (!status) {
+      return 'expense-badge';
     }
-    if (s === 'APPROVED') {
-      return 'success';
-    }
-    if (s === 'REJECTED') {
-      return 'danger';
-    }
-    return 'secondary';
-  }
-
-  getExpenseWorkflowIcon(status: string | undefined): string {
-    const s = String(status || '').toUpperCase();
-    if (s === 'PENDING') {
-      return 'pi pi-clock';
-    }
-    if (s === 'APPROVED') {
-      return 'pi pi-check-circle';
-    }
-    if (s === 'REJECTED') {
-      return 'pi pi-times-circle';
-    }
-    return 'pi pi-info-circle';
+    const suffix = String(status).toLowerCase().replace(/\s+/g, '_');
+    return `expense-badge expense-${suffix}`;
   }
 
   async checkPermissions() {
@@ -375,10 +377,12 @@ export class ExpensesComponent implements OnInit {
   }
 
   async editExpense(expense: Expense) {
-    if (!this.canEditExpense) return;
-    
+    if (!this.canEditExpense || !expenseWorkflowAllowsEdit(expense)) {
+      return;
+    }
+
     // Check reconciliation status if required
-    if (expense.id && this.reconciliationValidationService.requiresReconciliation(expense.paymentMethod)) {
+    if (expense.id && this.requiresReconciliation(expense.paymentMethod)) {
       try {
         this.isCheckingReconciliation = true;
         const status = await this.reconciliationValidationService.checkExpenseReconciliationStatus(expense.id);
@@ -451,11 +455,17 @@ export class ExpensesComponent implements OnInit {
     await this.updateBankAccountFieldVisibility();
   }
 
+  onBankAccountSelectionChange(): void {
+    this.expense.bankAccountId = this.selectedBankAccount?.accountId ?? undefined;
+  }
+
   async deleteExpense(expense: Expense) {
-    if (!this.canDeleteExpense) return;
-    
+    if (!this.canDeleteExpense || !expenseWorkflowAllowsDelete(expense)) {
+      return;
+    }
+
     // Check reconciliation status if required
-    if (expense.id && this.reconciliationValidationService.requiresReconciliation(expense.paymentMethod)) {
+    if (expense.id && this.requiresReconciliation(expense.paymentMethod)) {
       try {
         this.isCheckingReconciliation = true;
         const status = await this.reconciliationValidationService.checkExpenseReconciliationStatus(expense.id);
@@ -519,15 +529,17 @@ export class ExpensesComponent implements OnInit {
     this.expenseDialog = true;
   }
 
-  isExpenseFinalized(expense: any): boolean {
-    const today = new Date();
-    const dateOfExpense = new Date(expense.dateOfExpense);
-    return dateOfExpense.toDateString() === today.toDateString();
+  canEditExpenseByWorkflowStatus(expense: Expense | null | undefined): boolean {
+    return expenseWorkflowAllowsEdit(expense);
+  }
+
+  canDeleteExpenseByWorkflowStatus(expense: Expense | null | undefined): boolean {
+    return expenseWorkflowAllowsDelete(expense);
   }
 
   // ⚠️ NEW: Helper methods for template
   requiresReconciliation(paymentMethod: string | null | undefined): boolean {
-    return this.reconciliationValidationService.requiresReconciliation(paymentMethod);
+    return this.reconciliationValidationService.requiresExpenseBankImpactCheck(paymentMethod);
   }
 
   canEditExpenseBasedOnReconciliation(expense: Expense): boolean {
@@ -879,7 +891,7 @@ export class ExpensesComponent implements OnInit {
     const expenseToDelete = this.expenses.find(e => e.id === id);
     
     // Check reconciliation status before deleting (refresh to ensure it's current)
-    if (expenseToDelete && this.reconciliationValidationService.requiresReconciliation(expenseToDelete.paymentMethod)) {
+    if (expenseToDelete && this.requiresReconciliation(expenseToDelete.paymentMethod)) {
       try {
         const status = await this.reconciliationValidationService.checkExpenseReconciliationStatus(id);
         if (!status.canProceed) {
@@ -970,7 +982,7 @@ export class ExpensesComponent implements OnInit {
   async updateExpense(id: any, expense: any): Promise<Expense | null> {
     return new Promise((resolve) => {
       // Check reconciliation status before updating (refresh to ensure it's current)
-      if (this.reconciliationValidationService.requiresReconciliation(expense.paymentMethod)) {
+      if (this.requiresReconciliation(expense.paymentMethod)) {
         this.reconciliationValidationService.checkExpenseReconciliationStatus(id)
           .then(status => {
             if (!status.canProceed) {
@@ -1101,7 +1113,7 @@ export class ExpensesComponent implements OnInit {
         amount: expense.amount || 0,
         transactionDate: formatDateToString(expense.dateOfExpense),
         description: `Expense: ${expense.purpose || 'N/A'}`,
-        reference: `EXP-${expense.id}`,
+        reference: expense.reference || `EXP-${expense.id}`,
         checkNumber: expense.checkNumber,
         expense: { id: expense.id },
         reconciled: false
@@ -1193,6 +1205,7 @@ export class ExpensesComponent implements OnInit {
       this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
 
       const exportColumns: ExportColumn[] = [
+        { title: this.translate.instant('expense_reference'), dataKey: 'reference' },
         { title: this.translate.instant('expense_purpose'), dataKey: 'purpose' },
         { title: this.translate.instant('expense_date'), dataKey: 'dateOfExpense' },
         { title: this.translate.instant('expense_amount'), dataKey: 'amount' },
@@ -1204,6 +1217,7 @@ export class ExpensesComponent implements OnInit {
 
       const exportData = allFilteredExpenses.map(expense => {
         const exportItem: any = {
+          reference: expense.reference || (expense.id != null ? `#${expense.id}` : 'N/A'),
           purpose: expense.purpose || 'N/A',
           dateOfExpense: expense.dateOfExpense ? this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') : 'N/A',
           amount: expense.amount || 0,
@@ -1306,6 +1320,7 @@ export class ExpensesComponent implements OnInit {
 
       const translatedExpenses = allFilteredExpenses.map(expense => {
         const translated: any = {
+          [this.translate.instant('expense_reference')]: expense.reference || (expense.id != null ? `#${expense.id}` : 'N/A'),
           [this.translate.instant('expense_purpose')]: expense.purpose || 'N/A',
           [this.translate.instant('expense_date')]: expense.dateOfExpense ? this.datePipe.transform(expense.dateOfExpense, 'dd/MM/yyyy') : 'N/A',
           [this.translate.instant('expense_amount')]: expense.amount || 0,
@@ -1342,6 +1357,17 @@ export class ExpensesComponent implements OnInit {
   showExpenseDetails(expense: any) {
     if (!expense || !expense.id) return;
     this.router.navigate(['/finance/expenses', expense.id]);
+  }
+
+  /** Shown in grids when API returns reference (older rows may only have id). */
+  displayExpenseReference(expense: Expense | null | undefined): string {
+    if (!expense) {
+      return '—';
+    }
+    if (expense.reference && String(expense.reference).trim()) {
+      return String(expense.reference).trim();
+    }
+    return expense.id != null ? `#${expense.id}` : '—';
   }
 
   expenseStatusFilterOptions: { label: string; value: ExpenseStatus | null }[] = [];

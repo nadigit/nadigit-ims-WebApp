@@ -11,6 +11,11 @@
 
     <!-- Main Content -->
     <div class="product-content" *ngIf="!isLoading && product">
+
+        <div *ngIf="isProduct(product) && !salesStockIncludesApprovedWriteoffQty" class="mb-3 p-3 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
+            <i class="pi pi-info-circle mt-1 flex-shrink-0"></i>
+            <span>{{ 'products_inventory_writeoff_stock_hint' | translate }}</span>
+        </div>
         
         <!-- Hero Header Section -->
         <div class="product-hero">
@@ -96,7 +101,7 @@
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
-                    <span class="stat-label">{{ 'product_quantity' | translate }}</span>
+                    <span class="stat-label">{{ (salesStockIncludesApprovedWriteoffQty ? 'product_quantity' : 'product_quantity_sellable_label') | translate }}</span>
                     <div class="stat-value">
                         <div class="flex align-items-center gap-2">
                             <span [ngClass]="{'text-danger': getAvailableQuantity(product) <= 0, 'text-warning': getAvailableQuantity(product) > 0 && getAvailableQuantity(product) <= 10, 'has-writeoff': hasWriteOffs(product)}">
@@ -112,7 +117,7 @@
                         <span class="stat-unit">{{ getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate }}</span>
                     </div>
                     <div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
-                        <small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+                        <small>{{ 'products_on_hand_writeoff_detail' | translate: { onHand: (product.quantityAvailable || 0), writeOff: getWriteOffQuantity(product) } }}</small>
                     </div>
                     <div class="mt-2" *ngIf="canEdit">
                         <button pButton pRipple 
@@ -182,6 +187,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-600 text-sm mb-3">{{ 'warehouse_breakdown_description' | translate }}</p>
+                    <p *ngIf="!salesStockIncludesApprovedWriteoffQty" class="text-600 text-xs mb-3">{{ 'warehouse_breakdown_writeoff_columns_hint' | translate }}</p>
                     <p-table [value]="getAggregatedWarehouseStocks()" 
                         dataKey="warehouseId" 
                         responsiveLayout="scroll"
@@ -189,8 +195,20 @@
                         <ng-template pTemplate="header">
                             <tr>
                                 <th>{{ 'warehouse_name' | translate }}</th>
-                                <th>{{ 'quantity_available' | translate }}</th>
-                                <th>{{ 'net_available_quantity' | translate }}</th>
+                                <th>
+                                    <span class="inline-flex align-items-center gap-1">
+                                        {{ 'quantity_available' | translate }}
+                                        <i *ngIf="!salesStockIncludesApprovedWriteoffQty" class="pi pi-info-circle text-500 cursor-pointer text-xs"
+                                            [pTooltip]="'warehouse_column_on_hand_tooltip' | translate" tooltipPosition="top"></i>
+                                    </span>
+                                </th>
+                                <th>
+                                    <span class="inline-flex align-items-center gap-1">
+                                        {{ 'net_available_quantity' | translate }}
+                                        <i *ngIf="!salesStockIncludesApprovedWriteoffQty" class="pi pi-info-circle text-500 cursor-pointer text-xs"
+                                            [pTooltip]="'warehouse_column_net_sellable_tooltip' | translate" tooltipPosition="top"></i>
+                                    </span>
+                                </th>
                                 <th>{{ 'inventory_status' | translate }}</th>
                                 <th *ngIf="product?.expirationDate">{{ 'expiration_date' | translate }}</th>
                                 <th style="width: 4rem"></th>
@@ -318,13 +336,13 @@
                                 </div>
                                     </div>
                                     
-                                    <div class="info-item" *ngIf="isProduct(product)">
+                                    <div class="info-item" *ngIf="isProduct(product) && !isAggregatedView">
                                         <div class="info-icon">
                                             <i class="pi pi-building"></i>
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'product_warehouse' | translate }}</span>
-                                            <span class="info-value">{{ product.warehouse?.name || 'N/A' }}</span>
+                                            <span class="info-value">{{ product.warehouse?.name || ('not_available' | translate) }}</span>
                                 </div>
                                     </div>
                                     
@@ -336,6 +354,7 @@
                                         <div class="info-content">
                                             <span class="info-label">{{ 'product_costing_method' | translate }}</span>
                                             <span class="info-value">{{ getEffectiveCostingMethodLabel(product) }}</span>
+                                            <small *ngIf="isAggregatedView && aggregatedCostingMethodVaries" class="text-500 block mt-1">{{ 'aggregated_costing_method_varies_hint' | translate }}</small>
                                 </div>
                                     </div>
                                     
@@ -376,7 +395,7 @@
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'creation_date' | translate }}</span>
-                                            <span class="info-value">{{ product.creationDate | date:'mediumDate' }}</span>
+                                            <span class="info-value">{{ product.creationDate ? (product.creationDate | date:'mediumDate') : ('not_available' | translate) }}</span>
                                 </div>
                                     </div>
                                     
@@ -783,6 +802,7 @@
                                             <th pSortableColumn="batchNumber">
                                                 {{ 'batch_number' | translate }} <p-sortIcon field="batchNumber"></p-sortIcon>
                                             </th>
+                                            <th *ngIf="isAggregatedView">{{ 'warehouse_name' | translate }}</th>
                                             <th pSortableColumn="quantityAvailable">
                                                 {{ 'batch_quantity' | translate }} <p-sortIcon field="quantityAvailable"></p-sortIcon>
                                             </th>
@@ -898,7 +918,7 @@
 
                                     <ng-template pTemplate="emptymessage">
                                         <tr>
-                                            <td [attr.colspan]="isAdmin ? 8 : 7" class="text-center p-4">
+                                            <td [attr.colspan]="(isAdmin ? 8 : 7) + (isAggregatedView ? 1 : 0)" class="text-center p-4">
                                                 {{ 'no_batches' | translate }}
                                             </td>
                                         </tr>

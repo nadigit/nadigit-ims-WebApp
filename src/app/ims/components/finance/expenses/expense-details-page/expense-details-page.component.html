@@ -25,7 +25,7 @@
                         (click)="goBack()"></button>
                     <span class="text-500 text-sm">{{ 'expenses' | translate }}</span>
                     <i class="pi pi-angle-right text-400 text-sm"></i>
-                    <span class="text-700 text-sm font-medium">#{{ expense.id }}</span>
+                    <span class="text-700 text-sm font-medium font-mono">{{ getExpenseDisplayReference() }}</span>
                 </div>
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
@@ -36,10 +36,13 @@
                         <div>
                             <div class="flex align-items-center gap-3 mb-2 flex-wrap">
                                 <h1 class="m-0 text-900 expense-title">{{ expense?.purpose || ('expense_details' | translate) }}</h1>
-                                <p-tag [value]="('expense_status_' + (expense?.status || '')?.toLowerCase()) | translate"
-                                    [severity]="getExpenseStatusSeverityTag(expense?.status)"
-                                    [icon]="getExpenseStatusIcon(expense?.status)"
-                                    [rounded]="true"></p-tag>
+                                <span *ngIf="expense?.status; else noExpenseHeroStatus"
+                                    [class]="getExpenseStatusBadgeClass(expense?.status)">
+                                    {{ ('expense_status_' + expense.status.toLowerCase()) | translate }}
+                                </span>
+                                <ng-template #noExpenseHeroStatus>
+                                    <span class="text-500">—</span>
+                                </ng-template>
                             </div>
                             <div class="flex flex-wrap align-items-center gap-4 text-500">
                                 <span class="flex align-items-center gap-2">
@@ -48,10 +51,10 @@
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="expense.dateOfExpense">
                                     <i class="pi pi-calendar"></i>
-                                    {{ expense.dateOfExpense | date:'mediumDate' }}
+                                    {{ expense.dateOfExpense | date:'mediumDate':'':dateLocale }}
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="expense.shop">
-                                    <i class="pi pi-shop"></i>
+                                    <i class="pi pi-shopping-bag"></i>
                                     {{ expense.shop.shopName }}
                                 </span>
                             </div>
@@ -59,14 +62,32 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-print" 
-                            [label]="'print_expense' | translate"
-                            class="p-button-help"
-                            (click)="printExpenseReceipt(expense)"></button>
-                        <button pButton pRipple icon="pi pi-file-pdf" 
-                            [label]="'export_pdf' | translate"
+                        <button pButton pRipple icon="pi pi-check"
+                            *ngIf="requireApproval && canApproveExpense()"
+                            [label]="'approve_expense' | translate"
+                            class="p-button-success"
+                            (click)="openApproveDialog()"
+                            [disabled]="isApprovalActionLoading"></button>
+                        <button pButton pRipple icon="pi pi-times"
+                            *ngIf="requireApproval && canRejectExpense()"
+                            [label]="'reject_expense' | translate"
                             class="p-button-danger"
-                            (click)="exportExpenseToPDF(expense)"></button>
+                            (click)="openRejectDialog()"
+                            [disabled]="isApprovalActionLoading"></button>
+                        <button pButton pRipple icon="pi pi-pencil" 
+                            *ngIf="showEditExpenseAction(expense)"
+                            [label]="'update_expense' | translate"
+                            class="p-button-help"
+                            [disabled]="!canEditExpenseBasedOnReconciliation(expense)"
+                            [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canEditExpenseBasedOnReconciliation(expense)) ? ('expense_reconciled_bank_lock_tooltip' | translate) : ('update_expense' | translate)"
+                            (click)="openExpenseEdit()"></button>
+                        <button pButton pRipple icon="pi pi-trash" 
+                            *ngIf="showDeleteExpenseAction(expense)"
+                            [label]="'delete_expense' | translate"
+                            class="p-button-danger"
+                            [disabled]="!canDeleteExpenseBasedOnReconciliation(expense)"
+                            [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canDeleteExpenseBasedOnReconciliation(expense)) ? ('expense_reconciled_bank_lock_tooltip' | translate) : ('delete_expense' | translate)"
+                            (click)="openDeleteExpenseDialog()"></button>
                     </div>
                 </div>
             </div>
@@ -101,13 +122,13 @@
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'expense_date' | translate }}</span>
-                    <div class="stat-value-sm">{{ expense.dateOfExpense | date:'mediumDate' }}</div>
+                    <div class="stat-value-sm">{{ expense.dateOfExpense | date:'mediumDate':'':dateLocale }}</div>
                 </div>
             </div>
             
             <div class="stat-card-modern" *ngIf="expense.shop">
                 <div class="stat-icon shop">
-                    <i class="pi pi-shop"></i>
+                    <i class="pi pi-shopping-bag"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'shop' | translate }}</span>
@@ -153,19 +174,28 @@
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'expense_date' | translate }}</span>
-                                            <span class="info-value">{{ expense?.dateOfExpense | date:'fullDate' }}</span>
+                                            <span class="info-value">{{ expense?.dateOfExpense | date:'fullDate':'':dateLocale }}</span>
                                         </div>
                                     </div>
                                     
                                     <div class="info-item">
                                         <div class="info-icon">
+                                            <i class="pi pi-bookmark"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'expense_reference' | translate }}</span>
+                                            <span class="info-value font-mono font-semibold">{{ getExpenseDisplayReference() }}</span>
+                                        </div>
+                                    </div>
+                                    <!-- <div class="info-item" *ngIf="expense?.id != null">
+                                        <div class="info-icon">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'expense_id' | translate }}</span>
-                                            <span class="info-value font-mono">#{{ expense?.id }}</span>
+                                            <span class="info-value font-mono text-600 text-sm">#{{ expense?.id }}</span>
                                         </div>
-                                    </div>
+                                    </div> -->
                                     
                                     <div class="info-item">
                                         <div class="info-icon amount">
@@ -207,7 +237,7 @@
                                     </div>
                                     <div class="info-grid-item" *ngIf="expense?.checkExpirationDate">
                                         <span class="info-label">{{ 'check_expiration_date' | translate }}</span>
-                                        <span class="info-value">{{ expense.checkExpirationDate | date:'shortDate' }}</span>
+                                        <span class="info-value">{{ expense.checkExpirationDate | date:'shortDate':'':dateLocale }}</span>
                                     </div>
                                     <div class="info-grid-item" *ngIf="expense?.boeNumber">
                                         <span class="info-label">{{ 'boe_number' | translate }}</span>
@@ -215,25 +245,8 @@
                                     </div>
                                     <div class="info-grid-item" *ngIf="expense?.boeExpirationDate">
                                         <span class="info-label">{{ 'boe_expiration_date' | translate }}</span>
-                                        <span class="info-value">{{ expense.boeExpirationDate | date:'shortDate' }}</span>
+                                        <span class="info-value">{{ expense.boeExpirationDate | date:'shortDate':'':dateLocale }}</span>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Receipt Card -->
-                        <div class="detail-card" *ngIf="expense?.receipt">
-                            <div class="card-header">
-                                <i class="pi pi-image"></i>
-                                <span>{{ 'expense_receipt' | translate }}</span>
-                            </div>
-                            <div class="card-body">
-                                <div class="receipt-preview">
-                                    <img [src]="expense.receipt"
-                                        [alt]="'receipt_for_' + expense?.purpose | translate" 
-                                        class="receipt-image"
-                                        (click)="previewReceipt(expense.receipt)">
-                                    <p class="receipt-hint">{{ 'click_to_preview' | translate }}</p>
                                 </div>
                             </div>
                         </div>
@@ -245,7 +258,7 @@
                                 <span>{{ 'expense_approval_section' | translate }}</span>
                             </div>
                             <div class="card-body">
-                                <div class="info-grid" *ngIf="expense?.status === 'APPROVED'">
+                                <div class="info-grid" *ngIf="expense?.status === 'APPROVED' && hasManualApprovalDetails(expense)">
                                     <div class="info-grid-item" *ngIf="expense.approvedBy">
                                         <span class="info-label">{{ 'approved_by' | translate }}</span>
                                         <span class="info-value">{{ expense.approvedBy }}</span>
@@ -253,6 +266,29 @@
                                     <div class="info-grid-item" *ngIf="expense.approvedDate || expense.approvalDate">
                                         <span class="info-label">{{ 'approved_date' | translate }}</span>
                                         <span class="info-value">{{ formatDateTime((expense.approvedDate || expense.approvalDate)!) }}</span>
+                                    </div>
+                                    <div class="info-grid-item col-12" *ngIf="expense.approvalNotes">
+                                        <span class="info-label">{{ 'approval_notes' | translate }}</span>
+                                        <span class="info-value">{{ expense.approvalNotes }}</span>
+                                    </div>
+                                </div>
+                                <div *ngIf="expense?.status === 'APPROVED' && !hasManualApprovalDetails(expense)" class="approval-automatic-panel">
+                                    <div class="flex align-items-start gap-3">
+                                        <div class="approval-automatic-icon" aria-hidden="true">
+                                            <i class="pi pi-bolt"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex flex-wrap align-items-center gap-2 mb-2">
+                                                <span class="expense-badge expense-approved">{{ ('expense_status_' + expense.status.toLowerCase()) | translate }}</span>
+                                                <span class="text-sm text-500">{{ 'expense_approval_automatic_badge' | translate }}</span>
+                                            </div>
+                                            <p class="m-0 font-medium text-900">{{ 'expense_approval_automatic_title' | translate }}</p>
+                                            <p class="text-color-secondary text-sm m-0 mt-2 line-height-3">{{ 'expense_approval_automatic_summary' | translate }}</p>
+                                            <p class="text-sm m-0 mt-3" *ngIf="getAutomaticApprovalReferenceDateIso(expense) as refIso">
+                                                <span class="text-500">{{ 'expense_approval_recorded_at' | translate }}</span>
+                                                <span class="font-medium ml-1">{{ formatDateTime(refIso) }}</span>
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="info-grid" *ngIf="expense?.status === 'REJECTED'">
@@ -273,11 +309,12 @@
                         </div>
 
                         <!-- Attachments -->
-                        <div class="detail-card mb-4">
-                            <div class="card-header flex justify-content-between align-items-center">
-                                <span>
-                                    <i class="pi pi-paperclip mr-2"></i>
+                        <div class="detail-card mb-4 expense-attachments-card">
+                            <div class="card-header flex justify-content-between align-items-center flex-wrap gap-2">
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi pi-paperclip"></i>
                                     {{ 'expense_attachments' | translate }}
+                                    <span class="attachment-header-count" *ngIf="getAttachmentCount()">{{ getAttachmentCount() }}</span>
                                 </span>
                                 <input #fileInp type="file" style="display:none" (change)="onAttachmentFileSelected($event)" [disabled]="!canUploadAttachments() || attachmentUploading" />
                                 <button pButton pRipple type="button" class="p-button-sm p-button-outlined" icon="pi pi-upload"
@@ -289,20 +326,54 @@
                             <div class="card-body">
                                 <p class="text-color-secondary text-sm m-0 mb-3" *ngIf="canUploadAttachments()">{{ 'expense_attachments_hint' | translate }}</p>
                                 <p class="text-color-secondary m-0" *ngIf="!expense.attachments?.length">{{ 'expense_attachments_empty' | translate }}</p>
-                                <div class="flex flex-column gap-2" *ngIf="expense.attachments?.length">
-                                    <div class="flex align-items-center justify-content-between p-2 surface-ground border-round" *ngFor="let att of expense.attachments">
-                                        <div class="flex align-items-center gap-2 min-w-0">
-                                            <i [class]="attachmentIcon(att.contentType)"></i>
-                                            <span class="font-medium text-overflow-ellipsis">{{ att.originalFilename || att.fileUrl }}</span>
+                                <div class="attachment-grid" *ngIf="expense.attachments?.length">
+                                    <article class="attachment-tile" *ngFor="let att of expense.attachments; trackBy: trackAttachmentById">
+                                        <div class="attachment-tile-thumb"
+                                            [class.attachment-tile-thumb--pdf]="showNonImageAttachmentThumb(att) && isPdfAttachment(att)"
+                                            [class.attachment-tile-thumb--doc]="showNonImageAttachmentThumb(att) && !isPdfAttachment(att)">
+                                            <div *ngIf="showNonImageAttachmentThumb(att)" class="attachment-type-block">
+                                                <i [class]="attachmentIcon(att.contentType)"></i>
+                                            </div>
+                                            <ng-container *ngIf="isImageAttachment(att)">
+                                                <div *ngIf="showAttachmentImageThumbLoading(att)" class="attachment-thumb-loading">
+                                                    <p-progressSpinner strokeWidth="4" styleClass="attachment-thumb-spinner"></p-progressSpinner>
+                                                </div>
+                                                <button *ngIf="showAttachmentImageThumbImage(att)" type="button" class="attachment-thumb-btn"
+                                                    (click)="openAttachmentImagePreview(att)"
+                                                    [pTooltip]="'click_to_preview' | translate" tooltipPosition="top">
+                                                    <img [src]="attachmentBlobUrlById[att.id!]" [alt]="attachmentDisplayName(att)" loading="lazy"
+                                                        (error)="onAttachmentThumbError(att.id!)">
+                                                </button>
+                                                <div *ngIf="showAttachmentImageThumbFallback(att)" class="attachment-type-block">
+                                                    <i class="pi pi-image text-400"></i>
+                                                </div>
+                                            </ng-container>
                                         </div>
-                                        <div class="flex align-items-center gap-2 flex-shrink-0">
-                                            <span class="text-sm text-color-secondary">{{ formatDateTime(att.uploadedAt) }}</span>
-                                            <a *ngIf="resolveAttachmentUrl(att)" [href]="resolveAttachmentUrl(att)" target="_blank" rel="noopener" pButton pRipple class="p-button-text p-button-sm" icon="pi pi-download" [pTooltip]="'download' | translate"></a>
+                                        <div class="attachment-tile-body">
+                                            <p class="attachment-tile-name" [pTooltip]="attachmentDisplayName(att)" tooltipPosition="top">{{ attachmentDisplayName(att) }}</p>
+                                            <div class="attachment-tile-meta">
+                                                <p-tag [value]="attachmentKindLabelKey(att) | translate" severity="secondary" styleClass="attachment-kind-tag"></p-tag>
+                                                <span class="attachment-tile-date"><i class="pi pi-clock mr-1"></i>{{ formatDateTime(att.uploadedAt) }}</span>
+                                            </div>
+                                            <p class="attachment-tile-uploader" *ngIf="att.uploadedBy">
+                                                <i class="pi pi-user mr-1"></i>{{ att.uploadedBy }}
+                                            </p>
+                                        </div>
+                                        <div class="attachment-tile-actions">
+                                            <button *ngIf="isImageAttachment(att) && isAttachmentBlobReady(att.id)" pButton pRipple type="button"
+                                                class="p-button-text p-button-sm" icon="pi pi-eye"
+                                                [pTooltip]="'image_preview' | translate" (click)="openAttachmentImagePreview(att)"></button>
+                                            <button *ngIf="isAttachmentBlobReady(att.id)" pButton pRipple type="button"
+                                                class="p-button-text p-button-sm" icon="pi pi-external-link"
+                                                [pTooltip]="'open' | translate" (click)="openAttachmentInNewTab(att)"></button>
+                                            <button *ngIf="isAttachmentBlobReady(att.id)" pButton pRipple type="button"
+                                                class="p-button-text p-button-sm" icon="pi pi-download"
+                                                [pTooltip]="'download' | translate" (click)="downloadExpenseAttachment(att)"></button>
                                             <button pButton pRipple type="button" class="p-button-text p-button-danger p-button-sm" icon="pi pi-trash"
                                                 *ngIf="canEdit"
                                                 (click)="deleteAttachment(att)" [pTooltip]="'delete' | translate"></button>
                                         </div>
-                                    </div>
+                                    </article>
                                 </div>
                             </div>
                         </div>
@@ -313,13 +384,13 @@
                         <!-- Shop Information Card -->
                         <div class="detail-card mb-4" *ngIf="expense?.shop">
                             <div class="card-header">
-                                <i class="pi pi-shop"></i>
+                                <i class="pi pi-shopping-bag"></i>
                                 <span>{{ 'shop_information' | translate }}</span>
                             </div>
                             <div class="card-body">
                                 <div class="shop-display">
                                     <div class="shop-avatar">
-                                        <i class="pi pi-store"></i>
+                                        <i class="pi pi-shopping-bag"></i>
                                     </div>
                                     <div class="shop-info">
                                         <span class="shop-name">{{ expense.shop.shopName }}</span>
@@ -359,18 +430,19 @@
                                     </div>
                                     <div class="summary-divider"></div>
                                     <div class="summary-row">
-                                        <span class="summary-label">{{ 'receipt_attached' | translate }}</span>
+                                        <span class="summary-label">{{ 'expense_attachments' | translate }}</span>
                                         <span class="summary-value">
-                                            <i *ngIf="expense?.receipt" class="pi pi-check text-green-500 mr-1"></i>
-                                            <i *ngIf="!expense?.receipt" class="pi pi-times text-red-500 mr-1"></i>
-                                            {{ expense?.receipt ? ('yes' | translate) : ('no' | translate) }}
+                                            <i *ngIf="getAttachmentCount() > 0" class="pi pi-paperclip text-primary mr-1"></i>
+                                            {{ getAttachmentCount() }}
                                         </span>
                                     </div>
                                     <div class="summary-row total">
                                         <span class="summary-label">{{ 'status' | translate }}</span>
-                                        <p-tag [value]="('expense_status_' + (expense?.status || '')?.toLowerCase()) | translate"
-                                            [severity]="getExpenseStatusSeverityTag(expense?.status)"
-                                            [icon]="getExpenseStatusIcon(expense?.status)"></p-tag>
+                                        <span *ngIf="expense?.status; else noExpenseSummaryStatus"
+                                            [class]="getExpenseStatusBadgeClass(expense?.status)">
+                                            {{ ('expense_status_' + expense.status.toLowerCase()) | translate }}
+                                        </span>
+                                        <ng-template #noExpenseSummaryStatus>—</ng-template>
                                     </div>
                                 </div>
                             </div>
@@ -384,20 +456,21 @@
                             </div>
                             <div class="card-body">
                                 <div class="actions-grid">
-                                    <button pButton pRipple icon="pi pi-print" 
-                                        [label]="'print_expense' | translate"
+                                    <button pButton pRipple icon="pi pi-pencil" 
+                                        *ngIf="showEditExpenseAction(expense)"
+                                        [label]="'update_expense' | translate"
                                         class="p-button-outlined p-button-help"
-                                        (click)="printExpenseReceipt(expense)"></button>
+                                        [disabled]="!canEditExpenseBasedOnReconciliation(expense)"
+                                        [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canEditExpenseBasedOnReconciliation(expense)) ? ('expense_reconciled_bank_lock_tooltip' | translate) : ('update_expense' | translate)"
+                                        (click)="openExpenseEdit()"></button>
                                     
-                                    <button pButton pRipple icon="pi pi-file-pdf" 
-                                        [label]="'export_pdf' | translate"
+                                    <button pButton pRipple icon="pi pi-trash" 
+                                        *ngIf="showDeleteExpenseAction(expense)"
+                                        [label]="'delete_expense' | translate"
                                         class="p-button-outlined p-button-danger"
-                                        (click)="exportExpenseToPDF(expense)"></button>
-                                    
-                                    <button pButton pRipple icon="pi pi-upload" 
-                                        [label]="'upload_receipt' | translate"
-                                        class="p-button-outlined p-button-warning"
-                                        (click)="uploadReceipt(expense)"></button>
+                                        [disabled]="!canDeleteExpenseBasedOnReconciliation(expense)"
+                                        [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canDeleteExpenseBasedOnReconciliation(expense)) ? ('expense_reconciled_bank_lock_tooltip' | translate) : ('delete_expense' | translate)"
+                                        (click)="openDeleteExpenseDialog()"></button>
                                     
                                     <button pButton pRipple icon="pi pi-copy" 
                                         [label]="'duplicate_expense' | translate"
@@ -430,7 +503,7 @@
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'created_date' | translate }}</span>
-                                            <span class="info-value">{{ expense.creationDate | date:'medium' }}</span>
+                                            <span class="info-value">{{ expense.creationDate | date:'medium':'':dateLocale }}</span>
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="expense?.lastUpdated">
@@ -439,7 +512,7 @@
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'last_updated' | translate }}</span>
-                                            <span class="info-value">{{ expense.lastUpdated | date:'medium' }}</span>
+                                            <span class="info-value">{{ expense.lastUpdated | date:'medium':'':dateLocale }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -465,9 +538,10 @@
                         <div class="card-body">
                             <div class="expense-timeline">
                                 <div class="timeline-item" *ngFor="let event of expenseEvents; let i = index"
-                                    [class.completed]="event.date">
+                                    [class.completed]="!!event.date"
+                                    [class.current]="isExpenseTimelineCurrent(i)">
                                     <div class="timeline-marker">
-                                        <div class="marker-icon">
+                                        <div class="marker-icon" [ngClass]="event.markerClass">
                                             <i [class]="event.icon"></i>
                                         </div>
                                         <div class="marker-line" *ngIf="i < expenseEvents.length - 1"></div>
@@ -475,7 +549,7 @@
                                     <div class="timeline-content">
                                         <div class="timeline-header">
                                             <span class="timeline-status">{{ event.labelKey | translate }}</span>
-                                            <span class="timeline-date" *ngIf="event.date">{{ event.date | date:'medium' }}</span>
+                                            <span class="timeline-date" *ngIf="event.date">{{ event.date | date:'medium':'':dateLocale }}</span>
                                         </div>
                                         <div class="timeline-details" *ngIf="event.by">
                                             <span class="timeline-detail"><i class="pi pi-user"></i> {{ event.by }}</span>
@@ -521,6 +595,35 @@
             <button pButton type="button" class="p-button-text" icon="pi pi-times" [label]="'cancel' | translate" (click)="rejectConfirmDialog = false"></button>
             <button pButton type="button" class="p-button-danger" icon="pi pi-times" [label]="'reject' | translate"
                 (click)="confirmReject()" [disabled]="isApprovalActionLoading" [loading]="isApprovalActionLoading"></button>
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="deleteConfirmDialog" [modal]="true" [style]="{ width: '450px' }" [header]="'confirm_label' | translate" [draggable]="false" [resizable]="false">
+        <div class="flex align-items-center justify-content-center gap-3">
+            <i class="pi pi-exclamation-triangle text-xl"></i>
+            <span *ngIf="expense">
+                {{ 'delete_confirmation_msg_with_param' | translate }}
+                <b>{{ getDeleteConfirmationLabel() }}</b>?
+            </span>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton type="button" class="p-button-text" icon="pi pi-times" [label]="'no_button' | translate" (click)="cancelDeleteExpense()" [disabled]="isDeleteConfirmLoading"></button>
+            <button pButton type="button" class="p-button-danger" icon="pi pi-check" [label]="'yes_button' | translate"
+                (click)="confirmDeleteExpense()" [disabled]="isDeleteConfirmLoading" [loading]="isDeleteConfirmLoading"></button>
+        </ng-template>
+    </p-dialog>
+
+    <p-dialog [(visible)]="attachmentImagePreviewVisible" [modal]="true" [dismissableMask]="true"
+        [style]="{ width: 'min(92vw, 960px)' }" [contentStyle]="{ padding: '0' }"
+        [header]="'image_preview' | translate" [draggable]="false" [resizable]="false"
+        (onHide)="closeAttachmentImagePreview()">
+        <div class="attachment-image-preview-wrap" *ngIf="attachmentImagePreviewUrl">
+            <img [src]="attachmentImagePreviewUrl" alt="" class="attachment-image-preview-img" />
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton type="button" class="p-button-text" icon="pi pi-times" [label]="'close' | translate" (click)="closeAttachmentImagePreview()"></button>
+            <button pButton type="button" icon="pi pi-external-link" [label]="'open' | translate"
+                (click)="openAttachmentPreviewUrlInNewTab()"></button>
         </ng-template>
     </p-dialog>
 

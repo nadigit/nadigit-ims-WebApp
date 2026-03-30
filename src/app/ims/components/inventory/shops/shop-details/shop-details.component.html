@@ -525,6 +525,101 @@
                     </div>
                 </div>
             </p-tabPanel>
+
+            <!-- POS sessions (ADMIN): sales-oriented session history, separate from cash register drawer -->
+            <p-tabPanel *ngIf="isAdmin">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-shopping-bag mr-2"></i>
+                    <span>{{ 'shop_pos_sessions' | translate }}</span>
+                    <p-badge *ngIf="posSessionsTotal > 0" [value]="posSessionsTotal > 99 ? '99+' : posSessionsTotal.toString()" class="ml-2"></p-badge>
+                </ng-template>
+
+                <div class="mt-3">
+                    <p class="text-600 text-sm mb-3">{{ 'shop_pos_sessions_hint' | translate }}</p>
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-history"></i>
+                            <span>{{ 'shop_pos_sessions' | translate }}</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div *ngIf="posSessionsLoading" class="flex justify-content-center py-6">
+                                <p-progressSpinner [style]="{width: '40px', height: '40px'}" strokeWidth="4"></p-progressSpinner>
+                            </div>
+                            <ng-container *ngIf="!posSessionsLoading">
+                                <p-table [value]="posSessions" styleClass="p-datatable-sm p-datatable-striped" responsiveLayout="scroll">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th>{{ 'pos_session_id' | translate }}</th>
+                                            <th>{{ 'cashier' | translate }}</th>
+                                            <th>{{ 'opened_at' | translate }}</th>
+                                            <th>{{ 'closed_at' | translate }}</th>
+                                            <th>{{ 'status' | translate }}</th>
+                                            <th class="text-right">{{ 'pos_session_transactions' | translate }}</th>
+                                            <th class="text-right">{{ 'pos_session_total_sales' | translate }}</th>
+                                            <th class="text-right">{{ 'pos_session_cash_register_session' | translate }}</th>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="body" let-row>
+                                        <tr>
+                                            <td><span class="font-mono text-sm">{{ row.sessionId }}</span></td>
+                                            <td>
+                                                <div class="flex align-items-center gap-2">
+                                                    <i class="pi pi-user text-primary"></i>
+                                                    <span class="font-medium">{{ row.username || row.userId || '—' }}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex flex-column" *ngIf="row.startedAt">
+                                                    <span class="font-medium">{{ row.startedAt | date:'dd/MM/yyyy' }}</span>
+                                                    <small class="text-600">{{ row.startedAt | date:'HH:mm' }}</small>
+                                                </div>
+                                                <span *ngIf="!row.startedAt">—</span>
+                                            </td>
+                                            <td>
+                                                <div class="flex flex-column" *ngIf="row.endedAt">
+                                                    <span class="font-medium">{{ row.endedAt | date:'dd/MM/yyyy' }}</span>
+                                                    <small class="text-600">{{ row.endedAt | date:'HH:mm' }}</small>
+                                                </div>
+                                                <p-tag *ngIf="row.active && !row.endedAt" [value]="'still_open' | translate" severity="warning"></p-tag>
+                                                <span *ngIf="!row.active && !row.endedAt">—</span>
+                                            </td>
+                                            <td>
+                                                <p-tag [value]="row.active ? ('open' | translate) : ('closed' | translate)"
+                                                    [severity]="row.active ? 'warning' : 'success'"></p-tag>
+                                            </td>
+                                            <td class="text-right font-medium">{{ row.totalTransactions ?? 0 }}</td>
+                                            <td class="text-right font-bold text-primary">
+                                                {{ (row.totalSales ?? 0) | currency:currency:'symbol':'1.2-2' }}
+                                            </td>
+                                            <td class="text-right">
+                                                <span class="font-mono text-sm" *ngIf="cashRegisterSessionIdForPosRow(row) !== null">{{ cashRegisterSessionIdForPosRow(row) }}</span>
+                                                <span class="text-500" *ngIf="cashRegisterSessionIdForPosRow(row) === null">—</span>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="emptymessage">
+                                        <tr>
+                                            <td colspan="8">
+                                                <div class="empty-state py-6">
+                                                    <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
+                                                    <p class="text-600 font-medium m-0">{{ 'shop_pos_sessions_empty' | translate }}</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                                <p-paginator *ngIf="posSessionsTotal > posSessionsPageSize"
+                                    [rows]="posSessionsPageSize"
+                                    [totalRecords]="posSessionsTotal"
+                                    [first]="posSessionsPage * posSessionsPageSize"
+                                    [rowsPerPageOptions]="[10, 25, 50]"
+                                    (onPageChange)="onPosHistoryPageChange($event)">
+                                </p-paginator>
+                            </ng-container>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
             
         </p-tabView>
     </div>

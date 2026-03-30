@@ -35,6 +35,17 @@ export class ReconciliationValidationService {
   }
 
   /**
+   * Approved expenses that post to a bank account (Transfer / Check / BOE) may have linked bank_transaction rows.
+   * Edit/delete must respect reconciliation: any reconciled line blocks the action (same rules for all roles, including ADMIN).
+   */
+  requiresExpenseBankImpactCheck(paymentMethod: string | null | undefined): boolean {
+    if (!paymentMethod) {
+      return false;
+    }
+    return this.paymentValidationService.isBankMethod(paymentMethod);
+  }
+
+  /**
    * Check if all bank transactions for a payment are reconciled
    */
   async checkPaymentReconciliationStatus(paymentId: number): Promise<ReconciliationStatus> {
@@ -188,10 +199,9 @@ export class ReconciliationValidationService {
    * Determine if expense can be edited/deleted based on payment method and reconciliation status
    */
   async canEditOrDeleteExpense(expenseId: number, paymentMethod: string | null | undefined): Promise<boolean> {
-    if (!this.requiresReconciliation(paymentMethod)) {
-      return true; // Transfer, Cash don't require reconciliation
+    if (!this.requiresExpenseBankImpactCheck(paymentMethod)) {
+      return true;
     }
-    
     const status = await this.checkExpenseReconciliationStatus(expenseId);
     return status.canProceed;
   }

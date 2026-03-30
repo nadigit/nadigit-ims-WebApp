@@ -393,6 +393,27 @@
     border-radius: 12px;
 }
 
+.approval-automatic-panel {
+    padding: 1rem 1.25rem;
+    background: var(--surface-50);
+    border-radius: 12px;
+    border-left: 4px solid var(--green-500);
+}
+
+.approval-automatic-icon {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--green-400), var(--green-600));
+    color: #fff;
+    font-size: 1.15rem;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.25);
+}
+
 /* ==========================================================================
    Notes Content
    ========================================================================== */
@@ -407,33 +428,192 @@
 }
 
 /* ==========================================================================
-   Receipt Preview
+   Expense attachments
    ========================================================================== */
-.receipt-preview {
+.expense-attachments-card .attachment-header-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: var(--primary-color-text);
+}
+
+.attachment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.attachment-tile {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-}
-
-.receipt-image {
-    max-width: 300px;
-    max-height: 400px;
-    object-fit: contain;
-    border-radius: 12px;
     border: 1px solid var(--surface-border);
-    cursor: pointer;
-    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface-card);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.receipt-image:hover {
-    transform: scale(1.02);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+.attachment-tile:hover {
+    border-color: var(--primary-200);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
-.receipt-hint {
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
+.attachment-tile-thumb {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background: var(--surface-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attachment-thumb-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+:host ::ng-deep .attachment-thumb-spinner.p-progress-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+:host ::ng-deep .attachment-thumb-spinner.p-progress-spinner-circle {
+    stroke: var(--primary-color);
+}
+
+.attachment-tile-thumb--pdf {
+    background: linear-gradient(145deg, rgba(239, 68, 68, 0.12), var(--surface-100));
+}
+
+.attachment-tile-thumb--doc {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.1), var(--surface-100));
+}
+
+.attachment-thumb-btn {
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    cursor: zoom-in;
+    display: block;
+    background: transparent;
+    line-height: 0;
+}
+
+.attachment-thumb-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.25s ease;
+}
+
+.attachment-thumb-btn:hover img {
+    transform: scale(1.03);
+}
+
+.attachment-type-block {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.attachment-type-block i {
+    font-size: 2.75rem;
     color: var(--text-color-secondary);
+    opacity: 0.85;
+}
+
+.attachment-tile-thumb--pdf .attachment-type-block i {
+    color: #dc2626;
+}
+
+.attachment-tile-body {
+    padding: 0.75rem 0.85rem 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.attachment-tile-name {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-color);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.attachment-tile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+:host ::ng-deep .attachment-kind-tag.p-tag {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.attachment-tile-date {
+    font-size: 0.75rem;
+    color: var(--text-color-secondary);
+    display: inline-flex;
+    align-items: center;
+}
+
+.attachment-tile-uploader {
+    margin: 0.4rem 0 0;
+    font-size: 0.75rem;
+    color: var(--text-color-secondary);
+    display: flex;
+    align-items: center;
+}
+
+.attachment-tile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.15rem;
+    padding: 0.35rem 0.5rem 0.5rem;
+    border-top: 1px solid var(--surface-border);
+    background: var(--surface-50);
+}
+
+.attachment-image-preview-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-height: min(78vh, 820px);
+    overflow: auto;
+    background: var(--surface-900);
+    padding: 0.5rem;
+}
+
+.attachment-image-preview-img {
+    max-width: 100%;
+    height: auto;
+    max-height: min(76vh, 800px);
+    object-fit: contain;
+    border-radius: 8px;
 }
 
 /* ==========================================================================
@@ -591,21 +771,11 @@
     color: var(--text-color-secondary);
 }
 
-.timeline-item.completed .marker-icon {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
+/* Per-step colors come from .marker-icon.status-* (see below). */
 
-.timeline-item.completed .marker-icon i {
-    color: white;
-}
-
+/* Keep per-step marker colors; highlight "current" step with a ring only. */
 .timeline-item.current .marker-icon {
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 20%, transparent);
-}
-
-.timeline-item.current .marker-icon i {
-    color: white;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 28%, transparent);
 }
 
 .marker-icon.status-recorded {
@@ -628,20 +798,20 @@
     background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
+.marker-icon.status-recorded i,
+.marker-icon.status-pending i,
+.marker-icon.status-approved i,
+.marker-icon.status-reimbursed i,
+.marker-icon.status-rejected i {
+    color: white;
+}
+
 .timeline-item.completed .marker-icon.status-recorded,
 .timeline-item.completed .marker-icon.status-pending,
 .timeline-item.completed .marker-icon.status-approved,
 .timeline-item.completed .marker-icon.status-reimbursed,
 .timeline-item.completed .marker-icon.status-rejected {
     opacity: 1;
-}
-
-.timeline-item.completed .marker-icon.status-recorded i,
-.timeline-item.completed .marker-icon.status-pending i,
-.timeline-item.completed .marker-icon.status-approved i,
-.timeline-item.completed .marker-icon.status-reimbursed i,
-.timeline-item.completed .marker-icon.status-rejected i {
-    color: white;
 }
 
 .marker-line {

@@ -149,7 +149,7 @@
                         <th style="width: 3rem">
                             <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
                         </th>
-                        <th pSortableColumn="id">{{ 'ID' | translate }} <p-sortIcon field="id"></p-sortIcon></th>
+                        <th>{{ 'expense_reference' | translate }}</th>
                         <th pSortableColumn="dateOfExpense">{{ 'expense_date' | translate }}
                             <p-sortIcon field="dateOfExpense"></p-sortIcon>
                         </th>
@@ -170,12 +170,9 @@
                             <p-tableCheckbox [value]="expense" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
 
-                        <td style="min-width:10rem;">
-                            <span class="p-column-title">{{ 'ID' | translate }}</span>
-                            #{{expense.id ? expense.id : 'N/A'}}
-                            <i *ngIf="!isExpenseFinalized(expense)" class="pi pi-lock text-red-500 ml-2"
-                                pTooltip="{{ 'expense_locked' | translate }}">
-                            </i>
+                        <td style="min-width:9rem;">
+                            <span class="p-column-title">{{ 'expense_reference' | translate }}</span>
+                            <span class="font-mono font-semibold">{{ displayExpenseReference(expense) }}</span>
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'expense_date' | translate }}</span>
@@ -195,12 +192,11 @@
                         </td>
                         <td style="min-width:8rem;">
                             <span class="p-column-title">{{ 'expense_status' | translate }}</span>
-                            <p-tag *ngIf="expense.status"
-                                [value]="getExpenseStatusLabel(expense.status)"
-                                [severity]="getExpenseWorkflowSeverity(expense.status)"
-                                [icon]="getExpenseWorkflowIcon(expense.status)"
-                                [rounded]="true"></p-tag>
-                            <span *ngIf="!expense.status">—</span>
+                            <span *ngIf="expense.status; else noExpenseRowStatus"
+                                [class]="getExpenseStatusBadgeClass(expense.status)">
+                                {{ ('expense_status_' + expense.status.toLowerCase()) | translate }}
+                            </span>
+                            <ng-template #noExpenseRowStatus>—</ng-template>
                         </td>
                         <td>
                             <div class="flex gap-1">
@@ -212,15 +208,15 @@
                                     icon="pi pi-times" class="p-button-rounded p-button-text p-button-danger"
                                     [pTooltip]="'reject_expense' | translate"
                                     (click)="openRejectDialog(expense, $event)"></button>
-                                <button pButton pRipple *ngIf="canEditExpense && isExpenseFinalized(expense)"
+                                <button pButton pRipple *ngIf="canEditExpense && canEditExpenseByWorkflowStatus(expense)"
                                     icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
                                     [disabled]="!canEditExpenseBasedOnReconciliation(expense)"
-                                    [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canEditExpenseBasedOnReconciliation(expense)) ? ('reconciliation_required_tooltip' | translate) : ('update_expense' | translate)"
+                                    [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canEditExpenseBasedOnReconciliation(expense)) ? ('expense_reconciled_bank_lock_tooltip' | translate) : ('update_expense' | translate)"
                                     (click)="editExpense(expense) ; $event.stopPropagation()"></button>
-                                <button pButton pRipple *ngIf="canDeleteExpense && isExpenseFinalized(expense)"
+                                <button pButton pRipple *ngIf="canDeleteExpense && canDeleteExpenseByWorkflowStatus(expense)"
                                     icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
                                     [disabled]="!canDeleteExpenseBasedOnReconciliation(expense)"
-                                    [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canDeleteExpenseBasedOnReconciliation(expense)) ? ('reconciliation_required_tooltip' | translate) : ('delete_expense' | translate)"
+                                    [pTooltip]="(requiresReconciliation(expense.paymentMethod) && !canDeleteExpenseBasedOnReconciliation(expense)) ? ('expense_reconciled_bank_lock_tooltip' | translate) : ('delete_expense' | translate)"
                                     (click)="deleteExpense(expense) ; $event.stopPropagation()"></button>
                             </div>
                         </td>
@@ -238,7 +234,7 @@
 
                 <ng-template pTemplate="emptymessage">
                     <tr>
-                        <td colspan="9">
+                        <td colspan="8">
                             <div class="flex flex-column align-items-center justify-content-center py-5">
                                 <img src="assets/core-images/no_data_found.png" alt="No Data Found"
                                     style="max-width: 250px; opacity: 0.6;">
@@ -289,7 +285,7 @@
                     <p-dropdown appendTo="body" [(ngModel)]="expense.shop" name="shop" inputId="shop" ngDefaultControl
                         optionLabel="shopName" [options]="shops" [filter]="true" filterBy="shopName"
                         placeholder="{{'select_shop_option' | translate}}" required autofocus
-                        (onChange)="onShopChange()"
+                        (ngModelChange)="onShopChange()"
                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !expense.shop}">
                         <ng-template pTemplate="selectedItem">
                             <span *ngIf="expense && expense.shop"
@@ -310,7 +306,7 @@
                     <div class="flex flex-wrap gap-3">
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="Cash" [(ngModel)]="expense.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod1" (onChange)="onPaymentMethodChange()"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod1" (ngModelChange)="onPaymentMethodChange()"></p-radioButton>
                             <label for="paymentMethod1" class="ml-2">{{'payment_method_cash' | translate}}</label>
                         </div>
 
@@ -322,13 +318,13 @@
 
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="Card" [(ngModel)]="expense.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod2" (onChange)="onPaymentMethodChange()"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod2" (ngModelChange)="onPaymentMethodChange()"></p-radioButton>
                             <label for="paymentMethod2" class="ml-2">{{'payment_method_card' | translate}}</label>
                         </div>
 
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="Check" [(ngModel)]="expense.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod3" (onChange)="onPaymentMethodChange()"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod3" (ngModelChange)="onPaymentMethodChange()"></p-radioButton>
                             <label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
                         </div>
                         <div class="flex align-items-center">
@@ -376,7 +372,8 @@
                             optionLabel="accountName" [filter]="true" filterBy="accountName,bank.name"
                             placeholder="{{ 'select_bank_account' | translate }}" 
                             [showClear]="true" styleClass="w-full"
-                            (onChange)="onPaymentMethodChange()"
+                            (ngModelChange)="onBankAccountSelectionChange()"
+                            appendTo="body"
                             [ngClass]="{'ng-invalid ng-dirty': submitted && isBankAccountRequired && !selectedBankAccount}">
                             <ng-template let-account pTemplate="item">
                                 <div class="flex align-items-center justify-content-between">

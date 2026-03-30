@@ -136,7 +136,12 @@
             {{ 'details' | translate }} <p-sortIcon field="category.categoryName"></p-sortIcon>
           </th>
           <th pSortableColumn="quantityAvailable">
-            {{ 'stock' | translate }} <p-sortIcon field="quantityAvailable"></p-sortIcon>
+            <span class="inline-flex align-items-center gap-1">
+              {{ (strictSellableStockExcludesWriteoffs ? 'products_stock_sellable_header' : 'stock') | translate }}
+              <i *ngIf="strictSellableStockExcludesWriteoffs" class="pi pi-info-circle text-500 cursor-pointer text-sm"
+                [pTooltip]="'products_stock_column_tooltip_strict' | translate" tooltipPosition="top"></i>
+            </span>
+            <p-sortIcon field="quantityAvailable"></p-sortIcon>
           </th>
           <th *ngIf="isAdmin">
             {{ 'pricing' | translate }} <p-sortIcon field="sellingPrice"></p-sortIcon>
@@ -238,6 +243,7 @@
 
           <!-- Quantity + Inventory status (Products only) -->
           <td style="min-width:10rem;" *ngIf="isProduct(product)">
+            <div *ngIf="strictSellableStockExcludesWriteoffs" class="text-xs text-500 mb-1">{{ 'sellable_quantity_caption' | translate }}</div>
             <div class="flex align-items-center gap-2">
               <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
                 [value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate)"
@@ -256,8 +262,7 @@
               </span>
             </div>
             <div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
-              <small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{
-                getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+              <small>{{ 'products_on_hand_writeoff_detail' | translate: { onHand: (product.quantityAvailable || 0), writeOff: getWriteOffQuantity(product) } }}</small>
             </div>
           </td>
           <!-- Service info -->
@@ -310,13 +315,26 @@
               <div class="mb-3">
                 <h5 class="m-0">{{ 'warehouse_breakdown' | translate }}</h5>
                 <p class="text-600 text-sm mt-1">{{ 'warehouse_breakdown_description' | translate }}</p>
+                <p *ngIf="strictSellableStockExcludesWriteoffs" class="text-600 text-xs mt-1">{{ 'warehouse_breakdown_writeoff_columns_hint' | translate }}</p>
               </div>
               <p-table [value]="getAggregatedWarehouseStocks(product)" dataKey="warehouseId" responsiveLayout="scroll">
                 <ng-template pTemplate="header">
         <tr>
           <th>{{ 'warehouse_name' | translate }}</th>
-          <th>{{ 'quantity_available' | translate }}</th>
-          <th>{{ 'net_available_quantity' | translate }}</th>
+          <th>
+            <span class="inline-flex align-items-center gap-1">
+              {{ 'quantity_available' | translate }}
+              <i *ngIf="strictSellableStockExcludesWriteoffs" class="pi pi-info-circle text-500 cursor-pointer text-xs"
+                [pTooltip]="'warehouse_column_on_hand_tooltip' | translate" tooltipPosition="top"></i>
+            </span>
+          </th>
+          <th>
+            <span class="inline-flex align-items-center gap-1">
+              {{ 'net_available_quantity' | translate }}
+              <i *ngIf="strictSellableStockExcludesWriteoffs" class="pi pi-info-circle text-500 cursor-pointer text-xs"
+                [pTooltip]="'warehouse_column_net_sellable_tooltip' | translate" tooltipPosition="top"></i>
+            </span>
+          </th>
           <th>{{ 'inventory_status' | translate }}</th>
           <th *ngIf="product.expirationDate">{{ 'expiration_date' | translate }}</th>
           <th style="width: 4rem"></th>
@@ -470,6 +488,7 @@
         <!-- Stock Quantity (Products only) -->
         <div class="flex justify-content-center mb-3" *ngIf="isProduct(product)">
           <div class="flex flex-column align-items-center gap-2">
+            <div *ngIf="strictSellableStockExcludesWriteoffs" class="text-xs text-500">{{ 'sellable_quantity_caption' | translate }}</div>
             <div class="flex align-items-center gap-2">
               <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
                 [value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate)"
@@ -483,8 +502,7 @@
               </span>
             </div>
             <div *ngIf="hasWriteOffs(product)" class="text-xs text-orange-600 text-center">
-              <small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{
-                getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+              <small>{{ 'products_on_hand_writeoff_detail' | translate: { onHand: (product.quantityAvailable || 0), writeOff: getWriteOffQuantity(product) } }}</small>
             </div>
           </div>
         </div>

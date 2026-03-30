@@ -1,10 +1,16 @@
 export interface POSSessionDTO {
   sessionId: number;
-  shop: { shopId: number; shopName: string };
+  shop?: { shopId: number; shopName: string };
+  /** Present on history API rows */
+  shopId?: number;
+  shopName?: string;
   cashRegisterSession?: { sessionId: number };
+  /** Flat id from history API */
+  cashRegisterSessionId?: number;
   userId: string;
   username: string;
   startedAt: string;
+  endedAt?: string;
   active: boolean;
   totalTransactions: number;
   totalSales: number;

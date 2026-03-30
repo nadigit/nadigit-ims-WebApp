@@ -108,6 +108,12 @@ export interface AggregatedProduct {
   warehouseCount: number;
   earliestExpirationDate?: string;
   latestExpirationDate?: string;
+  /** ISO date-time: earliest creation among SKUs with this reference */
+  earliestCreationDate?: string;
+  /** Resolved effective costing for display (first SKU; see costingMethodVaries) */
+  effectiveCostingMethod?: string;
+  /** True when warehouse SKUs use different effective costing methods */
+  costingMethodVaries?: boolean;
 }
 
 /**

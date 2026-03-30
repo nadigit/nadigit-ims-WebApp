@@ -1,5 +1,10 @@
 <div class="pos-container" *ngIf="!loading; else loadingTpl">
   <p-toast></p-toast>
+  <div *ngIf="activeTab === 'sales' && !salesStockIncludesApprovedWriteoffQty"
+       class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
+    <i class="pi pi-info-circle mt-1 flex-shrink-0"></i>
+    <span>{{ 'pos_sellable_stock_excludes_writeoffs_hint' | translate }}</span>
+  </div>
   <!-- Modern Lock Screen -->
   <div class="pos-lock-overlay" *ngIf="isLocked">
     <div class="pos-lock-dialog">

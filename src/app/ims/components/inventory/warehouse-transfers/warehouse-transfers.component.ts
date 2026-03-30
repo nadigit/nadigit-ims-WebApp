@@ -81,6 +81,10 @@ export class WarehouseTransfersComponent implements OnInit {
   canEditTransfer: boolean = false;
   canReadTransfer: boolean = false;
   isAdmin: boolean = false;
+
+  /** Mirrors {@code warehouse.transfer.auto.apply} — new transfers complete stock move on create when true. */
+  transferAutoApply: boolean = false;
+  transferWorkflowConfigLoaded: boolean = false;
   
   resource: string = 'WAREHOUSE_TRANSFERS';
   
@@ -104,6 +108,7 @@ export class WarehouseTransfersComponent implements OnInit {
   async ngOnInit() {
     await this.setPermissions();
     await this.setUserRoles();
+    await this.loadTransferWorkflowConfig();
     await this.initializeTranslations();
     await this.loadInitialData();
     
@@ -132,6 +137,18 @@ export class WarehouseTransfersComponent implements OnInit {
     this.canAddTransfer = this.permissionService.canCreate(this.resource);
     this.canEditTransfer = this.permissionService.canUpdate(this.resource);
     this.canReadTransfer = this.permissionService.canRead(this.resource);
+  }
+
+  private async loadTransferWorkflowConfig(): Promise<void> {
+    try {
+      const cfg = await firstValueFrom(await this.transferService.getTransferConfig());
+      this.transferAutoApply = !!cfg?.autoApply;
+    } catch (e) {
+      console.warn('Could not load warehouse transfer config, defaulting manual workflow', e);
+      this.transferAutoApply = false;
+    } finally {
+      this.transferWorkflowConfigLoaded = true;
+    }
   }
 
   async initializeTranslations() {
@@ -687,10 +704,16 @@ export class WarehouseTransfersComponent implements OnInit {
       (await this.transferService.createTransfer(transferToSave)).subscribe({
         next: (response: WarehouseTransfer) => {
           this.isSaving = false;
+          const appliedImmediately =
+            String(response?.status ?? '').toUpperCase() === 'COMPLETED';
           this.messageService.add({
             severity: 'success',
             summary: this.translate.instant('success'),
-            detail: this.translate.instant('transfer_created_successfully'),
+            detail: this.translate.instant(
+              appliedImmediately
+                ? 'transfer_created_and_applied_successfully'
+                : 'transfer_created_successfully'
+            ),
             life: 3000
           });
           this.transferDialog = false;

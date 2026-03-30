@@ -37,6 +37,9 @@ export class WriteOffDetailsPageComponent implements OnInit {
   // Currency
   currency: string = 'USD';
 
+  writeOffApprovalConfigLoaded: boolean = false;
+  requireManualWriteOffApproval: boolean = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -61,6 +64,7 @@ export class WriteOffDetailsPageComponent implements OnInit {
       }
     });
     await this.configService.loadCurrencyOnce();
+    await this.loadWriteOffAutoApproveConfig();
 
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
@@ -82,6 +86,19 @@ export class WriteOffDetailsPageComponent implements OnInit {
       await this.setUserRoles();
       await this.loadWriteOff();
     });
+  }
+
+  private async loadWriteOffAutoApproveConfig(): Promise<void> {
+    try {
+      const obs = await this.configService.getConfigurationValue('writeoff.auto.approve');
+      const raw = await firstValueFrom(obs);
+      const autoApprove = String(raw).toLowerCase() === 'true';
+      this.requireManualWriteOffApproval = !autoApprove;
+    } catch {
+      this.requireManualWriteOffApproval = false;
+    } finally {
+      this.writeOffApprovalConfigLoaded = true;
+    }
   }
 
   async loadWriteOff(): Promise<void> {
@@ -279,16 +296,6 @@ export class WriteOffDetailsPageComponent implements OnInit {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);
-  }
-
-  formatDate(date: Date | string | null | undefined): string {
-    if (!date) return '-';
-    try {
-      const d = typeof date === 'string' ? new Date(date) : date;
-      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return String(date);
-    }
   }
 
   // Action Methods

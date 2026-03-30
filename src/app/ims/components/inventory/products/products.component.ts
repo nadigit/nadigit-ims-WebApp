@@ -246,6 +246,10 @@ export class ProductsComponent implements OnInit {
   private isInitialLoad: boolean = true;
   private lazyLoadCallCount: number = 0;
   lastGlobalFilter: string = '';
+
+  /** When false, list/detail treat net sellable qty vs on-hand (approved write-offs). */
+  salesStockIncludesApprovedWriteoffQty: boolean = false;
+
   @ViewChild('dt') dt!: Table;
   @ViewChild('filter') filter!: ElementRef;
   @ViewChild(ProductImportComponent) productImportComponent!: ProductImportComponent;
@@ -307,6 +311,7 @@ export class ProductsComponent implements OnInit {
       }
     });
     this.lowStockThreshold = await this.getLowStockThreshold();
+    await this.loadSalesStockConfig();
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
       this.countries = this.locationService.getAllCountriesWithTranslation();
@@ -2236,6 +2241,19 @@ export class ProductsComponent implements OnInit {
       console.error('Error fetching low stock threshold:', error);
       threshold = 10; // fallback value
       return threshold;
+    }
+  }
+
+  async loadSalesStockConfig(): Promise<void> {
+    try {
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('sales.stock.include.approved.writeoff.quantity')
+      );
+      const raw = config && typeof config === 'object' && 'value' in config ? (config as { value: unknown }).value : config;
+      this.salesStockIncludesApprovedWriteoffQty = raw === 'true' || raw === true;
+    } catch (e) {
+      console.warn('Could not load sales/write-off stock configuration for products', e);
+      this.salesStockIncludesApprovedWriteoffQty = false;
     }
   }
 

@@ -1,7 +1,17 @@
+import { registerLocaleData } from '@angular/common';
+import localeAr from '@angular/common/locales/ar';
+import localeEn from '@angular/common/locales/en';
+import localeEs from '@angular/common/locales/es';
+import localeFr from '@angular/common/locales/fr';
 import { enableProdMode } from '@angular/core';
 import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
 
 import { AppModule } from './app/app.module';
+
+registerLocaleData(localeEn);
+registerLocaleData(localeFr);
+registerLocaleData(localeEs);
+registerLocaleData(localeAr);
 import { environment } from './environments/environment';
 
 if (environment.production) {

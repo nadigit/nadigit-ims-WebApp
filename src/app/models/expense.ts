@@ -17,11 +17,12 @@ export interface ExpenseConfig {
 
 export class Expense {
   id?: number;
+  /** Server-assigned display code, e.g. EXP-2026-000042 */
+  reference?: string;
   purpose?: string;
   dateOfExpense?: Date | string;
   amount?: number;
   creationDate?: Date;
-  receipt?: string;
   paymentMethod?: string;
   checkNumber?: string;
   checkExpirationDate?: Date | string;

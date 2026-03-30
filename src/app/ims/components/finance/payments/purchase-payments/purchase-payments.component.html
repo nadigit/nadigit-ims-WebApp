@@ -1,7 +1,16 @@
 <div class="grid">
     <div class="col-12">
+        <!-- Purchase payments header — matches sales payments layout -->
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'purchase_payments' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'purchase_payments_page_description' | translate }}</p>
+                </div>
+            </div>
+        </div>
+
         <div class="card px-6 py-6">
-            <h5>{{'purchase_payments' | translate}}</h5>
             <p-toast></p-toast>
 
             <app-payments-table [payments]="payments" [context]="'outgoing'"

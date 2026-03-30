@@ -10,6 +10,10 @@
             </div>
         </div>
 
+        <p-message *ngIf="writeOffApprovalConfigLoaded && requireManualWriteOffApproval" severity="info"
+            styleClass="mb-3 w-full" [closable]="false"
+            [text]="'writeoff_approval_workflow_hint' | translate"></p-message>
+
         <div class="card px-6 py-6">
             <p-toast></p-toast>
 
@@ -395,6 +399,7 @@
 <!-- Write Off Create Dialog -->
 <app-write-off-create
     [(visible)]="showCreateDialog"
+    [manualApprovalWorkflowHint]="writeOffApprovalConfigLoaded && requireManualWriteOffApproval"
     (writeOffCreated)="onWriteOffCreated()">
 </app-write-off-create>
 

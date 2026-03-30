@@ -274,6 +274,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   // Price override configuration
   priceOverrideAllowed: boolean = true; // Default to true, will be loaded from config
 
+  /** When false, UI shows net sellable qty (approved write-offs excluded); matches default backend. */
+  salesStockIncludesApprovedWriteoffQty: boolean = false;
+
   // UX helper: single-entity flags
   hasSingleCustomer: boolean = false;
   hasSingleShop: boolean = false;
@@ -453,6 +456,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.onGetOrganization(),
       this.loadBankAccounts(),
       this.loadPriceOverrideConfig(),
+      this.loadSalesStockConfig(),
     ]);
 
     // Initialize table columns and statuses
@@ -950,6 +954,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     } catch (error: any) {
       console.warn('Could not load price override configuration, defaulting to true:', error);
       this.priceOverrideAllowed = true; // Default to true if config not found
+    }
+  }
+
+  async loadSalesStockConfig() {
+    try {
+      const config$ = await this.configService.getConfiguration('sales.stock.include.approved.writeoff.quantity');
+      const config = await firstValueFrom(config$);
+      this.salesStockIncludesApprovedWriteoffQty = config?.value === 'true' || config?.value === true;
+    } catch (e) {
+      console.warn('Could not load sales/write-off stock configuration, defaulting to net sellable qty', e);
+      this.salesStockIncludesApprovedWriteoffQty = false;
     }
   }
 

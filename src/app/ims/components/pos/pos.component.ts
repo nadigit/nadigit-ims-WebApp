@@ -276,6 +276,8 @@ export class PosComponent implements OnInit, OnDestroy {
   };
   conditionRefundMessages: { [key: string]: string } = {};
 
+  /** When false, sellable qty excludes approved write-off totals (matches backend default). */
+  salesStockIncludesApprovedWriteoffQty: boolean = false;
 
   constructor(
     private posService: PosService,
@@ -320,6 +322,8 @@ export class PosComponent implements OnInit, OnDestroy {
     
     // Check immediate refund configuration
     await this.checkImmediateRefundEnabled();
+
+    await this.loadSalesStockConfig();
     
     // Setup fullscreen
     this.setupFullscreen();
@@ -4526,6 +4530,19 @@ export class PosComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Error checking immediate refund config:', error);
       this.immediateRefundEnabled = false; // Default to false
+    }
+  }
+
+  async loadSalesStockConfig() {
+    try {
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('sales.stock.include.approved.writeoff.quantity')
+      );
+      this.salesStockIncludesApprovedWriteoffQty =
+        config?.value === 'true' || config?.value === true;
+    } catch (e) {
+      console.warn('Could not load sales/write-off stock configuration for POS, defaulting to net sellable qty', e);
+      this.salesStockIncludesApprovedWriteoffQty = false;
     }
   }
 

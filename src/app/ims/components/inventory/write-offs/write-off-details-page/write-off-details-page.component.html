@@ -1,6 +1,10 @@
 <div class="write-off-details-container">
     <p-toast></p-toast>
 
+    <p-message *ngIf="writeOffApprovalConfigLoaded && requireManualWriteOffApproval" severity="info"
+        styleClass="mb-3 w-full" [closable]="false"
+        [text]="'writeoff_approval_workflow_hint' | translate"></p-message>
+
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
@@ -43,7 +47,7 @@
                                     {{ writeOff.product.name }}
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="writeOff.warehouse?.name">
-                                    <i class="pi pi-warehouse"></i>
+                                    <i class="pi pi-building"></i>
                                     {{ writeOff.warehouse.name }}
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="writeOff.writeOffDate">
@@ -259,14 +263,14 @@
                         <!-- Warehouse Information Card -->
                         <div class="detail-card mb-4" *ngIf="writeOff.warehouse">
                             <div class="card-header">
-                                <i class="pi pi-warehouse"></i>
+                                <i class="pi pi-building"></i>
                                 <span>{{ 'warehouse' | translate }}</span>
                             </div>
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
                                         <div class="info-icon">
-                                            <i class="pi pi-warehouse"></i>
+                                            <i class="pi pi-building"></i>
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'warehouse_name' | translate }}</span>
@@ -345,7 +349,7 @@
                                     </div>
                                     <div class="info-item" *ngIf="writeOff.approvedDate">
                                         <div class="info-icon audit">
-                                            <i class="pi pi-calendar-check"></i>
+                                            <i class="pi pi-verified"></i>
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'approved_date' | translate }}</span>
@@ -378,38 +382,51 @@
             </p-tabPanel>
 
             <!-- Timeline Tab -->
-            <p-tabPanel *ngIf="writeOffEvents.length > 0">
+            <p-tabPanel>
                 <ng-template pTemplate="header">
-                    <i class="pi pi-clock mr-2"></i>
+                    <i class="pi pi-history mr-2"></i>
                     <span>{{ 'timeline' | translate }}</span>
                 </ng-template>
                 
                 <div class="mt-3">
                     <div class="detail-card">
                         <div class="card-header">
-                            <i class="pi pi-history"></i>
+                            <i class="pi pi-clock"></i>
                             <span>{{ 'write_off_timeline' | translate }}</span>
                         </div>
                         <div class="card-body">
-                            <p-timeline [value]="writeOffEvents" align="alternate" styleClass="custom-timeline">
-                                <ng-template let-event pTemplate="content">
-                                    <div class="timeline-event">
-                                        <div class="timeline-event-header">
-                                            <strong class="timeline-event-status">{{ event.status | translate }}</strong>
-                                            <span class="timeline-event-date">{{ formatDate(event.date) }}</span>
+                            <div class="timeline-container" *ngIf="writeOffEvents.length > 0; else noWriteOffTimeline">
+                                <p-timeline [value]="writeOffEvents" align="left" styleClass="modern-timeline">
+                                    <ng-template pTemplate="marker" let-event>
+                                        <div class="timeline-marker" [ngClass]="event.color">
+                                            <i [class]="event.icon"></i>
                                         </div>
-                                        <div class="timeline-event-user">
-                                            <i class="pi pi-user mr-2"></i>
-                                            {{ event.user }}
+                                    </ng-template>
+                                    <ng-template pTemplate="content" let-event>
+                                        <div class="timeline-card" [ngClass]="event.color">
+                                            <div class="timeline-header">
+                                                <h5 class="m-0">
+                                                    {{ event.status ? ('write_off_timeline_event_' + event.status.toLowerCase() | translate) : 'N/A' }}
+                                                </h5>
+                                                <span class="timeline-date" *ngIf="event.date">
+                                                    {{ event.date | date:'medium' }}
+                                                </span>
+                                            </div>
+                                            <p class="timeline-description m-0 mt-2 text-600">
+                                                {{ 'performed_by' | translate }}: {{ event.user }}
+                                            </p>
                                         </div>
+                                    </ng-template>
+                                </p-timeline>
+                            </div>
+                            <ng-template #noWriteOffTimeline>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="pi pi-history"></i>
                                     </div>
-                                </ng-template>
-                                <ng-template let-event pTemplate="marker">
-                                    <span class="custom-marker" [attr.data-severity]="event.color">
-                                        <i [class]="event.icon"></i>
-                                    </span>
-                                </ng-template>
-                            </p-timeline>
+                                    <h4>{{ 'no_timeline_events' | translate }}</h4>
+                                </div>
+                            </ng-template>
                         </div>
                     </div>
                 </div>

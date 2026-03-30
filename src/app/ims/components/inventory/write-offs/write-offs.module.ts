@@ -29,6 +29,7 @@ import { ConfirmationService } from 'primeng/api';
 import { ReactiveFormsModule } from '@angular/forms';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { AutoCompleteModule } from 'primeng/autocomplete';
+import { MessageModule } from 'primeng/message';
 import { ReportingService } from 'src/app/utils/reporting.service';
 @NgModule({
     imports: [
@@ -57,7 +58,8 @@ import { ReportingService } from 'src/app/utils/reporting.service';
         ConfirmDialogModule,
         ReactiveFormsModule,
         InputNumberModule,
-        AutoCompleteModule
+        AutoCompleteModule,
+        MessageModule
     ],
     declarations: [WriteOffsComponent, WriteOffDetailsPageComponent, WriteOffCreateComponent],
     providers: [ConfirmationService, ReportingService]

@@ -321,10 +321,10 @@
             <span class="text-xs text-500">{{ 'order_total_amount' | translate }}:</span>
             <span class="font-bold">
               <span *ngIf="hasReturns(order); else originalAmount">
-                {{getNetAmount(order) | currency:currency:'symbol':'1.0-0'}}
+                {{getNetAmount(order) | currency:currency:'symbol':'1.2-2'}}
               </span>
               <ng-template #originalAmount>
-                {{order.totalAmount | currency:currency:'symbol':'1.0-0'}}
+                {{order.totalAmount | currency:currency:'symbol':'1.2-2'}}
               </ng-template>
             </span>
           </div>
@@ -332,10 +332,10 @@
             <span class="text-xs text-500">{{ 'order_total_paid' | translate }}:</span>
             <span class="font-bold">
               <span *ngIf="hasRefunds(order); else simplePaid">
-                {{(order.totalPaid - order.totalRefunded) | currency:currency:'symbol':'1.0-0'}}
+                {{(order.totalPaid - order.totalRefunded) | currency:currency:'symbol':'1.2-2'}}
               </span>
               <ng-template #simplePaid>
-                {{order.totalPaid | currency:currency:'symbol':'1.0-0'}}
+                {{order.totalPaid | currency:currency:'symbol':'1.2-2'}}
               </ng-template>
             </span>
           </div>
@@ -350,13 +350,13 @@
           <div class="flex align-items-center gap-2">
             <span class="text-xs text-500">{{ 'order_total_cost' | translate }}:</span>
             <span class="text-xs cost-value">
-              {{ order.totalCost != null ? (order.totalCost | currency:currency:'symbol':'1.0-0') : 'N/A' }}
+              {{ order.totalCost != null ? (order.totalCost | currency:currency:'symbol':'1.2-2') : 'N/A' }}
             </span>
           </div>
           <div class="flex align-items-center gap-2">
             <span class="text-xs text-500">{{ 'order_total_profit' | translate }}:</span>
             <span class="font-bold">
-              {{ order.totalProfit != null ? (order.totalProfit | currency:currency:'symbol':'1.0-0') : 'N/A' }}
+              {{ order.totalProfit != null ? (order.totalProfit | currency:currency:'symbol':'1.2-2') : 'N/A' }}
             </span>
           </div>
           <span *ngIf="order.profitMargin != null" class="text-xs" [ngClass]="getProfitMarginClass(order.profitMargin)">

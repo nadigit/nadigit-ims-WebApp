@@ -33,6 +33,14 @@ export class WarehouseTransferService {
     return this.http.post<WarehouseTransfer>(url, transfer, { headers });
   }
 
+  /** Admin-controlled: when true, POST create runs initiate+complete on the server. */
+  async getTransferConfig(): Promise<Observable<{ autoApply: boolean }>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}/config`;
+    return this.http.get<{ autoApply: boolean }>(url, { headers });
+  }
+
   async initiateTransfer(id: number): Promise<Observable<WarehouseTransfer>> {
     await this.ensureTokenLoaded();
     const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Initiated warehouse transfer');

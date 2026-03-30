@@ -42,6 +42,11 @@
 			[resizable]="false">
 			<ng-template pTemplate="content">
 				<div class="grid">
+					<div *ngIf="!salesStockIncludesApprovedWriteoffQty" class="col-12">
+						<div class="p-3 border-round surface-ground text-600 text-sm mb-2">
+							<i class="pi pi-info-circle mr-2"></i>{{ 'orders_sellable_stock_excludes_writeoffs_hint' | translate }}
+						</div>
+					</div>
 					<!-- Left Panel - Customer & Product Selection -->
 					<div class="col-12 md:col-8">
 						<div class="grid">

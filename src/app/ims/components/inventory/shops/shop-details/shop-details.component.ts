@@ -20,6 +20,8 @@ import { CashCollection } from 'src/app/models/cashCollection';
 import { CashRegister } from 'src/app/models/cashRegister';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { ShopFormDialogComponent, ShopFormDialogConfig, ShopFormDialogData } from '../shop-form-dialog/shop-form-dialog.component';
+import { PosService } from 'src/app/services/pos.service';
+import { POSSessionDTO } from 'src/app/models/pos';
 
 @Component({
   templateUrl: './shop-details.component.html',
@@ -93,6 +95,13 @@ export class ShopDetailsComponent implements OnInit {
   dailyDifferenceTrend: number = 0;
   dailyDifferencePercentage: number = 0;
 
+  /** ADMIN: POS session history (distinct from cash register sessions). */
+  posSessions: POSSessionDTO[] = [];
+  posSessionsTotal = 0;
+  posSessionsLoading = false;
+  posSessionsPage = 0;
+  posSessionsPageSize = 10;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -108,6 +117,7 @@ export class ShopDetailsComponent implements OnInit {
     private datePipe: DatePipe,
     private cashRegisterService: CashRegisterService,
     private reportingService: ReportingService,
+    private posService: PosService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone
   ) { }
@@ -210,6 +220,9 @@ export class ShopDetailsComponent implements OnInit {
         this.loadRecentPurchases(),
         this.loadRecentExpenses()
       ]);
+      if (this.isAdmin && this.shop?.shopId) {
+        await this.loadPosSessions();
+      }
     } catch (error) {
       console.error('Error loading shop details:', error);
       this.messageService.add({
@@ -221,6 +234,36 @@ export class ShopDetailsComponent implements OnInit {
     } finally {
       this.loadingShopDetails = false;
     }
+  }
+
+  async loadPosSessions(): Promise<void> {
+    if (!this.isAdmin || !this.shop?.shopId) {
+      return;
+    }
+    this.posSessionsLoading = true;
+    try {
+      const resp = await firstValueFrom(
+        await this.posService.getSessionHistory(this.shop.shopId, this.posSessionsPage, this.posSessionsPageSize)
+      );
+      this.posSessions = resp?.content ?? [];
+      this.posSessionsTotal = resp?.totalElements ?? 0;
+    } catch (e) {
+      console.error('Error loading POS session history:', e);
+      this.posSessions = [];
+      this.posSessionsTotal = 0;
+    } finally {
+      this.posSessionsLoading = false;
+    }
+  }
+
+  onPosHistoryPageChange(event: { page: number; rows: number }): void {
+    this.posSessionsPage = event.page;
+    this.posSessionsPageSize = event.rows;
+    this.loadPosSessions();
+  }
+
+  cashRegisterSessionIdForPosRow(session: POSSessionDTO): number | null {
+    return session.cashRegisterSessionId ?? session.cashRegisterSession?.sessionId ?? null;
   }
 
   async loadCashRegisterData(): Promise<void> {
@@ -329,6 +372,7 @@ export class ShopDetailsComponent implements OnInit {
 
   refreshData(): void {
     if (this.shop?.shopId) {
+      this.posSessionsPage = 0;
       this.loadingShopDetails = true;
       this.loadShopDetails().then(() => {
         this.calculateShopStats();

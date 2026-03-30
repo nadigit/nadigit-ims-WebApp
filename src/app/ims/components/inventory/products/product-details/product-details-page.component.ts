@@ -57,6 +57,8 @@ export class ProductDetailsPageComponent implements OnInit {
   productReference: string | null = null;
   aggregatedProduct: AggregatedProduct | null = null;
   warehouseStocks: WarehouseStockInfo[] = [];
+  /** Shown under costing when aggregated SKUs disagree on effective method */
+  aggregatedCostingMethodVaries = false;
 
   // Product form properties
   productDialog: boolean = false;
@@ -116,6 +118,9 @@ export class ProductDetailsPageComponent implements OnInit {
   writeOffs: InventoryWriteOff[] = [];
   writeOffsLoading: boolean = false;
 
+  /** When true, sales stock includes approved write-off quantity (same setting as orders/POS). */
+  salesStockIncludesApprovedWriteoffQty: boolean = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -159,6 +164,8 @@ export class ProductDetailsPageComponent implements OnInit {
     // Load token first
     this.productService.loadToken();
     this.barcodeService.loadToken();
+
+    await this.loadSalesStockConfig();
     
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -212,6 +219,19 @@ export class ProductDetailsPageComponent implements OnInit {
     });
   }
 
+  async loadSalesStockConfig(): Promise<void> {
+    try {
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('sales.stock.include.approved.writeoff.quantity')
+      );
+      const raw = config && typeof config === 'object' && 'value' in config ? (config as { value: unknown }).value : config;
+      this.salesStockIncludesApprovedWriteoffQty = raw === 'true' || raw === true;
+    } catch (e) {
+      console.warn('Could not load sales/write-off stock configuration for product details', e);
+      this.salesStockIncludesApprovedWriteoffQty = false;
+    }
+  }
+
   async loadAggregatedProduct(): Promise<void> {
     try {
       this.productService.loadToken();
@@ -230,7 +250,14 @@ export class ProductDetailsPageComponent implements OnInit {
       if (response) {
         this.aggregatedProduct = response;
         this.warehouseStocks = this.aggregatedProduct.warehouseStocks || [];
-        
+        this.aggregatedCostingMethodVaries = !!this.aggregatedProduct.costingMethodVaries;
+
+        let creationDate: Date | undefined;
+        if (this.aggregatedProduct.earliestCreationDate) {
+          const d = new Date(this.aggregatedProduct.earliestCreationDate);
+          creationDate = isNaN(d.getTime()) ? undefined : d;
+        }
+
         // Convert aggregated product to Product format for compatibility
         this.product = {
           productId: this.warehouseStocks[0]?.productId || this.productId,
@@ -248,6 +275,8 @@ export class ProductDetailsPageComponent implements OnInit {
           supplier: this.aggregatedProduct.supplier,
           measureUnit: this.aggregatedProduct.measureUnit,
           expirationDate: this.aggregatedProduct.earliestExpirationDate,
+          creationDate,
+          costingMethod: this.aggregatedProduct.effectiveCostingMethod,
           _aggregated: true,
           _warehouseCount: this.aggregatedProduct.warehouseCount,
           _warehouseStocks: this.warehouseStocks
@@ -259,7 +288,9 @@ export class ProductDetailsPageComponent implements OnInit {
         }
         this.isLoading = false;
       } else {
-        // Fallback to single product if aggregated not found
+        this.warehouseStocks = [];
+        this.aggregatedProduct = null;
+        this.aggregatedCostingMethodVaries = false;
         await this.loadProduct();
       }
     } catch (error: any) {
@@ -273,7 +304,9 @@ export class ProductDetailsPageComponent implements OnInit {
           life: 3000
         });
       }
-      // Fallback to single product on error
+      this.warehouseStocks = [];
+      this.aggregatedProduct = null;
+      this.aggregatedCostingMethodVaries = false;
       await this.loadProduct();
     }
   }
@@ -307,6 +340,8 @@ export class ProductDetailsPageComponent implements OnInit {
         this.router.navigate(['/inventory/products']);
         return;
       }
+
+      this.aggregatedCostingMethodVaries = false;
 
       this.updateChart();
       this.onGetProductPriceHistory(this.product.productId);
@@ -342,6 +377,27 @@ export class ProductDetailsPageComponent implements OnInit {
     this.router.navigate(['/inventory/warehouses', warehouseId]);
   }
 
+  /** Product IDs to load batches, write-offs, and barcodes (all SKUs when aggregated). */
+  private getAggregatedProductIdList(): number[] {
+    if (this.isAggregatedView && this.warehouseStocks?.length) {
+      const ids = this.warehouseStocks
+        .map(s => s.productId)
+        .filter((id): id is number => id != null && !isNaN(Number(id)));
+      return [...new Set(ids.map(Number))];
+    }
+    const pid = this.product?.productId ?? this.productId;
+    return pid != null && !isNaN(Number(pid)) ? [Number(pid)] : [];
+  }
+
+  getWarehouseNameForBatch(batch: ProductBatch): string {
+    if (batch.warehouseId == null) {
+      return '-';
+    }
+    const wid = Number(batch.warehouseId);
+    const stock = this.warehouseStocks.find(s => Number(s.warehouseId) === wid);
+    return stock?.warehouseName || '-';
+  }
+
   // ==================== BATCH MANAGEMENT ====================
 
   async loadBatches(): Promise<void> {
@@ -355,26 +411,54 @@ export class ProductDetailsPageComponent implements OnInit {
     this.batchesLoading = true;
     try {
       this.productService.loadToken();
-      const response: any = await firstValueFrom(this.productService.getProductBatches(this.productId));
-      
-      if (Array.isArray(response)) {
-        this.batches = response.map((batch: any) => ({
-          ...batch,
-          expirationDate: batch.expirationDate,
-          receiptDate: batch.receiptDate,
-          createdAt: batch.createdAt,
-          updatedAt: batch.updatedAt
-        }));
-      } else if (response && response.content && Array.isArray(response.content)) {
-        // Handle paginated response
-        this.batches = response.content.map((batch: any) => ({
-          ...batch,
-          expirationDate: batch.expirationDate,
-          receiptDate: batch.receiptDate
-        }));
-      } else {
+      const productIds = this.getAggregatedProductIdList();
+      if (productIds.length === 0) {
         this.batches = [];
+        return;
       }
+
+      const mapResponseToBatches = (response: any): ProductBatch[] => {
+        if (Array.isArray(response)) {
+          return response.map((batch: any) => ({
+            ...batch,
+            expirationDate: batch.expirationDate,
+            receiptDate: batch.receiptDate,
+            createdAt: batch.createdAt,
+            updatedAt: batch.updatedAt
+          }));
+        }
+        if (response?.content && Array.isArray(response.content)) {
+          return response.content.map((batch: any) => ({
+            ...batch,
+            expirationDate: batch.expirationDate,
+            receiptDate: batch.receiptDate
+          }));
+        }
+        return [];
+      };
+
+      const merged: ProductBatch[] = [];
+      for (const pid of productIds) {
+        try {
+          const response: any = await firstValueFrom(this.productService.getProductBatches(pid));
+          merged.push(...mapResponseToBatches(response));
+        } catch (err: any) {
+          if (err?.status !== 404) {
+            console.error('Error loading batches for product', pid, err);
+          }
+        }
+      }
+
+      const byBatchId = new Map<number, ProductBatch>();
+      const withoutId: ProductBatch[] = [];
+      for (const b of merged) {
+        if (b.batchId != null) {
+          byBatchId.set(b.batchId, b);
+        } else {
+          withoutId.push(b);
+        }
+      }
+      this.batches = [...byBatchId.values(), ...withoutId];
 
       // Sort batches by expiration date (earliest first)
       // Batches without expiration dates are sorted to the end
@@ -556,29 +640,53 @@ export class ProductDetailsPageComponent implements OnInit {
     this.writeOffsLoading = true;
     try {
       this.writeOffService.loadToken();
-      const response: any = await firstValueFrom(await this.writeOffService.getWriteOffsByProduct(this.productId));
-      
-      if (Array.isArray(response)) {
-        this.writeOffs = response.map((writeOff: any) => ({
-          ...writeOff,
-          // Handle flat format from backend (productId, warehouseId, productName, warehouseName)
-          product: writeOff.product || (writeOff.productId ? {
-            productId: writeOff.productId,
-            name: writeOff.productName,
-            reference: writeOff.productReference
-          } : null),
-          warehouse: writeOff.warehouse || (writeOff.warehouseId ? {
-            warehouseId: writeOff.warehouseId,
-            name: writeOff.warehouseName
-          } : null),
-          writeOffDate: writeOff.writeOffDate ? new Date(writeOff.writeOffDate) : null,
-          approvedDate: writeOff.approvedDate ? new Date(writeOff.approvedDate) : null,
-          rejectedDate: writeOff.rejectedDate ? new Date(writeOff.rejectedDate) : null,
-          creationDate: writeOff.creationDate ? new Date(writeOff.creationDate) : null
-        }));
-      } else {
+      const productIds = this.getAggregatedProductIdList();
+      if (productIds.length === 0) {
         this.writeOffs = [];
+        return;
       }
+
+      const mapWriteOff = (writeOff: any): InventoryWriteOff => ({
+        ...writeOff,
+        product: writeOff.product || (writeOff.productId ? {
+          productId: writeOff.productId,
+          name: writeOff.productName,
+          reference: writeOff.productReference
+        } : null),
+        warehouse: writeOff.warehouse || (writeOff.warehouseId ? {
+          warehouseId: writeOff.warehouseId,
+          name: writeOff.warehouseName
+        } : null),
+        writeOffDate: writeOff.writeOffDate ? new Date(writeOff.writeOffDate) : null,
+        approvedDate: writeOff.approvedDate ? new Date(writeOff.approvedDate) : null,
+        rejectedDate: writeOff.rejectedDate ? new Date(writeOff.rejectedDate) : null,
+        creationDate: writeOff.creationDate ? new Date(writeOff.creationDate) : null
+      });
+
+      const merged: InventoryWriteOff[] = [];
+      for (const pid of productIds) {
+        try {
+          const response: any = await firstValueFrom(await this.writeOffService.getWriteOffsByProduct(pid));
+          if (Array.isArray(response)) {
+            merged.push(...response.map(mapWriteOff));
+          }
+        } catch (err: any) {
+          if (err?.status !== 404) {
+            console.error('Error loading write-offs for product', pid, err);
+          }
+        }
+      }
+
+      const byId = new Map<number, InventoryWriteOff>();
+      const writeOffsWithoutId: InventoryWriteOff[] = [];
+      for (const wo of merged) {
+        if (wo.writeOffId != null) {
+          byId.set(wo.writeOffId, wo);
+        } else {
+          writeOffsWithoutId.push(wo);
+        }
+      }
+      this.writeOffs = [...byId.values(), ...writeOffsWithoutId];
 
       // Sort write-offs by date (most recent first)
       this.writeOffs.sort((a, b) => {
@@ -726,12 +834,32 @@ export class ProductDetailsPageComponent implements OnInit {
   }
 
   async loadBarcodes(): Promise<void> {
-    if (!this.productId) return;
-    
+    const productIds = this.getAggregatedProductIdList();
+    if (productIds.length === 0) return;
+
     this.barcodesLoading = true;
     try {
       this.barcodeService.loadToken();
-      this.barcodes = await firstValueFrom(this.barcodeService.getProductBarcodes(this.productId));
+      const merged: BarcodeResponseDTO[] = [];
+      for (const pid of productIds) {
+        try {
+          const list = await firstValueFrom(this.barcodeService.getProductBarcodes(pid));
+          if (Array.isArray(list)) {
+            merged.push(...list);
+          }
+        } catch (err: any) {
+          if (err?.status !== 404) {
+            console.error('Error loading barcodes for product', pid, err);
+          }
+        }
+      }
+      const byBarcodeId = new Map<number, BarcodeResponseDTO>();
+      for (const b of merged) {
+        if (b.barcodeId != null) {
+          byBarcodeId.set(b.barcodeId, b);
+        }
+      }
+      this.barcodes = Array.from(byBarcodeId.values());
     } catch (error: any) {
       console.error('Error loading barcodes:', error);
       // Don't show error if no barcodes exist
@@ -770,12 +898,13 @@ export class ProductDetailsPageComponent implements OnInit {
   }
 
   async generateBarcode(): Promise<void> {
-    if (!this.productId) return;
-    
+    const targetProductId = this.product?.productId ?? this.productId;
+    if (!targetProductId) return;
+
     this.isGenerating = true;
     try {
       const request: BarcodeRequestDTO = {
-        productId: this.productId,
+        productId: targetProductId,
         barcodeType: this.newBarcodeType,
         barcodeFormat: this.newBarcodeFormat,
         isPrimary: this.newBarcodeIsPrimary
@@ -814,11 +943,12 @@ export class ProductDetailsPageComponent implements OnInit {
   }
 
   async autoGenerateBarcode(type: BarcodeType = 'BARCODE'): Promise<void> {
-    if (!this.productId) return;
-    
+    const targetProductId = this.product?.productId ?? this.productId;
+    if (!targetProductId) return;
+
     this.barcodesLoading = true;
     try {
-      const newBarcode = await firstValueFrom(this.barcodeService.autoGenerateBarcode(this.productId, type));
+      const newBarcode = await firstValueFrom(this.barcodeService.autoGenerateBarcode(targetProductId, type));
       this.barcodes.push(newBarcode);
       
       this.messageService.add({

@@ -27,6 +27,8 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
   isSubmitting: boolean = false;
 
   @Input() visible: boolean = false;
+  /** Mirrors global `writeoff.auto.approve === false` from parent (manual approval workflow). */
+  @Input() manualApprovalWorkflowHint: boolean = false;
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() writeOffCreated = new EventEmitter<void>();
   

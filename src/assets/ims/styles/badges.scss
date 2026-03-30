@@ -5,6 +5,7 @@
 .refund-badge,
 .purchase-badge,
 .order-badge,
+.expense-badge,
 .transfer-badge {
     border-radius: var(--border-radius);
     padding: .25em .5rem;
@@ -156,6 +157,23 @@
     &.return-partially_refunded {
         background: #ebc3dd;
         color: #82437f;
+    }
+}
+
+.expense-badge {
+    &.expense-pending {
+        background: #FEEDAF;
+        color: #8A5340;
+    }
+
+    &.expense-approved {
+        background: #b9faaf;
+        color: #3c774b;
+    }
+
+    &.expense-rejected {
+        background: #FFCDD2;
+        color: #C63737;
     }
 }
 

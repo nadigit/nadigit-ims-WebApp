@@ -4,6 +4,9 @@
     [resizable]="false" [style]="{width: '90%', maxWidth: '1200px'}" [breakpoints]="{'960px': '95%', '640px': '98%'}"
     styleClass="p-fluid write-off-dialog" (onHide)="onCancel()">
 
+    <p-message *ngIf="manualApprovalWorkflowHint" severity="info" styleClass="mb-3 w-full" [closable]="false"
+        [text]="'writeoff_approval_workflow_hint' | translate"></p-message>
+
     <form [formGroup]="writeOffForm" (ngSubmit)="onSubmit()">
         <div class="grid">
             <!-- Left Column -->

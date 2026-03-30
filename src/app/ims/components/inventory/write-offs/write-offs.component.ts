@@ -79,6 +79,10 @@ export class WriteOffsComponent implements OnInit {
   
   // Currency
   currency: string = 'USD';
+
+  /** When `writeoff.auto.approve` is false, show manual-approval info banner (same UX as expenses). */
+  writeOffApprovalConfigLoaded: boolean = false;
+  requireManualWriteOffApproval: boolean = false;
   
   resource: string = 'INVENTORY_WRITE_OFFS';
   
@@ -110,6 +114,7 @@ export class WriteOffsComponent implements OnInit {
       }
     });
     await this.configService.loadCurrencyOnce();
+    await this.loadWriteOffAutoApproveConfig();
     
     await this.setPermissions();
     await this.setUserRoles();
@@ -128,6 +133,19 @@ export class WriteOffsComponent implements OnInit {
       { title: this.translateService.instant('status'), dataKey: 'status' },
       { title: this.translateService.instant('write_off_date'), dataKey: 'writeOffDate' }
     ];
+  }
+
+  private async loadWriteOffAutoApproveConfig(): Promise<void> {
+    try {
+      const obs = await this.configService.getConfigurationValue('writeoff.auto.approve');
+      const raw = await firstValueFrom(obs);
+      const autoApprove = String(raw).toLowerCase() === 'true';
+      this.requireManualWriteOffApproval = !autoApprove;
+    } catch {
+      this.requireManualWriteOffApproval = false;
+    } finally {
+      this.writeOffApprovalConfigLoaded = true;
+    }
   }
 
   async setUserRoles() {
