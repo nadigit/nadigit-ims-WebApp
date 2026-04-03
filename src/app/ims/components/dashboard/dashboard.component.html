@@ -188,6 +188,20 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Reports (admin) -->
+            <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin">
+                <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
+                     (click)="navigateToReports()"
+                     [pTooltip]="'dashboard_reports_teaser' | translate">
+                    <div class="flex flex-column align-items-center gap-2">
+                        <div class="quick-action-icon surface-100 border-round p-3">
+                            <i class="pi pi-chart-bar text-primary text-2xl"></i>
+                        </div>
+                        <span class="text-sm font-medium text-center">{{ 'reports_menu_title' | translate }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -546,298 +560,6 @@
         </p-card>
     </div>
 
-    <!-- Profit Analysis Section - Admin Only -->
-    <div class="col-12" *ngIf="isAdmin">
-        <p-card styleClass="shadow-2 border-round-lg profit-analysis-card">
-            <ng-template pTemplate="header">
-                <div class="flex align-items-center gap-3 p-3">
-                    <div class="profit-header-icon">
-                        <i class="pi pi-chart-line text-primary text-2xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="m-0 text-900">{{'profit_analysis_dashboard' | translate}}</h3>
-                        <p class="m-0 text-500 text-sm mt-1" *ngIf="profitData">
-                            {{(profitData.startDate | date :'mediumDate')}} {{'to' | translate}} {{(profitData.endDate | date:'mediumDate')}}
-                        </p>
-                    </div>
-                </div>
-            </ng-template>
-
-            <!-- Filters Section -->
-            <div class="profit-filters mb-4">
-                <div class="grid">
-                    <div class="col-12 md:col-6">
-                        <div class="filter-field">
-                            <label for="period" class="filter-label">
-                                <i class="pi pi-calendar mr-2"></i>
-                                {{'period' | translate}}
-                            </label>
-                            <p-dropdown 
-                                [options]="profitPeriods" 
-                                [(ngModel)]="selectedPeriod"
-                                (onChange)="onFilterChange()" 
-                                optionLabel="label" 
-                                optionValue="value"
-                                [style]="{'width': '100%'}"
-                                [showClear]="false">
-                            </p-dropdown>
-                        </div>
-                    </div>
-
-                    <div class="col-12 md:col-6">
-                        <div class="filter-field">
-                            <label for="shop" class="filter-label">
-                                <i class="pi pi-building mr-2"></i>
-                                {{'shop' | translate}}
-                            </label>
-                            <p-dropdown 
-                                [options]="shopOptions" 
-                                [(ngModel)]="selectedShop" 
-                                (onChange)="onFilterChange()"
-                                optionLabel="label" 
-                                optionValue="value"
-                                [style]="{'width': '100%'}"
-                                [showClear]="true">
-                            </p-dropdown>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Loading State -->
-            <div *ngIf="profitLoading" class="flex flex-column align-items-center justify-content-center py-6">
-                <p-progressSpinner styleClass="w-4rem h-4rem"></p-progressSpinner>
-                <p class="text-600 mt-3">{{ 'loading' | translate }}...</p>
-            </div>
-
-            <!-- Error State -->
-            <p-message *ngIf="error && !profitLoading" severity="error" [text]="error" class="mb-4"></p-message>
-
-            <!-- Profit Data Content -->
-            <div *ngIf="profitData && !profitLoading" class="profit-content">
-                <!-- Key Metrics Cards -->
-                <div class="grid mb-4">
-                    <div class="col-12 md:col-3">
-                        <div class="profit-metric-card revenue-card">
-                            <div class="metric-icon-wrapper bg-green-100">
-                                <i class="pi pi-arrow-up text-green-600 text-2xl"></i>
-                            </div>
-                            <div class="metric-content">
-                                <div class="metric-label">{{'revenue' | translate}}</div>
-                                <div class="metric-value text-green-600">
-                                    {{profitData.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                </div>
-                                <div class="metric-percentage text-green-600" *ngIf="profitData.totalRevenue > 0">
-                                    {{calculateRevenuePercentage() | number:'1.1-1'}}%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-12 md:col-3">
-                        <div class="profit-metric-card costs-card">
-                            <div class="metric-icon-wrapper bg-red-100">
-                                <i class="pi pi-arrow-down text-red-600 text-2xl"></i>
-                            </div>
-                            <div class="metric-content">
-                                <div class="metric-label">{{'total_costs' | translate}}</div>
-                                <div class="metric-value text-red-600">
-                                    -{{getTotalCosts() | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                </div>
-                                <div class="metric-percentage text-red-600" *ngIf="profitData.totalRevenue > 0">
-                                    {{calculateCostsPercentage() | number:'1.1-1'}}%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-12 md:col-3" *ngIf="profitData.totalWriteOffs > 0">
-                        <div class="profit-metric-card writeoffs-card">
-                            <div class="metric-icon-wrapper bg-orange-100">
-                                <i class="pi pi-trash text-orange-600 text-2xl"></i>
-                            </div>
-                            <div class="metric-content">
-                                <div class="metric-label">{{'write_offs' | translate}}</div>
-                                <div class="metric-value text-orange-600">
-                                    -{{profitData.totalWriteOffs | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                </div>
-                                <div class="metric-percentage text-orange-600" *ngIf="profitData.totalRevenue > 0">
-                                    {{(profitData.totalWriteOffs / profitData.totalRevenue * 100) | number:'1.1-1'}}%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-12" [ngClass]="{'md:col-3': profitData.totalWriteOffs > 0, 'md:col-6': profitData.totalWriteOffs <= 0}">
-                        <div class="profit-metric-card" [ngClass]="{
-                            'profit-card': profitData.netProfit >= 0,
-                            'loss-card': profitData.netProfit < 0
-                        }">
-                            <div class="metric-icon-wrapper" [ngClass]="{
-                                'bg-green-100': profitData.netProfit >= 0,
-                                'bg-red-100': profitData.netProfit < 0
-                            }">
-                                <i class="pi" [ngClass]="{
-                                    'pi-check-circle text-green-600': profitData.netProfit >= 0,
-                                    'pi-times-circle text-red-600': profitData.netProfit < 0
-                                }" class="text-2xl"></i>
-                            </div>
-                            <div class="metric-content">
-                                <div class="metric-label">{{'net_profit' | translate}}</div>
-                                <div class="metric-value" [ngClass]="{
-                                    'text-green-600': profitData.netProfit >= 0,
-                                    'text-red-600': profitData.netProfit < 0
-                                }">
-                                    {{profitData.netProfit | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                </div>
-                                <div class="metric-percentage" [ngClass]="{
-                                    'text-green-600': profitData.netProfit >= 0,
-                                    'text-red-600': profitData.netProfit < 0
-                                }" *ngIf="profitData.totalRevenue > 0">
-                                    {{calculateProfitMargin() | number:'1.1-1'}}%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chart and Breakdown Section -->
-                <div class="grid">
-                    <!-- Chart Section -->
-                    <div class="col-12 lg:col-8">
-                        <p-card styleClass="chart-card h-full">
-                            <ng-template pTemplate="header">
-                                <div class="flex align-items-center gap-2 p-3">
-                                    <i class="pi pi-chart-bar text-primary"></i>
-                                    <span class="font-semibold">{{'financial_overview' | translate}}</span>
-                                </div>
-                            </ng-template>
-                            <div class="chart-wrapper">
-                                <div *ngIf="profitChartData && profitChartOptions" class="chart-container">
-                                    <p-chart type="bar" [data]="profitChartData" [options]="profitChartOptions"></p-chart>
-                                </div>
-                                <div *ngIf="!profitChartData || !profitChartOptions" class="flex flex-column align-items-center justify-content-center" style="height: 300px;">
-                                    <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
-                                    <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
-                                </div>
-                            </div>
-                        </p-card>
-                    </div>
-
-                    <!-- Breakdown Section -->
-                    <div class="col-12 lg:col-4">
-                        <div class="breakdown-section">
-                            <!-- Revenue Breakdown -->
-                            <p-card styleClass="breakdown-card mb-3">
-                                <ng-template pTemplate="header">
-                                    <div class="flex align-items-center gap-2 p-3">
-                                        <i class="pi pi-arrow-up text-green-600"></i>
-                                        <span class="font-semibold">{{'revenue_breakdown' | translate}}</span>
-                                    </div>
-                                </ng-template>
-                                <div class="breakdown-list">
-                                    <div class="breakdown-item">
-                                        <div class="flex align-items-center gap-2">
-                                            <i class="pi pi-circle-fill text-green-500" style="font-size: 0.5rem"></i>
-                                            <span class="breakdown-label">{{'gross_revenue' | translate}}</span>
-                                        </div>
-                                        <span class="breakdown-value text-green-600 font-semibold">
-                                            {{profitData.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                        </span>
-                                    </div>
-                                </div>
-                            </p-card>
-
-                            <!-- Costs Breakdown -->
-                            <p-card styleClass="breakdown-card">
-                                <ng-template pTemplate="header">
-                                    <div class="flex align-items-center gap-2 p-3">
-                                        <i class="pi pi-arrow-down text-red-600"></i>
-                                        <span class="font-semibold">{{'costs_breakdown' | translate}}</span>
-                                    </div>
-                                </ng-template>
-                                <div class="breakdown-list">
-                                    <div class="breakdown-item">
-                                        <div class="flex align-items-center gap-2">
-                                            <i class="pi pi-circle-fill text-orange-500" style="font-size: 0.5rem"></i>
-                                            <span class="breakdown-label">{{'product_costs' | translate}}</span>
-                                        </div>
-                                        <span class="breakdown-value text-red-600 font-semibold">
-                                            -{{profitData.totalCosts | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                        </span>
-                                    </div>
-                                    <div class="breakdown-item">
-                                        <div class="flex align-items-center gap-2">
-                                            <i class="pi pi-circle-fill text-pink-500" style="font-size: 0.5rem"></i>
-                                            <span class="breakdown-label">{{'refunds' | translate}}</span>
-                                        </div>
-                                        <span class="breakdown-value text-red-600 font-semibold">
-                                            -{{profitData.totalRefunds | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                        </span>
-                                    </div>
-                                    <div class="breakdown-item">
-                                        <div class="flex align-items-center gap-2">
-                                            <i class="pi pi-circle-fill text-purple-500" style="font-size: 0.5rem"></i>
-                                            <span class="breakdown-label">{{'expenses' | translate}}</span>
-                                        </div>
-                                        <span class="breakdown-value text-red-600 font-semibold">
-                                            -{{profitData.totalExpenses | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                        </span>
-                                    </div>
-                                    <div class="breakdown-item">
-                                        <div class="flex align-items-center gap-2">
-                                            <i class="pi pi-circle-fill text-orange-500" style="font-size: 0.5rem"></i>
-                                            <span class="breakdown-label">{{'write_offs' | translate}}</span>
-                                        </div>
-                                        <span class="breakdown-value text-orange-600 font-semibold">
-                                            -{{profitData.totalWriteOffs | currency: (currency || 'USD'):'symbol':'1.2-2'}}
-                                        </span>
-                                    </div>
-                                </div>
-                            </p-card>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Profit Margin Indicator -->
-                <div class="profit-margin-section mt-4" *ngIf="profitData.totalRevenue > 0">
-                    <p-card styleClass="margin-card">
-                        <div class="flex align-items-center justify-content-between mb-3">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-percentage text-primary"></i>
-                                <span class="font-semibold">{{'profit_margin' | translate}}</span>
-                            </div>
-                            <span class="font-bold text-lg" [ngClass]="{
-                                'text-green-600': profitData.netProfit >= 0,
-                                'text-red-600': profitData.netProfit < 0
-                            }">
-                                {{calculateProfitMargin() | number:'1.2-2'}}%
-                            </span>
-                        </div>
-                        <div class="profit-margin-bar">
-                            <div class="bar-container">
-                                <div class="negative-track" *ngIf="profitData.netProfit < 0"></div>
-                                <div class="positive-track" *ngIf="profitData.netProfit >= 0"></div>
-                                <div class="indicator" [style.left]="calculateIndicatorPosition()"
-                                    [ngClass]="{
-                                        'positive': profitData.netProfit >= 0,
-                                        'negative': profitData.netProfit < 0
-                                    }">
-                                    <span class="indicator-value">{{calculateProfitMargin() | number:'1.0-2'}}%</span>
-                                </div>
-                            </div>
-                            <div class="flex justify-content-between mt-2 text-sm text-600">
-                                <span>-100%</span>
-                                <span>0%</span>
-                                <span>+100%</span>
-                            </div>
-                        </div>
-                    </p-card>
-                </div>
-            </div>
-        </p-card>
-    </div>
-
     <!-- Alert Center - Admin Only -->
     <div class="col-12 lg:col-4" *ngIf="isAdmin && criticalAlerts.length > 0">
         <p-card styleClass="shadow-2 border-round-lg h-full alert-center-card">
@@ -961,8 +683,8 @@
     </div>
 
     <!-- Quick Stats Summary -->
-    <div class="col-12" [ngClass]="{'lg:col-6': isAdmin && criticalAlerts.length > 0, 'lg:col-12': !isAdmin || criticalAlerts.length === 0}">
-        <p-card styleClass="shadow-2 border-round-lg h-full">
+    <div class="col-12 dashboard-col-align-start" [ngClass]="{'lg:col-6': isAdmin && criticalAlerts.length > 0, 'lg:col-12': !isAdmin || criticalAlerts.length === 0}">
+        <p-card styleClass="shadow-2 border-round-lg">
             <ng-template pTemplate="header">
                 <div class="flex align-items-center gap-2 p-3">
                     <i class="pi pi-chart-line text-primary text-xl"></i>
@@ -1136,8 +858,8 @@
         </p-card>
     </div>
 
-    <div class="col-12 lg:col-6" *ngIf="isAdmin && topCustomersByRevenue.length > 0">
-        <p-card styleClass="shadow-2 border-round-lg">
+    <div class="col-12 lg:col-6 dashboard-col-align-start" *ngIf="isAdmin && topCustomersByRevenue.length > 0">
+        <p-card styleClass="shadow-2 border-round-lg dashboard-card-fit-content">
             <ng-template pTemplate="header">
                 <div class="flex justify-content-between align-items-center p-3">
                     <div class="flex align-items-center gap-2">
@@ -1173,10 +895,11 @@
         </p-card>
     </div>
 
-    <!-- Left Column - Recent Products & Best Sellers -->
-    <div class="col-12 xl:col-6">
+    <!-- Recent products & best sellers (pairs with top customers when that card is visible) -->
+    <div class="col-12 dashboard-col-align-start"
+         [ngClass]="(isAdmin && topCustomersByRevenue.length > 0) ? 'lg:col-6' : 'lg:col-12'">
         <!-- Recent Products Card -->
-        <p-card styleClass="shadow-2 border-round-lg mb-3">
+        <p-card styleClass="shadow-2 border-round-lg mb-3 dashboard-card-fit-content">
             <ng-template pTemplate="header">
                 <div class="flex justify-content-between align-items-center p-3">
                     <div class="flex align-items-center gap-2">
@@ -1229,7 +952,7 @@
         </p-card>
 
         <!-- Best Selling Products Card -->
-        <p-card styleClass="shadow-2 border-round-lg">
+        <p-card styleClass="shadow-2 border-round-lg dashboard-card-fit-content">
             <ng-template pTemplate="header">
                 <div class="flex align-items-center gap-2 p-3">
                     <i class="pi pi-star text-primary text-xl"></i>
@@ -1268,10 +991,12 @@
         </p-card>
     </div>
 
-    <!-- Right Column - Charts -->
-    <div class="col-12 xl:col-6">
+    <!-- Charts: full-width row; sales + inventory side by side on large screens -->
+    <div class="col-12 dashboard-charts-row">
+        <div class="grid m-0">
         <!-- Sales Overview Chart - Lazy Loaded -->
-        <p-card styleClass="shadow-2 border-round-lg mb-3 chart-container">
+        <div class="col-12 dashboard-col-align-start p-0 pr-0" [ngClass]="{'lg:col-6 lg:pr-2': isAdmin}">
+        <p-card styleClass="shadow-2 border-round-lg mb-3 chart-container dashboard-card-fit-content w-full" [ngClass]="{'lg:mb-0': isAdmin}">
             <ng-template pTemplate="header">
                 <div class="flex align-items-center justify-content-between p-3">
                     <div class="flex align-items-center gap-2">
@@ -1287,7 +1012,7 @@
                             [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
-            <div class="p-3" [style]="{'height': '350px', 'position': 'relative', 'overflow': 'hidden'}">
+            <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': salesChartActive}" [ngStyle]="{'position': 'relative', 'overflow': 'hidden'}">
                 <!-- Only render chart when data is completely ready AND render flag is set -->
                 <!-- Defer chart DOM rendering to prevent blocking -->
                 <ng-container *ngIf="chartDataReady && chartRenderReady && chartData && chartOptions && 
@@ -1330,9 +1055,11 @@
                 </div>
             </div>
         </p-card>
+        </div>
 
         <!-- Inventory Overview Chart - Lazy Loaded -->
-        <p-card styleClass="shadow-2 border-round-lg chart-container" *ngIf="isAdmin">
+        <div class="col-12 lg:col-6 dashboard-col-align-start p-0 pl-0 lg:pl-2" *ngIf="isAdmin">
+        <p-card styleClass="shadow-2 border-round-lg chart-container dashboard-card-fit-content w-full">
             <ng-template pTemplate="header">
                 <div class="flex align-items-center justify-content-between p-3">
                     <div class="flex align-items-center gap-2">
@@ -1348,7 +1075,7 @@
                             [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
-            <div class="p-3" [style]="{'height': '350px', 'position': 'relative', 'overflow': 'hidden'}">
+            <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': pieChartActive}" [ngStyle]="{'position': 'relative', 'overflow': 'hidden'}">
                 <!-- Only render chart when data is completely ready AND render flag is set -->
                 <!-- Defer chart DOM rendering to prevent blocking -->
                 <ng-container *ngIf="pieDataReady && pieChartRenderReady && pieData && pieOptions && 
@@ -1382,5 +1109,7 @@
                 </div>
             </div>
         </p-card>
+        </div>
+        </div>
     </div>
 </div>

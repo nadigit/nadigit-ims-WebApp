@@ -1,0 +1,158 @@
+<div class="grid">
+  <div class="col-12">
+    <div class="mb-4">
+      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+        <div>
+          <h2 class="m-0 text-900">{{ 'reports_sales_summary' | translate }}</h2>
+          <p class="text-600 mt-2 mb-0">{{ 'reports_sales_summary_subtitle' | translate }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card px-6 py-6">
+      <p class="text-600 text-sm mb-2">{{ 'reports_sales_completed_orders_note' | translate }}</p>
+      <p class="text-600 text-sm mb-4">{{ 'reports_sales_window_orders_note' | translate }}</p>
+
+      <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">
+        <div class="flex flex-column flex-1" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-calendar mr-2 text-primary"></i>
+            {{ 'period' | translate }}
+          </label>
+          <p-dropdown
+            [options]="periods"
+            [(ngModel)]="selectedPeriod"
+            (onChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            styleClass="w-full">
+          </p-dropdown>
+        </div>
+        <div class="flex flex-column flex-1" *ngIf="isAdmin" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-building mr-2 text-primary"></i>
+            {{ 'shop' | translate }}
+          </label>
+          <p-dropdown
+            [options]="shopOptions"
+            [(ngModel)]="selectedShop"
+            (onChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            [showClear]="true"
+            appendTo="body"
+            styleClass="w-full">
+          </p-dropdown>
+        </div>
+      </div>
+
+      <div *ngIf="loading" class="flex flex-column align-items-center justify-content-center py-6 reports-loading-panel">
+        <p-progressSpinner [style]="{ width: '3rem', height: '3rem' }" strokeWidth="3"></p-progressSpinner>
+        <span class="text-600 mt-3">{{ 'loading' | translate }}</span>
+      </div>
+
+      <p-message *ngIf="error && !loading" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
+
+      <div *ngIf="summary && !loading" class="grid">
+        <div class="col-12">
+          <h3 class="text-900 text-lg font-semibold mt-0 mb-3">{{ 'reports_sales_section_completed' | translate }}</h3>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile reports-stat-tile--accent-green">
+            <span class="reports-stat-label">{{ 'total_revenue' | translate }}</span>
+            <span class="reports-stat-value text-green-600">{{ summary.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile reports-stat-tile--accent-blue">
+            <span class="reports-stat-label">{{ 'reports_sales_product_cost' | translate }}</span>
+            <span class="reports-stat-value text-blue-600">{{ summary.totalProductCost | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile reports-stat-tile--accent-orange">
+            <span class="reports-stat-label">{{ 'reports_sales_refunds_amount' | translate }}</span>
+            <span class="reports-stat-value text-orange-600">{{ summary.totalRefunds | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile" [class.reports-stat-tile--accent-green]="summary.grossProfit >= 0" [class.reports-stat-tile--accent-red]="summary.grossProfit < 0">
+            <span class="reports-stat-label">{{ 'reports_sales_gross_profit' | translate }}</span>
+            <span class="reports-stat-value" [ngClass]="summary.grossProfit >= 0 ? 'text-green-600' : 'text-red-600'">{{ summary.grossProfit | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile">
+            <span class="reports-stat-label">{{ 'reports_orders_completed_count' | translate }}</span>
+            <span class="reports-stat-value">{{ summary.completedOrderCount }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile">
+            <span class="reports-stat-label">{{ 'reports_average_order_value' | translate }}</span>
+            <span class="reports-stat-value">{{ summary.averageOrderValue | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <h3 class="text-900 text-lg font-semibold mt-4 mb-3">{{ 'reports_sales_section_window' | translate }}</h3>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile reports-stat-tile--accent-red">
+            <span class="reports-stat-label">{{ 'reports_sales_canceled_orders' | translate }}</span>
+            <span class="reports-stat-value text-red-600">{{ summary.canceledOrderCount }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile reports-stat-tile--accent-orange">
+            <span class="reports-stat-label">{{ 'reports_sales_returned_orders' | translate }}</span>
+            <span class="reports-stat-value text-orange-600">{{ summary.returnedOrderCount }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile">
+            <span class="reports-stat-label">{{ 'reports_sales_incomplete_orders' | translate }}</span>
+            <span class="reports-stat-value">{{ summary.incompleteNonCanceledOrderCount }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile">
+            <span class="reports-stat-label">{{ 'reports_sales_unpaid_orders' | translate }}</span>
+            <span class="reports-stat-value">{{ summary.unpaidOrderCount }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile">
+            <span class="reports-stat-label">{{ 'reports_sales_partially_paid_orders' | translate }}</span>
+            <span class="reports-stat-value">{{ summary.partiallyPaidOrderCount }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile reports-stat-tile--accent-green">
+            <span class="reports-stat-label">{{ 'reports_sales_fully_paid_orders' | translate }}</span>
+            <span class="reports-stat-value text-green-600">{{ summary.fullyPaidOrderCount }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile reports-stat-tile--accent-blue">
+            <span class="reports-stat-label">{{ 'reports_sales_total_outstanding' | translate }}</span>
+            <span class="reports-stat-value text-blue-600">{{ summary.totalOutstandingAmount | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="reports-stat-tile">
+            <span class="reports-stat-label">{{ 'shop' | translate }}</span>
+            <span class="reports-stat-value text-base font-semibold">{{ summary.shopName }}</span>
+          </div>
+        </div>
+        <div class="col-12" *ngIf="summary.startDate && summary.endDate">
+          <p class="text-500 text-sm m-0 mt-2 mb-0">
+            <i class="pi pi-calendar mr-2"></i>
+            {{ summary.startDate | date:'mediumDate' }} — {{ summary.endDate | date:'mediumDate' }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

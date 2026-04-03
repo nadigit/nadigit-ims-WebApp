@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, Input, Output, EventEmitter } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { PurchaseImportService } from 'src/app/services/purchase-import.service';
-import { PurchaseImportOptions, ImportValidationResult, PurchaseImportPreview, PurchaseImportResult, ImportRowError, PurchaseGroupPreview, ParsedInvoiceData, ParsedInvoiceItem, ProductMapping } from 'src/app/models/purchase-import.model';
+import { PurchaseImportOptions, ImportValidationResult, PurchaseImportPreview, PurchaseImportResult, ImportRowError, PurchaseGroupPreview, ParsedInvoiceData, ParsedInvoiceItem, ProductMapping, InvoiceReviewLine, InvoiceReviewImportRequest } from 'src/app/models/purchase-import.model';
 import { Shop } from 'src/app/models/shop';
 import { Supplier } from 'src/app/models/supplier';
 import { ShopService } from 'src/app/services/shop.service';
@@ -12,6 +12,10 @@ import { firstValueFrom } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { Router } from '@angular/router';
+import { KeycloakService } from 'keycloak-angular';
+import { CategoryService } from 'src/app/services/category.service';
+import { WarehouseService } from 'src/app/services/warehouse.service';
+import { Warehouse } from 'src/app/models/warehouse';
 
 @Component({
   selector: 'app-purchase-import',
@@ -49,6 +53,10 @@ export class PurchaseImportComponent implements OnInit {
   // Dropdowns data
   shops: Shop[] = [];
   suppliers: Supplier[] = [];
+  /** For assigning category when import creates missing products */
+  categories: { categoryId: number; categoryName: string }[] = [];
+  /** For assigning warehouse when import creates missing products */
+  warehouses: Warehouse[] = [];
   isAdmin: boolean = false;
 
   // Loading states
@@ -85,11 +93,22 @@ export class PurchaseImportComponent implements OnInit {
   selectedItemForMatching: ParsedInvoiceItem | null = null;
   showProductSearchDialog: boolean = false;
 
+  invoiceReviewStep: boolean = false;
+  reviewSupplierName: string = '';
+  reviewInvoiceNumber: string = '';
+  reviewDateOfPurchase: Date | null = null;
+  reviewDiscount: number = 0;
+  reviewTaxEnabled: boolean = false;
+  invoiceReviewLines: InvoiceReviewLine[] = [];
+
   constructor(
     private purchaseImportService: PurchaseImportService,
     private shopService: ShopService,
     private supplierService: SupplierService,
     private productService: ProductService,
+    private categoryService: CategoryService,
+    private warehouseService: WarehouseService,
+    private keycloakService: KeycloakService,
     private messageService: MessageService,
     private translate: TranslateService,
     private configService: AppConfigurationService,
@@ -107,7 +126,6 @@ export class PurchaseImportComponent implements OnInit {
 
   async loadInitialData(): Promise<void> {
     try {
-      // Load shops and suppliers for default dropdowns
       const [shops, suppliers] = await Promise.all([
         firstValueFrom(this.shopService.getShops()),
         firstValueFrom(this.supplierService.getSuppliers())
@@ -115,6 +133,16 @@ export class PurchaseImportComponent implements OnInit {
 
       this.shops = shops as Shop[];
       this.suppliers = suppliers as Supplier[];
+
+      const token = await this.keycloakService.getToken();
+      this.categoryService.jwt = token;
+      this.warehouseService.jwt = token;
+      const [cats, whs] = await Promise.all([
+        firstValueFrom(this.categoryService.getCategories()),
+        firstValueFrom(this.warehouseService.getWarehouses())
+      ]);
+      this.categories = Array.isArray(cats) ? (cats as { categoryId: number; categoryName: string }[]) : [];
+      this.warehouses = Array.isArray(whs) ? (whs as Warehouse[]) : [];
     } catch (error) {
       console.error('Error loading initial data:', error);
     }
@@ -148,6 +176,13 @@ export class PurchaseImportComponent implements OnInit {
     this.showProductSearchDialog = false;
     this.productSearchResults = [];
     this.productSearchQuery = '';
+    this.invoiceReviewStep = false;
+    this.reviewSupplierName = '';
+    this.reviewInvoiceNumber = '';
+    this.reviewDateOfPurchase = null;
+    this.reviewDiscount = 0;
+    this.reviewTaxEnabled = false;
+    this.invoiceReviewLines = [];
     this.importOptions = {
       skipDuplicates: true,
       updateExisting: false,
@@ -428,6 +463,13 @@ export class PurchaseImportComponent implements OnInit {
     return date.toLocaleDateString();
   }
 
+  private toIsoDateOnly(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   viewPurchase(purchaseId: number): void {
     this.router.navigate(['/inventory/purchases', purchaseId]);
     this.closeDialog();
@@ -498,6 +540,7 @@ export class PurchaseImportComponent implements OnInit {
           this.preferredLanguage || undefined
         )
       );
+      this.normalizeParsedInvoiceItemPrices(this.parsedInvoiceData);
       this.currentStep = 'preview';
       this.messageService.add({
         severity: 'success',
@@ -574,6 +617,28 @@ export class PurchaseImportComponent implements OnInit {
     return names[lang] || lang;
   }
 
+  /**
+   * Invoice parse warnings from the API are fixed English strings (see InvoiceParserServiceImpl).
+   */
+  private static readonly INVOICE_WARNING_I18N_KEYS: Record<string, string> = {
+    'No product lines matched the automatic table parser. Totals and header fields may still be usable; map products manually in preview or use CSV import for complex layouts.':
+      'purchase_invoice_warn_no_table_lines',
+    'Text was extracted via OCR (scanned or image-based PDF). Verify all lines carefully.':
+      'purchase_invoice_warn_ocr_pdf',
+    'Very little text found in this PDF. If it is a scanned invoice, ensure Tesseract OCR is installed on the server (set TESSDATA_PREFIX or -Dtesseract.datapath). Otherwise use CSV/Excel import.':
+      'purchase_invoice_warn_little_text_tesseract',
+  };
+
+  translateInvoiceOrImportWarning(text: string): string {
+    const raw = (text || '').trim();
+    const i18nKey = PurchaseImportComponent.INVOICE_WARNING_I18N_KEYS[raw];
+    if (i18nKey) {
+      const localized = this.translate.instant(i18nKey);
+      return localized !== i18nKey ? localized : text;
+    }
+    return text;
+  }
+
   async previewParsedInvoice(): Promise<void> {
     if (!this.selectedInvoiceFile || !this.parsedInvoiceData) {
       return;
@@ -604,25 +669,177 @@ export class PurchaseImportComponent implements OnInit {
     }
   }
 
-  async executeInvoiceImport(): Promise<void> {
-    if (!this.selectedInvoiceFile || !this.parsedInvoiceData) {
+  /**
+   * Ensures each parsed line has unit (buying) and default selling prices for display/editing.
+   * Derives unit from total/qty when the parser only filled line totals.
+   */
+  private normalizeParsedInvoiceItemPrices(data: ParsedInvoiceData | null): void {
+    if (!data?.items?.length) {
+      return;
+    }
+    for (const item of data.items) {
+      let price = item.unitPrice != null ? item.unitPrice : 0;
+      if ((!price || price <= 0) && item.totalPrice != null && item.quantity != null && item.quantity > 0) {
+        price = item.totalPrice / item.quantity;
+      }
+      item.unitPrice = price;
+      let selling = item.sellingPrice != null ? item.sellingPrice : 0;
+      if (!selling || selling <= 0) {
+        item.sellingPrice = price > 0 ? price * 1.5 : 1.0;
+      }
+      if (
+        this.importOptions.createMissingProducts &&
+        (item.categoryId == null || item.categoryId === undefined) &&
+        this.importOptions.defaultCategoryId != null &&
+        this.importOptions.defaultCategoryId !== undefined
+      ) {
+        item.categoryId = this.importOptions.defaultCategoryId;
+      }
+    }
+  }
+
+  goToInvoiceReview(): void {
+    if (!this.parsedInvoiceData?.items?.length) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('purchase_invoice_no_lines')
+      });
+      return;
+    }
+    const d = this.parsedInvoiceData;
+    this.reviewSupplierName = d.supplierName ?? '';
+    this.reviewInvoiceNumber = d.invoiceNumber ?? '';
+    this.reviewDateOfPurchase = d.invoiceDate ? new Date(d.invoiceDate) : null;
+    this.reviewDiscount = d.discount ?? 0;
+    if (d.taxEnabled != null) {
+      this.reviewTaxEnabled = d.taxEnabled;
+    } else {
+      this.reviewTaxEnabled = d.taxAmount != null && d.taxAmount > 0;
+    }
+    this.invoiceReviewLines = d.items.map((item) => {
+      const ref = (item.productReference || this.productMappings[item.productName] || '').trim();
+      const qty = item.quantity != null && item.quantity > 0 ? item.quantity : 1;
+      let price = item.unitPrice ?? 0;
+      if ((!price || price <= 0) && item.totalPrice != null && item.quantity != null && item.quantity > 0) {
+        price = item.totalPrice / item.quantity;
+      }
+      const exp = item.expirationDate ? new Date(item.expirationDate) : null;
+      let selling = item.sellingPrice != null ? item.sellingPrice : 0;
+      if (!selling || selling <= 0) {
+        selling = price > 0 ? price * 1.5 : 1.0;
+      }
+      return {
+        productName: item.productName,
+        productReference: ref,
+        quantityPurchased: qty,
+        buyingPrice: price,
+        sellingPrice: selling,
+        categoryId:
+          item.categoryId != null && item.categoryId !== undefined
+            ? item.categoryId
+            : (this.importOptions.defaultCategoryId ?? null),
+        batchNumber: item.batchNumber ?? '',
+        expirationDate: exp && !isNaN(exp.getTime()) ? exp : null
+      };
+    });
+    this.invoiceReviewStep = true;
+  }
+
+  backFromInvoiceReview(): void {
+    this.invoiceReviewStep = false;
+  }
+
+  applyDefaultCategoryToAllReviewLines(): void {
+    const id = this.importOptions.defaultCategoryId ?? null;
+    this.invoiceReviewLines.forEach((l) => {
+      l.categoryId = id;
+    });
+  }
+
+  addInvoiceReviewLine(): void {
+    this.invoiceReviewLines.push({
+      productName: '',
+      productReference: '',
+      quantityPurchased: 1,
+      buyingPrice: 0,
+      sellingPrice: 1.0,
+      categoryId: this.importOptions.defaultCategoryId ?? null,
+      batchNumber: '',
+      expirationDate: null
+    });
+  }
+
+  removeInvoiceReviewLine(index: number): void {
+    this.invoiceReviewLines.splice(index, 1);
+  }
+
+  async executeInvoiceReview(): Promise<void> {
+    if (this.isAdmin && (this.importOptions.defaultShopId == null || this.importOptions.defaultShopId === undefined)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('purchase_invoice_default_shop_required')
+      });
+      return;
+    }
+    const invalid = this.invoiceReviewLines.some(
+      (l) =>
+        !l.productReference?.trim() ||
+        l.quantityPurchased == null ||
+        l.quantityPurchased <= 0 ||
+        l.buyingPrice == null ||
+        l.buyingPrice < 0
+    );
+    if (invalid || this.invoiceReviewLines.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('purchase_invoice_review_validation')
+      });
       return;
     }
 
+    const payload: InvoiceReviewImportRequest = {
+      supplierName: this.reviewSupplierName?.trim() || undefined,
+      invoiceNumber: this.reviewInvoiceNumber?.trim() || undefined,
+      dateOfPurchase: this.reviewDateOfPurchase ? this.toIsoDateOnly(this.reviewDateOfPurchase) : undefined,
+      discount: this.reviewDiscount,
+      taxEnabled: this.reviewTaxEnabled,
+      createMissingSuppliers: !!this.importOptions.createMissingSuppliers,
+      createMissingProducts: !!this.importOptions.createMissingProducts,
+      defaultShopId: this.importOptions.defaultShopId ?? null,
+      defaultCategoryId: this.importOptions.defaultCategoryId ?? null,
+      defaultWarehouseId: this.importOptions.defaultWarehouseId ?? null,
+      lines: this.invoiceReviewLines.map((l) => {
+        const buy = Number(l.buyingPrice);
+        let sell = Number(l.sellingPrice);
+        if (isNaN(sell) || sell <= 0) {
+          sell = buy > 0 ? buy * 1.5 : 1.0;
+        }
+        const row: InvoiceReviewImportRequest['lines'][number] = {
+          productReference: l.productReference.trim(),
+          productName: l.productName?.trim() || undefined,
+          quantityPurchased: Math.max(1, Math.floor(Number(l.quantityPurchased))),
+          buyingPrice: buy,
+          sellingPrice: sell,
+          batchNumber: l.batchNumber?.trim() || undefined,
+          expirationDate:
+            l.expirationDate && !isNaN(l.expirationDate.getTime())
+              ? this.toIsoDateOnly(l.expirationDate)
+              : undefined
+        };
+        if (this.importOptions.createMissingProducts && l.categoryId != null && l.categoryId !== undefined) {
+          row.categoryId = l.categoryId;
+        }
+        return row;
+      })
+    };
+
     try {
       this.importing = true;
-      this.currentStep = 'import';
-      this.importResult = await firstValueFrom(
-        await this.purchaseImportService.importFromInvoice(
-          this.selectedInvoiceFile,
-          this.productMappings,
-          {
-            ...this.importOptions,
-            preferredLanguage: this.preferredLanguage || undefined
-          }
-        )
-      );
-      this.currentStep = 'results';
+      const obs = await this.purchaseImportService.importFromInvoiceReview(payload);
+      this.importResult = await firstValueFrom(obs);
 
       if (this.importResult.success) {
         this.messageService.add({
@@ -631,20 +848,41 @@ export class PurchaseImportComponent implements OnInit {
           detail: this.translate.instant('import_completed_successfully')
         });
         this.importSuccess.emit();
+        this.invoiceReviewStep = false;
+        this.parsedInvoiceData = null;
+        this.productMappings = {};
       } else {
+        const msg =
+          this.importResult.generalErrors?.join('; ') ||
+          this.importResult.message ||
+          this.translate.instant('import_completed_with_errors');
         this.messageService.add({
           severity: 'warn',
           summary: this.translate.instant('import_completed_with_errors'),
-          detail: this.translate.instant('some_rows_failed')
+          detail: msg
         });
       }
     } catch (error: any) {
-      console.error('Error executing invoice import:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: error.error?.message || this.translate.instant('error_executing_import')
-      });
+      const body = error?.error;
+      if (body && typeof body.success === 'boolean') {
+        this.importResult = body as PurchaseImportResult;
+        const msg =
+          this.importResult.generalErrors?.join('; ') ||
+          this.importResult.message ||
+          this.translate.instant('error_executing_import');
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: msg
+        });
+      } else {
+        console.error('Error executing invoice review import:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: error.error?.message || this.translate.instant('error_executing_import')
+        });
+      }
     } finally {
       this.importing = false;
     }

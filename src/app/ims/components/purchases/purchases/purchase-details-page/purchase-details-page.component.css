@@ -573,18 +573,14 @@
 }
 
 /* ==========================================================================
-   Timeline
+   Timeline (aligned with order details)
    ========================================================================== */
 .timeline-container {
     padding: 1rem 0;
 }
 
-::ng-deep .modern-timeline .p-timeline-event-opposite {
-    display: none;
-}
-
-::ng-deep .modern-timeline .p-timeline-event-content {
-    flex: 1;
+::ng-deep .order-timeline .p-timeline-event-separator {
+    flex: 0 0 auto;
 }
 
 .timeline-marker {
@@ -599,7 +595,7 @@
     transition: all 0.3s ease;
 }
 
-.timeline-marker i {
+.timeline-marker .marker-icon {
     font-size: 1.25rem;
     color: var(--text-color-secondary);
 }
@@ -607,10 +603,19 @@
 .timeline-marker.active {
     background: var(--primary-color);
     border-color: var(--primary-color);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 40%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
-.timeline-marker.active i {
+.timeline-marker.active .marker-icon {
+    color: white;
+}
+
+.timeline-marker.completed {
+    background: var(--green-500);
+    border-color: var(--green-500);
+}
+
+.timeline-marker.completed .marker-icon {
     color: white;
 }
 
@@ -620,19 +625,21 @@
     border-radius: 12px;
     padding: 1.25rem;
     margin-bottom: 1rem;
-    margin-left: 1rem;
     transition: all 0.3s ease;
 }
 
 .timeline-card.active {
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--primary-color) 15%, transparent);
+    border-left: 4px solid var(--primary-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .timeline-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .timeline-header h5 {
@@ -646,9 +653,21 @@
     color: var(--text-color-secondary);
 }
 
-.timeline-description {
+.timeline-content {
+    margin-bottom: 1rem;
+}
+
+.timeline-content .status-content p {
     font-size: 0.9rem;
     line-height: 1.5;
+}
+
+.timeline-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
 }
 
 /* ==========================================================================

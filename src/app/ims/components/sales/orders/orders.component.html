@@ -121,6 +121,26 @@
 										translate}} {{'is_required_label' | translate}}</small>
 								</div>
 							</div>
+							<div class="col-12 md:col-6" *ngIf="isAdmin">
+								<div class="field" style="position: relative;">
+									<label for="warehouse">
+										{{ 'warehouse' | translate }} <span class="required-asterisk">*</span>
+									</label>
+									<p-dropdown [(ngModel)]="selectedOrderWarehouse" name="warehouse" inputId="warehouse"
+										ngDefaultControl optionLabel="name" [options]="warehouses" [filter]="true"
+										filterBy="name" [showClear]="true"
+										placeholder="{{ 'select_warehouse' | translate }}"
+										(onChange)="onOrderWarehouseChange()"
+										[ngClass]="{'ng-invalid ng-dirty' : submitted && !selectedOrderWarehouse}">
+									</p-dropdown>
+									<small class="ng-dirty ng-invalid" *ngIf="submitted && !selectedOrderWarehouse">
+										{{'warehouse' | translate}} {{'is_required_label' | translate}}
+									</small>
+									<small class="text-500 block mt-1" *ngIf="isAdmin && !selectedOrderWarehouse">
+										{{ 'select_warehouse_first' | translate }}
+									</small>
+								</div>
+							</div>
 						</div>
 
 						<!-- Product Selection Methods -->
@@ -136,7 +156,8 @@
 										[loading]="productSuggestionsLoading"
 										(completeMethod)="filterProducts($event)" [minLength]="1" [field]="'name'"
 										placeholder="{{ 'search_products_placeholder' | translate }}" [dropdown]="true"
-										(onSelect)="onProductSelect($event)" [forceSelection]="true">
+										(onSelect)="onProductSelect($event)" [forceSelection]="true"
+										[disabled]="isAdmin && !selectedOrderWarehouse">
 
 										<!-- Selected Item Template -->
 										<ng-template let-product pTemplate="selectedItem">

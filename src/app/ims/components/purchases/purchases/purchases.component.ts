@@ -182,6 +182,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   // UX helper flags
   hasSingleShop: boolean = false;
   hasSingleSupplier: boolean = false;
+  selectedPurchaseWarehouse: Warehouse | null = null;
 
   constructor(private messageService: MessageService,
     private purchaseService: PurchaseService,
@@ -428,6 +429,15 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
+  removeProductFromTarget(product: Product): void {
+    this.targetProducts = this.targetProducts.filter(p => p.productId !== product.productId);
+    const alreadyInSource = this.sourceProducts.some(p => p.productId === product.productId);
+    if (!alreadyInSource) {
+      this.sourceProducts = [product, ...this.sourceProducts];
+    }
+    this.cdr.detectChanges();
+  }
+
   searchProductByBarcode(barcode: string): Product | undefined {
     return this.sourceProducts.find((p: Product) => p.reference === barcode);
   }
@@ -644,6 +654,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         pricePerUnit: item.buyingPrice,
       };
     });
+    if (this.isAdmin) {
+      const firstProductWarehouse = this.purchase.purchaseItems?.[0]?.product?.warehouse || null;
+      this.selectedPurchaseWarehouse = firstProductWarehouse;
+    }
     this.loadProductsForPicker();
     this.initializePickList();
     this.purchaseDialog = true;
@@ -686,6 +700,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   resetPurchaseForm() {
     this.purchase = {};
     this.targetProducts = [];
+    this.sourceProducts = [];
+    this.selectedPurchaseWarehouse = null;
     this.showPaymentSection = false;
     this.payment = {};
     this.submitted = false;
@@ -720,6 +736,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.purchase.discount = 0;
     this.purchase.taxEnabled = false;
     this.purchaseItems = [];
+    this.selectedPurchaseWarehouse = null;
     this.loadProductsForPicker();
     this.initializePickList();
     this.purchaseDialog = true;
@@ -780,6 +797,30 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           life: 3000
         });
         return; // Exit the method to prevent submission
+      }
+      if (this.isAdmin && !this.selectedPurchaseWarehouse) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('warehouse_required'),
+          life: 3000
+        });
+        return;
+      }
+      if (this.isAdmin && this.selectedPurchaseWarehouse) {
+        const selectedWarehouseId = this.getSelectedPurchaseWarehouseId();
+        const hasMismatchedWarehouse = this.targetProducts.some(
+          p => selectedWarehouseId != null && p.warehouse?.warehouseId !== selectedWarehouseId
+        );
+        if (hasMismatchedWarehouse) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('please_select_products_from_same_warehouse'),
+            life: 3500
+          });
+          return;
+        }
       }
 
       // Check if at least one product is selected
@@ -1600,10 +1641,18 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   loadProductsForPicker(search: string = "") {
-    this.productService.searchProductsForPurchase(search).subscribe({
+    const warehouseId = this.isAdmin ? this.getSelectedPurchaseWarehouseId() : undefined;
+    if (this.isAdmin && !warehouseId) {
+      this.sourceProducts = [];
+      return;
+    }
+    this.productService.searchProductsForPurchase(search, warehouseId).subscribe({
       next: (products: Product[]) => {
+        const warehouseFilteredProducts = this.isAdmin && warehouseId
+          ? (products || []).filter(p => Number((p.warehouse as any)?.warehouseId) === Number(warehouseId))
+          : (products || []);
         // Remove items that are already selected in target
-        this.sourceProducts = (products || []).filter(
+        this.sourceProducts = warehouseFilteredProducts.filter(
           p => !this.targetProducts.some(t => t.productId === p.productId)
         );
       }
@@ -1612,11 +1661,26 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   onSearchProducts(event: any) {
     const search = event.target.value;
+    this.searchProductInput = search;
 
     clearTimeout(this.searchTimeout);
     this.searchTimeout = setTimeout(() => {
       this.loadProductsForPicker(search);
     }, 300);
+  }
+
+  onPurchaseWarehouseChange(): void {
+    this.targetProducts = [];
+    this.purchaseItems = [];
+    this.loadProductsForPicker(this.searchProductInput || '');
+  }
+
+  private getSelectedPurchaseWarehouseId(): number | undefined {
+    if (!this.selectedPurchaseWarehouse) return undefined;
+    const rawId = (this.selectedPurchaseWarehouse as any).warehouseId ?? (this.selectedPurchaseWarehouse as any).id;
+    if (rawId == null) return undefined;
+    const id = Number(rawId);
+    return Number.isNaN(id) ? undefined : id;
   }
 
   viewProductDetails(product: Product) {
@@ -1741,6 +1805,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     await this.warehouseService.getWarehouses().subscribe({
       next: (response: any) => {
         this.warehouses = response;
+        if (this.isAdmin && !this.selectedPurchaseWarehouse && Array.isArray(this.warehouses) && this.warehouses.length === 1) {
+          this.selectedPurchaseWarehouse = this.warehouses[0];
+          this.loadProductsForPicker(this.searchProductInput || '');
+        }
       },
       error: (err: any) => {
         this.messageService.add({

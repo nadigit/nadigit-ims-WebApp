@@ -160,20 +160,34 @@ export class ProductService {
     return this.http.get(url, { headers });
   }
 
-  searchProductsForPurchase(searchTerm: string = '',) {
+  searchProductsForPurchase(searchTerm: string = '', warehouseId?: number) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}search-for-purchases`;
+    const params: string[] = [];
     if (searchTerm) {
-      url += `?search=${encodeURIComponent(searchTerm)}`;
+      params.push(`search=${encodeURIComponent(searchTerm)}`);
+    }
+    if (warehouseId != null) {
+      params.push(`warehouseId=${encodeURIComponent(warehouseId)}`);
+    }
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
     }
     return this.http.get(url, { headers });
   }
 
-    searchProductsForOrder(searchTerm: string = '',) {
+    searchProductsForOrder(searchTerm: string = '', warehouseId?: number) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}search-for-orders`;
+    const params: string[] = [];
     if (searchTerm) {
-      url += `?search=${encodeURIComponent(searchTerm)}`;
+      params.push(`search=${encodeURIComponent(searchTerm)}`);
+    }
+    if (warehouseId != null) {
+      params.push(`warehouseId=${encodeURIComponent(warehouseId)}`);
+    }
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
     }
     return this.http.get(url, { headers });
   }

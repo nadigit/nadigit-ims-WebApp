@@ -53,6 +53,14 @@ import { AuthGuard } from './guards/auth.guard';
                         data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN', 'ACCOUNTANT', 'AUDITOR'] }
                     },
 
+                    // Reports (business analytics; credit reports also for ACCOUNTANT / AUDITOR)
+                    {
+                        path: 'reports',
+                        loadChildren: () => import('./ims/components/reports/reports.module').then(m => m.ReportsModule),
+                        canActivate: [AuthGuard],
+                        data: { roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] }
+                    },
+
                     // Administration Section (Admin Only)
                     {
                         path: 'administration',

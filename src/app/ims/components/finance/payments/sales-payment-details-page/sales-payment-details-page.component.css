@@ -676,6 +676,92 @@
 }
 
 /* ==========================================================================
+   Payment timeline (order-details style)
+   ========================================================================== */
+.timeline-container {
+    padding: 1rem 0;
+}
+
+::ng-deep .order-timeline .p-timeline-event-separator {
+    flex: 0 0 auto;
+}
+
+.timeline-marker {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--surface-100);
+    border: 3px solid var(--surface-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.timeline-marker .marker-icon {
+    font-size: 1.25rem;
+    color: var(--text-color-secondary);
+}
+
+::ng-deep .order-timeline .timeline-marker.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+::ng-deep .order-timeline .timeline-marker.active .marker-icon {
+    color: white;
+}
+
+::ng-deep .order-timeline .timeline-marker.completed {
+    background: var(--green-500);
+    border-color: var(--green-500);
+}
+
+::ng-deep .order-timeline .timeline-marker.completed .marker-icon {
+    color: white;
+}
+
+::ng-deep .order-timeline .timeline-card.active {
+    border-left: 4px solid var(--primary-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.timeline-header h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.timeline-date {
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+}
+
+.timeline-content .status-content p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* ==========================================================================
    Dark Mode Support
    ========================================================================== */
 :host-context(.layout-theme-dark) {
@@ -728,6 +814,14 @@
     
     .empty-icon {
         background: var(--surface-ground);
+    }
+
+    .timeline-marker {
+        background: var(--surface-ground);
+    }
+
+    .timeline-card {
+        background: var(--surface-card);
     }
 }
 

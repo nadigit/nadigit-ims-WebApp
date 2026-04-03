@@ -40,6 +40,9 @@ export class ReturnDetailsPageComponent implements OnInit {
   lowStockThreshold: number = 10;
   returnNoteDocNumber: string | null = null;
 
+  /** Status milestones for the order-return workflow (same pattern as purchase returns / order details). */
+  returnEvents: Array<{ status: string; date: Date | string | null; icon: string }> = [];
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -136,6 +139,7 @@ export class ReturnDetailsPageComponent implements OnInit {
         this.return.returnDate = new Date(this.return.returnDate as any);
       }
 
+      this.generateReturnEvents();
       await this.checkForReturnNote(this.return.returnId);
       this.isLoading = false;
     } catch (error: any) {
@@ -218,6 +222,75 @@ export class ReturnDetailsPageComponent implements OnInit {
     };
 
     return statusSeverity[status] || 'info';
+  }
+
+  generateReturnEvents(): void {
+    if (!this.return) {
+      this.returnEvents = [];
+      return;
+    }
+
+    const status = String(this.return.returnStatus ?? '').trim().toUpperCase();
+    const creation = this.return.creationDate;
+    const retDate = this.return.returnDate;
+    const normalFlow = ['PENDING', 'PROCESSING', 'PARTIALLY_REFUNDED', 'COMPLETED'];
+    /** API may return APPROVED while the enum focuses on PROCESSING — align milestone index. */
+    const flowIndexStatus = status === 'APPROVED' ? 'PROCESSING' : status;
+    const idx = normalFlow.indexOf(flowIndexStatus);
+
+    if (status === 'CANCELLED') {
+      this.returnEvents = [
+        { status: 'PENDING', date: creation ?? null, icon: 'pi pi-clock' },
+        { status: 'CANCELLED', date: retDate || creation || null, icon: 'pi pi-times-circle' }
+      ].filter(e => e.date != null || e.status === 'PENDING');
+      return;
+    }
+
+    if (status === 'REJECTED') {
+      this.returnEvents = [
+        { status: 'PENDING', date: creation ?? null, icon: 'pi pi-clock' },
+        { status: 'REJECTED', date: retDate || creation || null, icon: 'pi pi-times-circle' }
+      ].filter(e => e.date != null || e.status === 'PENDING');
+      return;
+    }
+
+    const events: Array<{ status: string; date: Date | string | null; icon: string }> = [
+      { status: 'PENDING', date: creation ?? null, icon: 'pi pi-clock' },
+      {
+        status: 'PROCESSING',
+        date: idx >= 1 ? (retDate || creation || null) : null,
+        icon: 'pi pi-sync'
+      },
+      {
+        status: 'PARTIALLY_REFUNDED',
+        date: status === 'PARTIALLY_REFUNDED' ? (retDate || creation || null) : null,
+        icon: 'pi pi-percentage'
+      },
+      {
+        status: 'COMPLETED',
+        date: status === 'COMPLETED' ? (retDate || creation || null) : null,
+        icon: 'pi pi-check-circle'
+      }
+    ];
+
+    this.returnEvents = events.filter(e => e.date != null || e.status === 'PENDING');
+  }
+
+  isReturnTimelineEventActive(event: { status: string }): boolean {
+    if (this.return?.returnStatus == null) {
+      return false;
+    }
+    const current = String(this.return.returnStatus).trim().toUpperCase();
+    const ev = event.status.toUpperCase();
+    if (current === ev) return true;
+    if (current === 'APPROVED' && ev === 'PROCESSING') return true;
+    return false;
+  }
+
+  getOrderReturnTimelineDescription(status: string): string {
+    const key = `order_return_timeline_${status.toLowerCase()}_description`;
+    const translated = this.translate.instant(key);
+    return translated !== key ? translated : this.translate.instant('not_available');
   }
 
   getReturnStatusSeverityTag(status: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {

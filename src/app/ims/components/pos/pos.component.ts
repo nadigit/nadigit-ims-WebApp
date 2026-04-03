@@ -11,6 +11,7 @@ import { CustomerService } from 'src/app/services/customer.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { OrderService } from 'src/app/services/order.service';
 import { ProductService } from 'src/app/services/product.service';
+import { WarehouseService } from 'src/app/services/warehouse.service';
 import { ReturnService } from 'src/app/services/return.service';
 import { RefundService } from 'src/app/services/refund.service';
 import { BarcodeService } from 'src/app/services/barcode.service';
@@ -23,6 +24,7 @@ import { PosStorageService, PendingSale } from 'src/app/services/pos-storage.ser
 import { PwaService } from 'src/app/services/pwa.service';
 import { KeycloakService } from 'keycloak-angular';
 import { firstValueFrom } from 'rxjs';
+import { Warehouse } from 'src/app/models/warehouse';
 
 @Component({
   selector: 'app-pos',
@@ -34,6 +36,11 @@ export class PosComponent implements OnInit, OnDestroy {
 
   shopId!: number;
   shops: any[] = [];
+  warehouses: Warehouse[] = [];
+  selectedWarehouseId: number | null = null;
+  private previousSelectedWarehouseId: number | null = null;
+  warehouseSwitchDialogVisible: boolean = false;
+  pendingWarehouseId: number | null = null;
   customers: any[] = [];
   isAdmin: boolean = false;
   isVendor: boolean = false;
@@ -172,6 +179,8 @@ export class PosComponent implements OnInit, OnDestroy {
   
   // Filtered payment method options for radio buttons (updated when customer changes)
   paymentMethodOptionsList = paymentMethodOptions.filter(opt => opt.value !== 'Credit'); // Default: no Credit
+  /** RefundMethod on API excludes Credit — match backend enum strings (Cash, Card, …) */
+  readonly refundPaymentMethodOptions = paymentMethodOptions.filter(opt => opt.value !== 'Credit');
   // Filtered payment methods for dropdown (updated when customer changes)
   availablePaymentMethods: PaymentMethod[] = paymentMethodOptions.map(opt => opt.value as PaymentMethod).filter(m => m !== 'Credit'); // Default: no Credit
   
@@ -247,7 +256,7 @@ export class PosComponent implements OnInit, OnDestroy {
   refundDialog: boolean = false;
   selectedReturn: any = null;
   refundAmount: number = 0;
-  refundMethod: string = 'cash';
+  refundMethod: string = 'Cash';
   refundNotes: string = '';
   
   // Immediate refund configuration
@@ -286,6 +295,7 @@ export class PosComponent implements OnInit, OnDestroy {
     private categoryService: CategoryService,
     private orderService: OrderService,
     private productService: ProductService,
+    private warehouseService: WarehouseService,
     private returnService: ReturnService,
     private refundService: RefundService,
     private barcodeService: BarcodeService,
@@ -411,6 +421,37 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
+  private getWarehouseIdForApi(): number | undefined {
+    if (!this.isAdmin) {
+      return undefined;
+    }
+    return this.selectedWarehouseId ?? undefined;
+  }
+
+  getSelectedWarehouseName(): string {
+    if (!this.selectedWarehouseId) {
+      return this.translate.instant('select_warehouse');
+    }
+    const selectedWarehouse = this.warehouses.find(
+      w => Number(w.warehouseId) === this.selectedWarehouseId
+    );
+    return selectedWarehouse?.name || this.translate.instant('select_warehouse');
+  }
+
+  private matchesSelectedWarehouse(product: any): boolean {
+    if (!this.isAdmin || !this.selectedWarehouseId) {
+      return true;
+    }
+    const productWarehouseId = Number(product?.warehouse?.warehouseId);
+    if (!Number.isNaN(productWarehouseId)) {
+      return productWarehouseId === this.selectedWarehouseId;
+    }
+    const selectedWarehouse = this.warehouses.find(w => Number(w.warehouseId) === this.selectedWarehouseId);
+    const selectedWarehouseName = (selectedWarehouse?.name || '').toLowerCase();
+    const productWarehouseName = String(product?.warehouseName || '').toLowerCase();
+    return !!selectedWarehouseName && productWarehouseName === selectedWarehouseName;
+  }
+
   /**
    * Validate shopId selection for admins
    */
@@ -435,6 +476,9 @@ export class PosComponent implements OnInit, OnDestroy {
         const shopsObs = this.shopService.getShops();
         const shopsResult = await firstValueFrom(shopsObs as any);
         this.shops = Array.isArray(shopsResult) ? shopsResult : [];
+        const warehousesObs = this.warehouseService.getWarehouses();
+        const warehousesResult = await firstValueFrom(warehousesObs as any);
+        this.warehouses = Array.isArray(warehousesResult) ? warehousesResult : [];
 
         const routeShopId = this.route.snapshot.paramMap.get('shopId');
         if (routeShopId) {
@@ -442,6 +486,13 @@ export class PosComponent implements OnInit, OnDestroy {
         } else if (this.shops.length > 0) {
           this.shopId = this.shops[0].shopId;
         }
+        if (this.warehouses.length > 0 && !this.selectedWarehouseId) {
+          this.selectedWarehouseId = Number(this.warehouses[0].warehouseId);
+        }
+        if (this.warehouses.length === 1) {
+          this.selectedWarehouseId = Number(this.warehouses[0].warehouseId);
+        }
+        this.previousSelectedWarehouseId = this.selectedWarehouseId;
 
         if (!this.shopId && this.shops.length === 0) {
           this.messageService.add({
@@ -483,6 +534,69 @@ export class PosComponent implements OnInit, OnDestroy {
     await this.ensureSessionAndCart();
     await this.loadQuickProducts();
     this.loading = false;
+  }
+
+  onWarehouseChange(event?: any) {
+    const nextWarehouseId = event?.value != null ? Number(event.value) : (this.selectedWarehouseId ?? null);
+    if (nextWarehouseId == null || Number.isNaN(nextWarehouseId)) {
+      this.selectedWarehouseId = this.previousSelectedWarehouseId;
+      return;
+    }
+
+    const hasCartItems = this.getCurrentCartItemCount() > 0;
+    if (hasCartItems) {
+      this.pendingWarehouseId = nextWarehouseId;
+      this.warehouseSwitchDialogVisible = true;
+      return;
+    }
+
+    this.applyWarehouseSelection(nextWarehouseId);
+  }
+
+  private getCurrentCartItemCount(): number {
+    const cartAny: any = this.cart as any;
+    const items = Array.isArray(cartAny?.items)
+      ? cartAny.items
+      : (Array.isArray(cartAny?.cartItems) ? cartAny.cartItems : []);
+    return items.length;
+  }
+
+  async confirmWarehouseSwitch(): Promise<void> {
+    const nextWarehouseId = this.pendingWarehouseId;
+    this.warehouseSwitchDialogVisible = false;
+    this.pendingWarehouseId = null;
+    if (nextWarehouseId == null) {
+      this.selectedWarehouseId = this.previousSelectedWarehouseId;
+      return;
+    }
+    await this.clearCart();
+    await this.applyWarehouseSelection(nextWarehouseId);
+    const warehouseName =
+      this.warehouses.find(w => Number(w.warehouseId) === Number(nextWarehouseId))?.name ||
+      this.getSelectedWarehouseName();
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('cart_reset_after_warehouse_switch', { warehouse: warehouseName }),
+      life: 2500
+    });
+  }
+
+  cancelWarehouseSwitch(): void {
+    this.warehouseSwitchDialogVisible = false;
+    this.pendingWarehouseId = null;
+    this.selectedWarehouseId = this.previousSelectedWarehouseId;
+  }
+
+  private async applyWarehouseSelection(nextWarehouseId: number): Promise<void> {
+    this.previousSelectedWarehouseId = nextWarehouseId;
+    this.selectedWarehouseId = nextWarehouseId;
+    this.selectedCategory = null;
+    this.selectedCategoryId = null;
+    this.searchQuery = '';
+    this.searchResults = [];
+    this.searchSuggestions = [];
+    await this.loadQuickProducts();
   }
 
   private async ensureSessionAndCart() {
@@ -583,10 +697,16 @@ export class PosComponent implements OnInit, OnDestroy {
   private async loadQuickProducts() {
     // For admins, validate shopId; for non-admins, proceed (backend handles shop)
     if (this.isAdmin && !this.shopId) return;
+    if (this.isAdmin && !this.selectedWarehouseId) {
+      this.quickProducts = [];
+      this.filteredQuickProducts = [];
+      return;
+    }
     
     try {
       const quick$ = await this.posService.getQuickProducts(this.getShopIdForApi());
-      this.quickProducts = await firstValueFrom(quick$);
+      const loadedQuickProducts = await firstValueFrom(quick$);
+      this.quickProducts = (loadedQuickProducts || []).filter((product: POSProductDTO) => this.matchesSelectedWarehouse(product));
       this.filteredQuickProducts = [...this.quickProducts];
       this.applyCategoryFilter();
     } catch (error) {
@@ -619,8 +739,9 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   onCategorySelect(): void {
-    if (this.selectedCategory?.categoryId) {
-      this.selectedCategoryId = this.selectedCategory.categoryId;
+    if (this.selectedCategory?.categoryId != null) {
+      const cid = Number(this.selectedCategory.categoryId);
+      this.selectedCategoryId = Number.isNaN(cid) ? null : cid;
     } else {
       this.selectedCategoryId = null;
     }
@@ -637,15 +758,19 @@ export class PosComponent implements OnInit, OnDestroy {
     if (!this.selectedCategoryId) {
       this.filteredQuickProducts = [...this.quickProducts];
     } else {
-      const selectedCategory = this.categories.find(c => c.categoryId === this.selectedCategoryId);
+      const selectedCategory = this.categories.find(c => Number(c.categoryId) === Number(this.selectedCategoryId));
       if (selectedCategory) {
         this.filteredQuickProducts = this.quickProducts.filter(
-          p => p.categoryName === selectedCategory.categoryName
+          p => this.getProductCategoryName(p).toLowerCase() === String(selectedCategory.categoryName || '').toLowerCase()
         );
       } else {
         this.filteredQuickProducts = [...this.quickProducts];
       }
     }
+  }
+
+  private getProductCategoryName(product: any): string {
+    return String(product?.categoryName || product?.category?.categoryName || '');
   }
 
   toggleProductView() {
@@ -822,6 +947,11 @@ export class PosComponent implements OnInit, OnDestroy {
       this.searchResults = [];
       return;
     }
+    if (this.isAdmin && !this.selectedWarehouseId) {
+      this.searchSuggestions = [];
+      this.searchResults = [];
+      return;
+    }
 
     // Prevent multiple simultaneous searches
     if (this.isSearching) {
@@ -833,7 +963,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
     try {
       // Use the same search method as orders component (does contains search)
-      const res$ = await this.productService.searchProductsForOrder(query);
+      const res$ = await this.productService.searchProductsForOrder(query, this.getWarehouseIdForApi());
       const products = await firstValueFrom(res$);
 
       // Normalize response like orders component does
@@ -846,8 +976,9 @@ export class PosComponent implements OnInit, OnDestroy {
       }
 
       // Set both searchSuggestions for autocomplete dropdown and searchResults for grid/list display
-      this.searchSuggestions = [...normalizedProducts]; // Create a new array reference
-      this.searchResults = [...normalizedProducts];
+      const warehouseScoped = normalizedProducts.filter((p: any) => this.matchesSelectedWarehouse(p));
+      this.searchSuggestions = [...warehouseScoped]; // Create a new array reference
+      this.searchResults = [...warehouseScoped];
 
       // Force change detection
       this.cdr.detectChanges();
@@ -1523,14 +1654,35 @@ export class PosComponent implements OnInit, OnDestroy {
     if (!this.session) return;
     this.cartSaving = true;
     try {
+      // Cancel current active cart first so backend does not keep returning it as active.
+      if (this.cart?.cartId) {
+        try {
+          await firstValueFrom(await this.posService.cancelCart(this.cart.cartId));
+        } catch (cancelError) {
+          console.error('Error cancelling current cart before reset:', cancelError);
+        }
+      }
+
       const newCart$ = await this.posService.createCart(this.session.sessionId);
       const newCart = await firstValueFrom(newCart$);
       // Normalize cart to ensure totals are correct
       this.cart = this.normalizeCartItems(newCart);
+      if (this.cart && !this.cart.customerId && !this.selectedCustomer?.customerId) {
+        this.selectedCustomer = { customerId: null, fullName: 'Walk-in Customer' };
+        this.updateAvailablePaymentMethods();
+      }
+      this.orderNotes = '';
       this.updateCartTracking();
       this.saveToLocalStorage();
     } catch (error) {
       console.error('Error clearing cart:', error);
+      // Fallback: guarantee UI/cart reset even if backend call fails.
+      this.cart = null;
+      this.selectedCustomer = { customerId: null, fullName: 'Walk-in Customer' };
+      this.orderNotes = '';
+      this.updateAvailablePaymentMethods();
+      this.updateCartTracking();
+      this.saveToLocalStorage();
     } finally {
       this.cartSaving = false;
     }
@@ -4468,7 +4620,7 @@ export class PosComponent implements OnInit, OnDestroy {
       const refund = {
         orderReturn: { returnId: this.selectedReturn.returnId },
         amount: this.refundAmount,
-        refundMethod: this.refundMethod.toUpperCase(),
+        refundMethod: this.refundMethod,
         notes: this.refundNotes,
         refundDate: new Date().toISOString().split('T')[0]
       };

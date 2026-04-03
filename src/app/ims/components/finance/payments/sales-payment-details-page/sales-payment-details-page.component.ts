@@ -13,7 +13,15 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { Order } from 'src/app/models/order';
 import { firstValueFrom } from 'rxjs';
-import { getPaymentMethodIcon, getPaymentMethodSeverity, getPaymentStatusSeverity, getPaymentStatusIcon } from 'src/app/shared/payment-utils';
+import {
+  getPaymentMethodIcon,
+  getPaymentMethodSeverity,
+  getPaymentStatusSeverity,
+  getPaymentStatusIcon,
+  buildPaymentTimelineEvents,
+  isPaymentTimelineStepActive,
+  PaymentTimelineEvent
+} from 'src/app/shared/payment-utils';
 import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
 
 @Component({
@@ -40,6 +48,8 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
   reconciliationStatus: ReconciliationStatus | null = null;
   isCheckingReconciliation: boolean = false;
   confirmPaymentDialog: boolean = false;
+
+  paymentTimelineEvents: PaymentTimelineEvent[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -211,6 +221,7 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
         this.isCheckingReconciliation = false;
       }
 
+      this.paymentTimelineEvents = buildPaymentTimelineEvents(this.payment);
       this.isLoading = false;
     } catch (error: any) {
       console.error('Error loading payment:', error);
@@ -259,6 +270,23 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
 
   getPaymentStatusIcon(status: string): string {
     return getPaymentStatusIcon(status);
+  }
+
+  isPaymentTimelineStepActiveEvent(event: PaymentTimelineEvent): boolean {
+    return isPaymentTimelineStepActive(this.payment, event);
+  }
+
+  getPaymentTimelineLabel(status: string): string {
+    if (status === 'RECORDED') {
+      return this.translate.instant('payment_timeline_recorded');
+    }
+    return this.translate.instant('payment_status_' + status.toLowerCase());
+  }
+
+  getPaymentTimelineDescription(status: string): string {
+    const key = `payment_timeline_${status.toLowerCase()}_description`;
+    const translated = this.translate.instant(key);
+    return translated !== key ? translated : this.translate.instant('not_available');
   }
 
   hasPaymentMethodDetails(): boolean {

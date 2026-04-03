@@ -1,0 +1,256 @@
+<div class="grid">
+  <div class="col-12">
+    <div class="mb-4">
+      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+        <div>
+          <h2 class="m-0 text-900">{{ 'reports_profit_analysis' | translate }}</h2>
+          <p class="text-600 mt-2 mb-0" *ngIf="profitData && !profitLoading">
+            <i class="pi pi-calendar mr-2 text-500"></i>
+            {{ (profitData.startDate | date:'mediumDate') }} {{ 'to' | translate }} {{ (profitData.endDate | date:'mediumDate') }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card px-6 py-6 profit-report-card">
+      <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">
+        <div class="flex flex-column flex-1" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-calendar mr-2 text-primary"></i>
+            {{ 'period' | translate }}
+          </label>
+          <p-dropdown
+            [options]="profitPeriods"
+            [(ngModel)]="selectedPeriod"
+            (onChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            styleClass="w-full"
+            [showClear]="false">
+          </p-dropdown>
+        </div>
+        <div class="flex flex-column flex-1" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-building mr-2 text-primary"></i>
+            {{ 'shop' | translate }}
+          </label>
+          <p-dropdown
+            [options]="shopOptions"
+            [(ngModel)]="selectedShop"
+            (onChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            styleClass="w-full"
+            [showClear]="true">
+          </p-dropdown>
+        </div>
+      </div>
+
+      <div *ngIf="profitLoading" class="flex flex-column align-items-center justify-content-center py-6 reports-loading-panel">
+        <p-progressSpinner [style]="{ width: '3rem', height: '3rem' }" strokeWidth="3"></p-progressSpinner>
+        <p class="text-600 mt-3 mb-0">{{ 'loading' | translate }}</p>
+      </div>
+
+      <p-message *ngIf="error && !profitLoading" severity="error" [text]="error" styleClass="w-full mb-4"></p-message>
+
+  <div *ngIf="profitData && !profitLoading" class="profit-content">
+    <div class="grid mb-4 profit-hero-metrics">
+      <div class="col-12 md:col-4">
+        <div class="profit-metric-card revenue-card">
+          <div class="metric-icon-wrapper bg-green-100">
+            <i class="pi pi-arrow-up text-green-600 profit-metric-icon"></i>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">{{ 'revenue' | translate }}</div>
+            <div class="metric-value text-green-600">
+              {{ profitData.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+            </div>
+            <div class="metric-percentage text-green-600" *ngIf="profitData.totalRevenue > 0">
+              {{ calculateRevenuePercentage() | number:'1.1-1' }}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 md:col-4">
+        <div class="profit-metric-card costs-card">
+          <div class="metric-icon-wrapper bg-red-100">
+            <i class="pi pi-arrow-down text-red-600 text-2xl"></i>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">{{ 'total_costs' | translate }}</div>
+            <div class="metric-value text-red-600">
+              -{{ getTotalCosts() | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+            </div>
+            <div class="metric-percentage text-red-600" *ngIf="profitData.totalRevenue > 0">
+              {{ calculateCostsPercentage() | number:'1.1-1' }}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 md:col-4">
+        <div class="profit-metric-card" [ngClass]="{
+            'profit-card': profitData.netProfit >= 0,
+            'loss-card': profitData.netProfit < 0
+          }">
+          <div class="metric-icon-wrapper" [ngClass]="{
+              'bg-green-100': profitData.netProfit >= 0,
+              'bg-red-100': profitData.netProfit < 0
+            }">
+            <i class="pi profit-metric-icon" [ngClass]="{
+                'pi-check-circle text-green-600': profitData.netProfit >= 0,
+                'pi-times-circle text-red-600': profitData.netProfit < 0
+              }"></i>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">{{ 'net_profit' | translate }}</div>
+            <div class="metric-value" [ngClass]="{
+                'text-green-600': profitData.netProfit >= 0,
+                'text-red-600': profitData.netProfit < 0
+              }">
+              {{ profitData.netProfit | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+            </div>
+            <div class="metric-percentage" [ngClass]="{
+                'text-green-600': profitData.netProfit >= 0,
+                'text-red-600': profitData.netProfit < 0
+              }" *ngIf="profitData.totalRevenue > 0">
+              {{ calculateProfitMargin() | number:'1.1-1' }}%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="col-12 lg:col-8">
+        <p-card styleClass="chart-card h-full">
+          <ng-template pTemplate="header">
+            <div class="flex align-items-center gap-2 p-3">
+              <i class="pi pi-chart-bar text-primary"></i>
+              <span class="font-semibold">{{ 'financial_overview' | translate }}</span>
+            </div>
+          </ng-template>
+          <div class="chart-wrapper">
+            <div *ngIf="profitChartData && profitChartOptions" class="chart-container">
+              <p-chart type="bar" [data]="profitChartData" [options]="profitChartOptions"></p-chart>
+            </div>
+            <div *ngIf="!profitChartData || !profitChartOptions" class="flex flex-column align-items-center justify-content-center" style="height: 300px;">
+              <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+              <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
+            </div>
+          </div>
+        </p-card>
+      </div>
+
+      <div class="col-12 lg:col-4">
+        <div class="breakdown-section">
+          <p-card styleClass="breakdown-card mb-3">
+            <ng-template pTemplate="header">
+              <div class="flex align-items-center gap-2 p-3">
+                <i class="pi pi-arrow-up text-green-600"></i>
+                <span class="font-semibold">{{ 'revenue_breakdown' | translate }}</span>
+              </div>
+            </ng-template>
+            <div class="breakdown-list">
+              <div class="breakdown-item">
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-circle-fill text-green-500" style="font-size: 0.5rem"></i>
+                  <span class="breakdown-label">{{ 'gross_revenue' | translate }}</span>
+                </div>
+                <span class="breakdown-value text-green-600 font-semibold">
+                  {{ profitData.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </span>
+              </div>
+            </div>
+          </p-card>
+
+          <p-card styleClass="breakdown-card">
+            <ng-template pTemplate="header">
+              <div class="flex align-items-center gap-2 p-3">
+                <i class="pi pi-arrow-down text-red-600"></i>
+                <span class="font-semibold">{{ 'costs_breakdown' | translate }}</span>
+              </div>
+            </ng-template>
+            <div class="breakdown-list">
+              <div class="breakdown-item">
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-circle-fill text-orange-500" style="font-size: 0.5rem"></i>
+                  <span class="breakdown-label">{{ 'product_costs' | translate }}</span>
+                </div>
+                <span class="breakdown-value text-red-600 font-semibold">
+                  -{{ profitData.totalCosts | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </span>
+              </div>
+              <div class="breakdown-item">
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-circle-fill text-pink-500" style="font-size: 0.5rem"></i>
+                  <span class="breakdown-label">{{ 'refunds' | translate }}</span>
+                </div>
+                <span class="breakdown-value text-red-600 font-semibold">
+                  -{{ profitData.totalRefunds | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </span>
+              </div>
+              <div class="breakdown-item">
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-circle-fill text-purple-500" style="font-size: 0.5rem"></i>
+                  <span class="breakdown-label">{{ 'expenses' | translate }}</span>
+                </div>
+                <span class="breakdown-value text-red-600 font-semibold">
+                  -{{ profitData.totalExpenses | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </span>
+              </div>
+              <div class="breakdown-item">
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-circle-fill text-orange-500" style="font-size: 0.5rem"></i>
+                  <span class="breakdown-label">{{ 'write_offs' | translate }}</span>
+                </div>
+                <span class="breakdown-value text-orange-600 font-semibold">
+                  -{{ profitData.totalWriteOffs | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </span>
+              </div>
+            </div>
+          </p-card>
+        </div>
+      </div>
+    </div>
+
+    <div class="profit-margin-section mt-4" *ngIf="profitData.totalRevenue > 0">
+      <p-card styleClass="margin-card">
+        <div class="flex align-items-center justify-content-between mb-3">
+          <div class="flex align-items-center gap-2">
+            <i class="pi pi-percentage text-primary"></i>
+            <span class="font-semibold">{{ 'profit_margin' | translate }}</span>
+          </div>
+          <span class="font-bold text-lg" [ngClass]="{
+              'text-green-600': profitData.netProfit >= 0,
+              'text-red-600': profitData.netProfit < 0
+            }">
+            {{ calculateProfitMargin() | number:'1.2-2' }}%
+          </span>
+        </div>
+        <div class="profit-margin-bar">
+          <div class="bar-container">
+            <div class="negative-track" *ngIf="profitData.netProfit < 0"></div>
+            <div class="positive-track" *ngIf="profitData.netProfit >= 0"></div>
+            <div class="indicator" [style.left]="calculateIndicatorPosition()" [ngClass]="{
+                'positive': profitData.netProfit >= 0,
+                'negative': profitData.netProfit < 0
+              }">
+              <span class="indicator-value">{{ calculateProfitMargin() | number:'1.0-2' }}%</span>
+            </div>
+          </div>
+          <div class="flex justify-content-between mt-2 text-sm text-600">
+            <span>-100%</span>
+            <span>0%</span>
+            <span>+100%</span>
+          </div>
+        </div>
+      </p-card>
+    </div>
+  </div>
+    </div>
+  </div>
+</div>

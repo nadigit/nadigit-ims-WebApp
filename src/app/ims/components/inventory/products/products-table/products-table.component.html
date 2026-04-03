@@ -4,6 +4,11 @@
     <div>
       <h2 class="m-0 text-900">{{ 'products_menu_title' | translate }}</h2>
       <p class="text-600 mt-2 mb-0">{{ 'products_page_description' | translate }}</p>
+      <div *ngIf="strictSellableStockExcludesWriteoffs"
+        class="mt-3 p-3 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
+        <i class="pi pi-info-circle mt-1 flex-shrink-0"></i>
+        <span>{{ 'products_inventory_writeoff_stock_hint' | translate }}</span>
+      </div>
     </div>
   </div>
 </div>

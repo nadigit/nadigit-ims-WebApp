@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, firstValueFrom } from 'rxjs';
-import { PurchaseImportOptions, ImportValidationResult, PurchaseImportPreview, PurchaseImportResult, ParsedInvoiceData } from '../models/purchase-import.model';
+import { PurchaseImportOptions, ImportValidationResult, PurchaseImportPreview, PurchaseImportResult, ParsedInvoiceData, InvoiceReviewImportRequest } from '../models/purchase-import.model';
 import { withAudit } from '../utils/audit-action';
 
 @Injectable({
@@ -65,6 +65,12 @@ export class PurchaseImportService {
     if (options.createMissingSuppliers !== undefined) formData.append('createMissingSuppliers', String(options.createMissingSuppliers));
     if (options.createMissingProducts !== undefined) formData.append('createMissingProducts', String(options.createMissingProducts));
     if (options.defaultShopId !== undefined && options.defaultShopId !== null) formData.append('defaultShopId', String(options.defaultShopId));
+    if (options.defaultCategoryId !== undefined && options.defaultCategoryId !== null) {
+      formData.append('defaultCategoryId', String(options.defaultCategoryId));
+    }
+    if (options.defaultWarehouseId !== undefined && options.defaultWarehouseId !== null) {
+      formData.append('defaultWarehouseId', String(options.defaultWarehouseId));
+    }
     if (options.groupByInvoice !== undefined) formData.append('groupByInvoice', String(options.groupByInvoice));
     if (options.groupBySupplierAndDate !== undefined) formData.append('groupBySupplierAndDate', String(options.groupBySupplierAndDate));
     if (options.validateInvoiceUniqueness !== undefined) formData.append('validateInvoiceUniqueness', String(options.validateInvoiceUniqueness));
@@ -218,6 +224,12 @@ export class PurchaseImportService {
     if (options.createMissingSuppliers !== undefined) formData.append('createMissingSuppliers', String(options.createMissingSuppliers));
     if (options.createMissingProducts !== undefined) formData.append('createMissingProducts', String(options.createMissingProducts));
     if (options.defaultShopId !== undefined && options.defaultShopId !== null) formData.append('defaultShopId', String(options.defaultShopId));
+    if (options.defaultCategoryId !== undefined && options.defaultCategoryId !== null) {
+      formData.append('defaultCategoryId', String(options.defaultCategoryId));
+    }
+    if (options.defaultWarehouseId !== undefined && options.defaultWarehouseId !== null) {
+      formData.append('defaultWarehouseId', String(options.defaultWarehouseId));
+    }
     if (options.autoMatchProducts !== undefined) formData.append('autoMatchProducts', String(options.autoMatchProducts));
     if (options.productMatchThreshold !== undefined) formData.append('productMatchThreshold', String(options.productMatchThreshold));
     if (options.preferredLanguage) formData.append('preferredLanguage', options.preferredLanguage);
@@ -251,6 +263,12 @@ export class PurchaseImportService {
     if (options.createMissingSuppliers !== undefined) formData.append('createMissingSuppliers', String(options.createMissingSuppliers));
     if (options.createMissingProducts !== undefined) formData.append('createMissingProducts', String(options.createMissingProducts));
     if (options.defaultShopId !== undefined && options.defaultShopId !== null) formData.append('defaultShopId', String(options.defaultShopId));
+    if (options.defaultCategoryId !== undefined && options.defaultCategoryId !== null) {
+      formData.append('defaultCategoryId', String(options.defaultCategoryId));
+    }
+    if (options.defaultWarehouseId !== undefined && options.defaultWarehouseId !== null) {
+      formData.append('defaultWarehouseId', String(options.defaultWarehouseId));
+    }
     if (options.autoMatchProducts !== undefined) formData.append('autoMatchProducts', String(options.autoMatchProducts));
     if (options.productMatchThreshold !== undefined) formData.append('productMatchThreshold', String(options.productMatchThreshold));
     if (options.preferredLanguage) formData.append('preferredLanguage', options.preferredLanguage);
@@ -259,6 +277,18 @@ export class PurchaseImportService {
       `${this.getBaseUrl()}/import-from-invoice`,
       formData,
       { headers: headers }
+    );
+  }
+
+  /**
+   * Create purchase from user-reviewed invoice lines (JSON; no file).
+   */
+  async importFromInvoiceReview(payload: InvoiceReviewImportRequest): Promise<Observable<PurchaseImportResult>> {
+    const headers = withAudit(await this.getHeaders(), 'Imported purchase from reviewed invoice');
+    return this.http.post<PurchaseImportResult>(
+      `${this.getBaseUrl()}/import-from-invoice-review`,
+      payload,
+      { headers }
     );
   }
 }

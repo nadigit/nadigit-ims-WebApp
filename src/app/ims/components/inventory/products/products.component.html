@@ -1,9 +1,5 @@
 <div class="grid p-fluid">
 	<div class="col-12">
-		<div *ngIf="!salesStockIncludesApprovedWriteoffQty" class="mb-3 p-3 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
-			<i class="pi pi-info-circle mt-1 flex-shrink-0"></i>
-			<span>{{ 'products_inventory_writeoff_stock_hint' | translate }}</span>
-		</div>
 		<!-- View Toggle (Admin only) -->
 		<div class="flex justify-content-end mb-3" *ngIf="isAdmin">
 			<div class="flex align-items-center gap-2 p-3 surface-ground border-round">

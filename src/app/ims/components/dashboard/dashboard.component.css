@@ -50,6 +50,54 @@
   flex: 1 1 0%;
 }
 
+/* List / chart columns: do not stretch to tallest sibling (removes empty space in cards) */
+.grid > .dashboard-col-align-start {
+  align-self: flex-start;
+}
+
+/* p-card body should not grow to fill stretched flex layout */
+:host ::ng-deep .dashboard-card-fit-content.p-card,
+:host ::ng-deep .dashboard-card-fit-content .p-card {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+}
+
+:host ::ng-deep .dashboard-card-fit-content .p-card-body,
+:host ::ng-deep .dashboard-card-fit-content.p-card .p-card-body {
+  flex-grow: 0;
+}
+
+:host ::ng-deep .dashboard-card-fit-content .p-card-content {
+  flex-grow: 0;
+}
+
+/* Chart slot: short placeholder until chart renders */
+.dashboard-chart-body {
+  min-height: 11rem;
+  box-sizing: border-box;
+}
+
+.dashboard-chart-body--active {
+  min-height: 18rem;
+  height: 300px;
+}
+
+@media (min-width: 992px) {
+  .dashboard-chart-body--active {
+    min-height: 20rem;
+    height: 320px;
+  }
+}
+
+/* Nested charts row: gutters without double-padding from parent grid */
+.dashboard-charts-row > .grid {
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
 /* Quick Action Cards */
 .quick-action-card {
   background: var(--surface-card);

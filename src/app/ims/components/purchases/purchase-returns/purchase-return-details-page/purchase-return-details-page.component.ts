@@ -38,6 +38,9 @@ export class PurchaseReturnDetailsPageComponent implements OnInit {
   
   lowStockThreshold: number = 10;
 
+  /** Status milestones for the return workflow timeline (matches orders / purchase-details style). */
+  returnEvents: Array<{ status: string; date: Date | string | null; icon: string }> = [];
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -142,6 +145,7 @@ export class PurchaseReturnDetailsPageComponent implements OnInit {
         this.return.returnDate = new Date(this.return.returnDate as any);
       }
 
+      this.generateReturnEvents();
       this.isLoading = false;
     } catch (error: any) {
       console.error('Error loading purchase return:', error);
@@ -220,6 +224,59 @@ export class PurchaseReturnDetailsPageComponent implements OnInit {
     };
 
     return statusSeverity[status] || 'info';
+  }
+
+  generateReturnEvents(): void {
+    if (!this.return) {
+      this.returnEvents = [];
+      return;
+    }
+
+    const status = String(this.return.returnStatus || '');
+    const creation = this.return.creationDate;
+    const retDate = this.return.returnDate;
+    const normalFlow = ['PENDING', 'PROCESSING', 'PARTIALLY_REFUNDED', 'COMPLETED'];
+    const idx = normalFlow.indexOf(status);
+
+    if (status === ReturnStatus.CANCELLED) {
+      this.returnEvents = [
+        { status: 'PENDING', date: creation ?? null, icon: 'pi pi-clock' },
+        { status: 'CANCELLED', date: retDate || creation || null, icon: 'pi pi-times-circle' }
+      ].filter(e => e.date != null || e.status === 'PENDING');
+      return;
+    }
+
+    const events: Array<{ status: string; date: Date | string | null; icon: string }> = [
+      { status: 'PENDING', date: creation ?? null, icon: 'pi pi-clock' },
+      {
+        status: 'PROCESSING',
+        date: idx >= 1 ? (retDate || creation || null) : null,
+        icon: 'pi pi-sync'
+      },
+      {
+        status: 'PARTIALLY_REFUNDED',
+        date: status === ReturnStatus.PARTIALLY_REFUNDED ? (retDate || creation || null) : null,
+        icon: 'pi pi-percentage'
+      },
+      {
+        status: 'COMPLETED',
+        date: status === ReturnStatus.COMPLETED ? (retDate || creation || null) : null,
+        icon: 'pi pi-check-circle'
+      }
+    ];
+
+    this.returnEvents = events.filter(e => e.date != null || e.status === 'PENDING');
+  }
+
+  isReturnTimelineEventActive(event: { status: string }): boolean {
+    if (!this.return?.returnStatus) return false;
+    return event.status === this.return.returnStatus;
+  }
+
+  getReturnTimelineDescription(status: string): string {
+    const key = `purchase_return_timeline_${status.toLowerCase()}_description`;
+    const translated = this.translate.instant(key);
+    return translated !== key ? translated : this.translate.instant('not_available');
   }
 
   getReturnStatusSeverityTag(status: string): "success" | "secondary" | "info" | "warn" | "danger" | "contrast" | undefined {

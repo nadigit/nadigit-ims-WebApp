@@ -6,6 +6,10 @@ export interface PurchaseImportOptions {
   createMissingSuppliers?: boolean; // Default: false
   createMissingProducts?: boolean; // Default: false
   defaultShopId?: number; // For admin users
+  /** Category for auto-created products when createMissingProducts is true */
+  defaultCategoryId?: number | null;
+  /** Warehouse for auto-created products when createMissingProducts is true */
+  defaultWarehouseId?: number | null;
   groupByInvoice?: boolean; // Default: true - Group rows with same invoice number
   groupBySupplierAndDate?: boolean; // Default: true - Fallback grouping
   validateInvoiceUniqueness?: boolean; // Default: false
@@ -47,6 +51,8 @@ export interface PurchaseItemPreview {
   productName?: string;
   quantityPurchased: number;
   buyingPrice: number;
+  /** Invoice import preview only; omitted for CSV rows */
+  sellingPrice?: number | null;
   expirationDate?: string; // ISO date string
   batchNumber?: string;
   status: "NEW" | "ERROR" | "WARNING";
@@ -113,6 +119,8 @@ export interface ParsedInvoiceData {
   dueDate?: string; // ISO date string
   totalAmount?: number;
   taxAmount?: number;
+  /** When set by API, overrides inference from taxAmount for review/import */
+  taxEnabled?: boolean;
   discount?: number;
   purpose?: string;
   currency?: string;
@@ -130,12 +138,16 @@ export interface ParsedInvoiceItem {
   description?: string;
   quantity?: number;
   unitPrice?: number;
+  /** Default retail for new products on reviewed import; editable with buying price */
+  sellingPrice?: number;
   totalPrice?: number;
   batchNumber?: string;
   expirationDate?: string; // ISO date string
   unitOfMeasure?: string;
   matchConfidence?: number; // 0.0 to 1.0 - product matching confidence
   matchedProductId?: number; // ID of matched product if auto-matched
+  /** Category for new product on this line (invoice import UX); optional */
+  categoryId?: number | null;
 }
 
 // Product Mapping (for manual product matching)
@@ -144,5 +156,42 @@ export interface ProductMapping {
   productReference: string; // Product reference in system
   productId?: number; // Optional: product ID
   confidence?: number; // Optional: matching confidence
+}
+
+/** Line item edited on the review screen before confirming invoice import */
+export interface InvoiceReviewLine {
+  productName: string;
+  productReference: string;
+  quantityPurchased: number;
+  buyingPrice: number;
+  sellingPrice: number;
+  /** When create missing products: overrides request default category for this line */
+  categoryId?: number | null;
+  batchNumber?: string;
+  expirationDate?: Date | null;
+}
+
+/** POST body for /api/purchases/import/import-from-invoice-review */
+export interface InvoiceReviewImportRequest {
+  supplierName?: string;
+  invoiceNumber?: string;
+  dateOfPurchase?: string;
+  discount?: number;
+  taxEnabled: boolean;
+  createMissingSuppliers: boolean;
+  createMissingProducts: boolean;
+  defaultShopId?: number | null;
+  defaultCategoryId?: number | null;
+  defaultWarehouseId?: number | null;
+  lines: {
+    productReference: string;
+    productName?: string;
+    quantityPurchased: number;
+    buyingPrice: number;
+    sellingPrice?: number;
+    categoryId?: number | null;
+    batchNumber?: string;
+    expirationDate?: string;
+  }[];
 }
 

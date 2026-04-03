@@ -26,6 +26,7 @@ import { ChipModule } from 'primeng/chip';
 import { SkeletonModule } from 'primeng/skeleton';
 import { PaymentsTableComponent } from './payments-table/payments-table.component';
 import { TabViewModule } from 'primeng/tabview';
+import { TimelineModule } from 'primeng/timeline';
 import { SalesPaymentsComponent } from './sales-payments/sales-payments.component';
 import { PurchasePaymentsComponent } from './purchase-payments/purchase-payments.component';
 import { SalesPaymentDetailsPageComponent } from './sales-payment-details-page/sales-payment-details-page.component';
@@ -62,6 +63,7 @@ import { CheckboxModule } from 'primeng/checkbox';
         ChipModule,
         SkeletonModule,
         TabViewModule,
+        TimelineModule,
         SharedModule,
         BadgeModule,
         DividerModule,

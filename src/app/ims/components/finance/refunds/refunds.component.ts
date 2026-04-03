@@ -13,7 +13,6 @@ import { Order } from 'src/app/models/order';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { Refund } from 'src/app/models/refund';
 import { RefundService } from 'src/app/services/refund.service';
-import { RefundMethod } from 'src/app/enums/refund-method.enum';
 import { RefundStatus } from 'src/app/enums/refund-status.enum';
 import { ReturnService } from 'src/app/services/return.service';
 import { OrderReturn } from 'src/app/models/orderReturn';
@@ -84,12 +83,12 @@ export class RefundsComponent implements OnInit {
   userRoles: any;
   isAdmin: boolean = false;
 
-  // Refund methods - values aligned with backend enum: CASH, CARD, CHECK, TRANSFER, BOE, DIGITAL_WALLET
+  // Refund methods — values must match backend RefundMethod (Jackson): Cash, Card, Check, Transfer, BOE, DIGITAL_WALLET
   refundMethods = [
-    { value: 'CASH', label: 'refund_method_cash' },
-    { value: 'CARD', label: 'refund_method_card' },
-    { value: 'CHECK', label: 'refund_method_check' },
-    { value: 'TRANSFER', label: 'refund_method_transfer' },
+    { value: 'Cash', label: 'refund_method_cash' },
+    { value: 'Card', label: 'refund_method_card' },
+    { value: 'Check', label: 'refund_method_check' },
+    { value: 'Transfer', label: 'refund_method_transfer' },
     { value: 'BOE', label: 'refund_method_boe' },
     { value: 'DIGITAL_WALLET', label: 'refund_method_digital_wallet' },
   ];
@@ -1253,16 +1252,16 @@ export class RefundsComponent implements OnInit {
     }
   }
 
-  getRefundMethodLabel(method: RefundMethod): string {
-    // Add translations as needed
-    return {
-      'Check': 'refund_method_check',
-      'Card': 'refund_method_card',
-      'Transfer': 'refund_method_cash',
-      'Cash': 'refund_method_transfer',
-      'BOE': 'refund_method_boe',
-      'DIGITAL_WALLET': 'refund_method_digital_wallet'
-    }[method] || method;
+  getRefundMethodLabel(method: string): string {
+    const map: Record<string, string> = {
+      Cash: 'refund_method_cash',
+      Card: 'refund_method_card',
+      Check: 'refund_method_check',
+      Transfer: 'refund_method_transfer',
+      BOE: 'refund_method_boe',
+      DIGITAL_WALLET: 'refund_method_digital_wallet',
+    };
+    return map[method] || method;
   }
 
   getTotalAmount(): number {
@@ -1283,10 +1282,12 @@ export class RefundsComponent implements OnInit {
 
   getPaymentMethodIcon(method: string): string {
     switch (method) {
-      case 'CASH': return 'pi pi-money-bill';
-      case 'CARD': return 'pi pi-credit-card';
-      case 'TRANSFER': return 'pi pi-bank';
-      case 'CHECK': return 'pi pi-file';
+      case 'Cash': return 'pi pi-money-bill';
+      case 'Card': return 'pi pi-credit-card';
+      case 'Transfer': return 'pi pi-bank';
+      case 'Check': return 'pi pi-file';
+      case 'BOE': return 'pi pi-file';
+      case 'DIGITAL_WALLET': return 'pi pi-mobile';
       default: return 'pi pi-wallet';
     }
   }
@@ -1298,6 +1299,7 @@ export class RefundsComponent implements OnInit {
       case 'transfer': return 'warning';
       case 'check': return 'help';
       case 'boe': return 'help';
+      case 'digital_wallet': return 'info';
       default: return 'danger';
     }
   }

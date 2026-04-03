@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CreditManagementRoutingModule } from './credit-management-routing.module';
 import { CreditAccountManagementComponent } from './credit-account-management/credit-account-management.component';
 import { CreditManagementDashboardComponent } from './credit-management-dashboard/credit-management-dashboard.component';
-import { CreditReportsComponent } from './credit-reports/credit-reports.component';
+import { CreditReportsModule } from './credit-reports/credit-reports.module';
 import { CreditBalanceCardComponent } from './shared/credit-balance-card/credit-balance-card.component';
 import { IssueCreditModalComponent } from './shared/issue-credit-modal/issue-credit-modal.component';
 import { AdjustCreditModalComponent } from './shared/adjust-credit-modal/adjust-credit-modal.component';
@@ -39,7 +39,6 @@ import { SelectButtonModule } from 'primeng/selectbutton';
   declarations: [
     CreditAccountManagementComponent,
     CreditManagementDashboardComponent,
-    CreditReportsComponent,
     CreditBalanceCardComponent,
     IssueCreditModalComponent,
     AdjustCreditModalComponent,
@@ -48,6 +47,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
   imports: [
     CommonModule,
     FormsModule,
+    CreditReportsModule,
     CreditManagementRoutingModule,
     TableModule,
     ButtonModule,

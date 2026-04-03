@@ -268,10 +268,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
 
   isPurchaseEventActive(event: any): boolean {
     if (!this.purchase) return false;
-    const statusPurchase = ['PENDING', 'APPROVED', 'RECEIVED', 'COMPLETED', 'CANCELED', 'RETURNED', 'PARTIAL_RETURN', 'RETURN_PENDING'];
-    const currentStatusIndex = statusPurchase.indexOf(this.purchase?.purchaseStatus);
-    const eventStatusIndex = statusPurchase.indexOf(event.status);
-    return eventStatusIndex <= currentStatusIndex;
+    return event.status === this.purchase.purchaseStatus;
   }
 
   async checkPermissions() {

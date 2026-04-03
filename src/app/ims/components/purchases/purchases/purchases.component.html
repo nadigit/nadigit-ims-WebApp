@@ -399,9 +399,12 @@
         </p-table>
     </div>
 
-    <p-dialog [(visible)]="purchaseDialog" [style]="{width: '80%', height: '100%'}"
-        header="{{ 'purchase_details' | translate }}" [modal]="true" class="p-fluid ">
+    <p-dialog [(visible)]="purchaseDialog" [style]="{width: '95vw', maxWidth: '1200px', height: '95vh'}"
+        header="{{ 'purchase_details' | translate }}" [modal]="true" class="p-fluid pos-dialog" [draggable]="false"
+        [resizable]="false">
         <ng-template pTemplate="content">
+            <div class="purchase-form-grid grid">
+                <div class="col-12 lg:col-8">
 
             <div class="field">
                 <label for="purpose">{{ 'purchase_purpose' | translate }} <span
@@ -470,124 +473,146 @@
                     translate}} {{'is_required_label' | translate}}</small>
             </div>
 
+            <div class="field" style="position: relative;" *ngIf="isAdmin">
+                <label for="purchaseWarehouse">{{'warehouse' | translate}} <span class="required-asterisk">*</span></label>
+                <p-dropdown appendTo="body" [(ngModel)]="selectedPurchaseWarehouse" name="purchaseWarehouse"
+                    inputId="purchaseWarehouse" ngDefaultControl optionLabel="name" [options]="warehouses"
+                    [filter]="true" filterBy="name" [showClear]="true"
+                    placeholder="{{'select_warehouse' | translate}}"
+                    [ngClass]="{'ng-invalid ng-dirty' : submitted && !selectedPurchaseWarehouse}"
+                    (onChange)="onPurchaseWarehouseChange()">
+                </p-dropdown>
+                <small class="ng-dirty ng-invalid" *ngIf="submitted && !selectedPurchaseWarehouse">{{'warehouse' |
+                    translate}} {{'is_required_label' | translate}}</small>
+                <small class="text-500 block mt-1" *ngIf="isAdmin && !selectedPurchaseWarehouse">
+                    {{ 'select_warehouse_first' | translate }}
+                </small>
+            </div>
+
             <div class="field">
                 <label for="purchaseItems">
                     {{ 'order_products' | translate }} <span class="required-asterisk">* </span>
                 </label>
-                <div class="card">
-                    <input pInputText type="text" placeholder="{{ 'search_label' | translate }}"
-                        (input)="onSearchProducts($event)" class="w-full mb-2" />
-                    <p-pickList name="purchaseItems" [(ngModel)]="purchaseItems" ngDefaultControl
-                        [source]="sourceProducts" [target]="targetProducts" [showSourceFilter]="false"
-                        [showTargetFilter]="false" sourceHeader="{{ 'order_available_products' | translate }}" required
-                        targetHeader="{{ 'order_selected_products' | translate }}" [dragdrop]="true" [responsive]="true"
-                        [sourceStyle]="{ height: '40rem' }" [targetStyle]="{ height: '40rem' }" filterBy="name"
-                        breakpoint="1300px" (onMoveToTarget)="onMoveToTarget($event)" disableDblClick>
-                        <ng-template let-product pTemplate="item">
-                            <div class="flex flex-wrap p-2 align-items-center gap-3">
-                                <img class="w-4rem shadow-2 flex-shrink-0 border-round"
-                                    [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
-                                    [alt]="product.name" />
-                                <div class="flex-1 flex flex-column gap-2">
-                                    <div class="flex align-items-center gap-2">
-                                      <span class="font-bold">{{ product.name }}</span>
-                                      <p-tag *ngIf="product.productType === 'SERVICE' || !product.productType || product.productType === 'PRODUCT'"
-                                        [value]="product.productType === 'SERVICE' ? ('product_type_service' | translate) : ('product_type_product' | translate)"
-                                        [severity]="product.productType === 'SERVICE' ? 'purple' : 'info'"
-                                        [icon]="product.productType === 'SERVICE' ? 'pi pi-cog' : 'pi pi-box'"
-                                        styleClass="text-xs">
-                                      </p-tag>
-                                    </div>
-                                    <div class="flex align-products-center gap-2">
-                                        <i class="pi pi-tag text-sm"></i>
-                                        <span>{{ product.category.categoryName }}</span>
-                                    </div>
+
+                <div class="purchase-items-wrapper">
+                    <div class="field mb-3">
+                        <div class="p-input-icon-left w-full">
+                            <i class="pi pi-search"></i>
+                            <input pInputText type="text" placeholder="{{ 'search_products' | translate }}"
+                                [(ngModel)]="searchProductInput" (input)="onSearchProducts($event)" class="w-full"
+                                [disabled]="isAdmin && !selectedPurchaseWarehouse" />
+                        </div>
+                    </div>
+
+                    <div class="products-grid mb-4">
+                        <div *ngFor="let product of sourceProducts" class="product-card"
+                            [class.opacity-50]="isAdmin && !selectedPurchaseWarehouse"
+                            (click)="!(isAdmin && !selectedPurchaseWarehouse) && moveProductToTarget(product)">
+                            <img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+                                [alt]="product.name" class="product-card-image" />
+                            <div class="product-card-details">
+                                <div class="product-card-name">{{ product.name }}</div>
+                                <div class="product-card-category">{{ product.category?.categoryName || 'N/A' }}</div>
+                                <div class="product-card-price">
+                                    {{ product.buyingPrice | currency:currency:'symbol':'1.2-2' }}
                                 </div>
-                                <span class="font-bold text-900">{{currency}} {{product.buyingPrice }}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                                <!-- Check if product is in targetProducts (selected) to show quantity and subTotal inputs -->
-                                <ng-container *ngIf="targetProducts.includes(product)">
-                                    <div class="field">
-                                        <label for="purchaseItemPricePerUnit">{{ 'order_items_price_per_unit' |
-                                            translate }}</label>
-                                        <p-inputNumber name="purchaseItemPricePerUnit" id="purchaseItemPricePerUnit"
-                                            [(ngModel)]="product.purchaseItemPricePerUnit" ngDefaultControl
-                                            mode="decimal" [showButtons]="true" [min]="0.01" [step]="0.01"
-                                            [minFractionDigits]="0" [maxFractionDigits]="2"
-                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemPricePerUnit}"
-                                            required autofocus></p-inputNumber>
-                                        <small class="ng-dirty ng-invalid"
-                                            *ngIf="submitted && !product.purchaseItemPricePerUnit">{{
-                                            'order_items_price_per_unit' |
-                                            translate }} {{'is_required_label' | translate}}</small>
-                                        <small class="text-500 block mt-1" *ngIf="product.productType !== 'SERVICE' && product['purchaseItemExpirationDate']">
-                                            <i class="pi pi-info-circle mr-1"></i>
-                                            {{ 'batch_price_hint' | translate }}
-                                        </small>
-                                    </div>
-                                    <div class="field">
-                                        <label for="purchaseItemQuantity">{{ 'order_items_quantity' | translate
-                                            }}</label>
-                                        <p-inputNumber name="purchaseItemQuantity" id="purchaseItemQuantity"
-                                            [(ngModel)]="product.purchaseItemQuantity" ngDefaultControl mode="decimal"
-                                            [showButtons]="true" [min]="1"
-                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemQuantity}"
-                                            required autofocus></p-inputNumber>
-                                        <small class="ng-dirty ng-invalid"
-                                            *ngIf="submitted && !product.purchaseItemQuantity">{{ 'order_items_quantity'
-                                            |
-                                            translate }} {{'is_required_label' | translate}}</small>
-                                    </div>
+                    <div class="selected-products-card">
+                        <div class="card-header">
+                            <h4 class="m-0">
+                                <i class="pi pi-shopping-cart mr-2"></i>{{ 'order_selected_products' | translate }}
+                            </h4>
+                            <p-badge [value]="targetProducts.length" severity="info"></p-badge>
+                        </div>
 
-                                    <!-- Batch/Expiration Fields (Only for physical products, not services) -->
-                                    <ng-container *ngIf="product.productType !== 'SERVICE'">
-                                        <div class="field col-12">
-                                            <div class="flex align-items-center mb-2">
-                                                <i class="pi pi-info-circle mr-2 text-primary"></i>
-                                                <small class="text-600">{{ 'purchase_item_batch_hint' | translate }}</small>
+                        <p-table [value]="targetProducts" dataKey="productId" styleClass="p-datatable-sm selected-products-table">
+                            <ng-template pTemplate="header">
+                                <tr>
+                                    <th>{{ 'product_name' | translate }}</th>
+                                    <th>{{ 'order_items_price' | translate }}</th>
+                                    <th>{{ 'quantity' | translate }}</th>
+                                    <th>{{ 'stock_available' | translate }}</th>
+                                    <th>{{ 'subtotal' | translate }}</th>
+                                    <th style="width: 3rem"></th>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="body" let-product>
+                                <tr>
+                                    <td>
+                                        <div class="product-info">
+                                            <img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+                                                [alt]="product.name" class="product-image"
+                                                style="width:30px;height:30px;min-width:30px;max-width:30px;object-fit:cover;display:block;" />
+                                            <div class="product-details">
+                                                <div class="font-semibold">{{ product.name }}</div>
+                                                <small class="text-600">{{ product.category?.categoryName || 'N/A' }}</small>
+                                                <div class="batch-inline-fields mt-1" *ngIf="product.productType !== 'SERVICE'">
+                                                    <p-calendar [(ngModel)]="product.purchaseItemExpirationDate"
+                                                        [showIcon]="true" dateFormat="yy-mm-dd"
+                                                        [minDate]="minExpirationDate"
+                                                        [showButtonBar]="true" [showOnFocus]="false"
+                                                        [placeholder]="'select_expiration_date' | translate"
+                                                        inputStyleClass="w-full p-inputtext-sm" appendTo="body">
+                                                    </p-calendar>
+                                                    <input type="text" pInputText
+                                                        [(ngModel)]="product.purchaseItemBatchNumber"
+                                                        [placeholder]="'batch_number' | translate"
+                                                        class="w-full p-inputtext-sm" />
+                                                </div>
                                             </div>
                                         </div>
-                                        
-                                        <div class="field">
-                                            <label for="purchaseItemExpirationDate">{{ 'purchase_item_expiration_date' | translate }}</label>
-                                            <p-calendar name="purchaseItemExpirationDate" id="purchaseItemExpirationDate"
-                                                [(ngModel)]="product.purchaseItemExpirationDate" ngDefaultControl
-                                                [showIcon]="true" dateFormat="yy-mm-dd" 
-                                                [minDate]="minExpirationDate"
-                                                [showButtonBar]="true" [showOnFocus]="false"
-                                                [placeholder]="'select_expiration_date' | translate"
-                                                inputStyleClass="w-full" appendTo="body">
-                                            </p-calendar>
-                                            <small class="text-500">{{ 'expiration_date_help' | translate }}</small>
-                                            <!-- Batch Supplier Hint -->
-                                            <small class="text-500 block mt-1" *ngIf="product['purchaseItemExpirationDate'] && purchase.supplier">
-                                                <i class="pi pi-truck mr-1"></i>
-                                                {{ 'batch_supplier_hint' | translate: {supplier: purchase.supplier.name} }}
-                                            </small>
-                                        </div>
-
-                                        <div class="field">
-                                            <label for="purchaseItemBatchNumber">{{ 'purchase_item_batch_number' | translate }}</label>
-                                            <input type="text" pInputText name="purchaseItemBatchNumber" id="purchaseItemBatchNumber"
-                                                [(ngModel)]="product.purchaseItemBatchNumber" ngDefaultControl
-                                                [placeholder]="'batch_number' | translate"
-                                                class="w-full" />
-                                            <small class="text-500">{{ 'batch_number' | translate }}</small>
-                                        </div>
-                                    </ng-container>
-                                    <!-- <div>
-                                            <label>{{'order_product_available_quantity' | translate}}</label>
-    
-                                            <p-inputNumber [ngModel]="product.quantityAvailable - product.purchaseItemQuantity"
-                                                disabled> </p-inputNumber>
-                                        </div> -->
-                                </ng-container>
-                            </div>
-
-                        </ng-template>
-                    </p-pickList>
+                                    </td>
+                                    <td>
+                                        <p-inputNumber [(ngModel)]="product.purchaseItemPricePerUnit"
+                                            mode="decimal" [min]="0.01" [step]="0.01"
+                                            [minFractionDigits]="0" [maxFractionDigits]="2"
+                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemPricePerUnit}">
+                                        </p-inputNumber>
+                                    </td>
+                                    <td>
+                                        <p-inputNumber [(ngModel)]="product.purchaseItemQuantity" mode="decimal"
+                                            [min]="1"
+                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemQuantity}">
+                                        </p-inputNumber>
+                                    </td>
+                                    <td class="available-quantity">
+                                        <span *ngIf="product.productType !== 'SERVICE'; else noStockTracking">
+                                            {{ product.quantityAvailable || 0 }}
+                                        </span>
+                                        <ng-template #noStockTracking>
+                                            <p-tag value="{{ 'no_inventory_tracking' | translate }}" severity="secondary" icon="pi pi-info-circle" styleClass="text-xs"></p-tag>
+                                        </ng-template>
+                                    </td>
+                                    <td class="subtotal">
+                                        {{ ((product.purchaseItemQuantity || 0) * (product.purchaseItemPricePerUnit || 0))
+                                        | currency:currency:'symbol':'1.2-2' }}
+                                    </td>
+                                    <td>
+                                        <button pButton pRipple type="button" icon="pi pi-times"
+                                            class="p-button-rounded p-button-text p-button-danger"
+                                            (click)="removeProductFromTarget(product)">
+                                        </button>
+                                    </td>
+                                </tr>
+                            </ng-template>
+                            <ng-template pTemplate="emptymessage">
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-600">
+                                        {{ 'no_products_selected' | translate }}
+                                    </td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
                 </div>
+            </div>
+            </div>
 
+                <div class="col-12 lg:col-4">
+                    <div class="order-summary-card">
                 <div class="field">
                     <label for="discount">{{'discount' | translate}}</label>
                     <input type="number" pInputText name="discount" [(ngModel)]="purchase.discount"
@@ -726,6 +751,8 @@
                         <label for="paymentNotes">{{ 'payment_notes' | translate }}</label>
                         <textarea pInputTextarea [(ngModel)]="payment.notes" rows="2"
                             id="paymentNotes"></textarea>
+                    </div>
+                </div>
                     </div>
                 </div>
             </div>

@@ -585,7 +585,8 @@
     padding: 1rem 0;
 }
 
-::ng-deep .refund-timeline .p-timeline-event-separator {
+::ng-deep .refund-timeline .p-timeline-event-separator,
+::ng-deep .order-timeline .p-timeline-event-separator {
     flex: 0 0 auto;
 }
 
@@ -606,23 +607,54 @@
     color: var(--text-color-secondary);
 }
 
-.timeline-marker.active {
+/* Refunds history: latest step in green */
+::ng-deep .refund-timeline .timeline-marker.active {
     background: #22c55e;
     border-color: #22c55e;
     box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.2);
 }
 
-.timeline-marker.active .marker-icon {
+::ng-deep .refund-timeline .timeline-marker.active .marker-icon {
     color: white;
 }
 
-.timeline-marker.completed {
+::ng-deep .refund-timeline .timeline-marker.completed {
     background: var(--primary-color);
     border-color: var(--primary-color);
 }
 
-.timeline-marker.completed .marker-icon {
+::ng-deep .refund-timeline .timeline-marker.completed .marker-icon {
     color: white;
+}
+
+::ng-deep .refund-timeline .timeline-card.active {
+    border-left: 4px solid #22c55e;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Return status workflow: order / purchase-details timeline */
+::ng-deep .order-timeline .timeline-marker.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+::ng-deep .order-timeline .timeline-marker.active .marker-icon {
+    color: white;
+}
+
+::ng-deep .order-timeline .timeline-marker.completed {
+    background: var(--green-500);
+    border-color: var(--green-500);
+}
+
+::ng-deep .order-timeline .timeline-marker.completed .marker-icon {
+    color: white;
+}
+
+::ng-deep .order-timeline .timeline-card.active {
+    border-left: 4px solid var(--primary-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .timeline-card {
@@ -634,17 +666,13 @@
     transition: all 0.3s ease;
 }
 
-.timeline-card.active {
-    border-left: 4px solid #22c55e;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
 .timeline-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .timeline-header h5 {
@@ -656,6 +684,15 @@
 .timeline-date {
     font-size: 0.8rem;
     color: var(--text-color-secondary);
+}
+
+.timeline-content {
+    margin-bottom: 0;
+}
+
+.timeline-content .status-content p {
+    font-size: 0.9rem;
+    line-height: 1.5;
 }
 
 /* Refund Details */

@@ -1,5 +1,30 @@
 <div class="pos-container" *ngIf="!loading; else loadingTpl">
   <p-toast></p-toast>
+  <p-dialog
+    [(visible)]="warehouseSwitchDialogVisible"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [closable]="false"
+    [style]="{width: '420px'}"
+    [header]="'confirm_label' | translate">
+    <div class="flex align-items-start gap-2">
+      <i class="pi pi-exclamation-triangle text-orange-500 mt-1"></i>
+      <span>{{ 'switch_warehouse_resets_cart_confirm' | translate }}</span>
+    </div>
+    <ng-template pTemplate="footer">
+      <div class="flex justify-content-end gap-2">
+        <button pButton pRipple
+          [label]="'cancel_button' | translate"
+          class="p-button-text"
+          (click)="cancelWarehouseSwitch()"></button>
+        <button pButton pRipple
+          [label]="'proceed' | translate"
+          class="p-button-warning"
+          (click)="confirmWarehouseSwitch()"></button>
+      </div>
+    </ng-template>
+  </p-dialog>
   <div *ngIf="activeTab === 'sales' && !salesStockIncludesApprovedWriteoffQty"
        class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
     <i class="pi pi-info-circle mt-1 flex-shrink-0"></i>
@@ -140,6 +165,34 @@
             <div class="flex align-items-center gap-2">
               <i class="pi pi-store"></i>
               <span>{{ shop.shopName }}</span>
+            </div>
+          </ng-template>
+        </p-dropdown>
+        <small class="text-500 block mt-1" *ngIf="!selectedWarehouseId">
+          {{ 'select_warehouse_first' | translate }}
+        </small>
+      </div>
+      <div class="pos-shop-selector" *ngIf="isAdmin">
+        <p-dropdown
+          [options]="warehouses"
+          optionLabel="name"
+          optionValue="warehouseId"
+          [(ngModel)]="selectedWarehouseId"
+          (onChange)="onWarehouseChange()"
+          [placeholder]="'select_warehouse' | translate"
+          [disabled]="isLocked"
+          styleClass="w-10rem"
+          appendTo="body">
+          <ng-template pTemplate="selectedItem">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-building"></i>
+              <span>{{ getSelectedWarehouseName() }}</span>
+            </div>
+          </ng-template>
+          <ng-template let-warehouse pTemplate="item">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-building"></i>
+              <span>{{ warehouse.name }}</span>
             </div>
           </ng-template>
         </p-dropdown>
@@ -2179,7 +2232,7 @@
             {{ 'refund_method' | translate }}
           </label>
           <div class="pos-payment-methods">
-            <div *ngFor="let method of paymentMethods" class="pos-payment-method">
+            <div *ngFor="let method of refundPaymentMethodOptions" class="pos-payment-method">
               <p-radioButton
                 [inputId]="'refund-' + method.value"
                 [value]="method.value"
@@ -2188,7 +2241,7 @@
               </p-radioButton>
               <label [for]="'refund-' + method.value" class="ml-2 cursor-pointer">
                 <i [class]="method.icon"></i>
-                <span>{{ method.label }}</span>
+                <span>{{ method.label | translate }}</span>
               </label>
             </div>
           </div>

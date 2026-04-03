@@ -1,0 +1,254 @@
+/* Outer layout matches expenses / other report pages (.profit-report-card = theme .card) */
+.profit-report-card {
+  margin-bottom: 0;
+}
+
+.profit-metric-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  padding: 1.25rem 1rem;
+  border-radius: 12px;
+  background: var(--surface-card);
+  border: 2px solid var(--surface-border);
+  transition: all 0.3s ease;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.profit-metric-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--card-shadow);
+}
+
+.profit-metric-card .metric-icon-wrapper {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profit-metric-card .metric-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.profit-metric-card .metric-content .metric-label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.profit-metric-card .metric-content .metric-value {
+  font-size: clamp(0.9375rem, 0.55rem + 1.85vw, 1.625rem);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 0.25rem;
+  max-width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.profit-metric-card .metric-content .metric-percentage {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.profit-metric-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.profit-metric-card.revenue-card {
+  border-color: rgba(76, 175, 80, 0.3);
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.02) 100%);
+}
+
+.profit-metric-card.costs-card {
+  border-color: rgba(244, 67, 54, 0.3);
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%);
+}
+
+.profit-metric-card.profit-card {
+  border-color: rgba(76, 175, 80, 0.3);
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.02) 100%);
+}
+
+.profit-metric-card.loss-card {
+  border-color: rgba(244, 67, 54, 0.3);
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%);
+}
+
+.chart-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.chart-card ::ng-deep .p-card-header {
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  padding: 1rem 1.5rem;
+}
+
+.chart-card .chart-wrapper .chart-container {
+  min-height: 350px;
+  padding: 1rem 0;
+}
+
+.breakdown-section .breakdown-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.breakdown-section .breakdown-card ::ng-deep .p-card-header {
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  padding: 1rem 1.5rem;
+}
+
+.breakdown-section .breakdown-card ::ng-deep .p-card-body {
+  padding: 1rem 1.5rem;
+}
+
+.breakdown-section .breakdown-list .breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--surface-border);
+  transition: background-color 0.2s ease;
+}
+
+.breakdown-section .breakdown-list .breakdown-item:last-child {
+  border-bottom: none;
+}
+
+.breakdown-section .breakdown-list .breakdown-item:hover {
+  background-color: var(--surface-hover);
+  margin: 0 -1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  border-radius: 6px;
+}
+
+.breakdown-section .breakdown-list .breakdown-item .breakdown-label {
+  font-weight: 500;
+  color: var(--text-color);
+  font-size: 0.9rem;
+}
+
+.breakdown-section .breakdown-list .breakdown-item .breakdown-value {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.profit-margin-section .margin-card ::ng-deep .p-card-body {
+  padding: 1.5rem;
+}
+
+.profit-margin-bar .bar-container {
+  height: 12px;
+  background: var(--surface-ground);
+  border-radius: 8px;
+  position: relative;
+  margin: 1.5rem 0 0.5rem 0;
+  overflow: visible;
+  border: 1px solid var(--surface-border);
+}
+
+.profit-margin-bar .bar-container .negative-track {
+  position: absolute;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(244, 67, 54, 0.3) 0%, rgba(244, 67, 54, 0.1) 100%);
+  border-radius: 0 8px 8px 0;
+}
+
+.profit-margin-bar .bar-container .positive-track {
+  position: absolute;
+  right: 50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.3) 100%);
+  border-radius: 8px 0 0 8px;
+}
+
+.profit-margin-bar .bar-container .indicator {
+  position: absolute;
+  top: -8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.profit-margin-bar .bar-container .indicator.positive {
+  background: linear-gradient(135deg, var(--green-500) 0%, var(--green-600) 100%);
+  border: 3px solid white;
+}
+
+.profit-margin-bar .bar-container .indicator.negative {
+  background: linear-gradient(135deg, var(--red-500) 0%, var(--red-600) 100%);
+  border: 3px solid white;
+}
+
+.profit-margin-bar .bar-container .indicator .indicator-value {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 0.25rem 0.5rem;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .profit-metric-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.25rem;
+  }
+
+  .profit-metric-card .metric-icon-wrapper {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .profit-metric-card .metric-content .metric-value {
+    font-size: 1.5rem;
+  }
+
+  .profit-filters .filter-field {
+    margin-bottom: 1rem;
+  }
+
+  .chart-card .chart-wrapper .chart-container {
+    min-height: 250px;
+  }
+
+  .breakdown-section {
+    margin-top: 1rem;
+  }
+
+  .profit-margin-bar .bar-container .indicator {
+    width: 24px;
+    height: 24px;
+  }
+
+  .profit-margin-bar .bar-container .indicator .indicator-value {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+  }
+}

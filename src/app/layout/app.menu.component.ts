@@ -77,6 +77,14 @@ export class AppMenuComponent implements OnInit {
       { label: translations['pos_menu_title'], icon: 'pi pi-fw pi-desktop', routerLink: ['/pos'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN', 'CASHIER'] },
     ];
 
+    const reportsItems = [
+      { label: translations['reports_sales_summary'], icon: 'pi pi-fw pi-chart-bar', routerLink: ['/reports/sales'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['reports_purchase_summary'], icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/reports/purchases'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['reports_inventory_snapshot'], icon: 'pi pi-fw pi-box', routerLink: ['/reports/inventory'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['reports_profit_analysis'], icon: 'pi pi-fw pi-chart-line', routerLink: ['/reports/profit'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      { label: translations['credit_reports'], icon: 'pi pi-fw pi-wallet', routerLink: ['/reports/credit'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
+    ];
+
     const financeItems = [
       { label: translations['sales_payments'], icon: 'pi pi-fw pi-arrow-down', routerLink: ['/finance/payments/sales'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['purchase_payments'], icon: 'pi pi-fw pi-arrow-up', routerLink: ['/finance/payments/purchase'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
@@ -84,7 +92,6 @@ export class AppMenuComponent implements OnInit {
       { label: translations['refunds_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/finance/refunds'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['purchase_credits_menu_title'], icon: 'pi pi-fw pi-wallet', routerLink: ['/finance/purchase-credits'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
       { label: translations['customer_credits_dashboard'], icon: 'pi pi-fw pi-chart-pie', routerLink: ['/finance/credit-management/dashboard'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
-      { label: translations['credit_reports'], icon: 'pi pi-fw pi-chart-bar', routerLink: ['/finance/credit-management/reports'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
       { label: translations['bank_accounts_menu_title'], icon: 'pi pi-fw pi-credit-card', routerLink: ['/finance/banking/accounts'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
       { label: translations['financial_docs_menu_title'], icon: 'pi pi-fw pi-file', routerLink: ['/finance/financial-documents'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
     ];
@@ -130,6 +137,11 @@ export class AppMenuComponent implements OnInit {
         label: translations['finance'],
         icon: 'pi pi-fw pi-dollar',
         items: financeItems
+      },
+      {
+        label: translations['reports_menu_title'],
+        icon: 'pi pi-fw pi-book',
+        items: reportsItems
       }
     ];
 

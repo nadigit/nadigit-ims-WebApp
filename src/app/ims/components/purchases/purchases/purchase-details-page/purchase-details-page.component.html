@@ -477,11 +477,14 @@
                             <span>{{ 'purchase_timeline' | translate }}</span>
                         </div>
                         <div class="card-body">
-                            <div class="timeline-container">
-                                <p-timeline [value]="purchaseEvents" align="left" styleClass="modern-timeline">
+                            <div class="timeline-container" *ngIf="purchaseEvents.length > 0; else noPurchaseTimeline">
+                                <p-timeline [value]="purchaseEvents" align="alternate" styleClass="order-timeline">
                                     <ng-template pTemplate="marker" let-event>
-                                        <div class="timeline-marker" [ngClass]="{'active': isPurchaseEventActive(event)}">
-                                            <i [class]="event.icon"></i>
+                                        <div class="timeline-marker" [ngClass]="{
+                                            'active': isPurchaseEventActive(event),
+                                            'completed': !isPurchaseEventActive(event)
+                                        }">
+                                            <i [class]="event.icon + ' marker-icon'"></i>
                                         </div>
                                     </ng-template>
                                     <ng-template pTemplate="content" let-event>
@@ -490,24 +493,34 @@
                                                 <h5 class="m-0">
                                                     {{ event.status ? ('purchase_status_' + event.status.toLowerCase() | translate) : 'N/A' }}
                                                 </h5>
-                                                <span class="timeline-date" *ngIf="event.date">
-                                                    {{ event.date | date:'medium' }}
+                                                <span class="timeline-date">
+                                                    {{ event.date != null ? (event.date | date:'medium') : ('now' | translate) }}
                                                 </span>
                                             </div>
-                                            <p class="timeline-description m-0 mt-2 text-600">
-                                                {{ getPurchaseStatusDescription(event.status) }}
-                                            </p>
-                                            <div class="timeline-actions mt-3" *ngIf="showPurchaseEventButton(event)">
+                                            <div class="timeline-content">
+                                                <div class="status-content">
+                                                    <p class="m-0 text-600">{{ getPurchaseStatusDescription(event.status) }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-actions" *ngIf="showPurchaseEventButton(event)">
                                                 <button pButton [label]="event.button"
                                                     [icon]="getPurchaseActionButtonIcon(event.status)"
                                                     [severity]="getPurchaseActionButtonSeverity(event.status)"
-                                                    (click)="updatePurchaseStatus()">
+                                                    (click)="updatePurchaseStatus()" class="action-button">
                                                 </button>
                                             </div>
                                         </div>
                                     </ng-template>
                                 </p-timeline>
                             </div>
+                            <ng-template #noPurchaseTimeline>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="pi pi-history"></i>
+                                    </div>
+                                    <h4>{{ 'no_timeline_events' | translate }}</h4>
+                                </div>
+                            </ng-template>
                         </div>
                     </div>
                 </div>

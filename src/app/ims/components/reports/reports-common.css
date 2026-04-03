@@ -1,0 +1,70 @@
+/**
+ * Shared styles for analytics report pages (aligned with expenses / finance list pages).
+ */
+
+.reports-stat-tile {
+  position: relative;
+  padding: 1.25rem 1.25rem 1.25rem 1.15rem;
+  border-radius: var(--border-radius, 12px);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-card);
+  height: 100%;
+  border-left: 4px solid var(--primary-color);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.reports-stat-tile:hover {
+  box-shadow: var(--card-shadow);
+  border-color: var(--primary-200, var(--surface-border));
+}
+
+.reports-stat-tile--accent-green {
+  border-left-color: var(--green-500);
+}
+
+.reports-stat-tile--accent-blue {
+  border-left-color: var(--blue-500);
+}
+
+.reports-stat-tile--accent-orange {
+  border-left-color: var(--orange-500);
+}
+
+.reports-stat-tile--accent-red {
+  border-left-color: var(--red-500);
+}
+
+.reports-stat-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.reports-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+.reports-loading-panel {
+  min-height: 12rem;
+}
+
+/* Filter row: use class "reports-filter-bar" on the flex container (same utilities on all report pages). */
+
+.reports-filter-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.reports-filter-label i.text-primary {
+  vertical-align: -0.1em;
+}

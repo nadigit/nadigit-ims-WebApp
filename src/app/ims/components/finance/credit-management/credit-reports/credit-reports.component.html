@@ -1,15 +1,16 @@
-<div class="credit-reports-container">
+<div class="credit-reports-container grid">
     <p-toast></p-toast>
 
     <!-- Loading State -->
-    <div class="loading-wrapper" *ngIf="isLoading">
-        <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+    <div class="loading-wrapper col-12" *ngIf="isLoading">
+        <div class="loading-content flex flex-column align-items-center gap-3">
+            <p-progressSpinner ariaLabel="loading" strokeWidth="3" [style]="{ width: '3rem', height: '3rem' }"></p-progressSpinner>
+            <span class="text-600">{{ 'loading' | translate }}</span>
         </div>
     </div>
 
     <!-- Main Content -->
-    <div class="reports-content" *ngIf="!isLoading">
+    <div class="reports-content col-12" *ngIf="!isLoading">
         <!-- Header -->
         <div class="mb-4">
             <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
@@ -20,6 +21,7 @@
             </div>
         </div>
 
+        <div class="card px-6 py-6">
         <!-- Reports Tabs -->
         <p-tabView styleClass="reports-tabs">
             <!-- Outstanding Credit Report -->
@@ -358,6 +360,7 @@
                 </div>
             </p-tabPanel>
         </p-tabView>
+        </div>
     </div>
 </div>
 

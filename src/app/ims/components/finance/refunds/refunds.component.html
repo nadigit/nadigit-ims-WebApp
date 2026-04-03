@@ -433,13 +433,21 @@
 
                 <!-- Amount -->
                 <div class="field">
-                    <label for="amount">
+                    <label for="refundAmount">
                         {{ 'refund_amount' | translate }} <span class="required-asterisk">*</span>
                         <span class="amount-helper">
                             ({{ 'max_amount' | translate }}: {{ maxRefundAmount | currency: currency }})
                         </span>
                     </label>
-                    <p-inputNumber [(ngModel)]="refund.amount" name="amount" [min]="0" [max]="maxRefundAmount"
+                    <p-inputNumber
+                        inputId="refundAmount"
+                        [(ngModel)]="refund.amount"
+                        name="amount"
+                        mode="decimal"
+                        [minFractionDigits]="0"
+                        [maxFractionDigits]="2"
+                        [min]="0"
+                        [max]="maxRefundAmount"
                         [required]="true"
                         [ngClass]="{'ng-invalid ng-dirty': submitted && (!refund.amount || refund.amount <= 0 || refund.amount > maxRefundAmount)}">
                     </p-inputNumber>

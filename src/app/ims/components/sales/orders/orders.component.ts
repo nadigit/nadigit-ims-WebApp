@@ -18,6 +18,8 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
+import { Warehouse } from 'src/app/models/warehouse';
+import { WarehouseService } from 'src/app/services/warehouse.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
@@ -100,6 +102,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   customer: Customer = {};
 
   shops: Shop[] = [];
+  warehouses: Warehouse[] = [];
+  selectedOrderWarehouse: Warehouse | null = null;
 
   shop: Shop = {};
 
@@ -374,6 +378,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private paymentValidationService: PaymentValidationService,
     private creditService: CustomerCreditService,
     private shopService: ShopService,
+    private warehouseService: WarehouseService,
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
     private reportingService: ReportingService,
@@ -451,6 +456,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     await Promise.all([
       this.onGetAllCustomers(),
       this.onGetAllShops(),
+      this.onGetAllWarehouses(),
       this.setUserRoles(),
       this.checkPermissions(),
       this.onGetOrganization(),
@@ -1412,6 +1418,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.scanning = false;
     if (!this.canEditOrder) return;
     this.order = { ...order };
+    if (this.isAdmin) {
+      const firstWarehouse = this.order.orderItems?.[0]?.product?.warehouse || null;
+      this.selectedOrderWarehouse = firstWarehouse;
+    }
     this.onGetAllCustomers(),
     this.onGetAllShops(),
     this.discountType = this.order.discountType as "Amount" | "Percentage";
@@ -1518,6 +1528,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   async openNew() {
     if (!this.canAddOrder) return;
     this.order = {};
+    this.selectedOrderWarehouse = null;
     this.discountType = "Amount";
     this.order.discount = 0;
     this.order.transportAmount = 0;
@@ -1589,6 +1600,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       });
       return;
     }
+    if (this.isAdmin && !this.selectedOrderWarehouse) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('warehouse_required'),
+        life: 3000,
+      });
+      return;
+    }
 
     if (this.targetProducts.length === 0) {
       this.messageService.add({
@@ -1598,6 +1618,21 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         life: 3000,
       });
       return;
+    }
+    if (this.isAdmin) {
+      const selectedWarehouseId = this.getSelectedOrderWarehouseId();
+      const hasMismatchedWarehouse = this.targetProducts.some(
+        p => selectedWarehouseId != null && Number((p.warehouse as any)?.warehouseId) !== Number(selectedWarehouseId)
+      );
+      if (hasMismatchedWarehouse) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('please_select_products_from_same_warehouse'),
+          life: 3500,
+        });
+        return;
+      }
     }
 
     // Prepare Order Items
@@ -2472,12 +2507,23 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       next: (res: any) => {
         console.log('Paginated products response:', res);
         // Assign the paginated orders
-        this.products = res.page.content.map((p: any) => ({
+        const selectedWarehouseId = this.getSelectedOrderWarehouseId();
+        let mappedProducts = res.page.content.map((p: any) => ({
           ...p,
           creationDate: p.creationDate ? new Date(p.creationDate) : null,
           archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
           buyingDate: p.buyingDate ? new Date(p.buyingDate) : null,
         }));
+        if (this.isAdmin) {
+          if (!selectedWarehouseId) {
+            mappedProducts = [];
+          } else {
+            mappedProducts = mappedProducts.filter((p: Product) =>
+              Number((p.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)
+            );
+          }
+        }
+        this.products = mappedProducts;
 
         // Filter products by category and net available quantity
         if (this.selectedCategory) {
@@ -2527,12 +2573,18 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   // }
 
   async onGetQuickProducts() {
+    const selectedWarehouseId = this.getSelectedOrderWarehouseId();
+    if (this.isAdmin && !selectedWarehouseId) {
+      this.quickProducts = [];
+      return;
+    }
     await this.productService.getQuickProducts()
       .subscribe({
         next: (response: any) => {
           // Filter out products with no net available quantity (excluding services)
           this.quickProducts = response.filter((product: Product) => 
-            product.productType === 'SERVICE' || this.getAvailableQuantity(product) > 0
+            (!this.isAdmin || Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)) &&
+            (product.productType === 'SERVICE' || this.getAvailableQuantity(product) > 0)
           );
           console.log(this.quickProducts);
           this.cdr.markForCheck();
@@ -2546,6 +2598,26 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           });
         }
       })
+  }
+
+  async onGetAllWarehouses() {
+    await this.warehouseService.getWarehouses().subscribe({
+      next: (response: any) => {
+        this.warehouses = response;
+        if (this.isAdmin && !this.selectedOrderWarehouse && Array.isArray(this.warehouses) && this.warehouses.length === 1) {
+          this.selectedOrderWarehouse = this.warehouses[0];
+          this.onOrderWarehouseChange();
+        }
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_getting_warehouses'),
+          life: 3000,
+        });
+      },
+    });
   }
 
   async onGetAllCustomers() {
@@ -3651,10 +3723,16 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   filterProducts(event: any): void {
     const query = (event?.query || '').trim();
     const requestToken = ++this.latestProductSuggestionToken;
+    const selectedWarehouseId = this.getSelectedOrderWarehouseId();
+    if (this.isAdmin && !selectedWarehouseId) {
+      this.productSuggestions = [];
+      this.productSuggestionsLoading = false;
+      return;
+    }
 
     this.productSuggestionsLoading = true;
 
-    this.productService.searchProductsForOrder(query).subscribe({
+    this.productService.searchProductsForOrder(query, selectedWarehouseId).subscribe({
       next: (response: any) => {
         if (requestToken !== this.latestProductSuggestionToken) {
           return;
@@ -3684,6 +3762,24 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
+  onOrderWarehouseChange(): void {
+    this.targetProducts = [];
+    this.orderItems = [];
+    this.selectedProduct = null;
+    this.productSuggestions = [];
+    this.filteredProducts = [];
+    this.onGetQuickProducts();
+    this.loadProducts();
+  }
+
+  private getSelectedOrderWarehouseId(): number | undefined {
+    if (!this.selectedOrderWarehouse) return undefined;
+    const rawId = (this.selectedOrderWarehouse as any).warehouseId ?? (this.selectedOrderWarehouse as any).id;
+    if (rawId == null) return undefined;
+    const id = Number(rawId);
+    return Number.isNaN(id) ? undefined : id;
+  }
+
   private normalizeProductSearchResponse(response: any): Product[] {
     if (!response) {
       return [];
@@ -3709,11 +3805,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   private prepareProductSuggestions(products: Product[]): Product[] {
+    const selectedWarehouseId = this.getSelectedOrderWarehouseId();
     const selectedProductIds = new Set(
       this.targetProducts.map(product => product.productId)
     );
 
     return products.filter(product =>
+      (!this.isAdmin || (selectedWarehouseId != null && Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId))) &&
       (product?.productType === 'SERVICE' || (this.getAvailableQuantity(product) > 0)) &&
       !selectedProductIds.has(product.productId)
     );

@@ -164,6 +164,38 @@
                         </label>
                     </div>
                 </div>
+                <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
+                    <label for="defaultCategoryFile" class="block mb-2">{{ 'purchase_import_default_category' | translate }}</label>
+                    <p-dropdown
+                        inputId="defaultCategoryFile"
+                        [(ngModel)]="importOptions.defaultCategoryId"
+                        [options]="categories"
+                        optionLabel="categoryName"
+                        optionValue="categoryId"
+                        [showClear]="true"
+                        [placeholder]="'purchase_import_default_category_placeholder' | translate"
+                        [filter]="true"
+                        filterBy="categoryName"
+                        styleClass="w-full">
+                    </p-dropdown>
+                    <small class="text-600">{{ 'purchase_import_default_category_hint' | translate }}</small>
+                </div>
+                <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
+                    <label for="defaultWarehouseFile" class="block mb-2">{{ 'purchase_import_default_warehouse' | translate }}</label>
+                    <p-dropdown
+                        inputId="defaultWarehouseFile"
+                        [(ngModel)]="importOptions.defaultWarehouseId"
+                        [options]="warehouses"
+                        optionLabel="name"
+                        optionValue="warehouseId"
+                        [showClear]="true"
+                        [placeholder]="'purchase_import_default_warehouse_placeholder' | translate"
+                        [filter]="true"
+                        filterBy="name"
+                        styleClass="w-full">
+                    </p-dropdown>
+                    <small class="text-600">{{ 'purchase_import_default_warehouse_hint' | translate }}</small>
+                </div>
             </div>
 
             <!-- Advanced Options -->
@@ -456,6 +488,7 @@
                                         <th>{{ 'product' | translate }}</th>
                                         <th>{{ 'quantity' | translate }}</th>
                                         <th>{{ 'buying_price' | translate }}</th>
+                                        <th>{{ 'selling_price' | translate }}</th>
                                         <th>{{ 'subtotal' | translate }}</th>
                                         <th *ngIf="hasExpirationDate(purchase.items)">{{ 'expiration_date' | translate }}</th>
                                         <th *ngIf="hasBatchNumber(purchase.items)">{{ 'batch_number' | translate }}</th>
@@ -472,6 +505,7 @@
                                         </td>
                                         <td>{{ item.quantityPurchased }}</td>
                                         <td>{{ formatCurrency(item.buyingPrice) }}</td>
+                                        <td>{{ item.sellingPrice != null && item.sellingPrice !== undefined ? formatCurrency(item.sellingPrice) : '-' }}</td>
                                         <td>{{ formatCurrency(item.quantityPurchased * item.buyingPrice) }}</td>
                                         <td *ngIf="hasExpirationDate(purchase.items)">
                                             {{ item.expirationDate ? formatDate(item.expirationDate) : '-' }}
@@ -498,7 +532,7 @@
                             </p>
                             <ul class="list-none p-0 m-0">
                                 <li *ngFor="let warning of purchase.warnings" class="text-orange-600 mb-1">
-                                    {{ warning }}
+                                    {{ translateInvoiceOrImportWarning(warning) }}
                                 </li>
                             </ul>
                         </div>
@@ -793,6 +827,38 @@
                                 styleClass="w-full">
                             </p-dropdown>
                         </div>
+                        <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
+                            <label for="defaultCategoryInvoice" class="block mb-2">{{ 'purchase_import_default_category' | translate }}</label>
+                            <p-dropdown
+                                inputId="defaultCategoryInvoice"
+                                [(ngModel)]="importOptions.defaultCategoryId"
+                                [options]="categories"
+                                optionLabel="categoryName"
+                                optionValue="categoryId"
+                                [showClear]="true"
+                                [placeholder]="'purchase_import_default_category_placeholder' | translate"
+                                [filter]="true"
+                                filterBy="categoryName"
+                                styleClass="w-full">
+                            </p-dropdown>
+                            <small class="text-600">{{ 'purchase_import_default_category_hint' | translate }}</small>
+                        </div>
+                        <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
+                            <label for="defaultWarehouseInvoice" class="block mb-2">{{ 'purchase_import_default_warehouse' | translate }}</label>
+                            <p-dropdown
+                                inputId="defaultWarehouseInvoice"
+                                [(ngModel)]="importOptions.defaultWarehouseId"
+                                [options]="warehouses"
+                                optionLabel="name"
+                                optionValue="warehouseId"
+                                [showClear]="true"
+                                [placeholder]="'purchase_import_default_warehouse_placeholder' | translate"
+                                [filter]="true"
+                                filterBy="name"
+                                styleClass="w-full">
+                            </p-dropdown>
+                            <small class="text-600">{{ 'purchase_import_default_warehouse_hint' | translate }}</small>
+                        </div>
                     </div>
                 </div>
 
@@ -810,8 +876,8 @@
                 </div>
             </div>
 
-            <!-- Parsed Invoice Display -->
-            <div *ngIf="parsedInvoiceData" class="import-step">
+            <!-- Parsed Invoice Display (match products) -->
+            <div *ngIf="parsedInvoiceData && !invoiceReviewStep" class="import-step">
                 <!-- Invoice Header Card -->
                 <div class="mb-4 surface-card p-4 border-round">
                     <div class="flex justify-content-between align-items-center mb-3">
@@ -858,7 +924,7 @@
                         </p>
                         <ul class="list-none p-0 m-0">
                             <li *ngFor="let warning of parsedInvoiceData.warnings" class="text-orange-600 mb-1">
-                                {{ warning }}
+                                {{ translateInvoiceOrImportWarning(warning) }}
                             </li>
                         </ul>
                     </div>
@@ -887,7 +953,9 @@
                                 <th>{{ 'status' | translate }}</th>
                                 <th>{{ 'invoice_product_name' | translate }}</th>
                                 <th>{{ 'quantity' | translate }}</th>
-                                <th>{{ 'unit_price' | translate }}</th>
+                                <th>{{ 'buying_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
+                                <th>{{ 'selling_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
+                                <th *ngIf="importOptions.createMissingProducts" style="min-width: 12rem">{{ 'category' | translate }}</th>
                                 <th>{{ 'total_price' | translate }}</th>
                                 <th>{{ 'system_product' | translate }}</th>
                                 <th>{{ 'confidence' | translate }}</th>
@@ -906,7 +974,42 @@
                                     <div *ngIf="item.description" class="text-sm text-600">{{ item.description }}</div>
                                 </td>
                                 <td>{{ item.quantity || '-' }}</td>
-                                <td>{{ item.unitPrice !== undefined ? formatCurrency(item.unitPrice) : '-' }}</td>
+                                <td>
+                                    <p-inputNumber
+                                        [(ngModel)]="item.unitPrice"
+                                        [min]="0"
+                                        mode="decimal"
+                                        [minFractionDigits]="2"
+                                        [maxFractionDigits]="4"
+                                        inputStyleClass="w-full"
+                                        styleClass="w-full">
+                                    </p-inputNumber>
+                                </td>
+                                <td>
+                                    <p-inputNumber
+                                        [(ngModel)]="item.sellingPrice"
+                                        [min]="0"
+                                        mode="decimal"
+                                        [minFractionDigits]="2"
+                                        [maxFractionDigits]="4"
+                                        inputStyleClass="w-full"
+                                        styleClass="w-full">
+                                    </p-inputNumber>
+                                </td>
+                                <td *ngIf="importOptions.createMissingProducts">
+                                    <p-dropdown
+                                        [(ngModel)]="item.categoryId"
+                                        [options]="categories"
+                                        optionLabel="categoryName"
+                                        optionValue="categoryId"
+                                        [showClear]="true"
+                                        [placeholder]="'purchase_import_default_category_placeholder' | translate"
+                                        [filter]="true"
+                                        filterBy="categoryName"
+                                        appendTo="body"
+                                        styleClass="w-full">
+                                    </p-dropdown>
+                                </td>
                                 <td>{{ item.totalPrice !== undefined ? formatCurrency(item.totalPrice) : '-' }}</td>
                                 <td>
                                     <span *ngIf="item.productReference" class="text-green-600 font-semibold">
@@ -957,8 +1060,8 @@
                         [label]="'back' | translate"
                         icon="pi pi-arrow-left"
                         class="p-button-text"
-                        (click)="parsedInvoiceData = null; productMappings = {}"></button>
-                    <div class="flex gap-2">
+                        (click)="parsedInvoiceData = null; productMappings = {}; invoiceReviewStep = false"></button>
+                    <div class="flex gap-2 flex-wrap">
                         <button 
                             pButton 
                             pRipple 
@@ -971,13 +1074,208 @@
                         <button 
                             pButton 
                             pRipple 
-                            [label]="'import_purchases' | translate"
-                            icon="pi pi-upload"
+                            [label]="'purchase_invoice_continue_review' | translate"
+                            icon="pi pi-list"
                             class="p-button-success"
-                            (click)="executeInvoiceImport()"
-                            [disabled]="importing"
-                            [loading]="importing"></button>
+                            (click)="goToInvoiceReview()"></button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Review & confirm (JSON import, no file re-upload) -->
+            <div *ngIf="parsedInvoiceData && invoiceReviewStep" class="import-step">
+                <h3 class="text-900 mb-2">{{ 'purchase_invoice_review_title' | translate }}</h3>
+                <p class="text-600 mb-4">{{ 'purchase_invoice_review_hint' | translate }}</p>
+
+                <div class="surface-card p-4 border-round mb-4">
+                    <h4 class="text-900 mt-0 mb-3">{{ 'parsed_invoice_details' | translate }}</h4>
+                    <div class="grid">
+                        <div class="col-12 md:col-4">
+                            <label for="reviewSupplier" class="block mb-2">{{ 'supplier' | translate }}</label>
+                            <input id="reviewSupplier" type="text" pInputText [(ngModel)]="reviewSupplierName" class="w-full" />
+                        </div>
+                        <div class="col-12 md:col-4">
+                            <label for="reviewInvoice" class="block mb-2">{{ 'invoice_number' | translate }}</label>
+                            <input id="reviewInvoice" type="text" pInputText [(ngModel)]="reviewInvoiceNumber" class="w-full" />
+                        </div>
+                        <div class="col-12 md:col-4">
+                            <label for="reviewPurchaseDate" class="block mb-2">{{ 'invoice_date' | translate }}</label>
+                            <p-calendar
+                                inputId="reviewPurchaseDate"
+                                [(ngModel)]="reviewDateOfPurchase"
+                                [showIcon]="true"
+                                dateFormat="dd/mm/yy"
+                                [showClear]="true"
+                                appendTo="body"
+                                styleClass="w-full"
+                                inputStyleClass="w-full">
+                            </p-calendar>
+                        </div>
+                        <div class="col-12 md:col-4">
+                            <label for="reviewDiscount" class="block mb-2">{{ 'discount' | translate }}</label>
+                            <p-inputNumber
+                                id="reviewDiscount"
+                                [(ngModel)]="reviewDiscount"
+                                [min]="0"
+                                mode="decimal"
+                                [minFractionDigits]="2"
+                                [maxFractionDigits]="2"
+                                styleClass="w-full">
+                            </p-inputNumber>
+                        </div>
+                        <div class="col-12 md:col-4 flex align-items-end">
+                            <div class="field-checkbox mb-3">
+                                <p-checkbox [(ngModel)]="reviewTaxEnabled" [binary]="true" inputId="reviewTax"></p-checkbox>
+                                <label for="reviewTax" class="ml-2">{{ 'tax_enabled' | translate }}</label>
+                            </div>
+                        </div>
+                        <div class="col-12" *ngIf="importOptions.createMissingProducts">
+                            <label for="reviewDefaultCategory" class="block mb-2">{{ 'purchase_import_default_category' | translate }}</label>
+                            <div class="flex flex-wrap gap-2 align-items-end">
+                                <p-dropdown
+                                    inputId="reviewDefaultCategory"
+                                    [(ngModel)]="importOptions.defaultCategoryId"
+                                    [options]="categories"
+                                    optionLabel="categoryName"
+                                    optionValue="categoryId"
+                                    [showClear]="true"
+                                    [placeholder]="'purchase_import_default_category_placeholder' | translate"
+                                    [filter]="true"
+                                    filterBy="categoryName"
+                                    styleClass="flex-grow-1"
+                                    [style]="{ minWidth: '14rem' }">
+                                </p-dropdown>
+                                <button
+                                    pButton
+                                    pRipple
+                                    type="button"
+                                    icon="pi pi-copy"
+                                    class="p-button-outlined"
+                                    [label]="'purchase_import_apply_category_all' | translate"
+                                    (click)="applyDefaultCategoryToAllReviewLines()">
+                                </button>
+                            </div>
+                            <small class="text-600 block mt-2">{{ 'purchase_import_review_category_block_hint' | translate }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3 flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h4 class="text-900 m-0">{{ 'items' | translate }}</h4>
+                    <button
+                        pButton
+                        pRipple
+                        type="button"
+                        icon="pi pi-plus"
+                        class="p-button-outlined p-button-sm"
+                        [label]="'purchase_invoice_add_line' | translate"
+                        (click)="addInvoiceReviewLine()"></button>
+                </div>
+
+                <p-table [value]="invoiceReviewLines" styleClass="p-datatable-sm p-datatable-gridlines">
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th>{{ 'reference' | translate }}</th>
+                            <th>{{ 'invoice_product_name' | translate }}</th>
+                            <th *ngIf="importOptions.createMissingProducts" style="min-width: 12rem">{{ 'category' | translate }}</th>
+                            <th style="width: 7rem">{{ 'quantity' | translate }}</th>
+                            <th style="width: 9rem">{{ 'buying_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
+                            <th style="width: 9rem">{{ 'selling_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
+                            <th style="width: 9rem">{{ 'batch_number' | translate }}</th>
+                            <th style="width: 11rem">{{ 'expiration_date' | translate }}</th>
+                            <th style="width: 5rem"></th>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-line let-rowIndex="rowIndex">
+                        <tr>
+                            <td>
+                                <input type="text" pInputText [(ngModel)]="line.productReference" class="w-full" />
+                            </td>
+                            <td>
+                                <input type="text" pInputText [(ngModel)]="line.productName" class="w-full" />
+                            </td>
+                            <td *ngIf="importOptions.createMissingProducts">
+                                <p-dropdown
+                                    [(ngModel)]="line.categoryId"
+                                    [options]="categories"
+                                    optionLabel="categoryName"
+                                    optionValue="categoryId"
+                                    [showClear]="true"
+                                    [placeholder]="'purchase_import_default_category_placeholder' | translate"
+                                    [filter]="true"
+                                    filterBy="categoryName"
+                                    appendTo="body"
+                                    styleClass="w-full">
+                                </p-dropdown>
+                            </td>
+                            <td>
+                                <p-inputNumber [(ngModel)]="line.quantityPurchased" [min]="1" [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+                            </td>
+                            <td>
+                                <p-inputNumber
+                                    [(ngModel)]="line.buyingPrice"
+                                    [min]="0"
+                                    mode="decimal"
+                                    [minFractionDigits]="2"
+                                    [maxFractionDigits]="4"
+                                    styleClass="w-full"></p-inputNumber>
+                            </td>
+                            <td>
+                                <p-inputNumber
+                                    [(ngModel)]="line.sellingPrice"
+                                    [min]="0"
+                                    mode="decimal"
+                                    [minFractionDigits]="2"
+                                    [maxFractionDigits]="4"
+                                    styleClass="w-full"></p-inputNumber>
+                            </td>
+                            <td>
+                                <input type="text" pInputText [(ngModel)]="line.batchNumber" class="w-full" />
+                            </td>
+                            <td>
+                                <p-calendar
+                                    [(ngModel)]="line.expirationDate"
+                                    [showIcon]="true"
+                                    dateFormat="dd/mm/yy"
+                                    [showClear]="true"
+                                    appendTo="body"
+                                    styleClass="w-full"
+                                    inputStyleClass="w-full">
+                                </p-calendar>
+                            </td>
+                            <td class="text-center">
+                                <button
+                                    pButton
+                                    pRipple
+                                    type="button"
+                                    icon="pi pi-trash"
+                                    class="p-button-text p-button-danger p-button-sm"
+                                    [pTooltip]="'purchase_invoice_remove_line' | translate"
+                                    (click)="removeInvoiceReviewLine(rowIndex)"></button>
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+
+                <div class="flex justify-content-between mt-4 flex-wrap gap-2">
+                    <button
+                        pButton
+                        pRipple
+                        [label]="'purchase_invoice_back_matching' | translate"
+                        icon="pi pi-arrow-left"
+                        class="p-button-text"
+                        type="button"
+                        (click)="backFromInvoiceReview()"></button>
+                    <button
+                        pButton
+                        pRipple
+                        [label]="'purchase_invoice_confirm_import' | translate"
+                        icon="pi pi-check"
+                        class="p-button-success"
+                        type="button"
+                        (click)="executeInvoiceReview()"
+                        [disabled]="importing"
+                        [loading]="importing"></button>
                 </div>
             </div>
         </p-tabPanel>

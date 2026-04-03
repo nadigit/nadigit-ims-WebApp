@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
-import { MenuItem, MessageService, SelectItem } from 'primeng/api';
+import { MenuItem, MessageService } from 'primeng/api';
 
 import { Subject, Subscription, catchError, debounceTime, firstValueFrom, forkJoin, of, takeUntil, map, from, switchMap, timeout } from 'rxjs';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
@@ -13,7 +13,6 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { PurchaseService } from 'src/app/services/purchase.service';
 import { ExpenseService } from 'src/app/services/expense.service';
 import { KeycloakService } from 'keycloak-angular';
-import { AnalysisService, ProfitAnalysis, ProfitPeriod, Shop } from 'src/app/services/analysis.service';
 import { Order } from 'src/app/models/order';
 import { Product } from 'src/app/models/product';
 import { Customer } from 'src/app/models/customer';
@@ -45,7 +44,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Component state
   isLoading = true;
-  profitLoading = false;
   isAdmin = false;
   isVendor = false;
 
@@ -57,7 +55,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   top5Products: Product[] = [];
   recentOrderedProducts: Product[] = [];
   lastWeekProducts: Product[] = [];
-  shops: Shop[] = [];
   todayCustomers?: Customer[] = [];
   totalProducts = 0;
   totalOrders = 0;
@@ -76,13 +73,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   expensesStatistics: any[] = [];
   purchasesStatistics: any[] = [];
 
-  // Filtering
-  profitPeriods: any[] = [];
-  selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
-  selectedShop: Shop | null = null;
-  shopOptions: SelectItem[] = [{ label: 'All Shops', value: null }]; // Initialize with default option
-
-
   // Charts
   chartData: any = null;
   chartOptions: any = null;
@@ -90,8 +80,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   pieOptions: any = null;
   barData: any = null;
   barOptions: any = null;
-  profitChartData: any = null;
-  profitChartOptions: any = null;
   chartsInitialized = false; // Flag to prevent multiple initializations
   chartDataReady = false; // Flag to indicate chart data is ready for rendering
   pieDataReady = false; // Flag to indicate pie chart data is ready for rendering
@@ -135,9 +123,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   warehouseRecentMovements: any[] = [];
   assignedWarehouse: any = null;
 
-  // Profit analysis
-  profitData: any;
-  error: string | null = null;
   currency = 'USD';
   userRoles: string[] = [];
   productPercentages: any[] = [];
@@ -152,7 +137,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Private properties for performance optimization
   private destroy$ = new Subject<void>();
-  private filterChange$ = new Subject<void>();
   private cache = new Map<string, { data: any, timestamp: number }>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   private subscriptions: any[] = [];
@@ -169,7 +153,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   constructor(private orderService: OrderService,
     private productService: ProductService,
     private purchaseService: PurchaseService,
-    private analysisService: AnalysisService,
     private expenseService: ExpenseService,
     private warehouseService: WarehouseService,
     private customerService: CustomerService,
@@ -238,8 +221,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       clearTimeout(maxTimeout);
 
       // Setup reactive subscriptions
-      this.setupSubscriptions();
-
       // Hide loading spinner immediately after critical data loads
       // This allows users to see the dashboard while heavy data loads in background
       this.isLoading = false;
@@ -308,11 +289,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.todayRevenue = 0;
     }
     
-    try {
-      await this.loadTranslations();
-    } catch (error) {
-      console.error('Error loading translations:', error);
-    }
   }
 
   private async loadUserPreferences() {
@@ -372,44 +348,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.todayRevenue = 0;
     }
   }
-
-  private async loadTranslations() {
-    try {
-      const translations = await firstValueFrom(
-        this.translate.getTranslation(this.translateService.getPreferredLanguage()).pipe(
-          timeout(5000),
-          catchError(err => {
-            console.error('Error loading translations:', err);
-            return of({}); // Return empty object on error
-          })
-        )
-      );
-
-      this.profitPeriods = [
-        { label: translations['Today'] || 'Today', value: 'TODAY' },
-        { label: translations['Yesterday'] || 'Yesterday', value: 'YESTERDAY' },
-        { label: translations['This Week'] || 'This Week', value: 'WEEK' },
-        { label: translations['This Month'] || 'This Month', value: 'MONTH' },
-        { label: translations['Last 6 Months'] || 'Last 6 Months', value: 'LAST_SIX_MONTHS' },
-        { label: translations['This Year'] || 'This Year', value: 'YEAR' },
-        { label: translations['Last 12 Months'] || 'Last 12 Months', value: 'LAST_12_MONTHS' }
-      ];
-
-    } catch (error) {
-      console.error('Error loading translations:', error);
-      // Set default profit periods
-      this.profitPeriods = [
-        { label: 'Today', value: 'TODAY' },
-        { label: 'Yesterday', value: 'YESTERDAY' },
-        { label: 'This Week', value: 'WEEK' },
-        { label: 'This Month', value: 'MONTH' },
-        { label: 'Last 6 Months', value: 'LAST_SIX_MONTHS' },
-        { label: 'This Year', value: 'YEAR' },
-        { label: 'Last 12 Months', value: 'LAST_12_MONTHS' }
-      ];
-    }
-  }
-
 
   // ==================== SECONDARY DATA LOADING ====================
 
@@ -474,29 +412,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private loadHeavyComponents() {
     this.loadAnalyticsData(); // Charts will be initialized inside loadAnalyticsData after data loads
-    // Load shops with error handling - ensure it loads even if first attempt fails
-    this.loadShops().catch(err => {
-      console.error('Failed to load shops in loadHeavyComponents:', err);
-      // Retry after a delay if initial load fails (only if shops are still empty)
-      setTimeout(() => {
-        if (!this.shops || this.shops.length === 0) {
-          console.log('Retrying shops load after initial failure...');
-          this.shopsLoadRetryCount = 0; // Reset retry count for this retry attempt
-          this.loadShops();
-        }
-      }, 3000);
-    });
-    // Removed initChartsLazily() - charts now initialize after data is loaded
     if (this.isAdmin) {
       this.loadAdminMetrics();
-      // Initialize profit chart and load profit data for admin users
-      this.initProfitChart().then(() => {
-        this.loadProfitData();
-      }).catch(err => {
-        console.error('Error initializing profit chart:', err);
-        // Still try to load profit data even if chart options fail
-        this.loadProfitData();
-      });
     } else if (this.isVendor) {
       this.loadVendorMetrics();
     } else if (this.isWarehouseman) {
@@ -556,22 +473,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         
         this.cdr.markForCheck();
       });
-  }
-
-  // ==================== REACTIVE SUBSCRIPTIONS ====================
-
-  private setupSubscriptions() {
-    // Debounced filter changes
-    const filterSub = this.filterChange$
-      .pipe(
-        debounceTime(300),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(() => {
-        this.loadProfitData();
-      });
-
-    this.subscriptions.push(filterSub);
   }
 
   // ==================== CACHING STRATEGY ====================
@@ -872,101 +773,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Removed initChartsLazily() - charts now initialize directly after data loads
   // This prevents race conditions and IntersectionObserver issues
-
-  async initProfitChart(): Promise<void> {
-    // Only initialize profit chart options, actual data will be loaded when profit data is available
-    try {
-      const translations = await this.translate.get([
-        'financial_overview', 'revenue', 'product_costs', 'refunds',
-        'expenses', 'profit_net', 'profit_analysis'
-      ]).toPromise();
-
-      this.profitChartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            stacked: false,
-            ticks: {
-              display: true
-            }
-          },
-          y: {
-            stacked: false,
-            ticks: {
-              callback: function(value: any) {
-                return new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: this.currency || 'USD',
-                }).format(value);
-              }.bind(this)
-            }
-          }
-        },
-        plugins: {
-          legend: { 
-            position: 'top',
-            display: true
-          },
-          title: {
-            display: true,
-            text: translations['profit_analysis'] || 'Profit Analysis',
-            font: { size: 16 }
-          },
-          tooltip: {
-            callbacks: {
-              label: (context: any) => {
-                let label = context.dataset.label || '';
-                if (label) label += ': ';
-                if (context.parsed.y !== null) {
-                  label += new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: this.currency || 'USD',
-                  }).format(context.parsed.y);
-                }
-                return label;
-              }
-            }
-          }
-        }
-      };
-      this.cdr.markForCheck();
-    } catch (error) {
-      console.error('Error initializing profit chart:', error);
-      // Set default options even if translation fails
-      this.profitChartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            stacked: false,
-            ticks: {
-              display: true
-            }
-          },
-          y: {
-            stacked: false,
-            ticks: {
-              callback: function(value: any) {
-                return new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: this.currency || 'USD',
-                }).format(value);
-              }.bind(this)
-            }
-          }
-        },
-        plugins: {
-          legend: { 
-            position: 'top',
-            display: true
-          }
-        }
-      };
-      this.cdr.markForCheck();
-    }
-  }
-
 
   async initChart() {
     // Guard: Don't initialize if data is not ready or already initialized
@@ -1394,288 +1200,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ==================== PROFIT ANALYSIS ====================
-
-  onFilterChange(): void {
-    this.filterChange$.next();
-  }
-
-  async loadProfitData() {
-    if (this.profitLoading) return;
-
-    this.profitLoading = true;
-    this.error = null;
-    this.cdr.markForCheck();
-
-    try {
-      const shopId = this.selectedShop?.shopId;
-      const data = await (await this.analysisService.getProfitAnalysis(this.selectedPeriod, shopId)).toPromise();
-
-      this.profitData = data;
-      await this.updateProfitChart(data);
-    } catch (err) {
-      this.error = 'Failed to load profit data';
-      console.error('Error loading profit data:', err);
-    } finally {
-      this.profitLoading = false;
-      this.cdr.markForCheck();
-    }
-  }
-
-  async updateProfitChart(data: any): Promise<void> {
-    try {
-      // Ensure chart options are initialized before setting data
-      if (!this.profitChartOptions) {
-        await this.initProfitChart();
-      }
-
-      const translations = await this.translate.get([
-        'financial_overview', 'revenue', 'product_costs', 'refunds',
-        'expenses', 'write_offs', 'purchases', 'profit_margin'
-      ]).toPromise();
-
-      if (!data || data.totalRevenue === undefined || data.totalCosts === undefined) {
-        console.error('Invalid data received for chart update:', data);
-        return;
-      }
-
-      this.profitChartData = {
-        labels: [translations['financial_overview'] || 'Financial Overview'],
-        datasets: [
-          {
-            label: translations['revenue'] || 'Revenue',
-            data: [data.totalRevenue || 0],
-            backgroundColor: '#4bc0c0',
-            borderColor: '#4bc0c0',
-            borderWidth: 1
-          },
-          {
-            label: translations['product_costs'] || 'Product Costs',
-            data: [-Math.abs(data.totalCosts || 0)],
-            backgroundColor: '#ff6384',
-            borderColor: '#ff6384',
-            borderWidth: 1
-          },
-          {
-            label: translations['refunds'] || 'Refunds',
-            data: [-Math.abs(data.totalRefunds || 0)],
-            backgroundColor: '#ff9f40',
-            borderColor: '#ff9f40',
-            borderWidth: 1
-          },
-          {
-            label: translations['expenses'] || 'Expenses',
-            data: [-Math.abs(data.totalExpenses || 0)],
-            backgroundColor: '#9966ff',
-            borderColor: '#9966ff',
-            borderWidth: 1
-          },
-          {
-            label: translations['write_offs'] || 'Write-Offs',
-            data: [-Math.abs(data.totalWriteOffs || 0)],
-            backgroundColor: '#ff9800',
-            borderColor: '#ff9800',
-            borderWidth: 1
-          },
-          {
-            label: translations['profit_margin'] || 'Net Profit',
-            data: [data.netProfit || 0],
-            backgroundColor: data.netProfit >= 0 ? '#4bc0c0' : '#ff6384',
-            borderColor: data.netProfit >= 0 ? '#4bc0c0' : '#ff6384',
-            borderWidth: 1
-          }
-        ]
-      };
-      
-      console.log('Profit chart data updated:', {
-        labels: this.profitChartData.labels,
-        datasetsCount: this.profitChartData.datasets.length,
-        hasOptions: !!this.profitChartOptions
-      });
-      
-      this.cdr.markForCheck();
-    } catch (error) {
-      console.error('Error updating profit chart:', error);
-      // Set empty chart data on error
-      this.profitChartData = {
-        labels: [],
-        datasets: []
-      };
-      this.cdr.markForCheck();
-    }
-  }
-
-  // ==================== SHOP MANAGEMENT ====================
-
-  private shopsLoading = false;
-  private shopsLoadAttempted = false;
-  private shopsLoadRetryCount = 0;
-  private readonly MAX_SHOP_RETRIES = 3;
-
-  async loadShops(): Promise<void> {
-    // Prevent concurrent calls
-    if (this.shopsLoading) {
-      console.log('Shops already loading, skipping duplicate call');
-      return;
-    }
-
-    // Use cached data if available
-    const cacheKey = 'shops';
-    const cached = this.getCachedData(cacheKey);
-    if (Array.isArray(cached) && cached.length > 0) {
-      console.log('Using cached shops data');
-      this.shops = cached;
-      this.shopOptions = [
-        { label: 'All Shops', value: null },
-        ...this.shops.map(shop => ({ label: shop.shopName, value: shop }))
-      ];
-      this.shopsLoadAttempted = true;
-      this.cdr.markForCheck();
-      return;
-    }
-
-    // Initialize shopOptions with default "All Shops" option if not already set
-    if (!this.shopOptions || this.shopOptions.length === 0) {
-      this.shopOptions = [{ label: 'All Shops', value: null }];
-      this.cdr.markForCheck();
-    }
-
-    this.shopsLoading = true;
-    this.shopsLoadAttempted = true;
-
-    try {
-      const translations = await firstValueFrom(
-        this.translate.get(['All Shops']).pipe(
-          timeout(5000),
-          catchError(() => of({ 'All Shops': 'All Shops' }))
-        )
-      );
-
-      // `getShops()` returns a Promise<Observable<Shop[]>>, so first await the Promise then pipe the Observable.
-      const shopsObservable = await this.analysisService.getShops();
-      const shops = await firstValueFrom(
-        shopsObservable.pipe(
-          timeout(10000),
-          catchError((error) => {
-            // Handle 429 rate limit error specifically
-            if (error?.status === 429) {
-              const retryAfter = error?.error?.retryAfter || 2;
-              console.warn(`Rate limit exceeded. Retrying after ${retryAfter} seconds...`);
-              // Return empty array and don't retry immediately to avoid more 429s
-              return of([]);
-            }
-            console.error('Error loading shops:', error);
-            return of([]);
-          })
-        )
-      );
-
-      this.shops = Array.isArray(shops) ? shops : [];
-      this.shopOptions = [
-        { label: translations['All Shops'] || 'All Shops', value: null },
-        ...this.shops.map(shop => ({ label: shop.shopName, value: shop }))
-      ];
-
-      // Cache the shops data
-      if (this.shops.length > 0) {
-        this.setCachedData(cacheKey, this.shops);
-      }
-
-      this.cdr.markForCheck();
-    } catch (error: any) {
-      console.error('Error loading shops:', error);
-      
-      // Always ensure shopOptions has at least the default option
-      if (!this.shopOptions || this.shopOptions.length === 0) {
-        this.shopOptions = [{ label: 'All Shops', value: null }];
-      }
-      
-      // Handle 429 rate limit error with retry
-      if (error?.status === 429) {
-        const retryAfter = error?.error?.retryAfter || 2;
-        console.warn(`Rate limit exceeded. Retry count: ${this.shopsLoadRetryCount || 0}/3`);
-        
-        // Retry if we haven't exceeded max retries
-        if (!this.shopsLoadRetryCount) {
-          this.shopsLoadRetryCount = 0;
-        }
-        
-        if (this.shopsLoadRetryCount < 3) {
-          this.shopsLoadRetryCount++;
-          this.shopsLoading = false; // Reset flag to allow retry
-          
-          // Retry after the specified delay
-          setTimeout(() => {
-            console.log(`Retrying shops load (attempt ${this.shopsLoadRetryCount})...`);
-            this.loadShops();
-          }, (retryAfter * 1000) || 2000);
-          
-          return; // Exit early, retry will handle it
-        } else {
-          console.warn('Max retries exceeded for shops loading');
-        }
-      }
-      
-      // On error, ensure we at least have the default "All Shops" option
-      this.shops = [];
-      this.shopOptions = [{ label: 'All Shops', value: null }];
-      
-      // Try to use stale cached data as fallback
-      const staleCache = this.cache.get(cacheKey);
-      if (staleCache && Array.isArray(staleCache.data) && staleCache.data.length > 0) {
-        console.log('Using stale cached shops data as fallback');
-        this.shops = staleCache.data;
-        this.shopOptions = [
-          { label: 'All Shops', value: null },
-          ...this.shops.map(shop => ({ label: shop.shopName, value: shop }))
-        ];
-      }
-    } finally {
-      this.shopsLoading = false;
-      this.cdr.markForCheck();
-    }
-  }
-
-  // ==================== PROFIT INDICATOR ====================
-
-  calculateIndicatorPosition(): string {
-    if (!this.profitData?.totalRevenue) return '50%';
-    const marginPercentage = this.calculateProfitMargin();
-    const position = 50 + (marginPercentage / 2);
-    return Math.min(Math.max(position, 5), 95) + '%';
-  }
-
-  calculateProfitMargin(): number {
-    if (this.profitData?.totalRevenue > 0) {
-      return (this.profitData.netProfit / this.profitData.totalRevenue) * 100;
-    }
-    return 0;
-  }
-
-  calculateRevenuePercentage(): number {
-    if (!this.profitData || this.profitData.totalRevenue <= 0) {
-      return 0;
-    }
-    const totalCosts = Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0));
-    const total = this.profitData.totalRevenue + totalCosts;
-    if (total === 0) return 0;
-    return (this.profitData.totalRevenue / total) * 100;
-  }
-
-  calculateCostsPercentage(): number {
-    if (!this.profitData || this.profitData.totalRevenue <= 0) {
-      return 0;
-    }
-    const totalCosts = Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0) + (this.profitData.totalWriteOffs || 0));
-    if (totalCosts === 0) return 0;
-    return (totalCosts / this.profitData.totalRevenue) * 100;
-  }
-
-  getTotalCosts(): number {
-    if (!this.profitData) return 0;
-    return Math.abs((this.profitData.totalCosts || 0) + (this.profitData.totalRefunds || 0) + (this.profitData.totalExpenses || 0) + (this.profitData.totalWriteOffs || 0));
-  }
-
   // ==================== NUMBER FORMATTING HELPERS ====================
 
   /**
@@ -1784,6 +1308,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.router.navigate(['/finance/payments/purchase']);
   }
 
+  navigateToReports() {
+    this.router.navigate(['/reports/sales']);
+  }
+
   async refreshDashboard(): Promise<void> {
     this.refreshDashboardLoading = true;
     this.cache.clear(); // Clear cache to force fresh data
@@ -1827,6 +1355,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   trackByProductId(index: number, item: any): number {
     return item.product?.productId || index;
+  }
+
+  /** Chart area uses compact height until the chart is actually rendered */
+  get salesChartActive(): boolean {
+    return !!(
+      this.chartDataReady &&
+      this.chartRenderReady &&
+      this.chartData?.labels?.length > 0 &&
+      this.chartData?.datasets?.length > 0
+    );
+  }
+
+  get pieChartActive(): boolean {
+    return !!(
+      this.pieDataReady &&
+      this.pieChartRenderReady &&
+      this.pieData?.labels?.length > 0 &&
+      this.pieData?.datasets?.length > 0
+    );
   }
 
   // ==================== ADMIN-SPECIFIC METHODS ====================
@@ -1996,12 +1543,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private calculateGrossMargin() {
-    if (this.revenue > 0 && this.profitData) {
-      const totalCosts = (this.profitData.totalCosts || 0) + (this.profitData.totalExpenses || 0);
-      const grossProfit = this.revenue - totalCosts;
-      this.grossMarginPercentage = (grossProfit / this.revenue) * 100;
-    } else if (this.revenue > 0) {
-      // Fallback calculation from orders
+    if (this.revenue > 0) {
       const totalCosts = this.orders.reduce((sum, order) => {
         return sum + (order.orderItems?.reduce((itemSum: number, item: any) => {
           const cost = item.product?.standardCost || item.product?.buyingPrice || 0;

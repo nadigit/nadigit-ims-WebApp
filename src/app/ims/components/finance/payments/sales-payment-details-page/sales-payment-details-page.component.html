@@ -572,6 +572,59 @@
                     </div>
                 </div>
             </p-tabPanel>
+
+            <p-tabPanel>
+                <ng-template pTemplate="header">
+                    <i class="pi pi-history mr-2"></i>
+                    <span>{{ 'timeline' | translate }}</span>
+                </ng-template>
+
+                <div class="mt-3">
+                    <div class="detail-card">
+                        <div class="card-header">
+                            <i class="pi pi-clock"></i>
+                            <span>{{ 'payment_timeline' | translate }}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline-container" *ngIf="paymentTimelineEvents.length > 0; else noPaymentTimeline">
+                                <p-timeline [value]="paymentTimelineEvents" align="alternate" styleClass="order-timeline">
+                                    <ng-template pTemplate="marker" let-event>
+                                        <div class="timeline-marker" [ngClass]="{
+                                            'active': isPaymentTimelineStepActiveEvent(event),
+                                            'completed': !isPaymentTimelineStepActiveEvent(event)
+                                        }">
+                                            <i [class]="event.icon + ' marker-icon'"></i>
+                                        </div>
+                                    </ng-template>
+                                    <ng-template pTemplate="content" let-event>
+                                        <div class="timeline-card" [ngClass]="{'active': isPaymentTimelineStepActiveEvent(event)}">
+                                            <div class="timeline-header">
+                                                <h5 class="m-0">{{ getPaymentTimelineLabel(event.status) }}</h5>
+                                                <span class="timeline-date">
+                                                    {{ event.date != null ? (event.date | date:'medium') : ('now' | translate) }}
+                                                </span>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <div class="status-content">
+                                                    <p class="m-0 text-600">{{ getPaymentTimelineDescription(event.status) }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </ng-template>
+                                </p-timeline>
+                            </div>
+                            <ng-template #noPaymentTimeline>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="pi pi-history"></i>
+                                    </div>
+                                    <h4>{{ 'no_timeline_events' | translate }}</h4>
+                                </div>
+                            </ng-template>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
             
         </p-tabView>
     </div>

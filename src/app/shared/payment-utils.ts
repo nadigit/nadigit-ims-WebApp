@@ -1,3 +1,5 @@
+import { Payment } from 'src/app/models/payment';
+
 export interface PaymentMethodOption {
   label: string;  // translation key
   value: string;  // actual value
@@ -81,4 +83,101 @@ export function getPaymentStatusIcon(status: string): string {
         case 'OVERDUE': return 'pi pi-ban';
         default: return 'pi pi-info-circle';
     }
+}
+
+function toTimelineDate(d: unknown): Date | null {
+  if (d == null || d === '') {
+    return null;
+  }
+  const dt = d instanceof Date ? d : new Date(d as string);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+/** Check, BOE, and bank transfers typically have a pending clearance step before settlement. */
+export function isDeferredPaymentMethod(method?: string | null): boolean {
+  const m = (method || '').toLowerCase();
+  return m === 'check' || m === 'boe' || m === 'transfer';
+}
+
+export interface PaymentTimelineEvent {
+  status: string;
+  date: Date | string | null;
+  icon: string;
+}
+
+/**
+ * Milestones for payment details timeline (sales & purchases), aligned with backend payment statuses.
+ */
+export function buildPaymentTimelineEvents(payment: Payment): PaymentTimelineEvent[] {
+  const status = String(payment.paymentStatus ?? '').trim().toUpperCase();
+  const creation = toTimelineDate(payment.creationDate);
+  const payDate = toTimelineDate(payment.paymentDate);
+  const anchor = creation ?? payDate;
+  const deferred = isDeferredPaymentMethod(payment.paymentMethod);
+
+  if (status === 'FAILED') {
+    return [
+      { status: 'RECORDED', date: anchor, icon: 'pi pi-inbox' },
+      { status: 'FAILED', date: payDate ?? anchor, icon: 'pi pi-times-circle' }
+    ].filter(e => e.date != null || e.status === 'RECORDED');
+  }
+
+  if (status === 'VOIDED') {
+    return [
+      { status: 'RECORDED', date: anchor, icon: 'pi pi-inbox' },
+      { status: 'VOIDED', date: payDate ?? anchor, icon: 'pi pi-ban' }
+    ].filter(e => e.date != null || e.status === 'RECORDED');
+  }
+
+  if (status === 'REFUNDED') {
+    const events: PaymentTimelineEvent[] = [
+      { status: 'RECORDED', date: anchor, icon: 'pi pi-inbox' },
+      {
+        status: 'PENDING',
+        date: deferred ? (payDate ?? anchor) : null,
+        icon: 'pi pi-clock'
+      },
+      { status: 'SETTLED', date: payDate ?? anchor, icon: 'pi pi-check-circle' },
+      { status: 'REFUNDED', date: payDate ?? anchor, icon: 'pi pi-replay' }
+    ];
+    return events.filter(e => e.date != null || e.status === 'RECORDED');
+  }
+
+  if (status === 'PARTIAL_REFUND') {
+    const events: PaymentTimelineEvent[] = [
+      { status: 'RECORDED', date: anchor, icon: 'pi pi-inbox' },
+      {
+        status: 'PENDING',
+        date: deferred ? (payDate ?? anchor) : null,
+        icon: 'pi pi-clock'
+      },
+      { status: 'SETTLED', date: payDate ?? anchor, icon: 'pi pi-check-circle' },
+      { status: 'PARTIAL_REFUND', date: payDate ?? anchor, icon: 'pi pi-percentage' }
+    ];
+    return events.filter(e => e.date != null || e.status === 'RECORDED');
+  }
+
+  const events: PaymentTimelineEvent[] = [
+    { status: 'RECORDED', date: anchor, icon: 'pi pi-inbox' },
+    {
+      status: 'PENDING',
+      date: status === 'PENDING' || (status === 'SETTLED' && deferred) ? (payDate ?? anchor) : null,
+      icon: 'pi pi-clock'
+    },
+    {
+      status: 'SETTLED',
+      date: status === 'SETTLED' ? (payDate ?? anchor) : null,
+      icon: 'pi pi-check-circle'
+    }
+  ];
+  return events.filter(e => e.date != null || e.status === 'RECORDED');
+}
+
+export function isPaymentTimelineStepActive(payment: Payment | null, event: PaymentTimelineEvent): boolean {
+  if (!payment?.paymentStatus) {
+    return false;
+  }
+  const s = String(payment.paymentStatus).trim().toUpperCase();
+  const ev = event.status.toUpperCase();
+  return s === ev;
 }
