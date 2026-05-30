@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { LazyLoadEvent, MenuItem, SelectItem } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -14,6 +15,7 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { getPaymentMethodLabel } from 'src/app/shared/payment-utils';
 import { getExpirationStatus, getExpirationInfo, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
 import { getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
+import { getPreferredProductImageUrl } from 'src/app/shared/product-image.utils';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -37,6 +39,8 @@ export class ProductsTableComponent {
   @Input() remainingBalance = 0;
   @Input() isLoading = false;
   @Input() isAdmin = false;
+  @Input() isWarehouseman = false;
+  @Input() isVendor = false;
   @Input() canEditProduct = false;
   @Input() canDeleteProduct = false;
   @Input() canAddProduct = false;
@@ -64,8 +68,10 @@ export class ProductsTableComponent {
   @Input() toggleProductRow: (productId: number) => void = () => {};
   @Input() getAggregatedWarehouseStocks: (product: any) => any[] = () => [];
   @Input() viewMode: 'standard' | 'aggregated' = 'standard';
+  @Input() tableViewMode: 'list' | 'grid' = 'list';
   @Input() isExporting: boolean = false;
 
+  @Output() onTableViewModeChange = new EventEmitter<{ value: 'list' | 'grid' }>();
   @Output() editProductEvent = new EventEmitter<Product>();
   @Output() deleteProductEvent = new EventEmitter<Product>();
   @Output() addProductEvent = new EventEmitter<Product>();
@@ -118,7 +124,10 @@ export class ProductsTableComponent {
   productTypeOptions: SelectItem[] = [];
   expirationStatusOptions: SelectItem[] = [];
 
-  constructor(private translate: TranslateService) {
+  constructor(
+    private translate: TranslateService,
+    private router: Router,
+  ) {
     this.sortOptions = [
       { label: this.translate.instant('descending_price'), value: '!sellingPrice' },
       { label: this.translate.instant('ascending_price'), value: 'sellingPrice' },
@@ -169,12 +178,23 @@ export class ProductsTableComponent {
     return !product.productType || product.productType === 'PRODUCT';
   }
 
+  canEditRow(product: Product): boolean {
+    return this.canEditProduct && !(this.viewMode === 'aggregated' && (product as any)?._aggregated);
+  }
+
   onSelectionChange(event: Payment[]) {
     this.selectedProductsChange.emit(event);
   }
 
   onLazyLoad(event: LazyLoadEvent) {
-    this.lazyLoadEvent.emit({ ...event } as any);
+    const payload = { ...event } as LazyLoadEventExt;
+    if (this.viewMode === 'aggregated') {
+      const sf = payload.sortField as string | undefined;
+      if (!sf || sf === 'creationDate') {
+        payload.sortField = 'name';
+      }
+    }
+    this.lazyLoadEvent.emit(payload as any);
   }
 
   onGlobalFilterChange(event: Event) {
@@ -191,7 +211,9 @@ export class ProductsTableComponent {
   onFilterChange() {
     this.applyFiltersEvent.emit({
       categoryIds: this.categoryFilters?.map(c => c.categoryId).filter(id => id !== undefined) as number[],
-      warehouseIds: this.warehouseFilters?.map(w => w.warehouseId).filter(id => id !== undefined) as number[],
+      warehouseIds: this.isAdmin
+        ? this.warehouseFilters?.map(w => w.warehouseId).filter(id => id !== undefined) as number[]
+        : [],
       supplierIds: this.supplierFilters?.map(s => s.supplierId).filter(id => id !== undefined) as number[],
       inventoryStatus: this.inventoryStatusFilter,
       productType: this.productTypeFilter,
@@ -301,5 +323,17 @@ export class ProductsTableComponent {
 
   viewWarehouseDetails(warehouseId: number): void {
     this.showWarehouseDetailsEvent.emit(warehouseId);
+  }
+
+  /** Open single-SKU product details with stock adjustment dialog (from aggregated list expansion). */
+  navigateToSkuAdjustStock(productId: number): void {
+    if (!productId) return;
+    void this.router.navigate(['/inventory/products', productId], {
+      queryParams: { openAdjustStock: 'true' },
+    });
+  }
+
+  getProductImage(product: Product | null | undefined): string {
+    return getPreferredProductImageUrl(product);
   }
 }

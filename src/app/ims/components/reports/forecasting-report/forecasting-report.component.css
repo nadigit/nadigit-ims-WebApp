@@ -1,0 +1,54 @@
+.forecast-shell {
+  padding: 1.25rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  background: var(--surface-card);
+}
+
+.forecast-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.forecast-hero-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.forecast-chart {
+  min-height: 320px;
+}
+
+:host ::ng-deep .forecast-chart .p-chart {
+  height: 320px !important;
+}
+
+@media (max-width: 768px) {
+  .forecast-shell {
+    padding: 0.85rem;
+  }
+
+  .forecast-hero-actions {
+    width: 100%;
+  }
+
+  .forecast-hero-actions :is(button, .p-button) {
+    width: 100%;
+  }
+}
+
+.ai-narrative-panel {
+  border-left: 3px solid var(--primary-color);
+}
+
+.ai-narrative-block {
+  background: var(--surface-card);
+}
+
+.ai-narrative-block-title {
+  letter-spacing: 0.01em;
+}

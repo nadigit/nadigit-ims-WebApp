@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Warehouse } from 'src/app/models/warehouse';
@@ -6,7 +6,8 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { Product } from 'src/app/models/product';
@@ -27,7 +28,7 @@ import { Location } from '@angular/common';
   styleUrls: ['./warehouse-details.component.css', '../../inventory.component.css'],
   providers: [MessageService]
 })
-export class WarehouseDetailsComponent implements OnInit {
+export class WarehouseDetailsComponent implements OnInit, OnDestroy {
 
   warehouseId!: number;
   warehouse: Warehouse | null = null;
@@ -51,6 +52,8 @@ export class WarehouseDetailsComponent implements OnInit {
   isAdmin: boolean = false;
   lowStockThreshold: number = 10;
   currency: string = 'USD';
+
+  private readonly destroy$ = new Subject<void>();
 
   selectedProduct: Product | null = null;
   productDetailDialog: boolean = false;
@@ -116,6 +119,15 @@ export class WarehouseDetailsComponent implements OnInit {
         this.currency = currency;
       }
     });
+
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'lowStockThreshold') {
+          void this.getLowStockThreshold().then((t) => (this.lowStockThreshold = t));
+        }
+      });
+
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
       this.countries = this.locationService.getAllCountriesWithTranslation();
@@ -163,6 +175,11 @@ export class WarehouseDetailsComponent implements OnInit {
         this.loadingWarehouseDetails = false;
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   async checkPermissions() {
@@ -369,17 +386,6 @@ export class WarehouseDetailsComponent implements OnInit {
       }
     });
     this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
-  }
-
-  filterCountry(value: any, filter: string): boolean {
-    // Convert both to lowercase for case-insensitive comparison
-    const normalizedFilter = filter.toLowerCase();
-
-    // Check both original name and translated name
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
   }
 
   filterProducts(): void {

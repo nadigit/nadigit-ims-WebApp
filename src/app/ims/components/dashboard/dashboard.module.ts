@@ -18,10 +18,12 @@ import { MessagesModule } from 'primeng/messages';
 import { DropdownModule } from 'primeng/dropdown';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TagModule } from 'primeng/tag';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 @NgModule({
     imports: [
         CommonModule,
+        SharedModule,
         FormsModule,
         ChartModule,
         MenuModule,

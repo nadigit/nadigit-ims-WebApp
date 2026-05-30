@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
@@ -17,7 +17,8 @@ import { SupplierService } from 'src/app/services/supplier.service';
 import { Category } from 'src/app/models/category';
 import { Warehouse } from 'src/app/models/warehouse';
 import { Supplier } from 'src/app/models/supplier';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { getMeasureUnit, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
 import { getExpirationInfo, formatExpirationDate, getExpirationStatus, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
 import { ProductBatch, BatchStatus } from 'src/app/models/productBatch';
@@ -33,6 +34,10 @@ import {
 } from 'src/app/models/barcode';
 import { InventoryWriteOff } from 'src/app/models/write-off';
 import { WriteOffService } from 'src/app/services/write-off.service';
+import { getPreferredProductImageUrl, resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
+
+const DEFAULT_PRODUCT_IMAGE = 'assets/core-images/no-image.png';
+const MAX_INLINE_IMAGE_URL_LENGTH = 200_000;
 
 @Component({
   selector: 'app-product-details-page',
@@ -40,15 +45,22 @@ import { WriteOffService } from 'src/app/services/write-off.service';
   styleUrls: ['./product-details-page.component.css', '../products.component.css'],
   providers: [MessageService, ConfirmationService]
 })
-export class ProductDetailsPageComponent implements OnInit {
+export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   productId!: number;
   product: Product | null = null;
+  productGalleryImages: string[] = [];
+  /** Stable gallery URLs for the overview tab (updated only when the list changes). */
+  galleryImagesForView: string[] = [];
+  heroImageUrl = DEFAULT_PRODUCT_IMAGE;
+  activeGalleryIndex = 0;
   isLoading: boolean = true;
   currency: string = 'USD';
   
   canEdit: boolean = false;
   canDelete: boolean = false;
   isAdmin: boolean = false;
+  isWarehouseman: boolean = false;
+  isVendor: boolean = false;
   userRoles: any;
   Ressource: string = "PRODUCTS";
   
@@ -68,9 +80,15 @@ export class ProductDetailsPageComponent implements OnInit {
   canAddCategory: boolean = false;
   canAddSupplier: boolean = false;
   canAddWarehouse: boolean = false;
+  /** When set, product form edits this SKU (aggregated breakdown); keeps hero `product` as grouped view. */
+  productForForm: Product | null = null;
+  readonly emptyExistingProducts: Product[] = [];
+  /** When set, stock adjustment applies to this SKU (aggregated breakdown). */
+  stockAdjustmentTarget: Product | null = null;
 
   profitChartData: any;
   chartOptions: any;
+  analyticsChartReady: boolean = false;
   printOptions: any[] = [];
   productPriceHistory: ProductPriceHistory[] = [];
 
@@ -121,6 +139,10 @@ export class ProductDetailsPageComponent implements OnInit {
   /** When true, sales stock includes approved write-off quantity (same setting as orders/POS). */
   salesStockIncludesApprovedWriteoffQty: boolean = false;
 
+  private readonly destroy$ = new Subject<void>();
+  /** Cancels stale in-flight route initializations when navigating quickly. */
+  private routeLoadGeneration = 0;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -159,87 +181,159 @@ export class ProductDetailsPageComponent implements OnInit {
   }
 
   async ngOnInit() {
-    this.isLoading = true;
-    
     // Load token first
-    this.productService.loadToken();
-    this.barcodeService.loadToken();
+    // this.productService.loadToken();
+    // this.barcodeService.loadToken();
 
-    await this.loadSalesStockConfig();
+    void this.loadSalesStockConfig();
+
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'sales.stock.include.approved.writeoff.quantity') {
+          void this.loadSalesStockConfig();
+        }
+      });
     
-    this.configService.currency$.subscribe(currency => {
-      if (currency) {
-        this.currency = currency;
-      }
-    });
+    this.configService.currency$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(currency => {
+        if (currency) {
+          this.currency = currency;
+        }
+      });
 
-    this.translateService.currentLanguage$.subscribe(lang => {
-      this.translate.use(lang);
-      this.initAutoGenerateMenuItems();
-    });
+    this.translateService.currentLanguage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(lang => {
+        this.translate.use(lang);
+        this.initAutoGenerateMenuItems();
+      });
     
     this.initAutoGenerateMenuItems();
 
-    // Combine params and queryParams subscriptions
-    this.route.params.subscribe(async params => {
-      this.productId = +params['id'];
-      if (!this.productId || isNaN(this.productId)) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('invalid_product_id'),
-          life: 3000
-        });
-        this.router.navigate(['/inventory/products']);
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      void this.initializePageFromRoute(params.get('id'));
+    });
+  }
+
+  private async initializePageFromRoute(idParam: string | null): Promise<void> {
+    const generation = ++this.routeLoadGeneration;
+    const isCurrentRoute = () => generation === this.routeLoadGeneration;
+
+    this.isLoading = true;
+    this.activeGalleryIndex = 0;
+    this.analyticsChartReady = false;
+    this.productGalleryImages = [];
+    this.setGalleryImagesForView([]);
+    this.heroImageUrl = DEFAULT_PRODUCT_IMAGE;
+    this.productId = Number(idParam);
+    if (!this.productId || isNaN(this.productId)) {
+      this.isLoading = false;
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('invalid_product_id'),
+        life: 3000
+      });
+      this.router.navigate(['/inventory/products']);
+      return;
+    }
+
+    const queryParams = this.route.snapshot.queryParams;
+    this.isAggregatedView = queryParams['aggregated'] === 'true' && !!queryParams['reference'];
+    this.productReference = queryParams['reference'] || null;
+
+    try {
+      const [, , loaded] = await Promise.all([
+        this.checkPermissions(),
+        this.setUserRoles(),
+        this.isAggregatedView && this.productReference && this.isAdmin
+          ? this.loadAggregatedProduct()
+          : this.loadProduct(),
+      ]);
+
+      if (!isCurrentRoute()) {
         return;
       }
-      
-      // Get query params synchronously
-      const queryParams = this.route.snapshot.queryParams;
-      this.isAggregatedView = queryParams['aggregated'] === 'true' && !!queryParams['reference'];
-      this.productReference = queryParams['reference'] || null;
-      
-      await this.checkPermissions();
-      await this.setUserRoles();
-      
-      // Load aggregated product if reference is provided, otherwise load single product
-      if (this.isAggregatedView && this.productReference && this.isAdmin) {
-        await this.loadAggregatedProduct();
-      } else {
-        await this.loadProduct();
+
+      if (!loaded) {
+        this.isLoading = false;
+        return;
       }
-      
-      await this.loadBarcodes();
-      await this.loadBatches(); // Load batches for products with expiration dates
-      await this.loadWriteOffs(); // Load write-offs for products
-      // Load form data when needed
-      await this.onGetAllCategories();
-      await this.onGetAllWarehouses();
-      await this.onGetAllSuppliers();
+
+      // Show the page as soon as core product data is ready; secondary panels load in background.
+      this.isLoading = false;
+
+      void Promise.all([
+        this.loadProductImages(this.product!.productId!),
+        this.loadBarcodes(),
+        this.loadBatches(),
+        this.loadWriteOffs(),
+      ]).catch((error) => console.warn('Error loading secondary product details panels', error));
+
+      this.onGetAllCategories();
+      this.onGetAllWarehouses();
+      this.onGetAllSuppliers();
+
+      if (!isCurrentRoute()) {
+        return;
+      }
+
+      await this.maybeOpenAdjustStockFromQuery(queryParams);
+    } catch (error) {
+      console.error('Error initializing product details page', error);
+      if (isCurrentRoute()) {
+        this.isLoading = false;
+      }
+    }
+  }
+
+  /**
+   * Deep link from list: `/inventory/products/:id?openAdjustStock=true`
+   */
+  private async maybeOpenAdjustStockFromQuery(queryParams: Record<string, unknown>): Promise<void> {
+    const raw = queryParams['openAdjustStock'];
+    const flag = raw === true || raw === 'true' || raw === '1' || raw === 1;
+    if (!flag) return;
+    if (this.isAggregatedView || !this.product || this.isService(this.product)) return;
+    if (!this.canEdit && !this.isAdmin) return;
+
+    this.openStockAdjustmentDialog();
+    await this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { openAdjustStock: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   async loadSalesStockConfig(): Promise<void> {
     try {
-      const config = await firstValueFrom(
-        await this.configService.getConfiguration('sales.stock.include.approved.writeoff.quantity')
+      const value = await firstValueFrom(
+        await this.configService.getConfigurationValue('sales.stock.include.approved.writeoff.quantity')
       );
-      const raw = config && typeof config === 'object' && 'value' in config ? (config as { value: unknown }).value : config;
-      this.salesStockIncludesApprovedWriteoffQty = raw === 'true' || raw === true;
+      this.salesStockIncludesApprovedWriteoffQty = String(value).toLowerCase() === 'true';
     } catch (e) {
       console.warn('Could not load sales/write-off stock configuration for product details', e);
       this.salesStockIncludesApprovedWriteoffQty = false;
     }
   }
 
-  async loadAggregatedProduct(): Promise<void> {
+  async loadAggregatedProduct(): Promise<boolean> {
     try {
+      this.productGalleryImages = [];
+      this.syncGalleryImagesForView();
       this.productService.loadToken();
       
       if (!this.productReference) {
         // Fallback to single product if no reference provided
-        await this.loadProduct();
-        return;
+        return await this.loadProduct();
       }
       
       // Fetch aggregated product by reference using the new endpoint
@@ -259,7 +353,7 @@ export class ProductDetailsPageComponent implements OnInit {
         }
 
         // Convert aggregated product to Product format for compatibility
-        this.product = {
+        this.product = this.prepareProductForDetails({
           productId: this.warehouseStocks[0]?.productId || this.productId,
           reference: this.aggregatedProduct.reference,
           name: this.aggregatedProduct.name,
@@ -280,18 +374,19 @@ export class ProductDetailsPageComponent implements OnInit {
           _aggregated: true,
           _warehouseCount: this.aggregatedProduct.warehouseCount,
           _warehouseStocks: this.warehouseStocks
-        } as any;
+        } as any);
         
         this.updateChart();
+        this.syncGalleryImagesForView();
         if (this.product.productId) {
           this.onGetProductPriceHistory(this.product.productId);
         }
-        this.isLoading = false;
+        return true;
       } else {
         this.warehouseStocks = [];
         this.aggregatedProduct = null;
         this.aggregatedCostingMethodVaries = false;
-        await this.loadProduct();
+        return await this.loadProduct();
       }
     } catch (error: any) {
       console.error('Error loading aggregated product:', error);
@@ -307,25 +402,39 @@ export class ProductDetailsPageComponent implements OnInit {
       this.warehouseStocks = [];
       this.aggregatedProduct = null;
       this.aggregatedCostingMethodVaries = false;
-      await this.loadProduct();
+      return await this.loadProduct();
     }
   }
 
-  async loadProduct(): Promise<void> {
+  onTabChange(event: any): void {
+    console.log('onTabChange--------------------------------');
+    // analytics tab index
+    if (event.index === 1) {
+      this.analyticsChartReady = false;
+  
+      setTimeout(() => {
+        this.analyticsChartReady = true;
+        this.updateChart();
+      }, 100);
+    }
+  }
+
+  async loadProduct(): Promise<boolean> {
     try {
+      this.productGalleryImages = [];
+      this.syncGalleryImagesForView();
       // Ensure token is loaded
       this.productService.loadToken();
       
       const response = await firstValueFrom(this.productService.getProduct(this.productId));
-      console.log('Product API response:', response);
       
       // Handle different response formats
       if (Array.isArray(response)) {
         // If API returns an array, take the first item
-        this.product = response[0] as Product;
+        this.product = this.prepareProductForDetails(response[0] as Product);
       } else if (response && typeof response === 'object') {
         // If API returns an object directly
-        this.product = response as Product;
+        this.product = this.prepareProductForDetails(response as Product);
       } else {
         throw new Error('Unexpected response format from API');
       }
@@ -338,17 +447,17 @@ export class ProductDetailsPageComponent implements OnInit {
           life: 3000
         });
         this.router.navigate(['/inventory/products']);
-        return;
+        return false;
       }
 
       this.aggregatedCostingMethodVaries = false;
 
       this.updateChart();
+      this.syncGalleryImagesForView();
       this.onGetProductPriceHistory(this.product.productId);
-      this.isLoading = false;
+      return true;
     } catch (error: any) {
       console.error('Error loading product:', error);
-      this.isLoading = false;
       const errorMessage = error?.error?.message || error?.message || this.translate.instant('error_loading_product');
       this.messageService.add({
         severity: 'error',
@@ -360,6 +469,7 @@ export class ProductDetailsPageComponent implements OnInit {
       setTimeout(() => {
         this.router.navigate(['/inventory/products']);
       }, 2000);
+      return false;
     }
   }
   
@@ -1073,25 +1183,29 @@ export class ProductDetailsPageComponent implements OnInit {
   updateChart() {
     if (!this.product) return;
 
-    // For services, buyingPrice might be null, use 0 as fallback
-    const buyingPrice = this.product.buyingPrice || 0;
-    const profitValue = this.product.sellingPrice - buyingPrice;
+    const buyingPrice = Math.max(Number(this.product.buyingPrice || 0), 0);
+    const sellingPrice = Math.max(Number(this.product.sellingPrice || 0), 0);
+    const profitValue = sellingPrice - buyingPrice;
+    const secondSliceValue = Math.abs(profitValue);
     const costLabel = this.translate.instant('cost');
-    const profitLabel = this.translate.instant('profit');
+    const profitLabel = profitValue >= 0 ? this.translate.instant('profit') : this.translate.instant('loss');
 
     this.profitChartData = {
       labels: [costLabel, profitLabel],
       datasets: [
         {
-          data: [buyingPrice, profitValue],
-          backgroundColor: ['#42A5F5', '#66BB6A'],
-          hoverBackgroundColor: ['#64B5F6', '#81C784']
+          data: [buyingPrice, secondSliceValue],
+          backgroundColor: ['#42A5F5', profitValue >= 0 ? '#66BB6A' : '#EF5350'],
+          hoverBackgroundColor: ['#64B5F6', profitValue >= 0 ? '#81C784' : '#E57373']
         }
       ]
     };
 
     this.chartOptions = {
       cutout: '70%',
+      responsive: false,
+      maintainAspectRatio: false,
+      animation: false,
       plugins: {
         legend: {
           position: 'bottom'
@@ -1099,6 +1213,15 @@ export class ProductDetailsPageComponent implements OnInit {
       }
     };
   }
+
+  // onAnalyticsTabOpen(): void {
+  //   console.log('onAnalyticsTabOpen--------------------------------');
+  //   if (this.analyticsChartReady) return;
+  //   setTimeout(() => {
+  //     this.analyticsChartReady = true;
+  //     this.updateChart();
+  //   }, 150);
+  // }
 
   onGetProductPriceHistory(productId: number): void {
     this.productService.getProductPriceHistory(productId).subscribe({
@@ -1121,7 +1244,7 @@ export class ProductDetailsPageComponent implements OnInit {
   async checkPermissions() {
     const profile = await this.keycloakService.loadUserProfile();
     const userId = profile.id;
-    await this.permissionService.init(userId).toPromise();
+    await firstValueFrom(this.permissionService.init(userId));
     this.canEdit = this.permissionService.canUpdate(this.Ressource);
     this.canDelete = this.permissionService.canDelete(this.Ressource);
     this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
@@ -1132,6 +1255,8 @@ export class ProductDetailsPageComponent implements OnInit {
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
+    this.isWarehouseman = this.userRoles.includes('WAREHOUSEMAN');
+    this.isVendor = this.userRoles.includes('VENDOR');
   }
 
   getQuantitySeverity(quantity: number): string {
@@ -1220,6 +1345,142 @@ export class ProductDetailsPageComponent implements OnInit {
   // Expose Math for template
   Math = Math;
 
+  getProductImage(product: Product | null | undefined): string {
+    return this.normalizeImageUrl(getPreferredProductImageUrl(product));
+  }
+
+  selectGalleryImage(index: number): void {
+    if (index < 0 || index >= this.galleryImagesForView.length) {
+      return;
+    }
+    this.activeGalleryIndex = index;
+  }
+
+  trackGalleryImage(_index: number, imageUrl: string): string {
+    return imageUrl;
+  }
+
+  private syncGalleryImagesForView(): void {
+    if (!this.product) {
+      this.heroImageUrl = DEFAULT_PRODUCT_IMAGE;
+      this.setGalleryImagesForView([]);
+      return;
+    }
+
+    if (this.productGalleryImages.length > 0) {
+      this.heroImageUrl = this.productGalleryImages[0];
+      this.setGalleryImagesForView(this.productGalleryImages);
+      return;
+    }
+
+    const gallery = Array.isArray((this.product as any).productImages)
+      ? (this.product as any).productImages
+          .map((img: any) => resolvePublicAssetUrl(img?.imageUrl))
+          .filter((url: string) => !!url)
+      : [];
+
+    if (gallery.length > 0) {
+      const safeGallery = this.safeUniqueImageUrls(gallery);
+      this.heroImageUrl = safeGallery[0] || this.getProductImage(this.product);
+      this.setGalleryImagesForView(safeGallery.length > 0 ? safeGallery : [this.heroImageUrl]);
+      return;
+    }
+
+    const fallback = this.getProductImage(this.product);
+    this.heroImageUrl = fallback;
+    this.setGalleryImagesForView(fallback ? [fallback] : []);
+  }
+
+  private setGalleryImagesForView(urls: string[]): void {
+    const next = urls.length > 0 ? [...urls] : [];
+    if (this.galleryUrlsEqual(this.galleryImagesForView, next)) {
+      return;
+    }
+    this.galleryImagesForView = next;
+    if (this.activeGalleryIndex >= next.length) {
+      this.activeGalleryIndex = 0;
+    }
+  }
+
+  private galleryUrlsEqual(current: string[], next: string[]): boolean {
+    if (current.length !== next.length) {
+      return false;
+    }
+    return current.every((url, index) => url === next[index]);
+  }
+
+  private async loadProductImages(productId: number): Promise<void> {
+    try {
+      this.productService.loadToken();
+      const response = await firstValueFrom(
+        this.productService.getProductImages(productId).pipe(
+          takeUntil(this.destroy$)
+        )
+      );
+      const gallery = Array.isArray(response)
+        ? response
+            .map((img: any) => resolvePublicAssetUrl(img?.imageUrl))
+            .filter((url: string) => !!url)
+        : [];
+      this.productGalleryImages = this.safeUniqueImageUrls(gallery);
+    } catch (error) {
+      this.productGalleryImages = [];
+      console.warn('Could not load product gallery images for details page', error);
+    } finally {
+      this.syncGalleryImagesForView();
+    }
+  }
+
+  private prepareProductForDetails(product: Product): Product {
+    if (!product) {
+      return product;
+    }
+
+    return {
+      ...product,
+      productImage: this.normalizeImageUrl(product.productImage),
+      productImages: this.safeProductImageRows((product as any).productImages)
+    } as Product;
+  }
+
+  private safeProductImageRows(images: unknown): unknown[] {
+    if (!Array.isArray(images)) {
+      return [];
+    }
+
+    return images
+      .map((img: any) => ({
+        ...img,
+        imageUrl: this.normalizeImageUrl(img?.imageUrl)
+      }))
+      .filter((img: any) => !!img.imageUrl);
+  }
+
+  private safeUniqueImageUrls(urls: string[]): string[] {
+    return Array.from(new Set(
+      urls
+        .map(url => this.normalizeImageUrl(url))
+        .filter(url => !!url)
+    ));
+  }
+
+  private normalizeImageUrl(rawUrl: unknown): string {
+    const resolved = resolvePublicAssetUrl(rawUrl);
+    if (!resolved) {
+      return '';
+    }
+
+    if (this.isOversizedInlineImage(resolved)) {
+      return '';
+    }
+
+    return resolved;
+  }
+
+  private isOversizedInlineImage(url: string): boolean {
+    return /^data:image\//i.test(url) && url.length > MAX_INLINE_IMAGE_URL_LENGTH;
+  }
+
   displayAttributeValue(attr: any): string {
     if (!attr) return '';
     switch (attr.attributeType) {
@@ -1239,7 +1500,8 @@ export class ProductDetailsPageComponent implements OnInit {
   }
 
   editProduct(): void {
-    if (!this.canEdit || !this.product) return;
+    if ((!this.canEdit && !this.isAdmin) || !this.product) return;
+    this.productForForm = null;
     // Ensure form data is loaded
     this.onGetAllCategories();
     this.onGetAllWarehouses();
@@ -1247,8 +1509,50 @@ export class ProductDetailsPageComponent implements OnInit {
     this.productDialog = true;
   }
 
+  /**
+   * Open product form for one warehouse SKU (aggregated product details only).
+   */
+  async editAggregatedWarehouseSku(stock: WarehouseStockInfo): Promise<void> {
+    if ((!this.canEdit && !this.isAdmin) || !stock?.productId) {
+      return;
+    }
+    try {
+      this.productService.loadToken();
+      const response = await firstValueFrom(this.productService.getProduct(stock.productId));
+      const loaded = (Array.isArray(response) ? response[0] : response) as Product;
+      if (!loaded?.productId) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('product_not_found'),
+          life: 3000,
+        });
+        return;
+      }
+      this.productForForm = loaded;
+      this.onGetAllCategories();
+      this.onGetAllWarehouses();
+      this.onGetAllSuppliers();
+      this.productDialog = true;
+    } catch (e) {
+      console.error('Error loading product for warehouse edit:', e);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_products'),
+        life: 3000,
+      });
+    }
+  }
+
   hideProductDialog(): void {
     this.productDialog = false;
+    this.productForForm = null;
+  }
+
+  /** Entity passed to `app-product-form` (warehouse SKU when editing from aggregated breakdown). */
+  effectiveProductForForm(): Product {
+    return (this.productForForm ?? this.product) as Product;
   }
 
   openStockAdjustmentDialog(): void {
@@ -1261,20 +1565,63 @@ export class ProductDetailsPageComponent implements OnInit {
       });
       return;
     }
+    this.stockAdjustmentTarget = null;
     this.quantityChange = 0;
     this.adjustmentReason = '';
     this.stockAdjustmentDialog = true;
   }
 
+  /**
+   * Adjust stock for one warehouse line (aggregated product details).
+   */
+  async openStockAdjustmentForWarehouseSku(stock: WarehouseStockInfo): Promise<void> {
+    if ((!this.canEdit && !this.isAdmin) || !stock?.productId) {
+      return;
+    }
+    try {
+      this.productService.loadToken();
+      const response = await firstValueFrom(this.productService.getProduct(stock.productId));
+      const loaded = (Array.isArray(response) ? response[0] : response) as Product;
+      if (!loaded?.productId || this.isService(loaded)) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('product_not_found'),
+          life: 3000,
+        });
+        return;
+      }
+      this.stockAdjustmentTarget = loaded;
+      this.quantityChange = 0;
+      this.adjustmentReason = '';
+      this.stockAdjustmentDialog = true;
+    } catch (e) {
+      console.error('Error loading product for stock adjustment:', e);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_products'),
+        life: 3000,
+      });
+    }
+  }
+
+  /** Product used inside the stock adjustment dialog (single SKU). */
+  stockAdjustmentContext(): Product | null {
+    return this.stockAdjustmentTarget ?? this.product;
+  }
+
   closeStockAdjustmentDialog(): void {
     this.stockAdjustmentDialog = false;
+    this.stockAdjustmentTarget = null;
     this.quantityChange = 0;
     this.adjustmentReason = '';
   }
 
   getNewQuantity(): number {
-    if (!this.product) return 0;
-    return (this.product.quantityAvailable || 0) + this.quantityChange;
+    const p = this.stockAdjustmentContext();
+    if (!p) return 0;
+    return (p.quantityAvailable || 0) + this.quantityChange;
   }
 
   canAdjustStock(): boolean {
@@ -1284,7 +1631,8 @@ export class ProductDetailsPageComponent implements OnInit {
   }
 
   async adjustStock(): Promise<void> {
-    if (!this.product || !this.canAdjustStock()) return;
+    const ctx = this.stockAdjustmentContext();
+    if (!ctx || !this.canAdjustStock()) return;
 
     // Validate
     if (this.quantityChange === 0) {
@@ -1302,7 +1650,7 @@ export class ProductDetailsPageComponent implements OnInit {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('cannot_decrease_stock_below_zero').replace('{0}', (this.product.quantityAvailable || 0).toString()).replace('{1}', this.quantityChange.toString()),
+        detail: this.translate.instant('cannot_decrease_stock_below_zero').replace('{0}', (ctx.quantityAvailable || 0).toString()).replace('{1}', this.quantityChange.toString()),
         life: 4000
       });
       return;
@@ -1313,14 +1661,13 @@ export class ProductDetailsPageComponent implements OnInit {
       this.productService.loadToken();
       const response = await firstValueFrom(
         this.productService.adjustStock(
-          this.product.productId!,
+          ctx.productId!,
           this.quantityChange,
           this.adjustmentReason
         )
       );
 
-      // Update product with response
-      if (response && typeof response === 'object') {
+      if (response && typeof response === 'object' && !this.isAggregatedView) {
         this.product = response as Product;
       }
 
@@ -1332,10 +1679,13 @@ export class ProductDetailsPageComponent implements OnInit {
       });
 
       this.closeStockAdjustmentDialog();
-      // Reload product to get updated data
-      await this.loadProduct();
-      // Reload batches as quantity may have changed
+      if (this.isAggregatedView && this.productReference) {
+        await this.loadAggregatedProduct();
+      } else {
+        await this.loadProduct();
+      }
       await this.loadBatches();
+      await this.loadWriteOffs();
     } catch (error: any) {
       console.error('Error adjusting stock:', error);
       const errorMessage = error?.error?.message || error?.message || this.translate.instant('error_adjusting_stock');
@@ -1364,13 +1714,16 @@ export class ProductDetailsPageComponent implements OnInit {
 
   async onProductFormSaveSuccess(productData: Product): Promise<void> {
     console.log('Product form saved successfully:', productData);
-    // Reload the product to reflect changes
-    await this.loadProduct();
-    // Reload barcodes in case product reference changed
-    await this.loadBarcodes();
-    // Reload batches in case product expiration date changed
-    await this.loadBatches();
+    this.productForForm = null;
     this.productDialog = false;
+    if (this.isAggregatedView && this.productReference) {
+      await this.loadAggregatedProduct();
+    } else {
+      await this.loadProduct();
+    }
+    await this.loadBarcodes();
+    await this.loadBatches();
+    await this.loadWriteOffs();
   }
 
   onProductFormSaveError(event: { product: Product, error: any }): void {

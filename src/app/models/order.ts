@@ -29,6 +29,8 @@ export class Order {
   taxEnabled?:boolean;
   dutyFreeAmount?:number;
   taxAmount?:number;
+  /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
+  taxRateUsed?: number;
   transportAmount?:number;
   shop?: Shop;
   payments?: Array<Payment>;

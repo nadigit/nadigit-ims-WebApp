@@ -39,7 +39,7 @@ export class BackendUnavailableInterceptor implements HttpInterceptor {
   }
 
   private isBackendUnavailable(error: HttpErrorResponse): boolean {
-    // Network error or CORS / server unreachable
+    // No HTTP status: browser network failure, DNS, connection refused, CORS blocking response, etc.
     if (error.status === 0) {
       return true;
     }
@@ -49,8 +49,13 @@ export class BackendUnavailableInterceptor implements HttpInterceptor {
       return false;
     }
 
-    // Treat other 5xx errors as potential backend unavailability
-    return error.status >= 500 && error.status <= 504;
+    // 500/501 = origin responded with an error body (validation, bugs, business rules).
+    // Those must NOT flip the global "backend offline" banner — only gateway/proxy connectivity signals do.
+    if (error.status === 502 || error.status === 504) {
+      return true;
+    }
+
+    return false;
   }
 
   private maybeNotifyUser(): void {

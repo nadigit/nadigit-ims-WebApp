@@ -16,6 +16,7 @@
         </div>
       </div>
 
+
       <!-- Cash Register Status Section -->
       <!-- <div class="cash-register-section mb-4" *ngIf="(isAdmin || isVendor) && !isPosRoute">
 
@@ -69,6 +70,308 @@
   <app-config></app-config>
   <div class="layout-mask"></div>
 </div>
+
+<button
+  *ngIf="isAdmin && !isPosRoute && !isCopilotMinimized"
+  #copilotLauncherBtn
+  pButton
+  pRipple
+  type="button"
+  class="copilot-launcher"
+  [class.open]="isCopilotOpen"
+  [class.compact]="isCopilotLauncherCompact && !isCopilotOpen"
+  [attr.aria-label]="'ai_copilot_title' | translate"
+  [pTooltip]="'ai_copilot_title' | translate"
+  tooltipPosition="left"
+  (click)="toggleCopilotPanel()">
+  <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-launcher-icon" />
+  <span class="copilot-launcher-text">NadiPilot</span>
+  <span
+    *ngIf="copilotUnreadCount > 0"
+    class="copilot-unread-badge">{{ copilotUnreadCount > 9 ? '9+' : copilotUnreadCount }}</span>
+</button>
+
+<button
+  *ngIf="isAdmin && !isPosRoute && isCopilotMinimized"
+  pButton
+  pRipple
+  type="button"
+  class="copilot-minimized-pill"
+  [label]="'ai_copilot_title' | translate"
+  [attr.aria-label]="'ai_copilot_title' | translate"
+  (click)="restoreCopilotFromMinimized()">
+  <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-pill-icon" />
+</button>
+
+<div
+  *ngIf="isAdmin && !isPosRoute"
+  class="copilot-panel-backdrop"
+  [class.visible]="isCopilotOpen"
+  (click)="closeCopilotPanel()"></div>
+
+<aside
+  *ngIf="isAdmin && !isPosRoute"
+  class="copilot-panel"
+  [class.open]="isCopilotOpen"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="'ai_copilot_title' | translate"
+  [attr.aria-hidden]="!isCopilotOpen">
+  <div class="copilot-panel-header">
+    <div class="copilot-header-left flex align-items-center gap-2">
+      <div class="copilot-header-icon-wrap">
+        <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-header-icon" />
+      </div>
+      <div class="copilot-header-meta">
+        <p class="copilot-title m-0">{{ 'ai_copilot_title' | translate }}</p>
+        <small class="copilot-subtitle">{{ 'ai_copilot_help_text' | translate }}</small>
+        <div class="copilot-online-status">
+          <span class="copilot-online-dot" aria-hidden="true"></span>
+          <small>{{ 'active' | translate }}</small>
+        </div>
+      </div>
+    </div>
+    <div class="copilot-header-actions">
+      <div class="copilot-mode-toggle" role="group" [attr.aria-label]="'ai_copilot_mode' | translate">
+        <button pButton pRipple type="button" class="p-button-text p-button-sm copilot-mode-btn"
+          [class.active]="!isCopilotAdvancedMode()"
+          [label]="'ai_copilot_mode_simple' | translate"
+          (click)="setCopilotMode('simple')"></button>
+        <button pButton pRipple type="button" class="p-button-text p-button-sm copilot-mode-btn"
+          [class.active]="isCopilotAdvancedMode()"
+          [label]="'ai_copilot_mode_advanced' | translate"
+          (click)="setCopilotMode('advanced')"></button>
+      </div>
+      <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
+        icon="pi pi-minus"
+        [attr.aria-label]="'collapse' | translate"
+        (click)="minimizeCopilotPanel()"></button>
+      <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
+        icon="pi pi-times"
+        [attr.aria-label]="'close' | translate"
+        (click)="closeCopilotPanel()"></button>
+    </div>
+  </div>
+
+  <div class="copilot-panel-body">
+    <div *ngIf="copilotLoading" class="copilot-loading">
+      <i class="pi pi-spin pi-spinner text-primary mr-2"></i>
+      <span>{{ 'loading' | translate }}...</span>
+    </div>
+
+    <div class="copilot-quick-prompts flex gap-2 flex-wrap mb-3">
+      <button pButton type="button" class="p-button-sm p-button-outlined"
+        [label]="'ai_copilot_prompt_stockout' | translate"
+        (click)="setCopilotPromptByKey('ai_copilot_prompt_stockout')"></button>
+      <button pButton type="button" class="p-button-sm p-button-outlined"
+        [label]="'ai_copilot_prompt_reorder' | translate"
+        (click)="setCopilotPromptByKey('ai_copilot_prompt_reorder')"></button>
+      <button pButton type="button" class="p-button-sm p-button-outlined"
+        [label]="'ai_copilot_prompt_risk' | translate"
+        (click)="setCopilotPromptByKey('ai_copilot_prompt_risk')"></button>
+    </div>
+
+    <div *ngIf="showCopilotCatalogScopeHint()" class="copilot-catalog-scope-hint mb-2 p-2 border-round">
+      <small class="text-700"><i class="pi pi-info-circle mr-1"></i>{{ 'ai_copilot_catalog_scope_hint' | translate }}</small>
+    </div>
+
+    <div class="copilot-scope-summary mb-3">
+      <div class="flex align-items-center justify-content-between gap-2 mb-2">
+        <div class="copilot-scope-summary-text">
+          <small class="copilot-scope-summary-title">{{ 'ai_copilot_scope_dialog_title' | translate }}</small>
+          <!-- <small class="copilot-scope-summary-value">{{ getCopilotScopeCompactSummary() }}</small> -->
+        </div>
+        <button pButton type="button" class="p-button-sm p-button-outlined"
+          icon="pi pi-sliders-h" [label]="'ai_copilot_scope_button' | translate"
+          (click)="openCopilotScopeSettings()"></button>
+      </div>
+    </div>
+
+    <div class="copilot-empty-state" *ngIf="!copilotLoading && !copilotResponse">
+      <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-empty-icon" />
+      <p class="copilot-empty-title m-0">{{ 'ai_copilot_title' | translate }}</p>
+      <p class="copilot-empty-text m-0">{{ 'ai_copilot_help_text' | translate }}</p>
+    </div>
+
+    <div class="copilot-response" *ngIf="copilotResponse as result">
+      <div class="copilot-answer-card mb-3">
+        <p class="m-0 text-900 copilot-answer-text">{{ getFormattedCopilotAnswer(result.answer) }}</p>
+      </div>
+      <small class="copilot-confidence block mb-3">
+        {{ 'ai_copilot_confidence' | translate }}: {{ (result.confidence * 100) | number:'1.0-0' }}%
+      </small>
+      <div *ngIf="getVisibleCopilotConfidenceReasons(result.confidenceReasons).length" class="copilot-confidence-reasons mb-3">
+        <p class="text-sm font-semibold text-800 mb-2">{{ 'ai_copilot_confidence_reasons' | translate }}</p>
+        <ul class="m-0 pl-3">
+          <li *ngFor="let reason of getVisibleCopilotConfidenceReasons(result.confidenceReasons)">{{ reason }}</li>
+        </ul>
+      </div>
+
+      <div *ngIf="result.followUpQuestions?.length" class="copilot-section-card mb-3">
+        <p class="text-sm font-semibold text-800 mb-2">{{ 'ai_copilot_followup_title' | translate }}</p>
+        <div class="copilot-followup-list">
+          <button
+            *ngFor="let q of result.followUpQuestions"
+            pButton
+            type="button"
+            class="p-button-sm p-button-outlined copilot-followup-chip"
+            [label]="q"
+            (click)="applyCopilotFollowUpQuestion(q)"></button>
+        </div>
+      </div>
+
+      <div *ngIf="result.evidence?.length && isCopilotAdvancedMode()" class="copilot-section-card mb-3">
+        <div class="flex align-items-center justify-content-between gap-2 mb-2">
+          <p class="text-sm font-semibold text-800 m-0">{{ 'ai_copilot_evidence' | translate }}</p>
+          <button pButton type="button" class="p-button-text p-button-sm"
+            [label]="(showCopilotEvidence ? 'ai_copilot_hide_details' : 'ai_copilot_show_details') | translate"
+            (click)="showCopilotEvidence = !showCopilotEvidence"></button>
+        </div>
+        <div *ngIf="showCopilotEvidence" class="copilot-evidence-groups">
+          <div *ngFor="let group of getCopilotEvidenceGroups(result.evidence)" class="copilot-evidence-group">
+            <p class="text-xs font-semibold text-700 mb-1">{{ group.title }}</p>
+            <ul class="m-0 pl-3">
+              <li *ngFor="let ev of group.items">{{ ev.label }}: {{ ev.value }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="result.recommendedActions?.length" class="copilot-section-card mb-3">
+        <div class="flex align-items-center justify-content-between mb-2">
+          <p class="text-sm font-semibold text-800 m-0">{{ 'ai_copilot_actions' | translate }}</p>
+          <button pButton type="button" class="p-button-sm p-button-outlined"
+            icon="pi pi-check-square" [label]="'ai_copilot_apply_all' | translate"
+            [disabled]="!canApplyAllCopilotReorders()"
+            [pTooltip]="!hasCopilotScopeSelection() ? ('ai_copilot_scope_required' | translate) : ((getCopilotValidReorderLineCount() === 0) ? ('ai_copilot_no_actions' | translate) : '')"
+            tooltipPosition="top"
+            (click)="applyAllCopilotReorders()"></button>
+        </div>
+        <ul class="m-0 pl-3">
+          <li *ngFor="let action of result.recommendedActions">
+            <strong>{{ action.title }}</strong> - {{ action.description }}
+            <button pButton type="button" class="p-button-text p-button-sm ml-2"
+              icon="pi pi-check-circle"
+              [label]="'ai_copilot_apply_action' | translate"
+              [disabled]="!canApplyCopilotAction(action)"
+              [pTooltip]="!hasCopilotScopeSelection() ? ('ai_copilot_scope_required' | translate) : ((action.actionType !== 'DRAFT_REORDER' || !action.productId || !action.quantity || action.quantity <= 0) ? ('ai_copilot_action_missing_data' | translate) : '')"
+              tooltipPosition="top"
+              (click)="applyCopilotAction(action)"></button>
+          </li>
+        </ul>
+      </div>
+
+      <div *ngIf="getVisibleCopilotWarnings(result.warnings).length" class="copilot-section-card copilot-section-warning">
+        <p class="text-sm font-semibold text-800 mb-2">{{ 'warnings' | translate }}</p>
+        <ul class="m-0 pl-3">
+          <li *ngFor="let warning of getVisibleCopilotWarnings(result.warnings)">{{ warning }}</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="copilot-history mt-3" *ngIf="copilotHistory.length > 0">
+      <div class="flex align-items-center justify-content-between mb-2">
+        <p class="text-sm font-semibold text-800 m-0">{{ 'ai_copilot_history' | translate }}</p>
+        <div class="flex align-items-center gap-1">
+          <button *ngIf="copilotHistory.length > 3" pButton type="button" class="p-button-text p-button-sm"
+            [icon]="isCopilotHistoryExpanded ? 'pi pi-angle-up' : 'pi pi-angle-down'"
+            [label]="isCopilotHistoryExpanded ? ('collapse' | translate) : ('view_all' | translate)"
+            (click)="toggleCopilotHistoryExpanded()"></button>
+          <button pButton type="button" class="p-button-text p-button-sm"
+            icon="pi pi-trash" [label]="'clear' | translate"
+            (click)="clearCopilotHistory()"></button>
+        </div>
+      </div>
+      <div class="copilot-history-list p-2">
+        <div *ngFor="let group of displayedCopilotHistoryGroups" class="copilot-history-group">
+          <small class="copilot-history-group-label">{{ group.label }}</small>
+          <div
+            *ngFor="let item of group.items; let i = index"
+            class="copilot-history-item p-2"
+            [ngClass]="{
+              'mb-2': i !== group.items.length - 1,
+              'is-selected': selectedCopilotHistoryKey === getCopilotHistoryKey(item)
+            }"
+            (click)="onCopilotHistoryItemSelected(item)">
+            <div class="flex align-items-start justify-content-between gap-2">
+              <div class="copilot-history-texts">
+                <div class="copilot-history-prompt">{{ item.prompt }}</div>
+                <small class="copilot-history-answer">{{ item.response?.answer }}</small>
+                <small class="copilot-history-time">{{ formatCopilotHistoryTime(item.at) }}</small>
+              </div>
+              <button pButton type="button" class="p-button-text p-button-sm copilot-history-reuse-btn"
+                icon="pi pi-replay"
+                [pTooltip]="'ai_copilot_ask' | translate"
+                tooltipPosition="left"
+                (click)="usePromptFromHistory(item.prompt); $event.stopPropagation()"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="copilot-panel-footer">
+    <div class="copilot-composer">
+      <textarea
+        #copilotInputField
+        pInputTextarea
+        [autoResize]="true"
+        rows="2"
+        class="w-full copilot-prompt-textarea"
+        [(ngModel)]="copilotPrompt"
+        [placeholder]="'ai_copilot_placeholder' | translate"
+        (keydown.control.enter)="askAiCopilot()"
+        (keydown.meta.enter)="askAiCopilot()"></textarea>
+      <button
+        pButton
+        type="button"
+        icon="pi pi-send"
+        iconPos="right"
+        class="copilot-send-btn"
+        [label]="'ai_copilot_ask' | translate"
+        [loading]="copilotLoading"
+        (click)="askAiCopilot()"></button>
+    </div>
+  </div>
+</aside>
+
+<p-dialog
+  [(visible)]="showCopilotScopeDialog"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [appendTo]="'body'"
+  [baseZIndex]="1400"
+  [style]="{ width: '540px', maxWidth: '95vw' }"
+  [header]="'ai_copilot_scope_dialog_title' | translate">
+  <div class="copilot-scope-card grid mb-2">
+    <div class="col-12 md:col-6">
+      <label class="text-xs text-600 block mb-1">{{ 'shop' | translate }}</label>
+      <p-dropdown [options]="shops" optionLabel="shopName" optionValue="shopId"
+        [(ngModel)]="copilotSelectedShopId"
+        [placeholder]="'all' | translate"
+        [showClear]="true" appendTo="body" styleClass="w-full">
+      </p-dropdown>
+    </div>
+    <div class="col-12 md:col-6">
+      <label class="text-xs text-600 block mb-1">{{ 'warehouse' | translate }}</label>
+      <p-dropdown [options]="warehouses" optionLabel="name" optionValue="warehouseId"
+        [(ngModel)]="copilotSelectedWarehouseId"
+        [placeholder]="'all' | translate"
+        [showClear]="true" appendTo="body" styleClass="w-full">
+      </p-dropdown>
+    </div>
+    <div class="col-12">
+      <label class="text-xs text-600 block mb-1">{{ 'supplier' | translate }}</label>
+      <p-dropdown [options]="suppliers" optionLabel="name" optionValue="supplierId"
+        [(ngModel)]="copilotSelectedSupplierId"
+        [placeholder]="'select_supplier' | translate"
+        [showClear]="true" appendTo="body" styleClass="w-full">
+      </p-dropdown>
+    </div>
+  </div>
+</p-dialog>
 
 <p-dialog header="{{ 'about_nadigit_ims' | translate }}" [(visible)]="layoutService.showSystemInfoDialog" [modal]="true"
   [style]="{width: '800px'}" [closable]="true" [dismissableMask]="true"
@@ -128,6 +431,51 @@
               {{layoutService.systemInfo?.lastUpdateDate || 'N/A'}}
             </p>
           </div>
+        </div>
+      </div>
+
+      <div *ngIf="showLicensePlanBanner" class="license-plan-dialog-card p-4 mb-5 border-round-xl surface-card shadow-1">
+        <div class="flex align-items-start justify-content-between gap-3 flex-wrap">
+          <div class="flex align-items-start gap-3 flex-1">
+            <div class="license-plan-icon bg-primary-100 p-3 border-round-lg">
+              <i class="pi pi-bolt text-primary text-xl"></i>
+            </div>
+            <div class="flex-1">
+              <h3 class="m-0 text-900">{{ licensePlanBannerTitle }}</h3>
+              <p class="text-700 mt-2 mb-3 line-height-3">{{ licensePlanBannerMessage }}</p>
+              <div class="flex gap-2 flex-wrap" *ngIf="licensePlanUsersText || licensePlanWarehousesText || licensePlanShopsText">
+                <p-tag *ngIf="licensePlanUsersText" [value]="licensePlanUsersText" severity="info"></p-tag>
+                <p-tag *ngIf="licensePlanWarehousesText" [value]="licensePlanWarehousesText" severity="info"></p-tag>
+                <p-tag *ngIf="licensePlanShopsText" [value]="licensePlanShopsText" severity="info"></p-tag>
+              </div>
+            </div>
+          </div>
+          <div class="text-600 text-sm flex align-items-center gap-2">
+            <i class="pi pi-shield"></i>
+            <span>{{ 'license_status' | translate }}</span>
+          </div>
+        </div>
+
+        <div class="license-tier-grid mt-4">
+          <div class="tier-card" [ngClass]="{ 'active-tier': isCurrentTier('STARTER') }">
+            <div class="tier-name">STARTER</div>
+            <div class="tier-caption">{{ 'license_tier_starter_caption' | translate }}</div>
+          </div>
+          <div class="tier-card" [ngClass]="{ 'active-tier': isCurrentTier('PRO') }">
+            <div class="tier-name">PRO</div>
+            <div class="tier-caption">{{ 'license_tier_pro_caption' | translate }}</div>
+          </div>
+          <div class="tier-card" [ngClass]="{ 'active-tier': isCurrentTier('ENTERPRISE') }">
+            <div class="tier-name">ENTERPRISE</div>
+            <div class="tier-caption">{{ 'license_tier_enterprise_caption' | translate }}</div>
+          </div>
+        </div>
+
+        <div class="license-actions mt-3 flex gap-2 flex-wrap">
+          <a pButton pRipple href="https://ims.nadigit.com" target="_blank" class="p-button-sm p-button-outlined"
+            icon="pi pi-book" [label]="'documentation' | translate"></a>
+          <a pButton pRipple href="https://nadigit.com/contact-us" target="_blank" class="p-button-sm license-comments-btn"
+            icon="pi pi-send" [label]="'feedback' | translate"></a>
         </div>
       </div>
 
@@ -223,6 +571,48 @@
                   ? ('days_remaining' | translate: { days: daysUntilExpiration })
                   : ('license_expired' | translate) }}
                 </div>
+
+                <div *ngIf="isAdmin" class="mt-4 p-3 border-round-lg surface-50">
+                  <p class="text-sm font-semibold text-800 mb-2">{{ 'license_update_section_title' | translate }}</p>
+
+                  <label class="text-xs text-600 block mb-2">{{ 'license_update_registration_label' | translate }}</label>
+                  <div class="flex gap-2 flex-wrap mb-3">
+                    <input pInputText type="text" [(ngModel)]="licenseRegistrationKey"
+                      [placeholder]="'license_update_registration_placeholder' | translate" class="flex-1 min-w-15rem" />
+                    <button pButton type="button" icon="pi pi-key" [label]="'license_update_apply_key' | translate"
+                      class="p-button-sm" [loading]="updatingLicense"
+                      (click)="updateRegistrationKeyLicense()"></button>
+                  </div>
+
+                  <label class="text-xs text-600 block mb-2">{{ 'license_update_offline_label' | translate }}</label>
+                  <div class="offline-upload-card">
+                    <input #offlineLicenseInput class="offline-file-input" type="file" accept=".json,application/json"
+                      (change)="onOfflineLicenseSelected($event)" />
+                    <div class="offline-upload-header">
+                      <i class="pi pi-cloud-upload offline-upload-icon"></i>
+                      <div class="offline-upload-text">
+                        <p class="m-0 text-sm font-semibold text-800">{{ 'license_update_offline_label' | translate }}</p>
+                        <p class="m-0 text-xs text-600">{{ 'choose_file' | translate }} (.json)</p>
+                      </div>
+                    </div>
+
+                    <div class="offline-upload-actions">
+                      <button pButton type="button" icon="pi pi-folder-open" [label]="'choose_file' | translate"
+                        class="p-button-sm p-button-secondary" (click)="offlineLicenseInput.click()"></button>
+                      <button pButton type="button" icon="pi pi-upload" [label]="'license_update_upload_offline' | translate"
+                        class="p-button-sm p-button-outlined" [loading]="updatingLicense"
+                        [disabled]="!offlineLicenseFile"
+                        (click)="uploadOfflineLicenseFile()"></button>
+                      <button *ngIf="offlineLicenseFile" pButton type="button" icon="pi pi-times"
+                        class="p-button-sm p-button-text" [label]="'clear' | translate"
+                        (click)="offlineLicenseFile = null; offlineLicenseInput.value = ''"></button>
+                    </div>
+
+                    <span class="offline-file-name text-sm" *ngIf="offlineLicenseFile">
+                      <i class="pi pi-file mr-1"></i>{{ offlineLicenseFile.name }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -242,13 +632,21 @@
               </div>
             </div>
 
+            <div class="mb-3" *ngIf="lockedPlanFeatures.length > 0">
+              <p-tag severity="info" [value]="enabledPlanFeatures.length + ' enabled'"></p-tag>
+              <p-tag severity="warning" styleClass="ml-2" [value]="lockedPlanFeatures.length + ' locked by plan'"></p-tag>
+            </div>
+
             <div class="grid">
-              <div *ngFor="let key of featureKeys; let i = index" class="col-12 md:col-6 mb-3">
+              <div *ngFor="let feature of planFeatures" class="col-12 md:col-6 mb-3">
                 <div class="feature-item flex align-items-center p-2">
-                  <div class="feature-icon bg-primary-100 p-2 border-round-lg mr-3">
-                    <i class="pi pi-check text-primary-600 text-sm"></i>
+                  <div class="feature-icon p-2 border-round-lg mr-3"
+                    [ngClass]="feature.enabled ? 'bg-primary-100' : 'surface-200'">
+                    <i class="text-sm" [ngClass]="feature.enabled ? 'pi pi-check text-primary-600' : 'pi pi-lock text-500'"></i>
                   </div>
-                  <span class="text-sm font-medium text-900">{{ key | translate }}</span>
+                  <span class="text-sm font-medium" [ngClass]="feature.enabled ? 'text-900' : 'text-600'">
+                    {{ feature.label }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -299,3 +697,82 @@
 <ng-template #loadingTxt>
   <p class="text-color-secondary m-0">{{ 'loading' | translate }}...</p>
 </ng-template>
+
+<p-dialog
+  [(visible)]="showDowngradeImpactDialog"
+  [modal]="true"
+  [closable]="!updatingLicense"
+  [dismissableMask]="!updatingLicense"
+  [draggable]="false"
+  [style]="{ width: '760px', maxWidth: '95vw' }"
+  [header]="'license_downgrade_impact_title' | translate">
+  <div *ngIf="downgradeImpact as impact" class="line-height-3">
+    <p class="m-0 mb-3 text-800">
+      {{ 'license_downgrade_impact_intro' | translate:{ current: impact.currentTier, target: impact.targetTier } }}
+    </p>
+
+    <div *ngIf="(impact.newlyBlockedFeatures?.length || 0) > 0" class="mb-3">
+      <h4 class="m-0 mb-2 text-900">{{ 'license_downgrade_blocked_features' | translate }}</h4>
+      <div class="flex flex-wrap gap-2">
+        <p-tag *ngFor="let feature of getReadableBlockedFeatures(impact.newlyBlockedFeatures)" [value]="feature" severity="warning"></p-tag>
+      </div>
+    </div>
+
+    <div *ngIf="(impact.limitBreaches?.length || 0) > 0" class="mb-3">
+      <h4 class="m-0 mb-2 text-900">{{ 'license_downgrade_limit_breaches' | translate }}</h4>
+      <ul class="m-0 pl-3">
+        <li *ngFor="let breach of impact.limitBreaches" class="mb-2">
+          <strong>{{ getLimitBreachLabel(breach.resource) }}</strong>: {{ breach.current }} / {{ breach.allowed }}.
+          {{ breach.remediation }}
+          <div class="mt-2" *ngIf="canNavigateLimitBreach(breach.resource)">
+            <button pButton type="button" class="p-button-sm p-button-outlined"
+              icon="pi pi-external-link"
+              [label]="getLimitBreachActionLabel(breach.resource)"
+              (click)="navigateLimitBreach(breach.resource)"></button>
+            <small class="block text-600 mt-1">{{ getLimitBreachActionHint(breach.resource) }}</small>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div *ngIf="(impact.newlyBlockedApiPrefixes?.length || 0) > 0" class="mb-3">
+      <h4 class="m-0 mb-2 text-900">{{ 'license_downgrade_blocked_modules_human' | translate }}</h4>
+      <div class="flex flex-wrap gap-2">
+        <p-tag *ngFor="let moduleName of getReadableApiModules(impact.newlyBlockedApiPrefixes)" [value]="moduleName" severity="warning"></p-tag>
+      </div>
+    </div>
+
+    <div *ngIf="(impact.warnings?.length || 0) > 0" class="mb-2">
+      <h4 class="m-0 mb-2 text-900">{{ 'warnings' | translate }}</h4>
+      <ul class="m-0 pl-3">
+        <li *ngFor="let warning of impact.warnings">{{ warning }}</li>
+      </ul>
+    </div>
+
+    <p *ngIf="!hasDowngradeImpactDetails()" class="m-0 text-700">
+      {{ 'license_downgrade_no_immediate_breaking_change' | translate }}
+    </p>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" class="p-button-text" [label]="'cancel' | translate"
+      [disabled]="updatingLicense" (click)="cancelDowngradeUpload()"></button>
+    <button pButton type="button" icon="pi pi-check" [label]="'license_downgrade_continue' | translate"
+      [loading]="updatingLicense" (click)="confirmDowngradeAndUpload()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  [(visible)]="updatingLicense"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [dismissableMask]="false"
+  [showHeader]="false"
+  [style]="{ width: '360px', maxWidth: '90vw' }">
+  <div class="flex flex-column align-items-center justify-content-center py-4">
+    <p-progressSpinner [style]="{ width: '54px', height: '54px' }" strokeWidth="4"></p-progressSpinner>
+    <p class="mt-3 mb-1 text-900 font-semibold">{{ 'license_update_processing_title' | translate }}</p>
+    <small class="text-600 text-center">{{ 'license_update_processing_subtitle' | translate }}</small>
+  </div>
+</p-dialog>

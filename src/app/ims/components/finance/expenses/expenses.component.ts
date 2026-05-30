@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { ExpenseService, buildExpenseWritePayload } from 'src/app/services/expense.service';
@@ -22,6 +22,7 @@ import { PaymentValidationService } from 'src/app/services/payment-validation.se
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { DatePipe } from '@angular/common';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import {
   canDeleteExpenseByWorkflowStatus as expenseWorkflowAllowsDelete,
   canEditExpenseByWorkflowStatus as expenseWorkflowAllowsEdit
@@ -119,6 +120,7 @@ export class ExpensesComponent implements OnInit {
   showBankAccountField: boolean = false;
   isBankAccountRequired: boolean = false;
   minimumAmountHint: string | null = null;
+  isBankAccountsFeatureEnabled: boolean = true;
 
   // ⚠️ NEW: Reconciliation status properties
   reconciliationStatus: ReconciliationStatus | null = null;
@@ -139,11 +141,13 @@ export class ExpensesComponent implements OnInit {
     private shopService: ShopService,
     private bankAccountService: BankAccountService,
     private router: Router,
+    private route: ActivatedRoute,
     private paymentValidationService: PaymentValidationService,
     private reconciliationValidationService: ReconciliationValidationService,
     private organizationService: OrganizationService,
     private datePipe: DatePipe,
-    private cdr: ChangeDetectorRef) {
+    private cdr: ChangeDetectorRef,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {
     const nav = this.router.getCurrentNavigation();
     const st = nav?.extras?.state as { openEditExpensePayload?: Expense } | undefined;
     if (st?.openEditExpensePayload) {
@@ -175,9 +179,19 @@ export class ExpensesComponent implements OnInit {
       this.checkPermissions(),
       this.setUserRoles(),
       this.loadUserShopId(),
+      this.loadLicenseCapabilities(),
     ]);
 
     await this.loadExpenseConfig();
+
+    const qpStatus = this.route.snapshot.queryParamMap.get('status');
+    if (qpStatus) {
+      const upper = qpStatus.trim().toUpperCase();
+      const allowed: ExpenseStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
+      if (allowed.includes(upper as ExpenseStatus)) {
+        this.selectedExpenseStatus = upper as ExpenseStatus;
+      }
+    }
 
     this.initializePaymentMethods();
     this.cols = [
@@ -529,6 +543,16 @@ export class ExpensesComponent implements OnInit {
     this.expenseDialog = true;
   }
 
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.isBankAccountsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for bank account methods.', error);
+      this.isBankAccountsFeatureEnabled = true;
+    }
+  }
+
   canEditExpenseByWorkflowStatus(expense: Expense | null | undefined): boolean {
     return expenseWorkflowAllowsEdit(expense);
   }
@@ -568,6 +592,17 @@ export class ExpensesComponent implements OnInit {
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('please_fill_required_fields')
+      });
+      return;
+    }
+
+    const requiresBankFeature = ['Transfer', 'Check', 'BOE'].includes(this.expense.paymentMethod || '');
+    if (requiresBankFeature && !this.isBankAccountsFeatureEnabled) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Upgrade required',
+        detail: 'Bank transfer, check and BOE expense methods require a higher plan.',
+        life: 7000
       });
       return;
     }

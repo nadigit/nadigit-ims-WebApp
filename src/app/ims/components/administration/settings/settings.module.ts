@@ -30,9 +30,15 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { TooltipModule } from 'primeng/tooltip';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { DividerModule } from 'primeng/divider';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { PanelModule } from 'primeng/panel';
 import { EmailConfigComponent } from './email-config/email-config.component';
 import { NotificationRecipientsComponent } from './notification-recipients/notification-recipients.component';
+import { TelegramConfigComponent } from './telegram-config/telegram-config.component';
+import { WhatsAppConfigComponent } from './whatsapp-config/whatsapp-config.component';
+import { AiIntegrationConfigComponent } from './ai-integration-config/ai-integration-config.component';
 import { ReactiveFormsModule } from '@angular/forms';
+import { TaxRulesUiModule } from '../../finance/tax-rules/tax-rules-ui.module';
 
 
 @NgModule({
@@ -65,7 +71,10 @@ import { ReactiveFormsModule } from '@angular/forms';
         SelectButtonModule,
         TooltipModule,
         InputSwitchModule,
-        DividerModule
+        DividerModule,
+        ConfirmDialogModule,
+        PanelModule,
+        TaxRulesUiModule
     ],
     schemas: [
         CUSTOM_ELEMENTS_SCHEMA, // or NO_ERRORS_SCHEMA
@@ -73,7 +82,10 @@ import { ReactiveFormsModule } from '@angular/forms';
     declarations: [
         SettingsComponent,
         EmailConfigComponent,
-        NotificationRecipientsComponent
+        NotificationRecipientsComponent,
+        TelegramConfigComponent,
+        WhatsAppConfigComponent,
+        AiIntegrationConfigComponent
     ],
     providers: [ReportingService],
 })

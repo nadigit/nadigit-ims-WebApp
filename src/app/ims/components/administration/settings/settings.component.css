@@ -2,16 +2,41 @@
    Global Settings Page - Modern UI Design
    ===================================================== */
 
+/* Screen-reader only (search field visible label) */
+.settings-container .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Container */
 .settings-container {
   min-height: 100vh;
   background: var(--surface-ground);
+  /* Reduce scroll position jumps when long config lists reflow (Chrome scroll anchoring). */
+  overflow-anchor: none;
 }
 
 .settings-content {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 1rem 2rem;
+}
+
+/* Main surface: integrations, profile, tabbed workspace */
+.settings-main-stack {
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.settings-main-inner {
+  max-width: 100%;
 }
 
 /* Loading State */
@@ -99,167 +124,302 @@
 }
 
 /* =====================================================
-   Stats Row
+   Section headings (channels, profile) — same rhythm as tab workspace
    ===================================================== */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin: -1.5rem 0 1.5rem;
-  padding: 0 1rem;
-  position: relative;
-  z-index: 2;
+.settings-section-head {
+  margin-bottom: 1rem;
 }
 
-.stat-card-modern {
+.settings-section-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-color-secondary);
+}
+
+.settings-section-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-color);
+  line-height: 1.25;
+}
+
+.settings-section-lead {
+  margin: 0;
+  max-width: 52rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--text-color-secondary);
+}
+
+.settings-channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.75rem;
+}
+
+.settings-channel-tile {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
+  gap: 0.875rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.875rem 1rem;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
   background: var(--surface-card);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--surface-border);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.stat-card-modern:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
   border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-channel-tile:hover {
+  border-color: var(--primary-200);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  background: var(--surface-hover);
+}
+
+.settings-channel-tile:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+:host-context(.layout-theme-dark) .settings-channel-tile:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.settings-channel-icon {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--primary-100);
-  color: var(--primary-600);
+  border-radius: 10px;
+  background: var(--surface-ground);
+  color: var(--primary-color);
+  font-size: 1.15rem;
+}
+
+.settings-channel-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.settings-channel-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+}
+
+.settings-channel-hint {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-color-secondary);
+}
+
+.settings-channel-go {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  color: var(--text-color-secondary);
+  opacity: 0.7;
+}
+
+.settings-channel-tile:hover .settings-channel-go {
+  color: var(--primary-color);
+  opacity: 1;
+}
+
+.settings-inset-panel {
+  background: var(--surface-ground);
+}
+
+/* Business activity profile — selected state */
+.settings-profile-card {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-profile-card--selected {
+  border-color: color-mix(in srgb, var(--primary-color) 35%, var(--surface-border)) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+
+.settings-profile-card--dirty.settings-profile-card--selected {
+  border-color: color-mix(in srgb, var(--orange-500) 45%, var(--surface-border)) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--orange-500) 18%, transparent);
+}
+
+.settings-profile-hero {
+  padding: 1rem 1.25rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary-color) 10%, var(--surface-ground)) 0%,
+    var(--surface-ground) 55%
+  );
+  border-bottom: 1px solid var(--surface-border);
+}
+
+:host-context(.layout-theme-dark) .settings-profile-hero {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary-color) 18%, var(--surface-ground)) 0%,
+    var(--surface-ground) 50%
+  );
+}
+
+.settings-profile-hero-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--primary-color) 18%, var(--surface-card));
+  color: var(--primary-color);
+  font-size: 1.35rem;
   flex-shrink: 0;
 }
 
-.stat-icon i {
-  font-size: 1.25rem;
-}
-
-.stat-icon.configs {
-  background: var(--blue-100);
-  color: var(--blue-600);
-}
-
-.stat-icon.banks {
-  background: var(--green-100);
-  color: var(--green-600);
-}
-
-.stat-icon.active {
-  background: var(--emerald-100);
-  color: var(--emerald-600);
-}
-
-.stat-icon.currency {
-  background: var(--amber-100);
-  color: var(--amber-600);
-}
-
-:host-context(.layout-theme-dark) .stat-icon {
-  background: rgba(var(--primary-500-rgb), 0.15);
-}
-
-:host-context(.layout-theme-dark) .stat-icon.configs {
-  background: rgba(59, 130, 246, 0.15);
-}
-
-:host-context(.layout-theme-dark) .stat-icon.banks {
-  background: rgba(34, 197, 94, 0.15);
-}
-
-:host-context(.layout-theme-dark) .stat-icon.active {
-  background: rgba(16, 185, 129, 0.15);
-}
-
-:host-context(.layout-theme-dark) .stat-icon.currency {
-  background: rgba(245, 158, 11, 0.15);
-}
-
-.stat-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 500;
+.settings-profile-hero-kicker {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-color-secondary);
-  margin-bottom: 0.25rem;
 }
 
-.stat-value {
-  font-size: 1.5rem;
+.settings-profile-hero-name {
+  font-size: 1.2rem;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text-color);
-  line-height: 1.2;
+  line-height: 1.3;
+}
+
+.settings-profile-hero-meta {
+  max-width: 40rem;
+}
+
+.settings-profile-body {
+  background: var(--surface-ground);
+}
+
+.settings-profile-checklist {
+  background: var(--surface-card);
+}
+
+.settings-profile-checklist-head {
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.settings-profile-checklist-item {
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.settings-profile-checklist-item--last {
+  border-bottom: none;
+}
+
+.settings-profile-checklist-row {
+  padding: 0.85rem 0.35rem;
+}
+
+.settings-profile-checklist-item:hover {
+  background: var(--surface-hover);
+  border-radius: 8px;
+}
+
+/* Tab shell: nav + content share one frame */
+.settings-tab-shell {
+  background: var(--surface-card);
+}
+
+.settings-workspace-lead {
+  max-width: 52rem;
+  font-size: 0.9375rem;
+}
+
+.settings-tab-label {
+  font-weight: 600;
+  font-size: 0.9375rem;
 }
 
 /* =====================================================
-   Tabs
+   Tabs — pill style (inside .settings-tab-shell)
    ===================================================== */
-::ng-deep .settings-tabs {
-  margin: 2rem 2.5rem;
-  max-width: 1400px;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 0 2.5rem;
+::ng-deep .settings-tab-shell .settings-tabs {
+  margin: 0;
+  max-width: 100%;
+  padding: 0;
 }
 
-::ng-deep .settings-tabs .p-tabview-nav {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid var(--surface-border);
-  padding: 0;
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
+  background: var(--surface-ground);
+  border: none;
+  border-bottom: 1px solid var(--surface-border);
+  padding: 0.65rem 0.85rem;
 }
 
-::ng-deep .settings-tabs .p-tabview-nav li {
-  margin-right: 0.5rem;
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav li {
+  margin: 0;
+  flex: 0 0 auto;
 }
 
-::ng-deep .settings-tabs .p-tabview-nav-link {
-  background: transparent !important;
-  border: none !important;
-  border-bottom: 3px solid transparent !important;
-  border-radius: 0 !important;
-  padding: 1rem 1.5rem !important;
-  margin-bottom: -2px;
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav-link {
+  border: 1px solid transparent !important;
+  border-radius: 2rem !important;
+  padding: 0.5rem 1.15rem !important;
+  margin: 0 !important;
   font-weight: 600;
+  font-size: 0.875rem;
   color: var(--text-color-secondary);
-  transition: all 0.2s ease;
-}
-
-::ng-deep .settings-tabs .p-tabview-nav-link:hover {
-  background: var(--surface-hover) !important;
-  color: var(--text-color);
-}
-
-::ng-deep .settings-tabs .p-tabview-selected .p-tabview-nav-link,
-::ng-deep .settings-tabs .p-highlight .p-tabview-nav-link {
-  color: var(--primary-color) !important;
-  border-bottom-color: var(--primary-color) !important;
   background: transparent !important;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-::ng-deep .settings-tabs .p-tabview-panels {
-  background: transparent;
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav-link:hover {
+  color: var(--text-color) !important;
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+}
+
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-selected .p-tabview-nav-link,
+::ng-deep .settings-tab-shell .settings-tabs .p-highlight .p-tabview-nav-link {
+  color: var(--primary-color) !important;
+  background: color-mix(in srgb, var(--primary-color) 16%, var(--surface-card)) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: none;
+}
+
+:host-context(.layout-theme-dark) ::ng-deep .settings-tab-shell .settings-tabs .p-highlight .p-tabview-nav-link {
+  background: color-mix(in srgb, var(--primary-color) 22%, var(--surface-ground)) !important;
+}
+
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-ink-bar {
+  display: none;
+}
+
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-panels {
+  background: var(--surface-ground);
   padding: 0;
   border: none;
 }
 
-::ng-deep .settings-tabs .p-tabview-panel {
+::ng-deep .settings-tab-shell .settings-tabs .p-tabview-panel {
   padding: 0;
 }
 
@@ -300,6 +460,178 @@
 }
 
 /* =====================================================
+   Global parameters — toolbar (search, category, view, advanced)
+   ===================================================== */
+.settings-toolbar-row {
+  position: relative;
+}
+
+.settings-toolbar-row--filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-border);
+}
+
+@media screen and (min-width: 768px) {
+  .settings-toolbar-row--filters {
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+  }
+
+  .settings-filter-field--advanced {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.25rem;
+  }
+
+  .settings-filter-field--advanced > .settings-filter-label {
+    margin-bottom: 0;
+  }
+}
+
+@media screen and (min-width: 1100px) {
+  .settings-toolbar-row--filters {
+    grid-template-columns: minmax(14rem, 1.4fr) minmax(12rem, 1fr) auto;
+  }
+
+  .settings-filter-field--advanced {
+    grid-column: auto;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    padding-top: 0;
+  }
+
+  .settings-filter-field--advanced > .settings-filter-label {
+    margin-bottom: 0.35rem;
+  }
+}
+
+.settings-filter-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-filter-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.02em;
+}
+
+.settings-filter-label--switch {
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-toolbar-hint {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  max-width: 52rem;
+}
+
+::ng-deep .settings-toolbar .config-view-mode-select .p-selectbutton {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+::ng-deep .settings-toolbar .config-view-mode-select .p-button {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  border-radius: 2rem !important;
+  padding-left: 0.65rem !important;
+  padding-right: 0.65rem !important;
+}
+
+.compact-param-hint {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.compact-param-row {
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.compact-param-row:hover {
+  border-color: var(--primary-200);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.settings-parameters-layout {
+  width: 100%;
+}
+
+.config-jump-nav {
+  width: 100%;
+  max-width: 16rem;
+}
+
+.config-jump-nav-title {
+  letter-spacing: 0.04em;
+}
+
+@media screen and (min-width: 992px) {
+  .config-jump-nav {
+    position: sticky;
+    top: 5.5rem;
+    align-self: flex-start;
+  }
+}
+
+.scroll-target-config-cat {
+  scroll-margin-top: 5.5rem;
+}
+
+.config-count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--primary-100);
+  color: var(--primary-700);
+}
+
+:host-context(.layout-theme-dark) .config-count-pill {
+  background: var(--surface-hover);
+  color: var(--primary-200);
+}
+
+::ng-deep .config-category-panel.p-panel {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+}
+
+::ng-deep .config-category-panel .p-panel-header {
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+::ng-deep .config-category-panel .p-panel-content {
+  background: var(--surface-ground);
+  padding: 0 1rem 1rem;
+}
+
+/* =====================================================
    Settings Grid
    ===================================================== */
 .settings-grid {
@@ -309,9 +641,40 @@
   margin-top: 1.5rem;
 }
 
+.config-parameters-panels .settings-grid {
+  margin-top: 0;
+}
+
 /* =====================================================
    Setting Styles
    ===================================================== */
+.setting-item .detail-card > .card-header {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media screen and (min-width: 768px) {
+  .setting-item .detail-card > .card-header {
+    flex-wrap: nowrap;
+  }
+}
+
+.setting-actions {
+  margin-left: 0;
+  margin-top: 0.25rem;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media screen and (min-width: 768px) {
+  .setting-actions {
+    margin-left: 1rem;
+    margin-top: 0;
+    width: auto;
+  }
+}
+
 .setting-info {
   flex: 1;
 }
@@ -328,10 +691,6 @@
   color: var(--text-color-secondary);
   margin: 0;
   line-height: 1.4;
-}
-
-.setting-actions {
-  margin-left: 1rem;
 }
 
 .setting-value {
@@ -433,15 +792,16 @@
 }
 
 /* =====================================================
-   Button Enhancements
+   Button Enhancements (scoped — avoid table row jitter)
    ===================================================== */
-::ng-deep .p-button {
-  transition: all 0.3s ease;
+::ng-deep .settings-container .detail-card .p-button,
+::ng-deep .settings-container .settings-channel-tile .p-button {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
-::ng-deep .p-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+::ng-deep .settings-container .detail-card .p-button:not(:disabled):hover,
+::ng-deep .settings-container .settings-channel-tile .p-button:not(:disabled):hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* =====================================================
@@ -796,22 +1156,8 @@
     font-size: 1.5rem;
   }
 
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    padding: 0 0.5rem;
-  }
-
-  .stat-card-modern {
-    padding: 1rem;
-  }
-
-  .stat-value {
-    font-size: 1.25rem;
-  }
-
-  ::ng-deep .settings-tabs {
-    margin: 1.5rem 1rem;
-    padding: 0 1rem;
+  .settings-channel-grid {
+    grid-template-columns: 1fr;
   }
 
   .settings-grid {
@@ -833,29 +1179,15 @@
     font-size: 1.25rem;
   }
 
-  .stats-row {
-    grid-template-columns: 1fr 1fr;
-    margin-top: -1rem;
-  }
-
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-  }
-
-  ::ng-deep .settings-tabs .p-tabview-nav-link {
-    padding: 0.75rem 1rem !important;
-    font-size: 0.875rem;
+  ::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav-link {
+    padding: 0.45rem 0.95rem !important;
+    font-size: 0.8125rem;
   }
 }
 
 @media screen and (max-width: 576px) {
   .settings-content {
     padding: 0 0.5rem 1.5rem;
-  }
-
-  .stats-row {
-    grid-template-columns: 1fr;
   }
 
   .action-buttons {
@@ -868,8 +1200,9 @@
     max-width: 140px;
   }
 
-  ::ng-deep .settings-tabs .p-tabview-nav {
+  ::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav {
     flex-wrap: wrap;
+    padding: 0 0.25rem;
   }
 
   .settings-grid {

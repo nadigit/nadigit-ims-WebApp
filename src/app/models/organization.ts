@@ -25,4 +25,6 @@ export class Organization {
     creationDate?: Date;
     defaultLocale?: string;
     costingMethod?: string;
+    /** Backend: GENERAL_RETAIL | FASHION | PHARMACY | RESTAURANT | WHOLESALE */
+    businessActivityProfile?: string;
 } 

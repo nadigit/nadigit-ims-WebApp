@@ -11,6 +11,7 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { BatchMetadataUtil } from 'src/app/utils/batch-metadata.util';
 import { firstValueFrom } from 'rxjs';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 
 @Component({
   selector: 'app-transfer-details-page',
@@ -50,7 +51,8 @@ export class TransferDetailsPageComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private translateService: TranslationService,
-    private configService: AppConfigurationService
+    private configService: AppConfigurationService,
+    public activityProfileService: ActivityProfileService,
   ) {}
 
   async ngOnInit() {
@@ -67,6 +69,7 @@ export class TransferDetailsPageComponent implements OnInit {
     });
 
     this.route.params.subscribe(async params => {
+      await this.activityProfileService.ensureLoaded();
       this.transferId = +params['id'];
       if (!this.transferId || isNaN(this.transferId)) {
         this.messageService.add({

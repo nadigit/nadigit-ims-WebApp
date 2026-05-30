@@ -8,7 +8,7 @@ export interface PurchaseCredit {
   amount?: number;
   creditDate?: Date | string;
   status?: string;
-  creditMethod?: string; // CASH, TRANSFER, CHECK, BOE
+  creditMethod?: string; // Backend RefundMethod: Cash, Card, Check, Transfer, BOE, DIGITAL_WALLET
   bankAccountId?: number;
   checkNumber?: string;
   checkExpirationDate?: Date | string;

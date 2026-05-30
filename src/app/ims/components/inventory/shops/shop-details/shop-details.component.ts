@@ -22,6 +22,8 @@ import { ReportingService } from 'src/app/utils/reporting.service';
 import { ShopFormDialogComponent, ShopFormDialogConfig, ShopFormDialogData } from '../shop-form-dialog/shop-form-dialog.component';
 import { PosService } from 'src/app/services/pos.service';
 import { POSSessionDTO } from 'src/app/models/pos';
+import { BankAccountService } from 'src/app/services/bank-account.service';
+import { BankAccount } from 'src/app/models/bank-account';
 
 @Component({
   templateUrl: './shop-details.component.html',
@@ -76,7 +78,7 @@ export class ShopDetailsComponent implements OnInit {
   filteredMovements: CashMovement[] = [];
   filteredCollections: CashCollection[] = [];
   cashRegisterStats: any = {};
-  movementTypeOptions: string[] = [];
+  movementTypeOptions: { label: string; value: string }[] = [];
   movementSearchTerm: string = '';
   collectionSearchTerm: string = '';
   selectedMovementTypeFilter: string | null = null;
@@ -102,6 +104,8 @@ export class ShopDetailsComponent implements OnInit {
   posSessionsPage = 0;
   posSessionsPageSize = 10;
 
+  bankAccounts: BankAccount[] = [];
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -118,6 +122,7 @@ export class ShopDetailsComponent implements OnInit {
     private cashRegisterService: CashRegisterService,
     private reportingService: ReportingService,
     private posService: PosService,
+    private bankAccountService: BankAccountService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone
   ) { }
@@ -560,7 +565,10 @@ export class ShopDetailsComponent implements OnInit {
       this.movements.forEach(m => {
         if (m.type) types.add(m.type);
       });
-      this.movementTypeOptions = Array.from(types);
+      this.movementTypeOptions = Array.from(types).map((type) => ({
+        label: this.translate.instant('movement_' + type.toLowerCase()),
+        value: type,
+      }));
     } catch (error) {
       console.error('❌ Failed to load movements:', error);
       this.movements = [];
@@ -963,6 +971,17 @@ export class ShopDetailsComponent implements OnInit {
     }
   }
 
+  private async loadBankAccounts(): Promise<void> {
+    try {
+      const accounts$ = await this.bankAccountService.getBankAccounts(true);
+      const response = await firstValueFrom(accounts$);
+      this.bankAccounts = response as BankAccount[];
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+      this.bankAccounts = [];
+    }
+  }
+
   async saveCashRegister(id: any, cashRegister: any): Promise<any> {
     try {
       await firstValueFrom(this.shopService.updateCashRegister(id, cashRegister));
@@ -974,12 +993,14 @@ export class ShopDetailsComponent implements OnInit {
     }
   }
 
-  editShop(): void {
+  async editShop(): Promise<void> {
     if (!this.shop) return;
+    await this.loadBankAccounts();
+    const shopCopy = { ...this.shop } as Shop;
     this.shopDialogConfig = {
       visible: true,
       mode: 'edit',
-      shop: { ...this.shop },
+      shop: shopCopy,
     };
   }
 
@@ -1008,15 +1029,6 @@ export class ShopDetailsComponent implements OnInit {
     }
   }
 
-
-  filterCountry(value: any, filter: string): boolean {
-    const normalizedFilter = filter.toLowerCase();
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
-  }
-
   saveShop(): void {
     this.submitted = true;
     if (!this.shop?.shopName) {
@@ -1027,6 +1039,21 @@ export class ShopDetailsComponent implements OnInit {
         life: 3000
       });
       return;
+    }
+
+    let bankId: number | undefined = this.shop.defaultBankAccountId as number | undefined;
+    if (bankId == null && this.shop.defaultBankAccount && typeof this.shop.defaultBankAccount === 'object') {
+      bankId = (this.shop.defaultBankAccount as BankAccount).accountId;
+    }
+    if (bankId != null && String(bankId).trim() !== '') {
+      const n = Number(bankId);
+      this.shop.defaultBankAccountId = Number.isFinite(n) ? n : undefined;
+      this.shop.defaultBankAccount = this.shop.defaultBankAccountId
+        ? ({ accountId: this.shop.defaultBankAccountId } as BankAccount)
+        : undefined;
+    } else {
+      this.shop.defaultBankAccountId = undefined;
+      this.shop.defaultBankAccount = undefined;
     }
 
     if (this.shop.shopId) {

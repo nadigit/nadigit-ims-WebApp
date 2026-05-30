@@ -17,6 +17,7 @@ import { OrganizationChartModule } from 'primeng/organizationchart';
 import { MessageService } from 'primeng/api';
 import { MaintenanceInterceptor } from './interceptors/maintenance.interceptor';
 import { BackendUnavailableInterceptor } from './interceptors/backend-unavailable.interceptor';
+import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
 
 
 
@@ -36,6 +37,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
         initOptions: {
             onLoad: 'login-required',  // automatically checks login state
             checkLoginIframe: false,  // iframe to monitor login session
+            redirectUri: buildKeycloakRedirectUri(),
             // silentCheckSsoRedirectUri:
             //     window.location.origin + '/assets/keycloak/silent-check-sso.html',
             // You can enable token refresh handling

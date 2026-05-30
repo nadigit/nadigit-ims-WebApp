@@ -23,6 +23,12 @@ import {
   PaymentTimelineEvent
 } from 'src/app/shared/payment-utils';
 import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
+import {
+  bankReconciliationCommands,
+  bankingAccountsListCommands,
+  reconciliationNavTargetsFromTransactions,
+  ReconciliationNavTarget
+} from 'src/app/shared/bank-reconciliation-navigation.utils';
 
 @Component({
   selector: 'app-purchase-payment-details-page',
@@ -464,6 +470,18 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
       return true; // No reconciliation required
     }
     return !this.reconciliationStatus || this.reconciliationStatus.canProceed;
+  }
+
+  reconciliationNavTargets(): ReconciliationNavTarget[] {
+    return reconciliationNavTargetsFromTransactions(this.reconciliationStatus?.transactions);
+  }
+
+  navigateToBankReconciliation(accountId: number): void {
+    void this.router.navigate(bankReconciliationCommands(accountId));
+  }
+
+  navigateToBankingAccounts(): void {
+    void this.router.navigate(bankingAccountsListCommands());
   }
 
   async openConfirmPayment(): Promise<void> {

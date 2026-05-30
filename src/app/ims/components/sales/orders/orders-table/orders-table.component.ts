@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { LazyLoadEvent } from 'primeng/api';
 import { Customer } from 'src/app/models/customer';
@@ -18,7 +18,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   templateUrl: './orders-table.component.html',
   styleUrls: ['./orders-table.component.css', '../orders.component.css', '../../sales.component.css']
 })
-export class OrdersTableComponent {
+export class OrdersTableComponent implements OnChanges {
   @Input() orders: Order[] = [];
   @Input() cols: any[] = [];
   @Input() pageSize = 20;
@@ -37,6 +37,8 @@ export class OrdersTableComponent {
   @Input() canReadOrder = false;
   @Input() canProcessOrder = false;
   @Input() canCancelOrder = false;
+  /** When true, action tooltips use document-chain wording (sales.process.mode = DOCUMENT_CHAIN). */
+  @Input() salesDocumentChainMode = false;
   @Input() currency: string = 'USD';
   @Input() expandedRows: { [key: number]: boolean } = {};
   @Input() selectedOrders: Order[] = [];
@@ -53,6 +55,8 @@ export class OrdersTableComponent {
   @Input() shops: Shop[] = [];
   @Input() statuses: any[] = [];
   @Input() paymentStatuses: any[] = [];
+  /** Synced from parent when URL or menu applies ?orderStatus= */
+  @Input() orderStatusFilter: string | null = null;
 
   // Filter properties
   selectedOrderStatus: string | null = null;
@@ -91,6 +95,30 @@ export class OrdersTableComponent {
   }>();
 
   constructor(private translate: TranslateService) { }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['orderStatusFilter']) {
+      this.selectedOrderStatus = this.orderStatusFilter ?? null;
+    }
+  }
+
+  tooltipProcessOrder(): string {
+    return this.salesDocumentChainMode
+      ? this.translate.instant('doc_chain_tooltip_confirm_processing')
+      : this.translate.instant('process_order_button');
+  }
+
+  tooltipDeliverOrder(): string {
+    return this.salesDocumentChainMode
+      ? this.translate.instant('doc_chain_tooltip_record_delivery')
+      : this.translate.instant('deliver_order_button');
+  }
+
+  tooltipCompleteOrder(): string {
+    return this.salesDocumentChainMode
+      ? this.translate.instant('doc_chain_tooltip_close_document')
+      : this.translate.instant('complete_order_button');
+  }
 
   onSelectionChange(event: Payment[]) {
     this.selectedOrdersChange.emit(event);

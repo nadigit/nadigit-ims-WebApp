@@ -32,7 +32,6 @@ export class SupplierFormDialogComponent implements OnInit, OnChanges {
 
   selectedCountry: any = null;
   states: any = null;
-  filterCountry: string = '';
 
   constructor(
     private locationService: LocationService,

@@ -3,6 +3,21 @@ import { Supplier } from "./supplier";
 import { PurchaseItem } from "./purchaseItem";
 import { Payment } from "./payment";
 
+export interface PurchaseAttachment {
+    id: number;
+    fileUrl: string;
+    originalFilename?: string;
+    contentType?: string;
+    documentType?: string;
+    notes?: string;
+    uploadedAt: string;
+    uploadedBy?: string;
+}
+
+export interface PurchaseAttachmentTypeConfig {
+    code: string;
+    required: boolean;
+}
 
 export class Purchase { 
     purchaseId?: number;
@@ -25,8 +40,14 @@ export class Purchase {
     boeExpirationDate?: Date | string;
     discount?:number;
     taxEnabled?:boolean;
+    dutyFreeAmount?: number;
+    taxAmount?: number;
+    /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
+    taxRateUsed?: number;
     creationDate?: Date;
     invoice?:string;
     shop?:Shop;
     payments?: Array<Payment>;
+    /** Admin: where goods are received; backend resolves SKU rows in this warehouse. */
+    receivingWarehouseId?: number;
 } 

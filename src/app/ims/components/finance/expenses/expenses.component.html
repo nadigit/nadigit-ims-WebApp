@@ -312,7 +312,8 @@
 
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="Transfer" [(ngModel)]="expense.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod4" (onChange)="onPaymentMethodChange()"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod4" (onChange)="onPaymentMethodChange()"
+                                [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
                             <label for="paymentMethod4" class="ml-2">{{'payment_method_transfer' | translate}}</label>
                         </div>
 
@@ -324,12 +325,14 @@
 
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="Check" [(ngModel)]="expense.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod3" (ngModelChange)="onPaymentMethodChange()"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod3" (ngModelChange)="onPaymentMethodChange()"
+                                [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
                             <label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
                         </div>
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="BOE" [(ngModel)]="expense.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod5" (onChange)="onPaymentMethodChange()"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod5" (onChange)="onPaymentMethodChange()"
+                                [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
                             <label for="paymentMethod5" class="ml-2">{{'payment_method_boe' | translate}}</label>
                         </div>
                     </div>

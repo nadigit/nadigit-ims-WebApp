@@ -28,6 +28,7 @@ import { BankAccount } from 'src/app/models/bank-account';
 import { ShopFormDialogComponent, ShopFormDialogConfig, ShopFormDialogData } from './shop-form-dialog/shop-form-dialog.component';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 @Component({
   templateUrl: './shops.component.html',
@@ -141,6 +142,7 @@ export class ShopsComponent implements OnInit {
 
   userRoles: any;
   isAdmin: boolean = false;
+  maxShopsCap: number | null = null;
 
   newDepositDialogVisible = false;
   newDeposit = { amount: null, notes: '' };
@@ -167,7 +169,8 @@ export class ShopsComponent implements OnInit {
     private ngZone: NgZone,
     private router: Router,
     private bankAccountService: BankAccountService,
-    private organizationService: OrganizationService) { }
+    private organizationService: OrganizationService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
 
   async ngOnInit() {
     const defaultStartDate = new Date();
@@ -189,6 +192,8 @@ export class ShopsComponent implements OnInit {
     });
     await this.setUserRoles();
     await this.checkPermissions();
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.refreshPlanLimits();
     this.onGetAllShops();
     // this.onGetCurrecy();
 
@@ -211,6 +216,16 @@ export class ShopsComponent implements OnInit {
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
+  }
+
+  get isAtShopsCapacity(): boolean {
+    return this.maxShopsCap != null && (this.shops?.length || 0) >= this.maxShopsCap;
+  }
+
+  private refreshPlanLimits(): void {
+    const snap = this.licenseCapabilitiesService.getSnapshot();
+    const maxShops = snap?.tierLimits?.maxShops;
+    this.maxShopsCap = maxShops == null || maxShops < 0 ? null : maxShops;
   }
 
   getPurchaseStatusSeverity(status: string): string {
@@ -597,10 +612,7 @@ export class ShopsComponent implements OnInit {
 
   async editShop(shop: Shop) {
     await this.loadBankAccounts();
-    // Ensure defaultBankAccount is set if defaultBankAccountId exists
-    if (shop.defaultBankAccountId && !shop.defaultBankAccount) {
-      shop.defaultBankAccount = this.bankAccounts.find(acc => acc.accountId === shop.defaultBankAccountId) || undefined;
-    }
+    // Form dropdown uses defaultBankAccountId; normalization runs inside shop-form-dialog
     this.shopDialogConfig = {
       visible: true,
       mode: 'edit',
@@ -663,6 +675,15 @@ export class ShopsComponent implements OnInit {
   }
 
   async openNew() {
+    if (this.isAtShopsCapacity) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('license_update_toast_title'),
+        detail: `Shop limit reached for current plan (${this.maxShopsCap}).`,
+        life: 4000
+      });
+      return;
+    }
     await this.loadBankAccounts();
     this.shopDialogConfig = {
       visible: true,
@@ -685,13 +706,20 @@ export class ShopsComponent implements OnInit {
   saveShop() {
     this.submitted = true;
     console.log(this.shop);
-    // Set defaultBankAccountId from defaultBankAccount if it's an object
-    if (this.shop.defaultBankAccount && typeof this.shop.defaultBankAccount === 'object') {
-      this.shop.defaultBankAccountId = (this.shop.defaultBankAccount as BankAccount).accountId;
-    } else if (this.shop.defaultBankAccount && typeof this.shop.defaultBankAccount === 'number') {
-      this.shop.defaultBankAccountId = this.shop.defaultBankAccount;
-    } else if (!this.shop.defaultBankAccount) {
+    // Dropdown binds defaultBankAccountId (optionValue); API may still send nested defaultBankAccount
+    let bankId: number | undefined = this.shop.defaultBankAccountId as number | undefined;
+    if (bankId == null && this.shop.defaultBankAccount && typeof this.shop.defaultBankAccount === 'object') {
+      bankId = (this.shop.defaultBankAccount as BankAccount).accountId;
+    }
+    if (bankId != null && String(bankId).trim() !== '') {
+      const n = Number(bankId);
+      this.shop.defaultBankAccountId = Number.isFinite(n) ? n : undefined;
+      this.shop.defaultBankAccount = this.shop.defaultBankAccountId
+        ? ({ accountId: this.shop.defaultBankAccountId } as BankAccount)
+        : undefined;
+    } else {
       this.shop.defaultBankAccountId = undefined;
+      this.shop.defaultBankAccount = undefined;
     }
     if (this.shop.shopName) {
       if (this.shop.shopId) {
@@ -829,6 +857,7 @@ export class ShopsComponent implements OnInit {
       .subscribe({
         next: (response: any) => {
           this.shops = response;
+          this.refreshPlanLimits();
           this.shops.forEach((shop: any) => (shop.creationDate = new Date(<Date>shop.creationDate)));
           console.log(this.shops);
         },
@@ -954,18 +983,6 @@ export class ShopsComponent implements OnInit {
   onChangeCountry() {
     this.shop.city = undefined;
     console.log("clear city")
-  }
-
-
-  filterCountry(value: any, filter: string): boolean {
-    // Convert both to lowercase for case-insensitive comparison
-    const normalizedFilter = filter.toLowerCase();
-
-    // Check both original name and translated name
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
   }
 
   openCashRegisterDialog(shop: any): void {

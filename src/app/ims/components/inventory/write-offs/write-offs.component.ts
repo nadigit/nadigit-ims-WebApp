@@ -1,7 +1,7 @@
-import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { LazyLoadEvent, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { InventoryWriteOff, WriteOffStatus, WriteOffSourceType } from 'src/app/models/write-off';
 import { WriteOffService } from 'src/app/services/write-off.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
@@ -18,14 +18,16 @@ import { WriteOffCreateComponent } from './write-off-create/write-off-create.com
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 @Component({
   templateUrl: './write-offs.component.html',
   styleUrls: ['./write-offs.component.css', '../inventory.component.css'],
   providers: [MessageService, DatePipe]
 })
-export class WriteOffsComponent implements OnInit {
+export class WriteOffsComponent implements OnInit, OnDestroy {
   @ViewChild('dt') table!: Table;
 
   // List view
@@ -85,6 +87,9 @@ export class WriteOffsComponent implements OnInit {
   requireManualWriteOffApproval: boolean = false;
   
   resource: string = 'INVENTORY_WRITE_OFFS';
+  isWriteOffFeatureEnabled: boolean = true;
+
+  private readonly destroy$ = new Subject<void>();
   
   exportColumns!: ExportColumn[];
 
@@ -99,13 +104,23 @@ export class WriteOffsComponent implements OnInit {
     private keycloakService: KeycloakService,
     private cdr: ChangeDetectorRef,
     private router: Router,
+    private route: ActivatedRoute,
     private configService: AppConfigurationService,
     private reportingService: ReportingService,
     private organizationService: OrganizationService,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private licenseCapabilitiesService: LicenseCapabilitiesService
   ) {}
 
   async ngOnInit() {
+    const qpStatus = this.route.snapshot.queryParamMap.get('status');
+    if (qpStatus) {
+      const upper = qpStatus.trim().toUpperCase();
+      if (['PENDING', 'APPROVED', 'REJECTED'].includes(upper)) {
+        this.selectedStatus = upper;
+      }
+    }
+
     // Load currency
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -115,8 +130,17 @@ export class WriteOffsComponent implements OnInit {
     });
     await this.configService.loadCurrencyOnce();
     await this.loadWriteOffAutoApproveConfig();
+
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'writeoff.auto.approve') {
+          void this.loadWriteOffAutoApproveConfig().then(() => this.cdr.markForCheck());
+        }
+      });
     
     await this.setPermissions();
+    await this.loadLicenseCapabilities();
     await this.setUserRoles();
     await this.initializeTranslations();
     await this.loadInitialData();
@@ -133,6 +157,11 @@ export class WriteOffsComponent implements OnInit {
       { title: this.translateService.instant('status'), dataKey: 'status' },
       { title: this.translateService.instant('write_off_date'), dataKey: 'writeOffDate' }
     ];
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private async loadWriteOffAutoApproveConfig(): Promise<void> {
@@ -167,6 +196,25 @@ export class WriteOffsComponent implements OnInit {
     } catch (error) {
       console.error('Error setting permissions:', error);
     }
+  }
+
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.isWriteOffFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('WRITE_OFFS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for write-offs.', error);
+      this.isWriteOffFeatureEnabled = true;
+    }
+  }
+
+  private showUpgradeRequired(detail: string): void {
+    this.messageService.add({
+      severity: 'warn',
+      summary: 'Upgrade required',
+      detail,
+      life: 7000
+    });
   }
 
   async initializeTranslations() {
@@ -569,6 +617,10 @@ export class WriteOffsComponent implements OnInit {
   private lastWriteOffCreated: boolean = false;
 
   navigateToCreate() {
+    if (!this.isWriteOffFeatureEnabled) {
+      this.showUpgradeRequired('Write-offs are not available on your current plan. Upgrade to continue.');
+      return;
+    }
     this.showCreateDialog = true;
   }
 

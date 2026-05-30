@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
@@ -15,7 +15,8 @@ import { Order } from 'src/app/models/order';
 import { Product } from 'src/app/models/product';
 import { Refund } from 'src/app/models/refund';
 import { ReturnStatus } from 'src/app/enums/return-status.enum';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { getQuantitySeverity, getMeasureUnit } from 'src/app/shared/product-utils';
 
 @Component({
@@ -23,7 +24,7 @@ import { getQuantitySeverity, getMeasureUnit } from 'src/app/shared/product-util
   templateUrl: './return-details-page.component.html',
   styleUrls: ['./return-details-page.component.css', '../returns.component.css']
 })
-export class ReturnDetailsPageComponent implements OnInit {
+export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
   returnId!: number;
   return: OrderReturn | null = null;
   isLoading: boolean = true;
@@ -39,6 +40,8 @@ export class ReturnDetailsPageComponent implements OnInit {
   
   lowStockThreshold: number = 10;
   returnNoteDocNumber: string | null = null;
+
+  private readonly destroy$ = new Subject<void>();
 
   /** Status milestones for the order-return workflow (same pattern as purchase returns / order details). */
   returnEvents: Array<{ status: string; date: Date | string | null; icon: string }> = [];
@@ -73,17 +76,15 @@ export class ReturnDetailsPageComponent implements OnInit {
       this.translate.use(lang);
     });
 
-    // Get low stock threshold
-    try {
-      const thresholdObservable = await this.configService.getConfiguration('lowStockThreshold');
-      const threshold = await firstValueFrom(thresholdObservable);
-      this.lowStockThreshold = (threshold !== undefined && threshold !== null && (threshold as any).value !== undefined)
-        ? Number((threshold as any).value)
-        : 10;
-    } catch (error) {
-      console.error('Error fetching low stock threshold:', error);
-      this.lowStockThreshold = 10;
-    }
+    await this.loadLowStockThreshold();
+
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'lowStockThreshold') {
+          void this.loadLowStockThreshold();
+        }
+      });
 
     this.route.params.subscribe(async params => {
       this.returnId = +params['id'];
@@ -101,6 +102,25 @@ export class ReturnDetailsPageComponent implements OnInit {
       await this.setUserRoles();
       await this.loadReturn();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private async loadLowStockThreshold(): Promise<void> {
+    try {
+      const thresholdObservable = await this.configService.getConfiguration('lowStockThreshold');
+      const threshold = await firstValueFrom(thresholdObservable);
+      this.lowStockThreshold =
+        threshold !== undefined && threshold !== null && (threshold as any).value !== undefined
+          ? Number((threshold as any).value)
+          : 10;
+    } catch (error) {
+      console.error('Error fetching low stock threshold:', error);
+      this.lowStockThreshold = 10;
+    }
   }
 
   async loadReturn(): Promise<void> {

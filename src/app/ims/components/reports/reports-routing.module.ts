@@ -1,12 +1,14 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { AuthGuard } from 'src/app/guards/auth.guard';
+import { LicenseFeatureGuard } from 'src/app/guards/license-feature.guard';
 import { ReportsShellComponent } from './reports-shell/reports-shell.component';
 import { ReportsDefaultRedirectComponent } from './reports-default-redirect/reports-default-redirect.component';
 import { SalesSummaryReportComponent } from './sales-summary-report/sales-summary-report.component';
 import { PurchaseSummaryReportComponent } from './purchase-summary-report/purchase-summary-report.component';
 import { InventorySnapshotReportComponent } from './inventory-snapshot-report/inventory-snapshot-report.component';
 import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-analysis-report.component';
+import { ForecastingReportComponent } from './forecasting-report/forecasting-report.component';
 import { CreditReportsComponent } from '../finance/credit-management/credit-reports/credit-reports.component';
 
 const routes: Routes = [
@@ -20,32 +22,38 @@ const routes: Routes = [
       {
         path: 'sales',
         component: SalesSummaryReportComponent,
-        canActivate: [AuthGuard],
-        data: { roles: ['ADMIN'] }
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
       },
       {
         path: 'purchases',
         component: PurchaseSummaryReportComponent,
-        canActivate: [AuthGuard],
-        data: { roles: ['ADMIN'] }
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
       },
       {
         path: 'inventory',
         component: InventorySnapshotReportComponent,
-        canActivate: [AuthGuard],
-        data: { roles: ['ADMIN'] }
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
       },
       {
         path: 'profit',
         component: ProfitAnalysisReportComponent,
-        canActivate: [AuthGuard],
-        data: { roles: ['ADMIN'] }
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
+      },
+      {
+        path: 'forecasting',
+        component: ForecastingReportComponent,
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN'], licenseFeature: 'AI_FORECASTING' }
       },
       {
         path: 'credit',
         component: CreditReportsComponent,
-        canActivate: [AuthGuard],
-        data: { roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] }
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
       }
     ]
   }

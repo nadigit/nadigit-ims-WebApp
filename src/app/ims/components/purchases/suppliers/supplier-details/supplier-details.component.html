@@ -426,7 +426,7 @@
                                 <ng-template pTemplate="body" let-product>
                                     <tr>
                                         <td>
-                                            <img [src]="product.productImage || 'assets/core-images/no-image.png'"
+                                            <img [src]="product | productImage"
                                                 [alt]="product.name" class="product-table-image">
                                         </td>
                                         <td>

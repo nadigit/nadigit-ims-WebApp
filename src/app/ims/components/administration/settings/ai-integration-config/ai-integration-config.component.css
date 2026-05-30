@@ -1,0 +1,84 @@
+.ai-integration-page {
+  max-width: 960px;
+}
+
+.ai-param-card h3 {
+  word-break: break-word;
+}
+
+.ai-step-card {
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  height: 100%;
+  background: var(--surface-ground);
+}
+
+.ai-step-index {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.ai-preset-card {
+  background: var(--surface-ground);
+}
+
+.ai-health-row {
+  border: 1px solid var(--surface-border);
+}
+
+.ai-health-row--ok {
+  background: #f0fdf4;
+}
+
+.ai-health-row--warn {
+  background: #fff7ed;
+}
+
+/* Keep status card copy readable in both light/dark themes. */
+.ai-health-title,
+.ai-health-subtitle,
+.ai-health-check-label {
+  color: var(--text-color);
+}
+
+.ai-health-row--ok .ai-health-title {
+  color: #14532d;
+}
+
+.ai-health-row--ok .ai-health-subtitle {
+  color: #166534;
+}
+
+.ai-health-row--ok .ai-health-check-label {
+  color: #15803d;
+}
+
+.ai-health-row--warn .ai-health-title {
+  color: #9a3412;
+}
+
+.ai-health-row--warn .ai-health-subtitle {
+  color: #c2410c;
+}
+
+.ai-health-row--warn .ai-health-check-label {
+  color: #b45309;
+}
+
+.ai-narrative-panel {
+  border-left: 3px solid var(--primary-color);
+}
+
+.ai-narrative-block {
+  background: var(--surface-card);
+}

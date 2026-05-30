@@ -11,6 +11,19 @@
         </div>
 
         <div class="card px-6 py-6">
+            <div *ngIf="isStarterPlan" class="mb-3 p-3 border-round surface-100 border-1 border-yellow-400">
+                <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-3">
+                    <div>
+                        <div class="font-semibold text-900 mb-1">Starter plan limits</div>
+                        <div class="text-700">
+                            Only one admin user is allowed, and role management is locked.
+                            Upgrade to create more users and manage roles.
+                        </div>
+                    </div>
+                    <button pButton type="button" label="Upgrade plan" icon="pi pi-arrow-up-right"
+                        class="p-button-warning" (click)="goToUpgrade()"></button>
+                </div>
+            </div>
             <p-tabMenu [model]="menuItems" [activeItem]="activeItem" (activeItemChange)="onActiveItemChange($event)" />
             <br>
             <p-toast></p-toast>
@@ -21,8 +34,8 @@
                     <!-- Conditionally render buttons based on the active tab -->
                     <ng-container *ngIf="activeItem?.icon == 'pi pi-fw pi-user'; else rolesTab">
                         <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
-                            class="p-button-success" (click)="openNew()"
-                            pTooltip="{{'add_new_user'|translate}}"></button>
+                            class="p-button-success" (click)="openNew()" [disabled]="isAtUserCapacity"
+                            [pTooltip]="isAtUserCapacity ? 'User limit reached for current plan. Upgrade to add more users.' : ('add_new_user' | translate)"></button>
                         <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
                             pTooltip="{{'delete_user'|translate}}" class="p-button-danger"
                             (click)="deleteSelected()"
@@ -30,12 +43,12 @@
                     </ng-container>
                     <ng-template #rolesTab>
                         <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
-                            class="p-button-success" (click)="openNew()"
+                            class="p-button-success" (click)="openNew()" [disabled]="isRoleManagementLocked"
                             pTooltip="{{'add_new_role'|translate}}"></button>
                         <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
                             class="p-button-danger" (click)="deleteSelected()"
-                            pTooltip="{{'delete_role'|translate}}"
-                            [disabled]="!selectedRoles || !selectedRoles.length"></button>
+                            [disabled]="isRoleManagementLocked || !selectedRoles || !selectedRoles.length"
+                            pTooltip="{{'delete_role'|translate}}"></button>
                     </ng-template>
                 </div>
             </div>
@@ -157,7 +170,7 @@
                 <ng-template pTemplate="body" let-role>
                     <tr class="cursor-pointer">
                         <td>
-                            <p-tableCheckbox [value]="role"></p-tableCheckbox>
+                            <p-tableCheckbox [value]="role" [disabled]="isSystemRole(role.name)"></p-tableCheckbox>
                         </td>
 
                         <td style="min-width:10rem;">
@@ -174,9 +187,11 @@
                                     class="p-button-rounded p-button-text p-button-info"
                                     (click)="showRoleDetails(role); $event.stopPropagation()"></button>
                                 <button pButton pRipple icon="pi pi-pencil" pTooltip="{{'update_role'|translate}}"
-                                    class="p-button-rounded p-button-text p-button-warning" (click)="editRole(role); $event.stopPropagation()"></button>
+                                    class="p-button-rounded p-button-text p-button-warning" (click)="editRole(role); $event.stopPropagation()"
+                                    [disabled]="isSystemRole(role.name)"></button>
                                 <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
-                                    (click)="deleteRole(role); $event.stopPropagation()" pTooltip="{{'delete_role'|translate}}"></button>
+                                    (click)="deleteRole(role); $event.stopPropagation()" pTooltip="{{'delete_role'|translate}}"
+                                    [disabled]="isSystemRole(role.name)"></button>
                             </div>
                         </td>
                     </tr>
@@ -186,7 +201,7 @@
 
         <p-dialog [(visible)]="userDialog" [style]="{width: '70%', height: '100%'}"
             header="{{'user_details' | translate}}" [modal]="true" class="p-fluid">
-            <div>
+            <div *ngIf="!isStarterPlan">
                 <p-steps [model]="userCreationSteps" [readonly]="false" [activeIndex]="activeIndex"
                     (activeIndexChange)="onActiveIndexChange($event)" />
                 <br>
@@ -269,7 +284,7 @@
                     </div>
 
                 </ng-container>
-                <ng-container *ngIf="isUserInfoValid">
+                <ng-container *ngIf="isUserInfoValid && !isStarterPlan">
 
                     <div class="card">
 
@@ -317,9 +332,9 @@
                 <div class="flex justify-content-between align-items-center w-full">
                     <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
                         class="p-button-text p-button-danger" (click)="hideDialog()"></button>
-                    <button pButton pRipple *ngIf="!isUserInfoValid" label="{{'next_button' | translate}}" icon="pi pi-arrow-right"
+                    <button pButton pRipple *ngIf="!isUserInfoValid && !isStarterPlan" label="{{'next_button' | translate}}" icon="pi pi-arrow-right"
                         class="p-button-raised" (click)="NextRoleDialog()"></button>
-                    <button pButton pRipple *ngIf="targetRoles?.length > 0" label="{{'save_button' | translate}}" icon="pi pi-check"
+                    <button pButton pRipple *ngIf="isStarterPlan || targetRoles?.length > 0" label="{{'save_button' | translate}}" icon="pi pi-check"
                         class="p-button-raised" (click)="saveUser()"></button>
                 </div>
             </ng-template>

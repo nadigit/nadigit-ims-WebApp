@@ -38,3 +38,59 @@
   border: 2px solid #fdba74;
 }
 
+.purchase-import-warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.purchase-import-warning-section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #7c2d12;
+  margin-bottom: 0.45rem;
+}
+
+.purchase-import-warning-section-technical .purchase-import-warning-section-title {
+  color: #475569;
+}
+
+.purchase-import-warning-next-step {
+  display: flex;
+  align-items: center;
+  font-size: 0.84rem;
+  color: #92400e;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.purchase-import-warning-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #9a3412;
+  line-height: 1.35;
+}
+
+.purchase-import-warning-item-technical {
+  border-left-color: #94a3b8;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.purchase-import-warning-icon {
+  margin-top: 0.1rem;
+  color: #d97706;
+}
+
+.purchase-import-warning-item-technical .purchase-import-warning-icon {
+  color: #64748b;
+}
+

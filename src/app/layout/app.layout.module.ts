@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { InputTextModule } from 'primeng/inputtext';
+import { InputTextareaModule } from 'primeng/inputtextarea';
 import { SidebarModule } from 'primeng/sidebar';
 import { BadgeModule } from 'primeng/badge';
 import { RadioButtonModule } from 'primeng/radiobutton';
@@ -31,6 +32,7 @@ import { ToastModule } from 'primeng/toast';
 import { DropdownModule } from 'primeng/dropdown';
 import { TagModule } from 'primeng/tag';
 import { ProgressBarModule } from 'primeng/progressbar';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 
 @NgModule({
@@ -48,6 +50,7 @@ import { ProgressBarModule } from 'primeng/progressbar';
         HttpClientModule,
         BrowserAnimationsModule,
         InputTextModule,
+        InputTextareaModule,
         SidebarModule,
         BadgeModule,
         RadioButtonModule,
@@ -68,6 +71,7 @@ import { ProgressBarModule } from 'primeng/progressbar';
         DropdownModule,
         TagModule,
         ProgressBarModule,
+        ProgressSpinnerModule,
         CashRegisterSessionModule
     ],
     exports: [AppLayoutComponent]

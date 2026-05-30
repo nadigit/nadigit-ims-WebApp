@@ -444,7 +444,7 @@
 								<ng-template pTemplate="body" let-item>
 									<tr>
 										<td>
-											<p-image [src]="item.product?.productImage || 'assets/core-images/no-image.png'"
+											<p-image [src]="item.product | productImage"
 												[alt]="item.product?.name" width="60" [preview]="true"
 												class="shadow-1 border-round"></p-image>
 										</td>

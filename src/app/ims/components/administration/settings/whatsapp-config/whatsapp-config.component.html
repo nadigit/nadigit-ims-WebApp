@@ -1,0 +1,201 @@
+<div class="integration-config-page whatsapp-config-page">
+  <p-toast></p-toast>
+
+  <div class="mb-4">
+    <div class="flex align-items-center gap-2 mb-3">
+      <button pButton pRipple icon="pi pi-arrow-left"
+        class="p-button-text p-button-rounded p-button-plain"
+        [pTooltip]="'back' | translate" tooltipPosition="bottom"
+        (click)="goBack()"></button>
+      <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+      <i class="pi pi-angle-right text-400 text-sm"></i>
+      <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+      <i class="pi pi-angle-right text-400 text-sm"></i>
+      <span class="text-700 text-sm font-medium">{{ 'whatsapp_configuration' | translate }}</span>
+    </div>
+    <div class="integration-hero">
+      <div class="integration-hero__icon" aria-hidden="true">
+        <i class="pi pi-phone"></i>
+      </div>
+      <div class="integration-hero__body">
+        <h2 class="m-0 text-900">{{ 'whatsapp_configuration' | translate }}</h2>
+        <p class="text-600 mt-2 mb-0 line-height-3">{{ 'whatsapp_configuration_description' | translate }}</p>
+      </div>
+    </div>
+    <div class="integration-status-chips mt-3">
+      <p-tag [severity]="accessTokenConfigured ? 'success' : 'warning'" [rounded]="true"
+        [value]="(accessTokenConfigured ? ('ai_status_key_set' | translate) : ('ai_status_key_missing' | translate))"></p-tag>
+      <p-tag [severity]="recipientNumbers.length > 0 ? 'success' : 'warning'" [rounded]="true"
+        [value]="('whatsapp_notification_recipients' | translate) + ': ' + recipientNumbers.length"></p-tag>
+      <p-tag [severity]="form.get('enabled')?.value ? 'success' : 'info'" [rounded]="true"
+        [value]="form.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
+    </div>
+  </div>
+
+  <div class="integration-loading surface-card border-1 surface-border border-round p-5 flex justify-content-center" *ngIf="isLoading">
+    <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+  </div>
+
+  <form [formGroup]="form" class="integration-form p-fluid" *ngIf="!isLoading">
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head">
+        <h3 class="m-0 text-900">{{ 'enable_whatsapp_notifications' | translate }}</h3>
+        <p class="text-600 text-sm m-0 mt-2">{{ 'whatsapp_help_intro' | translate }}</p>
+      </div>
+      <div class="integration-toggle-row mt-3">
+        <p-inputSwitch formControlName="enabled" [binary]="true"></p-inputSwitch>
+        <span class="font-medium text-800">{{ form.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate) }}</span>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head mb-3">
+        <h3 class="m-0 text-900">{{ 'whatsapp_access_token' | translate }}</h3>
+      </div>
+      <div class="field mb-0">
+        <label for="accessToken">{{ 'whatsapp_access_token' | translate }}</label>
+        <span class="p-input-icon-right w-full block">
+          <input id="accessToken" pInputText class="w-full" formControlName="accessToken"
+            [type]="showToken ? 'text' : 'password'"
+            [placeholder]="'whatsapp_access_token_placeholder' | translate" />
+          <i [class]="showToken ? 'pi pi-eye-slash' : 'pi pi-eye'" class="cursor-pointer"
+            (click)="showToken = !showToken"></i>
+        </span>
+        <small class="text-500 block mt-2">{{ 'whatsapp_access_token_hint' | translate }}</small>
+        <small class="text-500 block" *ngIf="accessTokenConfigured">{{ 'leave_blank_to_keep_whatsapp_token' | translate }}</small>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head mb-3">
+        <h3 class="m-0 text-900">{{ 'whatsapp_phone_number_id' | translate }}</h3>
+      </div>
+      <div class="grid">
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="phoneNumberId">{{ 'whatsapp_phone_number_id' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="phoneNumberId" pInputText class="w-full" formControlName="phoneNumberId"
+              [placeholder]="'whatsapp_phone_number_id_placeholder' | translate" />
+            <small class="text-500 block mt-2">{{ 'whatsapp_phone_number_id_hint' | translate }}</small>
+          </div>
+        </div>
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="graphApiVersion">{{ 'whatsapp_graph_api_version' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="graphApiVersion" pInputText class="w-full" formControlName="graphApiVersion"
+              placeholder="v21.0" />
+            <small class="text-500 block mt-2">{{ 'whatsapp_graph_api_version_hint' | translate }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="field mb-3">
+        <div class="integration-toggle-row">
+          <p-inputSwitch formControlName="templateSendEnabled" [binary]="true"></p-inputSwitch>
+          <span class="font-medium text-800">{{ 'whatsapp_template_send_enabled' | translate }}</span>
+        </div>
+        <small class="text-500 block mt-2">{{ 'whatsapp_template_send_hint' | translate }}</small>
+      </div>
+
+      <div class="grid" *ngIf="form.get('templateSendEnabled')?.value">
+        <div class="col-12 md:col-6">
+          <div class="field">
+            <label for="templateName">{{ 'whatsapp_template_name' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="templateName" pInputText class="w-full" formControlName="templateName"
+              [placeholder]="'whatsapp_template_name_placeholder' | translate" />
+            <small class="text-500">{{ 'whatsapp_template_name_body_hint' | translate }}</small>
+          </div>
+        </div>
+        <div class="col-12 md:col-6">
+          <div class="field">
+            <label for="templateLanguage">{{ 'whatsapp_template_language' | translate }}</label>
+            <input id="templateLanguage" pInputText class="w-full" formControlName="templateLanguage"
+              placeholder="en" />
+            <small class="text-500">{{ 'whatsapp_template_language_hint' | translate }}</small>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="field">
+            <label class="block mb-2 font-medium">{{ 'whatsapp_template_param_style' | translate }}</label>
+            <p-selectButton formControlName="templateBodyParamStyle" styleClass="flex-wrap"
+              [options]="[
+                { label: ('whatsapp_template_param_positional' | translate), value: 'positional' },
+                { label: ('whatsapp_template_param_named' | translate), value: 'named' }
+              ]"
+              optionLabel="label" optionValue="value">
+            </p-selectButton>
+            <small class="text-500 block mt-2">{{ 'whatsapp_template_param_style_hint' | translate }}</small>
+          </div>
+        </div>
+        <div class="col-12" *ngIf="form.get('templateBodyParamStyle')?.value === 'named'">
+          <div class="field mb-0">
+            <label for="templateBodyParameterName">{{ 'whatsapp_template_parameter_name' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="templateBodyParameterName" pInputText class="w-full" formControlName="templateBodyParameterName"
+              [placeholder]="'whatsapp_template_parameter_name_placeholder' | translate" />
+            <small class="text-500">{{ 'whatsapp_template_parameter_name_hint' | translate }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head mb-3">
+        <h3 class="m-0 text-900">{{ 'whatsapp_notification_recipients' | translate }}</h3>
+        <p class="text-600 text-sm m-0 mt-2">{{ 'whatsapp_recipients_hint' | translate }}</p>
+      </div>
+      <div class="integration-list-input mb-3">
+        <input type="text" pInputText class="w-full" [(ngModel)]="newRecipient"
+          [ngModelOptions]="{standalone: true}"
+          [placeholder]="'whatsapp_phone_placeholder' | translate"
+          (keydown)="onRecipientKeydown($event)" />
+        <button pButton pRipple type="button" icon="pi pi-plus" class="p-button-primary"
+          [label]="'add' | translate" (click)="addRecipient()"></button>
+      </div>
+
+      <div *ngIf="recipientNumbers.length === 0" class="integration-empty-state">
+        <i class="pi pi-inbox text-400"></i>
+        <span>{{ 'whatsapp_no_recipients' | translate }}</span>
+      </div>
+
+      <div class="integration-list" *ngIf="recipientNumbers.length > 0">
+        <div *ngFor="let num of recipientNumbers" class="integration-list-item">
+          <span class="font-mono text-sm">{{ num }}</span>
+          <button pButton pRipple type="button" icon="pi pi-trash"
+            class="p-button-text p-button-danger p-button-sm"
+            (click)="removeRecipient(num)"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="integration-actions surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1">
+      <button pButton pRipple type="button" class="p-button-outlined" icon="pi pi-send"
+        [label]="'send_test_whatsapp' | translate" (click)="openTestDialog()"
+        [disabled]="isSaving"></button>
+      <button pButton pRipple type="button" class="p-button-primary" icon="pi pi-save"
+        [label]="'save_configuration' | translate" (click)="save()"
+        [loading]="isSaving" [disabled]="isSaving"></button>
+    </div>
+  </form>
+</div>
+
+<p-dialog [(visible)]="testDialog" [header]="'test_whatsapp_dialog_title' | translate"
+  [modal]="true" [style]="{width: '480px'}" [draggable]="false" [resizable]="false">
+  <div class="field">
+    <label for="testTo">{{ 'whatsapp_test_to' | translate }} <span class="required-asterisk">*</span></label>
+    <input id="testTo" pInputText class="w-full" [(ngModel)]="testTo"
+      [placeholder]="'whatsapp_phone_placeholder' | translate" />
+  </div>
+  <div class="field">
+    <label for="testWaMsg">{{ 'whatsapp_test_message_optional' | translate }}</label>
+    <textarea id="testWaMsg" pInputTextarea rows="3" class="w-full" [(ngModel)]="testMessage"></textarea>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple type="button" class="p-button-text" icon="pi pi-times"
+      [label]="'cancel' | translate" (click)="testDialog = false"></button>
+    <button pButton pRipple type="button" class="p-button-primary" icon="pi pi-send"
+      [label]="'send' | translate" (click)="sendTest()" [loading]="isSendingTest"
+      [disabled]="isSendingTest"></button>
+  </ng-template>
+</p-dialog>

@@ -21,9 +21,16 @@ import { BankAccount } from 'src/app/models/bank-account';
 import { BankTransaction } from 'src/app/models/bank-transaction';
 import { firstValueFrom } from 'rxjs';
 import { ReconciliationValidationService, ReconciliationStatus } from 'src/app/services/reconciliation-validation.service';
+import {
+  bankReconciliationCommands,
+  bankingAccountsListCommands,
+  reconciliationNavTargetsFromTransactions,
+  ReconciliationNavTarget
+} from 'src/app/shared/bank-reconciliation-navigation.utils';
 import { DatePipe } from '@angular/common';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 @Component({
   templateUrl: './purchase-payments.component.html',
@@ -107,6 +114,7 @@ export class PurchasePaymentsComponent implements OnInit {
   // Export state
   isExporting: boolean = false;
   exportProgress: string = '';
+  isBankAccountsFeatureEnabled: boolean = true;
 
   constructor(private messageService: MessageService,
     private paymentService: PaymentService,
@@ -123,7 +131,8 @@ export class PurchasePaymentsComponent implements OnInit {
     private router: Router,
     private reconciliationValidationService: ReconciliationValidationService,
     private organizationService: OrganizationService,
-    private datePipe: DatePipe) { }
+    private datePipe: DatePipe,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -141,6 +150,7 @@ export class PurchasePaymentsComponent implements OnInit {
       this.translate.use(lang); // Use the translate service to update language
     });
     await this.checkPermissions();
+    await this.loadLicenseCapabilities();
     this.cols = [
       { field: 'transactionId', header: 'payment_transaction_id' },
       { field: 'purchaseReference', header: 'purchase_reference' },
@@ -345,6 +355,16 @@ export class PurchasePaymentsComponent implements OnInit {
     this.paymentDialog = true;
   }
 
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.isBankAccountsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for bank account methods.', error);
+      this.isBankAccountsFeatureEnabled = true;
+    }
+  }
+
   checkCashRegisterStatus() {
     if (!this.payment.paymentDate || this.payment.paymentMethod !== 'Cash') {
       this.showCashRegisterWarning = false;
@@ -445,6 +465,15 @@ export class PurchasePaymentsComponent implements OnInit {
 
     // 🔹 Validate bank account for Transfer, Check, or BOE
     const requiresBankAccount = ['Transfer', 'Check', 'BOE'].includes(this.payment.paymentMethod);
+    if (requiresBankAccount && !this.isBankAccountsFeatureEnabled) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Upgrade required',
+        detail: 'Bank transfer, check and BOE payment methods require a higher plan.',
+        life: 7000
+      });
+      return;
+    }
     if (requiresBankAccount && !this.selectedBankAccount) {
       this.messageService.add({
         severity: 'error',
@@ -686,6 +715,15 @@ export class PurchasePaymentsComponent implements OnInit {
 
     // Validate bank account for Transfer, Check, or BOE
     const requiresBankAccount = ['Transfer', 'Check', 'BOE'].includes(this.payment.paymentMethod);
+    if (requiresBankAccount && !this.isBankAccountsFeatureEnabled) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Upgrade required',
+        detail: 'Bank transfer, check and BOE payment methods require a higher plan.',
+        life: 7000
+      });
+      return;
+    }
     if (requiresBankAccount && !this.selectedBankAccount) {
       this.messageService.add({
         severity: 'error',
@@ -1808,6 +1846,18 @@ export class PurchasePaymentsComponent implements OnInit {
     
     const status = this.paymentReconciliationCache.get(payment.paymentId);
     return !status || status.canProceed;
+  }
+
+  reconciliationNavTargets(): ReconciliationNavTarget[] {
+    return reconciliationNavTargetsFromTransactions(this.reconciliationStatus?.transactions);
+  }
+
+  navigateToBankReconciliation(accountId: number): void {
+    void this.router.navigate(bankReconciliationCommands(accountId));
+  }
+
+  navigateToBankingAccounts(): void {
+    void this.router.navigate(bankingAccountsListCommands());
   }
 
 }

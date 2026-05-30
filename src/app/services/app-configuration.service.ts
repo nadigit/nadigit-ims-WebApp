@@ -1,9 +1,14 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
-import { BehaviorSubject, Observable, catchError, firstValueFrom, map, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, firstValueFrom, map, throwError } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { withAudit } from '../utils/audit-action';
+
+export interface ProcessModePipelineCounts {
+  openSalesPipelineCount: number;
+  openPurchasePipelineCount: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -19,7 +24,11 @@ export class AppConfigurationService {
 
   private currencySubject = new BehaviorSubject<string | null>(null);
   public currency$ = this.currencySubject.asObservable();
-  
+
+  /** Emits saved config key after a successful settings update (e.g. POS/orders/products refresh without reload). */
+  private readonly configurationSaved = new Subject<string>();
+  readonly configurationSaved$: Observable<string> = this.configurationSaved.asObservable();
+
   constructor(private http: HttpClient, private keycloakService: KeycloakService) {
     this.loadToken();
   }
@@ -41,11 +50,19 @@ export class AppConfigurationService {
     return new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
   }
 
-  async saveConfiguration(data: any): Promise<Observable<any>> {
+  async saveConfiguration(data: any, forceProcessModeChange = false): Promise<Observable<any>> {
     const headers = withAudit(await this.getHeaders(), 'Updated system configuration');
-    return this.http.post(
-      this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema,
-      data,
+    let url = this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema;
+    if (forceProcessModeChange) {
+      url += '?forceProcessModeChange=true';
+    }
+    return this.http.post(url, data, { headers });
+  }
+
+  async getProcessModePipelineCounts(): Promise<Observable<ProcessModePipelineCounts>> {
+    const headers = await this.getHeaders();
+    return this.http.get<ProcessModePipelineCounts>(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'process-mode-pipeline-counts',
       { headers }
     );
   }
@@ -64,11 +81,29 @@ export class AppConfigurationService {
       this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + key + '/value',
       { headers, responseType: 'text' }
     ).pipe(
-      map(response => {
+      map((response: string) => {
+        const trimmed = (response ?? '').trim();
+        if (!trimmed) {
+          return '';
+        }
         try {
-          return JSON.parse(response).value;
+          const parsed = JSON.parse(trimmed);
+          // Backend often returns a JSON primitive (e.g. bare `true`), not `{"value":"..."}` — avoid `.value` on booleans.
+          if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) && 'value' in parsed) {
+            return String((parsed as { value: unknown }).value);
+          }
+          if (typeof parsed === 'boolean') {
+            return parsed ? 'true' : 'false';
+          }
+          if (typeof parsed === 'number') {
+            return String(parsed);
+          }
+          if (typeof parsed === 'string') {
+            return parsed;
+          }
+          return trimmed;
         } catch {
-          return response; // Handle non-JSON response
+          return trimmed;
         }
       }),
       catchError(error => {
@@ -84,6 +119,10 @@ export class AppConfigurationService {
       this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,
       { headers }
     );
+  }
+
+  notifyConfigurationSaved(configKey: string): void {
+    this.configurationSaved.next(configKey || '');
   }
 
   async loadCurrencyOnce() {

@@ -1,0 +1,39 @@
+<p-toast></p-toast>
+
+<div class="action-reminders-page">
+  <div class="page-header">
+    <div>
+      <h2 class="m-0">{{ 'action_reminders_title' | translate }}</h2>
+      <p class="m-0 subtitle">{{ 'action_reminders_subtitle' | translate }}</p>
+    </div>
+    <button pButton type="button" icon="pi pi-refresh" [label]="'refresh' | translate" class="p-button-outlined" (click)="loadReminders()"
+      [loading]="loading"></button>
+  </div>
+
+  <div *ngIf="loading" class="loading-container">
+    <p-progressSpinner [style]="{width: '36px', height: '36px'}"></p-progressSpinner>
+  </div>
+
+  <div *ngIf="!loading && items.length === 0" class="empty-state">
+    <i class="pi pi-check-circle"></i>
+    <p>{{ 'action_reminders_empty' | translate }}</p>
+  </div>
+
+  <div *ngIf="!loading && items.length > 0" class="cards-grid">
+    <p-card *ngFor="let item of items">
+      <ng-template pTemplate="title">
+        <div class="card-title">{{ item.title | translate }}</div>
+      </ng-template>
+      <ng-template pTemplate="subtitle">
+        <p-tag [value]="item.severity" [severity]="getSeverity(item.severity)"></p-tag>
+      </ng-template>
+      <div class="card-content">
+        <div class="pending-count">{{ item.count }}</div>
+        <div class="pending-label">{{ 'pending' | translate }}</div>
+      </div>
+      <ng-template pTemplate="footer">
+        <button pButton type="button" icon="pi pi-arrow-right" [label]="'open' | translate" (click)="goToAction(item)"></button>
+      </ng-template>
+    </p-card>
+  </div>
+</div>

@@ -195,8 +195,8 @@ export const PermissionsConfig = {
         },
         WAREHOUSEMAN: {
             read: true,
-            create: false,
-            update: false,
+            create: true,
+            update: true,
             delete: false,
             process: false,
             cancel: false,

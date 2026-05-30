@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable, catchError, throwError } from 'rxjs';
 import { MessageService } from 'primeng/api'; // Assuming you're using PrimeNG's MessageService
+import { TranslateService } from '@ngx-translate/core';
 
 
 @Injectable({
@@ -17,7 +18,20 @@ export class NotificationService {
   apiHost: string = (window as any).__env.apiHost || 'localhost';
   apiPort: string = (window as any).__env.apiPort || '8090';
 
-  constructor(private http: HttpClient, public keycloakService: KeycloakService, private messageService: MessageService) { }
+  constructor(
+    private http: HttpClient,
+    public keycloakService: KeycloakService,
+    private messageService: MessageService,
+    private translate: TranslateService
+  ) { }
+
+  /** Resolve i18n key or pass through plain text (ngx-translate returns key when missing). */
+  private resolveText(text: string | undefined | null): string {
+    if (text == null || text === '') {
+      return '';
+    }
+    return this.translate.instant(text);
+  }
 
   loadToken() {
     this.jwt = this.keycloakService.getToken();
@@ -175,14 +189,22 @@ export class NotificationService {
   }
 
 
-  showSuccess(message: string) {
+  showSuccess(message: string, summaryKey: string = 'success') {
     this.messageService.clear(); // Clear any existing messages
-    this.messageService.add({ severity: 'success', summary: 'Success', detail: message });
+    this.messageService.add({
+      severity: 'success',
+      summary: this.resolveText(summaryKey),
+      detail: this.resolveText(message)
+    });
   }
 
-  showError(message: string) {
+  showError(message: string, summaryKey: string = 'error') {
     this.messageService.clear();
-    this.messageService.add({ severity: 'error', summary: 'Error', detail: message });
+    this.messageService.add({
+      severity: 'error',
+      summary: this.resolveText(summaryKey),
+      detail: this.resolveText(message)
+    });
   }
 }
 

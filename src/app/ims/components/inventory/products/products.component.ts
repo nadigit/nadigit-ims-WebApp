@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, TreeNode, ConfirmationService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -11,8 +11,8 @@ import { Category } from 'src/app/models/category';
 import { Warehouse } from 'src/app/models/warehouse';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
-import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -32,6 +32,7 @@ import { SupplierFormDialogConfig, SupplierFormDialogData } from '../../purchase
 import { LocationService } from 'src/app/services/location.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { getPreferredProductImageUrl } from 'src/app/shared/product-image.utils';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -65,6 +66,14 @@ export class ProductsComponent implements OnInit {
   barcode: string = '';
 
   scanTimeout: any;
+
+  /** Inter-key timing in the main products search field: distinguish scanner vs human typing */
+  private globalSearchLastKeyTs = 0;
+  private globalSearchInterKeyGapsMs: number[] = [];
+  private globalSearchScanDebounce: ReturnType<typeof setTimeout> | null = null;
+  private static readonly GLOBAL_SEARCH_SCAN_MAX_GAP_MS = 78;
+  private static readonly GLOBAL_SEARCH_TYPING_MIN_GAP_MS = 92;
+  private static readonly GLOBAL_SEARCH_SCAN_END_MS = 340;
 
   notFoundProductDialog: boolean = false;
 
@@ -107,6 +116,7 @@ export class ProductsComponent implements OnInit {
 
   // Aggregated view mode
   viewMode: 'standard' | 'aggregated' = 'standard';
+  tableViewMode: 'list' | 'grid' = 'list';
   aggregatedProducts: AggregatedProduct[] = [];
   expandedProducts: { [key: number]: boolean } = {}; // Track expanded rows for aggregated products
   
@@ -203,6 +213,8 @@ export class ProductsComponent implements OnInit {
   isLoading: boolean = true;
   userRoles: any;
   isAdmin: boolean = false;
+  isWarehouseman: boolean = false;
+  isVendor: boolean = false;
   measureUnits: any[] = [];
   attributeTypes: any[] = [];
 
@@ -250,6 +262,8 @@ export class ProductsComponent implements OnInit {
   /** When false, list/detail treat net sellable qty vs on-hand (approved write-offs). */
   salesStockIncludesApprovedWriteoffQty: boolean = false;
 
+  private readonly destroy$ = new Subject<void>();
+
   @ViewChild('dt') dt!: Table;
   @ViewChild('filter') filter!: ElementRef;
   @ViewChild(ProductImportComponent) productImportComponent!: ProductImportComponent;
@@ -260,7 +274,6 @@ export class ProductsComponent implements OnInit {
     private categoryService: CategoryService,
     private warehouseService: WarehouseService,
     private supplierService: SupplierService,
-    private storage: AngularFireStorage,
     private locationService: LocationService,
     private reportingService: ReportingService,
     private configService: AppConfigurationService,
@@ -304,6 +317,11 @@ export class ProductsComponent implements OnInit {
         this.viewMode = savedViewMode;
       }
     }
+    const savedTableViewMode = localStorage.getItem('tableViewMode');
+    if (savedTableViewMode === 'list' || savedTableViewMode === 'grid') {
+      this.tableViewMode = savedTableViewMode as 'list' | 'grid';
+    }
+    this.ensureSortFieldValidForViewMode();
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -312,6 +330,16 @@ export class ProductsComponent implements OnInit {
     });
     this.lowStockThreshold = await this.getLowStockThreshold();
     await this.loadSalesStockConfig();
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'sales.stock.include.approved.writeoff.quantity') {
+          void this.loadSalesStockConfig();
+        }
+        if (key === 'lowStockThreshold') {
+          void this.getLowStockThreshold();
+        }
+      });
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
       this.countries = this.locationService.getAllCountriesWithTranslation();
@@ -373,6 +401,17 @@ export class ProductsComponent implements OnInit {
     if (savedRecentImages) {
       this.recentProductImages = JSON.parse(savedRecentImages);
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  onTableViewModeChange(event: any): void {
+    this.tableViewMode = event.value as 'list' | 'grid';
+    localStorage.setItem('tableViewMode', this.tableViewMode);
+    console.log('tableViewMode changed to:', this.tableViewMode);
   }
 
   isStandardCostRequired(): boolean {
@@ -839,32 +878,190 @@ export class ProductsComponent implements OnInit {
     }
   }
 
-  @HostListener('document:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent): void {
-    if (this.scanning) {
-      const key = event.key;
+  private isProductsGlobalSearchInput(el: EventTarget | null | undefined): boolean {
+    if (!el || !(el instanceof HTMLElement)) {
+      return false;
+    }
+    return !!el.closest?.('input.products-global-search-input');
+  }
 
-      // If the key is a valid alphanumeric character, add it to the barcode buffer
-      if (this.isAlphanumeric(key)) {
-        this.barcode += key;
-      }
+  private resetGlobalSearchScanState(): void {
+    this.globalSearchLastKeyTs = 0;
+    this.globalSearchInterKeyGapsMs = [];
+    if (this.globalSearchScanDebounce) {
+      clearTimeout(this.globalSearchScanDebounce);
+      this.globalSearchScanDebounce = null;
+    }
+  }
 
-      // If the Enter key is pressed, process the barcode
-      if (key === 'Enter') {
-        this.processBarcode();
-      }
+  /**
+   * Scanners send characters with very short, even gaps; humans typing search text have longer gaps.
+   * If any gap exceeds GLOBAL_SEARCH_TYPING_MIN_GAP_MS, we treat the burst as normal search (no product lookup).
+   */
+  private isGlobalSearchBurstScanLike(): boolean {
+    const gaps = this.globalSearchInterKeyGapsMs;
+    if (gaps.length === 0) {
+      return false;
+    }
+    if (gaps.some((g) => g > ProductsComponent.GLOBAL_SEARCH_TYPING_MIN_GAP_MS)) {
+      return false;
+    }
+    return gaps.every((g) => g <= ProductsComponent.GLOBAL_SEARCH_SCAN_MAX_GAP_MS);
+  }
 
-      // Clear any existing timeout
-      if (this.scanTimeout) {
-        clearTimeout(this.scanTimeout);
-      }
+  /**
+   * Main catalog search: allow barcode lookup when the burst looks like a scanner; otherwise only filter the table.
+   */
+  private handleBarcodeInGlobalSearch(event: KeyboardEvent): void {
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+      this.scanTimeout = undefined;
+    }
+    this.barcode = '';
 
-      // Set a timeout to process the barcode after 300ms of inactivity
-      this.scanTimeout = setTimeout(() => {
-        this.processBarcode();
-      }, 300);
+    const key = event.key;
+    const now =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+
+    if (key === 'Backspace' || key === 'Delete') {
+      this.resetGlobalSearchScanState();
+      return;
     }
 
+    if (key === 'Enter') {
+      const input = event.target as HTMLInputElement | null;
+      const value = (input?.value ?? '').trim();
+      if (value.length >= 3 && this.isGlobalSearchBurstScanLike()) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.barcode = value;
+        void this.processBarcode();
+      }
+      this.resetGlobalSearchScanState();
+      return;
+    }
+
+    if (this.isAlphanumeric(key)) {
+      if (this.globalSearchLastKeyTs > 0) {
+        const gap = now - this.globalSearchLastKeyTs;
+        if (gap > 0 && gap < 2500) {
+          this.globalSearchInterKeyGapsMs.push(gap);
+          while (this.globalSearchInterKeyGapsMs.length > 48) {
+            this.globalSearchInterKeyGapsMs.shift();
+          }
+        }
+      }
+      this.globalSearchLastKeyTs = now;
+
+      if (this.globalSearchScanDebounce) {
+        clearTimeout(this.globalSearchScanDebounce);
+      }
+      this.globalSearchScanDebounce = setTimeout(() => {
+        this.globalSearchScanDebounce = null;
+        const active = document.activeElement as HTMLInputElement | null;
+        if (!active?.classList?.contains('products-global-search-input')) {
+          return;
+        }
+        const value = (active.value ?? '').trim();
+        if (value.length >= 3 && this.isGlobalSearchBurstScanLike()) {
+          this.barcode = value;
+          void this.processBarcode();
+        }
+        this.resetGlobalSearchScanState();
+      }, ProductsComponent.GLOBAL_SEARCH_SCAN_END_MS);
+      return;
+    }
+
+    this.resetGlobalSearchScanState();
+  }
+
+  /**
+   * Ignore barcode capture for dialogs/overlays and filter controls — except the main search field
+   * (handled separately via timing in {@link handleBarcodeInGlobalSearch}).
+   */
+  private shouldIgnoreBarcodeForCurrentTarget(event: KeyboardEvent): boolean {
+    const active = document.activeElement as HTMLElement | null;
+    const target = event.target as HTMLElement | null;
+
+    if (this.isProductsGlobalSearchInput(active) || this.isProductsGlobalSearchInput(target)) {
+      return false;
+    }
+
+    const isExcludedElement = (el: HTMLElement | null): boolean => {
+      if (!el) return false;
+      const tag = el.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+      if (el.isContentEditable) return true;
+      const role = el.getAttribute?.('role');
+      if (role === 'textbox' || role === 'searchbox' || role === 'combobox' || role === 'spinbutton') {
+        return true;
+      }
+      if (
+        el.closest?.(
+          '[contenteditable="true"], .p-dialog, .p-sidebar, .p-drawer, .p-overlaypanel, .p-datepicker-panel, .p-dropdown-panel, .p-multiselect-panel, .p-autocomplete-panel, .p-column-filter-overlay, .p-column-filter-menu, .p-listbox, .p-tieredmenu-overlay, .p-component-overlay',
+        )
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    return isExcludedElement(active) || isExcludedElement(target);
+  }
+
+  @HostListener('document:focusout', ['$event'])
+  onDocumentFocusOut(event: FocusEvent): void {
+    const t = event.target;
+    if (this.isProductsGlobalSearchInput(t)) {
+      this.resetGlobalSearchScanState();
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    if (!this.scanning) {
+      return;
+    }
+
+    const active = document.activeElement;
+    const target = event.target;
+    if (this.isProductsGlobalSearchInput(active) || this.isProductsGlobalSearchInput(target)) {
+      this.handleBarcodeInGlobalSearch(event);
+      return;
+    }
+
+    if (this.shouldIgnoreBarcodeForCurrentTarget(event)) {
+      if (this.scanTimeout) {
+        clearTimeout(this.scanTimeout);
+        this.scanTimeout = undefined;
+      }
+      this.barcode = '';
+      return;
+    }
+
+    const key = event.key;
+
+    // If the key is a valid alphanumeric character, add it to the barcode buffer
+    if (this.isAlphanumeric(key)) {
+      this.barcode += key;
+    }
+
+    // If the Enter key is pressed, process the barcode
+    if (key === 'Enter') {
+      this.processBarcode();
+    }
+
+    // Clear any existing timeout
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+    }
+
+    // Set a timeout to process the barcode after 300ms of inactivity
+    this.scanTimeout = setTimeout(() => {
+      this.processBarcode();
+    }, 300);
   }
 
   openProductNotFound() {
@@ -905,6 +1102,9 @@ export class ProductsComponent implements OnInit {
 
   editProduct(product: Product) {
     if (!this.canEditProduct) return;
+    if (this.viewMode === 'aggregated' && (product as any)?._aggregated) {
+      return;
+    }
     this.selectedProduct = product;
     this.product = { ...product };
     this.updateEffectiveCostingMethodLabel();
@@ -986,6 +1186,8 @@ export class ProductsComponent implements OnInit {
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
+    this.isWarehouseman = this.userRoles.includes('WAREHOUSEMAN');
+    this.isVendor = this.userRoles.includes('VENDOR');
   }
 
   // Handler for product form save success event
@@ -1047,17 +1249,14 @@ export class ProductsComponent implements OnInit {
         this.isSaving = true; // Show saving indicator
 
         try {
-          const filePath = `images/${Date.now()}_${this.uploadedFile.name}`;
-          const fileRef = this.storage.ref(filePath);
-          const task = this.storage.upload(filePath, this.uploadedFile);
-
-          // Show upload progress
-          task.percentageChanges().subscribe(percentage => {
-            this.uploadProgress = percentage;
-          });
-
-          await lastValueFrom(task.snapshotChanges());
-          const url = await lastValueFrom(fileRef.getDownloadURL());
+          this.uploadProgress = 30;
+          this.productService.loadToken();
+          const uploadResp = await lastValueFrom(this.productService.uploadProductImage(this.uploadedFile));
+          const url = uploadResp?.url;
+          if (!url) {
+            throw new Error('Invalid upload response: missing image URL');
+          }
+          this.uploadProgress = 100;
           this.product.productImage = url;
 
           // Add to recent images
@@ -2575,6 +2774,7 @@ export class ProductsComponent implements OnInit {
     }
     // Reset to first page when switching views
     this.lastLazyLoadEvent.first = 0;
+    this.ensureSortFieldValidForViewMode();
     // Clear expanded rows when switching views
     this.expandedProducts = {};
     this.loadProducts();
@@ -2624,8 +2824,21 @@ export class ProductsComponent implements OnInit {
       filters: event.filters ?? this.lastLazyLoadEvent.filters
     };
 
+    this.ensureSortFieldValidForViewMode();
+
     // Store sorting for future reloads
     this.globalFilter = this.lastLazyLoadEvent.globalFilter as string;
+  }
+
+  /** Aggregated list API has no creationDate; avoid sending it after view switch or legacy state. */
+  private ensureSortFieldValidForViewMode(): void {
+    if (this.viewMode !== 'aggregated') {
+      return;
+    }
+    const sf = this.lastLazyLoadEvent.sortField;
+    if (!sf || sf === 'creationDate') {
+      this.lastLazyLoadEvent.sortField = 'name';
+    }
   }
 
   private processFilters(filters: any): any {
@@ -2673,5 +2886,9 @@ export class ProductsComponent implements OnInit {
     };
 
     this.onLazyLoad(lazyEvent);
+  }
+
+  getProductImage(product: Product | null | undefined): string {
+    return getPreferredProductImageUrl(product);
   }
 }

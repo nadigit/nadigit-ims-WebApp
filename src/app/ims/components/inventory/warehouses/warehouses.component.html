@@ -17,7 +17,9 @@
 			<div class="flex justify-content-end align-items-center mb-4">
 				<div class="flex align-items-center gap-2">
 					<button pButton pRipple *ngIf="canAddWarehouse" label="{{'new_button' | translate}}"
-						icon="pi pi-plus" class="p-button-success" (click)="openNew()"></button>
+						icon="pi pi-plus" class="p-button-success" (click)="openNew()"
+						[disabled]="isAtWarehousesCapacity"
+						[pTooltip]="isAtWarehousesCapacity ? ('Limit reached: ' + maxWarehousesCap + ' warehouses allowed by current plan.') : ''"></button>
 					<button pButton pRipple *ngIf="canDeleteWarehouse" label="{{'delete_button' | translate}}"
 						icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedWarehouses()"
 						pTooltip="{{'delete_warehouse'|translate}}"

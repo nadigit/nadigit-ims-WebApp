@@ -92,6 +92,7 @@ export class CustomersComponent implements OnInit {
   canEditCustomer: boolean = false;
   canDeleteCustomer: boolean = false;
   canReadHistory: boolean = false;
+  canManagePricingProfile: boolean = false;
   isLoading: boolean = true;
   isExporting: boolean = false;
   exportProgress: string = '';
@@ -111,7 +112,8 @@ export class CustomersComponent implements OnInit {
     mode: 'create',
     customer: {},
     selectedPriceListId: null,
-    isLoadingPriceLists: false
+    isLoadingPriceLists: false,
+    canManagePricingProfile: false
   };
 
   constructor(private messageService: MessageService,
@@ -331,7 +333,8 @@ export class CustomersComponent implements OnInit {
       mode: 'edit',
       customer: { ...customer },
       selectedPriceListId: this.selectedPriceListId,
-      isLoadingPriceLists: this.isLoadingPriceLists
+      isLoadingPriceLists: this.isLoadingPriceLists,
+      canManagePricingProfile: this.canManagePricingProfile
     };
     this.onSelectedCountry(this.customer.country);
   }
@@ -393,6 +396,8 @@ export class CustomersComponent implements OnInit {
     this.canEditCustomer = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteCustomer = this.permissionService.canDelete(this.Ressource);
     this.canReadHistory = this.permissionService.canHistoryRead(this.Ressource);
+    const roles = await this.keycloakService.getUserRoles();
+    this.canManagePricingProfile = roles.includes('ADMIN');
   }
 
   openNew() {
@@ -406,7 +411,8 @@ export class CustomersComponent implements OnInit {
       mode: 'create',
       customer: {},
       selectedPriceListId: null,
-      isLoadingPriceLists: this.isLoadingPriceLists
+      isLoadingPriceLists: this.isLoadingPriceLists,
+      canManagePricingProfile: this.canManagePricingProfile
     };
   }
 
@@ -511,6 +517,9 @@ export class CustomersComponent implements OnInit {
     // If already cached, check if it has invalid netBalance and clear it
     if (this.customerCreditInfo.has(customerId)) {
       const cachedInfo = this.customerCreditInfo.get(customerId);
+      if (!cachedInfo) {
+        return; // Already checked: this customer has no credit account/info
+      }
       if (cachedInfo && this.isInvalidNetBalance(cachedInfo.netBalance)) {
         // Clear invalid cached data
         this.customerCreditInfo.delete(customerId);
@@ -546,8 +555,10 @@ export class CustomersComponent implements OnInit {
       }
       
       this.customerCreditInfo.set(customerId, creditInfo);
-    } catch (error) {
-      console.error(`Error loading credit info for customer ${customerId}:`, error);
+    } catch (error: any) {
+      if (error?.status !== 404) {
+        console.error(`Error loading credit info for customer ${customerId}:`, error);
+      }
       // Set null to avoid retrying
       this.customerCreditInfo.set(customerId, null as any);
     } finally {
@@ -558,6 +569,14 @@ export class CustomersComponent implements OnInit {
   // ⚠️ NEW: Get credit info for a customer
   getCreditInfo(customerId: number): CreditInfo | null {
     return this.customerCreditInfo.get(customerId) || null;
+  }
+
+  hasCreditInfoLoaded(customerId: number): boolean {
+    return this.customerCreditInfo.has(customerId);
+  }
+
+  isCreditInfoLoading(customerId: number): boolean {
+    return this.loadingCreditInfo.has(customerId);
   }
 
   // Helper method to check if netBalance is invalid
@@ -714,6 +733,11 @@ export class CustomersComponent implements OnInit {
   }
 
   async loadPriceLists(): Promise<void> {
+    if (!this.canManagePricingProfile) {
+      this.priceLists = [];
+      this.isLoadingPriceLists = false;
+      return;
+    }
     this.isLoadingPriceLists = true;
     try {
       const lists = await firstValueFrom(await this.pricingService.getPriceLists());
@@ -740,6 +764,9 @@ export class CustomersComponent implements OnInit {
   }
 
   private async applyCustomerPricingProfile(customerId: number): Promise<void> {
+    if (!this.canManagePricingProfile) {
+      return;
+    }
     try {
       if (this.selectedPriceListId) {
         await firstValueFrom(
@@ -771,17 +798,6 @@ export class CustomersComponent implements OnInit {
       }
     });
     this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
-  }
-
-  filterCountry(value: any, filter: string): boolean {
-    // Convert both to lowercase for case-insensitive comparison
-    const normalizedFilter = filter.toLowerCase();
-
-    // Check both original name and translated name
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
   }
 
   openCustomerDetails(customer: Customer) {

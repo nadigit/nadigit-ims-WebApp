@@ -60,6 +60,7 @@ export class CustomerDetailsComponent implements OnInit {
   barChartOptions: any;
 
   canEditCustomer: boolean = false;
+  canManagePricingProfile: boolean = false;
   Ressource: string = 'CUSTOMERS';
 
   customerDialog: boolean = false;
@@ -80,7 +81,8 @@ export class CustomerDetailsComponent implements OnInit {
     mode: 'edit',
     customer: {},
     selectedPriceListId: null,
-    isLoadingPriceLists: false
+    isLoadingPriceLists: false,
+    canManagePricingProfile: false
   };
 
   // Pricing related properties
@@ -119,11 +121,11 @@ export class CustomerDetailsComponent implements OnInit {
 
     this.route.params.subscribe(async params => {
       this.customerId = +params['id'];
-    await this.checkPermissions();
-    await this.loadPriceLists();
-    await this.loadCustomer();
-    await this.loadCustomerData();
-    await this.loadCreditAccount();
+      await this.checkPermissions();
+      await this.loadPriceLists();
+      await this.loadCustomer();
+      await this.loadCustomerData();
+      await this.loadCreditAccount();
       await this.loadCreditInfo(); // ⚠️ NEW: Load enhanced credit info
       await this.loadPriceOverrides();
       this.initChartOptions();
@@ -136,12 +138,36 @@ export class CustomerDetailsComponent implements OnInit {
     const userId = profile.id;
     await this.permissionService.init(userId).toPromise();
     this.canEditCustomer = this.permissionService.canUpdate(this.Ressource);
+    const roles = await this.keycloakService.getUserRoles();
+    this.canManagePricingProfile = roles.includes('ADMIN');
   }
 
   async loadCustomer() {
     try {
-      const customers = await firstValueFrom(this.customerService.getCustomers()) as Customer[];
-      this.customer = customers.find((c: Customer) => c.customerId === this.customerId) || null;
+      this.customerService.loadToken();
+
+      if (!this.customerId || Number.isNaN(this.customerId)) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('customer_not_found'),
+          life: 3000
+        });
+        this.router.navigate(['/sales/customers']);
+        return;
+      }
+
+      try {
+        const customer = await firstValueFrom(this.customerService.getCustomer(this.customerId));
+        this.customer = (customer as Customer) || null;
+      } catch {
+        const response = await firstValueFrom(this.customerService.getCustomers());
+        const customers = this.extractCustomers(response);
+        this.customer = customers.find(
+          (c: Customer) => Number(c.customerId) === this.customerId
+        ) || null;
+      }
+
       if (!this.customer) {
         this.messageService.add({
           severity: 'error',
@@ -149,7 +175,7 @@ export class CustomerDetailsComponent implements OnInit {
           detail: this.translate.instant('customer_not_found'),
           life: 3000
         });
-        this.router.navigate(['/inventory/customers']);
+        this.router.navigate(['/sales/customers']);
       }
     } catch (error) {
       console.error('Error loading customer:', error);
@@ -159,11 +185,26 @@ export class CustomerDetailsComponent implements OnInit {
         detail: this.translate.instant('error_loading_customer'),
         life: 3000
       });
-      this.router.navigate(['/inventory/customers']);
+      this.router.navigate(['/sales/customers']);
     }
   }
 
+  private extractCustomers(response: any): Customer[] {
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (Array.isArray(response?.content)) {
+      return response.content;
+    }
+    return [];
+  }
+
   async loadPriceLists(): Promise<void> {
+    if (!this.canManagePricingProfile) {
+      this.priceLists = [];
+      this.isLoadingPriceLists = false;
+      return;
+    }
     try {
       this.isLoadingPriceLists = true;
       const lists = await firstValueFrom(await this.pricingService.getPriceLists());
@@ -189,6 +230,11 @@ export class CustomerDetailsComponent implements OnInit {
   }
 
   async loadPriceOverrides(): Promise<void> {
+    if (!this.canManagePricingProfile) {
+      this.priceOverrides = [];
+      this.isLoadingOverrides = false;
+      return;
+    }
     this.isLoadingOverrides = true;
     try {
       const overrides = await firstValueFrom(
@@ -675,7 +721,8 @@ export class CustomerDetailsComponent implements OnInit {
       mode: 'edit',
       customer: { ...this.customer },
       selectedPriceListId: this.selectedPriceListId,
-      isLoadingPriceLists: this.isLoadingPriceLists
+      isLoadingPriceLists: this.isLoadingPriceLists,
+      canManagePricingProfile: this.canManagePricingProfile
     };
     if (this.customer.country) {
       this.onSelectedCountry(this.customer.country);
@@ -785,6 +832,9 @@ export class CustomerDetailsComponent implements OnInit {
   }
 
   private async applyCustomerPricingProfile(customerId: number): Promise<void> {
+    if (!this.canManagePricingProfile) {
+      return;
+    }
     try {
       if (this.selectedPriceListId) {
         await firstValueFrom(
@@ -872,14 +922,6 @@ export class CustomerDetailsComponent implements OnInit {
           return false;
         },
       });
-  }
-
-  filterCountry(value: any, filter: string): boolean {
-    const normalizedFilter = filter.toLowerCase();
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
   }
 
   contactCustomer(): void {

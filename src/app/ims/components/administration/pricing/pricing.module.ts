@@ -18,6 +18,8 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TranslateModule } from '@ngx-translate/core';
+import { SkeletonModule } from 'primeng/skeleton';
+import { TooltipModule } from 'primeng/tooltip';
 
 @NgModule({
   declarations: [PricingComponent],
@@ -39,6 +41,8 @@ import { TranslateModule } from '@ngx-translate/core';
     CheckboxModule,
     AutoCompleteModule,
     ConfirmDialogModule,
+    SkeletonModule,
+    TooltipModule,
     TranslateModule
   ]
 })

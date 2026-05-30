@@ -13,6 +13,7 @@ import { ProductBatch } from 'src/app/models/productBatch';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
+import { KeycloakProfile } from 'keycloak-js';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { firstValueFrom, combineLatest, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -37,6 +38,8 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
   productSuggestions: Product[] = [];
   productSuggestionsLoading: boolean = false;
   warehouses: Warehouse[] = [];
+  /** Options for the warehouse dropdown (all warehouses for admins; assigned only for restricted users). */
+  warehousesForDropdown: Warehouse[] = [];
   batches: ProductBatch[] = [];
   conditionOptions: any[] = [];
   sourceTypeOptions: any[] = [];
@@ -51,6 +54,9 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
   // Permissions
   canCreateWriteOff: boolean = false;
   resource: string = 'INVENTORY_WRITE_OFFS';
+  isAdmin: boolean = false;
+  /** Keycloak user attribute `warehouse` (see user administration). */
+  userAssignedWarehouseId: number | null = null;
   
   // Currency
   currency: string = 'USD';
@@ -100,7 +106,7 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
       // Only reset if this is a change from false to true (not initial creation)
       if (changes['visible'].previousValue === false || changes['visible'].previousValue === undefined) {
         this.resetComponentState();
-        this.applyDefaultWarehouseIfSingle();
+        this.applyDefaultWarehouseOnOpen();
       }
     }
   }
@@ -126,6 +132,7 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
         sourceType: 'MANUAL_ADJUSTMENT',
         notes: ''
       });
+      this.syncWarehouseSelectionDisabledState();
 
       // Reset form validation state
       Object.keys(this.writeOffForm.controls).forEach(key => {
@@ -143,8 +150,12 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
     try {
       const profile = await this.keycloakService.loadUserProfile();
       const userId = profile.id;
+      this.userAssignedWarehouseId = this.parseAssignedWarehouseIdFromProfile(profile);
+      const roles = await this.keycloakService.getUserRoles();
+      this.isAdmin = roles.includes('ADMIN');
       await this.permissionService.init(userId).toPromise();
       this.canCreateWriteOff = this.permissionService.canCreate(this.resource);
+      this.syncWarehouseSelectionDisabledState();
       
       if (!this.canCreateWriteOff) {
         this.messageService.add({
@@ -157,6 +168,42 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
       }
     } catch (error) {
       console.error('Error setting permissions:', error);
+    }
+  }
+
+  private parseAssignedWarehouseIdFromProfile(profile: KeycloakProfile): number | null {
+    const attrs = profile?.attributes as Record<string, string[]> | undefined;
+    if (!attrs) return null;
+    const raw = attrs['warehouse']?.[0];
+    if (raw == null || String(raw).trim() === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  get isWarehouseSelectionLocked(): boolean {
+    return !this.isAdmin && this.userAssignedWarehouseId != null;
+  }
+
+  private syncWarehouseSelectionDisabledState(): void {
+    const warehouseControl = this.writeOffForm?.get('warehouseId');
+    if (!warehouseControl) {
+      return;
+    }
+
+    if (this.isWarehouseSelectionLocked) {
+      warehouseControl.disable({ emitEvent: false });
+    } else {
+      warehouseControl.enable({ emitEvent: false });
+    }
+  }
+
+  private rebuildWarehousesForDropdown(): void {
+    if (this.isAdmin || this.userAssignedWarehouseId == null) {
+      this.warehousesForDropdown = [...this.warehouses];
+    } else {
+      this.warehousesForDropdown = this.warehouses.filter(
+        (w) => Number(w.warehouseId) === Number(this.userAssignedWarehouseId)
+      );
     }
   }
 
@@ -242,7 +289,10 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
         next: (response: any) => {
           const warehousesList = Array.isArray(response) ? response : (response || []);
           this.warehouses = warehousesList;
-          this.applyDefaultWarehouseIfSingle();
+          this.rebuildWarehousesForDropdown();
+          if (this.visible) {
+            this.applyDefaultWarehouseOnOpen();
+          }
         },
         error: (err: any) => {
           console.error('Error loading warehouses:', err);
@@ -260,42 +310,43 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /**
-   * UX helper: if there is exactly one warehouse, preselect it in the form.
-   * Does NOT override an existing warehouse selection.
+   * Preselect warehouse when the dialog opens: assigned warehouse for restricted users,
+   * otherwise the sole warehouse if only one exists.
    */
-  private applyDefaultWarehouseIfSingle(): void {
-    if (!this.warehouses || this.warehouses.length !== 1) {
-      return;
-    }
-
+  private applyDefaultWarehouseOnOpen(): void {
     const currentWarehouseId = this.writeOffForm.get('warehouseId')?.value;
     if (currentWarehouseId) {
-      return; // user or code already selected a warehouse
-    }
-
-    const singleWarehouse = this.warehouses[0];
-    if (!singleWarehouse || !singleWarehouse.warehouseId) {
       return;
     }
 
-    this.writeOffForm.patchValue({ warehouseId: singleWarehouse.warehouseId });
-    this.selectedWarehouse = singleWarehouse;
+    let warehouse: Warehouse | null = null;
 
-    // Trigger product suggestions load for the preselected warehouse
-    // This will enable the autocomplete to show products when user clicks on it
+    if (this.isWarehouseSelectionLocked && this.userAssignedWarehouseId != null) {
+      warehouse =
+        this.warehouses.find((w) => Number(w.warehouseId) === Number(this.userAssignedWarehouseId)) || null;
+    } else if (this.warehouses?.length === 1) {
+      const w = this.warehouses[0];
+      warehouse = w?.warehouseId != null ? w : null;
+    }
+
+    if (!warehouse?.warehouseId) {
+      return;
+    }
+
+    this.writeOffForm.patchValue({ warehouseId: warehouse.warehouseId });
+    this.selectedWarehouse = warehouse;
+
     setTimeout(() => {
       if (this.writeOffForm.get('warehouseId')?.value) {
         this.filterProducts({ query: '' });
       }
+      this.updateProductIdDisabledState();
     }, 100);
 
-    // If a product is already selected, load batches for this default warehouse
     const productValue = this.writeOffForm.get('productId')?.value;
     if (productValue) {
-      // Extract productId from product object or use the value directly
-      const productId = typeof productValue === 'object' && productValue.productId 
-        ? productValue.productId 
-        : productValue;
+      const productId =
+        typeof productValue === 'object' && productValue.productId ? productValue.productId : productValue;
       if (productId) {
         this.loadBatches();
       }
@@ -374,6 +425,27 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /**
+   * Quantity still available to write off (prefers net when API sends it).
+   */
+  private getAvailableQuantityForWriteOff(p: Product): number {
+    const toNum = (v: unknown): number => {
+      if (v == null || v === '') return NaN;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    };
+    const net = toNum(p.netAvailableQuantity);
+    if (!Number.isNaN(net)) {
+      return net;
+    }
+    const qty = toNum(p.quantityAvailable);
+    return Number.isNaN(qty) ? 0 : qty;
+  }
+
+  private hasAvailableStockForWriteOff(p: Product): boolean {
+    return this.getAvailableQuantityForWriteOff(p) > 0;
+  }
+
+  /**
    * Filter products for autocomplete - only shows products from selected warehouse
    */
   filterProducts(event: any): void {
@@ -410,8 +482,9 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
         }
 
         const productsList = Array.isArray(response) ? response : (response?.content || []);
-        // Filter only physical products (not services)
+        // Physical products only, with stock to write off
         let filteredProducts = productsList.filter((p: Product) => p.productType !== 'SERVICE');
+        filteredProducts = filteredProducts.filter((p: Product) => this.hasAvailableStockForWriteOff(p));
 
         // Apply search query filter if provided
         if (query) {
@@ -529,7 +602,7 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
       return this.selectedBatch.quantityAvailable || 0;
     }
     if (this.selectedProduct) {
-      return this.selectedProduct.quantityAvailable || 0;
+      return this.getAvailableQuantityForWriteOff(this.selectedProduct);
     }
     return 0;
   }
@@ -616,6 +689,21 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
           severity: 'error',
           summary: this.translate.instant('error'),
           detail: this.translate.instant('warehouse_required') || 'Warehouse is required',
+          life: 3000
+        });
+        return;
+      }
+
+      if (
+        !this.isAdmin &&
+        this.userAssignedWarehouseId != null &&
+        Number(warehouseId) !== Number(this.userAssignedWarehouseId)
+      ) {
+        this.isSubmitting = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('write_off_assigned_warehouse_only'),
           life: 3000
         });
         return;

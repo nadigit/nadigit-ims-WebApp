@@ -279,6 +279,22 @@
                                             </li>
                                         </ul>
                                     </div>
+                                    <ng-container *ngIf="reconciliationNavTargets() as recNavTargets">
+                                        <div class="flex flex-wrap gap-2 mt-3" *ngIf="recNavTargets.length > 0">
+                                            <button *ngFor="let target of recNavTargets" pButton pRipple type="button"
+                                                class="p-button-outlined p-button-sm"
+                                                icon="pi pi-external-link"
+                                                [label]="recNavTargets.length === 1 ? ('open_bank_reconciliation' | translate) : ('open_bank_reconciliation_for_account' | translate: { account: target.accountLabel })"
+                                                (click)="navigateToBankReconciliation(target.accountId)"></button>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2 mt-3" *ngIf="recNavTargets.length === 0">
+                                            <button pButton pRipple type="button"
+                                                class="p-button-outlined p-button-sm"
+                                                icon="pi pi-list"
+                                                [label]="'view_bank_accounts' | translate"
+                                                (click)="navigateToBankingAccounts()"></button>
+                                        </div>
+                                    </ng-container>
                                 </div>
 
                                 <!-- Success: All Reconciled -->
@@ -316,6 +332,13 @@
                                         <i class="pi pi-info-circle mr-1"></i>
                                         {{'error_loading_reconciliation_status' | translate}}
                                     </p>
+                                    <div class="flex flex-wrap gap-2 mt-3">
+                                        <button pButton pRipple type="button"
+                                            class="p-button-outlined p-button-sm"
+                                            icon="pi pi-list"
+                                            [label]="'view_bank_accounts' | translate"
+                                            (click)="navigateToBankingAccounts()"></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -687,6 +710,22 @@
                             {{'and_more_transactions' | translate: {count: reconciliationStatus.unreconciledCount - 5} }}
                         </p>
                     </div>
+                    <ng-container *ngIf="reconciliationNavTargets() as recNavTargets">
+                        <div class="flex flex-wrap gap-2 mt-3" *ngIf="recNavTargets.length > 0">
+                            <button *ngFor="let target of recNavTargets" pButton pRipple type="button"
+                                class="p-button-outlined p-button-sm"
+                                icon="pi pi-external-link"
+                                [label]="recNavTargets.length === 1 ? ('open_bank_reconciliation' | translate) : ('open_bank_reconciliation_for_account' | translate: { account: target.accountLabel })"
+                                (click)="navigateToBankReconciliation(target.accountId)"></button>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-3" *ngIf="recNavTargets.length === 0">
+                            <button pButton pRipple type="button"
+                                class="p-button-outlined p-button-sm"
+                                icon="pi pi-list"
+                                [label]="'view_bank_accounts' | translate"
+                                (click)="navigateToBankingAccounts()"></button>
+                        </div>
+                    </ng-container>
                 </div>
 
                 <!-- Reconciliation Status Success -->
@@ -724,6 +763,13 @@
                         <i class="pi pi-info-circle mr-1"></i>
                         {{'error_loading_reconciliation_status' | translate}}
                     </p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <button pButton pRipple type="button"
+                            class="p-button-outlined p-button-sm"
+                            icon="pi pi-list"
+                            [label]="'view_bank_accounts' | translate"
+                            (click)="navigateToBankingAccounts()"></button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -8,6 +8,11 @@ export class PurchaseItem {
   quantityPurchased?: number;
   buyingPrice?: number;
   totalCost?: number;
+  lineNetAmount?: number;
+  lineTaxAmount?: number;
+  lineGrossAmount?: number;
+  /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
+  taxRateUsed?: number;
   expirationDate?: string | null; // Optional expiration date for this batch/lot (ISO date string)
   batchNumber?: string | null; // Optional batch number for this purchase item
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
@@ -9,14 +9,15 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-write-off-details-page',
   templateUrl: './write-off-details-page.component.html',
   styleUrls: ['./write-off-details-page.component.css', '../write-offs.component.css']
 })
-export class WriteOffDetailsPageComponent implements OnInit {
+export class WriteOffDetailsPageComponent implements OnInit, OnDestroy {
   writeOffId!: number;
   writeOff: InventoryWriteOff | null = null;
   isLoading: boolean = true;
@@ -39,6 +40,8 @@ export class WriteOffDetailsPageComponent implements OnInit {
 
   writeOffApprovalConfigLoaded: boolean = false;
   requireManualWriteOffApproval: boolean = false;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -66,6 +69,14 @@ export class WriteOffDetailsPageComponent implements OnInit {
     await this.configService.loadCurrencyOnce();
     await this.loadWriteOffAutoApproveConfig();
 
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'writeoff.auto.approve') {
+          void this.loadWriteOffAutoApproveConfig();
+        }
+      });
+
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
     });
@@ -86,6 +97,11 @@ export class WriteOffDetailsPageComponent implements OnInit {
       await this.setUserRoles();
       await this.loadWriteOff();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private async loadWriteOffAutoApproveConfig(): Promise<void> {

@@ -113,15 +113,4 @@ export class WarehouseFormDialogComponent implements OnInit, OnChanges {
     // Update config
     this.configChange.emit(this.config);
   }
-
-  filterCountry(value: any, filter: string): boolean {
-    // Convert both to lowercase for case-insensitive comparison
-    const normalizedFilter = filter.toLowerCase();
-
-    // Check both original name and translated name
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
-  }
 }

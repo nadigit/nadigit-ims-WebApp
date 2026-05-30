@@ -54,6 +54,77 @@
   }
 }
 
+/* Business activity profile onboarding (below backend banner when both shown) */
+.activity-profile-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  padding-inline-end: 3rem;
+  background: rgba(99, 102, 241, 0.12);
+  border-bottom: 2px solid rgba(99, 102, 241, 0.35);
+  color: var(--text-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  animation: slideDown 0.3s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+:host-context(body.backend-unavailable) .activity-profile-banner {
+  top: 4.25rem;
+}
+
+.activity-profile-banner > i {
+  color: var(--indigo-500, #6366f1);
+  font-size: 1.25rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.activity-profile-banner .banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.activity-profile-banner .title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.activity-profile-banner .message {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.activity-profile-banner .banner-actions {
+  margin-top: 0.25rem;
+}
+
+.activity-profile-banner .banner-link {
+  color: var(--primary-color);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.activity-profile-banner .banner-link:hover {
+  text-decoration: underline;
+}
+
+.activity-profile-banner .banner-dismiss {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  color: var(--text-color-secondary) !important;
+}
+
 /* Add top padding to body when banner is visible to prevent content overlap */
 :host-context(body) {
   padding-top: 0;

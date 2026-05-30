@@ -45,7 +45,8 @@
                             (onChange)="onSelectedCountry(config.supplier.country)" name="country"
                             [options]="countries" optionValue="name" optionLabel="translatedName"
                             [filter]="true" [filterFields]="['name', 'translatedName']"
-                            [filterBy]="filterCountry" [showClear]="true"
+                            [showClear]="true" appendTo="body"
+                            [autoDisplayFirst]="false" [resetFilterOnHide]="false"
                             placeholder="{{ 'select_country_option' | translate }}">
 
                             <ng-template pTemplate="selectedItem">
@@ -72,7 +73,8 @@
                         </label>
                         <p-dropdown [(ngModel)]="config.supplier.city" name="city" optionValue="name"
                             optionLabel="name" [filter]="true" filterBy="name" [options]="this.states"
-                            [showClear]="true" placeholder="{{ 'select_city_option' | translate }}">
+                            [showClear]="true" appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+                            placeholder="{{ 'select_city_option' | translate }}">
                             <ng-template pTemplate="selectedItem">
                                 <span *ngIf="config.supplier && config.supplier.city" class="flex align-items-center gap-2">
                                     <i class="pi pi-map-marker"></i>

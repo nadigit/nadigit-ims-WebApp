@@ -35,7 +35,6 @@ export class ShopFormDialogComponent implements OnInit, OnChanges {
 
   selectedCountry: any = null;
   states: any = null;
-  filterCountry: string = '';
 
   constructor(
     private locationService: LocationService,
@@ -55,6 +54,37 @@ export class ShopFormDialogComponent implements OnInit, OnChanges {
         this.onSelectedCountry(config.shop.country);
       }
     }
+    if (changes['config'] || changes['bankAccounts']) {
+      this.normalizeDefaultBankAccountId();
+    }
+  }
+
+  /**
+   * p-dropdown uses optionValue="accountId" — model must be the id (number), not the full object.
+   * API may return nested defaultBankAccount or string ids; coerce so the selection shows when reopening.
+   */
+  private normalizeDefaultBankAccountId(): void {
+    if (!this.config?.shop) return;
+    const s = this.config.shop;
+    let id: number | undefined;
+
+    const rawId = s.defaultBankAccountId as unknown;
+    if (rawId != null && String(rawId).trim() !== '') {
+      const n = Number(rawId);
+      if (Number.isFinite(n)) {
+        id = n;
+      }
+    }
+    if (id == null && s.defaultBankAccount && typeof s.defaultBankAccount === 'object') {
+      const aid = (s.defaultBankAccount as BankAccount).accountId;
+      if (aid != null) {
+        const n = Number(aid);
+        if (Number.isFinite(n)) {
+          id = n;
+        }
+      }
+    }
+    s.defaultBankAccountId = id;
   }
 
   onSelectedCountry(country: string) {

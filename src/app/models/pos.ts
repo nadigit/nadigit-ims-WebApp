@@ -68,6 +68,8 @@ export interface POSCartDTO {
   status: POSCartStatus;
   createdAt: string;
   notes?: string;
+  reservationConflictDetected?: boolean;
+  reservationConflictMessage?: string | null;
 }
 
 export type PaymentMethod =

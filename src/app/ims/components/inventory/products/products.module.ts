@@ -46,11 +46,9 @@ import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
 import { ProductsTableComponent } from './products-table/products-table.component';
 import { ProductDetailsPageComponent } from './product-details/product-details-page.component';
-import { ProductFormComponent } from './product-form/product-form.component';
 import { ProductImportComponent } from './product-import/product-import.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { InventorySharedModule } from '../shared/inventory-shared.module';
-import { WarehouseFormDialogComponent } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
 import { CategoriesModule } from '../categories/categories.module';
 import { SuppliersModule } from '../../purchases/suppliers/suppliers.module';
 
@@ -107,6 +105,6 @@ import { SuppliersModule } from '../../purchases/suppliers/suppliers.module';
     ],
     declarations: [ProductsComponent, ProductsTableComponent, ProductDetailsPageComponent, ProductImportComponent],
     providers: [ReportingService, DialogService],
-    exports: [ProductFormComponent]
+    exports: [InventorySharedModule]
 })
 export class ProductsModule { }

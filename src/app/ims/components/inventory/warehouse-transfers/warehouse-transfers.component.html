@@ -8,6 +8,12 @@
                     <p class="text-600 mt-2 mb-0">{{ 'warehouse_transfers_page_description' | translate }}</p>
                 </div>
             </div>
+            <div *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="mt-3 p-3 border-round surface-ground border-1 surface-border">
+                <div class="flex align-items-start gap-2 text-sm text-700">
+                    <i class="pi pi-box mt-1 text-primary"></i>
+                    <span>{{ 'activity_profile_hint_warehouse_transfer' | translate }}</span>
+                </div>
+            </div>
         </div>
 
         <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="mb-3 w-full"
@@ -16,7 +22,7 @@
         <div class="card px-6 py-6">
             <p-toast></p-toast>
 
-            <div *ngIf="transferAutoApply" class="mb-4 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
+            <div *ngIf="transferAutoApply && isAdmin" class="mb-4 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
                 <i class="pi pi-info-circle mt-1"></i>
                 <span>{{ 'warehouse_transfer_auto_apply_hint' | translate }}</span>
             </div>
@@ -307,8 +313,12 @@
     <ng-template pTemplate="content">
         <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="mb-3 w-full"
             [closable]="false" [text]="'warehouse_transfer_manual_workflow_hint' | translate"></p-message>
-        <div *ngIf="transferAutoApply" class="mb-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm">
+        <div *ngIf="transferAutoApply && isAdmin" class="mb-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm">
             {{ 'warehouse_transfer_auto_apply_hint' | translate }}
+        </div>
+        <div *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="mb-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
+            <i class="pi pi-box mt-1 flex-shrink-0"></i>
+            <span>{{ 'activity_profile_hint_warehouse_transfer' | translate }}</span>
         </div>
         <div class="grid">
             <div class="col-12 md:col-6">
@@ -323,6 +333,7 @@
                         optionValue="warehouse"
                         [filter]="true" 
                         filterBy="label"
+                        [disabled]="isSourceWarehouseLockedForCreate"
                         placeholder="{{ 'select_source_warehouse' | translate }}"
                         appendTo="body"
                         (onChange)="onSourceWarehouseChange()"
@@ -458,6 +469,8 @@
                                         [minLength]="0"
                                         placeholder="{{ 'select_product' | translate }}"
                                         [dropdown]="true"
+                                        optionLabel="name"
+                                        dataKey="productId"
                                         (onSelect)="onProductSelected(item, $event, i)"
                                         (onFocus)="filterProductsForWarehouse({query: ''}, i)"
                                         [forceSelection]="false"
@@ -466,9 +479,7 @@
                                         styleClass="w-full">
                                         <!-- Selected Item Template -->
                                         <ng-template let-product pTemplate="selectedItem">
-                                            <span *ngIf="product && product.productId">
-                                                {{ product.reference }} - {{ product.name }}
-                                            </span>
+                                            <span *ngIf="product">{{ transferProductDisplayLabel(product) }}</span>
                                         </ng-template>
                                         <!-- Dropdown Items Template -->
                                         <ng-template let-product pTemplate="item">

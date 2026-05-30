@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, ViewChild } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -14,16 +14,16 @@ import { Product } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { LocationService } from 'src/app/services/location.service';
-import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { Supplier } from 'src/app/models/supplier';
 import { Category } from 'src/app/models/category';
 import { CategoryService } from 'src/app/services/category.service';
 import { SupplierService } from 'src/app/services/supplier.service';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
-import { UploadEvent } from 'src/app/models/uploadEvent';
 import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormDialogData } from './warehouse-form-dialog/warehouse-form-dialog.component';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 
 
@@ -32,7 +32,7 @@ import { Organization } from 'src/app/models/organization';
   styleUrls: ['./warehouses.component.css', '../inventory.component.css'],
   providers: [MessageService]
 })
-export class WarehousesComponent implements OnInit {
+export class WarehousesComponent implements OnInit, OnDestroy {
 
   Ressource: string = 'WAREHOUSES';
 
@@ -74,6 +74,8 @@ export class WarehousesComponent implements OnInit {
 
   lowStockThreshold;
 
+  private readonly destroy$ = new Subject<void>();
+
   canAddWarehouse: boolean = false;
   canEditWarehouse: boolean = false;
   canDeleteWarehouse: boolean = false;
@@ -91,8 +93,6 @@ export class WarehousesComponent implements OnInit {
   canDeleteProduct: boolean = false;
   canReadProduct: boolean = false;
   isAdmin: boolean = false;
-  measureUnits: any[] = [];
-  attributeTypes: any[] = [];
   deleteProductDialog: boolean = false;
   selectedProduct: Product;
   productDetailDialog: boolean = false;
@@ -100,17 +100,15 @@ export class WarehousesComponent implements OnInit {
   userRoles: any;
   suppliers: Supplier[] = [];
   categories: Category[] = [];
-  imageURL: any;
-  uploadedFile: File | null = null;
 
   archiveProductDialog: boolean = false;
+  maxWarehousesCap: number | null = null;
 
   constructor(private messageService: MessageService,
     private warehouseService: WarehouseService,
     private categoryService: CategoryService,
     private productService: ProductService,
     private supplierService: SupplierService,
-    private storage: AngularFireStorage,
     private reportingService: ReportingService,
     private translate: TranslateService,
     private configService: AppConfigurationService,
@@ -119,24 +117,9 @@ export class WarehousesComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private router: Router,
-    private organizationService: OrganizationService) {
+    private organizationService: OrganizationService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {
     this.setUserRoles();
-
-    this.measureUnits = [
-      { value: 'UNIT', label: this.translate.instant('UNIT') },
-      { value: 'KG', label: this.translate.instant('KG') },
-      { value: 'LITER', label: this.translate.instant('LITER') },
-      { value: 'PIECE', label: this.translate.instant('PIECE') },
-      { value: 'BOX', label: this.translate.instant('BOX') },
-      { value: 'METER', label: this.translate.instant('METER') }
-    ];
-
-    this.attributeTypes = [
-      { label: this.translate.instant('String'), value: 'STRING' },
-      { label: this.translate.instant('Integer'), value: 'INTEGER' },
-      { label: this.translate.instant('Double'), value: 'DOUBLE' },
-      { label: this.translate.instant('Boolean'), value: 'BOOLEAN' }
-    ];
   }
 
   async ngOnInit() {
@@ -152,7 +135,18 @@ export class WarehousesComponent implements OnInit {
       this.countries = this.locationService.getAllCountriesWithTranslation();
     });
     this.lowStockThreshold = await this.getLowStockThreshold();
+
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'lowStockThreshold') {
+          void this.getLowStockThreshold().then((t) => (this.lowStockThreshold = t));
+        }
+      });
+
     await this.checkPermissions();
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.refreshPlanLimits();
     this.onGetAllWarehouses();
 
     this.cols = [
@@ -172,6 +166,21 @@ export class WarehousesComponent implements OnInit {
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
+  }
+
+  get isAtWarehousesCapacity(): boolean {
+    return this.maxWarehousesCap != null && (this.warehouses?.length || 0) >= this.maxWarehousesCap;
+  }
+
+  private refreshPlanLimits(): void {
+    const snap = this.licenseCapabilitiesService.getSnapshot();
+    const maxWarehouses = snap?.tierLimits?.maxWarehouses;
+    this.maxWarehousesCap = maxWarehouses == null || maxWarehouses < 0 ? null : maxWarehouses;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   async checkPermissions() {
@@ -244,6 +253,15 @@ export class WarehousesComponent implements OnInit {
 
   openNew() {
     if (!this.canAddWarehouse) return;
+    if (this.isAtWarehousesCapacity) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('license_update_toast_title'),
+        detail: `Warehouse limit reached for current plan (${this.maxWarehousesCap}).`,
+        life: 4000
+      });
+      return;
+    }
     this.selectedCountry = {};
     this.warehouseDialogConfig = {
       visible: true,
@@ -426,17 +444,6 @@ export class WarehousesComponent implements OnInit {
       }
     });
     this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
-  }
-
-  filterCountry(value: any, filter: string): boolean {
-    // Convert both to lowercase for case-insensitive comparison
-    const normalizedFilter = filter.toLowerCase();
-
-    // Check both original name and translated name
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
   }
 
   async exportPdf() {
@@ -686,120 +693,6 @@ export class WarehousesComponent implements OnInit {
     this.productDialog = true;
   }
 
-  addAttribute() {
-    if (!this.selectedProduct.attributes) {
-      this.selectedProduct.attributes = [];
-    }
-
-    this.selectedProduct.attributes.push({
-      attributeName: '',
-      attributeType: 'STRING', // default type
-      value: ''
-    });
-  }
-
-  removeAttribute(index: number) {
-    if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > index) {
-      this.selectedProduct.attributes.splice(index, 1);
-    }
-  }
-
-  editImage() {
-    this.selectedProduct.productImage = null;
-    this.uploadedFile = null;
-  }
-
-  async saveProduct() {
-    this.submitted = true;
-
-    if (
-      this.selectedProduct.name &&
-      this.selectedProduct.reference &&
-      this.selectedProduct.quantityAvailable &&
-      this.selectedProduct.buyingPrice &&
-      this.selectedProduct.sellingPrice &&
-      this.selectedProduct.category &&
-      this.selectedProduct.supplier
-    ) {
-      if (this.isAdmin && !this.selectedProduct.warehouse) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('warehouse_required'),
-          life: 3000,
-        });
-        return;
-      }
-
-      // Note: Duplicate product validation is handled by the backend
-
-      // 📦 Upload product image if any
-      if (this.uploadedFile) {
-        const filePath = `images/${this.uploadedFile.name}`;
-        const fileRef = this.storage.ref(filePath);
-        const task = this.storage.upload(filePath, this.uploadedFile);
-
-        try {
-          await lastValueFrom(task.snapshotChanges());
-          const url = await lastValueFrom(fileRef.getDownloadURL());
-          this.selectedProduct.productImage = url;
-          this.uploadedFile = null;
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_image'),
-            life: 3000,
-          });
-          return;
-        }
-      }
-
-      // Clean attributes before saving
-      if (this.selectedProduct.attributes && this.selectedProduct.attributes.length > 0) {
-        this.selectedProduct.attributes.forEach(attr => {
-          // strip transient field if it still exists
-          delete attr.value;
-
-          // optionally normalize booleans (Angular checkboxes can send null)
-          if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
-            attr.booleanValue = false;
-          }
-        });
-      }
-
-      // ✏️ Update or add product
-      if (this.selectedProduct.productId) {
-        this.updateProduct(this.selectedProduct.productId, this.selectedProduct)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_updated'),
-            life: 3000,
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000,
-          });
-      }
-
-      // ✅ Reset and close dialog
-      this.productDialog = false;
-      // this.selectedProduct = {};
-    } else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3100,
-      });
-      return;
-    }
-  }
-
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
     this.deleteProductDialog = true;
@@ -838,27 +731,6 @@ export class WarehousesComponent implements OnInit {
       })
   }
 
-  async updateProduct(id: any, product: any): Promise<any> {
-    console.log(product)
-    await this.productService.saveProduct(product)
-      .subscribe({
-        next: async (response: any) => {
-          console.log(response);
-          this.onGetAllWarehouses();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
 
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
@@ -897,6 +769,7 @@ export class WarehousesComponent implements OnInit {
     await this.warehouseService.getWarehouses().subscribe({
       next: (response: any) => {
         this.warehouses = response;
+        this.refreshPlanLimits();
 
         // Create warehouse parent node
         const warehouseNode = {
@@ -923,19 +796,6 @@ export class WarehousesComponent implements OnInit {
         this.isLoading = false;
       }
     });
-  }
-
-  async onFileUpload(event: UploadEvent): Promise<void> {
-    console.log("in upload");
-    const file = event.files[0];
-
-    // Save the file temporarily and update the imageURL
-    this.imageURL = URL.createObjectURL(file);
-
-    // Store the actual file for later use
-    this.uploadedFile = file;
-
-    // Note: The actual upload to Firebase Storage will happen when the user clicks "Save" in the saveProduct method
   }
 
   calculateProfit(product: Product): number {
@@ -988,24 +848,14 @@ export class WarehousesComponent implements OnInit {
   }
 
   // Product Form Component Event Handlers
-  onProductSaveSuccess(product: Product) {
-    this.messageService.add({
-      severity: 'success',
-      summary: this.translate.instant('successful'),
-      detail: this.translate.instant('product_added'),
-      life: 3000
-    });
+  onProductSaveSuccess(_product: Product) {
     this.productDialog = false;
-    // TODO: Reload warehouse/product data if needed
+    this.submitted = false;
+    this.onGetAllWarehouses();
   }
 
-  onProductSaveError(error: any) {
-    this.messageService.add({
-      severity: 'error',
-      summary: this.translate.instant('error'),
-      detail: this.translate.instant('error_adding_product'),
-      life: 3000
-    });
+  onProductSaveError(_error: any) {
+    // Keep dialog open; ProductFormComponent already shows detailed errors.
   }
 
   onProductCancel() {

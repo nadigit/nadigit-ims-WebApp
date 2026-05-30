@@ -395,7 +395,7 @@
                                     <tr>
                                         <td>
                                             <div class="product-info">
-                                                <img [src]="returnItem?.product?.productImage || 'assets/core-images/no-image.png'"
+                                                <img [src]="returnItem?.product | productImage"
                                                     [alt]="returnItem?.product?.name" class="product-image" />
                                                 <div class="product-details">
                                                     <div class="product-name">{{ returnItem?.product?.name || 'N/A' }}</div>

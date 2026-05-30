@@ -45,6 +45,9 @@ import { DividerModule } from 'primeng/divider';
 import { OrdersTableComponent } from './orders-table/orders-table.component';
 import { OrderDetailsPageComponent } from './order-details-page/order-details-page.component';
 import { CheckboxModule } from 'primeng/checkbox';
+import { StepsModule } from 'primeng/steps';
+import { InventorySharedModule } from '../../inventory/shared/inventory-shared.module';
+import { ShopFormDialogModule } from '../../inventory/shops/shop-form-dialog/shop-form-dialog.module';
 @NgModule({
     imports: [
         CommonModule,
@@ -87,7 +90,10 @@ import { CheckboxModule } from 'primeng/checkbox';
         InputSwitchModule,
         SharedModule,
         DividerModule,
-        CheckboxModule
+        CheckboxModule,
+        StepsModule,
+        InventorySharedModule,
+        ShopFormDialogModule
     ],
     declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent],
     providers: [ReportingService]

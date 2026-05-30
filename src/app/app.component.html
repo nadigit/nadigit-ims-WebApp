@@ -6,4 +6,21 @@
   </div>
 </div>
 
+<div *ngIf="showActivityProfileBanner && (backendUnavailable$ | async) !== true" class="activity-profile-banner">
+  <i class="pi pi-building"></i>
+  <div class="banner-text">
+    <div class="title">{{ 'activity_profile_banner_title' | translate }}</div>
+    <div class="message">
+      {{ (isAdmin ? 'activity_profile_banner_message_admin' : 'activity_profile_banner_message_user') | translate }}
+    </div>
+    <div class="banner-actions" *ngIf="isAdmin">
+      <a routerLink="/administration/settings" class="banner-link">{{ 'activity_profile_open_settings' | translate }}</a>
+    </div>
+  </div>
+  <button *ngIf="!isAdmin" type="button" class="banner-dismiss p-button p-component p-button-text p-button-rounded"
+    (click)="dismissActivityProfileBanner()" [attr.aria-label]="'activity_profile_banner_dismiss' | translate">
+    <i class="pi pi-times"></i>
+  </button>
+</div>
+
 <router-outlet></router-outlet>

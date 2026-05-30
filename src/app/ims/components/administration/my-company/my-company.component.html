@@ -75,7 +75,7 @@
 		<div class="stats-row">
 			<div class="stat-card-modern shops-card">
 				<div class="stat-icon shops">
-					<i class="pi pi-shop"></i>
+					<i class="pi pi-shopping-bag"></i>
 				</div>
 				<div class="stat-content">
 					<span class="stat-label">{{ 'total_shops' | translate }}</span>
@@ -118,6 +118,22 @@
 					<div class="stat-value">
 						{{ getLocaleName(organization.defaultLocale) }}
 					</div>
+				</div>
+			</div>
+
+			<div class="stat-card-modern activity-profile-card">
+				<div class="stat-icon activity-profile">
+					<i class="pi pi-briefcase"></i>
+				</div>
+				<div class="stat-content">
+					<span class="stat-label">{{ 'business_activity_profile' | translate }}</span>
+					<div class="stat-value text-base font-semibold line-height-3">
+						{{ activityProfileLabelKey | translate }}
+					</div>
+					<a routerLink="/administration/settings" [queryParams]="{ businessProfile: '1' }"
+						class="text-sm text-primary font-semibold mt-2 inline-block activity-profile-settings-link">
+						{{ 'activity_profile_configure_link' | translate }}
+					</a>
 				</div>
 			</div>
 		</div>
@@ -301,7 +317,7 @@
 									<ng-template let-node pTemplate="shops">
 										<div class="shop-node">
 											<div class="node-icon">
-												<i class="pi pi-shop"></i>
+												<i class="pi pi-shopping-bag"></i>
 											</div>
 											<div class="node-content">
 												<h4 class="node-title">
@@ -455,8 +471,9 @@
                   <p-dropdown [(ngModel)]="organization.country" (onChange)="onSelectedCountry(organization.country)"
                     name="country" inputId="country" ngDefaultControl [options]="countries"
                     placeholder="{{ 'select_country_option' | translate }}" [filter]="true"
-                    [filterFields]="['name', 'translatedName']" [filterBy]="filterCountry" optionValue="name"
-                    optionLabel="translatedName" [showClear]="true">
+                    [filterFields]="['name', 'translatedName']" optionValue="name"
+                    optionLabel="translatedName" [showClear]="true" appendTo="body"
+                    [autoDisplayFirst]="false" [resetFilterOnHide]="false">
                     <ng-template pTemplate="selectedItem">
                       <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country |
                         countryTranslate }}</span>
@@ -471,7 +488,8 @@
                   <label for="city" class="block mb-2 font-semibold">{{ 'shop_city' | translate }}</label>
                   <p-dropdown [(ngModel)]="organization.city" name="city" inputId="city" ngDefaultControl
                     optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="states"
-                    placeholder="{{ 'select_city_option' | translate }}" [showClear]="true">
+                    placeholder="{{ 'select_city_option' | translate }}" [showClear]="true"
+                    appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false">
                     <ng-template pTemplate="selectedItem">
                       <span *ngIf="organization && organization.city" class="product-badge">{{ organization.city
                         }}</span>

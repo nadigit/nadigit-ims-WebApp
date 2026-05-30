@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { AuthenticationService } from './authentication.service';
-import { map, Observable } from 'rxjs';
+import { from, map, Observable } from 'rxjs';
 import { PermissionsConfig } from '../utils/permissions-config';
+import { KeycloakService } from 'keycloak-angular';
 
 @Injectable({
   providedIn: 'root'
@@ -11,19 +11,54 @@ export class PermissionService {
   private userRoles: string[] = [];
   private permissions: any = {};
 
-  constructor(private authService: AuthenticationService) { 
+  constructor(
+    private keycloakService: KeycloakService
+  ) { 
 
   }
 
-  init(userId: string): Observable<void> {
-    return this.authService.getUserRoles(userId).pipe(
-      map((roles: any) => {
-        // Assuming roles are returned as an array of role objects
-        this.userRoles = roles.map((role: { name: string }) => role.name);
-        console.log('User Roles:', this.userRoles); // Log to verify the correct structure
+  init(userId?: string): Observable<void> {
+    // Permission checks are always for the currently logged-in user. Reading another user's
+    // realm role mappings requires the admin Keycloak proxy and fails for Vendor/Cashier users.
+    return from(this.resolveCurrentUserRoles()).pipe(
+      map((roles: string[]) => {
+        this.userRoles = roles;
         this.permissions = this.calculatePermissions(this.userRoles);
       })
     );
+  }
+
+  private async resolveCurrentUserRoles(): Promise<string[]> {
+    try {
+      const roles = await this.keycloakService.getUserRoles();
+      const normalizedRoles = this.normalizeRoleNames(roles);
+      if (normalizedRoles.length > 0) {
+        return normalizedRoles;
+      }
+    } catch (error) {
+      console.warn('Unable to read roles from KeycloakService; falling back to token roles.', error);
+    }
+
+    const tokenParsed = this.keycloakService.getKeycloakInstance()?.tokenParsed as any;
+    const tokenRoles: string[] = [
+      ...(tokenParsed?.realm_access?.roles || []),
+      ...Object.values(tokenParsed?.resource_access || {}).flatMap((resource: any) => resource?.roles || [])
+    ];
+
+    return this.normalizeRoleNames(tokenRoles);
+  }
+
+  private normalizeRoleNames(roles: any): string[] {
+    if (!Array.isArray(roles)) {
+      return [];
+    }
+
+    return Array.from(new Set(
+      roles
+        .map((role: any) => (typeof role === 'string' ? role : role?.name))
+        .filter(Boolean)
+        .map((role: string) => role.trim().toUpperCase())
+    ));
   }
 
   private calculatePermissions(roles: string[]): any {
@@ -32,25 +67,20 @@ export class PermissionService {
     // Iterate through each role and merge permissions
     roles.forEach(role => {
       Object.keys(PermissionsConfig).forEach(resource => {
-        const rolePermissions = PermissionsConfig[resource][role];
+        const resourcePermissions = (PermissionsConfig as Record<string, Record<string, Record<string, boolean>>>)[resource];
+        const rolePermissions = resourcePermissions?.[role];
         if (rolePermissions) {
-          // Initialize permissions if not already done
           if (!combinedPermissions[resource]) {
-            combinedPermissions[resource] = { create: false, read: false, update: false, delete: false, process: false, cash_read: false, history_read: false, products_read: false, issue: false, confirm: false, cancel: false, archive: false };
+            combinedPermissions[resource] = {};
           }
-  
-          combinedPermissions[resource].create ||= rolePermissions.create;
-          combinedPermissions[resource].read ||= rolePermissions.read;
-          combinedPermissions[resource].update ||= rolePermissions.update;
-          combinedPermissions[resource].delete ||= rolePermissions.delete;
-          combinedPermissions[resource].process ||= rolePermissions.process;
-          combinedPermissions[resource].cash_read ||= rolePermissions.cash_read;
-          combinedPermissions[resource].history_read ||= rolePermissions.history_read;
-          combinedPermissions[resource].products_read ||= rolePermissions.products_read;
-          combinedPermissions[resource].issue ||= rolePermissions.issue;
-          combinedPermissions[resource].confirm ||= rolePermissions.confirm;
-          combinedPermissions[resource].cancel ||= rolePermissions.cancel;
-          combinedPermissions[resource].archive ||= rolePermissions.archive;
+
+          Object.entries(rolePermissions).forEach(([permission, enabled]) => {
+            if (enabled === true) {
+              combinedPermissions[resource][permission] = true;
+            } else if (combinedPermissions[resource][permission] !== true) {
+              combinedPermissions[resource][permission] = false;
+            }
+          });
         }
       });
     });
@@ -110,5 +140,17 @@ export class PermissionService {
 
   canArchive(resource: string): boolean{
     return this.permissions[resource]?.archive ?? false;
+  }
+
+  hasPermission(resource: string, permission: string): boolean {
+    return this.permissions[resource]?.[permission] ?? false;
+  }
+
+  canApprove(resource: string): boolean {
+    return this.hasPermission(resource, 'approve');
+  }
+
+  canReject(resource: string): boolean {
+    return this.hasPermission(resource, 'reject');
   }
 }

@@ -2556,3 +2556,38 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
     gap: 0.25rem;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* POS: product search autocomplete panel (p-autoComplete appendTo="body")   */
+/* -------------------------------------------------------------------------- */
+.p-autocomplete-panel.p-component.p-autocomplete-panel.pos-autocomplete-panel,
+.p-autocomplete-panel.pos-autocomplete-panel {
+  margin-top: 0.35rem;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border, #e2e8f0);
+  background: var(--surface-overlay, #fff);
+  box-shadow:
+    0 12px 40px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  max-height: min(420px, 70vh);
+}
+
+.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-items {
+  padding: 0.35rem 0;
+}
+
+.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item {
+  padding: 0.65rem 0.85rem;
+  min-height: 3.35rem;
+  border-bottom: 1px solid var(--surface-border, #f1f5f9);
+}
+
+.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item.p-highlight {
+  background: var(--highlight-bg, color-mix(in srgb, var(--primary-color, #2563eb) 14%, transparent));
+  color: var(--highlight-text-color, inherit);
+}

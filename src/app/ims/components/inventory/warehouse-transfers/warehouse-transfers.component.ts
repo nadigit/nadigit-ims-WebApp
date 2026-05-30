@@ -13,11 +13,13 @@ import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
+import { KeycloakProfile } from 'keycloak-js';
 import { DatePipe } from '@angular/common';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { firstValueFrom } from 'rxjs';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 
 @Component({
   templateUrl: './warehouse-transfers.component.html',
@@ -81,6 +83,8 @@ export class WarehouseTransfersComponent implements OnInit {
   canEditTransfer: boolean = false;
   canReadTransfer: boolean = false;
   isAdmin: boolean = false;
+  /** Keycloak user attribute `warehouse` (see user administration). Used to limit source warehouse for non-admins. */
+  userAssignedWarehouseId: number | null = null;
 
   /** Mirrors {@code warehouse.transfer.auto.apply} — new transfers complete stock move on create when true. */
   transferAutoApply: boolean = false;
@@ -101,11 +105,22 @@ export class WarehouseTransfersComponent implements OnInit {
     private keycloakService: KeycloakService,
     private cdr: ChangeDetectorRef,
     private router: Router,
+    private route: ActivatedRoute,
     private reportingService: ReportingService,
-    private organizationService: OrganizationService
+    private organizationService: OrganizationService,
+    public activityProfileService: ActivityProfileService,
   ) {}
 
   async ngOnInit() {
+    const qpStatus = this.route.snapshot.queryParamMap.get('status');
+    if (qpStatus) {
+      const upper = qpStatus.trim().toUpperCase();
+      if (['PENDING', 'IN_TRANSIT', 'COMPLETED', 'CANCELLED'].includes(upper)) {
+        this.selectedStatus = upper;
+      }
+    }
+
+    await this.activityProfileService.ensureLoaded();
     await this.setPermissions();
     await this.setUserRoles();
     await this.loadTransferWorkflowConfig();
@@ -133,10 +148,25 @@ export class WarehouseTransfersComponent implements OnInit {
   async setPermissions() {
     const profile = await this.keycloakService.loadUserProfile();
     const userId = profile.id;
+    this.userAssignedWarehouseId = this.parseAssignedWarehouseIdFromProfile(profile);
     await this.permissionService.init(userId).toPromise();
     this.canAddTransfer = this.permissionService.canCreate(this.resource);
     this.canEditTransfer = this.permissionService.canUpdate(this.resource);
     this.canReadTransfer = this.permissionService.canRead(this.resource);
+  }
+
+  private parseAssignedWarehouseIdFromProfile(profile: KeycloakProfile): number | null {
+    const attrs = profile?.attributes as Record<string, string[]> | undefined;
+    if (!attrs) return null;
+    const raw = attrs['warehouse']?.[0];
+    if (raw == null || String(raw).trim() === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  /** Non-admin users may only ship from their Keycloak-assigned warehouse when creating a transfer. */
+  get isSourceWarehouseLockedForCreate(): boolean {
+    return !this.isAdmin && this.userAssignedWarehouseId != null;
   }
 
   private async loadTransferWorkflowConfig(): Promise<void> {
@@ -205,11 +235,18 @@ export class WarehouseTransfersComponent implements OnInit {
   }
 
   updateAvailableWarehouses() {
+    let sourcePool = this.warehouses;
+    if (!this.isAdmin && this.userAssignedWarehouseId != null) {
+      sourcePool = this.warehouses.filter(
+        (w: any) => Number(w.warehouse?.warehouseId) === Number(this.userAssignedWarehouseId)
+      );
+    }
+
     // Update available source warehouses (exclude destination)
     if (!this.transfer.destinationWarehouse?.warehouseId) {
-      this.availableSourceWarehouses = this.warehouses;
+      this.availableSourceWarehouses = sourcePool;
     } else {
-      this.availableSourceWarehouses = this.warehouses.filter(
+      this.availableSourceWarehouses = sourcePool.filter(
         (w: any) => w.warehouse?.warehouseId !== this.transfer.destinationWarehouse?.warehouseId
       );
     }
@@ -381,8 +418,6 @@ export class WarehouseTransfersComponent implements OnInit {
 
   // Create Transfer Form Methods
   openNew() {
-    // Initialize available warehouses when opening dialog
-    this.updateAvailableWarehouses();
     if (this.hasSingleWarehouse) {
       this.messageService.add({
         severity: 'warn',
@@ -402,6 +437,21 @@ export class WarehouseTransfersComponent implements OnInit {
     this.submitted = false;
     this.transfer.transferDate = new Date();
     this.transferDialog = true;
+    this.updateAvailableWarehouses();
+    if (this.applyRestrictedUserDefaultSource()) {
+      this.onSourceWarehouseChange();
+    }
+  }
+
+  /** Pre-select assigned warehouse when the user cannot choose another source. */
+  private applyRestrictedUserDefaultSource(): boolean {
+    if (this.isAdmin || this.userAssignedWarehouseId == null) return false;
+    const entry = this.warehouses.find(
+      (w: any) => Number(w.warehouse?.warehouseId) === Number(this.userAssignedWarehouseId)
+    );
+    if (!entry?.warehouse) return false;
+    this.transfer.sourceWarehouse = entry.warehouse;
+    return true;
   }
 
   onSourceWarehouseChange() {
@@ -567,13 +617,23 @@ export class WarehouseTransfersComponent implements OnInit {
   }
 
   onProductSelected(item: TransferItem, event: any, itemIndex: number): void {
-    // PrimeNG autocomplete passes the selected product in event.value
-    const selectedProduct = event?.value || event;
-    if (selectedProduct && selectedProduct.productId) {
-      item.product = selectedProduct;
-      // Clear the suggestions for this item after selection
+    const selectedProduct = event?.value ?? event;
+    const id = selectedProduct?.productId ?? selectedProduct?.id;
+    if (selectedProduct && id != null) {
+      item.product = {
+        ...selectedProduct,
+        productId: selectedProduct.productId ?? selectedProduct.id
+      };
       this.productSuggestionsMap.delete(itemIndex);
     }
+  }
+
+  transferProductDisplayLabel(product: Product | null | undefined): string {
+    if (!product || typeof product !== 'object') return '';
+    const ref = product.reference?.trim();
+    const name = product.name?.trim() || '';
+    if (ref && name) return `${ref} - ${name}`;
+    return name || ref || '';
   }
 
   getProductSuggestions(itemIndex: number): Product[] {
@@ -636,6 +696,16 @@ export class WarehouseTransfersComponent implements OnInit {
 
     const sourceId = this.transfer.sourceWarehouse?.warehouseId;
     const destId = this.transfer.destinationWarehouse?.warehouseId;
+
+    if (!this.isAdmin && this.userAssignedWarehouseId != null && Number(sourceId) !== Number(this.userAssignedWarehouseId)) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('warehouse_transfer_assigned_source_only'),
+        life: 3000
+      });
+      return;
+    }
 
     if (sourceId === destId) {
       this.messageService.add({

@@ -20,7 +20,7 @@
                         class="p-button-text p-button-rounded p-button-plain back-button"
                         [pTooltip]="'back' | translate" tooltipPosition="bottom"
                         (click)="goBack()"></button>
-                    <span class="text-500 text-sm">{{ 'orders' | translate }}</span>
+                    <span class="text-500 text-sm">{{ (salesDocumentChainMode ? 'sales_documents_menu_title' : 'orders') | translate }}</span>
                     <i class="pi pi-angle-right text-400 text-sm"></i>
                     <span class="text-700 text-sm font-medium">#{{ order.reference }}</span>
                 </div>
@@ -33,10 +33,10 @@
                         <div>
                             <div class="flex align-items-center gap-3 mb-2 flex-wrap">
                                 <h1 class="m-0 text-900 order-title">#{{ order.reference }}</h1>
-                                <p-tag [value]="order.orderStatus ? ('order_status_' + order.orderStatus.toLowerCase() | translate) : 'N/A'" 
+                                <p-tag [value]="order.orderStatus ? (getHeroOrderStatusKey() | translate) : 'N/A'" 
                                     [severity]="getOrderStatusSeverity(order.orderStatus)" 
                                     [rounded]="true"></p-tag>
-                                <p-tag [value]="order.paymentStatus ? ('order_payment_status_' + order.paymentStatus.toLowerCase() | translate) : 'N/A'" 
+                                <p-tag [value]="order.paymentStatus ? (getHeroPaymentStatusKey() | translate) : 'N/A'" 
                                     [severity]="getPaymentStatusSeverity(order.paymentStatus)" 
                                     [rounded]="true"></p-tag>
                             </div>
@@ -46,7 +46,7 @@
                                     {{ order.customer?.companyName || ((order.customer?.firstName || '') + ' ' + (order.customer?.lastName || '')) }}
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="order.shop">
-                                    <i class="pi pi-shop"></i>
+                                    <i class="pi pi-shopping-bag"></i>
                                     {{ order.shop.shopName }}
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="order.orderDate">
@@ -71,53 +71,60 @@
 
                             <!-- Edit Order Button -->
                             <button pButton pRipple icon="pi pi-pencil"
-                                [label]="'update_order' | translate"
+                                [label]="(salesDocumentChainMode ? 'doc_chain_hero_edit_document' : 'update_order') | translate"
                                 class="p-button-warning"
                                 *ngIf="canEdit && (order.orderStatus !== 'Completed' && order.orderStatus !== 'Canceled')"
-                                [pTooltip]="'update_order' | translate"
+                                [pTooltip]="(salesDocumentChainMode ? 'doc_chain_hero_edit_document_tooltip' : 'update_order') | translate"
                                 (click)="editOrder()">
                             </button>
 
                             <!-- Primary Document Button based on Order Status -->
                             <!-- Quote for Ordered status -->
                             <button pButton pRipple icon="pi pi-file" 
-                                [label]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
+                                [label]="(salesDocumentChainMode ? (quoteDocNumber ? 'doc_chain_hero_open_quote' : 'doc_chain_hero_issue_quote') : (quoteDocNumber ? 'print_quote' : 'generate_quote')) | translate"
                                 class="p-button-secondary"
                                 *ngIf="isAdmin && order.orderStatus === 'Ordered' && isQuoteEligible()"
-                                [pTooltip]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
+                                [pTooltip]="(salesDocumentChainMode ? (quoteDocNumber ? 'doc_chain_hero_quote_tooltip_open' : 'doc_chain_hero_quote_tooltip_new') : (quoteDocNumber ? 'print_quote' : 'generate_quote')) | translate"
                                 [loading]="!quoteDocNumber && isGeneratingQuote"
                                 (click)="quoteDocNumber ? viewQuote() : generateQuote(order)"></button>
                             
                             <!-- Purchase Order for Processing status -->
                             <button pButton pRipple icon="pi pi-shopping-cart" 
-                                [label]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
+                                [label]="(salesDocumentChainMode ? (purchaseOrderDocNumber ? 'doc_chain_hero_open_po' : 'doc_chain_hero_issue_po') : (purchaseOrderDocNumber ? 'view_purchase_order' : 'generate_purchase_order')) | translate"
                                 class="p-button-info"
                                 *ngIf="isAdmin && order.orderStatus === 'Processing' && isPurchaseOrderEligible()"
-                                [pTooltip]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
+                                [pTooltip]="(salesDocumentChainMode ? (purchaseOrderDocNumber ? 'doc_chain_hero_po_tooltip_open' : 'doc_chain_hero_po_tooltip_new') : (purchaseOrderDocNumber ? 'view_purchase_order' : 'generate_purchase_order')) | translate"
                                 [loading]="!purchaseOrderDocNumber && isGeneratingPurchaseOrder"
                                 (click)="purchaseOrderDocNumber ? viewPurchaseOrder() : generatePurchaseOrder(order)"></button>
                             
                             <!-- Delivery Order for Delivered status -->
                             <button pButton pRipple icon="pi pi-truck" 
-                                [label]="deliveryOrderDocNumber ? ('view_delivery_order' | translate) : ('generate_delivery_order' | translate)"
+                                [label]="(salesDocumentChainMode ? (deliveryOrderDocNumber ? 'doc_chain_hero_open_delivery' : 'doc_chain_hero_issue_delivery') : (deliveryOrderDocNumber ? 'view_delivery_order' : 'generate_delivery_order')) | translate"
                                 class="p-button-success"
                                 *ngIf="isAdmin && order.orderStatus === 'Delivered' && isDeliveryNoteEligible()"
-                                [pTooltip]="deliveryOrderDocNumber ? ('view_delivery_order' | translate) : ('generate_delivery_order' | translate)"
+                                [pTooltip]="(salesDocumentChainMode ? (deliveryOrderDocNumber ? 'doc_chain_hero_delivery_tooltip_open' : 'doc_chain_hero_delivery_tooltip_new') : (deliveryOrderDocNumber ? 'view_delivery_order' : 'generate_delivery_order')) | translate"
                                 [loading]="!deliveryOrderDocNumber && isGeneratingDeliveryOrder"
                                 (click)="deliveryOrderDocNumber ? viewDeliveryOrder() : generateDeliveryOrder(order)"></button>
                             
                             <!-- Invoice for Completed status or when invoice exists -->
                             <button pButton pRipple icon="pi pi-print" 
-                                [label]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
+                                [label]="(salesDocumentChainMode ? (invoiceDocNumber ? 'doc_chain_hero_open_invoice' : 'doc_chain_hero_issue_invoice') : (invoiceDocNumber ? 'print_invoice' : 'generate_invoice')) | translate"
                                 class="p-button-help"
                                 *ngIf="isAdmin && (order.orderStatus === 'Completed' || invoiceDocNumber) && isInvoiceEligible()"
-                                [pTooltip]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
+                                [pTooltip]="(salesDocumentChainMode ? (invoiceDocNumber ? 'doc_chain_hero_invoice_tooltip_open' : 'doc_chain_hero_invoice_tooltip_new') : (invoiceDocNumber ? 'print_invoice' : 'generate_invoice')) | translate"
                                 [loading]="!invoiceDocNumber && isGeneratingInvoice"
                                 (click)="invoiceDocNumber ? viewInvoice() : generateInvoice(order)"></button>
                         </div>
 
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div *ngIf="salesDocumentChainMode" class="px-2 md:px-4 mb-3">
+            <div class="p-3 border-round surface-ground border-1 surface-border">
+                <p-steps [model]="documentChainSteps" [readonly]="true" [activeIndex]="documentChainActiveIndex"></p-steps>
+                <p class="text-600 text-sm mt-2 mb-0">{{ 'sales_document_chain_workflow_hint' | translate }}</p>
             </div>
         </div>
 
@@ -259,6 +266,10 @@
                                         <span class="summary-label">{{ 'tax' | translate }}</span>
                                         <span class="summary-value">+{{ order.taxAmount | number:'1.2-2' }} {{ currency }}</span>
                                     </div>
+                                    <div class="summary-row" *ngIf="order.taxEnabled && order.taxRateUsed != null">
+                                        <span class="summary-label">{{ 'effective_tax_rate' | translate }}</span>
+                                        <span class="summary-value">{{ formatTaxRate(order.taxRateUsed) }}</span>
+                                    </div>
                                     <div class="summary-row" *ngIf="order.transportAmount">
                                         <span class="summary-label">{{ 'transport_amount' | translate }}</span>
                                         <span class="summary-value">+{{ order.transportAmount | number:'1.2-2' }} {{ currency }}</span>
@@ -384,6 +395,9 @@
                                         <strong>{{ 'order_payment_status' | translate }}:</strong>
                                         <span class="ml-1">{{ 'payment_status_legend' | translate }}</span>
                                     </div>
+                                    <div class="info-item mb-2" *ngIf="salesDocumentChainMode">
+                                        <p class="m-0 text-700">{{ 'doc_chain_status_guide_blurb' | translate }}</p>
+                                    </div>
                                     <div class="mt-3 pt-3 border-top-1 surface-border">
                                         <div class="flex align-items-start gap-2">
                                             <i class="pi pi-arrow-right text-primary mt-1"></i>
@@ -450,33 +464,33 @@
                                 || (isAdmin && (isQuoteEligible() || isPurchaseOrderEligible() || isDeliveryNoteEligible() || isInvoiceEligible() || proformaInvoiceDocNumber))">
                             <div class="card-header">
                                 <i class="pi pi-bolt"></i>
-                                <span>{{ 'quick_actions' | translate }}</span>
+                                <span>{{ (salesDocumentChainMode ? 'doc_chain_quick_actions_title' : 'quick_actions') | translate }}</span>
                             </div>
                             <div class="card-body">
                                 <div class="actions-grid">
                                     <!-- Status Update Buttons -->
                                     <!-- Process Order Button (shown when status is Ordered) -->
                                     <button pButton pRipple icon="pi pi-cog" 
-                                        [label]="'process_order_button' | translate"
+                                        [label]="(salesDocumentChainMode ? 'doc_chain_timeline_btn_to_processing' : 'process_order_button') | translate"
                                         class="p-button-outlined p-button-success"
                                         *ngIf="canProcess && order.orderStatus === 'Ordered'"
-                                        [pTooltip]="'process_order_button' | translate"
+                                        [pTooltip]="(salesDocumentChainMode ? 'doc_chain_tooltip_confirm_processing' : 'process_order_button') | translate"
                                         (click)="processOrder()"></button>
                                     
                                     <!-- Deliver Order Button (shown when status is Processing) -->
                                     <button pButton pRipple icon="pi pi-truck" 
-                                        [label]="'deliver_order_button' | translate"
+                                        [label]="(salesDocumentChainMode ? 'doc_chain_timeline_btn_to_delivered' : 'deliver_order_button') | translate"
                                         class="p-button-outlined p-button-info"
                                         *ngIf="canProcess && order.orderStatus === 'Processing'"
-                                        [pTooltip]="'deliver_order_button' | translate"
+                                        [pTooltip]="(salesDocumentChainMode ? 'doc_chain_tooltip_record_delivery' : 'deliver_order_button') | translate"
                                         (click)="deliverOrder()"></button>
                                     
                                     <!-- Complete Order Button (shown when status is Delivered) -->
                                     <button pButton pRipple icon="pi pi-check-circle" 
-                                        [label]="'complete_order_button' | translate"
+                                        [label]="(salesDocumentChainMode ? 'doc_chain_timeline_btn_to_completed' : 'complete_order_button') | translate"
                                         class="p-button-outlined p-button-success"
                                         *ngIf="canProcess && order.orderStatus === 'Delivered'"
-                                        [pTooltip]="'complete_order_button' | translate"
+                                        [pTooltip]="(salesDocumentChainMode ? 'doc_chain_tooltip_close_document' : 'complete_order_button') | translate"
                                         (click)="completeOrder()"></button>
                                     
                                     <!-- Document Generation Buttons (all except primary) -->
@@ -566,9 +580,12 @@
                                         <tr>
                                             <th style="width: 25%">{{ 'product' | translate }}</th>
                                             <th style="width: 12%">{{ 'reference' | translate }}</th>
-                                            <th style="width: 10%" class="text-center">{{ 'quantity' | translate }}</th>
-                                            <th style="width: 12%">{{ 'unit_price' | translate }}</th>
-                                            <th style="width: 12%">{{ 'total' | translate }}</th>
+                                            <th style="width: 8%" class="text-center">{{ 'quantity' | translate }}</th>
+                                            <th style="width: 10%">{{ 'unit_price' | translate }}</th>
+                                            <th style="width: 10%">{{ 'net_amount' | translate }}</th>
+                                            <th style="width: 9%">{{ 'tax' | translate }}</th>
+                                            <th style="width: 8%">{{ 'tax_rate' | translate }}</th>
+                                            <th style="width: 10%">{{ 'gross_amount' | translate }}</th>
                                             <!-- Cost and Profit Columns (if available) -->
                                             <th style="width: 10%" *ngIf="hasCostInfo()">{{ 'cost_per_unit' | translate }}</th>
                                             <th style="width: 10%" *ngIf="hasCostInfo()">{{ 'total_cost' | translate }}</th>
@@ -579,7 +596,7 @@
                                         <tr>
                                             <td>
                                                 <div class="product-cell">
-                                                    <img [src]="orderItem?.product?.productImage || 'assets/core-images/no-image.png'"
+                                                    <img [src]="orderItem?.product | productImage"
                                                         [alt]="orderItem?.product?.name"
                                                         class="product-image"
                                                         (click)="viewProductDetails(orderItem?.product)"
@@ -597,7 +614,10 @@
                                                 <p-tag [value]="orderItem?.quantity?.toString() || '0'" severity="info"></p-tag>
                                             </td>
                                             <td class="font-semibold">{{ orderItem?.pricePerUnit | number:'1.2-2' }} {{ currency }}</td>
-                                            <td class="font-bold text-primary">{{ (orderItem?.quantity * orderItem?.pricePerUnit) | number:'1.2-2' }} {{ currency }}</td>
+                                            <td>{{ (orderItem?.lineNetAmount ?? ((orderItem?.quantity || 0) * (orderItem?.pricePerUnit || 0))) | number:'1.2-2' }} {{ currency }}</td>
+                                            <td>{{ (orderItem?.lineTaxAmount || 0) | number:'1.2-2' }} {{ currency }}</td>
+                                            <td>{{ formatTaxRate(orderItem?.taxRateUsed) }}</td>
+                                            <td class="font-bold text-primary">{{ (orderItem?.lineGrossAmount ?? ((orderItem?.lineNetAmount ?? ((orderItem?.quantity || 0) * (orderItem?.pricePerUnit || 0))) + (orderItem?.lineTaxAmount || 0))) | number:'1.2-2' }} {{ currency }}</td>
                                             <!-- Cost and Profit Data (if available) -->
                                             <td class="cost-cell" *ngIf="hasCostInfo()">
                                                 {{ orderItem?.costPerUnit != null ? (orderItem.costPerUnit | number:'1.2-2') + ' ' + currency : 'N/A' }}
@@ -618,12 +638,18 @@
                                     </ng-template>
                                     <ng-template pTemplate="footer">
                                         <tr class="total-footer">
-                                            <td [attr.colspan]="hasCostInfo() ? 4 : 4" class="text-right font-bold">{{ 'subtotal' | translate }}:</td>
+                                            <td colspan="4" class="text-right font-bold">{{ 'subtotal' | translate }}:</td>
                                             <td class="font-bold text-primary text-xl">{{ getOrderSubtotal() | number:'1.2-2' }} {{ currency }}</td>
-                                            <td *ngIf="hasCostInfo()" colspan="1" class="text-right font-bold cost-cell">{{ 'total_cost' | translate }}:</td>
-                                            <td *ngIf="hasCostInfo()" class="font-bold cost-value text-xl">{{ order.totalCost | number:'1.2-2' }} {{ currency }}</td>
-                                            <td *ngIf="hasCostInfo()" colspan="2" class="text-right font-bold profit-cell">{{ 'total_profit' | translate }}:</td>
-                                            <td *ngIf="hasCostInfo()" class="font-bold profit-value text-xl" [ngClass]="{'profit-negative': order.totalProfit < 0}">
+                                            <td class="text-right font-bold">{{ 'tax' | translate }}:</td>
+                                            <td class="font-bold text-primary text-xl">{{ getOrderLineTaxTotal() | number:'1.2-2' }} {{ currency }}</td>
+                                            <td class="font-bold text-primary text-xl">{{ getOrderLineGrossTotal() | number:'1.2-2' }} {{ currency }}</td>
+                                        </tr>
+                                        <tr class="total-footer" *ngIf="hasCostInfo()">
+                                            <td colspan="7"></td>
+                                            <td class="text-right font-bold cost-cell">{{ 'total_cost' | translate }}:</td>
+                                            <td class="font-bold cost-value text-xl">{{ order.totalCost | number:'1.2-2' }} {{ currency }}</td>
+                                            <td class="text-right font-bold profit-cell">{{ 'total_profit' | translate }}:</td>
+                                            <td class="font-bold profit-value text-xl" [ngClass]="{'profit-negative': order.totalProfit < 0}">
                                                 {{ order.totalProfit | number:'1.2-2' }} {{ currency }}
                                             </td>
                                         </tr>
@@ -722,7 +748,7 @@
 
                                                             <div class="products-preview">
                                                                 <div *ngFor="let item of order?.orderItems?.slice(0, 3)" class="product-preview-item">
-                                                                    <img [src]="item.product?.productImage || 'assets/core-images/no-image.png'" 
+                                                                    <img [src]="item.product | productImage"
                                                                         [alt]="item.product?.name" class="product-thumb" />
                                                                     <div class="product-preview-info">
                                                                         <span class="product-preview-name">{{ item.product?.name }}</span>

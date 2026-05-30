@@ -1,6 +1,6 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, SimpleChanges, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
-import { MessageService, LazyLoadEvent } from 'primeng/api';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { MessageService, LazyLoadEvent, MenuItem } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { PurchaseService } from 'src/app/services/purchase.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -22,7 +22,8 @@ import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { calculateProfit, displayAttributeValue, getLowStockThreshold, getMeasureUnit, getQuantitySeverity } from 'src/app/shared/product-utils';
-import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom, Subscription } from 'rxjs';
+import { skip } from 'rxjs/operators';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
@@ -31,6 +32,8 @@ import { PaymentService } from 'src/app/services/payment.service';
 import { Payment } from 'src/app/models/payment';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { ProcessModeService } from 'src/app/services/process-mode.service';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 import { DatePipe } from '@angular/common';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
@@ -43,7 +46,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   styleUrls: ['./purchases.component.css', '../purchases.component.css'],
   providers: [MessageService, DatePipe]
 })
-export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
+export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   @ViewChild('pickList') pickList: ElementRef | undefined;
   @ViewChild('purchaseImport') purchaseImport: any;
 
@@ -118,6 +121,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   scanning: boolean = true;
 
+  private readonly barcodeIdleMs = 120;
+  private readonly barcodeMinLength = 4;
+  private lastBarcodeKeyAt = 0;
+
   TaxEnabledOptions: any[] = [];
 
   taxEnabled: boolean = false;
@@ -138,6 +145,13 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   userRoles: any;
   isAdmin: boolean = false;
   maxPurchaseDate: any;
+
+  purchaseDocumentChainMode = false;
+
+  private static readonly URL_PURCHASE_STATUSES = ['PENDING', 'APPROVED', 'RECEIVED', 'COMPLETED'] as const;
+
+  purchaseDialogDocumentChainSteps: MenuItem[] = [];
+  purchaseDialogDocumentChainActiveIndex = 0;
   
   // Lazy loading properties
   totalRecords: number = 0;
@@ -150,10 +164,35 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   };
 
 
-  searchProductInput: string = "";
-  searchTimeout: any;
+  /** Product detail dialog selection (separate from purchase-line picker). */
   selectedProduct: Product | null = null;
+
+  /** Purchase dialog: server-backed product picker (same UX pattern as orders). */
+  purchasePickerFilteredProducts: Product[] = [];
+  purchasePickerProductSuggestions: Product[] = [];
+  purchasePickerProductSuggestionsLoading = false;
+  purchasePickerSelectedProduct: Product | null = null;
+  private latestPurchaseSuggestionToken = 0;
+
+  purchasePickerCategories: Category[] = [];
+  selectedPurchasePickerCategory: Category | null = null;
+  filteredPurchasePickerCategories: Category[] = [];
+
+  quickPurchaseProducts: Product[] = [];
+  purchasePickerGridLoading = false;
+  totalPurchasePickerGridRecords = 0;
+
+  lastPurchasePickerLazyLoad: LazyLoadEventExt = {
+    first: 0,
+    rows: 24,
+    sortField: 'name',
+    sortOrder: 1,
+    globalFilter: '',
+    filters: {}
+  };
   productDetailDialog: boolean = false;
+  canAddProduct: boolean = false;
+  canAddShop: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
   canArchiveProduct: boolean = false;
@@ -175,14 +214,29 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   showPaymentSection: boolean = false;
   payment: Payment = {};
   bankAccounts: BankAccount[] = [];
+  canReadBankAccounts: boolean = false;
   showBankAccountField: boolean = false;
   isBankAccountRequired: boolean = false;
   minimumAmountHint: string | null = null;
+  bankAccountNoticeKey: string | null = null;
+  bankAccountNoticeSeverity: 'info' | 'warn' = 'info';
+  paymentMethodOptions = [
+    { label: 'Cash', value: 'Cash' },
+    { label: 'Card', value: 'Card' },
+    { label: 'Check', value: 'Check' },
+    { label: 'Transfer', value: 'Transfer' },
+    { label: 'BOE', value: 'BOE' }
+  ];
+  filteredPaymentMethodOptions = this.paymentMethodOptions;
 
   // UX helper flags
   hasSingleShop: boolean = false;
   hasSingleSupplier: boolean = false;
   selectedPurchaseWarehouse: Warehouse | null = null;
+
+  private processFlagsSub?: Subscription;
+  private configSavedSub?: Subscription;
+  private activityProfileSub?: Subscription;
 
   constructor(private messageService: MessageService,
     private purchaseService: PurchaseService,
@@ -198,18 +252,25 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     private storage: AngularFireStorage,
     private productService: ProductService,
     private router: Router,
+    private route: ActivatedRoute,
     private bankAccountService: BankAccountService,
     private paymentValidationService: PaymentValidationService,
     private paymentService: PaymentService,
     private categoryService: CategoryService,
     private warehouseService: WarehouseService,
     private organizationService: OrganizationService,
-    private datePipe: DatePipe) {
+    private datePipe: DatePipe,
+    private processModeService: ProcessModeService,
+    public activityProfileService: ActivityProfileService) {
     this.loadTaxRate();
   }
 
   async ngOnInit() {
     this.isLoading = true;
+    await this.processModeService.ensureLoaded();
+    await this.activityProfileService.ensureLoaded();
+    this.activityProfileSub = this.activityProfileService.contextChanged$.subscribe(() => this.cdr.markForCheck());
+    this.purchaseDocumentChainMode = this.processModeService.isPurchaseDocumentChain();
     this.lowStockThreshold = await getLowStockThreshold(this.configService);
     this.maxPurchaseDate = new Date(); // Today's date
     this.maxPurchaseDate.setHours(23, 59, 59, 999); // Include entire current day
@@ -221,13 +282,40 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     });
     this.initializeTranslations();
     this.initializeStatuses();
-    
+
+    this.applyPurchaseStatusFromQueryParam(this.route.snapshot.queryParamMap.get('purchaseStatus'));
+    this.route.queryParamMap.pipe(skip(1)).subscribe((qm) => {
+      this.applyPurchaseStatusFromQueryParam(qm.get('purchaseStatus'));
+      this.applyFilters();
+    });
+
+    this.processFlagsSub = this.processModeService.processFlagsChanged$.subscribe(() => {
+      this.applyPurchaseProcessFlagsAfterSettingsSave();
+    });
+
+    this.configSavedSub = this.configService.configurationSaved$.subscribe((key) => {
+      if (!key) {
+        return;
+      }
+      if (key === 'tax') {
+        void this.loadTaxRate();
+        return;
+      }
+      if (key === 'lowStockThreshold') {
+        void getLowStockThreshold(this.configService).then((t) => {
+          this.lowStockThreshold = t;
+          this.cdr.markForCheck();
+        });
+      }
+    });
+
+    await this.setUserRoles();
+
     // Load data
     await Promise.all([
       this.onGetAllShops(),
       this.onGetAllSuppliers(),
       this.checkPermissions(),
-      this.setUserRoles(),
       this.loadBankAccounts(),
       this.onGetAllCategories(),
       this.onGetAllWarehouses(),
@@ -243,9 +331,89 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
     
-    // Load first page of purchases
-    await this.loadPurchases();
+    // Load first page of purchases (respects URL purchaseStatus)
+    this.applyFilters();
     this.isLoading = false;
+  }
+
+  ngOnDestroy(): void {
+    this.processFlagsSub?.unsubscribe();
+    this.configSavedSub?.unsubscribe();
+    this.activityProfileSub?.unsubscribe();
+  }
+
+  /** True when org profile requires lot + expiry on each physical line (matches backend Pharmacy rules). */
+  isProductLineBatchExpiryInvalid(product: any): boolean {
+    if (!this.activityProfileService.emphasizeBatchAndExpiry) {
+      return false;
+    }
+    if (product?.productType === 'SERVICE') {
+      return false;
+    }
+    const lot = (product?.purchaseItemBatchNumber ?? '').toString().trim();
+    const exp = product?.purchaseItemExpirationDate;
+    if (!lot) {
+      return true;
+    }
+    if (!exp) {
+      return true;
+    }
+    const d = exp instanceof Date ? exp : new Date(exp);
+    return isNaN(d.getTime());
+  }
+
+  private readProductAttributeText(product: any, names: string[]): string {
+    const attrs = product?.attributes;
+    if (!Array.isArray(attrs) || attrs.length === 0) {
+      return '';
+    }
+    const wanted = new Set(names.map((n) => n.trim().toLowerCase()));
+    const found = attrs.find((a: any) => wanted.has(String(a?.attributeName ?? '').trim().toLowerCase()));
+    if (!found) {
+      return '';
+    }
+    const raw = found.value ?? found.stringValue ?? found.intValue ?? found.doubleValue ?? '';
+    return String(raw).trim();
+  }
+
+  getProductVariantSummary(product: any): string {
+    const size = this.readProductAttributeText(product, ['size']);
+    const color = this.readProductAttributeText(product, ['color', 'colour']);
+    if (!size && !color) {
+      return '';
+    }
+    if (size && color) {
+      return `${size} / ${color}`;
+    }
+    return size || color;
+  }
+
+  isFashionVariantMissing(product: any): boolean {
+    if (!this.activityProfileService.isFashionProfile) {
+      return false;
+    }
+    if (product?.productType === 'SERVICE') {
+      return false;
+    }
+    return !this.getProductVariantSummary(product);
+  }
+
+  openProfileSettings(): void {
+    void this.router.navigate(['/administration/settings'], { queryParams: { businessProfile: 1 } });
+  }
+
+  /** After settings save: sync document-chain UI, status filter options, and list. */
+  private applyPurchaseProcessFlagsAfterSettingsSave(): void {
+    this.purchaseDocumentChainMode = this.processModeService.isPurchaseDocumentChain();
+    if (!this.purchaseDocumentChainMode && this.selectedPurchaseStatus === 'APPROVED') {
+      this.selectedPurchaseStatus = null;
+    }
+    this.initializeStatuses();
+    if (this.purchaseDialog) {
+      this.refreshPurchaseDialogDocumentChainSteps();
+    }
+    this.applyFilters();
+    this.cdr.markForCheck();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -410,17 +578,18 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   moveProductToTarget(product: any): void {
-    // Only check quantity for products, not services
-    if (this.isProduct(product) && (product.quantityAvailable === null || product.quantityAvailable === undefined || product.quantityAvailable <= 0)) {
-      console.log('Product quantity is not sufficient to move to target.');
-      return;
-    }
-
     const existingProduct = this.targetProducts.find(targetProduct => targetProduct.productId === product.productId);
     if (!existingProduct) {
-      const newProduct = { ...product, purchaseItemPricePerUnit: product.buyingPrice, purchaseItemQuantity: 1 };
+      const unit =
+        product.buyingPrice != null && product.buyingPrice !== '' && !Number.isNaN(Number(product.buyingPrice))
+          ? Number(product.buyingPrice)
+          : undefined;
+      const newProduct = { ...product, purchaseItemPricePerUnit: unit, purchaseItemQuantity: 1 };
       this.targetProducts.push(newProduct);
       this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
+      this.purchasePickerFilteredProducts = this.purchasePickerFilteredProducts.filter(
+        p => p.productId !== product.productId
+      );
       this.purchaseItems.push(newProduct); // Update orderItems for ngModel binding
       this.cdr.detectChanges(); // Trigger change detection
     } else {
@@ -435,11 +604,17 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     if (!alreadyInSource) {
       this.sourceProducts = [product, ...this.sourceProducts];
     }
+    if (this.selectedPurchasePickerCategory?.categoryId) {
+      this.lastPurchasePickerLazyLoad = { ...this.lastPurchasePickerLazyLoad, first: 0 };
+      this.loadPurchasePickerProductsGrid();
+    }
     this.cdr.detectChanges();
   }
 
   searchProductByBarcode(barcode: string): Product | undefined {
-    return this.sourceProducts.find((p: Product) => p.reference === barcode);
+    return this.purchasePickerFilteredProducts.find((p: Product) => p.reference === barcode)
+      ?? this.purchasePickerProductSuggestions.find((p: Product) => p.reference === barcode)
+      ?? this.quickPurchaseProducts.find((p: Product) => p.reference === barcode);
   }
 
   // Check if a key is a valid alphanumeric character
@@ -448,46 +623,95 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     return isAlphaNum;
   }
 
-  processBarcode(): void {
-    console.log("in process barcode");
-    if (this.barcode) {
-      const product = this.searchProductByBarcode(this.barcode);
-      if (product) {
-        console.log("Product found: ", product);
-        // Move the product to target using the new method
-        this.moveProductToTarget(product);
-      } else {
-        console.log(`Product does not exist in stock for barcode: ${this.barcode}`);
-      }
-      this.barcode = ''; // Clear the barcode buffer after processing
+  private resetBarcodeBuffer(): void {
+    this.barcode = '';
+    this.lastBarcodeKeyAt = 0;
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+      this.scanTimeout = null;
     }
+  }
+
+  private shouldIgnoreBarcodeKeyEvent(event: KeyboardEvent): boolean {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return false;
+    }
+
+    return !!target.closest(
+      'input, textarea, select, [contenteditable="true"], .p-inputnumber, .p-autocomplete, .p-dropdown, .p-calendar, .p-multiselect, .p-inputtext'
+    );
+  }
+
+  processBarcode(force = false): void {
+    if (!this.barcode) {
+      return;
+    }
+    const raw = this.barcode.trim();
+    this.resetBarcodeBuffer();
+
+    if (!force && raw.length < this.barcodeMinLength) {
+      return;
+    }
+
+    const local = this.searchProductByBarcode(raw);
+    if (local) {
+      this.moveProductToTarget(local);
+      return;
+    }
+
+    const warehouseId = this.isAdmin ? this.getSelectedPurchaseWarehouseId() : undefined;
+    if (this.isAdmin && warehouseId == null) {
+      return;
+    }
+
+    this.productService.searchDistinctProductsForPurchase(raw, warehouseId).subscribe({
+      next: (response: any) => {
+        const list: Product[] = Array.isArray(response) ? response : [];
+        const exact = list.find((p) => (p.reference || '').trim() === raw) ?? list[0];
+        if (exact) {
+          this.moveProductToTarget(exact);
+        }
+      },
+      error: () => {
+        /* scanner path: stay silent */
+      }
+    });
   }
 
   @HostListener('document:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent): void {
-    if (this.scanning) {
-      const key = event.key;
-
-      // If the key is a valid alphanumeric character, add it to the barcode buffer
-      if (this.isAlphanumeric(key)) {
-        this.barcode += key;
-      }
-
-      // If the Enter key is pressed, process the barcode
-      if (key === 'Enter') {
-        this.processBarcode();
-      }
-
-      // Clear any existing timeout
-      if (this.scanTimeout) {
-        clearTimeout(this.scanTimeout);
-      }
-
-      // Set a timeout to process the barcode after 300ms of inactivity
-      this.scanTimeout = setTimeout(() => {
-        this.processBarcode();
-      }, 300);
+    if (!this.scanning || event.ctrlKey || event.altKey || event.metaKey || this.shouldIgnoreBarcodeKeyEvent(event)) {
+      this.resetBarcodeBuffer();
+      return;
     }
+
+    const key = event.key;
+
+    if (key === 'Enter') {
+      this.processBarcode(true);
+      return;
+    }
+
+    if (!this.isAlphanumeric(key)) {
+      return;
+    }
+
+    const now = Date.now();
+    if (!this.barcode || (this.lastBarcodeKeyAt && now - this.lastBarcodeKeyAt > this.barcodeIdleMs)) {
+      this.barcode = '';
+    }
+
+    this.lastBarcodeKeyAt = now;
+    this.barcode += key;
+
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+    }
+
+    this.scanTimeout = setTimeout(() => {
+      this.processBarcode();
+    }, this.barcodeIdleMs);
   }
 
   toggleRow(id: number): void {
@@ -501,6 +725,57 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   showPurchaseDetails(purchase: any) {
     this.router.navigate(['/purchases/purchases', purchase.purchaseId]);
+  }
+
+  private refreshPurchaseDialogDocumentChainSteps(): void {
+    if (!this.purchaseDocumentChainMode || !this.purchase?.purchaseId) {
+      this.purchaseDialogDocumentChainSteps = [];
+      this.purchaseDialogDocumentChainActiveIndex = 0;
+      return;
+    }
+    const L = (key: string) => this.translate.instant(key);
+    this.purchaseDialogDocumentChainSteps = [
+      { label: L('doc_chain_purchase_step_request') },
+      { label: L('doc_chain_purchase_step_approval') },
+      { label: L('doc_chain_purchase_step_receipt') },
+      { label: L('doc_chain_purchase_step_closure') },
+    ];
+    this.purchaseDialogDocumentChainActiveIndex = this.purchaseStatusToDocumentChainStepIndex(
+      this.purchase.purchaseStatus
+    );
+  }
+
+  private purchaseStatusToDocumentChainStepIndex(status?: string): number {
+    switch (status) {
+      case 'PENDING':
+        return 0;
+      case 'APPROVED':
+        return 1;
+      case 'RECEIVED':
+        return 2;
+      case 'COMPLETED':
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  tooltipPurchaseViewDetails(): string {
+    return this.purchaseDocumentChainMode
+      ? this.translate.instant('doc_chain_purchase_tooltip_view_record')
+      : this.translate.instant('purchase_processing');
+  }
+
+  tooltipPurchaseEdit(): string {
+    return this.purchaseDocumentChainMode
+      ? this.translate.instant('doc_chain_purchase_tooltip_edit_request')
+      : this.translate.instant('update_purchase');
+  }
+
+  tooltipPurchaseCancel(): string {
+    return this.purchaseDocumentChainMode
+      ? this.translate.instant('doc_chain_purchase_tooltip_cancel')
+      : this.translate.instant('cancel_order');
   }
 
   getPurchaseStatusSeverity(status: string): string {
@@ -599,6 +874,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
+    this.canReadBankAccounts = this.isAdmin;
+    this.filteredPaymentMethodOptions = this.paymentMethodOptions;
   }
 
   async checkPermissions() {
@@ -613,6 +890,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.canProcessPurchase = this.permissionService.canProcess(this.Ressource);
     this.canCancelPurchase = this.permissionService.canCancel(this.Ressource);
     this.canImportPurchase = this.permissionService.canCreate(this.Ressource); // Use create permission for import
+    this.canAddProduct = this.permissionService.canCreate('PRODUCTS');
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
     this.canArchiveProduct = this.permissionService.canArchive('PRODUCTS');
@@ -621,6 +899,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
     this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
     this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
+    this.canAddShop = this.permissionService.canCreate('SHOPS');
   }
 
   deleteSelectedPurchases() {
@@ -658,9 +937,12 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
       const firstProductWarehouse = this.purchase.purchaseItems?.[0]?.product?.warehouse || null;
       this.selectedPurchaseWarehouse = firstProductWarehouse;
     }
-    this.loadProductsForPicker();
+    this.resetPurchasePickerUi();
+    void this.loadPurchasePickerCategories();
+    void this.onLoadQuickPurchaseProducts();
     this.initializePickList();
     this.purchaseDialog = true;
+    this.refreshPurchaseDialogDocumentChainSteps();
 
     // Add the new fields directly to the purchase items
     this.purchase.purchaseItems.forEach(item => {
@@ -702,6 +984,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.targetProducts = [];
     this.sourceProducts = [];
     this.selectedPurchaseWarehouse = null;
+    this.resetPurchasePickerUi();
     this.showPaymentSection = false;
     this.payment = {};
     this.submitted = false;
@@ -737,7 +1020,9 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     this.purchase.taxEnabled = false;
     this.purchaseItems = [];
     this.selectedPurchaseWarehouse = null;
-    this.loadProductsForPicker();
+    this.resetPurchasePickerUi();
+    void this.loadPurchasePickerCategories();
+    void this.onLoadQuickPurchaseProducts();
     this.initializePickList();
     this.purchaseDialog = true;
   }
@@ -807,20 +1092,17 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         });
         return;
       }
-      if (this.isAdmin && this.selectedPurchaseWarehouse) {
-        const selectedWarehouseId = this.getSelectedPurchaseWarehouseId();
-        const hasMismatchedWarehouse = this.targetProducts.some(
-          p => selectedWarehouseId != null && p.warehouse?.warehouseId !== selectedWarehouseId
-        );
-        if (hasMismatchedWarehouse) {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('please_select_products_from_same_warehouse'),
-            life: 3500
-          });
-          return;
-        }
+      const badUnitPrice = this.targetProducts.some(
+        p => p.purchaseItemPricePerUnit == null || Number(p.purchaseItemPricePerUnit) <= 0
+      );
+      if (badUnitPrice) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('purchase_line_unit_price_required'),
+          life: 4000
+        });
+        return;
       }
 
       // Check if at least one product is selected
@@ -832,6 +1114,26 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           life: 3000
         });
         return; // Exit the method to prevent submission
+      }
+
+      if (this.targetProducts.some((p) => this.isFashionVariantMissing(p))) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('profile_mode_fashion_purchase_variant_required'),
+          life: 4500
+        });
+        return;
+      }
+
+      if (this.targetProducts.some((p) => this.isProductLineBatchExpiryInvalid(p))) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('purchase_batch_lot_expiry_required'),
+          life: 5000
+        });
+        return;
       }
 
       // Map the target products to purchase items with the required structure
@@ -877,8 +1179,16 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
       newPurchase.taxEnabled = this.taxEnabled;
 
+      if (this.isAdmin) {
+        const whId = this.getSelectedPurchaseWarehouseId();
+        if (whId != null) {
+          newPurchase.receivingWarehouseId = whId;
+        }
+      }
+
       console.log(newPurchase);
 
+      this.isSaving = true;
       try {
         let savedPurchase: Purchase;
 
@@ -914,6 +1224,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           life: 3000
         });
         return;
+      } finally {
+        this.isSaving = false;
       }
 
       this.purchases = [...this.purchases];
@@ -938,13 +1250,20 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   private initializeStatuses() {
-    // Purchase statuses
-    this.statuses = [
-      { label: 'Pending', value: 'PENDING' },
-      { label: 'Received', value: 'RECEIVED' },
-      { label: 'Completed', value: 'COMPLETED' },
-      { label: 'Canceled', value: 'CANCELED' },
-    ];
+    this.statuses = this.purchaseDocumentChainMode
+      ? [
+          { label: 'Pending', value: 'PENDING' },
+          { label: 'Approved', value: 'APPROVED' },
+          { label: 'Received', value: 'RECEIVED' },
+          { label: 'Completed', value: 'COMPLETED' },
+          { label: 'Canceled', value: 'CANCELED' },
+        ]
+      : [
+          { label: 'Pending', value: 'PENDING' },
+          { label: 'Received', value: 'RECEIVED' },
+          { label: 'Completed', value: 'COMPLETED' },
+          { label: 'Canceled', value: 'CANCELED' },
+        ];
 
     // Payment statuses
     this.paymentStatuses = [
@@ -1025,6 +1344,11 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     };
 
     this.onLazyLoad(lazyEvent);
+  }
+
+  private applyPurchaseStatusFromQueryParam(raw: string | null): void {
+    const allowed = PurchasesComponent.URL_PURCHASE_STATUSES as readonly string[];
+    this.selectedPurchaseStatus = raw && allowed.includes(raw) ? raw : null;
   }
 
 
@@ -1201,7 +1525,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
           next: (response: any) => {
             console.log(response);
             this.onGetAllPurchases();
-            this.loadProductsForPicker();
+            this.refreshPurchasePickerCatalog();
             // Return the updated purchase
             resolve(response as Purchase);
           },
@@ -1225,7 +1549,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         next: (response: any) => {
           console.log(response);
           this.onGetAllPurchases();
-          this.loadProductsForPicker();
+          this.refreshPurchasePickerCatalog();
           // Return the saved purchase
           resolve(response as Purchase);
         },
@@ -1640,39 +1964,303 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  loadProductsForPicker(search: string = "") {
-    const warehouseId = this.isAdmin ? this.getSelectedPurchaseWarehouseId() : undefined;
-    if (this.isAdmin && !warehouseId) {
-      this.sourceProducts = [];
+  /** Refresh quick picks and category grid after catalog changes (same role as former loadProductsForPicker). */
+  private refreshPurchasePickerCatalog(): void {
+    void this.onLoadQuickPurchaseProducts();
+    if (this.selectedPurchasePickerCategory?.categoryId) {
+      this.lastPurchasePickerLazyLoad = { ...this.lastPurchasePickerLazyLoad, first: 0 };
+      this.loadPurchasePickerProductsGrid();
+    }
+  }
+
+  private resetPurchasePickerUi(): void {
+    this.purchasePickerFilteredProducts = [];
+    this.purchasePickerProductSuggestions = [];
+    this.purchasePickerSelectedProduct = null;
+    this.selectedPurchasePickerCategory = null;
+    this.filteredPurchasePickerCategories = [];
+    this.quickPurchaseProducts = [];
+    this.totalPurchasePickerGridRecords = 0;
+    this.purchasePickerGridLoading = false;
+    this.purchasePickerProductSuggestionsLoading = false;
+    this.lastPurchasePickerLazyLoad = {
+      first: 0,
+      rows: 24,
+      sortField: 'name',
+      sortOrder: 1,
+      globalFilter: '',
+      filters: {}
+    };
+  }
+
+  async loadPurchasePickerCategories(): Promise<void> {
+    try {
+      const response = await firstValueFrom(this.categoryService.getProductsCategories()) as Category[];
+      this.purchasePickerCategories = Array.isArray(response)
+        ? response.map((c: any) => ({
+            ...c,
+            creationDate: c.creationDate ? new Date(c.creationDate as Date) : null
+          }))
+        : [];
+      this.filteredPurchasePickerCategories = [...this.purchasePickerCategories];
+    } catch {
+      this.purchasePickerCategories = [];
+      this.filteredPurchasePickerCategories = [];
+    }
+  }
+
+  filterPurchasePickerCategories(event: any): void {
+    const query = (event.query || '').toLowerCase();
+    if (!query) {
+      this.filteredPurchasePickerCategories = [...this.purchasePickerCategories];
+    } else {
+      this.filteredPurchasePickerCategories = this.purchasePickerCategories.filter((c) =>
+        (c.categoryName || '').toLowerCase().includes(query)
+      );
+    }
+  }
+
+  filterByPurchasePickerCategory(): void {
+    if (!this.selectedPurchasePickerCategory?.categoryId) {
+      this.purchasePickerFilteredProducts = [];
+      this.totalPurchasePickerGridRecords = 0;
+      this.updatePurchasePickerProductsFilter('categoryId', null);
       return;
     }
-    this.productService.searchProductsForPurchase(search, warehouseId).subscribe({
-      next: (products: Product[]) => {
-        const warehouseFilteredProducts = this.isAdmin && warehouseId
-          ? (products || []).filter(p => Number((p.warehouse as any)?.warehouseId) === Number(warehouseId))
-          : (products || []);
-        // Remove items that are already selected in target
-        this.sourceProducts = warehouseFilteredProducts.filter(
-          p => !this.targetProducts.some(t => t.productId === p.productId)
-        );
+    this.purchasePickerFilteredProducts = [];
+    this.updatePurchasePickerProductsFilter('categoryId', this.selectedPurchasePickerCategory.categoryId);
+    this.lastPurchasePickerLazyLoad = { ...this.lastPurchasePickerLazyLoad, first: 0 };
+    this.loadPurchasePickerProductsGrid();
+  }
+
+  clearPurchasePickerCategoryFilter(): void {
+    this.selectedPurchasePickerCategory = null;
+    this.purchasePickerFilteredProducts = [];
+    this.totalPurchasePickerGridRecords = 0;
+    this.updatePurchasePickerProductsFilter('categoryId', null);
+  }
+
+  private updatePurchasePickerProductsFilter(field: string, value: any): void {
+    const currentFilters = { ...(this.lastPurchasePickerLazyLoad.filters || {}) };
+    if (value === undefined || value === null || value === '') {
+      delete currentFilters[field];
+    } else {
+      currentFilters[field] = { value };
+    }
+    this.lastPurchasePickerLazyLoad = {
+      ...this.lastPurchasePickerLazyLoad,
+      first: 0,
+      filters: currentFilters
+    };
+  }
+
+  loadPurchasePickerProductsGrid(): void {
+    if (!this.selectedPurchasePickerCategory?.categoryId) {
+      this.purchasePickerFilteredProducts = [];
+      this.totalPurchasePickerGridRecords = 0;
+      return;
+    }
+    const warehouseId = this.isAdmin ? this.getSelectedPurchaseWarehouseId() : undefined;
+    if (this.isAdmin && warehouseId == null) {
+      this.purchasePickerFilteredProducts = [];
+      this.totalPurchasePickerGridRecords = 0;
+      return;
+    }
+
+    this.purchasePickerGridLoading = true;
+    this.productService.loadToken();
+
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastPurchasePickerLazyLoad;
+    const productFilters: { [k: string]: any } = filters ? { ...filters } : {};
+    if (this.isAdmin && warehouseId != null) {
+      productFilters['warehouseId'] = { value: warehouseId };
+    }
+
+    const page = (first ?? 0) / (rows ?? 24);
+    const size = rows ?? 24;
+    const direction = sortOrder === -1 ? 'DESC' : 'ASC';
+
+    this.productService
+      .getProductsPaginated(page, size, globalFilter || '', sortField || 'name', direction, productFilters)
+      .subscribe({
+        next: (res: any) => {
+          const selectedWarehouseId = this.getSelectedPurchaseWarehouseId();
+          let mapped: Product[] = (res.page?.content || []).map((p: any) => ({
+            ...p,
+            creationDate: p.creationDate ? new Date(p.creationDate) : null,
+            archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
+            buyingDate: p.buyingDate ? new Date(p.buyingDate) : null
+          }));
+          if (this.isAdmin) {
+            if (!selectedWarehouseId) {
+              mapped = [];
+            } else {
+              mapped = mapped.filter(
+                (p: Product) => Number((p.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)
+              );
+            }
+          }
+          const targetIds = new Set(this.targetProducts.map((t) => t.productId));
+          this.purchasePickerFilteredProducts = mapped.filter((p) => !targetIds.has(p.productId!));
+          this.totalPurchasePickerGridRecords =
+            res.totalProducts ?? res.page?.totalElements ?? res.totalElements ?? 0;
+          this.purchasePickerGridLoading = false;
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.purchasePickerGridLoading = false;
+          this.purchasePickerFilteredProducts = [];
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_products'),
+            life: 3000
+          });
+        }
+      });
+  }
+
+  loadMorePurchasePickerGrid(): void {
+    if (!this.selectedPurchasePickerCategory?.categoryId) {
+      return;
+    }
+    const loaded = this.lastPurchasePickerLazyLoad.first! + this.purchasePickerFilteredProducts.length;
+    if (loaded >= this.totalPurchasePickerGridRecords) {
+      return;
+    }
+    this.lastPurchasePickerLazyLoad = {
+      ...this.lastPurchasePickerLazyLoad,
+      first: this.lastPurchasePickerLazyLoad.first! + (this.lastPurchasePickerLazyLoad.rows ?? 24)
+    };
+    const warehouseId = this.isAdmin ? this.getSelectedPurchaseWarehouseId() : undefined;
+    if (this.isAdmin && warehouseId == null) {
+      return;
+    }
+
+    this.purchasePickerGridLoading = true;
+    this.productService.loadToken();
+    const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastPurchasePickerLazyLoad;
+    const productFilters: { [k: string]: any } = filters ? { ...filters } : {};
+    if (this.isAdmin && warehouseId != null) {
+      productFilters['warehouseId'] = { value: warehouseId };
+    }
+    const page = (first ?? 0) / (rows ?? 24);
+    const size = rows ?? 24;
+    const direction = sortOrder === -1 ? 'DESC' : 'ASC';
+
+    this.productService
+      .getProductsPaginated(page, size, globalFilter || '', sortField || 'name', direction, productFilters)
+      .subscribe({
+        next: (res: any) => {
+          const selectedWarehouseId = this.getSelectedPurchaseWarehouseId();
+          let mapped: Product[] = (res.page?.content || []).map((p: any) => ({
+            ...p,
+            creationDate: p.creationDate ? new Date(p.creationDate) : null,
+            archivedDate: p.archivedDate ? new Date(p.archivedDate) : null,
+            buyingDate: p.buyingDate ? new Date(p.buyingDate) : null
+          }));
+          if (this.isAdmin && selectedWarehouseId) {
+            mapped = mapped.filter(
+              (p: Product) => Number((p.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)
+            );
+          }
+          const targetIds = new Set(this.targetProducts.map((t) => t.productId));
+          const pageRows = mapped.filter((p) => !targetIds.has(p.productId!));
+          const existingIds = new Set(this.purchasePickerFilteredProducts.map((p) => p.productId));
+          const merged = [...this.purchasePickerFilteredProducts];
+          for (const p of pageRows) {
+            if (!existingIds.has(p.productId)) {
+              merged.push(p);
+              existingIds.add(p.productId);
+            }
+          }
+          this.purchasePickerFilteredProducts = merged;
+          this.purchasePickerGridLoading = false;
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.purchasePickerGridLoading = false;
+        }
+      });
+  }
+
+  filterPurchasePickerProducts(event: any): void {
+    const query = (event?.query || '').trim();
+    const requestToken = ++this.latestPurchaseSuggestionToken;
+    const warehouseId = this.isAdmin ? this.getSelectedPurchaseWarehouseId() : undefined;
+    if (this.isAdmin && warehouseId == null) {
+      this.purchasePickerProductSuggestions = [];
+      this.purchasePickerProductSuggestionsLoading = false;
+      return;
+    }
+
+    this.purchasePickerProductSuggestionsLoading = true;
+    this.productService.searchDistinctProductsForPurchase(query, warehouseId).subscribe({
+      next: (response: any) => {
+        if (requestToken !== this.latestPurchaseSuggestionToken) {
+          return;
+        }
+        const list: Product[] = Array.isArray(response) ? response : [];
+        this.purchasePickerProductSuggestions = this.preparePurchasePickerSuggestions(list);
+        this.purchasePickerProductSuggestionsLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        if (requestToken !== this.latestPurchaseSuggestionToken) {
+          return;
+        }
+        this.purchasePickerProductSuggestions = [];
+        this.purchasePickerProductSuggestionsLoading = false;
       }
     });
   }
 
-  onSearchProducts(event: any) {
-    const search = event.target.value;
-    this.searchProductInput = search;
+  private preparePurchasePickerSuggestions(products: Product[]): Product[] {
+    const selectedWarehouseId = this.getSelectedPurchaseWarehouseId();
+    const selectedIds = new Set(this.targetProducts.map((p) => p.productId));
+    return (products || []).filter(
+      (product) =>
+        (!this.isAdmin ||
+          (selectedWarehouseId != null &&
+            Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId))) &&
+        !selectedIds.has(product.productId)
+    );
+  }
 
-    clearTimeout(this.searchTimeout);
-    this.searchTimeout = setTimeout(() => {
-      this.loadProductsForPicker(search);
-    }, 300);
+  onPurchasePickerProductSelect(_event: any): void {
+    const selected = this.purchasePickerSelectedProduct;
+    if (!selected) {
+      return;
+    }
+    this.moveProductToTarget(selected);
+    this.purchasePickerSelectedProduct = null;
+  }
+
+  async onLoadQuickPurchaseProducts(): Promise<void> {
+    const warehouseId = this.isAdmin ? this.getSelectedPurchaseWarehouseId() : undefined;
+    if (this.isAdmin && warehouseId == null) {
+      this.quickPurchaseProducts = [];
+      return;
+    }
+    try {
+      const response = await firstValueFrom(this.productService.getQuickProducts());
+      const list: Product[] = Array.isArray(response) ? response : [];
+      this.quickPurchaseProducts = list.filter((product) =>
+        !this.isAdmin ||
+        (warehouseId != null &&
+          Number((product.warehouse as any)?.warehouseId) === Number(warehouseId))
+      );
+    } catch {
+      this.quickPurchaseProducts = [];
+    }
+    this.cdr.markForCheck();
   }
 
   onPurchaseWarehouseChange(): void {
     this.targetProducts = [];
     this.purchaseItems = [];
-    this.loadProductsForPicker(this.searchProductInput || '');
+    this.resetPurchasePickerUi();
+    void this.onLoadQuickPurchaseProducts();
   }
 
   private getSelectedPurchaseWarehouseId(): number | undefined {
@@ -1712,7 +2300,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     if (!this.canEditProduct) return;
     this.selectedProduct = product;
     this.product = { ...product };
-    this.loadProductsForPicker();
+    this.refreshPurchasePickerCatalog();
     this.initializePickList();
     this.onGetAllShops();
     this.onGetAllSuppliers();
@@ -1724,7 +2312,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   // Method to open product dialog for adding new product
   openNewProduct(): void {
-    if (!this.canEditProduct) return;
+    if (!this.canAddProduct) return;
     this.product = {};
     this.onGetAllCategories();
     this.onGetAllWarehouses();
@@ -1769,9 +2357,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   // Handler for product form save success event
   onProductFormSaveSuccess(product: Product): void {
-    // Reload products for picker to reflect the changes
-    this.loadProductsForPicker();
-    // Reset product
+    this.refreshPurchasePickerCatalog();
+    void this.loadPurchasePickerCategories();
     this.product = {};
   }
 
@@ -1807,7 +2394,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         this.warehouses = response;
         if (this.isAdmin && !this.selectedPurchaseWarehouse && Array.isArray(this.warehouses) && this.warehouses.length === 1) {
           this.selectedPurchaseWarehouse = this.warehouses[0];
-          this.loadProductsForPicker(this.searchProductInput || '');
+          this.refreshPurchasePickerCatalog();
         }
       },
       error: (err: any) => {
@@ -1824,31 +2411,37 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
 
   // Dialog methods for adding new entities (can be empty or show dialogs)
   openCategoryDialog(): void {
-    // Can be implemented if needed, or left empty
     this.messageService.add({
       severity: 'info',
       summary: this.translate.instant('info'),
-      detail: this.translate.instant('category_dialog_not_available_in_purchases'),
+      detail: 'Category quick add is not available in this form yet.',
       life: 3000,
     });
   }
 
   openSupplierDialog(): void {
-    // Can be implemented if needed, or left empty
     this.messageService.add({
       severity: 'info',
       summary: this.translate.instant('info'),
-      detail: this.translate.instant('supplier_dialog_not_available_in_purchases'),
+      detail: 'Supplier quick add is not available in this form yet.',
       life: 3000,
     });
   }
 
   openWarehouseDialog(): void {
-    // Can be implemented if needed, or left empty
     this.messageService.add({
       severity: 'info',
       summary: this.translate.instant('info'),
-      detail: this.translate.instant('warehouse_dialog_not_available_in_purchases'),
+      detail: 'Warehouse quick add is not available in this form yet.',
+      life: 3000,
+    });
+  }
+
+  openShopDialog(): void {
+    this.messageService.add({
+      severity: 'info',
+      summary: this.translate.instant('info'),
+      detail: 'Shop quick add is not available in this form yet.',
       life: 3000,
     });
   }
@@ -1864,7 +2457,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
             detail: this.translate.instant('product_deleted'),
             life: 3000
           });
-          this.loadProductsForPicker();
+          this.refreshPurchasePickerCatalog();
         },
         error: (err: any) => {
           this.messageService.add({
@@ -1889,7 +2482,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
             detail: this.translate.instant('product_archived'),
             life: 3000
           });
-          this.loadProductsForPicker();
+          this.refreshPurchasePickerCatalog();
         },
         error: (err: any) => {
           this.messageService.add({
@@ -2190,6 +2783,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
   //       },
   //     })
   async loadBankAccounts() {
+    if (!this.canReadBankAccounts) {
+      this.bankAccounts = [];
+      return;
+    }
     try {
       const accounts$ = await this.bankAccountService.getBankAccounts(true);
       const response = await firstValueFrom(accounts$);
@@ -2226,28 +2823,158 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
       this.showBankAccountField = false;
       this.isBankAccountRequired = false;
       this.minimumAmountHint = null;
+      this.bankAccountNoticeKey = null;
       return;
     }
 
-    this.showBankAccountField = await this.paymentValidationService.shouldShowBankAccountField(this.payment.paymentMethod);
+    const isBankMethod = this.paymentValidationService.isBankMethod(this.payment.paymentMethod);
+    this.showBankAccountField = this.canReadBankAccounts
+      ? await this.paymentValidationService.shouldShowBankAccountField(this.payment.paymentMethod)
+      : false;
     this.isBankAccountRequired = await this.paymentValidationService.isBankAccountRequired(this.payment.paymentMethod);
     this.minimumAmountHint = await this.paymentValidationService.getMinimumAmountHint(this.payment.paymentMethod, this.currency);
+    this.bankAccountNoticeKey = null;
 
     // Pre-populate bank account from shop's default if available
-    if (this.showBankAccountField && this.purchase?.shop && !this.payment.bankAccountId) {
-      const shopDefaultAccountId = this.purchase.shop.defaultBankAccount?.accountId || 
-                                    this.purchase.shop.defaultBankAccountId;
-      if (shopDefaultAccountId) {
+    if (isBankMethod && !this.payment.bankAccountId) {
+      const shopDefaultAccountId = this.getPurchaseShopDefaultBankAccountId();
+      if (shopDefaultAccountId != null) {
         const defaultAccount = this.bankAccounts.find(acc => acc.accountId === shopDefaultAccountId);
-        if (defaultAccount) {
-          this.payment.bankAccountId = defaultAccount.accountId;
-        }
+        this.payment.bankAccountId = defaultAccount?.accountId ?? shopDefaultAccountId;
+      }
+    }
+
+    if (isBankMethod && !this.canReadBankAccounts) {
+      if (this.payment.bankAccountId) {
+        this.bankAccountNoticeSeverity = 'info';
+        this.bankAccountNoticeKey = 'shop_default_bank_account_will_be_used';
+      } else {
+        this.bankAccountNoticeSeverity = 'warn';
+        this.bankAccountNoticeKey = 'no_default_bank_account_assigned_to_shop';
       }
     }
   }
 
   async onPaymentMethodChange() {
     await this.updateBankAccountFieldVisibility();
+  }
+
+  private getPurchaseShopDefaultBankAccountId(): number | undefined {
+    const shop = this.resolvePurchasePaymentShop();
+    const raw = shop?.defaultBankAccount?.accountId ?? shop?.defaultBankAccountId;
+    if (raw == null) {
+      return undefined;
+    }
+    const id = Number(raw);
+    return Number.isFinite(id) && id > 0 ? id : undefined;
+  }
+
+  private resolvePurchasePaymentShop(): Shop | undefined {
+    const currentShopId = this.toPositiveNumber(this.purchase?.shop?.shopId);
+    if (currentShopId != null) {
+      const latest = this.shops.find(shop => this.toPositiveNumber(shop.shopId) === currentShopId);
+      if (latest) {
+        this.purchase.shop = latest;
+        return latest;
+      }
+      return this.purchase.shop;
+    }
+
+    if (!this.isAdmin) {
+      const userShopId = this.getCurrentUserShopIdFromToken();
+      const tokenShop = userShopId != null
+        ? this.shops.find(shop => this.toPositiveNumber(shop.shopId) === userShopId)
+        : undefined;
+      if (tokenShop) {
+        this.purchase.shop = tokenShop;
+        return tokenShop;
+      }
+    }
+
+    if (Array.isArray(this.shops) && this.shops.length === 1) {
+      this.purchase.shop = this.shops[0];
+      return this.shops[0];
+    }
+
+    return undefined;
+  }
+
+  private getCurrentUserShopIdFromToken(): number | undefined {
+    const tokenParsed = this.keycloakService.getKeycloakInstance()?.tokenParsed as any;
+    for (const key of ['shop', 'shopId', 'shop_id']) {
+      const value = this.readTokenClaimValue(tokenParsed, key);
+      const id = this.toPositiveNumber(value);
+      if (id != null) {
+        return id;
+      }
+    }
+    return undefined;
+  }
+
+  private readTokenClaimValue(source: any, key: string): any {
+    if (!source) {
+      return undefined;
+    }
+    const direct = source[key];
+    if (direct != null) {
+      return Array.isArray(direct) ? direct[0] : direct;
+    }
+    for (const container of ['attributes', 'user_attributes']) {
+      const nested = source[container];
+      const nestedValue = nested?.[key];
+      if (nestedValue != null) {
+        return Array.isArray(nestedValue) ? nestedValue[0] : nestedValue;
+      }
+    }
+    return undefined;
+  }
+
+  private toPositiveNumber(value: any): number | undefined {
+    if (value == null || String(value).trim() === '') {
+      return undefined;
+    }
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined;
+  }
+
+  private ensureBankAccountObjectForPayload(): void {
+    if (!this.payment.bankAccountId) {
+      delete (this.payment as any).bankAccount;
+      return;
+    }
+
+    const selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === this.payment.bankAccountId);
+    (this.payment as any).bankAccount = selectedBankAccount || { accountId: this.payment.bankAccountId };
+  }
+
+  private async prepareBankPaymentContext(): Promise<boolean> {
+    if (!this.paymentValidationService.isBankMethod(this.payment.paymentMethod || '')) {
+      this.payment.bankAccountId = undefined;
+      delete (this.payment as any).bankAccount;
+      this.bankAccountNoticeKey = null;
+      return true;
+    }
+
+    if (!this.canReadBankAccounts && !this.payment.bankAccountId) {
+      this.payment.bankAccountId = this.getPurchaseShopDefaultBankAccountId();
+    }
+
+    const requireAccount = await this.paymentValidationService.isBankAccountRequired(this.payment.paymentMethod || '');
+    if (requireAccount && !this.payment.bankAccountId && !this.canReadBankAccounts) {
+      this.bankAccountNoticeSeverity = 'warn';
+      this.bankAccountNoticeKey = 'no_default_bank_account_assigned_to_shop';
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('no_default_bank_account_assigned_to_shop'),
+        life: 4000
+      });
+      return false;
+    }
+
+    this.ensureBankAccountObjectForPayload();
+    await this.updateBankAccountFieldVisibility();
+    return true;
   }
 
   async validatePayment(): Promise<boolean> {
@@ -2268,6 +2995,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         detail: this.translate.instant('payment_amount_invalid_min'),
         life: 3000,
       });
+      return false;
+    }
+
+    if (!(await this.prepareBankPaymentContext())) {
       return false;
     }
 
@@ -2307,6 +3038,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
         summary: this.translate.instant('error'),
         detail: this.translate.instant('please_fill_required_fields')
       });
+      return;
+    }
+
+    if (!(await this.prepareBankPaymentContext())) {
       return;
     }
 
@@ -2358,12 +3093,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit {
     }
 
     // Add bankAccount object if bankAccountId is present (backend expects this)
-    if (this.payment.bankAccountId) {
-      const selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === this.payment.bankAccountId);
-      if (selectedBankAccount) {
-        (this.payment as any).bankAccount = selectedBankAccount;
-      }
-    }
+    this.ensureBankAccountObjectForPayload();
 
     try {
       await this.paymentService.savePayment(this.payment).toPromise();

@@ -27,7 +27,7 @@
 				(importProductsEvent)="openImportDialog()"
 				(showProductDetailsEvent)="showProductDetails($event)"
 				[filteredProducts]="filteredProducts" [printOptions]="printOptions"
-				[isAdmin]="isAdmin" [getQuantitySeverity]="getQuantitySeverity"
+				[isAdmin]="isAdmin" [isWarehouseman]="isWarehouseman" [isVendor]="isVendor" [getQuantitySeverity]="getQuantitySeverity"
 				[(selectedProducts)]="selectedProducts" [getMeasureUnit]="getMeasureUnit"
 				(onGlobalFilter)="onGlobalFilter($event)" [getProfitClass]="getProfitClass"
 				[calculateProfit]="calculateProfit"
@@ -40,6 +40,8 @@
 				[toggleProductRow]="toggleProductRow"
 				[getAggregatedWarehouseStocks]="getAggregatedWarehouseStocks"
 				[viewMode]="viewMode"
+				[tableViewMode]="tableViewMode"
+				(onTableViewModeChange)="onTableViewModeChange($event)"
 				(showWarehouseDetailsEvent)="showWarehouseDetails($event)"
 				(deactivateScanningEvent)="deactivateScanning()" (activateScanningEvent)="activateScanning()"
 				[categories]="categories" [warehouses]="warehouses" [suppliers]="suppliers" [statuses]="statuses"
@@ -149,7 +151,7 @@
 								<ng-template pTemplate="body" let-product>
 									<tr>
 										<td style="min-width:10rem;">
-											<img [src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+											<img [src]="getProductImage(product)"
 												[alt]="product.name" class="my-4 md:my-0 w-6 md:w-6rem shadow-2 mr-5" />
 										</td>
 

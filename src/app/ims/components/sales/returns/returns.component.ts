@@ -1,5 +1,5 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
@@ -20,7 +20,7 @@ import { OrderItem } from 'src/app/models/orderItem';
 import { Customer } from 'src/app/models/customer';
 import { CustomerService } from 'src/app/services/customer.service';
 import { Refund } from 'src/app/models/refund';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
@@ -211,6 +211,8 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   canReadReturn: boolean = false;
   canCancelReturn: boolean = false;
   lowStockThreshold: number = 10;
+
+  private configSavedSub?: Subscription;
   
   constructor(private messageService: MessageService,
     private returnService: ReturnService,
@@ -225,6 +227,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     private financialDocService: FinancialDocumentsService,
     public keycloakService: KeycloakService,
     private router: Router,
+    private route: ActivatedRoute,
     private organizationService: OrganizationService,
     private shopService: ShopService,
     private datePipe: DatePipe
@@ -247,6 +250,25 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     // Load return refund percentages
     await this.loadReturnRefundPercentages();
 
+    this.configSavedSub = this.configService.configurationSaved$.subscribe((key) => {
+      if (!key) {
+        return;
+      }
+      if (key === 'tax') {
+        void this.loadTaxRate();
+        return;
+      }
+      if (key === 'lowStockThreshold') {
+        void this.getLowStockThreshold().then((t) => {
+          this.lowStockThreshold = t;
+          this.cdr.markForCheck();
+        });
+        return;
+      }
+      if (key.startsWith('return.refund.percentage.')) {
+        void this.loadReturnRefundPercentages().then(() => this.cdr.markForCheck());
+      }
+    });
 
     // Set up translation and events
     this.initializeTranslations();
@@ -268,9 +290,22 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     this.initializeReturnStatuses();
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
-    
-    // Load first page of returns
-    await this.loadReturns();
+
+    const qpReturnStatus = this.route.snapshot.queryParamMap.get('returnStatus');
+    if (qpReturnStatus) {
+      const upper = qpReturnStatus.trim().toUpperCase();
+      const normalized = upper === 'CANCELLED' ? 'CANCELED' : upper;
+      const allowed = new Set(['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELED', 'PARTIALLY_REFUNDED']);
+      if (allowed.has(normalized)) {
+        this.selectedReturnStatus = normalized;
+      }
+    }
+
+    if (this.selectedReturnStatus) {
+      this.applyFilters();
+    } else {
+      await this.loadReturns();
+    }
   }
 
   private initializeTranslations() {
@@ -333,6 +368,10 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       const targetItems = this.pickList.nativeElement.querySelectorAll('.p-picklist-target .p-picklist-item');
 
     }
+  }
+
+  ngOnDestroy(): void {
+    this.configSavedSub?.unsubscribe();
   }
 
   async checkPermissions() {

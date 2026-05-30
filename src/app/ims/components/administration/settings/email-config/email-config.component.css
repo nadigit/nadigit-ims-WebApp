@@ -9,3 +9,59 @@
 .field-checkbox {
   margin-bottom: 1rem;
 }
+
+.integration-config-page {
+  max-width: 1080px;
+}
+
+.integration-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(6, 182, 212, 0.05));
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+.integration-hero__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  font-size: 1.15rem;
+}
+
+.integration-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.integration-toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.integration-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .integration-actions {
+    justify-content: stretch;
+  }
+
+  .integration-actions :is(button, .p-button) {
+    width: 100%;
+  }
+}

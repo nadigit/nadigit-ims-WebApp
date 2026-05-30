@@ -644,7 +644,7 @@
 <app-shop-form-dialog
     [config]="shopDialogConfig"
     [countries]="countries"
-    [bankAccounts]="[]"
+    [bankAccounts]="bankAccounts"
     [currency]="currency"
     [submitted]="submitted"
     (configChange)="onShopDialogConfigChange($event)"
@@ -905,6 +905,7 @@
                                         [placeholder]="'search_movements' | translate" class="w-full" />
                                 </span>
                                 <p-dropdown [(ngModel)]="selectedMovementTypeFilter" [options]="movementTypeOptions"
+                                    optionLabel="label" optionValue="value"
                                     [showClear]="true" [placeholder]="'filter_by_type' | translate"
                                     (onChange)="filterMovements()" (onClear)="filterMovements()" appendTo="body">
                                 </p-dropdown>

@@ -62,6 +62,7 @@ export interface PurchaseItemPreview {
 
 export interface PurchaseGroupPreview {
   purchaseIndex: number;
+  documentType?: string;
   supplierName: string;
   supplierId?: number;
   dateOfPurchase: string; // ISO date string
@@ -113,6 +114,7 @@ export interface PurchaseImportResult {
 
 // Phase 2: Parsed Invoice Data
 export interface ParsedInvoiceData {
+  documentType?: string;
   invoiceNumber?: string;
   supplierName?: string;
   invoiceDate?: string; // ISO date string

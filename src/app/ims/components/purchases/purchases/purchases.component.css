@@ -1,0 +1,430 @@
+/* Purchase dialog summary & payment (match orders form dialog) */
+.pos-dialog .p-dialog-content {
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.payment-section {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+}
+
+.payment-section .p-dropdown,
+.payment-section .p-inputtext,
+.payment-section .p-inputnumber,
+.payment-section .p-calendar {
+  width: 100%;
+}
+
+.payment-section .p-calendar .p-inputtext {
+  padding-left: 2.5rem;
+}
+
+.payment-section .p-calendar .p-datepicker-trigger {
+  background: transparent;
+  border: none;
+  color: var(--text-color-secondary);
+  width: 2.5rem;
+}
+
+.field-header-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.field-shortcut-link {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.field-shortcut-link:hover {
+  text-decoration: underline;
+}
+
+.order-summary-card {
+  background-color: var(--surface-ground);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  height: 100%;
+  color: var(--text-color);
+}
+
+.order-summary-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  color: var(--text-color);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.5rem 0;
+  color: var(--text-color);
+}
+
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  border-top: 1px solid var(--surface-border);
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  color: var(--text-color);
+}
+
+.total-amount {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.document-chain-workflow-banner .doc-chain-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius);
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+}
+
+.document-chain-workflow-banner .doc-chain-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: var(--primary-color-text);
+}
+
+.batch-inline-fields-invalid {
+  padding: 0.35rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--red-400, #f87171);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+/* Purchase dialog product picker (aligned with orders UX) */
+.product-suggestion-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  color: var(--text-color);
+}
+
+.product-suggestion-image {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  margin-right: 0.5rem;
+  border-radius: var(--border-radius);
+}
+
+.quick-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.quick-product-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  height: 100%;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  color: var(--text-color);
+  transition: all 0.2s ease;
+}
+
+.quick-product-btn:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  background: var(--surface-hover);
+}
+
+.quick-product-image {
+  width: 40px !important;
+  height: 40px !important;
+  object-fit: cover;
+  border-radius: var(--border-radius);
+  margin-bottom: 0.25rem;
+}
+
+.quick-product-name {
+  font-size: 0.75rem;
+  text-align: center;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  color: var(--text-color);
+}
+
+.quick-product-price {
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: var(--primary-500);
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.product-card {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 0.75rem;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--surface-card);
+  color: var(--text-color);
+}
+
+.product-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-2);
+}
+
+.product-card-image {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
+}
+
+.product-card-details {
+  text-align: center;
+}
+
+.product-card-name {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-color);
+}
+
+.product-card-category {
+  font-size: 0.75rem;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.product-card-price {
+  font-weight: bold;
+  color: var(--primary-500);
+  margin-bottom: 0.25rem;
+}
+
+/* Selected products table visual cleanup */
+.selected-products-card {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  background: var(--surface-card);
+}
+
+.selected-products-card .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.selected-products-card .selected-products-table .p-datatable-thead > tr > th {
+  background: var(--surface-ground);
+  color: var(--text-color-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.65rem 0.85rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.selected-products-card .selected-products-table .p-datatable-tbody > tr > td {
+  padding: 0.8rem 0.85rem;
+  border-bottom: 1px solid var(--surface-border);
+  vertical-align: top;
+}
+
+.selected-products-card .selected-products-table .p-datatable-tbody > tr:hover > td {
+  background: var(--surface-hover);
+}
+
+.selected-products-card .product-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.selected-products-card .product-details {
+  min-width: 0;
+}
+
+.selected-products-card .col-price,
+.selected-products-card .col-qty,
+.selected-products-card .col-subtotal {
+  text-align: right;
+  min-width: 9rem;
+}
+
+.selected-products-card .col-subtotal {
+  font-weight: 700;
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.selected-products-card .col-stock {
+  text-align: center;
+  min-width: 6.5rem;
+}
+
+.selected-products-card .col-action {
+  text-align: center;
+  white-space: nowrap;
+}
+
+@media screen and (max-width: 960px) {
+  .selected-products-card .selected-products-table .p-datatable-thead > tr > th {
+    padding: 0.55rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td {
+    padding: 0.65rem 0.6rem;
+  }
+
+  .selected-products-card .col-price,
+  .selected-products-card .col-qty,
+  .selected-products-card .col-subtotal {
+    min-width: 7.25rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .selected-products-card .selected-products-table .p-datatable-thead > tr > th.col-stock {
+    display: none;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-stock {
+    display: none;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-price,
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-qty,
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-subtotal {
+    min-width: 6.2rem;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .selected-products-card .selected-products-table .p-datatable-thead {
+    display: none;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr {
+    display: block;
+    margin: 0.75rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--border-radius);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-1);
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    width: 100%;
+    border: 0;
+    border-bottom: 1px dashed var(--surface-border);
+    padding: 0.65rem 0.8rem;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td:last-child {
+    border-bottom: 0;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td::before {
+    content: attr(data-label);
+    color: var(--text-color-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    flex: 0 0 42%;
+    max-width: 42%;
+    padding-top: 0.2rem;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-product {
+    display: block;
+    border-bottom: 1px solid var(--surface-border);
+    padding: 0.8rem;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-product::before {
+    display: none;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-product .product-info {
+    gap: 0.75rem;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-price,
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-qty,
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-subtotal {
+    text-align: left;
+    min-width: 0;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-price .p-inputnumber,
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-qty .p-inputnumber {
+    width: 100%;
+    max-width: 10rem;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-stock {
+    display: none;
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-action {
+    justify-content: flex-end;
+    border-top: 1px solid var(--surface-border);
+  }
+
+  .selected-products-card .selected-products-table .p-datatable-tbody > tr > td.col-action::before {
+    display: none;
+  }
+}

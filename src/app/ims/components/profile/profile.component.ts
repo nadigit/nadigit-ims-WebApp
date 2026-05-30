@@ -18,6 +18,7 @@ import { Credential } from 'src/app/models/credential';
   providers: [MessageService]
 })
 export class ProfileComponent implements OnInit {
+  readonly systemRoleNames = ['ADMIN', 'CASHIER', 'VENDOR', 'WAREHOUSEMAN', 'AUDITOR', 'ACCOUNTANT'];
 
   user?: KeycloakProfile;
 
@@ -69,6 +70,8 @@ export class ProfileComponent implements OnInit {
     private authService: AuthenticationService,
     private router: Router
     ) {
+    // Ensure template [formGroup] always receives a FormGroup instance.
+    this.initForm();
   }
 
   async ngOnInit() {
@@ -93,14 +96,7 @@ export class ProfileComponent implements OnInit {
 
     this.changePasswordForm = false;
 
-    // Initialize passwordForm only once in ngOnInit
-    this.passwordForm = this.formBuilder.group({
-      currentPassword: ['', Validators.required],
-      newPassword: ['', [Validators.required, new PasswordStrengthValidator()]],
-      confirmPassword: ['', Validators.required]
-    });
     console.log(this.user)
-    await this.getUserRoles();
     this.initForm();
 
   }
@@ -130,7 +126,11 @@ export class ProfileComponent implements OnInit {
       this.userCredential.value = body.newPassword;
 
       try {
-        const response = await this.authService.changePassword(body.userId, this.userCredential).toPromise();
+        const response = await this.authService.changeMyPassword({
+          currentPassword: body.currentPassword,
+          newPassword: body.newPassword,
+          confirmPassword: body.confirmPassword
+        }).toPromise();
         console.log(response);
         this.getUser();
         this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Password Updated', life: 3000 });
@@ -161,34 +161,20 @@ export class ProfileComponent implements OnInit {
   }
 
   async saveUser() {
-    const response = await this.updateUser(this.user.id, this.user);
+    const response = await this.updateUser(this.user);
     console.log(response)
     response ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating user', life: 3000 })
   }
 
-  async getUserRoles() {
+  async updateUser(user: any): Promise<boolean> {
     try {
-      // Get realm roles from the token (not client roles)
-      // Realm roles are in tokenParsed.realm_access.roles
-      const keycloakInstance = this.keycloakService.getKeycloakInstance();
-      
-      // Get realm roles from the parsed token
-      const tokenParsed = keycloakInstance.tokenParsed as any;
-      const realmRoles = tokenParsed?.realm_access?.roles || [];
-      
-      // Convert roles array to Role objects for display
-      this.userRoles = realmRoles.map((roleName: string) => ({ name: roleName } as Role));
-    } catch (error) {
-      // Silently handle errors - roles are optional for display
-      console.warn('Could not load user roles:', error);
-      this.userRoles = [];
-    }
-  }
-
-
-  async updateUser(id: any, user: any): Promise<boolean> {
-    try {
-      const response = await this.authService.updateUser(id, user).toPromise();
+      const payload = {
+        firstName: user?.firstName ?? null,
+        lastName: user?.lastName ?? null,
+        email: user?.email ?? null,
+        attributes: user?.attributes ?? {}
+      };
+      const response = await this.authService.updateMyProfile(payload).toPromise();
       console.log(response);
       this.getUser();
       return true;
@@ -199,22 +185,33 @@ export class ProfileComponent implements OnInit {
   }
 
   private async setUserRoles() {
-    this.userRoles = await this.keycloakService.getUserRoles();
-    this.isAdmin = this.userRoles.includes('ADMIN');
+    const rawRoles = await this.keycloakService.getUserRoles();
+    const normalized = Array.isArray(rawRoles) ? rawRoles : [];
+    const filtered = normalized
+      .filter((roleName: string) => this.systemRoleNames.includes((roleName || '').toUpperCase()));
+    this.userRoles = filtered.map((roleName: string) => ({ name: roleName } as Role));
+    this.isAdmin = filtered.includes('ADMIN');
   }
 
   async getUser() {
     if (this.keycloakService.isLoggedIn()) {
       try {
-        const profile = await this.keycloakService.loadUserProfile();
+        const profile: any = await this.authService.getMyProfile().toPromise();
         this.user = profile;
         await this.setUserRoles();
-        // Load POS PIN from attributes (Keycloak stores attributes as arrays)
-        this.posPin = (profile.attributes as any)?.posPin?.[0] || (profile.attributes as any)?.posPin || '';
+        // Load POS PIN from attributes (Keycloak stores attributes as arrays; backend may return scalar)
+        const rawPosPin = (profile?.attributes as any)?.posPin;
+        if (Array.isArray(rawPosPin)) {
+          this.posPin = rawPosPin.length > 0 && rawPosPin[0] != null ? String(rawPosPin[0]) : '';
+        } else if (rawPosPin == null) {
+          this.posPin = '';
+        } else {
+          this.posPin = String(rawPosPin);
+        }
         this.isLoading=false;
       } catch (error) {
         console.error("Error loading user profile:", error);
-        // Handle error if necessary
+        this.posPin = '';
       }
     }
   }
@@ -242,7 +239,7 @@ export class ProfileComponent implements OnInit {
         }
       };
 
-      const success = await this.updateUser(this.user.id, userUpdate);
+      const success = await this.updateUser(userUpdate);
       if (success) {
         this.isEditingPosPin = false;
         this.messageService.add({

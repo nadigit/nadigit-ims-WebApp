@@ -16,6 +16,8 @@ import { KeycloakService } from 'keycloak-angular';
 import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { Warehouse } from 'src/app/models/warehouse';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { CategoryFormDialogConfig, CategoryFormDialogData } from 'src/app/ims/components/inventory/categories/category-form-dialog/category-form-dialog.component';
 
 @Component({
   selector: 'app-purchase-import',
@@ -101,6 +103,22 @@ export class PurchaseImportComponent implements OnInit {
   reviewTaxEnabled: boolean = false;
   invoiceReviewLines: InvoiceReviewLine[] = [];
 
+  categoryDialogConfig: CategoryFormDialogConfig = {
+    visible: false,
+    mode: 'create',
+    category: {},
+    isLoading: false
+  };
+  submittedCategoryDialog = false;
+  private pendingCategoryTarget:
+    | { kind: 'parsedRow'; index: number }
+    | { kind: 'reviewRow'; index: number }
+    | { kind: 'default' }
+    | null = null;
+
+  /** When true, CSV/invoice preview is missing batch/expiry required by org profile. */
+  strictBatchPreviewBlocksImport = false;
+
   constructor(
     private purchaseImportService: PurchaseImportService,
     private shopService: ShopService,
@@ -112,7 +130,8 @@ export class PurchaseImportComponent implements OnInit {
     private messageService: MessageService,
     private translate: TranslateService,
     private configService: AppConfigurationService,
-    private router: Router
+    private router: Router,
+    public activityProfileService: ActivityProfileService,
   ) { }
 
   ngOnInit(): void {
@@ -162,6 +181,7 @@ export class PurchaseImportComponent implements OnInit {
     this.selectedFile = null;
     this.currentStep = 'upload';
     this.validationResult = null;
+    this.strictBatchPreviewBlocksImport = false;
     this.preview = null;
     this.importResult = null;
     this.expandedPurchases.clear();
@@ -183,6 +203,9 @@ export class PurchaseImportComponent implements OnInit {
     this.reviewDiscount = 0;
     this.reviewTaxEnabled = false;
     this.invoiceReviewLines = [];
+    this.categoryDialogConfig = { visible: false, mode: 'create', category: {}, isLoading: false };
+    this.submittedCategoryDialog = false;
+    this.pendingCategoryTarget = null;
     this.importOptions = {
       skipDuplicates: true,
       updateExisting: false,
@@ -300,6 +323,42 @@ export class PurchaseImportComponent implements OnInit {
     }
   }
 
+  /**
+   * True when every preview line has non-empty supplier lot and expiration (strict org profiles).
+   */
+  isPreviewStrictBatchSatisfied(): boolean {
+    if (!this.preview?.groupedPurchases?.length) {
+      return false;
+    }
+    let anyItems = false;
+    for (const g of this.preview.groupedPurchases) {
+      if (!g.items?.length) {
+        continue;
+      }
+      anyItems = true;
+      for (const item of g.items) {
+        const lot = (item.batchNumber ?? '').toString().trim();
+        const exp = item.expirationDate;
+        if (!lot || exp == null || String(exp).trim() === '') {
+          return false;
+        }
+      }
+    }
+    return anyItems;
+  }
+
+  private updateStrictBatchPreviewFlag(): void {
+    this.strictBatchPreviewBlocksImport =
+      this.activityProfileService.emphasizeBatchAndExpiry && !this.isPreviewStrictBatchSatisfied();
+  }
+
+  importBlockedByStrictBatch(): boolean {
+    return (
+      this.activityProfileService.emphasizeBatchAndExpiry &&
+      (!this.preview || this.strictBatchPreviewBlocksImport)
+    );
+  }
+
   async previewImport(): Promise<void> {
     if (!this.selectedFile) {
       this.messageService.add({
@@ -315,6 +374,7 @@ export class PurchaseImportComponent implements OnInit {
       this.preview = await firstValueFrom(
         await this.purchaseImportService.previewImport(this.selectedFile, this.previewRowCount, this.importOptions)
       );
+      this.updateStrictBatchPreviewFlag();
       this.currentStep = 'preview';
     } catch (error: any) {
       console.error('Error previewing import:', error);
@@ -336,6 +396,28 @@ export class PurchaseImportComponent implements OnInit {
         detail: this.translate.instant('please_select_file')
       });
       return;
+    }
+
+    if (this.activityProfileService.emphasizeBatchAndExpiry) {
+      if (!this.preview) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('purchase_import_preview_required_strict_batch'),
+          life: 6000,
+        });
+        return;
+      }
+      this.updateStrictBatchPreviewFlag();
+      if (this.strictBatchPreviewBlocksImport) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('purchase_batch_lot_expiry_required'),
+          life: 7000,
+        });
+        return;
+      }
     }
 
     try {
@@ -617,6 +699,37 @@ export class PurchaseImportComponent implements OnInit {
     return names[lang] || lang;
   }
 
+  getDocumentTypeLabel(type: string | undefined): string {
+    const t = (type || '').toUpperCase();
+    if (t === 'INVOICE') return this.translate.instant('invoice');
+    if (t === 'DELIVERY_NOTE') return this.translate.instant('delivery_note');
+    if (t === 'PURCHASE_ORDER') return this.translate.instant('purchase_order');
+    if (t === 'UNKNOWN') return this.translate.instant('unknown');
+    return type || this.translate.instant('unknown');
+  }
+
+  getDocumentTypeSeverity(type: string | undefined): 'success' | 'info' | 'warning' | 'secondary' {
+    const t = (type || '').toUpperCase();
+    if (t === 'INVOICE') return 'success';
+    if (t === 'DELIVERY_NOTE') return 'info';
+    if (t === 'PURCHASE_ORDER') return 'warning';
+    return 'secondary';
+  }
+
+  /** Backend sets metadata when {@link InvoiceAiEnhancementService} merged LLM output (see ims InvoiceParserServiceImpl). */
+  isParsedInvoiceAiEnhanced(): boolean {
+    return this.parsedInvoiceData?.metadata?.['aiEnhancement'] === 'true';
+  }
+
+  /** Localized provider label for hints (metadata aiProvider is enum name from API). */
+  getParsedInvoiceAiProviderLabel(): string {
+    const raw = this.parsedInvoiceData?.metadata?.['aiProvider'];
+    if (!raw || String(raw).trim() === '') {
+      return '';
+    }
+    return this.getProviderLabel(String(raw));
+  }
+
   /**
    * Invoice parse warnings from the API are fixed English strings (see InvoiceParserServiceImpl).
    */
@@ -631,12 +744,93 @@ export class PurchaseImportComponent implements OnInit {
 
   translateInvoiceOrImportWarning(text: string): string {
     const raw = (text || '').trim();
+    const aiRefined = raw.match(/^Some fields were refined using AI \(([^)]+)\)\.?\s*Always verify before import\.?$/i);
+    if (aiRefined) {
+      const providerLabel = this.getProviderLabel(aiRefined[1]);
+      return this.translate.instant('purchase_invoice_warn_ai_refined', { provider: providerLabel });
+    }
+    const aiUnavailable = raw.match(/^AI enhancement unavailable:\s*(.+)$/i);
+    if (aiUnavailable) {
+      return this.translate.instant('purchase_invoice_warn_ai_unavailable', { reason: aiUnavailable[1] });
+    }
+    const aiFailed = raw.match(/^AI enhancement failed:\s*(.+)$/i);
+    if (aiFailed) {
+      return this.translate.instant('purchase_invoice_warn_ai_failed', { reason: aiFailed[1] });
+    }
     const i18nKey = PurchaseImportComponent.INVOICE_WARNING_I18N_KEYS[raw];
     if (i18nKey) {
       const localized = this.translate.instant(i18nKey);
       return localized !== i18nKey ? localized : text;
     }
     return text;
+  }
+
+  /** UI-facing warning list: translated + deduplicated + cleaned for readability. */
+  getDisplayWarnings(warnings: string[] | undefined): string[] {
+    return this.buildDisplayWarnings(warnings);
+  }
+
+  getActionRequiredWarnings(warnings: string[] | undefined): string[] {
+    return this.buildDisplayWarnings(warnings, false);
+  }
+
+  getTechnicalWarnings(warnings: string[] | undefined): string[] {
+    return this.buildDisplayWarnings(warnings, true);
+  }
+
+  private buildDisplayWarnings(warnings: string[] | undefined, technicalOnly?: boolean): string[] {
+    if (!warnings?.length) {
+      return [];
+    }
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const w of warnings) {
+      const isTechnical = this.isTechnicalWarningRaw(w);
+      if (technicalOnly === true && !isTechnical) {
+        continue;
+      }
+      if (technicalOnly === false && isTechnical) {
+        continue;
+      }
+      const translated = this.translateInvoiceOrImportWarning(w);
+      const normalized = translated.replace(/\s+/g, ' ').trim();
+      if (!normalized) {
+        continue;
+      }
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      out.push(normalized);
+    }
+    return out;
+  }
+
+  private isTechnicalWarningRaw(text: string | undefined): boolean {
+    const raw = String(text || '').trim().toLowerCase();
+    if (!raw) {
+      return false;
+    }
+    return raw.includes('tessdata_prefix')
+      || raw.includes('-dtesseract.datapath')
+      || raw.startsWith('ai enhancement unavailable:')
+      || raw.startsWith('ai enhancement failed:');
+  }
+
+  private getProviderLabel(rawProvider: string | undefined): string {
+    const p = String(rawProvider || '').trim().toUpperCase();
+    if (!p) {
+      return this.translate.instant('unknown');
+    }
+    // Keep warning labels concise (no pricing suffixes from settings labels).
+    if (p === 'OPENAI') return 'OpenAI';
+    if (p === 'ANTHROPIC') return 'Anthropic';
+    if (p === 'OLLAMA') return 'Ollama';
+    if (p === 'GROQ') return 'Groq';
+    if (p === 'GOOGLE') return 'Google Gemini';
+    if (p === 'OPENROUTER') return 'OpenRouter';
+    return rawProvider || this.translate.instant('unknown');
   }
 
   async previewParsedInvoice(): Promise<void> {
@@ -656,6 +850,7 @@ export class PurchaseImportComponent implements OnInit {
           }
         )
       );
+      this.updateStrictBatchPreviewFlag();
       this.currentStep = 'preview';
     } catch (error: any) {
       console.error('Error previewing parsed invoice:', error);
@@ -757,6 +952,97 @@ export class PurchaseImportComponent implements OnInit {
     });
   }
 
+  openCategoryDialogForDefault(): void {
+    this.pendingCategoryTarget = { kind: 'default' };
+    this.openCategoryDialog();
+  }
+
+  openCategoryDialogForParsedRow(index: number): void {
+    this.pendingCategoryTarget = { kind: 'parsedRow', index };
+    this.openCategoryDialog();
+  }
+
+  openCategoryDialogForReviewRow(index: number): void {
+    this.pendingCategoryTarget = { kind: 'reviewRow', index };
+    this.openCategoryDialog();
+  }
+
+  private openCategoryDialog(): void {
+    this.submittedCategoryDialog = false;
+    this.categoryDialogConfig = {
+      visible: true,
+      mode: 'create',
+      category: {},
+      isLoading: false,
+    };
+  }
+
+  onCategoryDialogConfigChange(config: CategoryFormDialogConfig): void {
+    this.categoryDialogConfig = config;
+  }
+
+  onCategoryCancel(): void {
+    this.categoryDialogConfig = { ...this.categoryDialogConfig, visible: false };
+    this.pendingCategoryTarget = null;
+    this.submittedCategoryDialog = false;
+  }
+
+  async onCategorySave(dialogData: CategoryFormDialogData): Promise<void> {
+    this.submittedCategoryDialog = true;
+    const name = (dialogData?.category?.categoryName || '').trim();
+    if (!name) {
+      return;
+    }
+    this.categoryDialogConfig = { ...this.categoryDialogConfig, isLoading: true };
+    try {
+      const created = await firstValueFrom(this.categoryService.saveCategory(dialogData.category));
+      await this.loadCategoriesOnly();
+      const categoryId = (created as { categoryId?: number } | null)?.categoryId
+        ?? this.categories.find(c => (c.categoryName || '').trim().toLowerCase() === name.toLowerCase())?.categoryId;
+      if (categoryId != null) {
+        this.applyCreatedCategorySelection(categoryId);
+      }
+      this.categoryDialogConfig = { ...this.categoryDialogConfig, visible: false, isLoading: false };
+      this.pendingCategoryTarget = null;
+      this.submittedCategoryDialog = false;
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('category_created'),
+      });
+    } catch (error: any) {
+      this.categoryDialogConfig = { ...this.categoryDialogConfig, isLoading: false };
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: error?.error?.message || this.translate.instant('error_adding_category'),
+      });
+    }
+  }
+
+  private applyCreatedCategorySelection(categoryId: number): void {
+    if (!this.pendingCategoryTarget || this.pendingCategoryTarget.kind === 'default') {
+      this.importOptions.defaultCategoryId = categoryId;
+      return;
+    }
+    if (this.pendingCategoryTarget.kind === 'parsedRow') {
+      const row = this.parsedInvoiceData?.items?.[this.pendingCategoryTarget.index];
+      if (row) {
+        row.categoryId = categoryId;
+      }
+      return;
+    }
+    const line = this.invoiceReviewLines[this.pendingCategoryTarget.index];
+    if (line) {
+      line.categoryId = categoryId;
+    }
+  }
+
+  private async loadCategoriesOnly(): Promise<void> {
+    const cats = await firstValueFrom(this.categoryService.getCategories() as any);
+    this.categories = Array.isArray(cats) ? (cats as { categoryId: number; categoryName: string }[]) : [];
+  }
+
   addInvoiceReviewLine(): void {
     this.invoiceReviewLines.push({
       productName: '',
@@ -783,6 +1069,26 @@ export class PurchaseImportComponent implements OnInit {
       });
       return;
     }
+
+    // Purchase creation requires a receiving warehouse; block early to avoid backend failure.
+    if (this.isAdmin && (this.importOptions.defaultWarehouseId == null || this.importOptions.defaultWarehouseId === undefined)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('warehouse_required')
+      });
+      return;
+    }
+
+    if (!this.reviewSupplierName?.trim()) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('supplier_required')
+      });
+      return;
+    }
+
     const invalid = this.invoiceReviewLines.some(
       (l) =>
         !l.productReference?.trim() ||
@@ -798,6 +1104,23 @@ export class PurchaseImportComponent implements OnInit {
         detail: this.translate.instant('purchase_invoice_review_validation')
       });
       return;
+    }
+
+    if (this.activityProfileService.emphasizeBatchAndExpiry) {
+      const badLine = this.invoiceReviewLines.some((l) => {
+        const lot = (l.batchNumber ?? '').toString().trim();
+        const exp = l.expirationDate;
+        return !lot || !exp || (exp instanceof Date && isNaN(exp.getTime()));
+      });
+      if (badLine) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('purchase_batch_lot_expiry_required'),
+          life: 7000,
+        });
+        return;
+      }
     }
 
     const payload: InvoiceReviewImportRequest = {

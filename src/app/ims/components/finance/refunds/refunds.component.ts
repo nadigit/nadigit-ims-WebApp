@@ -1,5 +1,5 @@
 import { Component, EventEmitter, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -27,6 +27,7 @@ import { firstValueFrom } from 'rxjs';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { DatePipe } from '@angular/common';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -123,6 +124,7 @@ export class RefundsComponent implements OnInit {
   isExporting: boolean = false;
   exportProgress: string = '';
   bankAccounts: BankAccount[] = [];
+  isRefundFeatureEnabled: boolean = true;
   showBankAccountField: boolean = false;
   isBankAccountRequired: boolean = false;
   minimumAmountHint: string | null = null;
@@ -144,13 +146,15 @@ export class RefundsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private router: Router,
+    private route: ActivatedRoute,
     private bankAccountService: BankAccountService,
     private paymentValidationService: PaymentValidationService,
     private customerCreditService: CustomerCreditService,
     private reconciliationValidationService: ReconciliationValidationService,
     private organizationService: OrganizationService,
     private datePipe: DatePipe,
-    private cdr: ChangeDetectorRef) { }
+    private cdr: ChangeDetectorRef,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -172,6 +176,7 @@ export class RefundsComponent implements OnInit {
       this.loadBankAccounts(),
       this.setUserRoles(),
       this.checkPermissions(),
+      this.loadLicenseCapabilities(),
     ]);
     
     this.cols = [
@@ -201,9 +206,20 @@ export class RefundsComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
-    
-    // Load first page of refunds
-    await this.loadRefunds();
+
+    const qpStatus = this.route.snapshot.queryParamMap.get('status');
+    if (qpStatus) {
+      const upper = qpStatus.trim().toUpperCase();
+      if (['PENDING', 'SETTLED', 'PARTIAL_REFUND', 'FAILED'].includes(upper)) {
+        this.selectedRefundStatus = upper;
+      }
+    }
+
+    if (this.selectedRefundStatus) {
+      this.applyFilters();
+    } else {
+      await this.loadRefunds();
+    }
   }
 
   async checkPermissions() {
@@ -215,6 +231,25 @@ export class RefundsComponent implements OnInit {
     this.canEditRefund = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteRefund = this.permissionService.canDelete(this.Ressource);
     this.canReadRefund = this.permissionService.canRead(this.Ressource);
+  }
+
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.isRefundFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('REFUNDS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for refunds.', error);
+      this.isRefundFeatureEnabled = true;
+    }
+  }
+
+  private showUpgradeRequired(detail: string): void {
+    this.messageService.add({
+      severity: 'warn',
+      summary: 'Upgrade required',
+      detail,
+      life: 7000
+    });
   }
 
   private async setUserRoles() {
@@ -330,6 +365,10 @@ export class RefundsComponent implements OnInit {
 
   async openNew() {
     if (!this.canAddRefund) return;
+    if (!this.isRefundFeatureEnabled) {
+      this.showUpgradeRequired('Refund management is not available on your current plan. Upgrade to continue.');
+      return;
+    }
     await this.loadEligibleReturns();
     await this.loadBankAccounts();
     this.refund = {};

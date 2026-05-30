@@ -1,5 +1,5 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { OrderService } from 'src/app/services/order.service';
@@ -12,7 +12,7 @@ import { OrderItem } from 'src/app/models/orderItem';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
-import { Country, State } from 'country-state-city';
+import { LocationService } from 'src/app/services/location.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
@@ -26,10 +26,10 @@ import { Payment } from 'src/app/models/payment';
 import { PaymentService } from 'src/app/services/payment.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
-import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom, Subscription } from 'rxjs';
+import { skip } from 'rxjs/operators';
 import { getPaymentMethodLabel, getPaymentMethodSeverity, getPaymentStatusSeverity } from 'src/app/shared/payment-utils';
 import { getMeasureUnit, getQuantitySeverity, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
@@ -39,6 +39,11 @@ import { PricingService } from 'src/app/services/pricing.service';
 import { PriceListItemDTO, CustomerPriceOverrideDTO } from 'src/app/models/pricing';
 import { DatePipe } from '@angular/common';
 import { Organization } from 'src/app/models/organization';
+import { ProcessModeService } from 'src/app/services/process-mode.service';
+import { StockReservationService } from 'src/app/services/stock-reservation.service';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { SupplierService } from 'src/app/services/supplier.service';
+import { ShopFormDialogConfig, ShopFormDialogData } from '../../inventory/shops/shop-form-dialog/shop-form-dialog.component';
 
 interface EventItem {
   status?: string;
@@ -70,7 +75,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   styleUrls: ['./orders.component.css', '../sales.component.css'],
   providers: [MessageService, DatePipe]
 })
-export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
+export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
 
   @ViewChild('pickList') pickList: ElementRef | undefined;
 
@@ -85,7 +90,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   customerDialog: boolean = false;
 
-  shopDialog: boolean = false;
+  shopDialogConfig: ShopFormDialogConfig = {
+    visible: false,
+    mode: 'create',
+    shop: {},
+  };
 
   orderReturnDialog: boolean = false;
 
@@ -157,7 +166,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   exportColumns!: ExportColumn[];
 
-  countries: any = Country.getAllCountries();
+  countries: any[] = [];
 
   selectedCountry: any = null;
 
@@ -168,6 +177,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   statusDate: any;
   userRoles: any;
   isAdmin: boolean = false;
+
+  /** When sales process mode is DOCUMENT_CHAIN, page copy uses document-oriented labels. */
+  salesDocumentChainMode = false;
+
+  /** Read-only stepper in the order dialog when editing an existing order in document-chain mode. */
+  orderDialogDocumentChainSteps: MenuItem[] = [];
+  orderDialogDocumentChainActiveIndex = 0;
 
   selectedItems: any[] = [];  // Selected order items for return
 
@@ -185,6 +201,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   receiptData: { order: Order; payment: Payment } = { order: {}, payment: {} };
 
   loadingReceipt: boolean = false;
+
+  /** URL ?orderStatus= values we honor (document-chain stages / list filter). */
+  private static readonly URL_ORDER_STATUSES = ['Ordered', 'Processing', 'Delivered', 'Completed'] as const;
 
   statusSequences: { [key: string]: string[] } = {
     'Ordered': ['Processing', 'Canceled'],
@@ -243,9 +262,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   paymentMethods: any;
 
   bankAccounts: BankAccount[] = [];
+  canReadBankAccounts: boolean = false;
   showBankAccountField: boolean = false;
   isBankAccountRequired: boolean = false;
   minimumAmountHint: string | null = null;
+  bankAccountNoticeKey: string | null = null;
+  bankAccountNoticeSeverity: 'info' | 'warn' = 'info';
   creditInfo: CreditInfo | null = null;
   creditAmountUsed: number = 0;
   
@@ -281,6 +303,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   /** When false, UI shows net sellable qty (approved write-offs excluded); matches default backend. */
   salesStockIncludesApprovedWriteoffQty: boolean = false;
 
+  /** When true, new-order dialog syncs soft reservations and sends checkout context on create. */
+  salesStockSoftReservationEnabled: boolean = false;
+
+  /** UUID for back-office draft reservations (new orders only). */
+  orderCheckoutReservationContextId: string | null = null;
+
+  private reservationSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
   // UX helper: single-entity flags
   hasSingleCustomer: boolean = false;
   hasSingleShop: boolean = false;
@@ -304,16 +334,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   exportProgress: string = '';
   productDetailDialog: boolean = false;
   lowStockThreshold;
-  imagePreviewUrl: string | null = null;
-  isImageLoading: boolean = false;
-  isDragOver: boolean = false;
-  imageZoomDialog: boolean = false;
-  recentProductImages: string[] = [];
-  isSaving: boolean = false;
-  uploadProgress: number = 0;
-  existingImageFile: any = null;
-  imageURL: any;
-  uploadedFile: File | null = null;
   productDialog: boolean = false;
   deleteProductDialog: boolean = false;
   archiveProductDialog: boolean = false;
@@ -334,6 +354,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   productSearch: string = '';
   selectedProduct: Product | null = null;
   categories: any[] = [];
+  suppliers: any[] = [];
+  canAddCategory: boolean = false;
+  canAddSupplier: boolean = false;
+  canAddWarehouse: boolean = false;
   selectedCategory: any = null;
   quickProducts: Product[] = [];
   filteredCategories: any[] = [];
@@ -369,6 +393,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   // If set, open this order in edit mode after orders are loaded
   private pendingEditOrderId: number | null = null;
 
+  private processFlagsSub?: Subscription;
+  private configSavedSub?: Subscription;
+
   constructor(private messageService: MessageService,
     private orderService: OrderService,
     private productService: ProductService,
@@ -387,13 +414,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private categoryService: CategoryService,
+    private supplierService: SupplierService,
     public organizationService: OrganizationService,
     private financialDocService: FinancialDocumentsService,
-    private storage: AngularFireStorage,
     private router: Router,
     private pricingService: PricingService,
     private route: ActivatedRoute,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private processModeService: ProcessModeService,
+    private stockReservationService: StockReservationService,
+    public activityProfileService: ActivityProfileService,
+    private locationService: LocationService,
   ) {
     this.loadTaxRate();
 
@@ -430,6 +461,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    await this.processModeService.ensureLoaded();
+    this.salesDocumentChainMode = this.processModeService.isSalesDocumentChain();
 
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -438,31 +471,72 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       }
     });
 
-    // Handle deep links (e.g. editOrderId from order details page)
-    this.route.queryParams.subscribe(params => {
-      const editId = params['editOrderId'];
-      const parsed = editId ? Number(editId) : NaN;
-      if (!isNaN(parsed)) {
-        this.pendingEditOrderId = parsed;
+    const initialQp = this.route.snapshot.queryParamMap;
+    this.applyPendingEditOrderIdFromQuery(initialQp);
+    this.applyOrderStatusFromQueryParam(initialQp.get('orderStatus'));
+
+    this.route.queryParamMap.pipe(skip(1)).subscribe((qm) => {
+      this.applyPendingEditOrderIdFromQuery(qm);
+      this.applyOrderStatusFromQueryParam(qm.get('orderStatus'));
+      this.applyFilters();
+    });
+
+    this.processFlagsSub = this.processModeService.processFlagsChanged$.subscribe(() => {
+      this.applySalesProcessFlagsAfterSettingsSave();
+    });
+
+    this.configSavedSub = this.configService.configurationSaved$.subscribe((key) => {
+      if (!key) {
+        return;
       }
+      if (key === 'tax') {
+        void this.loadTaxRate();
+        return;
+      }
+      if (key === 'lowStockThreshold') {
+        void this.getLowStockThreshold().then((t) => {
+          this.lowStockThreshold = t;
+          this.cdr.markForCheck();
+        });
+        return;
+      }
+      const reloadStock = key.startsWith('sales.stock');
+      const reloadPricing = key === 'pricing.allow.custom.override';
+      if (!reloadStock && !reloadPricing) {
+        return;
+      }
+      void (async () => {
+        if (reloadStock) {
+          await this.loadSalesStockConfig();
+          await this.loadSalesStockSoftReservationConfig();
+        }
+        if (reloadPricing) {
+          await this.loadPriceOverrideConfig();
+        }
+        this.cdr.markForCheck();
+      })();
     });
 
     // Set up translation and events
     this.initializeTranslations();
 
     this.lowStockThreshold = await this.getLowStockThreshold();
+    this.countries = this.locationService.getAllCountriesWithTranslation();
+
+    await this.setUserRoles();
 
     // Load data
     await Promise.all([
       this.onGetAllCustomers(),
       this.onGetAllShops(),
       this.onGetAllWarehouses(),
-      this.setUserRoles(),
+      this.onGetAllSuppliers(),
       this.checkPermissions(),
       this.onGetOrganization(),
       this.loadBankAccounts(),
       this.loadPriceOverrideConfig(),
       this.loadSalesStockConfig(),
+      this.loadSalesStockSoftReservationConfig(),
     ]);
 
     // Initialize table columns and statuses
@@ -472,9 +546,25 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
-    // Load first page of orders
-    await this.loadOrders();
+    // Load first page of orders (respects URL orderStatus via selectedOrderStatus)
+    this.applyFilters();
     this.scanning = false;
+  }
+
+  ngOnDestroy(): void {
+    this.processFlagsSub?.unsubscribe();
+    this.configSavedSub?.unsubscribe();
+  }
+
+  /** After settings save: sync document-chain UI on this screen and reload list. */
+  private applySalesProcessFlagsAfterSettingsSave(): void {
+    this.salesDocumentChainMode = this.processModeService.isSalesDocumentChain();
+    void this.loadSalesStockSoftReservationConfig();
+    if (this.orderDialog) {
+      this.refreshOrderDialogDocumentChainSteps();
+    }
+    this.applyFilters();
+    this.cdr.markForCheck();
   }
 
 
@@ -713,6 +803,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
+    this.canReadBankAccounts = this.isAdmin;
   }
 
   private initializeTableColumns() {
@@ -972,6 +1063,86 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       console.warn('Could not load sales/write-off stock configuration, defaulting to net sellable qty', e);
       this.salesStockIncludesApprovedWriteoffQty = false;
     }
+  }
+
+  async loadSalesStockSoftReservationConfig() {
+    try {
+      const config$ = await this.configService.getConfiguration('sales.stock.soft.reservation.enabled');
+      const config = await firstValueFrom(config$);
+      this.salesStockSoftReservationEnabled = config?.value === 'true' || config?.value === true;
+    } catch (e) {
+      console.warn('Could not load soft reservation configuration, defaulting to off', e);
+      this.salesStockSoftReservationEnabled = false;
+    }
+  }
+
+  private newReservationContextId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'ctx-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11);
+  }
+
+  private clearLocalCheckoutReservationState(): void {
+    if (this.reservationSyncTimer) {
+      clearTimeout(this.reservationSyncTimer);
+      this.reservationSyncTimer = null;
+    }
+    this.orderCheckoutReservationContextId = null;
+  }
+
+  private scheduleSyncCheckoutReservations(): void {
+    if (!this.salesStockSoftReservationEnabled || this.order?.orderId || !this.orderCheckoutReservationContextId) {
+      return;
+    }
+    if (this.reservationSyncTimer) {
+      clearTimeout(this.reservationSyncTimer);
+    }
+    this.reservationSyncTimer = setTimeout(() => {
+      this.reservationSyncTimer = null;
+      void this.syncCheckoutReservationsNow();
+    }, 450);
+  }
+
+  private buildCheckoutReservationLines(): { productId: number; quantity: number }[] {
+    return this.targetProducts
+      .filter(p => this.isProduct(p) && p.productId != null && (p.orderItemQuantity ?? 0) > 0)
+      .map(p => ({ productId: p.productId as number, quantity: p.orderItemQuantity as number }));
+  }
+
+  private async syncCheckoutReservationsNow(): Promise<void> {
+    if (!this.salesStockSoftReservationEnabled || this.order?.orderId || !this.orderCheckoutReservationContextId) {
+      return;
+    }
+    const lines = this.buildCheckoutReservationLines();
+    try {
+      await this.stockReservationService.syncCheckoutContext(this.orderCheckoutReservationContextId, lines);
+    } catch (e: any) {
+      console.warn('Checkout stock reservation sync failed', e);
+      const status = e?.status;
+      const msg = (e?.error?.message || e?.message || '').toString();
+      if (status === 409 || /reservation|insufficient stock/i.test(msg)) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: msg || this.translate.instant('orders_soft_reservation_sync_failed'),
+          life: 6000,
+        });
+      }
+    }
+  }
+
+  /** Ensures the server has the latest draft lines before POST /orders (throws on API error). */
+  private async flushCheckoutReservationsBeforeSave(): Promise<void> {
+    if (!this.salesStockSoftReservationEnabled || this.order?.orderId || !this.orderCheckoutReservationContextId) {
+      return;
+    }
+    if (this.reservationSyncTimer) {
+      clearTimeout(this.reservationSyncTimer);
+      this.reservationSyncTimer = null;
+    }
+    const lines = this.buildCheckoutReservationLines();
+    await this.stockReservationService.syncCheckoutContext(this.orderCheckoutReservationContextId, lines);
   }
 
   /**
@@ -1267,6 +1438,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.canCancelOrder = this.permissionService.canProcess(this.Ressource);
     this.canAddCustomer = this.permissionService.canCreate('CUSTOMERS');
     this.canAddShop = this.permissionService.canCreate('SHOPS');
+    this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
+    this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
     this.canAddPayment = this.permissionService.canCreate('PAYMENTS');
     this.canAddProduct = this.permissionService.canCreate('PRODUCTS');
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
@@ -1395,10 +1568,41 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.customerDialog = true;
   }
 
-  openShopDialog() {
+  async openShopDialog() {
     if (!this.canAddShop) return;
+    await this.loadBankAccounts();
     this.shop = {};
-    this.shopDialog = true;
+    this.shopDialogConfig = {
+      visible: true,
+      mode: 'create',
+      shop: this.shop,
+    };
+    this.submitted = false;
+  }
+
+  onShopDialogConfigChange(config: ShopFormDialogConfig) {
+    this.shopDialogConfig = config;
+  }
+
+  onShopSave(dialogData: ShopFormDialogData) {
+    this.shop = dialogData.shop;
+    this.saveShop();
+  }
+
+  onShopCancel() {
+    this.shopDialogConfig = { ...this.shopDialogConfig, visible: false };
+    this.shop = {};
+    this.submitted = false;
+  }
+
+  openWarehouseDialog(): void {
+    if (!this.canAddWarehouse) return;
+    this.messageService.add({
+      severity: 'info',
+      summary: this.translate.instant('info'),
+      detail: 'Warehouse quick add is not available in this form yet.',
+      life: 3000,
+    });
   }
 
   openInvoiceDialog() {
@@ -1414,17 +1618,113 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.deleteOrdersDialog = true;
   }
 
+  private refreshOrderDialogDocumentChainSteps(): void {
+    if (!this.salesDocumentChainMode || !this.order?.orderId) {
+      this.orderDialogDocumentChainSteps = [];
+      this.orderDialogDocumentChainActiveIndex = 0;
+      return;
+    }
+    const L = (key: string) => this.translate.instant(key);
+    this.orderDialogDocumentChainSteps = [
+      { label: L('doc_chain_step_sales_ordered') },
+      { label: L('doc_chain_step_fulfillment') },
+      { label: L('doc_chain_step_shipment') },
+      { label: L('doc_chain_step_closure') },
+    ];
+    this.orderDialogDocumentChainActiveIndex = this.orderStatusToDocumentChainStepIndex(this.order.orderStatus);
+  }
+
+  private orderStatusToDocumentChainStepIndex(status?: string): number {
+    switch (status) {
+      case 'Ordered': return 0;
+      case 'Processing': return 1;
+      case 'Delivered': return 2;
+      case 'Completed': return 3;
+      default: return 0;
+    }
+  }
+
+  /** Map API discount type strings to form selectButton values */
+  private normalizeDiscountType(raw: unknown): 'Amount' | 'Percentage' {
+    const s = String(raw ?? '').trim().toLowerCase();
+    if (s === 'percentage' || s === 'percent') {
+      return 'Percentage';
+    }
+    return 'Amount';
+  }
+
+  /**
+   * Summary panel binds tax to component fields (`taxEnabled`, `taxRate`), not `order.taxEnabled`.
+   * Sync those from the loaded order so edit matches persisted values.
+   */
+  private syncOrderEditFormState(o: Order): void {
+    this.taxEnabled = !!o.taxEnabled;
+    const savedRate = o.taxRateUsed;
+    if (savedRate != null && savedRate !== undefined && !Number.isNaN(Number(savedRate))) {
+      this.taxRate = Number(savedRate);
+    }
+    this.discountType = this.normalizeDiscountType(o.discountType);
+    if (o.discount == null || Number.isNaN(Number(o.discount))) {
+      o.discount = 0;
+    }
+    if (o.transportAmount == null || Number.isNaN(Number(o.transportAmount))) {
+      o.transportAmount = 0;
+    }
+  }
+
+  /**
+   * p-dropdown matches by reference; API order embeds must match objects in options arrays.
+   */
+  private alignOrderSelectionsWithLoadedLists(): void {
+    const o = this.order;
+    if (!o?.orderId) {
+      return;
+    }
+    const cid = o.customer?.customerId;
+    if (cid != null && Array.isArray(this.customers) && this.customers.length > 0) {
+      const match = this.customers.find((c) => c.customerId === cid);
+      if (match) {
+        o.customer = match;
+      }
+    }
+    const sid = o.shop?.shopId;
+    if (sid != null && Array.isArray(this.shops) && this.shops.length > 0) {
+      const match = this.shops.find((s) => s.shopId === sid);
+      if (match) {
+        o.shop = match;
+      }
+    }
+    if (this.isAdmin && Array.isArray(this.warehouses) && this.warehouses.length > 0) {
+      let wid: number | undefined;
+      const fromSelection = (this.selectedOrderWarehouse as any)?.warehouseId;
+      const fromProduct = (o.orderItems?.[0]?.product as any)?.warehouse?.warehouseId;
+      if (fromSelection != null) {
+        wid = Number(fromSelection);
+      } else if (fromProduct != null) {
+        wid = Number(fromProduct);
+      }
+      if (wid != null && !Number.isNaN(wid)) {
+        const wmatch = this.warehouses.find((w) => Number(w.warehouseId) === wid);
+        if (wmatch) {
+          this.selectedOrderWarehouse = wmatch;
+        }
+      }
+    }
+  }
+
   async editOrder(order: Order) {
     this.scanning = false;
     if (!this.canEditOrder) return;
+    this.clearLocalCheckoutReservationState();
     this.order = { ...order };
+    this.syncOrderEditFormState(this.order);
     if (this.isAdmin) {
       const firstWarehouse = this.order.orderItems?.[0]?.product?.warehouse || null;
       this.selectedOrderWarehouse = firstWarehouse;
     }
+    this.alignOrderSelectionsWithLoadedLists();
     this.onGetAllCustomers(),
     this.onGetAllShops(),
-    this.discountType = this.order.discountType as "Amount" | "Percentage";
     console.log(this.discountType);
     this.orderItems = this.order.orderItems.map(item => {
       return {
@@ -1439,6 +1739,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         pricePerUnit: item.pricePerUnit,
       };
     });
+    // Mutate shared product refs on order.line items before pick list (getTargetProducts uses these refs)
+    this.order.orderItems.forEach((item) => {
+      item.product.orderItemQuantity = item.quantity;
+      item.product.orderItemPricePerUnit = item.pricePerUnit;
+      item.product['orderItemPricePerUnitManual'] = true;
+    });
     this.showPaymentSection = false;
     await this.onGetProductsCategories();
     this.getSourceProducts();
@@ -1446,16 +1752,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.initializePickList();
     this.initializePaymentMethods();
     await this.onGetQuickProducts();
+    this.alignOrderSelectionsWithLoadedLists();
+    this.calculateTotalAmount();
     this.orderDialog = true;
-
-    // Add the new fields directly to the order object
-    this.order.orderItems.forEach(item => {
-      item.product.orderItemQuantity = item.quantity;
-      item.product.orderItemPricePerUnit = item.pricePerUnit;
-      item.product['orderItemPricePerUnitManual'] = true;
-    });
+    this.refreshOrderDialogDocumentChainSteps();
 
     console.log(this.order);
+    this.cdr.markForCheck();
   }
 
 
@@ -1508,17 +1811,27 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   hideDialog() {
+    const ctx = this.orderCheckoutReservationContextId;
+    const wasNewDraft = !this.order?.orderId;
+    const releaseOnServer = this.salesStockSoftReservationEnabled && wasNewDraft && !!ctx;
+
     this.orderDialog = false;
     this.showPaymentSection = false;
     this.payment = {};
     this.submitted = false;
+
+    if (releaseOnServer && ctx) {
+      void this.stockReservationService
+        .syncCheckoutContext(ctx, [])
+        .catch((e) => console.warn('Could not release checkout stock reservations', e))
+        .finally(() => this.clearLocalCheckoutReservationState());
+    } else {
+      this.clearLocalCheckoutReservationState();
+    }
   }
 
   hideCustomerDialog() {
     this.customerDialog = false;
-  }
-  hideShopDialog() {
-    this.shopDialog = false;
   }
 
   hideOrderReturnDialog() {
@@ -1527,6 +1840,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
   async openNew() {
     if (!this.canAddOrder) return;
+    this.clearLocalCheckoutReservationState();
     this.order = {};
     this.selectedOrderWarehouse = null;
     this.discountType = "Amount";
@@ -1555,6 +1869,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.getSourceProducts(),
     this.getTargetProducts(),
     this.initializePickList();
+    this.orderCheckoutReservationContextId = this.salesStockSoftReservationEnabled
+      ? this.newReservationContextId()
+      : null;
     this.orderDialog = true;
     this.scanning = true;
   }
@@ -1616,6 +1933,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         summary: this.translate.instant('error'),
         detail: this.translate.instant('products_required'),
         life: 3000,
+      });
+      return;
+    }
+    if (this.targetProducts.some((p) => this.isFashionVariantMissing(p))) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('profile_mode_fashion_order_variant_required'),
+        life: 4500,
       });
       return;
     }
@@ -1692,6 +2018,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     try {
       let savedOrder: Order;
 
+      if (!newOrder.orderId && this.salesStockSoftReservationEnabled && this.orderCheckoutReservationContextId) {
+        await this.flushCheckoutReservationsBeforeSave();
+      }
+
       if (newOrder.orderId) {
         savedOrder = await this.updateOrder(newOrder.orderId, newOrder);
         this.messageService.add({
@@ -1702,7 +2032,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         });
       } else {
         // Create new order (payments will be processed automatically by backend if included)
-        savedOrder = await this.addOrder(newOrder);
+        savedOrder = await this.addOrder(
+          newOrder,
+          this.salesStockSoftReservationEnabled ? this.orderCheckoutReservationContextId : null
+        );
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
@@ -1800,7 +2133,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       const isStockError = error?.error?.code === 'insufficient_stock' || 
                           errorMessage.toLowerCase().includes('insufficient stock') ||
                           errorMessage.toLowerCase().includes('net available quantity') ||
-                          errorMessage.toLowerCase().includes('written off');
+                          errorMessage.toLowerCase().includes('written off') ||
+                          errorMessage.toLowerCase().includes('reservation');
 
       // Check if error is related to credit limit exceeded
       const isCreditLimitError = errorMessage.toLowerCase().includes('exceeds credit limit') || 
@@ -1878,17 +2212,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       return false;
     }
 
-    // Validate bank account is provided when required
-    if (this.isBankAccountRequired && !this.payment.bankAccountId) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('bank_account_required') || 'Bank account is required for this payment method',
-        life: 3000,
-      });
-      return false;
-    }
-
     // Validate credit usage if credit is being used
     if (this.creditAmountUsed > 0) {
       if (!this.creditInfo || this.creditInfo.status !== 'ACTIVE') {
@@ -1915,6 +2238,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         });
         return false;
       }
+    }
+
+    if (!(await this.prepareBankPaymentContext())) {
+      return false;
     }
 
     // Validate bank account and minimum amount using validation service
@@ -1977,12 +2304,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     // Bank account (required for Transfer, Check, BOE)
     if (this.payment.bankAccountId) {
       const selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === this.payment.bankAccountId);
-      if (selectedBankAccount && selectedBankAccount.accountId) {
-        // Include bankAccount with only accountId as per specification
-        (payment as any).bankAccount = {
-          accountId: selectedBankAccount.accountId
-        };
-      }
+      // Include bankAccount with only accountId as per specification
+      (payment as any).bankAccount = {
+        accountId: selectedBankAccount?.accountId ?? this.payment.bankAccountId
+      };
     }
 
     // ⚠️ CRITICAL: Credit-related fields - ALWAYS explicitly set
@@ -2046,6 +2371,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         summary: this.translate.instant('error'),
         detail: this.translate.instant('payment_amount_invalid_min')
       });
+      this.isSavingPayment = false;
+      return;
+    }
+
+    if (!(await this.prepareBankPaymentContext())) {
       this.isSavingPayment = false;
       return;
     }
@@ -2137,10 +2467,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     // Add bankAccount object if bankAccountId is present (REQUIRED for Check, BOE, and Bank Transfer payments)
     if (this.payment.bankAccountId) {
       const selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === this.payment.bankAccountId);
-      if (selectedBankAccount) {
-        // Add bankAccount object to paymentToSend (backend expects this)
-        (paymentToSend as any).bankAccount = selectedBankAccount;
-      }
+      // Add bankAccount object to paymentToSend (backend expects this)
+      (paymentToSend as any).bankAccount = selectedBankAccount || { accountId: this.payment.bankAccountId };
     } else if (this.isBankAccountRequired) {
       // Bank account is required but not provided - validation should have caught this, but double-check
       this.messageService.add({
@@ -2277,6 +2605,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   async resetForms(): Promise<void> {
+    this.clearLocalCheckoutReservationState();
     this.order = {};
     this.targetProducts = [];
     this.showPaymentSection = false;
@@ -2330,6 +2659,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   saveShop() {
+    this.submitted = true;
     if (this.shop.shopName) {
       this.addShop(this.shop)
         ? this.messageService.add({
@@ -2354,8 +2684,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       return;
     }
     this.shops = [...this.shops];
-    this.shopDialog = false;
+    this.shopDialogConfig = { ...this.shopDialogConfig, visible: false };
     this.shop = {};
+    this.submitted = false;
   }
 
   // Filter properties
@@ -2457,6 +2788,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     };
 
     this.onLazyLoad(lazyEvent);
+  }
+
+  private applyPendingEditOrderIdFromQuery(qm: ParamMap): void {
+    const editId = qm.get('editOrderId');
+    const parsed = editId ? Number(editId) : NaN;
+    this.pendingEditOrderId = !isNaN(parsed) ? parsed : null;
+  }
+
+  private applyOrderStatusFromQueryParam(raw: string | null): void {
+    const allowed = OrdersComponent.URL_ORDER_STATUSES as readonly string[];
+    this.selectedOrderStatus = raw && allowed.includes(raw) ? raw : null;
   }
 
   // onFilter(dv: DataView, event: Event) {
@@ -2608,6 +2950,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           this.selectedOrderWarehouse = this.warehouses[0];
           this.onOrderWarehouseChange();
         }
+        this.alignOrderSelectionsWithLoadedLists();
       },
       error: (err: any) => {
         this.messageService.add({
@@ -2636,6 +2979,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           if (this.hasSingleCustomer && (!this.order || !this.order.orderId) && !this.order.customer) {
             this.order.customer = this.customers[0];
           }
+          this.alignOrderSelectionsWithLoadedLists();
         },
         error: (err: any) => {
           this.messageService.add({
@@ -2660,6 +3004,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           if (this.hasSingleShop && (!this.order || !this.order.orderId) && !this.order.shop) {
             this.order.shop = this.shops[0];
           }
+          this.alignOrderSelectionsWithLoadedLists();
         },
         error: (err: any) => {
           this.messageService.add({
@@ -2673,6 +3018,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   async onGetOrganization() {
+    if (!this.isAdmin) {
+      this.organization = null;
+      return;
+    }
     await this.organizationService.getOrganization()
       .subscribe({
         next: (response: any) => {
@@ -2688,6 +3037,16 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
           });
         }
       })
+  }
+
+  private async resolveExportLocale(): Promise<string> {
+    if (!this.isAdmin) {
+      return this.translate.currentLang || this.translateService.getPreferredLanguage() || 'en';
+    }
+
+    await this.organizationService.loadToken();
+    const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+    return organization?.defaultLocale || this.translate.currentLang || this.translateService.getPreferredLanguage() || 'en';
   }
 
   async onGetAllOrderReturn(orderId) {
@@ -2767,11 +3126,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     });
   }
 
-  async addOrder(order: any): Promise<Order> {
+  async addOrder(order: any, checkoutReservationContext?: string | null): Promise<Order> {
     console.log('Saving order:', order);
 
     return new Promise((resolve, reject) => {
-      this.orderService.saveOrder(order).subscribe({
+      const saveOpts =
+        checkoutReservationContext && String(checkoutReservationContext).trim()
+          ? { checkoutReservationContext: String(checkoutReservationContext).trim() }
+          : undefined;
+      this.orderService.saveOrder(order, saveOpts).subscribe({
         next: (response: any) => {
           console.log('Order saved successfully:', response);
 
@@ -2873,10 +3236,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         life: 3000
       });
 
-      // Load token and get organization's default locale
-      await this.organizationService.loadToken();
-      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
-      const defaultLocale = organization?.defaultLocale || 'en';
+      const defaultLocale = await this.resolveExportLocale();
       
       // Temporarily switch to organization's default locale for translations
       const currentLang = this.translate.currentLang;
@@ -3042,10 +3402,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         life: 3000
       });
 
-      // Load token and get organization's default locale
-      await this.organizationService.loadToken();
-      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
-      const defaultLocale = organization?.defaultLocale || 'en';
+      const defaultLocale = await this.resolveExportLocale();
       
       // Temporarily switch to organization's default locale for translations
       const currentLang = this.translate.currentLang;
@@ -3207,7 +3564,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         this.selectedCountry = element;
       }
     });
-    this.states = State.getStatesOfCountry(this.selectedCountry.isoCode);
+    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
 
   }
 
@@ -3254,6 +3611,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       });
     });
     // Force change detection
+    this.scheduleSyncCheckoutReservations();
     this.cdr.detectChanges();
   }
 
@@ -3288,6 +3646,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         detail: this.translate.instant('product_added_success'),
         life: 3000,
       });
+      this.scheduleSyncCheckoutReservations();
       this.cdr.detectChanges();
     } else {
       existingProduct.orderItemQuantity += 1;
@@ -3297,6 +3656,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         detail: this.translate.instant('product_quantity_increased'),
         life: 3000,
       });
+      this.scheduleSyncCheckoutReservations();
       this.cdr.detectChanges();
     }
   }
@@ -3849,6 +4209,46 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     return getWriteOffQuantity(product);
   }
 
+  private readProductAttributeText(product: any, names: string[]): string {
+    const attrs = product?.attributes;
+    if (!Array.isArray(attrs) || attrs.length === 0) {
+      return '';
+    }
+    const wanted = new Set(names.map((n) => n.trim().toLowerCase()));
+    const found = attrs.find((a: any) => wanted.has(String(a?.attributeName ?? '').trim().toLowerCase()));
+    if (!found) {
+      return '';
+    }
+    const raw = found.value ?? found.stringValue ?? found.intValue ?? found.doubleValue ?? '';
+    return String(raw).trim();
+  }
+
+  getProductVariantSummary(product: any): string {
+    const size = this.readProductAttributeText(product, ['size']);
+    const color = this.readProductAttributeText(product, ['color', 'colour']);
+    if (!size && !color) {
+      return '';
+    }
+    if (size && color) {
+      return `${size} / ${color}`;
+    }
+    return size || color;
+  }
+
+  isFashionVariantMissing(product: any): boolean {
+    if (!this.activityProfileService.isFashionProfile) {
+      return false;
+    }
+    if (!this.isProduct(product)) {
+      return false;
+    }
+    return !this.getProductVariantSummary(product);
+  }
+
+  openProfileSettings(): void {
+    void this.router.navigate(['/administration/settings'], { queryParams: { businessProfile: 1 } });
+  }
+
   addProductToOrder(product: Product): void {
     if (!product) {
       this.messageService.add({
@@ -3949,6 +4349,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
 
     this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
     this.calculateTotalAmount();
+    this.scheduleSyncCheckoutReservations();
     this.cdr.detectChanges();
   }
 
@@ -3960,6 +4361,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
 
     this.calculateTotalAmount();
+    this.scheduleSyncCheckoutReservations();
     this.cdr.detectChanges();
   }
 
@@ -4011,6 +4413,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.updateProductPriceForQuantity(product);
     }
     this.updateProductSubtotal(product);
+    this.scheduleSyncCheckoutReservations();
   }
 
   /**
@@ -4147,6 +4550,25 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
         complete: () => {
           this.isLoading = false;
         }
+      })
+  }
+
+  async onGetAllSuppliers() {
+    this.supplierService.loadToken();
+    await this.supplierService.getSuppliers()
+      .subscribe({
+        next: (response: any) => {
+          this.suppliers = Array.isArray(response) ? response : [];
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_getting_suppliers'),
+            life: 3000
+          })
+          console.log(err)
+        },
       })
   }
 
@@ -4339,117 +4761,21 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     if (!this.canEditProduct) return;
     this.selectedProduct = product;
     this.product = { ...product };
+    void this.onGetProductsCategories();
+    void this.onGetAllSuppliers();
+    void this.onGetAllWarehouses();
     this.productDialog = true;
     this.scanning = false;
   }
 
-  async onFileUpload(event: any): Promise<void> {
-    const file = event.files[0];
-
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('invalid_image_format'),
-        life: 3000,
-      });
-      return;
-    }
-
-    // Validate file size (5MB max)
-    if (file.size > 5000000) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('image_too_large'),
-        life: 3000,
-      });
-      return;
-    }
-
-    // Show loading state
-    this.isImageLoading = true;
-
-    // Create preview
-    this.imagePreviewUrl = URL.createObjectURL(file);
-
-    // Store the file for upload
-    this.uploadedFile = file;
-
-    // Auto-hide loading after a brief moment (image load event will handle it)
-    setTimeout(() => {
-      if (this.isImageLoading) this.isImageLoading = false;
-    }, 2000);
-  }
-
-  // Drag and drop handlers
-  onDragOver(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragOver = true;
-  }
-
-  onDragLeave(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragOver = false;
-  }
-
-  onDrop(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragOver = false;
-
-    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
-      const file = event.dataTransfer.files[0];
-
-      // Create a mock event object for the fileUpload method
-      this.onFileUpload({ files: [file] });
-    }
-  }
-
-  // Image error handler
-  onImageError(): void {
-    this.isImageLoading = false;
-    this.messageService.add({
-      severity: 'error',
-      summary: this.translate.instant('error'),
-      detail: this.translate.instant('image_load_error'),
-      life: 3000,
-    });
-
-    // Fallback to default image
-    this.imagePreviewUrl = null;
-    this.product.productImage = 'assets/core-images/no-image.png';
-  }
-
-  // Zoom image
-  zoomImage(): void {
-    this.imageZoomDialog = true;
-  }
-
-  // Select recent image
-  selectRecentImage(imageUrl: string): void {
-    this.product.productImage = imageUrl;
-    this.imagePreviewUrl = null;
-    this.uploadedFile = null;
-  }
-
-  // Enhanced editImage method
-  editImage(): void {
-    this.product.productImage = null;
-    this.imagePreviewUrl = null;
-    this.uploadedFile = null;
-  }
-
-  // Enhanced removeImage method
-  removeImage(): void {
-    this.product.productImage = null;
-    this.imagePreviewUrl = null;
-    this.uploadedFile = null;
+  openNewProduct(): void {
+    if (!this.canAddProduct) return;
+    this.product = {};
+    void this.onGetProductsCategories();
+    void this.onGetAllSuppliers();
+    void this.onGetAllWarehouses();
+    this.productDialog = true;
+    this.scanning = false;
   }
 
   deleteProduct(product: Product) {
@@ -4469,6 +4795,28 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.productDialog = false;
     this.scanning = true;
     this.submitted = false;
+  }
+
+  onProductFormSaveSuccess(_savedProduct: Product): void {
+    this.productDialog = false;
+    this.scanning = true;
+    this.submitted = false;
+    this.product = {};
+    this.selectedProduct = null;
+    this.loadProducts();
+    void this.onGetQuickProducts();
+  }
+
+  onProductFormSaveError(_payload: any): void {
+    // Keep dialog open; ProductFormComponent already displays detailed errors.
+  }
+
+  onProductFormVisibleChange(visible: boolean): void {
+    this.productDialog = visible;
+    if (!visible) {
+      this.scanning = true;
+      this.submitted = false;
+    }
   }
 
   async onDeleteProduct(id: any) {
@@ -4537,186 +4885,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
     this.selectedProduct = {};
   }
 
-    async saveProduct() {
-      this.submitted = true;
-  
-      if (
-        this.product.name &&
-        this.product.reference &&
-        this.product.buyingPrice &&
-        this.product.sellingPrice &&
-        this.product.category &&
-        this.product.supplier
-      ) {
-        if (this.isAdmin && !this.product.warehouse) {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('warehouse_required'),
-            life: 3000,
-          });
-          return;
-        }
-  
-        // 🔍 Check for duplicate product with same reference in the same warehouse
-        const isDuplicate = this.products.some(p =>
-          p.reference === this.product.reference &&
-          p.warehouse?.warehouseId === this.product.warehouse?.warehouseId &&
-          p.productId !== this.product.productId // exclude current product if updating
-        );
-  
-        if (isDuplicate) {
-          this.messageService.add({
-            severity: 'warn',
-            summary: this.translate.instant('warning'),
-            detail: this.translate.instant('product_already_exists_in_warehouse'),
-            life: 4000,
-          });
-          return;
-        }
-  
-        // 📦 Upload product image if any (only if it's a new file)
-        if (this.uploadedFile && this.uploadedFile !== this.existingImageFile) {
-          this.isSaving = true; // Show saving indicator
-  
-          try {
-            const filePath = `images/${Date.now()}_${this.uploadedFile.name}`;
-            const fileRef = this.storage.ref(filePath);
-            const task = this.storage.upload(filePath, this.uploadedFile);
-  
-            // Show upload progress
-            task.percentageChanges().subscribe(percentage => {
-              this.uploadProgress = percentage;
-            });
-  
-            await lastValueFrom(task.snapshotChanges());
-            const url = await lastValueFrom(fileRef.getDownloadURL());
-            this.product.productImage = url;
-  
-            // Add to recent images
-            this.addToRecentImages(url);
-  
-          } catch (error) {
-            console.error('Error uploading file:', error);
-            this.messageService.add({
-              severity: 'error',
-              summary: this.translate.instant('error'),
-              detail: this.translate.instant('error_while_uploading_image'),
-              life: 3000,
-            });
-            this.isSaving = false;
-            return;
-          } finally {
-            this.uploadedFile = null;
-            this.uploadProgress = 0;
-          }
-        }
-  
-        // Clean attributes before saving
-        if (this.product.attributes && this.product.attributes.length > 0) {
-          this.product.attributes.forEach(attr => {
-            // strip transient field if it still exists
-            delete attr.value;
-  
-            // optionally normalize booleans (Angular checkboxes can send null)
-            if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
-              attr.booleanValue = false;
-            }
-          });
-        }
-  
-        // ✏️ Update or add product
-        if (this.product.productId) {
-          this.updateProduct(this.product.productId, this.product)
-            ? this.messageService.add({
-              severity: 'success',
-              summary: this.translate.instant('successful'),
-              detail: this.translate.instant('product_updated'),
-              life: 3000,
-            })
-            : this.messageService.add({
-              severity: 'error',
-              summary: this.translate.instant('error'),
-              detail: this.translate.instant('error_while_updating_product'),
-              life: 3000,
-            });
-        } else {
-          this.addProduct(this.product);
-        }
-  
-        // ✅ Reset and close dialog
-        this.productDialog = false;
-        this.product = {};
-      } else {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('please_fill_required_fields'),
-          life: 3100,
-        });
-        return;
-      }
-    }
-
-      addToRecentImages(imageUrl: string): void {
-    // Keep only the 6 most recent images
-    this.recentProductImages = [imageUrl, ...this.recentProductImages].slice(0, 6);
-
-    // You might want to persist this to local storage
-    localStorage.setItem('recentProductImages', JSON.stringify(this.recentProductImages));
-  }
-
-    async updateProduct(id: any, product: any): Promise<any> {
-    console.log(product)
-    await this.productService.updateProduct(id, product)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.loadProducts();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async addProduct(data: any): Promise<any> {
-    console.log(data);
-    await this.productService.saveProduct(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.loadProducts();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_added'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
   async loadBankAccounts() {
+    if (!this.canReadBankAccounts) {
+      this.bankAccounts = [];
+      return;
+    }
     try {
       const accounts$ = await this.bankAccountService.getBankAccounts(true);
       const response = await firstValueFrom(accounts$);
@@ -4731,27 +4904,146 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit {
       this.showBankAccountField = false;
       this.isBankAccountRequired = false;
       this.minimumAmountHint = null;
+      this.bankAccountNoticeKey = null;
       return;
     }
 
-    this.showBankAccountField = await this.paymentValidationService.shouldShowBankAccountField(this.payment.paymentMethod);
+    const isBankMethod = this.paymentValidationService.isBankMethod(this.payment.paymentMethod);
+    this.showBankAccountField = this.canReadBankAccounts
+      ? await this.paymentValidationService.shouldShowBankAccountField(this.payment.paymentMethod)
+      : false;
     this.isBankAccountRequired = await this.paymentValidationService.isBankAccountRequired(this.payment.paymentMethod);
     this.minimumAmountHint = await this.paymentValidationService.getMinimumAmountHint(this.payment.paymentMethod, this.currency);
+    this.bankAccountNoticeKey = null;
 
     // Pre-populate bank account from shop's default if available
-    if (this.showBankAccountField && this.order?.shop && !this.payment.bankAccountId) {
-      const shopDefaultAccountId = this.order.shop.defaultBankAccount?.accountId || 
-                                    this.order.shop.defaultBankAccountId;
-      if (shopDefaultAccountId) {
+    if (isBankMethod && !this.payment.bankAccountId) {
+      const shopDefaultAccountId = this.getOrderShopDefaultBankAccountId();
+      if (shopDefaultAccountId != null) {
         const defaultAccount = this.bankAccounts.find(acc => acc.accountId === shopDefaultAccountId);
-        if (defaultAccount) {
-          this.payment.bankAccountId = defaultAccount.accountId;
-        }
+        this.payment.bankAccountId = defaultAccount?.accountId ?? shopDefaultAccountId;
+      }
+    }
+
+    if (isBankMethod && !this.canReadBankAccounts) {
+      if (this.payment.bankAccountId) {
+        this.bankAccountNoticeSeverity = 'info';
+        this.bankAccountNoticeKey = 'shop_default_bank_account_will_be_used';
+      } else {
+        this.bankAccountNoticeSeverity = 'warn';
+        this.bankAccountNoticeKey = 'no_default_bank_account_assigned_to_shop';
       }
     }
   }
 
   async onPaymentMethodChange() {
     await this.updateBankAccountFieldVisibility();
+  }
+
+  private getOrderShopDefaultBankAccountId(): number | undefined {
+    const shop = this.resolveOrderPaymentShop();
+    const raw = shop?.defaultBankAccount?.accountId ?? shop?.defaultBankAccountId;
+    if (raw == null) {
+      return undefined;
+    }
+    const id = Number(raw);
+    return Number.isFinite(id) && id > 0 ? id : undefined;
+  }
+
+  private resolveOrderPaymentShop(): Shop | undefined {
+    const currentShopId = this.toPositiveNumber(this.order?.shop?.shopId);
+    if (currentShopId != null) {
+      const latest = this.shops.find(shop => this.toPositiveNumber(shop.shopId) === currentShopId);
+      if (latest) {
+        this.order.shop = latest;
+        return latest;
+      }
+      return this.order.shop;
+    }
+
+    if (!this.isAdmin) {
+      const userShopId = this.getCurrentUserShopIdFromToken();
+      const tokenShop = userShopId != null
+        ? this.shops.find(shop => this.toPositiveNumber(shop.shopId) === userShopId)
+        : undefined;
+      if (tokenShop) {
+        this.order.shop = tokenShop;
+        return tokenShop;
+      }
+    }
+
+    if (Array.isArray(this.shops) && this.shops.length === 1) {
+      this.order.shop = this.shops[0];
+      return this.shops[0];
+    }
+
+    return undefined;
+  }
+
+  private getCurrentUserShopIdFromToken(): number | undefined {
+    const tokenParsed = this.keycloakService.getKeycloakInstance()?.tokenParsed as any;
+    for (const key of ['shop', 'shopId', 'shop_id']) {
+      const value = this.readTokenClaimValue(tokenParsed, key);
+      const id = this.toPositiveNumber(value);
+      if (id != null) {
+        return id;
+      }
+    }
+    return undefined;
+  }
+
+  private readTokenClaimValue(source: any, key: string): any {
+    if (!source) {
+      return undefined;
+    }
+    const direct = source[key];
+    if (direct != null) {
+      return Array.isArray(direct) ? direct[0] : direct;
+    }
+    for (const container of ['attributes', 'user_attributes']) {
+      const nested = source[container];
+      const nestedValue = nested?.[key];
+      if (nestedValue != null) {
+        return Array.isArray(nestedValue) ? nestedValue[0] : nestedValue;
+      }
+    }
+    return undefined;
+  }
+
+  private toPositiveNumber(value: any): number | undefined {
+    if (value == null || String(value).trim() === '') {
+      return undefined;
+    }
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined;
+  }
+
+  private async prepareBankPaymentContext(): Promise<boolean> {
+    if (!this.paymentValidationService.isBankMethod(this.payment.paymentMethod || '')) {
+      this.payment.bankAccountId = undefined;
+      delete (this.payment as any).bankAccount;
+      this.bankAccountNoticeKey = null;
+      return true;
+    }
+
+    if (!this.canReadBankAccounts && !this.payment.bankAccountId) {
+      this.payment.bankAccountId = this.getOrderShopDefaultBankAccountId();
+    }
+
+    const requireAccount = await this.paymentValidationService.isBankAccountRequired(this.payment.paymentMethod || '');
+    if (requireAccount && !this.payment.bankAccountId && !this.canReadBankAccounts) {
+      this.bankAccountNoticeSeverity = 'warn';
+      this.bankAccountNoticeKey = 'no_default_bank_account_assigned_to_shop';
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('no_default_bank_account_assigned_to_shop'),
+        life: 4000
+      });
+      return false;
+    }
+
+    await this.updateBankAccountFieldVisibility();
+    return true;
   }
 }

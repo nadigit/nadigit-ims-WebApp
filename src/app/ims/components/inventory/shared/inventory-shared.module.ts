@@ -15,6 +15,11 @@ import { ImageModule } from 'primeng/image';
 import { GalleriaModule } from 'primeng/galleria';
 import { CheckboxModule } from 'primeng/checkbox';
 import { CalendarModule } from 'primeng/calendar';
+import { TooltipModule } from 'primeng/tooltip';
+import { RippleModule } from 'primeng/ripple';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+
+import { SharedModule } from 'src/app/shared/shared.module';
 
 // Shared components
 import { WarehouseFormDialogComponent } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
@@ -29,6 +34,7 @@ import { ProductFormComponent } from '../products/product-form/product-form.comp
     CommonModule,
     FormsModule,
     TranslateModule,
+    SharedModule,
     DialogModule,
     ButtonModule,
     InputTextModule,
@@ -39,7 +45,10 @@ import { ProductFormComponent } from '../products/product-form/product-form.comp
     ImageModule,
     GalleriaModule,
     CheckboxModule,
-    CalendarModule
+    CalendarModule,
+    TooltipModule,
+    RippleModule,
+    ProgressSpinnerModule
   ],
   exports: [
     WarehouseFormDialogComponent,

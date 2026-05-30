@@ -1,0 +1,180 @@
+<div class="grid">
+  <div class="col-12">
+    <div class="forecast-shell">
+      <div class="forecast-hero mb-4">
+        <div>
+          <h2 class="m-0 text-900">{{ 'reports_forecasting_title' | translate }}</h2>
+          <p class="text-600 mt-2 mb-0">{{ 'reports_forecasting_subtitle' | translate }}</p>
+        </div>
+        <div class="forecast-hero-actions">
+          <button pButton type="button" icon="pi pi-sync" [label]="'ai_forecast_run_button' | translate" (click)="loadForecast()" [loading]="loading"
+            [disabled]="loading || !isAiForecastingFeatureEnabled"
+            [pTooltip]="!isAiForecastingFeatureEnabled ? ('ai_forecast_upgrade_tooltip' | translate) : ''"></button>
+          <button
+            pButton
+            type="button"
+            icon="pi pi-download"
+            class="p-button-outlined"
+            [label]="'ai_forecast_export_filtered' | translate"
+            (click)="exportForecastCsv()"
+            [disabled]="rows.length === 0 || loading"></button>
+        </div>
+      </div>
+
+      <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">
+        <div class="flex flex-column" style="min-width: 10rem;">
+          <label class="reports-filter-label">{{ 'ai_forecast_history_days' | translate }}</label>
+          <p-inputNumber [(ngModel)]="historyDays" [min]="14" [max]="365" [useGrouping]="false"></p-inputNumber>
+        </div>
+        <div class="flex flex-column" style="min-width: 10rem;">
+          <label class="reports-filter-label">{{ 'ai_forecast_horizon_days' | translate }}</label>
+          <p-inputNumber [(ngModel)]="horizonDays" [min]="7" [max]="180" [useGrouping]="false"></p-inputNumber>
+        </div>
+        <div class="flex flex-column" style="min-width: 10rem;">
+          <label class="reports-filter-label">{{ 'ai_forecast_limit' | translate }}</label>
+          <p-inputNumber [(ngModel)]="topItems" [min]="1" [max]="200" [useGrouping]="false"></p-inputNumber>
+        </div>
+        <div class="flex flex-column flex-1" *ngIf="isAdmin" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">{{ 'shop' | translate }}</label>
+          <p-dropdown
+            [options]="shopOptions"
+            [(ngModel)]="selectedShop"
+            optionLabel="label"
+            optionValue="value"
+            [showClear]="true"
+            appendTo="body"
+            styleClass="w-full">
+          </p-dropdown>
+        </div>
+        <div class="flex align-items-center gap-2 mb-2">
+          <p-inputSwitch [(ngModel)]="withNarrative"></p-inputSwitch>
+          <span>{{ 'ai_forecast_with_narrative' | translate }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="loading" class="flex flex-column align-items-center justify-content-center py-6 reports-loading-panel surface-card border-1 surface-border border-round">
+        <p-progressSpinner [style]="{ width: '3rem', height: '3rem' }" strokeWidth="3"></p-progressSpinner>
+        <span class="text-600 mt-3">{{ 'loading' | translate }}</span>
+      </div>
+
+      <p-message *ngIf="error && !loading" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
+
+      <div *ngIf="forecast && !loading" class="mb-4">
+        <div class="grid">
+          <div class="col-12 md:col-4">
+            <div class="reports-stat-tile reports-stat-tile--accent-blue">
+              <span class="reports-stat-label">{{ 'ai_forecast_summary_items' | translate }}</span>
+              <span class="reports-stat-value text-blue-600">{{ forecast.generatedItemsCount }}</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-4">
+            <div class="reports-stat-tile">
+              <span class="reports-stat-label">{{ 'ai_forecast_summary_model' | translate }}</span>
+              <span class="reports-stat-value text-base">{{ forecast.modelVersion }}</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-4">
+            <div class="reports-stat-tile">
+              <span class="reports-stat-label">{{ 'ai_forecast_summary_generated_at' | translate }}</span>
+              <span class="reports-stat-value text-base">{{ forecast.generatedAt | date:'medium' }}</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-4">
+            <div class="reports-stat-tile reports-stat-tile--accent-orange">
+              <span class="reports-stat-label">{{ 'ai_forecast_high_risk_items' | translate }}</span>
+              <span class="reports-stat-value text-orange-600">{{ highRiskCount }}</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-4">
+            <div class="reports-stat-tile reports-stat-tile--accent-green">
+              <span class="reports-stat-label">{{ 'ai_forecast_total_reorder_qty' | translate }}</span>
+              <span class="reports-stat-value text-green-600">{{ totalSuggestedReorder }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid mb-4" *ngIf="!loading">
+        <div class="col-12 lg:col-8" *ngIf="chartData">
+          <div class="forecast-chart surface-card border-1 surface-border border-round p-3">
+            <p-chart type="bar" [data]="chartData" [options]="chartOptions"></p-chart>
+          </div>
+        </div>
+        <div class="col-12 lg:col-4" *ngIf="riskChartData">
+          <div class="forecast-chart surface-card border-1 surface-border border-round p-3">
+            <p-chart type="doughnut" [data]="riskChartData" [options]="riskChartOptions"></p-chart>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-bar flex gap-3 mb-3 flex-wrap align-items-center p-3 surface-ground border-round" *ngIf="rows.length > 0 && !loading">
+        <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+          <i class="pi pi-search"></i>
+          <input
+            pInputText
+            type="text"
+            class="w-full"
+            [placeholder]="'search_label' | translate"
+            (input)="forecastTable.filterGlobal($any($event.target).value, 'contains')" />
+        </span>
+      </div>
+
+      <p-table
+        #forecastTable
+        *ngIf="rows.length > 0 && !loading"
+        [value]="rows"
+        [rows]="10"
+        [paginator]="true"
+        [globalFilterFields]="['productReference', 'productName', 'riskLevel']"
+        responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>{{ 'reference' | translate }}</th>
+            <th>{{ 'name' | translate }}</th>
+            <th>{{ 'ai_forecast_risk' | translate }}</th>
+            <th>{{ 'ai_forecast_stock' | translate }}</th>
+            <th>{{ 'ai_forecast_predicted_demand' | translate }}</th>
+            <th>{{ 'ai_forecast_suggested_reorder' | translate }}</th>
+            <th>{{ 'ai_forecast_stockout_days' | translate }}</th>
+            <th>{{ 'ai_forecast_confidence' | translate }}</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+          <tr>
+            <td class="font-mono">{{ row.productReference }}</td>
+            <td>{{ row.productName }}</td>
+            <td><p-tag [severity]="getRiskSeverity(row.riskLevel)" [value]="getRiskLabel(row.riskLevel)"></p-tag></td>
+            <td>{{ row.currentStock }}</td>
+            <td>{{ row.predictedDemand }}</td>
+            <td>{{ row.suggestedReorderQty ?? 0 }}</td>
+            <td>{{ row.estimatedStockoutInDays ?? '-' }}</td>
+            <td>{{ (row.confidence * 100) | number:'1.0-0' }}%</td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <div *ngIf="forecast?.narrative && !loading" class="ai-narrative-panel surface-ground border-round p-3 mt-3">
+        <div class="flex align-items-center gap-2 mb-3">
+          <i class="pi pi-sparkles text-primary text-xl" aria-hidden="true"></i>
+          <h3 class="text-900 m-0">{{ 'ai_forecast_narrative_title' | translate }}</h3>
+        </div>
+        <div class="ai-narrative-sections flex flex-column gap-3">
+          <div *ngFor="let sec of narrativeBlocks; trackBy: trackByNarrativeSection" class="ai-narrative-block surface-card border-1 surface-border border-round p-3">
+            <p *ngIf="sec.title" class="ai-narrative-block-title m-0 mb-2 text-900 font-semibold">{{ sec.title }}</p>
+            <p class="ai-narrative-block-body m-0 text-700 line-height-3 white-space-pre-line">{{ sec.body || sec.title }}</p>
+          </div>
+        </div>
+      </div>
+      <p-message
+        *ngIf="shouldShowNarrativeHint()"
+        severity="info"
+        styleClass="w-full mt-3"
+        [text]="'ai_forecast_narrative_unavailable_hint' | translate">
+      </p-message>
+
+      <p class="text-600 text-sm m-0" *ngIf="!loading && rows.length === 0">
+        {{ 'ai_forecast_empty_hint' | translate }}
+      </p>
+    </div>
+  </div>
+</div>

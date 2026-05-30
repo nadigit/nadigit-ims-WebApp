@@ -309,7 +309,7 @@
                                 <div class="top-product-item" *ngFor="let product of warehouseStats.topProductsByValue; let i = index"
                                     (click)="viewProductDetails(product)">
                                     <div class="product-rank">{{ i + 1 }}</div>
-                                    <img [src]="product.productImage || 'assets/core-images/no-image.png'"
+                                    <img [src]="product | productImage"
                                         [alt]="product.name" class="product-thumbnail">
                                     <div class="product-info">
                                         <span class="product-name">{{ product.name }}</span>
@@ -408,7 +408,7 @@
                                 <ng-template pTemplate="body" let-product>
                                     <tr [class.out-of-stock-row]="product.quantityAvailable <= 0">
                                         <td>
-                                            <img [src]="product.productImage || 'assets/core-images/no-image.png'"
+                                            <img [src]="product | productImage"
                                                 [alt]="product.name" class="product-table-image">
                                         </td>
                                         <td>

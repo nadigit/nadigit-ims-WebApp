@@ -165,7 +165,12 @@
                     </div>
                 </div>
                 <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
-                    <label for="defaultCategoryFile" class="block mb-2">{{ 'purchase_import_default_category' | translate }}</label>
+                    <div class="flex align-items-center justify-content-between mb-2">
+                        <label for="defaultCategoryFile">{{ 'purchase_import_default_category' | translate }}</label>
+                        <a *ngIf="isAdmin" (click)="openCategoryDialogForDefault()" class="text-sm text-primary cursor-pointer">
+                            <i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
+                        </a>
+                    </div>
                     <p-dropdown
                         inputId="defaultCategoryFile"
                         [(ngModel)]="importOptions.defaultCategoryId"
@@ -387,7 +392,7 @@
                     icon="pi pi-upload"
                     class="p-button-success"
                     (click)="executeImport()"
-                    [disabled]="!validationResult?.valid || importing"
+                    [disabled]="!validationResult?.valid || importing || importBlockedByStrictBatch()"
                     [loading]="importing"></button>
             </div>
         </div>
@@ -396,6 +401,11 @@
     <!-- Step 3: Preview -->
     <div *ngIf="currentStep === 'preview'" class="import-step">
         <h3 class="text-900 mb-3">{{ 'import_preview' | translate }}</h3>
+
+        <div *ngIf="activityProfileService.emphasizeBatchAndExpiry && strictBatchPreviewBlocksImport"
+            class="border-round p-3 mb-3 bg-orange-50 border-1 border-orange-200 text-orange-900 text-sm line-height-3">
+            <i class="pi pi-exclamation-triangle mr-2"></i>{{ 'purchase_batch_lot_expiry_required' | translate }}
+        </div>
         
         <div *ngIf="preview" class="mb-4">
             <div class="grid mb-4">
@@ -455,6 +465,16 @@
                         <div class="col-12 md:col-3" *ngIf="purchase.invoice">
                             <span class="text-600 text-sm">{{ 'invoice' | translate }}:</span>
                             <span class="ml-2 text-900">{{ purchase.invoice }}</span>
+                        </div>
+                        <div class="col-12 md:col-3" *ngIf="purchase.documentType">
+                            <span class="text-600 text-sm">{{ 'document_type' | translate }}:</span>
+                            <span class="ml-2">
+                                <p-tag
+                                    [value]="getDocumentTypeLabel(purchase.documentType)"
+                                    [severity]="getDocumentTypeSeverity(purchase.documentType)"
+                                    styleClass="text-xs">
+                                </p-tag>
+                            </span>
                         </div>
                         <div class="col-12 md:col-3">
                             <span class="text-600 text-sm">{{ 'items' | translate }}:</span>
@@ -569,7 +589,7 @@
                 icon="pi pi-upload"
                 class="p-button-success"
                 (click)="executeImport()"
-                [disabled]="importing"
+                [disabled]="importing || importBlockedByStrictBatch()"
                 [loading]="importing"></button>
         </div>
     </div>
@@ -828,7 +848,12 @@
                             </p-dropdown>
                         </div>
                         <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
-                            <label for="defaultCategoryInvoice" class="block mb-2">{{ 'purchase_import_default_category' | translate }}</label>
+                            <div class="flex align-items-center justify-content-between mb-2">
+                                <label for="defaultCategoryInvoice">{{ 'purchase_import_default_category' | translate }}</label>
+                                <a *ngIf="isAdmin" (click)="openCategoryDialogForDefault()" class="text-sm text-primary cursor-pointer">
+                                    <i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
+                                </a>
+                            </div>
                             <p-dropdown
                                 inputId="defaultCategoryInvoice"
                                 [(ngModel)]="importOptions.defaultCategoryId"
@@ -843,8 +868,11 @@
                             </p-dropdown>
                             <small class="text-600">{{ 'purchase_import_default_category_hint' | translate }}</small>
                         </div>
-                        <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
-                            <label for="defaultWarehouseInvoice" class="block mb-2">{{ 'purchase_import_default_warehouse' | translate }}</label>
+                        <div class="col-12 md:col-6" *ngIf="isAdmin">
+                            <label for="defaultWarehouseInvoice" class="block mb-2">
+                                {{ 'purchase_import_default_warehouse' | translate }}
+                                <span *ngIf="isAdmin" class="required-asterisk">*</span>
+                            </label>
                             <p-dropdown
                                 inputId="defaultWarehouseInvoice"
                                 [(ngModel)]="importOptions.defaultWarehouseId"
@@ -880,22 +908,39 @@
             <div *ngIf="parsedInvoiceData && !invoiceReviewStep" class="import-step">
                 <!-- Invoice Header Card -->
                 <div class="mb-4 surface-card p-4 border-round">
-                    <div class="flex justify-content-between align-items-center mb-3">
-                        <h3 class="text-900 m-0">{{ 'parsed_invoice_details' | translate }}</h3>
-                        <p-tag 
-                            [value]="Math.round(parsedInvoiceData.confidence * 100) + '% ' + ('confidence' | translate)" 
-                            [severity]="getConfidenceColor(parsedInvoiceData.confidence) === 'green' ? 'success' : (getConfidenceColor(parsedInvoiceData.confidence) === 'yellow' ? 'warning' : 'danger')"
-                            styleClass="text-xs">
-                        </p-tag>
+                    <div class="flex justify-content-between align-items-start align-items-md-center flex-column md:flex-row gap-3 mb-3">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-900 m-0">{{ 'parsed_invoice_details' | translate }}</h3>
+                            <p *ngIf="isParsedInvoiceAiEnhanced()" class="text-600 text-sm m-0 mt-2 line-height-3 flex align-items-start gap-2">
+                                <i class="pi pi-sparkles text-primary mt-1 flex-shrink-0"></i>
+                                <span *ngIf="getParsedInvoiceAiProviderLabel(); else aiEnhancedHintGeneric">
+                                    {{ 'purchase_import_ai_enhanced_hint' | translate: { provider: getParsedInvoiceAiProviderLabel() } }}
+                                </span>
+                                <ng-template #aiEnhancedHintGeneric>{{ 'purchase_import_ai_enhanced_hint_generic' | translate }}</ng-template>
+                            </p>
+                        </div>
+                        <div class="flex align-items-center gap-2 flex-shrink-0 flex-wrap justify-content-end">
+                            <p-tag
+                                *ngIf="isParsedInvoiceAiEnhanced()"
+                                icon="pi pi-sparkles"
+                                [value]="'purchase_import_ai_enhanced_badge' | translate"
+                                severity="info"
+                                styleClass="text-xs"></p-tag>
+                            <p-tag 
+                                [value]="Math.round(parsedInvoiceData.confidence * 100) + '% ' + ('confidence' | translate)" 
+                                [severity]="getConfidenceColor(parsedInvoiceData.confidence) === 'green' ? 'success' : (getConfidenceColor(parsedInvoiceData.confidence) === 'yellow' ? 'warning' : 'danger')"
+                                styleClass="text-xs">
+                            </p-tag>
+                        </div>
                     </div>
                     <div class="grid">
-                        <div class="col-12 md:col-3" *ngIf="parsedInvoiceData.invoiceNumber">
-                            <span class="text-600 text-sm">{{ 'invoice_number' | translate }}:</span>
-                            <span class="ml-2 text-900 font-semibold">{{ parsedInvoiceData.invoiceNumber }}</span>
+                        <div class="col-12 md:col-3">
+                            <label for="parsedInvoiceNumber" class="text-600 text-sm">{{ 'invoice_number' | translate }}:</label>
+                            <input id="parsedInvoiceNumber" type="text" pInputText [(ngModel)]="parsedInvoiceData.invoiceNumber" class="w-full mt-1" />
                         </div>
-                        <div class="col-12 md:col-3" *ngIf="parsedInvoiceData.supplierName">
-                            <span class="text-600 text-sm">{{ 'supplier' | translate }}:</span>
-                            <span class="ml-2 text-900 font-semibold">{{ parsedInvoiceData.supplierName }}</span>
+                        <div class="col-12 md:col-3">
+                            <label for="parsedSupplierName" class="text-600 text-sm">{{ 'supplier' | translate }}:</label>
+                            <input id="parsedSupplierName" type="text" pInputText [(ngModel)]="parsedInvoiceData.supplierName" class="w-full mt-1" />
                         </div>
                         <div class="col-12 md:col-3" *ngIf="parsedInvoiceData.invoiceDate">
                             <span class="text-600 text-sm">{{ 'invoice_date' | translate }}:</span>
@@ -917,16 +962,52 @@
                             <span class="text-600 text-sm">{{ 'detected_language' | translate }}:</span>
                             <span class="ml-2 text-900">{{ getLanguageName(parsedInvoiceData.detectedLanguage) }}</span>
                         </div>
+                        <div class="col-12 md:col-3" *ngIf="parsedInvoiceData.documentType">
+                            <span class="text-600 text-sm">{{ 'document_type' | translate }}:</span>
+                            <span class="ml-2">
+                                <p-tag
+                                    [value]="getDocumentTypeLabel(parsedInvoiceData.documentType)"
+                                    [severity]="getDocumentTypeSeverity(parsedInvoiceData.documentType)"
+                                    styleClass="text-xs">
+                                </p-tag>
+                            </span>
+                        </div>
                     </div>
-                    <div *ngIf="parsedInvoiceData.warnings && parsedInvoiceData.warnings.length > 0" class="mt-3">
-                        <p class="text-orange-600 font-semibold mb-2">
+                    <div *ngIf="getDisplayWarnings(parsedInvoiceData.warnings).length > 0" class="mt-3">
+                        <p class="text-orange-700 font-semibold mb-2">
                             <i class="pi pi-exclamation-triangle mr-2"></i>{{ 'warnings' | translate }}
                         </p>
-                        <ul class="list-none p-0 m-0">
-                            <li *ngFor="let warning of parsedInvoiceData.warnings" class="text-orange-600 mb-1">
-                                {{ translateInvoiceOrImportWarning(warning) }}
-                            </li>
-                        </ul>
+                        <div *ngIf="getActionRequiredWarnings(parsedInvoiceData.warnings).length > 0" class="purchase-import-warning-section mb-2">
+                            <div class="purchase-import-warning-section-title">
+                                {{ 'purchase_invoice_warning_action_needed' | translate }}
+                            </div>
+                            <div class="purchase-import-warning-next-step">
+                                <i class="pi pi-arrow-right mr-2"></i>{{ 'purchase_invoice_warning_next_step' | translate }}
+                            </div>
+                            <div class="purchase-import-warning-list">
+                                <div *ngFor="let warning of getActionRequiredWarnings(parsedInvoiceData.warnings)" class="purchase-import-warning-item">
+                                    <i class="pi pi-info-circle purchase-import-warning-icon"></i>
+                                    <span>{{ warning }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div *ngIf="getTechnicalWarnings(parsedInvoiceData.warnings).length > 0" class="purchase-import-warning-section purchase-import-warning-section-technical">
+                            <div class="purchase-import-warning-section-title">
+                                {{ 'purchase_invoice_warning_technical_details' | translate }}
+                            </div>
+                            <div class="purchase-import-warning-list">
+                                <div *ngFor="let warning of getTechnicalWarnings(parsedInvoiceData.warnings)" class="purchase-import-warning-item purchase-import-warning-item-technical">
+                                    <i class="pi pi-cog purchase-import-warning-icon"></i>
+                                    <span>{{ warning }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div *ngIf="getActionRequiredWarnings(parsedInvoiceData.warnings).length === 0 && getTechnicalWarnings(parsedInvoiceData.warnings).length > 0" class="purchase-import-warning-list">
+                            <div *ngFor="let warning of getTechnicalWarnings(parsedInvoiceData.warnings)" class="purchase-import-warning-item purchase-import-warning-item-technical">
+                                <i class="pi pi-info-circle purchase-import-warning-icon"></i>
+                                <span>{{ warning }}</span>
+                            </div>
+                        </div>
                     </div>
                     <div *ngIf="parsedInvoiceData.errors && parsedInvoiceData.errors.length > 0" class="mt-3">
                         <p class="text-red-600 font-semibold mb-2">
@@ -955,7 +1036,20 @@
                                 <th>{{ 'quantity' | translate }}</th>
                                 <th>{{ 'buying_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
                                 <th>{{ 'selling_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
-                                <th *ngIf="importOptions.createMissingProducts" style="min-width: 12rem">{{ 'category' | translate }}</th>
+                                <th *ngIf="importOptions.createMissingProducts" style="min-width: 12rem">
+                                    <div class="flex align-items-center justify-content-between gap-2">
+                                        <span>{{ 'category' | translate }}</span>
+                                        <a
+                                            *ngIf="isAdmin"
+                                            (click)="openCategoryDialogForDefault()"
+                                            class="text-primary cursor-pointer inline-flex align-items-center justify-content-center"
+                                            [pTooltip]="'add_new_category' | translate"
+                                            tooltipPosition="top"
+                                            aria-label="Add new category">
+                                            <i class="pi pi-plus"></i>
+                                        </a>
+                                    </div>
+                                </th>
                                 <th>{{ 'total_price' | translate }}</th>
                                 <th>{{ 'system_product' | translate }}</th>
                                 <th>{{ 'confidence' | translate }}</th>
@@ -1087,6 +1181,16 @@
                 <h3 class="text-900 mb-2">{{ 'purchase_invoice_review_title' | translate }}</h3>
                 <p class="text-600 mb-4">{{ 'purchase_invoice_review_hint' | translate }}</p>
 
+                <div *ngIf="isParsedInvoiceAiEnhanced()" class="flex align-items-start gap-2 p-3 mb-4 border-round surface-ground border-1 surface-border">
+                    <i class="pi pi-sparkles text-primary mt-1"></i>
+                    <span class="text-700 text-sm line-height-3" *ngIf="getParsedInvoiceAiProviderLabel(); else aiReviewHintGeneric">
+                        {{ 'purchase_import_ai_enhanced_review_note' | translate: { provider: getParsedInvoiceAiProviderLabel() } }}
+                    </span>
+                    <ng-template #aiReviewHintGeneric>
+                        <span class="text-700 text-sm line-height-3">{{ 'purchase_import_ai_enhanced_review_note_generic' | translate }}</span>
+                    </ng-template>
+                </div>
+
                 <div class="surface-card p-4 border-round mb-4">
                     <h4 class="text-900 mt-0 mb-3">{{ 'parsed_invoice_details' | translate }}</h4>
                     <div class="grid">
@@ -1129,8 +1233,31 @@
                                 <label for="reviewTax" class="ml-2">{{ 'tax_enabled' | translate }}</label>
                             </div>
                         </div>
+                        <div class="col-12 md:col-4" *ngIf="isAdmin">
+                            <label for="reviewDefaultWarehouse" class="block mb-2">
+                                {{ 'purchase_import_default_warehouse' | translate }}
+                                <span class="required-asterisk">*</span>
+                            </label>
+                            <p-dropdown
+                                inputId="reviewDefaultWarehouse"
+                                [(ngModel)]="importOptions.defaultWarehouseId"
+                                [options]="warehouses"
+                                optionLabel="name"
+                                optionValue="warehouseId"
+                                [showClear]="true"
+                                [placeholder]="'purchase_import_default_warehouse_placeholder' | translate"
+                                [filter]="true"
+                                filterBy="name"
+                                styleClass="w-full">
+                            </p-dropdown>
+                        </div>
                         <div class="col-12" *ngIf="importOptions.createMissingProducts">
-                            <label for="reviewDefaultCategory" class="block mb-2">{{ 'purchase_import_default_category' | translate }}</label>
+                            <div class="flex align-items-center justify-content-between mb-2">
+                                <label for="reviewDefaultCategory">{{ 'purchase_import_default_category' | translate }}</label>
+                                <a *ngIf="isAdmin" (click)="openCategoryDialogForDefault()" class="text-sm text-primary cursor-pointer">
+                                    <i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
+                                </a>
+                            </div>
                             <div class="flex flex-wrap gap-2 align-items-end">
                                 <p-dropdown
                                     inputId="reviewDefaultCategory"
@@ -1177,12 +1304,29 @@
                         <tr>
                             <th>{{ 'reference' | translate }}</th>
                             <th>{{ 'invoice_product_name' | translate }}</th>
-                            <th *ngIf="importOptions.createMissingProducts" style="min-width: 12rem">{{ 'category' | translate }}</th>
+                            <th *ngIf="importOptions.createMissingProducts" style="min-width: 12rem">
+                                <div class="flex align-items-center justify-content-between gap-2">
+                                    <span>{{ 'category' | translate }}</span>
+                                    <a
+                                        *ngIf="isAdmin"
+                                        (click)="openCategoryDialogForDefault()"
+                                        class="text-primary cursor-pointer inline-flex align-items-center justify-content-center"
+                                        [pTooltip]="'add_new_category' | translate"
+                                        tooltipPosition="top"
+                                        aria-label="Add new category">
+                                        <i class="pi pi-plus"></i>
+                                    </a>
+                                </div>
+                            </th>
                             <th style="width: 7rem">{{ 'quantity' | translate }}</th>
                             <th style="width: 9rem">{{ 'buying_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
                             <th style="width: 9rem">{{ 'selling_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
-                            <th style="width: 9rem">{{ 'batch_number' | translate }}</th>
-                            <th style="width: 11rem">{{ 'expiration_date' | translate }}</th>
+                            <th style="width: 9rem">{{ 'batch_number' | translate }}
+                                <span *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="required-asterisk">*</span>
+                            </th>
+                            <th style="width: 11rem">{{ 'expiration_date' | translate }}
+                                <span *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="required-asterisk">*</span>
+                            </th>
                             <th style="width: 5rem"></th>
                         </tr>
                     </ng-template>
@@ -1336,5 +1480,13 @@
             </div>
         </div>
     </p-dialog>
+
+    <app-category-form-dialog
+        [config]="categoryDialogConfig"
+        [submitted]="submittedCategoryDialog"
+        (configChange)="onCategoryDialogConfigChange($event)"
+        (save)="onCategorySave($event)"
+        (cancel)="onCategoryCancel()">
+    </app-category-form-dialog>
 </p-dialog>
 

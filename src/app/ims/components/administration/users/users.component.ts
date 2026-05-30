@@ -15,6 +15,7 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { Shop } from 'src/app/models/shop';
 import { PermissionService } from 'src/app/services/permission.service';
 import { Router } from '@angular/router';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 
 @Component({
@@ -23,6 +24,7 @@ import { Router } from '@angular/router';
   providers: [MessageService]
 })
 export class UsersComponent implements OnInit {
+  readonly systemRoleNames = ['ADMIN', 'CASHIER', 'VENDOR', 'WAREHOUSEMAN', 'AUDITOR', 'ACCOUNTANT'];
 
   userDialog: boolean = false;
 
@@ -101,7 +103,10 @@ export class UsersComponent implements OnInit {
   
   posPin: string = ''; // POS PIN for user
   isLoading: boolean = true;
-
+  isStarterPlan: boolean = false;
+  isRoleManagementLocked: boolean = false;
+  /** null = no numeric cap (Enterprise / unknown) */
+  maxUsersCap: number | null = null;
 
   constructor(
     private messageService: MessageService,
@@ -113,12 +118,14 @@ export class UsersComponent implements OnInit {
     private translateService: TranslationService,
     private cdr: ChangeDetectorRef,
     private permissionService: PermissionService,
-    private router: Router) {  
+    private router: Router,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {  
 
     }
 
     async ngOnInit() {
       this.isLoading = true;
+      await this.loadLicenseCapabilities();
   
       // Subscribe to language changes
       this.translateService.currentLanguage$.subscribe(lang => {
@@ -170,30 +177,82 @@ export class UsersComponent implements OnInit {
               icon: 'pi pi-fw pi-shield',
           },
       ];
+      if (this.isRoleManagementLocked) {
+        this.menuItems = this.menuItems.filter(item => item.icon !== 'pi pi-fw pi-shield');
+      }
   
       // Set the active menu item
       this.activeItem = this.menuItems[0];
   
       // Initialize user creation steps
-      this.userCreationSteps = [
-          {
+      this.userCreationSteps = this.isStarterPlan
+        ? [
+            {
+              label: translations['user_information'],
+            },
+          ]
+        : [
+            {
               label: translations['user_information'],
               // command: () => showUserRoleMapping()
-          },
-          {
+            },
+            {
               label: translations['user_role'],
               command: (event: any) => console.log(event.item.label)
-          },
-      ];
+            },
+          ];
   
       // Fetch data and initialize other components
       this.onGetAllUsers();
-      this.onGetAllRoles();
+      if (!this.isRoleManagementLocked) {
+        this.onGetAllRoles();
+      }
       this.onGetAllWarehouses();
       this.onGetAllShops();
       this.initializePickList();
   
       this.isLoading = false;
+  }
+
+  async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      const tier = this.licenseCapabilitiesService.getTier();
+      this.isStarterPlan = tier === 'STARTER';
+      this.isRoleManagementLocked = this.isStarterPlan;
+      this.maxUsersCap = this.licenseCapabilitiesService.getMaxUsersCap();
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities, using default behavior.', error);
+      this.isStarterPlan = false;
+      this.isRoleManagementLocked = false;
+      this.maxUsersCap = null;
+    }
+  }
+
+  get isAtUserCapacity(): boolean {
+    const cap = this.maxUsersCap;
+    if (cap == null) {
+      return false;
+    }
+    return (this.users?.length || 0) >= cap;
+  }
+
+  private isLicenseUpgradeError(error: any): boolean {
+    const payload = error?.error || {};
+    return error?.status === 403 && payload?.errorCode === 'FEATURE_NOT_LICENSED';
+  }
+
+  private showUpgradeCta(detail: string): void {
+    this.messageService.add({
+      severity: 'warn',
+      summary: 'Upgrade required',
+      detail,
+      life: 7000
+    });
+  }
+
+  goToUpgrade(): void {
+    this.router.navigate(['/my-company']);
   }
   
   
@@ -254,8 +313,14 @@ export class UsersComponent implements OnInit {
 
   deleteSelected() {
     if (this.activeItem.icon == 'pi pi-fw pi-user') {
+      if (!this.selectedUsers?.length) {
+        return;
+      }
       this.deleteUsersDialog = true;
     } else {
+      if (!this.selectedRoles?.length) {
+        return;
+      }
       this.deleteRolesDialog = true;
     }
     //this.deleteUsersDialog = true;
@@ -288,8 +353,10 @@ export class UsersComponent implements OnInit {
         });
     }
 
-    this.onGetAllRoles();
-    this.initializePickList();
+    if (!this.isRoleManagementLocked) {
+      this.onGetAllRoles();
+      this.initializePickList();
+    }
     this.userDialog = true;
 }
 
@@ -303,11 +370,19 @@ export class UsersComponent implements OnInit {
   }
 
   editRole(appRole: Role) {
+    if (this.isSystemRole(appRole?.name)) {
+      this.showSystemRoleImmutableMessage();
+      return;
+    }
     this.appRole = { ...appRole };
     this.roleDialog = true;
   }
 
   deleteRole(appRole: Role) {
+    if (this.isSystemRole(appRole?.name)) {
+      this.showSystemRoleImmutableMessage();
+      return;
+    }
     this.deleteRoleDialog = true;
     this.appRole = { ...appRole };
   }
@@ -327,7 +402,9 @@ export class UsersComponent implements OnInit {
       this.selectedUsers = [];
     } else {
       this.deleteRolesDialog = false;
-      await this.selectedRoles.forEach(selectedRole => this.onDeleteRole(selectedRole.name));
+      await this.selectedRoles
+        .filter(selectedRole => !this.isSystemRole(selectedRole?.name))
+        .forEach(selectedRole => this.onDeleteRole(selectedRole.name));
       this.selectedRoles = [];
     }
   }
@@ -358,6 +435,10 @@ export class UsersComponent implements OnInit {
   }
 
   openNew() {
+    if (this.activeItem?.icon == 'pi pi-fw pi-user' && this.isAtUserCapacity) {
+      this.showUpgradeCta('User limit reached for the current plan. Upgrade to create more users.');
+      return;
+    }
     this.user = {};
     this.user.enabled = true;
     this.user.credentials = [];
@@ -365,7 +446,9 @@ export class UsersComponent implements OnInit {
     this.selectedShop = {};
     this.selectedWarehouse = {};
     this.posPin = '';
-    this.initializePickList()
+    if (!this.isRoleManagementLocked) {
+      this.initializePickList();
+    }
     this.submitted = false;
     if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.userDialog = true;
@@ -466,6 +549,10 @@ export class UsersComponent implements OnInit {
   }
 
   async NextRoleDialog() {
+    if (this.isStarterPlan) {
+      this.saveUser();
+      return;
+    }
     this.submitted=true;
     if (this.user && this.user.username && this.user.email && this.user.lastName && this.user.firstName && this.userCredential) {
       try {
@@ -501,7 +588,7 @@ export class UsersComponent implements OnInit {
     this.user.attributes.warehouse = this.selectedWarehouse ? this.selectedWarehouse.warehouseId?.toString() : ''; // Set single warehouse as string
     this.user.attributes.posPin = this.posPin || ''; // Set POS PIN
 
-    if (this.user.username.trim()) {
+    if (this.user.username?.trim() && this.isUserFormValid()) {
       delete this.user.creationDate;
       delete this.user.roles;
       if (this.user.id) {
@@ -530,6 +617,22 @@ export class UsersComponent implements OnInit {
     }
     this.isUserInfoValid = false;
     this.cdr.detectChanges(); // Detect changes to update the UI
+  }
+
+  private isUserFormValid(): boolean {
+    return !!(
+      this.user &&
+      this.user.username &&
+      this.user.email &&
+      this.user.lastName &&
+      this.user.firstName &&
+      this.userCredential &&
+      this.selectedShop &&
+      this.selectedShop.shopId &&
+      this.selectedWarehouse &&
+      this.selectedWarehouse.warehouseId &&
+      (this.user.id || this.userCredential.value)
+    );
   }
 
   onPosPinInput(event: any) {
@@ -602,6 +705,12 @@ export class UsersComponent implements OnInit {
     this.submitted = true;
 
     if (this.appRole.name.trim()) {
+      if (this.isSystemRole(this.appRole.name)) {
+        this.showSystemRoleImmutableMessage(this.appRole.id
+          ? 'System roles cannot be updated or deleted.'
+          : 'System role names are reserved and cannot be created manually.');
+        return;
+      }
       if (this.appRole.id) {
         console.log(this.appRole)
         this.updateRole(this.appRole.name, this.appRole)
@@ -650,6 +759,10 @@ export class UsersComponent implements OnInit {
 
 
   onGetAllRoles() {
+    if (this.isRoleManagementLocked) {
+      this.appRoles = [];
+      return;
+    }
     this.authService.getRoles()
       .subscribe({
         next: (response: any) => {
@@ -754,6 +867,9 @@ export class UsersComponent implements OnInit {
     try {
       // Set loading flag to true to display the loading spinner
       this.loading = true;
+      if (this.isStarterPlan) {
+        user.realmRoles = ['ADMIN'];
+      }
 
       // Step 1: Update user info
       if (user.id) {
@@ -791,11 +907,13 @@ export class UsersComponent implements OnInit {
 
       }
 
-      // Step 3: Update user role mapping
-      console.log("Update user role mapping");
-      const updateRoleMappingResult = await this.updateUserRoleMapping(user.id, roles);
-      if (!updateRoleMappingResult) {
-        throw new Error("Failed to update user role mapping");
+      // Step 3: Update user role mapping (not available in STARTER).
+      if (!this.isRoleManagementLocked) {
+        console.log("Update user role mapping");
+        const updateRoleMappingResult = await this.updateUserRoleMapping(user.id, roles);
+        if (!updateRoleMappingResult) {
+          throw new Error("Failed to update user role mapping");
+        }
       }
       await this.onGetAllUsers();
 
@@ -851,6 +969,9 @@ export class UsersComponent implements OnInit {
       return true;
     } catch (error) {
       console.log(error);
+      if (this.isLicenseUpgradeError(error)) {
+        this.showUpgradeCta('Starter plan allows one admin user only. Upgrade to create more users.');
+      }
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -862,6 +983,10 @@ export class UsersComponent implements OnInit {
   }
 
   async updateUserRoleMapping(id: any, role: any): Promise<boolean> {
+    if (this.isRoleManagementLocked) {
+      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      return false;
+    }
     try {
       const response = await this.authService.saveUserRolesMapping(id, role).toPromise();
       console.log(response);
@@ -885,6 +1010,10 @@ export class UsersComponent implements OnInit {
   }
 
   async deleteUserRoleMapping(id: any, role: any): Promise<boolean> {
+    if (this.isRoleManagementLocked) {
+      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      return false;
+    }
     try {
       const response = await this.authService.deleteUserRolesMapping(id, role).toPromise();
       console.log(response);
@@ -909,6 +1038,14 @@ export class UsersComponent implements OnInit {
 
 
   async updateRole(id: any, user: any): Promise<any> {
+    if (this.isRoleManagementLocked) {
+      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      return;
+    }
+    if (this.isSystemRole(id)) {
+      this.showSystemRoleImmutableMessage();
+      return;
+    }
     console.log(user)
     await this.authService.updateRole(id, user)
       .subscribe({
@@ -936,6 +1073,10 @@ export class UsersComponent implements OnInit {
       })
   }
   async addRole(data: any): Promise<any> {
+    if (this.isRoleManagementLocked) {
+      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      return;
+    }
     await this.authService.saveRole(data)
       .subscribe({
         next: (response: any) => {
@@ -963,6 +1104,14 @@ export class UsersComponent implements OnInit {
   }
 
   async onDeleteRole(id: any) {
+    if (this.isRoleManagementLocked) {
+      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      return;
+    }
+    if (this.isSystemRole(id)) {
+      this.showSystemRoleImmutableMessage();
+      return;
+    }
     await this.authService.deleteRole(id)
       .subscribe({
         next: (response: any) => {
@@ -991,6 +1140,20 @@ export class UsersComponent implements OnInit {
 
   lockUser(arg0: any) {
     throw new Error('Method not implemented.');
+  }
+
+  isSystemRole(roleName: string | undefined): boolean {
+    if (!roleName) return false;
+    return this.systemRoleNames.includes(roleName.toUpperCase());
+  }
+
+  private showSystemRoleImmutableMessage(detail = 'System roles cannot be updated or deleted.'): void {
+    this.messageService.add({
+      severity: 'warn',
+      summary: this.translate.instant('warning'),
+      detail,
+      life: 3500
+    });
   }
 
 

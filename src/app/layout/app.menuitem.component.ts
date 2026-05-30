@@ -1,5 +1,5 @@
 import { ChangeDetectorRef, Component, Host, HostBinding, Input, OnDestroy, OnInit } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
+import { IsActiveMatchOptions, NavigationEnd, Router } from '@angular/router';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -11,11 +11,23 @@ import { LayoutService } from './service/app.layout.service';
     selector: '[app-menuitem]',
     template: `
 		<ng-container>
-            <div *ngIf="root && item.visible !== false" class="layout-menuitem-root-text">{{item.label}}</div>
+            <div *ngIf="root && item.visible !== false" class="layout-menuitem-root-header">
+                <span class="layout-menuitem-root-text">{{item.label}}</span>
+                <p-tag *ngIf="item.badge"
+                    [value]="item.badge"
+                    [severity]="item.badgeSeverity || 'info'"
+                    styleClass="layout-menuitem-root-badge">
+                </p-tag>
+            </div>
 			<a *ngIf="(!item.routerLink || item.items) && item.visible !== false" [attr.href]="item.url" (click)="itemClick($event)"
 			   [ngClass]="item.class" [attr.target]="item.target" tabindex="0" pRipple>
 				<i [ngClass]="item.icon" class="layout-menuitem-icon"></i>
 				<span class="layout-menuitem-text">{{item.label}}</span>
+                <p-tag *ngIf="item.badge && !root"
+                    [value]="item.badge"
+                    [severity]="item.badgeSeverity || 'info'"
+                    styleClass="layout-menuitem-inline-badge">
+                </p-tag>
 				<i class="pi pi-fw pi-angle-down layout-submenu-toggler" *ngIf="item.items"></i>
 			</a>
 			<a *ngIf="(item.routerLink && !item.items) && item.visible !== false" (click)="itemClick($event)" [ngClass]="item.class" 
@@ -25,6 +37,11 @@ import { LayoutService } from './service/app.layout.service';
                [attr.target]="item.target" tabindex="0" pRipple>
 				<i [ngClass]="item.icon" class="layout-menuitem-icon"></i>
 				<span class="layout-menuitem-text">{{item.label}}</span>
+                <p-tag *ngIf="item.badge"
+                    [value]="item.badge"
+                    [severity]="item.badgeSeverity || 'info'"
+                    styleClass="layout-menuitem-inline-badge">
+                </p-tag>
 				<i class="pi pi-fw pi-angle-down layout-submenu-toggler" *ngIf="item.items"></i>
 			</a>
 
@@ -84,9 +101,11 @@ export class AppMenuitemComponent implements OnInit, OnDestroy {
         });
 
         this.router.events.pipe(filter(event => event instanceof NavigationEnd))
-            .subscribe(params => {
+            .subscribe(() => {
                 if (this.item.routerLink) {
                     this.updateActiveStateFromRoute();
+                } else if (this.item.items) {
+                    this.updateActiveFromDescendants();
                 }
             });
     }
@@ -96,6 +115,8 @@ export class AppMenuitemComponent implements OnInit, OnDestroy {
 
         if (this.item.routerLink) {
             this.updateActiveStateFromRoute();
+        } else if (this.item.items) {
+            this.updateActiveFromDescendants();
         }
     }
 
@@ -104,6 +125,54 @@ export class AppMenuitemComponent implements OnInit, OnDestroy {
 
         if (activeRoute) {
             this.menuService.onMenuStateChange({ key: this.key, routeEvent: true });
+        }
+    }
+
+    /** Expand collapsible groups (e.g. document-chain submenu) when the current URL matches a nested leaf. */
+    private updateActiveFromDescendants(): void {
+        if (!this.item.items?.length) {
+            return;
+        }
+        if (this.descendantHasActiveRoute(this.item.items)) {
+            this.active = true;
+            this.menuService.onMenuStateChange({ key: this.key, routeEvent: true });
+            this.cd.markForCheck();
+        }
+    }
+
+    private descendantHasActiveRoute(items: any[]): boolean {
+        for (const child of items) {
+            if (child.routerLink?.length && (!child.items || child.items.length === 0)) {
+                if (this.leafRouteActive(child)) {
+                    return true;
+                }
+            }
+            if (child.items?.length && this.descendantHasActiveRoute(child.items)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private leafRouteActive(leaf: any): boolean {
+        try {
+            const extras: { queryParams?: Record<string, unknown>; queryParamsHandling?: 'merge' | 'preserve' | '' } = {};
+            if (leaf.queryParams !== undefined) {
+                extras.queryParams = leaf.queryParams;
+            }
+            if (leaf.queryParamsHandling !== undefined && leaf.queryParamsHandling !== null) {
+                extras.queryParamsHandling = leaf.queryParamsHandling;
+            }
+            const tree = this.router.createUrlTree(leaf.routerLink, extras);
+            const opts = (leaf.routerLinkActiveOptions || {
+                paths: 'exact',
+                queryParams: 'ignored',
+                matrixParams: 'ignored',
+                fragment: 'ignored',
+            }) as IsActiveMatchOptions;
+            return this.router.isActive(tree, opts);
+        } catch {
+            return false;
         }
     }
 

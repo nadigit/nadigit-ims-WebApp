@@ -18,7 +18,8 @@
 				<div class="flex align-items-center gap-2">
 					<button *ngIf="canAddFinancialDocs" pButton pRipple label="{{'new_button' | translate}}"
 						icon="pi pi-plus" class="p-button-success" (click)="openNew()"
-						pTooltip="{{'add_new_financial_doc'|translate}}"></button>
+						[disabled]="!isFinancialDocumentsFeatureEnabled"
+						[pTooltip]="!isFinancialDocumentsFeatureEnabled ? 'Upgrade plan to create financial documents.' : ('add_new_financial_doc' | translate)"></button>
 					<button *ngIf="canDeleteFinancialDocs" pButton pRipple label="{{'delete_button' | translate}}"
 						icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedFinancialDocs()"
 						pTooltip="{{'delete_financial_doc'|translate}}"
@@ -283,8 +284,10 @@
 									[suggestions]="orderSuggestions" [loading]="orderSuggestionsLoading"
 									(completeMethod)="filterOrders($event)" [minLength]="0" [field]="'reference'"
 									placeholder="{{ 'select_order_option' | translate }}" [dropdown]="true"
-									[forceSelection]="true"
-									[disabled]="!financialDoc.docType || orderSuggestionsLoading" appendTo="body"
+									[forceSelection]="false" [autoHighlight]="true"
+									(onSelect)="onOrderSelected($event)" (onClear)="onOrderCleared()"
+									(onBlur)="onOrderAutoCompleteBlur()"
+									[disabled]="!financialDoc.docType" appendTo="body"
 									styleClass="w-full">
 
 									<!-- Selected Item Template -->

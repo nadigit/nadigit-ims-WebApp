@@ -4,9 +4,14 @@
     <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="mb-3 w-full"
         [closable]="false" [text]="'warehouse_transfer_manual_workflow_hint' | translate"></p-message>
 
-    <div *ngIf="transferAutoApply && !isLoading" class="mx-3 mt-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
+    <div *ngIf="transferAutoApply && isAdmin && !isLoading" class="mx-3 mt-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
         <i class="pi pi-info-circle mt-1"></i>
         <span>{{ 'warehouse_transfer_auto_apply_hint' | translate }}</span>
+    </div>
+
+    <div *ngIf="activityProfileService.emphasizeBatchAndExpiry && !isLoading" class="mx-3 mt-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
+        <i class="pi pi-box mt-1 flex-shrink-0"></i>
+        <span>{{ 'activity_profile_hint_warehouse_transfer' | translate }}</span>
     </div>
 
     <!-- Loading State -->
@@ -366,7 +371,7 @@
                                     <tr>
                                         <td>
                                             <div class="product-cell">
-                                                <img [src]="item.product?.productImage || 'assets/core-images/no-image.png'"
+                                                <img [src]="item.product | productImage"
                                                     [alt]="item.product?.name"
                                                     class="product-image" />
                                                 <div class="product-info">

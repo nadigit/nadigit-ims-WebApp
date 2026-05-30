@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { PrimeNGConfig } from 'primeng/api';
 import { TranslationService } from './services/translation.service';
 import { KeycloakService } from 'keycloak-angular';
@@ -8,17 +8,26 @@ import { AppConfigurationService } from './services/app-configuration.service';
 import { TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { BackendStatusService } from './services/backend-status.service';
+import { ProcessModeService } from './services/process-mode.service';
+import { ActivityProfileService } from './services/activity-profile.service';
+import { Subscription } from 'rxjs';
+import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
 
     public profile?: KeycloakProfile;
     backendUnavailable$!: Observable<boolean>;
 
+    /** Shown when API reports profileSelectionRequired (org profile not set). */
+    showActivityProfileBanner = false;
+    isAdmin = false;
+    private readonly activityProfileBannerStorageKey = 'ims_activity_profile_banner_dismissed';
+    private activityProfileCtxSub?: Subscription;
 
     constructor(private primengConfig: PrimeNGConfig,
         private translate: TranslateService,
@@ -27,6 +36,8 @@ export class AppComponent implements OnInit {
         private authService: AuthenticationService,
         private configService: AppConfigurationService,
         private backendStatusService: BackendStatusService,
+        private processModeService: ProcessModeService,
+        public activityProfileService: ActivityProfileService,
     ) { }
 
     async ngOnInit() {
@@ -127,16 +138,47 @@ export class AppComponent implements OnInit {
             if (this.keycloakService.isTokenExpired()) {
                 this.logOut();
             } else {
-                this.authService.checkRolesAndRedirect();
+                await this.processModeService.ensureLoaded();
+                try {
+                    await this.activityProfileService.ensureLoaded();
+                    this.refreshActivityProfileBannerVisibility();
+                    this.activityProfileCtxSub = this.activityProfileService.contextChanged$.subscribe(() =>
+                        this.refreshActivityProfileBannerVisibility(),
+                    );
+                } catch {
+                    /* non-blocking */
+                }
+                try {
+                    const roles = await this.keycloakService.getUserRoles();
+                    this.isAdmin = Array.isArray(roles) && roles.includes('ADMIN');
+                } catch {
+                    this.isAdmin = false;
+                }
+                await this.authService.checkRolesAndRedirect();
             }
         } else {
             await this.login();
         }
     }
 
+    ngOnDestroy(): void {
+        this.activityProfileCtxSub?.unsubscribe();
+    }
+
+    private refreshActivityProfileBannerVisibility(): void {
+        const dismissed = sessionStorage.getItem(this.activityProfileBannerStorageKey) === '1';
+        this.showActivityProfileBanner =
+            !dismissed && this.activityProfileService.profileSelectionRequired === true;
+    }
+
+    dismissActivityProfileBanner(): void {
+        sessionStorage.setItem(this.activityProfileBannerStorageKey, '1');
+        this.refreshActivityProfileBannerVisibility();
+    }
+
     async login() {
         await this.keycloakService.login({
-            redirectUri: window.location.origin + '/webconsole'
+            redirectUri: buildKeycloakRedirectUri()
         });
     }
 

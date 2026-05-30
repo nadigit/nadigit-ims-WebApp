@@ -109,7 +109,8 @@
     }
 }
 
-@media (max-width: 991px) {
+/* Include small laptops / tablets in landscape so the ⋮ overflow control is available when the inline actions strip is tight */
+@media (max-width: 1199px) {
     .layout-topbar {
         justify-content: space-between;
 

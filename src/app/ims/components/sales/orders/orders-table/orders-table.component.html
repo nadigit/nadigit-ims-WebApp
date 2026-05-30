@@ -4,12 +4,12 @@
 
 <div class="grid" *ngIf="!isLoading && isAdmin">
   <div class="col-12 lg:col-6 xl:col-3">
-    <div class="card mb-0" *ngIf="totalRecords">
+    <div class="card mb-0">
       <div class="flex justify-content-between mb-3">
         <div>
           <span class="block text-500 font-medium mb-3">{{'total_orders' |
             translate}}</span>
-          <div class="text-900 font-medium text-xl" *ngIf="totalRecords">{{ totalRecords }}</div>
+          <div class="text-900 font-medium text-xl">{{ totalRecords ?? 0 }}</div>
         </div>
         <div class="flex align-items-center justify-content-center bg-blue-100 border-round"
           [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
@@ -388,7 +388,7 @@
           <button pButton pRipple *ngIf="order.orderStatus ==='Ordered' && canProcessOrder" icon="pi pi-cog"
             class="p-button-rounded p-button-text p-button-success"
             (click)="processOrderEvent.emit(order); $event.stopPropagation()"
-            pTooltip="{{'process_order_button'|translate}}"></button>
+            [pTooltip]="tooltipProcessOrder()"></button>
           <button pButton pRipple *ngIf="order.orderStatus ==='Ordered' && canCancelOrder" icon="pi pi-times"
             class="p-button-rounded p-button-text p-button-warning"
             (click)="cancelOrderEvent.emit(order); $event.stopPropagation()"
@@ -396,11 +396,11 @@
           <button pButton pRipple *ngIf="order.orderStatus ==='Processing' && canProcessOrder" icon="pi pi-truck"
             class="p-button-rounded p-button-text p-button-info"
             (click)="deliverOrderEvent.emit(order); $event.stopPropagation()"
-            pTooltip="{{'deliver_order_button'|translate}}"></button>
+            [pTooltip]="tooltipDeliverOrder()"></button>
           <button pButton pRipple *ngIf="order.orderStatus ==='Delivered' && canProcessOrder" icon="pi pi-check-circle"
             class="p-button-rounded p-button-text p-button-success"
             (click)="completeOrderEvent.emit(order); $event.stopPropagation()"
-            pTooltip="{{'complete_order_button'|translate}}"></button>
+            [pTooltip]="tooltipCompleteOrder()"></button>
           <button pButton pRipple
             *ngIf="(order.orderStatus !== 'Completed' && order.orderStatus !== 'Canceled') && canEditOrder"
             icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
@@ -431,7 +431,7 @@
   <ng-template pTemplate="body" let-orderItem>
     <tr>
       <td><img
-          [src]="orderItem.product.productImage ? orderItem.product.productImage : 'assets/core-images/no-image.png'"
+          [src]="orderItem.product | productImage"
           [alt]="orderItem.product.name" width="60" [ngClass]="{'shadow-4': orderItem.product?.productImage}" /></td>
       <td>
         <div class="flex align-items-center gap-2">

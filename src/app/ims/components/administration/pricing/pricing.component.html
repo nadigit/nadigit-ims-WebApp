@@ -5,6 +5,7 @@
         <div>
           <h2 class="m-0 text-900">{{ 'pricing_menu_title' | translate }}</h2>
           <p class="text-600 mt-2 mb-0">{{ 'pricing_page_description' | translate }}</p>
+          <p class="text-600 text-sm mt-2 mb-0 pricing-workflow-hint">{{ 'pricing_workflow_hint' | translate }}</p>
         </div>
       </div>
     </div>
@@ -13,7 +14,7 @@
       <p-toast></p-toast>
       <p-confirmDialog></p-confirmDialog>
 
-      <p-tabView>
+      <p-tabView [(activeIndex)]="activeTabIndex">
         <p-tabPanel>
           <ng-template pTemplate="header">
             <i class="pi pi-list mr-2"></i>
@@ -25,24 +26,37 @@
               class="p-button-success" (click)="openNewPriceList()"></button>
           </div>
 
-          <div class="card flex justify-content-center" *ngIf="isLoading">
-            <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+          <div *ngIf="isLoading" class="pricing-skeleton flex flex-column gap-3 py-2">
+            <p-skeleton height="2.25rem" styleClass="w-full md:w-6"></p-skeleton>
+            <p-skeleton *ngFor="let _ of [1,2,3,4,5,6]" height="2.5rem" styleClass="w-full"></p-skeleton>
           </div>
 
-          <p-table *ngIf="!isLoading" [value]="priceLists" dataKey="id" styleClass="p-datatable-gridlines">
+          <div *ngIf="!isLoading && priceLists.length === 0"
+            class="text-center py-6 px-3 border-round surface-ground border-1 surface-border">
+            <i class="pi pi-inbox text-600 text-5xl mb-3"></i>
+            <h3 class="mt-0 mb-2 text-900">{{ 'pricing_empty_price_lists_title' | translate }}</h3>
+            <p class="text-600 mb-4 mx-auto pricing-empty-subtitle">{{ 'pricing_empty_price_lists_subtitle' | translate }}</p>
+            <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
+              class="p-button-success" (click)="openNewPriceList()"></button>
+          </div>
+
+          <p-table *ngIf="!isLoading && priceLists.length > 0" [value]="priceLists" dataKey="id"
+            styleClass="p-datatable-gridlines" [sortMode]="'single'" [sortField]="'priority'" [sortOrder]="-1"
+            [paginator]="priceLists.length > 12" [rows]="12" [showCurrentPageReport]="true"
+            [rowHover]="true">
             <ng-template pTemplate="header">
               <tr>
-                <th>{{ 'name' | translate }}</th>
-                <th>{{ 'description' | translate }}</th>
-                <th>{{ 'active' | translate }}</th>
-                <th>{{ 'priority' | translate }}</th>
-                <th>{{ 'actions' | translate }}</th>
+                <th pSortableColumn="name">{{ 'name' | translate }} <p-sortIcon field="name"></p-sortIcon></th>
+                <th pSortableColumn="description">{{ 'description' | translate }} <p-sortIcon field="description"></p-sortIcon></th>
+                <th pSortableColumn="active">{{ 'active' | translate }} <p-sortIcon field="active"></p-sortIcon></th>
+                <th pSortableColumn="priority">{{ 'priority' | translate }} <p-sortIcon field="priority"></p-sortIcon></th>
+                <th style="width: 8rem">{{ 'actions' | translate }}</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-list>
               <tr>
                 <td>{{ getPriceListLabel(list) }}</td>
-                <td>{{ getPriceListDescription(list) || '-' }}</td>
+                <td>{{ getPriceListDescription(list) || '—' }}</td>
                 <td>
                   <p-tag [value]="list.active ? ('enabled' | translate) : ('disabled' | translate)"
                     [severity]="list.active ? 'success' : 'warning'"></p-tag>
@@ -50,8 +64,19 @@
                 <td>{{ list.priority }}</td>
                 <td>
                   <div class="flex gap-1">
+                    <button pButton pRipple icon="pi pi-sliders-h"
+                      class="p-button-rounded p-button-text p-button-info"
+                      type="button"
+                      (click)="openTierRulesForList(list)"
+                      [attr.aria-label]="'pricing_open_tier_rules' | translate"
+                      pTooltip="{{ 'pricing_open_tier_rules' | translate }}"
+                      tooltipPosition="left"></button>
                     <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
-                      (click)="editPriceList(list)" pTooltip="{{ 'update' | translate }}"></button>
+                      type="button"
+                      (click)="editPriceList(list)"
+                      [attr.aria-label]="'update' | translate"
+                      pTooltip="{{ 'update' | translate }}"
+                      tooltipPosition="left"></button>
                   </div>
                 </td>
               </tr>
@@ -65,129 +90,159 @@
             <span>{{ 'tier_rules' | translate }}</span>
           </ng-template>
 
-          <div class="grid align-items-end mb-4">
-            <div class="col-12 md:col-6">
-              <label class="block mb-2 font-semibold">{{ 'price_list' | translate }}</label>
-              <p-dropdown
-                [options]="priceLists"
-                optionLabel="name"
-                [(ngModel)]="selectedPriceList"
-                [placeholder]="'select_price_list' | translate"
-                (onChange)="onPriceListChange()"
-                appendTo="body">
-                <ng-template pTemplate="selectedItem">
-                  <span *ngIf="selectedPriceList">{{ getPriceListLabel(selectedPriceList) }}</span>
-                </ng-template>
-                <ng-template let-list pTemplate="item">
-                  <span>{{ getPriceListLabel(list) }}</span>
-                </ng-template>
-              </p-dropdown>
-            </div>
-            <div class="col-12 md:col-6 flex justify-content-end">
-              <button pButton pRipple label="{{ 'add_rule' | translate }}" icon="pi pi-plus"
-                class="p-button-success" (click)="openNewItem()"
-                [disabled]="!selectedPriceList?.id"></button>
-            </div>
+          <div *ngIf="priceLists.length === 0" class="text-center py-6 px-3 border-round surface-ground border-1 surface-border">
+            <i class="pi pi-info-circle text-primary text-4xl mb-3"></i>
+            <p class="text-600 m-0 mx-auto pricing-empty-subtitle">{{ 'pricing_tier_rules_need_lists' | translate }}</p>
           </div>
 
-          <p-table [value]="priceListItems" dataKey="id" styleClass="p-datatable-gridlines">
-            <ng-template pTemplate="header">
-              <tr>
-                <th>{{ 'product' | translate }}</th>
-                <th>{{ 'min_qty' | translate }}</th>
-                <th>{{ 'max_qty' | translate }}</th>
-                <th>{{ 'unit_price' | translate }}</th>
-                <th>{{ 'active' | translate }}</th>
-                <th>{{ 'actions' | translate }}</th>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-item>
-              <tr>
-                <td>{{ getProductDisplay(item) }}</td>
-                <td>{{ item.minQty }}</td>
-                <td>{{ item.maxQty ?? '-' }}</td>
-                <td>{{ item.unitPrice | number:'1.2-2' }}</td>
-                <td>
-                  <p-tag [value]="item.active ? ('enabled' | translate) : ('disabled' | translate)"
-                    [severity]="item.active ? 'success' : 'warning'"></p-tag>
-                </td>
-                <td>
-                  <div class="flex gap-1">
-                    <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
-                      (click)="editItem(item)" pTooltip="{{ 'update' | translate }}"></button>
-                    <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
-                      (click)="confirmDeleteItem(item)" pTooltip="{{ 'delete' | translate }}"></button>
-                  </div>
-                </td>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="emptymessage">
-              <tr>
-                <td colspan="6" class="text-center p-4">
-                  {{ 'no_price_list_items' | translate }}
-                </td>
-              </tr>
-            </ng-template>
-          </p-table>
+          <ng-container *ngIf="priceLists.length > 0">
+            <div class="grid align-items-end mb-4">
+              <div class="col-12 md:col-6">
+                <label class="block mb-2 font-semibold" for="pricingPriceListSelect">{{ 'price_list' | translate }}</label>
+                <p-dropdown inputId="pricingPriceListSelect"
+                  [options]="priceLists"
+                  optionLabel="name"
+                  [(ngModel)]="selectedPriceList"
+                  [placeholder]="'select_price_list' | translate"
+                  (onChange)="onPriceListChange()"
+                  appendTo="body">
+                  <ng-template pTemplate="selectedItem">
+                    <span *ngIf="selectedPriceList">{{ getPriceListLabel(selectedPriceList) }}</span>
+                  </ng-template>
+                  <ng-template let-list pTemplate="item">
+                    <span>{{ getPriceListLabel(list) }}</span>
+                  </ng-template>
+                </p-dropdown>
+              </div>
+              <div class="col-12 md:col-6 flex justify-content-end">
+                <button pButton pRipple label="{{ 'add_rule' | translate }}" icon="pi pi-plus"
+                  class="p-button-success" type="button" (click)="openNewItem()"
+                  [disabled]="!selectedPriceList?.id"></button>
+              </div>
+            </div>
+            <p class="text-600 text-sm mb-3 mt-0">{{ 'pricing_tier_rule_overlap_hint' | translate }}</p>
+
+            <p-table [value]="priceListItems" dataKey="id" styleClass="p-datatable-gridlines"
+              [loading]="isLoadingItems" [sortMode]="'single'" [sortField]="'minQty'" [sortOrder]="1"
+              [paginator]="priceListItems.length > 15" [rows]="15" [showCurrentPageReport]="true"
+              [rowHover]="true">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="productId">{{ 'product' | translate }} <p-sortIcon field="productId"></p-sortIcon></th>
+                  <th pSortableColumn="minQty">{{ 'min_qty' | translate }} <p-sortIcon field="minQty"></p-sortIcon></th>
+                  <th pSortableColumn="maxQty">{{ 'max_qty' | translate }} <p-sortIcon field="maxQty"></p-sortIcon></th>
+                  <th pSortableColumn="unitPrice">{{ 'unit_price' | translate }} <p-sortIcon field="unitPrice"></p-sortIcon></th>
+                  <th pSortableColumn="active">{{ 'active' | translate }} <p-sortIcon field="active"></p-sortIcon></th>
+                  <th style="width: 7rem">{{ 'actions' | translate }}</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-item>
+                <tr>
+                  <td>
+                    <div class="font-medium text-900">{{ tierProductDisplayName(item) }}</div>
+                    <small class="text-500" *ngIf="item.productId">#{{ item.productId }}</small>
+                  </td>
+                  <td>{{ item.minQty }}</td>
+                  <td>{{ item.maxQty ?? '—' }}</td>
+                  <td class="font-medium">{{ formatUnitPrice(item.unitPrice) }}</td>
+                  <td>
+                    <p-tag [value]="item.active ? ('enabled' | translate) : ('disabled' | translate)"
+                      [severity]="item.active ? 'success' : 'warning'"></p-tag>
+                  </td>
+                  <td>
+                    <div class="flex gap-1">
+                      <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
+                        type="button" (click)="editItem(item)"
+                        [attr.aria-label]="'update' | translate"
+                        pTooltip="{{ 'update' | translate }}"
+                        tooltipPosition="left"></button>
+                      <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+                        type="button" (click)="confirmDeleteItem(item)"
+                        [attr.aria-label]="'delete' | translate"
+                        pTooltip="{{ 'delete' | translate }}"
+                        tooltipPosition="left"></button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="6" class="text-center p-4 text-600">
+                    {{ 'no_price_list_items' | translate }}
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </ng-container>
         </p-tabPanel>
       </p-tabView>
     </div>
   </div>
 </div>
 
-<p-dialog [(visible)]="priceListDialog" [style]="{ width: '450px' }"
+<p-dialog [(visible)]="priceListDialog" [style]="{ width: '520px', maxWidth: '95vw' }"
+  [breakpoints]="{ '768px': '95vw' }"
   [header]="isEditingPriceList ? ('edit_price_list' | translate) : ('new_price_list' | translate)"
   [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid">
   <ng-template pTemplate="content">
     <div class="field">
-      <label for="name">{{ 'name' | translate }} <span class="required-asterisk">*</span></label>
-      <input pInputText name="name" [(ngModel)]="priceListForm.name" required />
+      <label for="pl-name">{{ 'name' | translate }} <span class="required-asterisk">*</span></label>
+      <input pInputText id="pl-name" name="name" [(ngModel)]="priceListForm.name" required />
     </div>
     <div class="field">
-      <label for="description">{{ 'description' | translate }}</label>
-      <textarea pInputTextarea name="description" rows="3" [(ngModel)]="priceListForm.description"></textarea>
+      <label for="pl-description">{{ 'description' | translate }}</label>
+      <textarea pInputTextarea id="pl-description" name="description" rows="3" [(ngModel)]="priceListForm.description"></textarea>
     </div>
     <div class="field">
-      <label for="priority">{{ 'priority' | translate }}</label>
-      <p-inputNumber [(ngModel)]="priceListForm.priority" [min]="0"></p-inputNumber>
+      <label for="pl-priority">{{ 'priority' | translate }}</label>
+      <p-inputNumber inputId="pl-priority" [(ngModel)]="priceListForm.priority" [min]="0"></p-inputNumber>
+      <small class="text-500 block mt-1">{{ 'pricing_priority_hint' | translate }}</small>
     </div>
     <div class="field">
-      <p-checkbox [(ngModel)]="priceListForm.active" binary="true"></p-checkbox>
-      <span class="ml-2">{{ 'active' | translate }}</span>
+      <p-checkbox inputId="pl-active" [(ngModel)]="priceListForm.active" [binary]="true"></p-checkbox>
+      <label for="pl-active" class="ml-2">{{ 'active' | translate }}</label>
     </div>
   </ng-template>
   <ng-template pTemplate="footer">
-    <button pButton pRipple class="p-button-text" icon="pi pi-times"
+    <button pButton pRipple class="p-button-text" icon="pi pi-times" type="button"
       label="{{ 'cancel_button' | translate }}" (click)="priceListDialog = false"></button>
-    <button pButton pRipple icon="pi pi-check" label="{{ 'save_button' | translate }}"
-      (click)="savePriceList()"></button>
+    <button pButton pRipple icon="pi pi-check" label="{{ 'save_button' | translate }}" type="button"
+      [disabled]="savingPriceList" [loading]="savingPriceList" (click)="savePriceList()"></button>
   </ng-template>
 </p-dialog>
 
-<p-dialog [(visible)]="itemDialog" [style]="{ width: '500px' }"
+<p-dialog [(visible)]="itemDialog" [style]="{ width: '560px', maxWidth: '95vw' }"
+  [breakpoints]="{ '768px': '95vw' }"
   [header]="isEditingItem ? ('edit_tier_rule' | translate) : ('new_tier_rule' | translate)"
   [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid">
   <ng-template pTemplate="content">
+    <p class="text-600 text-sm mb-3 mt-0">{{ 'pricing_tier_rule_overlap_hint' | translate }}</p>
     <div class="field">
-      <label>{{ 'product' | translate }} <span class="required-asterisk">*</span></label>
-      <p-autoComplete
+      <label for="tier-product-ac">{{ 'product' | translate }} <span class="required-asterisk">*</span></label>
+      <p-autoComplete inputId="tier-product-ac"
         [(ngModel)]="selectedProduct"
         [suggestions]="productSuggestions"
         [loading]="productsLoading"
         (completeMethod)="searchProducts($event)"
         (onSelect)="onProductSelect($event)"
         (ngModelChange)="onProductChange($event)"
-        field="name"
+        optionLabel="name"
+        dataKey="productId"
         [forceSelection]="true"
         [dropdown]="true"
+        appendTo="body"
+        styleClass="w-full"
         placeholder="{{ 'search_products' | translate }}">
+        <ng-template pTemplate="selectedItem" let-product>
+          <span *ngIf="product">{{ autocompleteProductLabel(product) }}</span>
+        </ng-template>
         <ng-template let-product pTemplate="item">
           <div class="flex flex-column">
             <span class="font-medium">{{ product.name }}</span>
             <small class="text-500">
               {{ product.reference }}
               <ng-container *ngIf="product.sellingPrice !== undefined && product.sellingPrice !== null">
-                &nbsp;|&nbsp;{{ 'selling_price' | translate }}: {{ product.sellingPrice | number: '1.2-2' }}
+                &nbsp;|&nbsp;{{ 'selling_price' | translate }}: {{ formatUnitPrice(product.sellingPrice) }}
               </ng-container>
             </small>
           </div>
@@ -195,27 +250,28 @@
       </p-autoComplete>
     </div>
     <div class="field">
-      <label>{{ 'min_qty' | translate }} <span class="required-asterisk">*</span></label>
-      <p-inputNumber [(ngModel)]="itemForm.minQty" [min]="1"></p-inputNumber>
+      <label for="tier-min-qty">{{ 'min_qty' | translate }} <span class="required-asterisk">*</span></label>
+      <p-inputNumber inputId="tier-min-qty" [(ngModel)]="itemForm.minQty" [min]="1"></p-inputNumber>
     </div>
     <div class="field">
-      <label>{{ 'max_qty' | translate }}</label>
-      <p-inputNumber [(ngModel)]="itemForm.maxQty" [min]="1"></p-inputNumber>
-      <small class="text-500">{{ 'max_qty_optional' | translate }}</small>
+      <label for="tier-max-qty">{{ 'max_qty' | translate }}</label>
+      <p-inputNumber inputId="tier-max-qty" [(ngModel)]="itemForm.maxQty" [min]="1"></p-inputNumber>
+      <small class="text-500 block mt-1">{{ 'max_qty_optional' | translate }}</small>
     </div>
     <div class="field">
-      <label>{{ 'unit_price' | translate }} <span class="required-asterisk">*</span></label>
-      <p-inputNumber [(ngModel)]="itemForm.unitPrice" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber>
+      <label for="tier-unit-price">{{ 'unit_price' | translate }} <span class="required-asterisk">*</span></label>
+      <p-inputNumber inputId="tier-unit-price" [(ngModel)]="itemForm.unitPrice" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber>
+      <small class="text-500 block mt-1">{{ 'pricing_unit_price_hint' | translate: { currency: currency } }}</small>
     </div>
     <div class="field">
-      <p-checkbox [(ngModel)]="itemForm.active" binary="true"></p-checkbox>
-      <span class="ml-2">{{ 'active' | translate }}</span>
+      <p-checkbox inputId="tier-item-active" [(ngModel)]="itemForm.active" [binary]="true"></p-checkbox>
+      <label for="tier-item-active" class="ml-2">{{ 'active' | translate }}</label>
     </div>
   </ng-template>
   <ng-template pTemplate="footer">
-    <button pButton pRipple class="p-button-text" icon="pi pi-times"
+    <button pButton pRipple class="p-button-text" icon="pi pi-times" type="button"
       label="{{ 'cancel_button' | translate }}" (click)="itemDialog = false"></button>
-    <button pButton pRipple icon="pi pi-check" label="{{ 'save_button' | translate }}"
-      (click)="saveItem()"></button>
+    <button pButton pRipple icon="pi pi-check" label="{{ 'save_button' | translate }}" type="button"
+      [disabled]="savingItem" [loading]="savingItem" (click)="saveItem()"></button>
   </ng-template>
 </p-dialog>

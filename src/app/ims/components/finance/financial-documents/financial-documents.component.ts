@@ -18,6 +18,7 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { DatePipe } from '@angular/common';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -74,6 +75,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   canDeleteFinancialDocs: boolean = false;
   canReadFinancialDocs: boolean = false;
   canIssueFinancialDocs: boolean = false;
+  isFinancialDocumentsFeatureEnabled: boolean = true;
   isAdmin: boolean = false;
   isLoading = true;
   currency: string = '';
@@ -139,7 +141,8 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     private router: Router,
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
-    private datePipe: DatePipe) {
+    private datePipe: DatePipe,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {
     this.setUserRoles()
     this.loadOrganization();
   }
@@ -178,6 +181,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       });
 
     await this.checkPermissions();
+    await this.loadLicenseCapabilities();
     
     this.cols = [
       { field: 'docNumber', header: this.translateService.instant('document_number') },
@@ -435,6 +439,15 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
   openNew() {
     if (!this.canAddFinancialDocs) return;
+    if (!this.isFinancialDocumentsFeatureEnabled) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Upgrade required',
+        detail: 'Financial documents are not available on your current plan. Upgrade to continue.',
+        life: 7000
+      });
+      return;
+    }
     this.financialDoc = {};
     this.submitted = false;
     this.draftFinancialDocDialog = true;
@@ -1181,6 +1194,62 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     });
   }
 
+  onOrderSelected(event: any): void {
+    const selected = event?.value as Order | undefined;
+    if (selected && selected.orderId) {
+      this.financialDoc.order = selected;
+      this.triggerPreviewUpdate();
+    }
+  }
+
+  onOrderCleared(): void {
+    this.financialDoc.order = null;
+    this.orderSuggestions = [];
+    this.previewHtml = '';
+    this.safePreviewHtml = null;
+    this.previewIframeSrc = null;
+    this.previewError = null;
+  }
+
+  /**
+   * Keep autocomplete stable: allow free typing while searching, then
+   * normalize the value on blur to a real Order object or clear it.
+   */
+  onOrderAutoCompleteBlur(): void {
+    const currentValue: any = this.financialDoc?.order;
+    if (!currentValue) {
+      this.financialDoc.order = null;
+      return;
+    }
+
+    if (typeof currentValue === 'object' && currentValue.orderId) {
+      return;
+    }
+
+    const typed = String(currentValue).trim();
+    if (!typed) {
+      this.financialDoc.order = null;
+      return;
+    }
+
+    const matched = this.orderSuggestions.find((o: any) => {
+      const ref = String(o?.reference ?? '').trim().toLowerCase();
+      return ref === typed.toLowerCase();
+    });
+
+    this.financialDoc.order = matched || null;
+    if (!matched) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('select_order_option'),
+        life: 2200
+      });
+    } else {
+      this.triggerPreviewUpdate();
+    }
+  }
+
   /**
    * Get display text for order in autocomplete
    */
@@ -1499,6 +1568,16 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.isFinancialDocumentsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('FINANCIAL_DOCUMENTS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for financial documents.', error);
+      this.isFinancialDocumentsFeatureEnabled = true;
+    }
   }
 
 }

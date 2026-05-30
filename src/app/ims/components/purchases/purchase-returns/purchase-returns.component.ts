@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MessageService, LazyLoadEvent, SelectItem } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -17,7 +17,7 @@ import { Purchase } from 'src/app/models/purchase';
 import { PurchaseService } from 'src/app/services/purchase.service';
 import { Product } from 'src/app/models/product';
 import { PurchaseCredit } from 'src/app/models/purchaseCredit';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { DatePipe } from '@angular/common';
@@ -41,7 +41,7 @@ export class FilterProductsPipe implements PipeTransform {
   styleUrls: ['./purchase-returns.component.css', '../purchases.component.css'],
   providers: [MessageService, DatePipe]
 })
-export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewInit {
+export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
 
   @ViewChild('pickList') pickList: ElementRef | undefined;
 
@@ -105,6 +105,8 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
   lowStockThreshold: number = 10;
   Math = Math;
 
+  private configSavedSub?: Subscription;
+
   constructor(
     private messageService: MessageService,
     private purchaseReturnService: PurchaseReturnService,
@@ -132,6 +134,23 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
       }
     });
     this.lowStockThreshold = await this.getLowStockThreshold();
+
+    this.configSavedSub = this.configService.configurationSaved$.subscribe((key) => {
+      if (!key) {
+        return;
+      }
+      if (key === 'tax') {
+        void this.loadTaxRate();
+        return;
+      }
+      if (key === 'lowStockThreshold') {
+        void this.getLowStockThreshold().then((t) => {
+          this.lowStockThreshold = t;
+          this.cdr.markForCheck();
+        });
+      }
+    });
+
     this.initializeTranslations();
     this.initializeStatuses();
     await Promise.all([
@@ -141,11 +160,25 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     // Initialize table columns and export columns
     this.initializeTableColumns();
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
-    
+
+    const qpReturnStatus = this.route.snapshot.queryParamMap.get('returnStatus');
+    if (qpReturnStatus) {
+      const upper = qpReturnStatus.trim().toUpperCase();
+      const normalized = upper === 'CANCELLED' ? 'CANCELED' : upper;
+      const allowed = new Set(['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELED']);
+      if (allowed.has(normalized)) {
+        this.selectedReturnStatus = normalized;
+      }
+    }
+
     // Load first page via paginated endpoint
     // The table has *ngIf="!isLoading" so it won't render until after this completes,
     // preventing the double call from onLazyLoad
-    await this.loadReturns();
+    if (this.selectedReturnStatus) {
+      this.applyFilters();
+    } else {
+      await this.loadReturns();
+    }
     
     // Check for purchaseId query parameter to pre-select purchase
     this.route.queryParams.subscribe(params => {
@@ -218,6 +251,10 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
 
   ngAfterViewInit() {
     // Implementation if needed
+  }
+
+  ngOnDestroy(): void {
+    this.configSavedSub?.unsubscribe();
   }
 
   async checkPermissions() {

@@ -444,7 +444,7 @@
     </div>
 
     <!-- Warehouseman-specific: Pending Transfers -->
-    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isWarehouseman && !isAdmin && !isVendor">
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isWarehouseman && !isAdmin && !isVendor && isWarehouseTransfersFeatureEnabled">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
@@ -467,7 +467,7 @@
         </p-card>
     </div>
 
-    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin && isWarehouseTransfersFeatureEnabled">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
@@ -867,12 +867,13 @@
                         <h5 class="m-0">{{ 'top_customers' | translate }}</h5>
                     </div>
                     <button pButton pRipple label="{{'view_all' | translate}}" icon="pi pi-arrow-right"
-                        class="p-button-text p-button-sm" routerLink="/inventory/customers"></button>
+                        class="p-button-text p-button-sm" routerLink="/sales/customers"></button>
                 </div>
             </ng-template>
             <div class="flex flex-column gap-3">
                 <div *ngFor="let customer of topCustomersByRevenue; let i = index" 
-                    class="flex justify-content-between align-items-center p-3 surface-50 border-round">
+                    class="flex justify-content-between align-items-center p-3 surface-50 border-round cursor-pointer"
+                    (click)="openCustomerDetails(customer.customer?.customerId)">
                     <div class="flex align-items-center gap-3">
                         <div class="flex align-items-center justify-content-center bg-primary border-round text-white font-bold"
                             [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
@@ -922,7 +923,7 @@
                 <ng-template pTemplate="body" let-product>
                     <tr>
                         <td>
-                            <img [src]="product.productImage || 'assets/core-images/no-image.png'"
+                            <img [src]="product | productImage"
                                 [alt]="product.name" width="40" height="40" class="border-round shadow-1">
                         </td>
                         <td>
@@ -935,7 +936,7 @@
                         <td>
                             <button pButton pRipple icon="pi pi-eye"
                                 class="p-button-text p-button-sm p-button-rounded"
-                                routerLink="/inventory/products"
+                                routerLink="/inventory/products/{{product.productId}}"
                                 [pTooltip]="'view' | translate"></button>
                         </td>
                     </tr>
@@ -964,8 +965,8 @@
                     class="flex flex-column gap-2 p-3 surface-50 border-round">
                     <div class="flex justify-content-between align-items-center">
                         <div class="flex-1">
-                            <span class="font-medium text-900 block mb-1">{{ productPercentage.product.name }}</span>
-                            <small class="text-600">{{ productPercentage.product.category?.categoryName || 'N/A' }}</small>
+                            <span class="font-medium text-900 block mb-1 cursor-pointer" [routerLink]="['/inventory/products', productPercentage.product.productId]" routerLinkActive="router-link-active">{{ productPercentage.product.name }}</span>
+                            <small class="text-600 cursor-pointer" [routerLink]="['/inventory/categories', productPercentage.product.category?.categoryId]" routerLinkActive="router-link-active">{{ productPercentage.product.category?.categoryName || 'N/A' }}</small>
                         </div>
                         <span class="font-bold text-primary ml-3">
                             {{ productPercentage.percentage | number:'1.0-2' }}%

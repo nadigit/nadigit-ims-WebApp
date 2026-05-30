@@ -286,6 +286,25 @@
   border-radius: 8px;
 }
 
+.product-gallery {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.product-gallery-thumb-button.is-active .product-gallery-thumbnail {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+.product-gallery-thumbnail {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--surface-border);
+  display: block;
+}
+
 /* Barcode Main Image */
 .barcode-main-image {
   max-width: 100%;
@@ -487,6 +506,11 @@
 .profit-summary {
   border-top: 1px solid var(--surface-border);
   padding-top: 1rem;
+}
+
+.profit-chart-frame {
+  width: 280px;
+  height: 280px;
 }
 
 .profit-item {

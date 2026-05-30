@@ -1,12 +1,32 @@
+/* Match layout theme: same neutral icon style as bell / settings (no per-button accent color) */
+:host ::ng-deep .layout-topbar .layout-topbar-button {
+  color: var(--text-color-secondary);
+}
+
+:host ::ng-deep .layout-topbar .layout-topbar-button:hover {
+  color: var(--text-color);
+}
+
+:host ::ng-deep .layout-topbar .layout-topbar-menu-button i {
+  color: inherit;
+}
+
 /* Notification Sidebar Styles */
 .notification-sidebar .p-sidebar-content {
   padding: 0;
-  background: var(--surface-ground);
+  background: color-mix(in srgb, var(--surface-ground) 92%, var(--primary-color) 8%);
   color: var(--text-color);
 }
 
 .notification-search {
   position: relative;
+}
+
+.notification-header,
+.notification-search,
+.notification-filters,
+.notification-footer {
+  background: color-mix(in srgb, var(--surface-card) 94%, var(--primary-color) 6%);
 }
 
 .notification-search .p-input-icon-left {
@@ -15,6 +35,7 @@
 
 .notification-search input {
   padding-right: 2.5rem;
+  border-radius: 10px;
 }
 
 .notification-search .p-button {
@@ -64,21 +85,25 @@
 
 .notification-item {
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  border: 1px solid var(--surface-border);
   border-left: 4px solid transparent;
-  background: var(--surface-card);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-card) 96%, var(--primary-color) 4%);
   color: var(--text-color);
   position: relative;
+  margin: 0.5rem 0.8rem;
 }
 
 .notification-item:hover {
-  background: var(--surface-d);
+  background: color-mix(in srgb, var(--surface-card) 86%, var(--primary-color) 14%);
   border-left-color: var(--primary-color);
-  transform: translateX(2px);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--primary-color) 70%, transparent);
 }
 
 .notification-item.unread {
-  background: var(--surface-d);
+  background: color-mix(in srgb, var(--surface-card) 88%, var(--primary-color) 12%);
   border-left-color: var(--primary-color);
   font-weight: 500;
 }
@@ -96,12 +121,11 @@
 
 .notification-item.priority {
   border-left-color: #e55353;
-  /* Use theme surfaces instead of hard-coded dark color so it works in both light and dark modes */
-  background: var(--surface-b);
+  background: color-mix(in srgb, var(--surface-card) 92%, #e55353 8%);
 }
 
 .notification-item.priority:hover {
-  background: var(--surface-c);
+  background: color-mix(in srgb, var(--surface-card) 84%, #e55353 16%);
 }
 
 .notification-icon {
@@ -150,7 +174,7 @@
 }
 
 .section-header {
-  background: var(--surface-d);
+  background: color-mix(in srgb, var(--surface-card) 90%, var(--surface-100) 10%);
   border-bottom: 1px solid var(--surface-border);
   color: var(--text-color);
   position: sticky;
@@ -194,13 +218,52 @@
   justify-content: center;
 }
 
-.notification-item .p-button {
-  opacity: 0;
-  transition: opacity 0.2s ease;
+.notification-title {
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.25;
+  font-size: 0.88rem;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.notification-item:hover .p-button {
+.notification-message {
+  color: var(--text-color-secondary);
+  line-height: 1.35;
+  font-size: 0.79rem;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notification-meta {
+  margin-top: 0.15rem;
+}
+
+.notification-time {
+  color: var(--text-color-secondary);
+  font-size: 0.72rem;
+}
+
+.notification-actions .p-button,
+.notification-more-btn.p-button {
+  opacity: 0.78;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.notification-item:hover .notification-actions .p-button,
+.notification-item:hover .notification-more-btn.p-button {
   opacity: 1;
+}
+
+.notification-actions .p-button:hover,
+.notification-more-btn.p-button:hover {
+  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
 }
 
 /* Responsive Design */

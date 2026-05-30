@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { MessageService } from 'primeng/api';
@@ -8,14 +8,15 @@ import { TreeNode } from 'primeng/api';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { LocationService } from 'src/app/services/location.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 
 @Component({
   templateUrl: './my-company.component.html',
   styleUrls: ['./my-company.component.css', '../administration.component.css'],
   providers: [MessageService]
 })
-export class MyCompanyComponent implements OnInit {
+export class MyCompanyComponent implements OnInit, OnDestroy {
 
   submitted: boolean = false;
   organizationDialog: boolean = false;
@@ -41,6 +42,8 @@ export class MyCompanyComponent implements OnInit {
   existingImageFile: any = null;
   availableLocales: any[] = [];
   costingMethods: any[] = [];
+  activityProfileLabelKey = 'business_activity_profile_not_set';
+  private activityProfileSub?: Subscription;
 
   constructor(
     private router: Router,
@@ -50,7 +53,12 @@ export class MyCompanyComponent implements OnInit {
     private translate: TranslateService,
     private locationService: LocationService,
     private translateService: TranslationService,
+    public activityProfileService: ActivityProfileService,
   ) { }
+
+  ngOnDestroy(): void {
+    this.activityProfileSub?.unsubscribe();
+  }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -61,6 +69,14 @@ export class MyCompanyComponent implements OnInit {
     });
 
     this.loadOrganization();
+
+    try {
+      await this.activityProfileService.ensureLoaded();
+      this.syncActivityProfileLabel();
+      this.activityProfileSub = this.activityProfileService.contextChanged$.subscribe(() => this.syncActivityProfileLabel());
+    } catch {
+      this.activityProfileLabelKey = 'business_activity_profile_not_set';
+    }
 
     this.costingMethods = [
       { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
@@ -76,6 +92,10 @@ export class MyCompanyComponent implements OnInit {
       { label: 'Français', value: 'fr' },
       { label: 'Español', value: 'es' }
     ];
+  }
+
+  private syncActivityProfileLabel(): void {
+    this.activityProfileLabelKey = this.activityProfileService.profileLabelI18nKey();
   }
 
   async loadOrganization(): Promise<void> {
@@ -262,17 +282,6 @@ export class MyCompanyComponent implements OnInit {
     });
     console.log(this.selectedCountry.isoCode);
     this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
-  }
-
-  filterCountry(value: any, filter: string): boolean {
-    // Convert both to lowercase for case-insensitive comparison
-    const normalizedFilter = filter.toLowerCase();
-
-    // Check both original name and translated name
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
   }
 
   async updateOrganization(id: any, organization: any): Promise<any> {

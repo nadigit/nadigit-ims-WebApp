@@ -17,8 +17,8 @@
                     <label for="warehouseId" class="block mb-2">
                         {{ 'warehouse' | translate }} <span class="text-red-500">*</span>
                     </label>
-                    <p-dropdown id="warehouseId" formControlName="warehouseId" [options]="warehouses" optionLabel="name"
-                        optionValue="warehouseId" [filter]="true" filterBy="name" [showClear]="true"
+                    <p-dropdown id="warehouseId" formControlName="warehouseId" [options]="warehousesForDropdown" optionLabel="name"
+                        optionValue="warehouseId" [filter]="true" filterBy="name" [showClear]="!isWarehouseSelectionLocked"
                         [placeholder]="'select_warehouse' | translate" appendTo="body" styleClass="w-full"
                         [class.ng-invalid]="isFieldInvalid('warehouseId')" (onChange)="onWarehouseChange()">
                     </p-dropdown>

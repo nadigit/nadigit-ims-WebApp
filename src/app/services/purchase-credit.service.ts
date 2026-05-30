@@ -131,17 +131,17 @@ export class PurchaseCreditService {
             } else if (value && typeof value === 'object' && value.label) {
               value = value.label;
             }
-            // Map old values to new enum values for backward compatibility
-            const creditMethodMap: { [key: string]: string } = {
-              'Cash': 'CASH',
-              'Card': 'CARD',
-              'Check': 'CHECK',
-              'Transfer': 'BANK_TRANSFER',
-              'BOE': 'BOE',
-              'Boe': 'BOE'
+            // Align with backend RefundMethod (Jackson); normalize legacy filter values
+            const creditMethodLegacyToBackend: { [key: string]: string } = {
+              CASH: 'Cash',
+              CARD: 'Card',
+              CHECK: 'Check',
+              BANK_TRANSFER: 'Transfer',
+              TRANSFER: 'Transfer',
+              Boe: 'BOE',
             };
-            if (value && creditMethodMap[value]) {
-              value = creditMethodMap[value];
+            if (value != null && creditMethodLegacyToBackend[String(value)]) {
+              value = creditMethodLegacyToBackend[String(value)];
             }
             break;
 

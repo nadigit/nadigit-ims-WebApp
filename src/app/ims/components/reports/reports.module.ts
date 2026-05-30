@@ -10,6 +10,11 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { InputSwitchModule } from 'primeng/inputswitch';
+import { InputTextModule } from 'primeng/inputtext';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { TooltipModule } from 'primeng/tooltip';
 import { CreditReportsModule } from '../finance/credit-management/credit-reports/credit-reports.module';
 import { ReportsRoutingModule } from './reports-routing.module';
 import { ReportsShellComponent } from './reports-shell/reports-shell.component';
@@ -18,6 +23,7 @@ import { SalesSummaryReportComponent } from './sales-summary-report/sales-summar
 import { PurchaseSummaryReportComponent } from './purchase-summary-report/purchase-summary-report.component';
 import { InventorySnapshotReportComponent } from './inventory-snapshot-report/inventory-snapshot-report.component';
 import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-analysis-report.component';
+import { ForecastingReportComponent } from './forecasting-report/forecasting-report.component';
 
 @NgModule({
   declarations: [
@@ -26,7 +32,8 @@ import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-a
     SalesSummaryReportComponent,
     PurchaseSummaryReportComponent,
     InventorySnapshotReportComponent,
-    ProfitAnalysisReportComponent
+    ProfitAnalysisReportComponent,
+    ForecastingReportComponent
   ],
   imports: [
     CommonModule,
@@ -40,6 +47,11 @@ import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-a
     MessageModule,
     ButtonModule,
     InputNumberModule,
+    InputSwitchModule,
+    InputTextModule,
+    TableModule,
+    TagModule,
+    TooltipModule,
     CreditReportsModule,
     ReportsRoutingModule
   ]

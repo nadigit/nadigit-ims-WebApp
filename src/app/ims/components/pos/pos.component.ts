@@ -1,6 +1,5 @@
 import { Component, OnDestroy, OnInit, ViewChild, ElementRef, HostListener, ChangeDetectorRef, NgZone } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
 import { Subject, debounceTime, takeUntil, interval } from 'rxjs';
 import { POSCartDTO, POSCheckoutDTO, POSProductDTO, POSReceiptDTO, PaymentInfo, PaymentMethod } from 'src/app/models/pos';
@@ -12,8 +11,6 @@ import { CategoryService } from 'src/app/services/category.service';
 import { OrderService } from 'src/app/services/order.service';
 import { ProductService } from 'src/app/services/product.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
-import { ReturnService } from 'src/app/services/return.service';
-import { RefundService } from 'src/app/services/refund.service';
 import { BarcodeService } from 'src/app/services/barcode.service';
 import { CustomerCreditService } from 'src/app/services/customer-credit.service';
 import { CreditInfo } from 'src/app/models/credit-info';
@@ -25,6 +22,10 @@ import { PwaService } from 'src/app/services/pwa.service';
 import { KeycloakService } from 'keycloak-angular';
 import { firstValueFrom } from 'rxjs';
 import { Warehouse } from 'src/app/models/warehouse';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { BankAccountService } from 'src/app/services/bank-account.service';
+import { BankAccount } from 'src/app/models/bank-account';
+import { PaymentValidationService } from 'src/app/services/payment-validation.service';
 
 @Component({
   selector: 'app-pos',
@@ -179,8 +180,6 @@ export class PosComponent implements OnInit, OnDestroy {
   
   // Filtered payment method options for radio buttons (updated when customer changes)
   paymentMethodOptionsList = paymentMethodOptions.filter(opt => opt.value !== 'Credit'); // Default: no Credit
-  /** RefundMethod on API excludes Credit — match backend enum strings (Cash, Card, …) */
-  readonly refundPaymentMethodOptions = paymentMethodOptions.filter(opt => opt.value !== 'Credit');
   // Filtered payment methods for dropdown (updated when customer changes)
   availablePaymentMethods: PaymentMethod[] = paymentMethodOptions.map(opt => opt.value as PaymentMethod).filter(m => m !== 'Credit'); // Default: no Credit
   
@@ -211,7 +210,10 @@ export class PosComponent implements OnInit, OnDestroy {
     const currentCustomerId = this.selectedCustomer?.customerId;
     return !!currentCustomerId && !this.isWalkInCustomer(this.selectedCustomer);
   }
-  bankAccounts: any[] = []; // Will be loaded if needed for Transfer/Check/BOE
+  bankAccounts: BankAccount[] = []; // Loaded for Transfer/Check/BOE via BankAccountService
+  canReadBankAccounts: boolean = false;
+  bankAccountNoticeKey: string | null = null;
+  bankAccountNoticeSeverity: 'info' | 'warn' = 'info';
   
   // Credit information
   creditInfo: CreditInfo | null = null;
@@ -245,48 +247,11 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   ];
 
-  // Returns & Refunds
-  activeTab: 'sales' | 'returns' = 'sales';
-  returnOrderSearch: string = '';
-  returnOrderSuggestions: any[] = [];
-  eligibleOrdersForReturn: any[] = []; // Cached list of eligible orders
-  selectedOrderForReturn: any = null;
-  returnItems: any[] = [];
-  returnDialog: boolean = false;
-  refundDialog: boolean = false;
-  selectedReturn: any = null;
-  refundAmount: number = 0;
-  refundMethod: string = 'Cash';
-  refundNotes: string = '';
-  
-  // Immediate refund configuration
-  immediateRefundEnabled: boolean = false;
-  returnRefundPayments: PaymentInfo[] = []; // For split refunds in immediate refund flow
-  returnNotes: string = ''; // General notes for return
-  returnReasons = [
-    { label: 'Defective', value: 'DEFECTIVE' },
-    { label: 'Wrong Item', value: 'INCORRECT_ITEM' },
-    { label: 'Damaged', value: 'DAMAGED' },
-    { label: 'Not as Described', value: 'NOT_AS_DESCRIBED' },
-    { label: 'Customer Request', value: 'CUSTOMER_REQUEST' },
-    { label: 'Other', value: 'OTHER' }
-  ];
-  itemConditions = [
-    { label: 'New', value: 'NEW' },
-    { label: 'Used', value: 'USED' },
-    { label: 'Damaged', value: 'DAMAGED' }
-  ];
-  
-  // Return refund percentages from app configuration
-  returnRefundPercentages: { [key: string]: number } = {
-    'NEW': 1.0,      // Default: 100%
-    'USED': 0.8,     // Default: 80%
-    'DAMAGED': 0.5   // Default: 50%
-  };
-  conditionRefundMessages: { [key: string]: string } = {};
-
   /** When false, sellable qty excludes approved write-off totals (matches backend default). */
   salesStockIncludesApprovedWriteoffQty: boolean = false;
+
+  /** When true, server reserves cart lines and enforces allocatable qty; show POS hint and relax strict client cap. */
+  salesStockSoftReservationEnabled: boolean = false;
 
   constructor(
     private posService: PosService,
@@ -296,8 +261,6 @@ export class PosComponent implements OnInit, OnDestroy {
     private orderService: OrderService,
     private productService: ProductService,
     private warehouseService: WarehouseService,
-    private returnService: ReturnService,
-    private refundService: RefundService,
     private barcodeService: BarcodeService,
     private customerCreditService: CustomerCreditService,
     private translate: TranslateService,
@@ -311,8 +274,14 @@ export class PosComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
-    private http: HttpClient
+    public activityProfileService: ActivityProfileService,
+    private bankAccountService: BankAccountService,
+    private paymentValidationService: PaymentValidationService,
   ) { }
+
+  openProfileSettings(): void {
+    void this.router.navigate(['/administration/settings'], { queryParams: { businessProfile: 1 } });
+  }
 
   async ngOnInit() {
     this.translationService.currentLanguage$.subscribe(lang => {
@@ -329,12 +298,28 @@ export class PosComponent implements OnInit, OnDestroy {
 
     // Setup offline detection
     this.setupOfflineDetection();
-    
-    // Check immediate refund configuration
-    await this.checkImmediateRefundEnabled();
 
     await this.loadSalesStockConfig();
-    
+    await this.loadSalesStockSoftReservationConfig();
+
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (!key) {
+          return;
+        }
+        if (key.startsWith('sales.stock')) {
+          void (async () => {
+            await this.loadSalesStockConfig();
+            await this.loadSalesStockSoftReservationConfig();
+            this.cdr.markForCheck();
+          })();
+        }
+        if (key === 'tax') {
+          void this.loadTaxRate().then(() => this.cdr.markForCheck());
+        }
+      });
+
     // Setup fullscreen
     this.setupFullscreen();
     
@@ -361,12 +346,13 @@ export class PosComponent implements OnInit, OnDestroy {
     const userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = userRoles.includes('ADMIN');
     this.isVendor = userRoles.includes('VENDOR');
+    this.canReadBankAccounts = this.isAdmin;
     
     await this.initShopsAndSession();
     
     // Set up periodic session state refresh (every 60 seconds)
     this.sessionRefreshInterval = setInterval(async () => {
-      if (this.shopId && !this.loading) {
+      if ((!this.isAdmin || this.shopId) && !this.loading) {
         await this.refreshSessionState();
       }
     }, 60000);
@@ -446,6 +432,12 @@ export class PosComponent implements OnInit, OnDestroy {
     if (!Number.isNaN(productWarehouseId)) {
       return productWarehouseId === this.selectedWarehouseId;
     }
+    // Some quick-products payloads do not include warehouse info; in that case
+    // keep the product visible instead of filtering everything out.
+    const hasWarehouseName = String(product?.warehouseName || '').trim().length > 0;
+    if (!hasWarehouseName) {
+      return true;
+    }
     const selectedWarehouse = this.warehouses.find(w => Number(w.warehouseId) === this.selectedWarehouseId);
     const selectedWarehouseName = (selectedWarehouse?.name || '').toLowerCase();
     const productWarehouseName = String(product?.warehouseName || '').toLowerCase();
@@ -504,13 +496,13 @@ export class PosComponent implements OnInit, OnDestroy {
           return;
         }
       } else {
+        (this.shopService as any).loadToken && await (this.shopService as any).loadToken();
+        const shopsObs = this.shopService.getShops();
+        const shopsResult = await firstValueFrom(shopsObs as any);
+        this.shops = Array.isArray(shopsResult) ? shopsResult : [];
         // For non-admin users, backend will auto-retrieve shop from JWT token
-        // shopId is optional - we can proceed without it
-        const routeShopId = this.route.snapshot.paramMap.get('shopId');
-        if (routeShopId) {
-          this.shopId = +routeShopId;
-        }
-        // For non-admin, shopId is optional - backend handles it
+        // Never trust or keep a route shopId for Cashier/Vendor users; backend enforces their assigned shop.
+        this.shopId = undefined as any;
       }
 
       await this.loadCustomers();
@@ -917,8 +909,12 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
-  onSearchChange(event: any) {
-    const query = event.query?.trim() || event?.trim() || '';
+  onSearchChange(event: { query?: string } | string | null | undefined): void {
+    const querySource =
+      typeof event === 'string'
+        ? event
+        : (typeof event?.query === 'string' ? event.query : '');
+    const query = querySource.trim();
     this.searchQuery = query; // Update the search query model
     if (!query || query.length < 1) {
       this.searchSuggestions = [];
@@ -932,6 +928,36 @@ export class PosComponent implements OnInit, OnDestroy {
 
     // Perform search and populate suggestions
     this.performSearch(query);
+  }
+
+  private parseInsufficientStockValues(message: string): { available?: number; required?: number } {
+    const text = String(message || '');
+    const readNumber = (pattern: RegExp): number | undefined => {
+      const match = text.match(pattern);
+      if (!match?.[1]) {
+        return undefined;
+      }
+      const parsed = Number(match[1]);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
+    const available = readNumber(/(?:available|disponible)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)/i);
+    const required = readNumber(/(?:required|requested|requis|demand[ée])\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)/i);
+    return { available, required };
+  }
+
+  private getInsufficientStockDetail(
+    backendMessage?: string,
+    fallbackAvailable?: number,
+    fallbackRequired?: number,
+  ): string {
+    const parsed = this.parseInsufficientStockValues(String(backendMessage || ''));
+    const available = parsed.available ?? fallbackAvailable;
+    const required = parsed.required ?? fallbackRequired;
+    if (available != null && required != null) {
+      return this.translate.instant('insufficient_stock', { available, required });
+    }
+    return this.translate.instant('product_quantity_insufficient');
   }
 
   private async performSearch(query: string) {
@@ -1149,18 +1175,21 @@ export class PosComponent implements OnInit, OnDestroy {
     if (netAvailable <= 0) {
       this.messageService.add({
         severity: 'warn',
-        summary: this.translate.instant('insufficient_stock'),
+        summary: this.translate.instant('warning'),
         detail: this.translate.instant('product_quantity_insufficient'),
         life: 3000
       });
       return;
     }
     
-    if (quantity > netAvailable) {
+    // With soft reservations, client qty may not reflect others' holds — let the API enforce when online.
+    const skipClientMaxQty =
+      this.salesStockSoftReservationEnabled && this.isOnline;
+    if (!skipClientMaxQty && quantity > netAvailable) {
       this.messageService.add({
         severity: 'warn',
-        summary: this.translate.instant('insufficient_stock'),
-        detail: `Only ${netAvailable} units available. Requested: ${quantity}`,
+        summary: this.translate.instant('warning'),
+        detail: this.getInsufficientStockDetail(undefined, netAvailable, quantity),
         life: 3000
       });
       return;
@@ -1222,14 +1251,15 @@ export class PosComponent implements OnInit, OnDestroy {
                   this.translate.instant('error_occurred');
       
       // Check if it's a stock error
-      const isStockError = error?.error?.code === 'insufficient_stock' || 
+      const isStockError = error?.error?.code === 'insufficient_stock' ||
                           msg.toLowerCase().includes('insufficient stock') ||
-                          msg.toLowerCase().includes('written off');
-      
+                          msg.toLowerCase().includes('written off') ||
+                          msg.toLowerCase().includes('reservation');
+
       this.messageService.add({
         severity: isStockError ? 'warn' : 'error',
-        summary: isStockError ? this.translate.instant('insufficient_stock') : this.translate.instant('error'),
-        detail: msg,
+        summary: isStockError ? this.translate.instant('warning') : this.translate.instant('error'),
+        detail: isStockError ? this.getInsufficientStockDetail(msg) : msg,
         life: 5000
       });
     } finally {
@@ -1243,20 +1273,22 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Pre-validate against net available quantity if available
+    // Pre-validate against net available quantity if available (skip strict cap when server holds reservations)
     if (item.quantityAvailable !== undefined && item.quantityAvailable !== null) {
       const netAvailable = item.quantityAvailable;
-      if (newQuantity > netAvailable) {
+      const skipClientMaxQty =
+        this.salesStockSoftReservationEnabled && this.isOnline;
+      if (!skipClientMaxQty && newQuantity > netAvailable) {
         this.messageService.add({
           severity: 'warn',
-          summary: this.translate.instant('insufficient_stock'),
-          detail: `Only ${netAvailable} units available. Requested: ${newQuantity}`,
+          summary: this.translate.instant('warning'),
+          detail: this.getInsufficientStockDetail(undefined, netAvailable, newQuantity),
           life: 3000
         });
         return;
       }
     }
-    
+
     this.cartSaving = true;
     try {
       const priceOverride = this.getManualPriceOverride(item);
@@ -1277,14 +1309,15 @@ export class PosComponent implements OnInit, OnDestroy {
                   this.translate.instant('error_occurred');
       
       // Check if it's a stock error
-      const isStockError = error?.error?.code === 'insufficient_stock' || 
+      const isStockError = error?.error?.code === 'insufficient_stock' ||
                           msg.toLowerCase().includes('insufficient stock') ||
-                          msg.toLowerCase().includes('written off');
-      
+                          msg.toLowerCase().includes('written off') ||
+                          msg.toLowerCase().includes('reservation');
+
       this.messageService.add({
         severity: isStockError ? 'warn' : 'error',
-        summary: isStockError ? this.translate.instant('insufficient_stock') : this.translate.instant('error'),
-        detail: msg,
+        summary: isStockError ? this.translate.instant('warning') : this.translate.instant('error'),
+        detail: isStockError ? this.getInsufficientStockDetail(msg) : msg,
         life: 5000
       });
     } finally {
@@ -1895,6 +1928,15 @@ export class PosComponent implements OnInit, OnDestroy {
         detail: this.translate.instant('cart_resumed_success'),
         life: 2000
       });
+
+      if (resumedCart?.reservationConflictDetected) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: resumedCart.reservationConflictMessage || 'Some items are no longer available in requested quantity. Please adjust the cart to continue.',
+          life: 6000
+        });
+      }
     } catch (error: any) {
       console.error('Error resuming cart:', error);
       const errorMsg = error?.error?.message || error?.message || this.translate.instant('error_resuming_cart');
@@ -1915,13 +1957,55 @@ export class PosComponent implements OnInit, OnDestroy {
     this.viewCartDialog = true;
   }
 
+  /**
+   * Abandon a held sale: releases soft reservations and unblocks session close when stock issues prevent resume.
+   */
+  async cancelHeldCart(cart: POSCartDTO) {
+    if (!cart?.cartId) {
+      return;
+    }
+    const ok = confirm(this.translate.instant('cancel_hold_cart_confirm'));
+    if (!ok) {
+      return;
+    }
+    this.cartSaving = true;
+    try {
+      await firstValueFrom(await this.posService.cancelCart(cart.cartId));
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('hold_cart_cancelled'),
+        life: 3000
+      });
+      if (this.shopId) {
+        const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
+        const carts = await firstValueFrom(holds$);
+        this.holdCarts = Array.isArray(carts) ? carts.map(c => this.normalizeCartItems(c)) : [];
+      }
+      if (!this.holdCarts.length) {
+        this.holdCartsDialog = false;
+      }
+    } catch (error: any) {
+      console.error('Error cancelling held cart:', error);
+      const msg = error?.error?.message || error?.message || this.translate.instant('error_occurred');
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: msg,
+        life: 4000
+      });
+    } finally {
+      this.cartSaving = false;
+    }
+  }
+
   trackByCartId(index: number, cart: POSCartDTO): any {
     return cart.cartId;
   }
 
   // ========== Checkout ==========
 
-  openCheckout() {
+  async openCheckout() {
     if (!this.session) {
       this.messageService.add({
         severity: 'warn',
@@ -1968,6 +2052,15 @@ export class PosComponent implements OnInit, OnDestroy {
     
     // Open dialog first to avoid blocking
     this.checkoutDialog = true;
+
+    if (this.needsBankAccount(defaultMethod)) {
+      await this.prepareBankPaymentContext(this.checkoutPayments[0]);
+    }
+
+    // Admins need accounts in the dropdown even when the user never changed the method control
+    if (this.canReadBankAccounts && this.needsBankAccount(defaultMethod) && this.bankAccounts.length === 0) {
+      void this.loadBankAccounts();
+    }
     
     // Load credit info asynchronously if customer is selected (don't block dialog opening)
     if (this.selectedCustomer?.customerId && !this.isWalkInCustomer(this.selectedCustomer)) {
@@ -2200,9 +2293,17 @@ export class PosComponent implements OnInit, OnDestroy {
         }
       }
       
-      // Load bank accounts if needed for Transfer/Check/BOE
-      if (['Transfer', 'Check', 'BOE'].includes(payment.method) && this.bankAccounts.length === 0) {
-        this.loadBankAccounts();
+      if (this.needsBankAccount(payment.method)) {
+        await this.prepareBankPaymentContext(payment);
+      }
+
+      // Load bank accounts for admins if needed for Transfer/Check/BOE
+      if (this.canReadBankAccounts && this.needsBankAccount(payment.method) && this.bankAccounts.length === 0) {
+        await this.loadBankAccounts();
+      }
+
+      if (!this.checkoutPayments.some(p => this.needsBankAccount(p.method))) {
+        this.bankAccountNoticeKey = null;
       }
     } finally {
       // Reset guard after a short delay to allow change detection to complete
@@ -2216,6 +2317,120 @@ export class PosComponent implements OnInit, OnDestroy {
     return ['Transfer', 'Check', 'BOE'].includes(method);
   }
 
+  shouldShowBankAccountSelector(method: PaymentMethod): boolean {
+    return this.canReadBankAccounts && this.needsBankAccount(method);
+  }
+
+  private async prepareBankPaymentContext(payment: PaymentInfo): Promise<boolean> {
+    if (!payment || !this.needsBankAccount(payment.method)) {
+      if (payment) {
+        payment.bankAccountId = undefined;
+      }
+      this.bankAccountNoticeKey = null;
+      return true;
+    }
+
+    if (!this.canReadBankAccounts && !payment.bankAccountId) {
+      payment.bankAccountId = this.getPosShopDefaultBankAccountId();
+    }
+
+    if (!this.canReadBankAccounts) {
+      if (payment.bankAccountId) {
+        this.bankAccountNoticeSeverity = 'info';
+        this.bankAccountNoticeKey = 'shop_default_bank_account_will_be_used';
+      } else {
+        this.bankAccountNoticeSeverity = 'warn';
+        this.bankAccountNoticeKey = 'no_default_bank_account_assigned_to_shop';
+      }
+    } else {
+      this.bankAccountNoticeKey = null;
+    }
+
+    const requireAccount = await this.paymentValidationService.isBankAccountRequired(payment.method);
+    if (requireAccount && !payment.bankAccountId && !this.canReadBankAccounts) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('no_default_bank_account_assigned_to_shop'),
+        life: 4000
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  private getPosShopDefaultBankAccountId(): number | undefined {
+    const shop = this.resolvePosPaymentShop();
+    const raw = shop?.defaultBankAccount?.accountId ?? shop?.defaultBankAccountId;
+    const id = this.toPositiveNumber(raw);
+    return id;
+  }
+
+  private resolvePosPaymentShop(): any | undefined {
+    const currentShopId = this.toPositiveNumber(this.shopId);
+    if (currentShopId != null) {
+      const latest = this.shops.find(shop => this.toPositiveNumber(shop.shopId) === currentShopId);
+      if (latest) {
+        return latest;
+      }
+    }
+
+    if (!this.isAdmin) {
+      const userShopId = this.getCurrentUserShopIdFromToken();
+      const tokenShop = userShopId != null
+        ? this.shops.find(shop => this.toPositiveNumber(shop.shopId) === userShopId)
+        : undefined;
+      if (tokenShop) {
+        return tokenShop;
+      }
+    }
+
+    if (Array.isArray(this.shops) && this.shops.length === 1) {
+      return this.shops[0];
+    }
+
+    return undefined;
+  }
+
+  private getCurrentUserShopIdFromToken(): number | undefined {
+    const tokenParsed = this.keycloakService.getKeycloakInstance()?.tokenParsed as any;
+    for (const key of ['shop', 'shopId', 'shop_id']) {
+      const value = this.readTokenClaimValue(tokenParsed, key);
+      const id = this.toPositiveNumber(value);
+      if (id != null) {
+        return id;
+      }
+    }
+    return undefined;
+  }
+
+  private readTokenClaimValue(source: any, key: string): any {
+    if (!source) {
+      return undefined;
+    }
+    const direct = source[key];
+    if (direct != null) {
+      return Array.isArray(direct) ? direct[0] : direct;
+    }
+    for (const container of ['attributes', 'user_attributes']) {
+      const nested = source[container];
+      const nestedValue = nested?.[key];
+      if (nestedValue != null) {
+        return Array.isArray(nestedValue) ? nestedValue[0] : nestedValue;
+      }
+    }
+    return undefined;
+  }
+
+  private toPositiveNumber(value: any): number | undefined {
+    if (value == null || String(value).trim() === '') {
+      return undefined;
+    }
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined;
+  }
+
   needsCheckNumber(method: PaymentMethod): boolean {
     return method === 'Check';
   }
@@ -2224,10 +2439,38 @@ export class PosComponent implements OnInit, OnDestroy {
     return method === 'Transfer';
   }
 
-  async loadBankAccounts() {
-    // TODO: Load bank accounts from service if available
-    // For now, this is a placeholder
-    this.bankAccounts = [];
+  async loadBankAccounts(): Promise<void> {
+    if (!this.canReadBankAccounts) {
+      this.bankAccounts = [];
+      return;
+    }
+    if (this.bankAccounts.length > 0) {
+      return;
+    }
+    try {
+      const accounts$ = await this.bankAccountService.getBankAccounts(true);
+      const accounts = await firstValueFrom(accounts$);
+      this.bankAccounts = Array.isArray(accounts) ? accounts : [];
+      if (this.bankAccounts.length === 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: 'No active bank accounts found. Configure accounts under Finance → Banking.',
+          life: 6000,
+        });
+      }
+    } catch (err) {
+      console.error('POS: failed to load bank accounts', err);
+      this.bankAccounts = [];
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: 'Could not load bank accounts. Check your connection and try again.',
+        life: 6000,
+      });
+    } finally {
+      this.cdr.markForCheck();
+    }
   }
 
   // Use shared payment utility functions
@@ -2429,6 +2672,13 @@ export class PosComponent implements OnInit, OnDestroy {
           }),
           life: 5000
         });
+        return;
+      }
+    }
+
+    for (const payment of this.checkoutPayments) {
+      const bankContextReady = await this.prepareBankPaymentContext(payment);
+      if (!bankContextReady) {
         return;
       }
     }
@@ -3320,7 +3570,7 @@ export class PosComponent implements OnInit, OnDestroy {
   // ========== Session Management ==========
   
   showOpenSessionDialog() {
-    if (!this.shopId) {
+    if (this.isAdmin && !this.shopId) {
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
@@ -3335,7 +3585,7 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async openSession() {
-    if (!this.shopId) {
+    if (this.isAdmin && !this.shopId) {
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
@@ -3982,8 +4232,24 @@ export class PosComponent implements OnInit, OnDestroy {
     this.addProductToCart(product, 1);
   }
 
+  /** Max quantity shown in cart line editor; soft reservations defer final check to API when online. */
+  getCartLineMaxQuantity(item: any): number {
+    if (this.salesStockSoftReservationEnabled && this.isOnline) {
+      return 999999;
+    }
+    return Math.max(1, item.quantityAvailable || 999);
+  }
+
+  isCartPlusQuantityBlocked(item: any): boolean {
+    if (this.salesStockSoftReservationEnabled && this.isOnline) {
+      return false;
+    }
+    return item.quantity >= (item.quantityAvailable || 0);
+  }
+
   updateQuantity(item: any, newQuantity: number) {
-    const quantity = Math.max(1, Math.min(newQuantity, item.quantityAvailable || 999));
+    const cap = this.getCartLineMaxQuantity(item);
+    const quantity = Math.max(1, Math.min(newQuantity, cap));
     this.onQuantityChange(item, quantity);
   }
 
@@ -4184,507 +4450,6 @@ export class PosComponent implements OnInit, OnDestroy {
     ];
   }
 
-  // =============== Returns & Refunds Methods ===============
-
-  /**
-   * Handle returns tab click - load eligible orders if not already loaded
-   */
-  async onReturnsTabClick() {
-    this.activeTab = 'returns';
-    await this.loadEligibleOrdersForReturn();
-  }
-
-  /**
-   * Load eligible orders for return from backend (called once, cached)
-   */
-  async loadEligibleOrdersForReturn() {
-    if (this.eligibleOrdersForReturn.length > 0) {
-      return; // Already loaded
-    }
-
-    try {
-      (this.orderService as any).loadToken && (this.orderService as any).loadToken();
-      const response: any = await firstValueFrom(this.orderService.getEligibleOrdersForReturn());
-      // Backend returns List<Order> directly (array)
-      this.eligibleOrdersForReturn = Array.isArray(response) ? response : [];
-    } catch (error) {
-      console.error('Error loading eligible orders for return:', error);
-      this.eligibleOrdersForReturn = [];
-    }
-  }
-
-  /**
-   * Filter eligible orders for return based on search query (client-side filtering)
-   */
-  async searchOrdersForReturn(event: any) {
-    const query = event.query?.trim() || '';
-    
-    // Load eligible orders if not already loaded
-    if (this.eligibleOrdersForReturn.length === 0) {
-      await this.loadEligibleOrdersForReturn();
-    }
-
-    if (!query || query.length < 2) {
-      // Show all eligible orders if query is too short
-      this.returnOrderSuggestions = this.eligibleOrdersForReturn.slice(0, 20);
-      return;
-    }
-
-    // Filter orders client-side by reference or customer name
-    const queryLower = query.toLowerCase();
-    this.returnOrderSuggestions = this.eligibleOrdersForReturn
-      .filter((order: any) => {
-        // Search by order reference
-        const matchesReference = order.reference?.toLowerCase().includes(queryLower);
-        
-        // Search by customer name
-        const customer = order.customer;
-        const matchesCustomer = customer && (
-          customer.firstName?.toLowerCase().includes(queryLower) ||
-          customer.lastName?.toLowerCase().includes(queryLower) ||
-          customer.companyName?.toLowerCase().includes(queryLower) ||
-          `${customer.firstName || ''} ${customer.lastName || ''}`.toLowerCase().includes(queryLower)
-        );
-        
-        return matchesReference || matchesCustomer;
-      })
-      .slice(0, 20); // Limit to 20 results for autocomplete
-  }
-
-  async onOrderSelectForReturn(event: any) {
-    // PrimeNG autocomplete onSelect passes {originalEvent, value}
-    // The order is in event.value
-    const order = event?.value || event;
-    
-    if (!order) {
-      console.warn('No order selected');
-      return;
-    }
-
-    // Order already has orderItems from the backend response
-    if (order && order.orderItems && order.orderItems.length > 0) {
-      this.selectedOrderForReturn = order;
-      // Filter items that have available quantity to return
-      // Available quantity = quantity - (returnedQuantity || 0)
-      this.returnItems = order.orderItems
-        .map((item: any) => {
-          const availableQuantity = item.quantity - (item.returnedQuantity || 0);
-          return {
-            ...item,
-            availableQuantity: availableQuantity, // Store available quantity for validation
-            returnQuantity: 0,
-            returnReason: 'INCORRECT_ITEM',
-            condition: 'NEW',
-            refundAmount: 0
-          };
-        })
-        .filter((item: any) => item.availableQuantity > 0); // Only include items with available quantity > 0
-      
-      // Check if there are any items available for return
-      if (this.returnItems.length === 0) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('no_items_available_for_return') || 'No items available for return in this order',
-          life: 3000
-        });
-        return;
-      }
-      
-      // Load return refund percentages when opening the dialog
-      await this.loadReturnRefundPercentages();
-      
-      // Initialize refund payments if immediate refund is enabled
-      if (this.immediateRefundEnabled) {
-        // Wait a bit for returnItems to be fully initialized
-        setTimeout(() => {
-          this.initializeReturnRefundPayments();
-        }, 100);
-      }
-      
-      this.returnDialog = true;
-    } else {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('order_has_no_items_to_return') || 'This order has no items available for return',
-        life: 3000
-      });
-    }
-  }
-
-  /**
-   * Load return refund percentages from app configuration
-   */
-  async loadReturnRefundPercentages() {
-    try {
-      const configKeys = [
-        'return.refund.percentage.new',
-        'return.refund.percentage.used',
-        'return.refund.percentage.damaged'
-      ];
-
-      for (const key of configKeys) {
-        try {
-          const value$ = await this.configService.getConfigurationValue(key);
-          const value = await firstValueFrom(value$);
-          const percentage = parseFloat(value) || this.getDefaultPercentage(key);
-          
-          // Map config key to condition
-          if (key.includes('new')) {
-            this.returnRefundPercentages['NEW'] = percentage;
-          } else if (key.includes('used')) {
-            this.returnRefundPercentages['USED'] = percentage;
-          } else if (key.includes('damaged')) {
-            this.returnRefundPercentages['DAMAGED'] = percentage;
-          }
-        } catch (error) {
-          console.warn(`Failed to load config ${key}, using default:`, error);
-          // Use default value
-        }
-      }
-
-      // Generate messages for each condition
-      this.generateConditionRefundMessages();
-    } catch (error) {
-      console.error('Error loading return refund percentages:', error);
-      // Use default values
-      this.generateConditionRefundMessages();
-    }
-  }
-
-  /**
-   * Get default percentage for a config key
-   */
-  private getDefaultPercentage(key: string): number {
-    if (key.includes('new')) return 1.0;
-    if (key.includes('used')) return 0.8;
-    if (key.includes('damaged')) return 0.5;
-    return 1.0;
-  }
-
-  /**
-   * Generate refund messages for each condition
-   */
-  private generateConditionRefundMessages() {
-    const conditions = ['NEW', 'USED', 'DAMAGED'];
-    conditions.forEach(condition => {
-      const percentage = this.returnRefundPercentages[condition] || 1.0;
-      const percentageDisplay = Math.round(percentage * 100);
-      const conditionName = this.translate.instant('item_condition_' + condition.toLowerCase());
-      
-      if (percentage === 1.0) {
-        this.conditionRefundMessages[condition] = 
-          this.translate.instant('return_condition_full_refund_message', {
-            condition: conditionName,
-            percentage: percentageDisplay
-          });
-      } else {
-        this.conditionRefundMessages[condition] = 
-          this.translate.instant('return_condition_reduced_refund_message', {
-            condition: conditionName,
-            percentage: percentageDisplay
-          });
-      }
-    });
-  }
-
-  /**
-   * Get refund percentage for a condition
-   */
-  getRefundPercentage(condition: string): number {
-    return this.returnRefundPercentages[condition] || 1.0;
-  }
-
-  /**
-   * Get refund message for a condition
-   */
-  getConditionRefundMessage(condition: string): string {
-    return this.conditionRefundMessages[condition] || '';
-  }
-
-  /**
-   * Handle condition change - update refund amount and show message
-   */
-  onConditionChange(item: any) {
-    // Recalculate refund with new condition
-    this.calculateReturnItemRefund(item);
-    
-    // Show message about the condition impact
-    const message = this.getConditionRefundMessage(item.condition);
-    if (message) {
-      const severity = this.getRefundPercentage(item.condition) === 1.0 ? 'info' : 'warn';
-      this.messageService.add({
-        severity: severity,
-        summary: this.translate.instant('refund_impact') || 'Refund Impact',
-        detail: message,
-        life: 4000
-      });
-    }
-  }
-
-  calculateReturnItemRefund(item: any) {
-    if (item.returnQuantity && item.returnQuantity > 0) {
-      // Try multiple price fields to find the correct one
-      const unitPrice = item.pricePerUnit || item.unitPrice || item.sellingPrice || 0;
-      const baseRefund = unitPrice * item.returnQuantity;
-      
-      // Apply refund percentage based on condition
-      const refundPercentage = this.getRefundPercentage(item.condition || 'NEW');
-      item.refundAmount = baseRefund * refundPercentage;
-    } else {
-      item.refundAmount = 0;
-    }
-  }
-
-  getTotalReturnAmount(): number {
-    return this.returnItems.reduce((total, item) => {
-      return total + (item.refundAmount || 0);
-    }, 0);
-  }
-
-  async processReturn() {
-    // Check if immediate refund is enabled
-    if (this.immediateRefundEnabled) {
-      // Use immediate refund flow
-      await this.submitReturnAndRefund();
-      return;
-    }
-
-    // Standard two-step flow
-    if (!this.selectedOrderForReturn) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('no_order_selected'),
-        life: 3000
-      });
-      return;
-    }
-
-    const itemsToReturn = this.returnItems.filter(item => item.returnQuantity > 0);
-    if (itemsToReturn.length === 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('select_items_to_return'),
-        life: 3000
-      });
-      return;
-    }
-
-    // Validate that return quantities don't exceed available quantities
-    const invalidItems = itemsToReturn.filter(item => {
-      const availableQuantity = item.availableQuantity || (item.quantity - (item.returnedQuantity || 0));
-      return item.returnQuantity > availableQuantity;
-    });
-
-    if (invalidItems.length > 0) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('return_quantity_exceeds_available') || 
-                'Return quantity exceeds available quantity for some items',
-        life: 3000
-      });
-      return;
-    }
-
-    try {
-      // Prepare return items in the format expected by ReturnService
-      // Match the structure used in returns component exactly
-      const returnItems = itemsToReturn.map(item => {
-        // In returns component, they use: product.returnItemPricePerUnit * product.returnItemQuantity
-        // The price comes from orderItem.pricePerUnit
-        const pricePerUnit = item.pricePerUnit || 0;
-        const baseRefund = pricePerUnit * item.returnQuantity;
-        const condition = item.condition || 'NEW';
-        const refundPercentage = this.getRefundPercentage(condition);
-        const refundAmount = baseRefund * refundPercentage;
-        
-        // In POS, item IS the OrderItem from order.orderItems
-        // Match the structure from returns component exactly:
-        // - product: full product object (returns component passes: product: product)
-        // - orderItem: the full OrderItem object (returns component passes: orderItem: product.orderItem)
-        // Since item IS the OrderItem, item.product is the product, and item itself is the orderItem
-        
-        // Match the exact structure from returns component
-        // In returns component:
-        // - product: full product object with orderItemPricePerUnit added
-        // - orderItem: full OrderItem object (which includes the full product nested inside)
-        
-        // Ensure product has sellingPrice and add orderItemPricePerUnit like returns component does
-        const product = item.product ? {
-          ...item.product,
-          // Ensure sellingPrice is set (it should already be in the product object)
-          sellingPrice: item.product.sellingPrice || pricePerUnit,
-          // Add orderItemPricePerUnit like returns component does
-          orderItemPricePerUnit: pricePerUnit
-        } : {
-          productId: item.productId,
-          sellingPrice: pricePerUnit,
-          orderItemPricePerUnit: pricePerUnit
-        };
-        
-        // Create orderItem object - match what returns component passes (product.orderItem)
-        // The returns component passes the FULL OrderItem object which includes the full product
-        // Since item IS the OrderItem, we pass it with all its properties
-        const orderItemObj = {
-          orderItemId: item.orderItemId,
-          quantity: item.quantity,
-          returnedQuantity: item.returnedQuantity || 0,
-          pricePerUnit: pricePerUnit,
-          // Include the full product object in orderItem like returns component does
-          product: item.product || {
-            productId: item.productId,
-            sellingPrice: pricePerUnit
-          },
-          // Include other OrderItem properties if they exist
-          ...(item.subTotal !== undefined && { subTotal: item.subTotal }),
-          ...(item.costPerUnit !== undefined && { costPerUnit: item.costPerUnit }),
-          ...(item.totalCost !== undefined && { totalCost: item.totalCost }),
-          ...(item.remainingQuantity !== undefined && { remainingQuantity: item.remainingQuantity }),
-          ...(item.profit !== undefined && { profit: item.profit }),
-          ...(item.profitPerUnit !== undefined && { profitPerUnit: item.profitPerUnit }),
-          ...(item.profitMargin !== undefined && { profitMargin: item.profitMargin })
-        };
-        
-        return {
-          // Pass the full product object like returns component does (with orderItemPricePerUnit)
-          product: product,
-          // Pass the full orderItem object like returns component does (product.orderItem)
-          // This includes the full product nested inside
-          orderItem: orderItemObj,
-          returnedQuantity: item.returnQuantity,
-          condition: condition,
-          reason: item.returnReason || 'INCORRECT_ITEM',
-          refundAmount: refundAmount
-        };
-      });
-
-      // Create OrderReturn object
-      // Match the structure from returns component exactly
-      // The returns component passes the FULL order object, not just orderId
-      const orderReturn = {
-        // Pass the full order object like returns component does
-        // The returns component does: ...this.return (which includes the full order)
-        order: this.selectedOrderForReturn,
-        returnItems: returnItems,
-        returnDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
-        notes: this.returnNotes || ''
-      };
-
-      // Use ReturnService instead of OrderService
-      (this.returnService as any).loadToken && (this.returnService as any).loadToken();
-      const return$ = this.returnService.saveReturn(orderReturn);
-      
-      const returnResult = await firstValueFrom(return$);
-      
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('success'),
-        detail: this.translate.instant('return_processed_successfully'),
-        life: 3000
-      });
-
-      // Open refund dialog
-      this.selectedReturn = returnResult;
-      this.refundAmount = this.getTotalReturnAmount();
-      this.returnDialog = false;
-      this.refundDialog = true;
-    } catch (error: any) {
-      console.error('Error processing return:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: error.error?.message || this.translate.instant('error_processing_return'),
-        life: 3000
-      });
-    }
-  }
-
-  async processRefund() {
-    if (!this.selectedReturn || this.refundAmount <= 0) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('invalid_refund_amount'),
-        life: 3000
-      });
-      return;
-    }
-
-    try {
-      (this.refundService as any).loadToken && (this.refundService as any).loadToken();
-      
-      const refund = {
-        orderReturn: { returnId: this.selectedReturn.returnId },
-        amount: this.refundAmount,
-        refundMethod: this.refundMethod,
-        notes: this.refundNotes,
-        refundDate: new Date().toISOString().split('T')[0]
-      };
-
-      const refund$ = this.refundService.saveRefund(refund);
-      await firstValueFrom(refund$);
-
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('success'),
-        detail: this.translate.instant('refund_processed_successfully'),
-        life: 3000
-      });
-
-      // Reset
-      this.refundDialog = false;
-      this.selectedReturn = null;
-      this.selectedOrderForReturn = null;
-      this.returnItems = [];
-      this.refundAmount = 0;
-      this.refundNotes = '';
-      this.returnOrderSearch = '';
-    } catch (error: any) {
-      console.error('Error processing refund:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: error.error?.message || this.translate.instant('error_processing_refund'),
-        life: 3000
-      });
-    }
-  }
-
-  cancelReturn() {
-    this.returnDialog = false;
-    this.selectedOrderForReturn = null;
-    this.returnItems = [];
-    this.returnRefundPayments = [];
-    this.returnNotes = '';
-    this.returnOrderSearch = '';
-  }
-
-  cancelRefund() {
-    this.refundDialog = false;
-    this.selectedReturn = null;
-    this.refundAmount = 0;
-    this.refundNotes = '';
-  }
-
-  /**
-   * Check if immediate refund is enabled from app configuration
-   */
-  async checkImmediateRefundEnabled() {
-    try {
-      const config = await firstValueFrom(
-        await this.configService.getConfiguration('pos.return.refund.immediate')
-      );
-      this.immediateRefundEnabled = config?.value === 'true';
-    } catch (error) {
-      console.error('Error checking immediate refund config:', error);
-      this.immediateRefundEnabled = false; // Default to false
-    }
-  }
-
   async loadSalesStockConfig() {
     try {
       const config = await firstValueFrom(
@@ -4698,291 +4463,19 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Add a refund payment line for immediate refund flow
-   */
-  addReturnRefundPaymentLine() {
-    const remaining = this.getRemainingRefundAmount();
-    this.returnRefundPayments.push({
-      method: 'Cash',
-      amount: remaining > 0 ? remaining : 0
-    });
-  }
-
-  /**
-   * Remove a refund payment line
-   */
-  removeReturnRefundPaymentLine(index: number) {
-    if (this.returnRefundPayments.length === 1) {
-      return;
-    }
-    this.returnRefundPayments.splice(index, 1);
-  }
-
-  /**
-   * Get total refund amount from payment methods
-   */
-  getTotalRefundPaymentAmount(): number {
-    return this.returnRefundPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  }
-
-  /**
-   * Get remaining refundable amount
-   */
-  getRemainingRefundAmount(): number {
-    const totalRefundable = this.getTotalReturnAmount();
-    const totalPaid = this.getTotalRefundPaymentAmount();
-    return totalRefundable - totalPaid;
-  }
-
-  /**
-   * Check if refund payments are valid
-   */
-  isRefundPaymentValid(): boolean {
-    const totalRefundable = this.getTotalReturnAmount();
-    const totalPaid = this.getTotalRefundPaymentAmount();
-    const difference = Math.abs(totalRefundable - totalPaid);
-    
-    // Allow 0.01 tolerance
-    return difference <= 0.01 && this.returnRefundPayments.length > 0 && 
-           this.returnRefundPayments.every(p => p.amount > 0);
-  }
-
-  /**
-   * Handle payment method change for return refunds
-   */
-  async onReturnRefundMethodChange(payment: PaymentInfo, index: number) {
-    // Clear optional fields when method changes
-    payment.bankAccountId = undefined;
-    payment.checkNumber = undefined;
-    payment.transactionReference = undefined;
-    
-    // Load bank accounts if needed for bank methods
-    if (['Transfer', 'Check', 'BOE'].includes(payment.method)) {
-      await this.loadBankAccounts();
-    }
-  }
-
-
-  /**
-   * Submit return with immediate refund (new endpoint)
-   */
-  async submitReturnAndRefund() {
-    if (!this.selectedOrderForReturn) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('no_order_selected'),
-        life: 3000
-      });
-      return;
-    }
-
-    const itemsToReturn = this.returnItems.filter(item => item.returnQuantity > 0);
-    if (itemsToReturn.length === 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('select_items_to_return'),
-        life: 3000
-      });
-      return;
-    }
-
-    // Validate refund payments
-    if (!this.isRefundPaymentValid()) {
-      const totalRefundable = this.getTotalReturnAmount();
-      const totalPaid = this.getTotalRefundPaymentAmount();
-      const difference = Math.abs(totalRefundable - totalPaid);
-      
-      if (this.returnRefundPayments.length === 0) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('at_least_one_refund_method_required') || 'At least one refund method must be specified',
-          life: 3000
-        });
-      } else if (difference > 0.01) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('refund_amount_mismatch') || 
-                   `Total refund amount (${this.formatCurrency(totalPaid)}) does not match refundable amount (${this.formatCurrency(totalRefundable)})`,
-          life: 3000
-        });
-      }
-      return;
-    }
-
+  async loadSalesStockSoftReservationConfig() {
     try {
-      // Build request
-      const request = {
-        orderReturn: {
-          order: {
-            orderId: this.selectedOrderForReturn.orderId
-          },
-          returnItems: itemsToReturn.map(item => ({
-            orderItem: item.orderItemId || item.id ? { orderItemId: item.orderItemId || item.id } : undefined,
-            product: {
-              productId: item.product?.productId || item.productId
-            },
-            returnedQuantity: item.returnQuantity,
-            condition: item.condition || 'NEW',
-            reason: item.returnReason || 'INCORRECT_ITEM'
-          })),
-          notes: this.returnNotes
-        },
-        refunds: this.returnRefundPayments.map(payment => {
-          const refund: any = {
-            method: payment.method,
-            amount: payment.amount
-          };
-          
-          // Add bank account if required
-          if (payment.bankAccountId) {
-            refund.bankAccountId = payment.bankAccountId;
-          }
-          
-          // Add check-specific fields
-          if (payment.method === 'Check') {
-            if (payment.checkNumber) {
-              refund.checkNumber = payment.checkNumber;
-            }
-            if (payment.checkExpirationDate) {
-              // Format date to YYYY-MM-DD
-              const dateValue = payment.checkExpirationDate as any;
-              let date: Date;
-              if (dateValue instanceof Date) {
-                date = dateValue;
-              } else if (typeof dateValue === 'string') {
-                date = new Date(dateValue);
-              } else {
-                date = new Date(dateValue);
-              }
-              const year = date.getFullYear();
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const day = String(date.getDate()).padStart(2, '0');
-              refund.checkExpirationDate = `${year}-${month}-${day}`;
-            }
-          }
-          
-          // Add BOE-specific fields
-          if (payment.method === 'BOE') {
-            if (payment.boeNumber) {
-              refund.boeNumber = payment.boeNumber;
-            }
-            if (payment.boeExpirationDate) {
-              // Format date to YYYY-MM-DD
-              const dateValue = payment.boeExpirationDate as any;
-              let date: Date;
-              if (dateValue instanceof Date) {
-                date = dateValue;
-              } else if (typeof dateValue === 'string') {
-                date = new Date(dateValue);
-              } else {
-                date = new Date(dateValue);
-              }
-              const year = date.getFullYear();
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const day = String(date.getDate()).padStart(2, '0');
-              refund.boeExpirationDate = `${year}-${month}-${day}`;
-            }
-          }
-          
-          // Add transaction reference for Transfer
-          if (payment.method === 'Transfer' && payment.transactionReference) {
-            refund.transactionReference = payment.transactionReference;
-          }
-          
-          // Add notes if any
-          if (payment.notes) {
-            refund.notes = payment.notes;
-          }
-          
-          return refund;
-        }),
-        notes: this.returnNotes
-      };
-
-      // Call the new endpoint
-      (this.returnService as any).loadToken && (this.returnService as any).loadToken();
-      const response = await firstValueFrom(
-        this.http.post<any>(
-          `${(this.returnService as any).apiProtocol}://${(this.returnService as any).apiHost}:${(this.returnService as any).apiPort}/api/returns/pos/create-and-refund`,
-          request,
-          {
-            headers: new HttpHeaders({
-              'authorization': 'Bearer ' + (this.returnService as any).jwt,
-              'Content-Type': 'application/json'
-            })
-          }
-        )
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('sales.stock.soft.reservation.enabled')
       );
-
-      // Handle success
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('success'),
-        detail: this.translate.instant('return_and_refund_processed_successfully') || 
-                `Return created and refund processed successfully. Reference: ${response.return?.reference || ''}`,
-        life: 5000
-      });
-
-      // Reset and close dialog
-      this.returnDialog = false;
-      this.selectedOrderForReturn = null;
-      this.returnItems = [];
-      this.returnRefundPayments = [];
-      this.returnNotes = '';
-      this.returnOrderSearch = '';
-      
-      // Optionally navigate to return details or refresh
-      if (response.return?.returnId) {
-        // Could navigate to return details page
-        // this.router.navigate(['/returns', response.return.returnId]);
-      }
-    } catch (error: any) {
-      console.error('Error processing return and refund:', error);
-      
-      // Handle specific errors
-      if (error.error?.error === 'pos_immediate_refund_disabled') {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: error.error?.message || 'Immediate refund is disabled. Using standard return process.',
-          life: 4000
-        });
-        // Fallback to standard flow
-        this.immediateRefundEnabled = false;
-        await this.processReturn();
-      } else if (error.error?.field === 'refunds') {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: error.error?.message || 'Invalid refund configuration',
-          life: 3000
-        });
-      } else {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: error.error?.message || this.translate.instant('error_processing_return'),
-          life: 3000
-        });
-      }
+      this.salesStockSoftReservationEnabled =
+        config?.value === 'true' || config?.value === true;
+    } catch (e) {
+      console.warn('Could not load soft reservation configuration for POS, defaulting to off', e);
+      this.salesStockSoftReservationEnabled = false;
     }
   }
 
-  /**
-   * Initialize refund payments when opening return dialog with immediate refund enabled
-   */
-  initializeReturnRefundPayments() {
-    const totalRefundable = this.getTotalReturnAmount();
-    this.returnRefundPayments = [{
-      method: 'Cash',
-      amount: totalRefundable > 0 ? totalRefundable : 0
-    }];
-  }
 }
 
 

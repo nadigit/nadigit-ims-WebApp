@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, ViewChild } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService, PrimeNGConfig } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -11,7 +11,8 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
-import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LocationService } from 'src/app/services/location.service';
 import { Product } from 'src/app/models/product';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
@@ -78,6 +79,8 @@ export class SuppliersComponent implements OnInit {
   exportColumns!: ExportColumn[];
 
   lowStockThreshold;
+
+  private readonly destroy$ = new Subject<void>();
   
   isExporting: boolean = false;
   exportProgress: string = '';
@@ -160,6 +163,11 @@ export class SuppliersComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   async checkPermissions() {
@@ -808,17 +816,6 @@ export class SuppliersComponent implements OnInit {
       this.isExporting = false;
       this.exportProgress = '';
     }
-  }
-
-  filterCountry(value: any, filter: string): boolean {
-    // Convert both to lowercase for case-insensitive comparison
-    const normalizedFilter = filter.toLowerCase();
-
-    // Check both original name and translated name
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
   }
 
   getMeasureUnit(unit: string, quantity: number): string {

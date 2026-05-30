@@ -1,14 +1,14 @@
-import { Component, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
 import { Product } from 'src/app/models/product';
 import { Category } from 'src/app/models/category';
 import { Supplier } from 'src/app/models/supplier';
 import { Warehouse } from 'src/app/models/warehouse';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { lastValueFrom } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
 import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
 import { ProductService } from 'src/app/services/product.service';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 
 @Component({
   selector: 'app-product-form',
@@ -16,6 +16,14 @@ import { ProductService } from 'src/app/services/product.service';
   styleUrls: ['./product-form.component.css']
 })
 export class ProductFormComponent implements OnInit, OnChanges {
+  @ViewChild('galleryReplaceInput') galleryReplaceInput?: ElementRef<HTMLInputElement>;
+  readonly productDescriptionMaxLength = 500;
+
+  productImages: any[] = [];
+  isGalleryLoading: boolean = false;
+  draggedImageId: number | null = null;
+  galleryDragOverId: number | null = null;
+  reorderFlashImageId: number | null = null;
   @Input() product: Product = {};
   @Input() visible: boolean = false;
   @Output() visibleChange = new EventEmitter<boolean>();
@@ -38,6 +46,13 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   submitted: boolean = false;
   uploadedFile: File | null = null;
+  pendingUploadFiles: File[] = [];
+  /** Blob URLs for pending (unsaved) multi-file selection — must be revoked on clear */
+  pendingPreviewUrls: string[] = [];
+  /** Which pending thumbnail is shown in the hero preview */
+  selectedPendingIndex = 0;
+  pendingDraggedIndex: number | null = null;
+  pendingDragOverIndex: number | null = null;
   imagePreviewUrl: string | null = null;
   isImageLoading: boolean = false;
   isDragOver: boolean = false;
@@ -54,24 +69,31 @@ export class ProductFormComponent implements OnInit, OnChanges {
   effectiveCostingMethodLabel = '';
   isCostingMethodNone: boolean = false;
   productTypeOptions: any[] = [];
+  profileAwareProductTypeOptions: any[] = [];
 
   // Expiration date
   hasExpirationDate: boolean = false;
   expirationDateValue: Date | null = null;
+  todayDate: Date = new Date();
 
   localProduct: Product = {};
+  backendFieldErrors: Record<string, string> = {};
 
   constructor(
-    private storage: AngularFireStorage,
     private translate: TranslateService,
     private messageService: MessageService,
-    private productService: ProductService
+    private productService: ProductService,
+    public activityProfileService: ActivityProfileService,
   ) {
     this.initializeOptions();
   }
 
   ngOnInit(): void {
     this.loadRecentImages();
+    void this.activityProfileService.ensureLoaded().then(() => {
+      this.applyProfileProductTypePolicy();
+      this.applyProfileDrivenDefaultsForNewProduct();
+    });
     if (this.product && Object.keys(this.product).length > 0) {
       this.localProduct = { ...this.product };
       // Ensure productType is set
@@ -86,6 +108,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
         productType: 'PRODUCT',
         quantityAvailable: 0
       };
+      this.applyProfileDrivenDefaultsForNewProduct();
       this.updateMeasureUnitsForType();
     }
   }
@@ -102,6 +125,8 @@ export class ProductFormComponent implements OnInit, OnChanges {
         // When dialog opens, ensure product is initialized
         // Only reset uploadedFile if user hasn't selected a new file
         this.initializeProduct();
+        this.applyProfileProductTypePolicy();
+        this.applyProfileDrivenDefaultsForNewProduct();
         this.applyDefaultWarehouseIfSingle();
       } else {
         // When dialog closes, reset form
@@ -120,6 +145,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
    */
   private applyDefaultWarehouseIfSingle(): void {
     if (!this.isProduct()) return;
+    if (this.isAggregatedEditMode()) return;
     if (!this.warehouses || this.warehouses.length !== 1) return;
     if (this.localProduct && this.localProduct.warehouse) return;
 
@@ -130,6 +156,11 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   private initializeProduct(): void {
+    this.clearPendingLocalPreviews();
+    this.imagePreviewUrl = null;
+    this.uploadedFile = null;
+    this.isImageLoading = false;
+
     if (this.product && Object.keys(this.product).length > 0) {
       // Deep copy to ensure we have a fresh object with all properties
       this.localProduct = { ...this.product };
@@ -157,6 +188,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
       if (this.product.warehouse) {
         this.localProduct.warehouse = { ...this.product.warehouse };
       }
+      this.hydrateWarehouseFromAggregatedContext();
       if (this.product.attributes && Array.isArray(this.product.attributes)) {
         this.localProduct.attributes = this.product.attributes.map(attr => ({
           ...attr,
@@ -200,6 +232,11 @@ export class ProductFormComponent implements OnInit, OnChanges {
         // Ensure productImage is set on localProduct
         this.localProduct.productImage = this.product.productImage;
       }
+      if (this.localProduct.productId) {
+        void this.loadProductImages(this.localProduct.productId);
+      } else {
+        this.productImages = [];
+      }
     } else {
       this.localProduct = {
         productType: 'PRODUCT', // Default to PRODUCT
@@ -209,9 +246,237 @@ export class ProductFormComponent implements OnInit, OnChanges {
       this.hasExpirationDate = false;
       this.expirationDateValue = null;
       this.localProduct.expirationDate = null;
+      this.applyProfileDrivenDefaultsForNewProduct();
       // Update measure units for the default product type
       this.updateMeasureUnitsForType();
+      this.productImages = [];
     }
+  }
+
+  private async loadProductImages(productId: number): Promise<void> {
+    if (!productId) return;
+    this.isGalleryLoading = true;
+    try {
+      this.productService.loadToken();
+      const images = await lastValueFrom(this.productService.getProductImages(productId));
+      const raw = Array.isArray(images) ? images : [];
+      // API may return `imageId` instead of `id`; normalize so drag/reorder uses stable keys.
+      this.productImages = raw.map((im: any) => {
+        const idNum = Number(im?.id ?? im?.imageId);
+        return {
+          ...im,
+          id: Number.isFinite(idNum) ? idNum : im?.id ?? im?.imageId,
+        };
+      });
+      const primary = this.productImages.find((img: any) => !!img?.primaryImage);
+      if (primary?.imageUrl) {
+        this.localProduct.productImage = primary.imageUrl;
+      } else if (this.productImages.length > 0) {
+        this.localProduct.productImage = this.productImages[0].imageUrl;
+      }
+    } catch (error) {
+      console.error('Error loading product gallery:', error);
+      this.productImages = [];
+    } finally {
+      this.isGalleryLoading = false;
+    }
+  }
+
+  private isAggregatedEditMode(): boolean {
+    return !!this.localProduct?.productId && !!(this.product as any)?._aggregated;
+  }
+
+  private hydrateWarehouseFromAggregatedContext(): void {
+    if (!this.isAggregatedEditMode() || this.localProduct.warehouse) {
+      return;
+    }
+    const warehouseStocks = (this.product as any)?._warehouseStocks;
+    if (!Array.isArray(warehouseStocks) || warehouseStocks.length === 0) {
+      return;
+    }
+    const productId = Number(this.localProduct.productId);
+    const stockForCurrentProduct =
+      warehouseStocks.find((s: any) => Number(s?.productId) === productId) ?? warehouseStocks[0];
+    const stockWarehouseId = Number(stockForCurrentProduct?.warehouseId);
+    if (!stockWarehouseId) {
+      return;
+    }
+    const fromKnownWarehouses = this.warehouses?.find((w) => Number(w.warehouseId) === stockWarehouseId);
+    this.localProduct.warehouse = fromKnownWarehouses
+      ? { ...fromKnownWarehouses }
+      : { warehouseId: stockWarehouseId, name: stockForCurrentProduct?.warehouseName } as Warehouse;
+  }
+
+  private applyProfileDrivenDefaultsForNewProduct(): void {
+    void this.applyProfileDrivenDefaultsForNewProductAsync();
+  }
+
+  /**
+   * Waits for activity profile context (including organization defaultLocale) before applying
+   * pharmacy/fashion defaults so fashion attribute titles match the organization locale.
+   */
+  private async applyProfileDrivenDefaultsForNewProductAsync(): Promise<void> {
+    await this.activityProfileService.ensureLoaded();
+    if (!this.localProduct || this.localProduct.productId || !this.isProduct()) {
+      return;
+    }
+
+    if (this.activityProfileService.isPharmacyProfile) {
+      this.localProduct.productType = 'PRODUCT';
+      this.hasExpirationDate = true;
+      if (!this.expirationDateValue) {
+        this.expirationDateValue = new Date();
+      }
+      if (!this.localProduct.expirationDate) {
+        this.localProduct.expirationDate = this.expirationDateValue;
+      }
+      if (!this.localProduct.costingMethod || this.localProduct.costingMethod === 'NONE') {
+        this.localProduct.costingMethod = 'FIFO';
+      }
+    }
+
+    if (this.activityProfileService.isFashionProfile) {
+      this.ensureFashionStarterAttributes();
+    }
+  }
+
+  private applyProfileProductTypePolicy(): void {
+    this.profileAwareProductTypeOptions = this.productTypeOptions.map((opt) => ({
+      ...opt,
+      disabled: this.activityProfileService.isPharmacyProfile && opt.value === 'SERVICE',
+    }));
+    if (this.activityProfileService.isPharmacyProfile && this.localProduct?.productType === 'SERVICE') {
+      this.localProduct.productType = 'PRODUCT';
+      this.onProductTypeChange();
+    }
+  }
+
+  private static readonly FASHION_SIZE_NAME_SYNONYMS = new Set([
+    'size',
+    'taille',
+    'talla',
+    'taglia',
+    'groesse',
+    'größe',
+    'misura',
+  ]);
+
+  private static readonly FASHION_COLOR_NAME_SYNONYMS = new Set([
+    'color',
+    'colour',
+    'couleur',
+    'farbe',
+    'colore',
+  ]);
+
+  private normalizeFashionAttributeName(name: unknown): string {
+    return String(name ?? '')
+      .trim()
+      .toLowerCase();
+  }
+
+  private attributeNameMatchesFashionSize(name: unknown): boolean {
+    return ProductFormComponent.FASHION_SIZE_NAME_SYNONYMS.has(this.normalizeFashionAttributeName(name));
+  }
+
+  private attributeNameMatchesFashionColor(name: unknown): boolean {
+    return ProductFormComponent.FASHION_COLOR_NAME_SYNONYMS.has(this.normalizeFashionAttributeName(name));
+  }
+
+  /** Display labels for auto-added fashion rows; keyed by organization default locale (BCP47 prefix). */
+  private resolveFashionStarterAttributeLabels(): { size: string; color: string } {
+    const fromOrg = this.activityProfileService.context?.defaultLocale;
+    const raw =
+      (fromOrg != null && String(fromOrg).trim() !== '' ? String(fromOrg).trim() : '') ||
+      this.translate.currentLang ||
+      'en';
+    const lang = String(raw)
+      .trim()
+      .split(/[-_]/)[0]
+      .toLowerCase();
+    const byLang: Record<string, { size: string; color: string }> = {
+      en: { size: 'Size', color: 'Color' },
+      fr: { size: 'Taille', color: 'Couleur' },
+      es: { size: 'Talla', color: 'Color' },
+      ar: { size: 'المقاس', color: 'اللون' },
+      de: { size: 'Größe', color: 'Farbe' },
+      it: { size: 'Taglia', color: 'Colore' },
+    };
+    return byLang[lang] ?? byLang['en'];
+  }
+
+  private ensureFashionStarterAttributes(): void {
+    if (!this.localProduct.attributes) {
+      this.localProduct.attributes = [];
+    }
+    const labels = this.resolveFashionStarterAttributeLabels();
+    const hasSize = this.localProduct.attributes.some((a: any) =>
+      this.attributeNameMatchesFashionSize(a?.attributeName),
+    );
+    const hasColor = this.localProduct.attributes.some((a: any) =>
+      this.attributeNameMatchesFashionColor(a?.attributeName),
+    );
+    if (!hasSize) {
+      this.localProduct.attributes.push({
+        attributeName: labels.size,
+        attributeType: 'STRING',
+        value: '',
+      });
+    }
+    if (!hasColor) {
+      this.localProduct.attributes.push({
+        attributeName: labels.color,
+        attributeType: 'STRING',
+        value: '',
+      });
+    }
+  }
+
+  private getAttributeTextValue(attr: any): string {
+    if (!attr) {
+      return '';
+    }
+    const raw = attr.value ?? attr.stringValue ?? attr.intValue ?? attr.doubleValue ?? '';
+    return String(raw).trim();
+  }
+
+  private findFashionSizeAttributeValue(): string {
+    if (!this.localProduct?.attributes || this.localProduct.attributes.length === 0) {
+      return '';
+    }
+    const found = this.localProduct.attributes.find((a: any) =>
+      this.attributeNameMatchesFashionSize(a?.attributeName),
+    );
+    return this.getAttributeTextValue(found);
+  }
+
+  private findFashionColorAttributeValue(): string {
+    if (!this.localProduct?.attributes || this.localProduct.attributes.length === 0) {
+      return '';
+    }
+    const found = this.localProduct.attributes.find((a: any) =>
+      this.attributeNameMatchesFashionColor(a?.attributeName),
+    );
+    return this.getAttributeTextValue(found);
+  }
+
+  private hasFashionRequiredAttributes(): boolean {
+    const size = this.findFashionSizeAttributeValue();
+    const color = this.findFashionColorAttributeValue();
+    return size.length > 0 && color.length > 0;
+  }
+
+  isPharmacyExpirationInvalid(): boolean {
+    if (!this.activityProfileService.isPharmacyProfile || !this.isProduct() || !this.hasExpirationDate || !this.expirationDateValue) {
+      return false;
+    }
+    const d = this.expirationDateValue instanceof Date ? this.expirationDateValue : new Date(this.expirationDateValue);
+    if (isNaN(d.getTime())) {
+      return true;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d < today;
   }
 
   private initializeOptions(): void {
@@ -219,6 +484,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
       { label: this.translate.instant('product_type_product'), value: 'PRODUCT' },
       { label: this.translate.instant('product_type_service'), value: 'SERVICE' }
     ];
+    this.profileAwareProductTypeOptions = [...this.productTypeOptions];
     
     this.measureUnits = [
       { value: MeasureUnit.UNIT, label: this.translate.instant('UNIT') },
@@ -319,13 +585,78 @@ export class ProductFormComponent implements OnInit, OnChanges {
     }
   }
 
+  /**
+   * Backend often returns paths like `/api/stock/...`. The browser resolves those against the SPA
+   * origin (e.g. localhost:4200), not the API (8090), so image requests 404 unless we prefix the API origin
+   * (same pattern as {@link ProductService}).
+   * Fully-qualified http(s) URLs are returned unchanged (e.g. CDN / Firebase — may still 403 when expired).
+   */
+  resolvePublicImageUrl(url: string | null | undefined): string {
+    if (url == null) return '';
+    const s = String(url).trim();
+    if (!s || s.startsWith('blob:')) return '';
+    if (s.startsWith('assets/')) return s;
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.startsWith('//')) {
+      return `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}${s}`;
+    }
+    if (s.startsWith('/')) {
+      const env = (typeof window !== 'undefined' ? (window as unknown as { __env?: Record<string, string> }).__env : undefined) || {};
+      const apiProtocol = env['apiProtocol'] || 'http';
+      const apiHost = env['apiHost'] || 'localhost';
+      const apiPort = env['apiPort'] || '8090';
+      return `${apiProtocol}://${apiHost}:${apiPort}${s}`;
+    }
+    return s;
+  }
+
+  onRecentImageError(failedUrl: string): void {
+    const failedResolved = this.resolvePublicImageUrl(failedUrl);
+    const next = this.recentProductImages.filter((u) => {
+      const r = this.resolvePublicImageUrl(u);
+      return r !== failedResolved && u !== failedUrl;
+    });
+    if (next.length !== this.recentProductImages.length) {
+      this.recentProductImages = next;
+      try {
+        localStorage.setItem('recentProductImages', JSON.stringify(this.recentProductImages));
+      } catch {
+        /* ignore quota */
+      }
+    }
+  }
+
   private loadRecentImages(): void {
     const stored = localStorage.getItem('recentProductImages');
-    if (stored) {
-      try {
-        this.recentProductImages = JSON.parse(stored);
-      } catch (e) {
+    if (!stored) {
+      this.recentProductImages = [];
+      return;
+    }
+    try {
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) {
         this.recentProductImages = [];
+        return;
+      }
+      const seen = new Set<string>();
+      const next: string[] = [];
+      for (const item of parsed) {
+        if (typeof item !== 'string') continue;
+        const resolved = this.resolvePublicImageUrl(item.trim());
+        if (!resolved) continue;
+        if (seen.has(resolved)) continue;
+        seen.add(resolved);
+        next.push(resolved);
+        if (next.length >= 6) break;
+      }
+      this.recentProductImages = next;
+      localStorage.setItem('recentProductImages', JSON.stringify(this.recentProductImages));
+    } catch {
+      this.recentProductImages = [];
+      try {
+        localStorage.removeItem('recentProductImages');
+      } catch {
+        /* ignore */
       }
     }
   }
@@ -333,6 +664,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
   resetForm(): void {
     this.submitted = false;
     this.uploadedFile = null;
+    this.clearPendingLocalPreviews();
     this.imagePreviewUrl = null;
     this.isImageLoading = false;
     this.isDragOver = false;
@@ -368,36 +700,261 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   async onFileUpload(event: any): Promise<void> {
-    const file = event.files[0];
-    if (!file) return;
+    const resolvedFiles =
+      event?.files ??
+      event?.currentFiles ??
+      event?.originalEvent?.target?.files ??
+      event?.target?.files ??
+      [];
+    const files: File[] = Array.from(resolvedFiles as ArrayLike<File>);
+    if (!files.length) return;
 
-    if (!file.type.startsWith('image/')) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('invalid_image_format'),
-        life: 3000,
-      });
+    const validFiles: File[] = [];
+    for (const file of files) {
+      if (!file?.type?.startsWith('image/')) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('invalid_image_format'),
+          life: 2500,
+        });
+        continue;
+      }
+      if (file.size > 5000000) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('image_too_large'),
+          life: 2500,
+        });
+        continue;
+      }
+      validFiles.push(file);
+    }
+    if (!validFiles.length) return;
+
+    if (this.localProduct?.productId) {
+      this.isSaving = true;
+      try {
+        this.productService.loadToken();
+        for (const file of validFiles) {
+          const created = await lastValueFrom(
+            this.productService.uploadAndAttachProductImage(this.localProduct.productId, file)
+          );
+          if (created?.imageUrl) {
+            this.addToRecentImages(created.imageUrl);
+          }
+        }
+        await this.loadProductImages(this.localProduct.productId);
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: `${validFiles.length} ${this.translate.instant('product_image')} added`,
+          life: 2500,
+        });
+      } catch (error) {
+        console.error('Error uploading product gallery image:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_uploading_image'),
+          life: 3000,
+        });
+      } finally {
+        this.isSaving = false;
+      }
       return;
     }
 
-    if (file.size > 5000000) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('image_too_large'),
-        life: 3000,
-      });
-      return;
+    if (this.pendingUploadFiles.length > 0) {
+      this.appendPendingUploadFiles(validFiles);
+    } else {
+      this.applyPendingUploadSelection(validFiles);
     }
-
-    this.isImageLoading = true;
-    this.imagePreviewUrl = URL.createObjectURL(file);
-    this.uploadedFile = file;
 
     setTimeout(() => {
       if (this.isImageLoading) this.isImageLoading = false;
     }, 2000);
+  }
+
+  private clearPendingLocalPreviews(): void {
+    for (const url of this.pendingPreviewUrls) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        /* ignore */
+      }
+    }
+    this.pendingPreviewUrls = [];
+    this.pendingUploadFiles = [];
+    this.selectedPendingIndex = 0;
+    this.pendingDraggedIndex = null;
+    this.pendingDragOverIndex = null;
+  }
+
+  private applyPendingUploadSelection(validFiles: File[]): void {
+    this.clearPendingLocalPreviews();
+    this.pendingUploadFiles = [...validFiles];
+    this.pendingPreviewUrls = validFiles.map((f) => URL.createObjectURL(f));
+    this.selectedPendingIndex = 0;
+    this.uploadedFile = validFiles[0];
+    this.imagePreviewUrl = this.pendingPreviewUrls[0];
+    this.isImageLoading = true;
+  }
+
+  /** Append new local files to the pending gallery (new product before save). */
+  private appendPendingUploadFiles(validFiles: File[]): void {
+    if (!validFiles.length) return;
+    for (const file of validFiles) {
+      this.pendingUploadFiles.push(file);
+      this.pendingPreviewUrls.push(URL.createObjectURL(file));
+    }
+    if (this.selectedPendingIndex < 0 || this.selectedPendingIndex >= this.pendingPreviewUrls.length) {
+      this.selectedPendingIndex = 0;
+    }
+    this.uploadedFile = this.pendingUploadFiles[this.selectedPendingIndex] ?? null;
+    this.imagePreviewUrl = this.pendingPreviewUrls[this.selectedPendingIndex] ?? null;
+    this.localProduct.productImage = this.imagePreviewUrl;
+    this.isImageLoading = true;
+  }
+
+  selectPendingPreview(index: number): void {
+    if (index < 0 || index >= this.pendingPreviewUrls.length) return;
+    this.selectedPendingIndex = index;
+    this.imagePreviewUrl = this.pendingPreviewUrls[index];
+    this.uploadedFile = this.pendingUploadFiles[index] ?? null;
+  }
+
+  removePendingPreview(index: number): void {
+    if (index < 0 || index >= this.pendingPreviewUrls.length) return;
+    try {
+      URL.revokeObjectURL(this.pendingPreviewUrls[index]);
+    } catch {
+      /* ignore */
+    }
+    this.pendingPreviewUrls.splice(index, 1);
+    this.pendingUploadFiles.splice(index, 1);
+    if (this.pendingPreviewUrls.length === 0) {
+      this.uploadedFile = null;
+      this.imagePreviewUrl = null;
+      this.selectedPendingIndex = 0;
+      this.localProduct.productImage = null;
+      return;
+    }
+    if (this.selectedPendingIndex >= this.pendingPreviewUrls.length) {
+      this.selectedPendingIndex = this.pendingPreviewUrls.length - 1;
+    }
+    this.imagePreviewUrl = this.pendingPreviewUrls[this.selectedPendingIndex];
+    this.uploadedFile = this.pendingUploadFiles[this.selectedPendingIndex] ?? null;
+  }
+
+  onPendingGalleryDragStart(event: DragEvent, index: number): void {
+    if (index < 0 || index >= this.pendingPreviewUrls.length) {
+      event.preventDefault();
+      return;
+    }
+    this.pendingDraggedIndex = index;
+    try {
+      event.dataTransfer?.setData('text/plain', String(index));
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  onPendingGalleryDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    if (index >= 0 && index < this.pendingPreviewUrls.length) {
+      this.pendingDragOverIndex = index;
+    }
+  }
+
+  onPendingGalleryDrop(event: DragEvent, index: number): void {
+    event.preventDefault();
+    const droppedFiles = event.dataTransfer?.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+      void this.onFileUpload({ files: Array.from(droppedFiles) });
+      this.pendingDraggedIndex = null;
+      this.pendingDragOverIndex = null;
+      return;
+    }
+    const from = this.pendingDraggedIndex;
+    const to = index;
+    if (
+      from == null ||
+      to < 0 ||
+      to >= this.pendingPreviewUrls.length ||
+      from === to
+    ) {
+      this.pendingDraggedIndex = null;
+      this.pendingDragOverIndex = null;
+      return;
+    }
+
+    const movedPreview = this.pendingPreviewUrls.splice(from, 1)[0];
+    const movedFile = this.pendingUploadFiles.splice(from, 1)[0];
+    this.pendingPreviewUrls.splice(to, 0, movedPreview);
+    this.pendingUploadFiles.splice(to, 0, movedFile);
+
+    if (this.selectedPendingIndex === from) {
+      this.selectedPendingIndex = to;
+    } else if (from < this.selectedPendingIndex && to >= this.selectedPendingIndex) {
+      this.selectedPendingIndex -= 1;
+    } else if (from > this.selectedPendingIndex && to <= this.selectedPendingIndex) {
+      this.selectedPendingIndex += 1;
+    }
+
+    this.imagePreviewUrl = this.pendingPreviewUrls[this.selectedPendingIndex] ?? null;
+    this.uploadedFile = this.pendingUploadFiles[this.selectedPendingIndex] ?? null;
+
+    this.pendingDraggedIndex = null;
+    this.pendingDragOverIndex = null;
+  }
+
+  onPendingGalleryDragEnd(): void {
+    this.pendingDraggedIndex = null;
+    this.pendingDragOverIndex = null;
+  }
+
+  movePendingPreviewUp(index: number): void {
+    this.movePendingPreview(index, index - 1);
+  }
+
+  movePendingPreviewDown(index: number): void {
+    this.movePendingPreview(index, index + 1);
+  }
+
+  private movePendingPreview(from: number, to: number): void {
+    if (
+      from < 0 ||
+      from >= this.pendingPreviewUrls.length ||
+      to < 0 ||
+      to >= this.pendingPreviewUrls.length ||
+      from === to
+    ) {
+      return;
+    }
+
+    const movedPreview = this.pendingPreviewUrls.splice(from, 1)[0];
+    const movedFile = this.pendingUploadFiles.splice(from, 1)[0];
+    this.pendingPreviewUrls.splice(to, 0, movedPreview);
+    this.pendingUploadFiles.splice(to, 0, movedFile);
+
+    if (this.selectedPendingIndex === from) {
+      this.selectedPendingIndex = to;
+    } else if (from < this.selectedPendingIndex && to >= this.selectedPendingIndex) {
+      this.selectedPendingIndex -= 1;
+    } else if (from > this.selectedPendingIndex && to <= this.selectedPendingIndex) {
+      this.selectedPendingIndex += 1;
+    }
+
+    this.imagePreviewUrl = this.pendingPreviewUrls[this.selectedPendingIndex] ?? null;
+    this.uploadedFile = this.pendingUploadFiles[this.selectedPendingIndex] ?? null;
   }
 
   onDragOver(event: DragEvent): void {
@@ -418,8 +975,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
     this.isDragOver = false;
 
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
-      const file = event.dataTransfer.files[0];
-      this.onFileUpload({ files: [file] });
+      this.onFileUpload({ files: Array.from(event.dataTransfer.files) });
     }
   }
 
@@ -439,23 +995,487 @@ export class ProductFormComponent implements OnInit, OnChanges {
     this.imageZoomDialog = true;
   }
 
+  getCurrentImageSource(): string {
+    let raw = '';
+    // Saved product: gallery order + primary from API; allow hero to follow a clicked thumbnail
+    if (this.localProduct?.productId && this.productImages?.length) {
+      const urls = new Set(this.productImages.map((img: any) => img?.imageUrl).filter(Boolean));
+      if (this.localProduct.productImage && urls.has(this.localProduct.productImage)) {
+        raw = this.localProduct.productImage;
+      } else {
+        const primary = this.productImages.find((img: any) => !!img?.primaryImage);
+        raw = primary?.imageUrl || this.productImages[0].imageUrl || '';
+      }
+    } else if (this.imagePreviewUrl) {
+      return this.imagePreviewUrl;
+    } else if (this.localProduct?.productImage) {
+      raw = this.localProduct.productImage;
+    }
+    if (!raw) {
+      return 'assets/core-images/no-image.png';
+    }
+    if (raw.startsWith('blob:') || raw.startsWith('assets/')) {
+      return raw;
+    }
+    return this.resolvePublicImageUrl(raw) || raw;
+  }
+
+  /** Whether two stored image URL strings refer to the same asset (path / resolved URL). */
+  galleryImageUrlsMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+    const sa = String(a ?? '').trim();
+    const sb = String(b ?? '').trim();
+    if (!sa || !sb) return false;
+    const ra = this.resolvePublicImageUrl(sa);
+    const rb = this.resolvePublicImageUrl(sb);
+    if (ra === rb) return true;
+    try {
+      const pa = new URL(ra, 'http://local.invalid').pathname;
+      const pb = new URL(rb, 'http://local.invalid').pathname;
+      return pa === pb;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Gallery row that corresponds to the image currently shown in the hero
+   * (clicked thumbnail or primary / first when unset).
+   */
+  resolveHeroGalleryRow(): any | null {
+    if (!this.productImages?.length) return null;
+    const heroRaw = this.localProduct?.productImage;
+    if (!heroRaw) {
+      return this.productImages.find((img: any) => img?.primaryImage) || this.productImages[0] || null;
+    }
+    for (const img of this.productImages) {
+      const u = img?.imageUrl;
+      if (!u) continue;
+      if (this.galleryImageUrlsMatch(heroRaw, u)) {
+        return img;
+      }
+    }
+    return this.productImages.find((img: any) => img?.primaryImage) || this.productImages[0] || null;
+  }
+
+  isGalleryThumbHero(img: any): boolean {
+    const heroUrl = this.localProduct?.productImage;
+    if (!heroUrl || !img?.imageUrl) return false;
+    return this.galleryImageUrlsMatch(heroUrl, img.imageUrl);
+  }
+
+  private triggerGalleryReplacePicker(): void {
+    const el = this.galleryReplaceInput?.nativeElement;
+    if (el) {
+      el.value = '';
+      el.click();
+    }
+  }
+
   editImage(): void {
+    // Saved product: always open the file picker — never fall through to clearing the hero.
+    // (Previously we only opened when galleryRowId(resolveHeroGalleryRow()) was set; missing/odd
+    // API ids or URL mismatch left users with a cleared image and no picker.)
+    if (this.localProduct?.productId) {
+      this.triggerGalleryReplacePicker();
+      return;
+    }
+    if (this.pendingPreviewUrls?.length > 0) {
+      this.triggerGalleryReplacePicker();
+      return;
+    }
     this.localProduct.productImage = null;
     this.uploadedFile = null;
+    this.clearPendingLocalPreviews();
     this.imagePreviewUrl = null;
   }
 
+  async onReplaceImageFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = input.files ? Array.from(input.files) : [];
+    input.value = '';
+    if (!files.length) return;
+    const file = files[0];
+    if (!file.type?.startsWith('image/')) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('invalid_image_format'),
+        life: 2500,
+      });
+      return;
+    }
+    if (file.size > 5000000) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('image_too_large'),
+        life: 2500,
+      });
+      return;
+    }
+
+    if (this.localProduct?.productId && this.productImages?.length > 0) {
+      let row = this.resolveHeroGalleryRow();
+      let imageId = this.galleryRowId(row);
+      if (imageId == null) {
+        row =
+          this.productImages.find((g: any) => this.galleryRowId(g) != null) ?? null;
+        imageId = this.galleryRowId(row);
+      }
+      if (imageId != null) {
+        await this.replaceGalleryImage(imageId, file);
+        return;
+      }
+    }
+
+    if (!this.localProduct?.productId && this.pendingPreviewUrls?.length > 0) {
+      this.replacePendingPreviewAt(this.selectedPendingIndex, file);
+      return;
+    }
+
+    if (!this.localProduct?.productId && (this.localProduct.productImage || this.imagePreviewUrl)) {
+      this.applyPendingUploadSelection([file]);
+      return;
+    }
+
+    await this.onFileUpload({ files: [file] });
+  }
+
+  private replacePendingPreviewAt(index: number, file: File): void {
+    if (index < 0 || index >= this.pendingPreviewUrls.length || index >= this.pendingUploadFiles.length) {
+      return;
+    }
+    try {
+      URL.revokeObjectURL(this.pendingPreviewUrls[index]);
+    } catch {
+      /* ignore */
+    }
+    this.pendingUploadFiles[index] = file;
+    this.pendingPreviewUrls[index] = URL.createObjectURL(file);
+    this.selectedPendingIndex = index;
+    this.uploadedFile = file;
+    this.imagePreviewUrl = this.pendingPreviewUrls[index];
+    this.localProduct.productImage = this.imagePreviewUrl;
+    this.isImageLoading = true;
+  }
+
+  private async replaceGalleryImageFallback(imageId: number, file: File): Promise<void> {
+    const pid = this.localProduct!.productId!;
+    const orderedBefore = this.productImages
+      .map((g: any) => this.galleryRowId(g))
+      .filter((n): n is number => n != null);
+    const idx = orderedBefore.indexOf(imageId);
+    if (idx < 0) {
+      throw new Error('replace fallback: image not in gallery');
+    }
+
+    await lastValueFrom(this.productService.deleteProductImage(pid, imageId));
+    const created = await lastValueFrom(this.productService.uploadAndAttachProductImage(pid, file));
+    await this.loadProductImages(pid);
+
+    const newId = this.galleryRowId(created);
+    const idsAfter = this.productImages
+      .map((g: any) => this.galleryRowId(g))
+      .filter((n): n is number => n != null);
+    if (newId == null || !idsAfter.includes(newId)) {
+      return;
+    }
+    const withoutNew = idsAfter.filter((id) => id !== newId);
+    const insertAt = Math.min(idx, withoutNew.length);
+    const reordered = [...withoutNew.slice(0, insertAt), newId, ...withoutNew.slice(insertAt)];
+    if (reordered.length !== idsAfter.length) {
+      return;
+    }
+    await lastValueFrom(this.productService.reorderProductImages(pid, reordered));
+    await this.loadProductImages(pid);
+  }
+
+  private async replaceGalleryImage(imageId: number, file: File): Promise<void> {
+    const pid = this.localProduct!.productId!;
+    const slotIndex = this.productImages.findIndex((g: any) => this.galleryRowId(g) === imageId);
+    this.isSaving = true;
+    try {
+      this.productService.loadToken();
+      try {
+        await lastValueFrom(this.productService.replaceProductImage(pid, imageId, file));
+      } catch (err: any) {
+        const code = err?.status;
+        if (code === 404 || code === 405 || code === 501) {
+          await this.replaceGalleryImageFallback(imageId, file);
+        } else {
+          throw err;
+        }
+      }
+      await this.loadProductImages(pid);
+      const i = slotIndex >= 0 ? Math.min(slotIndex, Math.max(0, this.productImages.length - 1)) : 0;
+      const row = this.productImages[i];
+      if (row?.imageUrl) {
+        this.localProduct.productImage = row.imageUrl;
+      }
+      if (row?.imageUrl) {
+        this.addToRecentImages(row.imageUrl);
+      }
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('product_image'),
+        life: 2200,
+      });
+    } catch (error) {
+      console.error('Replace gallery image failed:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_uploading_image'),
+        life: 3000,
+      });
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
   removeImage(): void {
+    if (this.localProduct?.productId && this.productImages?.length) {
+      const row = this.resolveHeroGalleryRow();
+      const id = this.galleryRowId(row);
+      if (id != null) {
+        void this.deleteGalleryImage(id);
+        return;
+      }
+    }
+    if (!this.localProduct?.productId && this.pendingPreviewUrls?.length > 1) {
+      this.removePendingPreview(this.selectedPendingIndex);
+      return;
+    }
+    if (!this.localProduct?.productId && this.pendingPreviewUrls?.length === 1) {
+      this.removePendingPreview(0);
+      return;
+    }
     this.localProduct.productImage = null;
     this.uploadedFile = null;
+    this.clearPendingLocalPreviews();
     this.imagePreviewUrl = null;
     this.existingImageFile = null;
   }
 
   selectRecentImage(imageUrl: string): void {
+    if (this.localProduct?.productId) {
+      void this.attachRecentImageToExistingProduct(imageUrl);
+      return;
+    }
     this.localProduct.productImage = imageUrl;
     this.imagePreviewUrl = null;
     this.uploadedFile = null;
+    this.clearPendingLocalPreviews();
+  }
+
+  onGallerySetPrimaryClick(img: any): void {
+    const id = this.galleryRowId(img);
+    if (id != null) void this.setGalleryPrimary(id);
+  }
+
+  onGalleryDeleteClick(img: any): void {
+    const id = this.galleryRowId(img);
+    if (id != null) void this.deleteGalleryImage(id);
+  }
+
+  async setGalleryPrimary(imageId: number): Promise<void> {
+    if (!this.localProduct?.productId || !imageId) return;
+    try {
+      this.productService.loadToken();
+      await lastValueFrom(this.productService.setPrimaryProductImage(this.localProduct.productId, imageId));
+      await this.loadProductImages(this.localProduct.productId);
+    } catch (error) {
+      console.error('Error setting primary image:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: 'Failed to set primary image.',
+        life: 2500,
+      });
+    }
+  }
+
+  async deleteGalleryImage(imageId: number): Promise<void> {
+    if (!this.localProduct?.productId || !imageId) return;
+    try {
+      this.productService.loadToken();
+      await lastValueFrom(this.productService.deleteProductImage(this.localProduct.productId, imageId));
+      await this.loadProductImages(this.localProduct.productId);
+      if (!this.productImages.length) {
+        this.localProduct.productImage = null;
+      }
+    } catch (error) {
+      console.error('Error deleting gallery image:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: 'Failed to delete image.',
+        life: 2500,
+      });
+    }
+  }
+
+  /** Numeric image row id (gallery JSON may use `id` or `imageId`). */
+  galleryRowId(img: any): number | null {
+    const v = img?.id ?? img?.imageId;
+    if (v == null || v === '') return null;
+    const n = typeof v === 'number' ? v : Number(String(v).trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  onGalleryDragStart(event: DragEvent, img: any): void {
+    const id = this.galleryRowId(img);
+    if (id == null) {
+      event.preventDefault();
+      return;
+    }
+    this.draggedImageId = id;
+    try {
+      event.dataTransfer?.setData('text/plain', String(id));
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  onGalleryDragOver(event: DragEvent, img: any): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    const id = this.galleryRowId(img);
+    if (id != null) {
+      this.galleryDragOverId = id;
+    }
+  }
+
+  onGalleryDrop(event: DragEvent, img: any): void {
+    event.preventDefault();
+    const droppedFiles = event.dataTransfer?.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+      void this.onFileUpload({ files: Array.from(droppedFiles) });
+      this.draggedImageId = null;
+      this.galleryDragOverId = null;
+      return;
+    }
+    const targetImageId = this.galleryRowId(img);
+    if (
+      !this.localProduct?.productId ||
+      this.draggedImageId == null ||
+      targetImageId == null ||
+      this.draggedImageId === targetImageId
+    ) {
+      this.draggedImageId = null;
+      this.galleryDragOverId = null;
+      return;
+    }
+
+    const currentIds = this.productImages
+      .map((g: any) => this.galleryRowId(g))
+      .filter((n): n is number => n != null);
+    const fromIndex = currentIds.indexOf(this.draggedImageId);
+    const toIndex = currentIds.indexOf(targetImageId);
+    if (fromIndex < 0 || toIndex < 0) {
+      this.draggedImageId = null;
+      this.galleryDragOverId = null;
+      return;
+    }
+
+    const reordered = [...currentIds];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    void this.reorderGallery(reordered, moved);
+
+    this.draggedImageId = null;
+    this.galleryDragOverId = null;
+  }
+
+  onGalleryDragEnd(): void {
+    this.draggedImageId = null;
+    this.galleryDragOverId = null;
+  }
+
+  private async reorderGallery(imageIds: number[], movedImageId?: number): Promise<void> {
+    if (!this.localProduct?.productId || !imageIds?.length) return;
+    try {
+      this.productService.loadToken();
+      await lastValueFrom(this.productService.reorderProductImages(this.localProduct.productId, imageIds));
+      await this.loadProductImages(this.localProduct.productId);
+      if (movedImageId) {
+        this.reorderFlashImageId = movedImageId;
+        setTimeout(() => {
+          if (this.reorderFlashImageId === movedImageId) {
+            this.reorderFlashImageId = null;
+          }
+        }, 700);
+      }
+    } catch (error) {
+      console.error('Error reordering gallery images:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: 'Failed to reorder images.',
+        life: 2500,
+      });
+    }
+  }
+
+  private async attachRecentImageToExistingProduct(imageUrl: string): Promise<void> {
+    if (!this.localProduct?.productId || !imageUrl) return;
+    const pid = this.localProduct.productId;
+    const resolved = imageUrl.trim();
+    try {
+      this.productService.loadToken();
+      await lastValueFrom(this.productService.attachProductImageUrl(pid, resolved));
+      await this.loadProductImages(pid);
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('product_image'),
+        life: 2200,
+      });
+    } catch (linkErr) {
+      console.warn('attachProductImageUrl failed, trying fetch+upload fallback:', linkErr);
+      try {
+        const res = await fetch(resolved, { mode: 'cors', credentials: 'omit' });
+        if (!res.ok) {
+          throw new Error(`fetch ${res.status}`);
+        }
+        const blob = await res.blob();
+        if (!blob?.type?.startsWith('image/')) {
+          throw new Error('not an image response');
+        }
+        const ext = blob.type.includes('png')
+          ? 'png'
+          : blob.type.includes('webp')
+            ? 'webp'
+            : blob.type.includes('gif')
+              ? 'gif'
+              : 'jpg';
+        const file = new File([blob], `recent-image.${ext}`, { type: blob.type });
+        this.productService.loadToken();
+        await lastValueFrom(this.productService.uploadAndAttachProductImage(pid, file));
+        this.addToRecentImages(resolved);
+        await this.loadProductImages(pid);
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('product_image'),
+          life: 2200,
+        });
+      } catch (fallbackErr) {
+        console.error('Error linking recent image:', linkErr, fallbackErr);
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_uploading_image'),
+          life: 2500,
+        });
+      }
+    }
   }
 
   addAttribute(): void {
@@ -497,6 +1517,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   async saveProduct(): Promise<void> {
     this.submitted = true;
+    this.backendFieldErrors = {};
 
     // Ensure productType is set
     if (!this.localProduct.productType) {
@@ -515,6 +1536,16 @@ export class ProductFormComponent implements OnInit, OnChanges {
         summary: this.translate.instant('error'),
         detail: this.translate.instant('please_fill_required_fields'),
         life: 3100,
+      });
+      return;
+    }
+
+    if ((this.localProduct.description?.length ?? 0) > this.productDescriptionMaxLength) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('max_500_characters'),
+        life: 3000,
       });
       return;
     }
@@ -545,6 +1576,42 @@ export class ProductFormComponent implements OnInit, OnChanges {
       // Ensure quantity is set for products (default to 0)
       if (this.localProduct.quantityAvailable === null || this.localProduct.quantityAvailable === undefined) {
         this.localProduct.quantityAvailable = 0;
+      }
+
+      if (this.activityProfileService.isPharmacyProfile) {
+        if (!this.hasExpirationDate || !this.expirationDateValue) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('profile_mode_pharmacy_expiration_required'),
+            life: 4000,
+          });
+          return;
+        }
+        const expiration = this.expirationDateValue instanceof Date
+          ? this.expirationDateValue
+          : new Date(this.expirationDateValue);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (isNaN(expiration.getTime()) || expiration < today) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('profile_mode_pharmacy_expiration_future'),
+            life: 4000,
+          });
+          return;
+        }
+      }
+
+      if (this.activityProfileService.isFashionProfile && !this.hasFashionRequiredAttributes()) {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('profile_mode_fashion_size_color_required'),
+          life: 4000,
+        });
+        return;
       }
     } else if (this.isService()) {
       // Services cannot have warehouse or quantity
@@ -593,20 +1660,25 @@ export class ProductFormComponent implements OnInit, OnChanges {
       }
     }
 
-    // Upload image if a new file was selected
-    if (this.uploadedFile) {
+    const selectedFiles = this.pendingUploadFiles.length > 0
+      ? [...this.pendingUploadFiles]
+      : (this.uploadedFile ? [this.uploadedFile] : []);
+    const additionalGalleryFiles = !this.localProduct?.productId && selectedFiles.length > 1
+      ? selectedFiles.slice(1)
+      : [];
+
+    // Upload primary image if selected (for create flow)
+    if (selectedFiles.length > 0) {
       this.isSaving = true;
       try {
-        const filePath = `images/${Date.now()}_${this.uploadedFile.name}`;
-        const fileRef = this.storage.ref(filePath);
-        const task = this.storage.upload(filePath, this.uploadedFile);
-
-        task.percentageChanges().subscribe(percentage => {
-          this.uploadProgress = percentage || 0;
-        });
-
-        await lastValueFrom(task.snapshotChanges());
-        const url = await lastValueFrom(fileRef.getDownloadURL());
+        this.uploadProgress = 30;
+        this.productService.loadToken();
+        const uploadResp = await lastValueFrom(this.productService.uploadProductImage(selectedFiles[0]));
+        const url = uploadResp?.url;
+        if (!url) {
+          throw new Error('Invalid upload response: missing image URL');
+        }
+        this.uploadProgress = 100;
         this.localProduct.productImage = url;
         this.addToRecentImages(url);
       } catch (error) {
@@ -621,6 +1693,8 @@ export class ProductFormComponent implements OnInit, OnChanges {
         return;
       } finally {
         this.uploadedFile = null;
+        this.clearPendingLocalPreviews();
+        this.imagePreviewUrl = null;
         this.uploadProgress = 0;
         this.isSaving = false;
       }
@@ -667,36 +1741,8 @@ export class ProductFormComponent implements OnInit, OnChanges {
       this.localProduct.serviceCategory = null;
     }
 
-    // For updates, merge original product data with local changes to ensure all fields are preserved
-    let productToSave: any;
-    if (this.localProduct.productId && this.product?.productId) {
-      // Merge original product with local changes - backend needs ALL fields
-      productToSave = {
-        ...this.product,  // Start with original product to preserve all fields
-        ...this.localProduct,  // Override with user changes
-        // Ensure productId is preserved and is a number
-        productId: Number(this.localProduct.productId),
-        // Ensure nested objects are properly included
-        category: this.localProduct.category || this.product.category,
-        supplier: this.localProduct.supplier || this.product.supplier,
-        warehouse: this.localProduct.warehouse || this.product.warehouse,
-        // Ensure attributes are from localProduct (already cleaned)
-        attributes: this.localProduct.attributes || this.product.attributes,
-        // Ensure productType is set
-        productType: this.localProduct.productType || 'PRODUCT',
-      };
-    } else {
-      // For new products, use localProduct as-is
-      productToSave = { 
-        ...this.localProduct,
-        productType: this.localProduct.productType || 'PRODUCT'
-      };
-    }
-
-    // Ensure productId is a number for updates
-    if (productToSave.productId) {
-      productToSave.productId = Number(productToSave.productId);
-    }
+    // Build a sanitized payload to avoid sending aggregated/transient UI fields
+    const productToSave = this.buildProductPayload();
 
     console.log('=== SAVE PRODUCT DEBUG ===');
     console.log('Original product:', this.product);
@@ -710,7 +1756,16 @@ export class ProductFormComponent implements OnInit, OnChanges {
     
     try {
       // Use saveProduct for both create and update (matching warehouse details behavior)
-      await this.saveProductToBackend(productToSave);
+      const savedProduct = await this.saveProductToBackend(productToSave);
+      if (!productToSave.productId && additionalGalleryFiles.length > 0) {
+        const raw = savedProduct as any;
+        const createdProductId = Number(
+          raw?.productId ?? raw?.id ?? raw?.product?.productId ?? raw?.data?.productId
+        );
+        if (createdProductId) {
+          await this.uploadAdditionalGalleryImages(createdProductId, additionalGalleryFiles);
+        }
+      }
       
       if (productToSave.productId) {
         this.messageService.add({
@@ -741,23 +1796,25 @@ export class ProductFormComponent implements OnInit, OnChanges {
     }
   }
 
-  // Save product to backend - uses saveProduct (POST) for both create and update
-  // This matches the behavior in warehouse-details component
-  private async saveProductToBackend(product: any): Promise<void> {
+  // Save product to backend: POST for create, PUT for update
+  private async saveProductToBackend(product: any): Promise<any> {
     console.log('=== SAVE PRODUCT TO BACKEND ===');
     console.log('Product data being sent:', JSON.stringify(product, null, 2));
     console.log('Product ID:', product.productId);
     console.log('==============================');
     
-    return new Promise<void>((resolve, reject) => {
-      this.productService.saveProduct(product)
+    return new Promise<any>((resolve, reject) => {
+      const request$ = product.productId
+        ? this.productService.updateProduct(product.productId, product)
+        : this.productService.saveProduct(product);
+      request$
         .subscribe({
           next: (response: any) => {
             console.log('=== SAVE PRODUCT SUCCESS ===');
             console.log('Product save API response:', response);
             console.log('Response type:', typeof response);
             console.log('============================');
-            resolve();
+            resolve(response);
           },
           error: (err: any) => {
             console.error('=== SAVE PRODUCT ERROR ===');
@@ -768,6 +1825,18 @@ export class ProductFormComponent implements OnInit, OnChanges {
             console.error('Full error:', err);
             console.error('==========================');
             
+            const validationErrors = Array.isArray(err?.error?.validationErrors) ? err.error.validationErrors : [];
+            if (validationErrors.length > 0) {
+              this.backendFieldErrors = {};
+              for (const ve of validationErrors) {
+                const field = String(ve?.field ?? '').trim();
+                const message = String(ve?.message ?? '').trim();
+                if (field && message) {
+                  this.backendFieldErrors[field] = message;
+                }
+              }
+            }
+
             const errorMessage = err?.error?.message || 
                                 err?.error?.error || 
                                 err?.message || 
@@ -787,6 +1856,71 @@ export class ProductFormComponent implements OnInit, OnChanges {
     });
   }
 
+  private async uploadAdditionalGalleryImages(productId: number, files: File[]): Promise<void> {
+    if (!productId || !files?.length) return;
+    try {
+      this.productService.loadToken();
+      for (const file of files) {
+        await lastValueFrom(this.productService.uploadAndAttachProductImage(productId, file));
+      }
+    } catch (error) {
+      console.error('Error uploading additional gallery images:', error);
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: 'Product saved, but some additional images failed to upload.',
+        life: 4000
+      });
+    }
+  }
+
+  /**
+   * Keep API payload strictly aligned with backend Product entity fields.
+   * Avoid leaking aggregated/transient properties (e.g. _warehouseStocks, activeBarcodes, etc.).
+   */
+  private buildProductPayload(): any {
+    const payload: any = {
+      productId: this.localProduct.productId != null ? Number(this.localProduct.productId) : undefined,
+      reference: this.localProduct.reference,
+      name: this.localProduct.name,
+      description: this.localProduct.description ?? null,
+      productType: this.localProduct.productType || 'PRODUCT',
+      quantityAvailable: this.localProduct.quantityAvailable ?? (this.isProduct() ? 0 : null),
+      buyingPrice: this.localProduct.buyingPrice ?? null,
+      sellingPrice: this.localProduct.sellingPrice,
+      inventoryStatus: this.localProduct.inventoryStatus ?? null,
+      productImage: this.localProduct.productImage ?? null,
+      category: this.localProduct.category?.categoryId != null ? { categoryId: this.localProduct.category.categoryId } : null,
+      supplier: this.localProduct.supplier?.supplierId != null ? { supplierId: this.localProduct.supplier.supplierId } : null,
+      warehouse: this.localProduct.warehouse?.warehouseId != null ? { warehouseId: this.localProduct.warehouse.warehouseId } : null,
+      attributes: this.localProduct.attributes ?? [],
+      measureUnit: this.localProduct.measureUnit,
+      active: this.localProduct['active'] ?? true,
+      standardCost: this.localProduct.standardCost ?? null,
+      costingMethod: this.localProduct.costingMethod ?? null,
+      serviceProvider: this.localProduct.serviceProvider ?? null,
+      estimatedDurationMinutes: this.localProduct.estimatedDurationMinutes ?? null,
+      serviceCategory: this.localProduct.serviceCategory ?? null,
+      expirationDate: this.localProduct.expirationDate ?? null,
+    };
+
+    // ProductType-specific cleanup
+    if (payload.productType === 'SERVICE') {
+      payload.warehouse = null;
+      payload.quantityAvailable = null;
+      payload.inventoryStatus = null;
+      payload.expirationDate = null;
+      payload.costingMethod = null;
+      payload.standardCost = null;
+    } else {
+      payload.serviceProvider = null;
+      payload.estimatedDurationMinutes = null;
+      payload.serviceCategory = null;
+    }
+
+    return payload;
+  }
+
   cancelForm(): void {
     this.visible = false;
     this.visibleChange.emit(false);
@@ -800,7 +1934,12 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   private addToRecentImages(imageUrl: string): void {
-    this.recentProductImages = [imageUrl, ...this.recentProductImages].slice(0, 6);
+    const resolved = this.resolvePublicImageUrl(imageUrl.trim());
+    if (!resolved) return;
+    const withoutDup = this.recentProductImages.filter(
+      (u) => this.resolvePublicImageUrl(u) !== resolved
+    );
+    this.recentProductImages = [resolved, ...withoutDup].slice(0, 6);
     localStorage.setItem('recentProductImages', JSON.stringify(this.recentProductImages));
   }
 }

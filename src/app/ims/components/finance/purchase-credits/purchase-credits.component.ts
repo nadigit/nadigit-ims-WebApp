@@ -21,6 +21,8 @@ import { DatePipe } from '@angular/common';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
 import { firstValueFrom } from 'rxjs';
+import { getPaymentMethodIcon as paymentMethodIconFromUtils } from 'src/app/shared/payment-utils';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -51,12 +53,14 @@ export class PurchaseCreditsComponent implements OnInit {
   exportColumns!: ExportColumn[];
   userRoles: any;
   isAdmin: boolean = false;
+  /** Values must match backend RefundMethod / Jackson (Cash, Card, Check, Transfer, BOE, DIGITAL_WALLET) */
   creditMethods = [
-    { value: 'CASH', label: 'credit_method_cash' },
-    { value: 'CHECK', label: 'credit_method_check' },
-    { value: 'BANK_TRANSFER', label: 'credit_method_transfer' },
+    { value: 'Cash', label: 'credit_method_cash' },
+    { value: 'Card', label: 'credit_method_card' },
+    { value: 'Check', label: 'credit_method_check' },
+    { value: 'Transfer', label: 'credit_method_transfer' },
     { value: 'BOE', label: 'credit_method_boe' },
-    { value: 'CREDIT_NOTE', label: 'credit_method_credit_note' },
+    { value: 'DIGITAL_WALLET', label: 'credit_method_digital_wallet' },
   ];
   canAddCredit: boolean = false;
   canEditCredit: boolean = false;
@@ -91,6 +95,7 @@ export class PurchaseCreditsComponent implements OnInit {
   
   isExporting: boolean = false;
   exportProgress: string = '';
+  isPurchaseCreditsFeatureEnabled: boolean = true;
 
   constructor(
     private messageService: MessageService,
@@ -108,7 +113,8 @@ export class PurchaseCreditsComponent implements OnInit {
     private organizationService: OrganizationService,
     private supplierService: SupplierService,
     private datePipe: DatePipe,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private licenseCapabilitiesService: LicenseCapabilitiesService
   ) { }
 
   async ngOnInit() {
@@ -131,6 +137,7 @@ export class PurchaseCreditsComponent implements OnInit {
       this.loadBankAccounts(),
       this.setUserRoles(),
       this.checkPermissions(),
+      this.loadLicenseCapabilities(),
     ]);
     this.cols = [
       { field: 'creditId', header: this.translateService.instant('ID') },
@@ -166,6 +173,25 @@ export class PurchaseCreditsComponent implements OnInit {
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
+  }
+
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.isPurchaseCreditsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('PURCHASE_CREDITS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for purchase credits.', error);
+      this.isPurchaseCreditsFeatureEnabled = true;
+    }
+  }
+
+  private showUpgradeRequired(detail: string): void {
+    this.messageService.add({
+      severity: 'warn',
+      summary: 'Upgrade required',
+      detail,
+      life: 7000
+    });
   }
 
   async loadBankAccounts() {
@@ -217,11 +243,15 @@ export class PurchaseCreditsComponent implements OnInit {
 
   async openNew() {
     if (!this.canAddCredit) return;
+    if (!this.isPurchaseCreditsFeatureEnabled) {
+      this.showUpgradeRequired('Purchase credits are not available on your current plan. Upgrade to continue.');
+      return;
+    }
     await this.loadEligibleReturns();
     await this.loadBankAccounts();
     this.credit = {};
     this.credit.creditDate = new Date();
-    this.credit.creditMethod = 'CASH';
+    this.credit.creditMethod = 'Cash';
     this.credit.status = 'PENDING';
     this.submitted = false;
     await this.updateBankAccountFieldVisibility();
@@ -277,6 +307,27 @@ export class PurchaseCreditsComponent implements OnInit {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  /** Persisted rows may still use legacy uppercase strings; API expects RefundMethod names */
+  private normalizeCreditMethodForApi(credit: PurchaseCredit): void {
+    const m = credit.creditMethod;
+    if (!m) {
+      return;
+    }
+    const legacyToBackend: Record<string, string> = {
+      CASH: 'Cash',
+      CARD: 'Card',
+      CHECK: 'Check',
+      BANK_TRANSFER: 'Transfer',
+      TRANSFER: 'Transfer',
+      BOE: 'BOE',
+      Boe: 'BOE',
+    };
+    const mapped = legacyToBackend[m];
+    if (mapped) {
+      credit.creditMethod = mapped;
+    }
   }
 
   async saveCredit() {
@@ -375,6 +426,7 @@ export class PurchaseCreditsComponent implements OnInit {
     }
 
     if (this.credit.purchaseReturn) {
+      this.normalizeCreditMethodForApi(this.credit);
       let success = false;
       if (this.credit.creditId) {
         success = await this.updateCredit(this.credit.creditId, this.credit);
@@ -987,11 +1039,17 @@ export class PurchaseCreditsComponent implements OnInit {
 
   getCreditMethodLabel(method: string): string {
     return {
-      'Check': 'credit_method_check',
-      'Card': 'credit_method_card',
-      'Transfer': 'credit_method_transfer',
-      'Cash': 'credit_method_cash',
-      'BOE': 'credit_method_boe',
+      Check: 'credit_method_check',
+      Card: 'credit_method_card',
+      Transfer: 'credit_method_transfer',
+      Cash: 'credit_method_cash',
+      BOE: 'credit_method_boe',
+      DIGITAL_WALLET: 'credit_method_digital_wallet',
+      // Legacy persisted values
+      CHECK: 'credit_method_check',
+      CASH: 'credit_method_cash',
+      BANK_TRANSFER: 'credit_method_transfer',
+      CREDIT_NOTE: 'credit_method_credit_note',
     }[method] || method;
   }
 
@@ -1000,13 +1058,7 @@ export class PurchaseCreditsComponent implements OnInit {
   }
 
   getPaymentMethodIcon(method: string): string {
-    switch (method) {
-      case 'CASH': return 'pi pi-money-bill';
-      case 'CARD': return 'pi pi-credit-card';
-      case 'TRANSFER': return 'pi pi-bank';
-      case 'CHECK': return 'pi pi-file';
-      default: return 'pi pi-wallet';
-    }
+    return paymentMethodIconFromUtils(method);
   }
 
   getPaymentMethodSeverity(method: string): string {

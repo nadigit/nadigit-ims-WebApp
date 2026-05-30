@@ -47,7 +47,8 @@
                         <p-dropdown [(ngModel)]="config.shop.country" (onChange)="onSelectedCountry(config.shop.country)"
                             name="country" [options]="countries" optionValue="name" optionLabel="translatedName"
                             [filter]="true" [filterFields]="['name', 'translatedName']"
-                            [filterBy]="filterCountry" [showClear]="true"
+                            [showClear]="true" appendTo="body"
+                            [autoDisplayFirst]="false" [resetFilterOnHide]="false"
                             placeholder="{{ 'select_country_option' | translate }}">
 
                             <ng-template pTemplate="selectedItem">
@@ -73,6 +74,7 @@
                         </label>
                         <p-dropdown [(ngModel)]="config.shop.city" name="city" [options]="states" optionLabel="name"
                             optionValue="name" [filter]="true" filterBy="name" [showClear]="true"
+                            appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
                             placeholder="{{ 'select_city_option' | translate }}">
                             <ng-template pTemplate="selectedItem">
                                 <span *ngIf="config.shop && config.shop.city" class="flex align-items-center gap-2">
@@ -109,11 +111,13 @@
                     <label for="defaultBankAccount" class="block mb-2 font-bold">
                         {{ 'default_bank_account' | translate }}
                     </label>
-                    <p-dropdown [(ngModel)]="config.shop.defaultBankAccount" [options]="bankAccounts"
+                    <p-dropdown [(ngModel)]="config.shop.defaultBankAccountId" [options]="bankAccounts"
                         optionLabel="accountName" optionValue="accountId" [filter]="true"
-                        filterBy="accountName,bank.name" [showClear]="true"
+                        filterBy="accountName,bank.name" [showClear]="true" appendTo="body"
+                        [autoDisplayFirst]="false" [resetFilterOnHide]="false"
                         placeholder="{{ 'select_default_bank_account' | translate }}"
-                        name="defaultBankAccount">
+                        inputId="defaultBankAccountId"
+                        name="defaultBankAccountId">
                         <ng-template let-account pTemplate="item">
                             <div class="flex align-items-center justify-content-between">
                                 <div>

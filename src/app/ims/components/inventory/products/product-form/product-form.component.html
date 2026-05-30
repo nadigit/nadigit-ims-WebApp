@@ -1,100 +1,317 @@
 <p-dialog [(visible)]="visible" (onHide)="onDialogHide()"
-	[style]="{width: '80%', maxWidth: '800px', minHeight: '600px'}" header="{{'product_details' | translate}}"
-	[modal]="true" [draggable]="false" [resizable]="false" [breakpoints]="{'960px': '90%', '640px': '95%'}"
+	[style]="{ width: 'min(92vw, 1180px)', maxWidth: '1180px', minHeight: '620px' }"
+	header="{{'product_details' | translate}}"
+	[modal]="true" [draggable]="false" [resizable]="false"
+	[breakpoints]="{'1199px': '94vw', '960px': '96vw', '640px': '98vw'}"
+	[styleClass]="'product-form-dialog-shell'"
 	class="p-fluid product-dialog">
 	<ng-template pTemplate="content">
 		<form>
 			<div class="grid p-fluid">
-				<!-- Left Column - Image Section -->
-				<div class="col-12 md:col-4">
-					<div class="image-section card p-3"
-						*ngIf="localProduct.productImage || imagePreviewUrl; else upload_image">
-						<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
-							translate}}</label>
-						<div class="image-container relative">
-							<!-- Image with preview and loading state -->
-							<div class="image-wrapper border-round overflow-hidden surface-ground"
-								[ngClass]="{'loading': isImageLoading}">
-								<p-image
-									[src]="imagePreviewUrl || localProduct?.productImage || 'assets/core-images/no-image.png'"
-									[alt]="localProduct?.name || 'Product image'" width="100%" [preview]="true"
-									class="block shadow-2 border-round" imageClass="w-full"
-									(onLoad)="isImageLoading = false" (onError)="onImageError()">
-								</p-image>
-
-								<!-- Loading overlay -->
-								<div class="loading-overlay flex align-items-center justify-content-center"
-									*ngIf="isImageLoading">
-									<p-progressSpinner strokeWidth="4" animationDuration=".5s"
-										styleClass="w-2rem h-2rem" ariaLabel="image-loading">
-									</p-progressSpinner>
+				<div class="col-12" *ngIf="activityProfileService.currentProfile">
+					<div class="p-3 border-round surface-ground border-1 surface-border mb-2">
+						<div class="flex align-items-center justify-content-between gap-2">
+							<div class="font-semibold text-900">
+								{{ 'profile_mode_active' | translate }}: {{ activityProfileService.profileLabelI18nKey() | translate }}
+							</div>
+							<i class="pi pi-sparkles text-primary"></i>
+						</div>
+						<div *ngIf="activityProfileService.isPharmacyProfile" class="text-600 text-sm mt-2">
+							<i class="pi pi-check-circle mr-2"></i>{{ 'profile_mode_pharmacy_product_form' | translate }}
+						</div>
+						<div *ngIf="activityProfileService.isFashionProfile" class="text-600 text-sm mt-2">
+							<i class="pi pi-check-circle mr-2"></i>{{ 'profile_mode_fashion_product_form' | translate }}
+						</div>
+						<div *ngIf="activityProfileService.isFashionProfile" class="text-600 text-sm mt-2">
+							<i class="pi pi-exclamation-circle mr-2 text-orange-500"></i>{{ 'profile_mode_fashion_size_color_required' | translate }}
+						</div>
+						<div *ngIf="activityProfileService.isPharmacyProfile" class="text-600 text-sm mt-2">
+							<i class="pi pi-exclamation-circle mr-2 text-orange-500"></i>{{ 'profile_mode_pharmacy_expiration_required' | translate }}
+						</div>
+						<div *ngIf="activityProfileService.suggestRecipesOrComponents" class="text-600 text-sm mt-2">
+							<i class="pi pi-box mr-2"></i>{{ 'activity_profile_hint_recipes_components' | translate }}
+						</div>
+					</div>
+				</div>
+				<!-- Left Column — Media (modern layout) -->
+				<div class="col-12 lg:col-5">
+					<div class="product-media-shell"
+						*ngIf="localProduct.productImage || imagePreviewUrl || (productImages && productImages.length > 0) || (pendingPreviewUrls && pendingPreviewUrls.length > 0); else upload_image">
+						<div class="product-media-card surface-section">
+							<div class="product-media-head flex align-items-start justify-content-between gap-3 mb-3">
+								<div class="flex align-items-start gap-3 min-w-0">
+									<div class="product-media-head-icon hidden md:flex align-items-center justify-content-center flex-shrink-0">
+										<i class="pi pi-images"></i>
+									</div>
+									<div class="min-w-0">
+										<label for="productImage" class="product-media-title block m-0">{{'product_image' | translate}}</label>
+										<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'drag_drop_subtitle' | translate }}</p>
+									</div>
 								</div>
+								<span class="product-media-count-chip" *ngIf="productImages?.length || pendingPreviewUrls?.length">
+									<i class="pi pi-images"></i>
+									{{ (productImages?.length || pendingPreviewUrls?.length) || 0 }}
+								</span>
+							</div>
 
-								<!-- Image actions overlay -->
-								<div class="image-actions-overlay flex align-items-center justify-content-center gap-2">
-									<p-button icon="pi pi-search-plus" [text]="true" [rounded]="true"
-										severity="secondary" (click)="zoomImage()"
-										[tooltip]="'zoom_image_tooltip' | translate"></p-button>
-									<p-button icon="pi pi-pencil" [text]="true" [rounded]="true" severity="info"
-										(click)="editImage()" [tooltip]="'edit_image_tooltip' | translate"></p-button>
-									<p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
-										(click)="removeImage()"
-										[tooltip]="'remove_image_tooltip' | translate"></p-button>
+							<div class="image-container relative">
+								<div class="product-image-hero-shell border-round-xl overflow-hidden">
+									<div class="product-image-hero-wrap product-image-hero-wrap--elevated border-round-xl overflow-hidden flex flex-column">
+										<div class="product-media-stage relative flex-1 w-full min-w-0 min-h-0">
+											<div class="image-wrapper h-full relative border-round-xl overflow-hidden"
+												[ngClass]="{'loading': isImageLoading}">
+												<p-image
+													[src]="getCurrentImageSource()"
+													[alt]="localProduct?.name || 'Product image'" width="100%" [preview]="true"
+													class="block product-image-pimage" imageClass="product-image-img"
+													(onLoad)="isImageLoading = false" (onError)="onImageError()">
+												</p-image>
+												<div class="loading-overlay flex align-items-center justify-content-center border-round-xl"
+													*ngIf="isImageLoading">
+													<p-progressSpinner strokeWidth="3" animationDuration=".5s"
+														styleClass="w-3rem h-3rem" ariaLabel="image-loading">
+													</p-progressSpinner>
+												</div>
+											</div>
+										</div>
+										<input #galleryReplaceInput type="file" accept="image/*" tabindex="-1"
+											class="product-gallery-replace-input"
+											(change)="onReplaceImageFileSelected($event)" />
+
+										<div class="product-media-toolbar flex align-items-center justify-content-center gap-2 flex-wrap">
+											<p-button type="button" icon="pi pi-search-plus" [rounded]="true" [text]="true"
+												class="product-media-fab"
+												(click)="zoomImage()" [pTooltip]="'zoom_image_tooltip' | translate" tooltipPosition="top">
+											</p-button>
+											<p-button type="button" icon="pi pi-pencil" [rounded]="true" [text]="true"
+												class="product-media-fab product-media-fab--accent"
+												(click)="editImage()" [pTooltip]="'edit_image_tooltip' | translate" tooltipPosition="top">
+											</p-button>
+											<p-button type="button" icon="pi pi-trash" [rounded]="true" [text]="true"
+												class="product-media-fab product-media-fab--danger"
+												(click)="removeImage()" [pTooltip]="'remove_image_tooltip' | translate" tooltipPosition="top">
+											</p-button>
+										</div>
+									</div>
 								</div>
 							</div>
 
-							<!-- File info -->
-							<div class="file-info mt-2 text-sm text-color-secondary" *ngIf="uploadedFile">
-								<div class="flex align-items-center">
-									<i class="pi pi-file mr-1"></i>
-									<span class="truncate">{{ uploadedFile.name }}</span>
+							<!-- Single pending / replacement file summary -->
+							<div class="file-info-card mt-3 p-3 border-round surface-ground border-1 surface-border"
+								*ngIf="uploadedFile && (!pendingUploadFiles || pendingUploadFiles.length <= 1)">
+								<div class="flex align-items-center gap-2">
+									<i class="pi pi-paperclip text-primary"></i>
+									<span class="truncate flex-1 text-sm font-medium">{{ uploadedFile.name }}</span>
 								</div>
-								<div>{{ uploadedFile.size | fileSize }}</div>
+								<div class="flex align-items-center justify-content-between mt-2">
+									<span class="text-xs text-600">{{ uploadedFile.size | fileSize }}</span>
+									<span class="text-xs text-500" *ngIf="pendingUploadFiles?.length === 1">
+										{{ 'product_pending_images_selected_one' | translate }}
+									</span>
+								</div>
+							</div>
+
+							<!-- Multiple local files: selectable list -->
+							<div class="pending-files-panel mt-3 border-round surface-ground border-1 surface-border overflow-hidden"
+								*ngIf="pendingUploadFiles?.length > 1">
+								<div class="px-3 py-2 border-bottom-1 surface-border surface-100">
+									<span class="text-sm font-semibold text-900">
+										{{ 'pending_upload_files_count' | translate: { count: pendingUploadFiles.length, current: selectedPendingIndex + 1 } }}
+									</span>
+								</div>
+								<ul class="pending-files-list list-none m-0 p-0">
+									<li *ngFor="let f of pendingUploadFiles; let i = index"
+										class="pending-files-item flex align-items-center justify-content-between gap-2 px-3 py-2 cursor-pointer"
+										[class.pending-files-item--active]="selectedPendingIndex === i"
+										(click)="selectPendingPreview(i)">
+										<span class="flex align-items-center gap-2 min-w-0 flex-1">
+											<i class="pi pi-image text-500 flex-shrink-0"></i>
+											<span class="truncate text-sm">{{ f.name }}</span>
+										</span>
+										<span class="text-xs text-500 whitespace-nowrap flex-shrink-0">{{ f.size | fileSize }}</span>
+									</li>
+								</ul>
+								<div class="px-3 py-2 text-xs text-600 border-top-1 surface-border">
+									{{ 'pending_upload_primary_hint' | translate }}
+								</div>
+							</div>
+
+							<!-- Pending local previews (new product, multi-select before save) -->
+							<div class="gallery-strip gallery-strip--modern pending-upload-strip"
+								*ngIf="!localProduct?.productId && pendingPreviewUrls?.length > 0">
+								<header class="gallery-section-head flex align-items-start gap-3 mb-3">
+									<div class="product-media-head-icon gallery-section-head-icon hidden sm:flex align-items-center justify-content-center flex-shrink-0">
+										<i class="pi pi-images"></i>
+									</div>
+									<div class="flex-1 min-w-0">
+										<div class="flex align-items-start justify-content-between gap-2 flex-wrap">
+											<h3 class="product-media-title m-0">{{ 'pending_upload_gallery_title' | translate: { count: pendingPreviewUrls.length } }}</h3>
+											<span class="product-media-count-chip">{{ pendingPreviewUrls.length }}</span>
+										</div>
+										<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'pending_upload_primary_hint' | translate }}</p>
+									</div>
+								</header>
+								<div class="gallery-grid">
+									<div class="gallery-thumb"
+										*ngFor="let url of pendingPreviewUrls; let i = index"
+										draggable="true"
+										(dragstart)="onPendingGalleryDragStart($event, i)"
+										(dragover)="onPendingGalleryDragOver($event, i)"
+										(drop)="onPendingGalleryDrop($event, i)"
+										(dragend)="onPendingGalleryDragEnd()"
+										[ngClass]="{
+											'gallery-pending-selected': selectedPendingIndex === i,
+											'gallery-thumb--hero': selectedPendingIndex === i,
+											'gallery-drop-target': pendingDragOverIndex === i
+										}">
+										<div class="gallery-drag-handle" [pTooltip]="'gallery_drag_reorder_hint' | translate" tooltipPosition="top">
+											<i class="pi pi-bars"></i>
+										</div>
+										<img draggable="false" [src]="url" alt=""
+											(click)="selectPendingPreview(i)" />
+										<div class="gallery-thumb-actions">
+											<p-button icon="pi pi-arrow-up" [text]="true" [rounded]="true"
+												[disabled]="i === 0"
+												(click)="movePendingPreviewUp(i); $event.stopPropagation()"
+												[pTooltip]="'move_up' | translate"></p-button>
+											<p-button icon="pi pi-arrow-down" [text]="true" [rounded]="true"
+												[disabled]="i === pendingPreviewUrls.length - 1"
+												(click)="movePendingPreviewDown(i); $event.stopPropagation()"
+												[pTooltip]="'move_down' | translate"></p-button>
+											<p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="danger"
+												(click)="removePendingPreview(i); $event.stopPropagation()"
+												[pTooltip]="'remove_image_tooltip' | translate"></p-button>
+										</div>
+										<div class="gallery-primary-badge" *ngIf="i === 0">{{ 'primary_image_badge' | translate }}</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="gallery-strip gallery-strip--modern"
+								*ngIf="localProduct?.productId && productImages?.length">
+								<header class="gallery-section-head flex align-items-start gap-3 mb-3">
+									<div class="product-media-head-icon gallery-section-head-icon hidden sm:flex align-items-center justify-content-center flex-shrink-0">
+										<i class="pi pi-arrows-alt"></i>
+									</div>
+									<div class="flex-1 min-w-0">
+										<div class="flex align-items-start justify-content-between gap-2 flex-wrap">
+											<h3 class="product-media-title m-0">{{ 'product_image_gallery_title' | translate: { count: productImages.length } }}</h3>
+											<span class="product-media-count-chip">{{ productImages.length }}</span>
+										</div>
+										<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'gallery_drag_reorder_hint' | translate }}</p>
+									</div>
+								</header>
+								<div class="gallery-grid">
+									<div class="gallery-thumb" *ngFor="let img of productImages"
+										draggable="true"
+										(dragstart)="onGalleryDragStart($event, img)"
+										(dragover)="onGalleryDragOver($event, img)"
+										(drop)="onGalleryDrop($event, img)"
+										(dragend)="onGalleryDragEnd()"
+										[ngClass]="{
+											'gallery-drop-target': galleryDragOverId === galleryRowId(img),
+											'gallery-reorder-flash': reorderFlashImageId === galleryRowId(img),
+											'gallery-thumb--hero': isGalleryThumbHero(img)
+										}">
+										<div class="gallery-drag-handle" [pTooltip]="'gallery_drag_reorder_hint' | translate" tooltipPosition="top">
+											<i class="pi pi-bars"></i>
+										</div>
+										<img draggable="false" [src]="resolvePublicImageUrl(img.imageUrl)" alt="Product gallery image"
+											(click)="localProduct.productImage = img.imageUrl" />
+										<div class="gallery-thumb-actions">
+											<p-button icon="pi pi-star-fill" [text]="true" [rounded]="true"
+												[disabled]="img.primaryImage"
+												(click)="onGallerySetPrimaryClick(img)"></p-button>
+											<p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+												(click)="onGalleryDeleteClick(img)"></p-button>
+										</div>
+										<div class="gallery-primary-badge" *ngIf="img.primaryImage">{{ 'primary_image_badge' | translate }}</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="product-add-images mt-4 border-round-lg surface-ground border-1 surface-border p-3"
+								(drop)="onDrop($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
+								[ngClass]="{'upload-dropzone--active': isDragOver}">
+								<div class="flex flex-column sm:flex-row align-items-center justify-content-between gap-3 flex-wrap">
+									<p class="text-sm text-600 m-0 flex-1 min-w-0">{{ 'add_product_images_hint' | translate }}</p>
+									<p-fileUpload mode="basic" name="productImageAdd" accept="image/*"
+										maxFileSize="5000000" (onSelect)="onFileUpload($event)"
+										[multiple]="true"
+										styleClass="product-media-upload-btn"
+										chooseLabel="{{ 'add_product_images' | translate }}"
+										chooseIcon="pi pi-plus" [auto]="true" [showUploadButton]="false"
+										[showCancelButton]="false">
+									</p-fileUpload>
+								</div>
 							</div>
 						</div>
 					</div>
 
 					<ng-template #upload_image>
-						<div class="field card p-3">
-							<label for="productImage" class="block mb-2 font-bold">{{'product_image' |
-								translate}}</label>
-
-							<!-- Drag and drop area -->
-							<div class="upload-container border-2 surface-border border-dashed border-round p-4 text-center"
-								(drop)="onDrop($event)" (dragover)="onDragOver($event)"
-								(dragleave)="onDragLeave($event)" [ngClass]="{'drag-over': isDragOver}">
-
-								<div class="upload-content">
-									<i class="pi pi-cloud-upload text-4xl text-color-secondary mb-3"></i>
-									<h4 class="mb-2">{{'drag_drop_title' | translate}}</h4>
-									<p class="text-color-secondary text-sm mb-3">{{'drag_drop_subtitle' |
-										translate}}</p>
-								</div>
-
-								<!-- File Upload Button - Outside upload-content to ensure it's clickable -->
-								<div class="upload-button-wrapper">
-									<p-fileUpload mode="basic" name="productImage" accept="image/*"
-										maxFileSize="5000000" (onSelect)="onFileUpload($event)"
-										chooseLabel="{{'browse_files_button' | translate}}"
-										chooseIcon="pi pi-folder-open" [auto]="true" [showUploadButton]="false"
-										[showCancelButton]="false">
-									</p-fileUpload>
-								</div>
-
-								<small class="text-color-secondary block mt-2">{{'image_upload_hint' |
-									translate}}</small>
-							</div>
-
-							<!-- Recent images (if available) -->
-							<div class="recent-images mt-3" *ngIf="recentProductImages?.length > 0">
-								<h5 class="mb-2">{{'recent_images' | translate}}</h5>
-								<div class="grid">
-									<div class="col-4" *ngFor="let img of recentProductImages">
-										<div class="recent-image-container border-1 surface-border border-round p-1 cursor-pointer"
-											(click)="selectRecentImage(img)">
-											<img [src]="img" alt="Recent product image" class="w-full border-round"
-												style="height: 60px; object-fit: cover;">
+						<div class="product-media-shell">
+							<div class="product-media-card product-media-card--empty surface-section">
+								<div class="product-media-head flex align-items-start justify-content-between gap-3 mb-3">
+									<div class="flex align-items-start gap-3 min-w-0">
+										<div class="product-media-head-icon hidden md:flex align-items-center justify-content-center flex-shrink-0">
+											<i class="pi pi-cloud-upload"></i>
 										</div>
+										<div class="min-w-0">
+											<label for="productImage" class="product-media-title block m-0">{{'product_image' | translate}}</label>
+											<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{'drag_drop_subtitle' | translate}}</p>
+										</div>
+									</div>
+								</div>
+
+								<div class="upload-dropzone upload-dropzone--modern border-round-xl p-4 md:p-5 text-center"
+									(drop)="onDrop($event)" (dragover)="onDragOver($event)"
+									(dragleave)="onDragLeave($event)" [ngClass]="{'upload-dropzone--active': isDragOver}"
+									role="region" [attr.aria-label]="'product_image' | translate">
+
+									<div class="upload-dropzone-icon mx-auto mb-4">
+										<i class="pi pi-cloud-upload"></i>
+									</div>
+
+									<h3 class="upload-dropzone-title m-0 mb-2 text-xl font-semibold text-900">{{'drag_drop_title' | translate}}</h3>
+									<p class="text-color-secondary text-sm m-0 mb-4 line-height-3 upload-dropzone-desc mx-auto">
+										{{'image_upload_hint' | translate}}
+									</p>
+
+									<div class="upload-button-wrapper flex justify-content-center">
+										<p-fileUpload mode="basic" name="productImage" accept="image/*"
+											maxFileSize="5000000" (onSelect)="onFileUpload($event)"
+											[multiple]="true"
+											styleClass="product-media-upload-btn"
+											chooseLabel="{{'browse_files_button' | translate}}"
+											chooseIcon="pi pi-folder-open" [auto]="true" [showUploadButton]="false"
+											[showCancelButton]="false">
+										</p-fileUpload>
+									</div>
+
+									<p class="text-xs text-500 m-0 mt-4" *ngIf="!localProduct?.productId && pendingUploadFiles?.length === 1">
+										{{ 'product_pending_images_selected_one' | translate }}
+									</p>
+									<p class="text-xs text-500 m-0 mt-4" *ngIf="!localProduct?.productId && pendingUploadFiles?.length > 1">
+										{{ 'product_pending_images_selected_many' | translate: { count: pendingUploadFiles.length } }}
+									</p>
+								</div>
+
+								<div class="recent-images recent-images-panel mt-4"
+									*ngIf="recentProductImages?.length > 0">
+									<div class="recent-images-header flex align-items-center justify-content-between gap-2 mb-3">
+										<span class="font-semibold text-900 flex align-items-center gap-2">
+											<i class="pi pi-history text-primary"></i>
+											{{'recent_images' | translate}}
+										</span>
+										<span class="text-xs font-medium text-600 surface-100 px-2 py-1 border-round">{{ recentProductImages.length }}</span>
+									</div>
+									<div class="recent-images-grid">
+										<button type="button" class="recent-image-tile"
+											*ngFor="let img of recentProductImages"
+											(click)="selectRecentImage(img)">
+											<img [src]="img" alt="" loading="lazy" decoding="async"
+												(error)="onRecentImageError(img)" />
+										</button>
 									</div>
 								</div>
 							</div>
@@ -102,16 +319,17 @@
 					</ng-template>
 				</div>
 
-				<!-- Right Column - Form Fields -->
-				<div class="col-12 md:col-8">
-					<div class="form-section grid">
+				<!-- Right Column — Product fields -->
+				<div class="col-12 lg:col-7">
+					<div class="form-section grid product-form-fields">
 						<!-- Product Type Selector -->
 						<div class="field col-12">
 							<label for="productType" class="block mb-2 font-bold">
 								{{'product_type' | translate}} <span class="required-asterisk">*</span>
 							</label>
 							<p-dropdown appendTo="body" [(ngModel)]="localProduct.productType"
-								[ngModelOptions]="{standalone: true}" name="productType" [options]="productTypeOptions"
+								[ngModelOptions]="{standalone: true}" name="productType" [options]="profileAwareProductTypeOptions"
+								optionDisabled="disabled"
 								optionLabel="label" optionValue="value"
 								placeholder="{{'select_product_type' | translate}}" required
 								[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.productType}"
@@ -137,6 +355,9 @@
 								<span
 									*ngIf="!localProduct.productType || localProduct.productType === 'PRODUCT'">{{'product_type_product_help'
 									| translate}}</span>
+							</small>
+							<small class="text-orange-600 block mt-1" *ngIf="activityProfileService.isPharmacyProfile">
+								<i class="pi pi-lock mr-1"></i>{{ 'profile_mode_pharmacy_product_only' | translate }}
 							</small>
 							<small class="p-error" *ngIf="submitted && !localProduct.productType">
 								{{'product_type' | translate}} {{'is_required_label' | translate}}
@@ -195,7 +416,19 @@
 							</label>
 							<textarea pInputTextarea name="description" [(ngModel)]="localProduct.description"
 								[ngModelOptions]="{standalone: true}" rows="3" [autoResize]="true"
+								[maxlength]="productDescriptionMaxLength"
 								placeholder="{{'enter_product_description' | translate}}"></textarea>
+							<div class="flex justify-content-between mt-1">
+								<small class="text-color-secondary">
+									{{ (localProduct.description?.length || 0) }} / {{ productDescriptionMaxLength }}
+								</small>
+								<small class="text-color-secondary">
+									{{ (productDescriptionMaxLength - (localProduct.description?.length || 0)) }} {{ 'characters_remaining_lbl' | translate }}
+								</small>
+							</div>
+							<small class="p-error block" *ngIf="(localProduct.description?.length || 0) > productDescriptionMaxLength">
+								{{ 'max_500_characters' | translate }}
+							</small>
 						</div>
 
 						<!-- Quantity Available (Products only) -->
@@ -299,6 +532,7 @@
 								<p-calendar id="expirationDate" [(ngModel)]="expirationDateValue"
 									[ngModelOptions]="{standalone: true}" name="expirationDate" [showIcon]="true"
 									[showButtonBar]="true" dateFormat="yy-mm-dd"
+									[minDate]="activityProfileService.isPharmacyProfile ? (todayDate || null) : null"
 									[readonly]="!isAdmin && localProduct?.productId" [required]="hasExpirationDate"
 									[ngClass]="{'ng-invalid ng-dirty': submitted && hasExpirationDate && !expirationDateValue}"
 									[placeholder]="'select_expiration_date' | translate" [showOnFocus]="true"
@@ -307,8 +541,14 @@
 								<small class="p-error" *ngIf="submitted && hasExpirationDate && !expirationDateValue">
 									{{'expiration_date' | translate}} {{'is_required_label' | translate}}
 								</small>
+							<small class="p-error" *ngIf="backendFieldErrors['expirationDate']">
+								{{ backendFieldErrors['expirationDate'] }}
+							</small>
 								<small class="text-color-secondary block mt-1">
 									{{'expiration_date_hint' | translate}}
+								</small>
+								<small class="p-error" *ngIf="submitted && isPharmacyExpirationInvalid()">
+									{{ 'profile_mode_pharmacy_expiration_future' | translate }}
 								</small>
 							</div>
 						</div>
@@ -416,7 +656,7 @@
 								</a>
 							</div>
 							<p-dropdown appendTo="body" [(ngModel)]="localProduct.supplier"
-								[ngModelOptions]="{standalone: true}" name="supplier" optionLabel="name"
+								[ngModelOptions]="{standalone: true}" name="supplier" dataKey="supplierId" optionLabel="name"
 								[options]="suppliers" [filter]="true" filterBy="name" [showClear]="true"
 								placeholder="{{'select_supplier_option' | translate}}" [required]="isProduct()"
 								[ngClass]="{'ng-invalid ng-dirty' : submitted && isProduct() && !localProduct.supplier}"
@@ -449,7 +689,7 @@
 								<label for="warehouse" class="font-bold">
 									{{'product_warehouse' | translate}} <span class="required-asterisk">*</span>
 								</label>
-								<a *ngIf="canAddWarehouse" (click)="openWarehouseDialog()"
+								<a *ngIf="canAddWarehouse && !isAggregatedEditMode()" (click)="openWarehouseDialog()"
 									class="text-sm text-primary cursor-pointer">
 									<i class="pi pi-plus"></i> {{ 'add_new_warehouse' | translate }}
 								</a>
@@ -457,7 +697,8 @@
 							<p-dropdown appendTo="body" [(ngModel)]="localProduct.warehouse"
 								[ngModelOptions]="{standalone: true}" name="warehouse" optionLabel="name"
 								[options]="warehouses" [filter]="true" filterBy="name" [showClear]="true"
-								placeholder="{{'select_warehouse_option' | translate}}" required>
+								placeholder="{{'select_warehouse_option' | translate}}" required
+								[disabled]="isAggregatedEditMode()">
 								<ng-template pTemplate="selectedItem">
 									<span *ngIf="localProduct && localProduct.warehouse"
 										class="flex align-items-center gap-2">
@@ -474,6 +715,9 @@
 							</p-dropdown>
 							<small class="p-error" *ngIf="submitted && !localProduct.warehouse">
 								{{'product_warehouse' | translate}} {{'is_required_label' | translate}}
+							</small>
+							<small class="text-color-secondary" *ngIf="isAggregatedEditMode()">
+								{{ 'warehouse_locked_in_aggregated_mode' | translate }}
 							</small>
 						</div>
 
@@ -541,6 +785,9 @@
 						<!-- Dynamic Attributes Section -->
 						<div class="field col-12">
 							<label class="font-bold">{{ 'product_custom_attributes' | translate }}</label>
+							<small class="p-error block mb-2" *ngIf="backendFieldErrors['attributes']">
+								{{ backendFieldErrors['attributes'] }}
+							</small>
 							<div *ngFor="let attr of localProduct.attributes; let i = index" class="p-fluid grid mb-2">
 								<!-- Attribute Name -->
 								<div class="field col-4">
@@ -631,8 +878,9 @@
 	</ng-template>
 	<ng-template pTemplate="content">
 		<div class="flex justify-content-center">
-			<img [src]="imagePreviewUrl || localProduct?.productImage || 'assets/core-images/no-image.png'"
-				[alt]="localProduct?.name || 'Product image'" class="max-w-full max-h-30rem" (onerror)="onImageError()">
+			<img [src]="getCurrentImageSource()"
+				[alt]="localProduct?.name || 'Product image'" class="max-w-full max-h-30rem object-contain"
+				(error)="onImageError()">
 		</div>
 	</ng-template>
 </p-dialog>

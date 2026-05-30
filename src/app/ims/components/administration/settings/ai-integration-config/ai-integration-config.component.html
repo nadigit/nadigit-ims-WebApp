@@ -1,0 +1,285 @@
+<div class="ai-integration-page">
+  <p-toast></p-toast>
+
+  <div class="mb-4">
+    <div class="flex align-items-center gap-2 mb-3">
+      <button
+        pButton
+        pRipple
+        icon="pi pi-arrow-left"
+        class="p-button-text p-button-rounded p-button-plain"
+        [pTooltip]="'back' | translate"
+        tooltipPosition="bottom"
+        type="button"
+        (click)="goBack()"></button>
+      <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+      <i class="pi pi-angle-right text-400 text-sm"></i>
+      <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+      <i class="pi pi-angle-right text-400 text-sm"></i>
+      <span class="text-700 text-sm font-medium">{{ 'ai_integration_configuration' | translate }}</span>
+    </div>
+    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-start gap-3">
+      <div class="flex-1 min-w-0">
+        <h2 class="m-0 text-900 flex align-items-center gap-2">
+          <i class="pi pi-sparkles text-primary"></i>
+          {{ 'ai_integration_configuration' | translate }}
+        </h2>
+        <p class="text-600 mt-2 mb-0 line-height-3">{{ 'ai_integration_page_lead' | translate }}</p>
+      </div>
+      <div class="flex flex-column align-items-stretch md:align-items-end gap-2 flex-shrink-0">
+        <button
+          pButton
+          pRipple
+          type="button"
+          icon="pi pi-bolt"
+          class="p-button-outlined"
+          [label]="'ai_test_llm_button' | translate"
+          (click)="onTestLlmConnection()"
+          [disabled]="isLoading || isTestingLlm"
+          [loading]="isTestingLlm"></button>
+        <span class="text-600 text-xs line-height-3 text-right max-w-20rem">{{ 'ai_test_llm_hint' | translate }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-content-center py-6" *ngIf="isLoading">
+    <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+  </div>
+
+  <div class="flex flex-column gap-3" *ngIf="!isLoading">
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1">
+      <h3 class="m-0 mb-3 text-900">{{ 'ai_status_panel_title' | translate }}</h3>
+      <div class="ai-health-row border-round p-3 mb-3" [ngClass]="isAiReadinessOk() ? 'ai-health-row--ok' : 'ai-health-row--warn'">
+        <div class="flex align-items-start justify-content-between gap-3 flex-wrap">
+          <div class="flex align-items-start gap-2">
+            <i class="pi" [ngClass]="isAiReadinessOk() ? 'pi-check-circle text-green-600' : 'pi-exclamation-triangle text-orange-500'"></i>
+            <div>
+              <p class="m-0 font-semibold ai-health-title">
+                {{ (isAiReadinessOk() ? 'ai_readiness_ready_title' : 'ai_readiness_not_ready_title') | translate }}
+              </p>
+              <p class="m-0 mt-1 text-sm line-height-3 ai-health-subtitle">
+                {{ (isAiReadinessOk() ? 'ai_readiness_ready_subtitle' : 'ai_readiness_not_ready_subtitle') | translate }}
+              </p>
+            </div>
+          </div>
+          <p-tag
+            [severity]="isAiReadinessOk() ? 'success' : 'warning'"
+            [value]="(isAiReadinessOk() ? 'ai_readiness_status_ready' : 'ai_readiness_status_action_needed') | translate"></p-tag>
+        </div>
+        <div class="grid mt-2">
+          <div class="col-12 md:col-3">
+            <p class="m-0 text-xs mb-1 ai-health-check-label">{{ 'ai_readiness_check_integration' | translate }}</p>
+            <p-tag [severity]="isIntegrationEnabled() ? 'success' : 'warning'" [value]="(isIntegrationEnabled() ? 'ai_readiness_check_ok' : 'ai_readiness_check_missing') | translate"></p-tag>
+          </div>
+          <div class="col-12 md:col-3">
+            <p class="m-0 text-xs mb-1 ai-health-check-label">{{ 'ai_readiness_check_provider' | translate }}</p>
+            <p-tag [severity]="isProviderConfigured() ? 'success' : 'warning'" [value]="(isProviderConfigured() ? 'ai_readiness_check_ok' : 'ai_readiness_check_missing') | translate"></p-tag>
+          </div>
+          <div class="col-12 md:col-3">
+            <p class="m-0 text-xs mb-1 ai-health-check-label">{{ 'ai_readiness_check_key' | translate }}</p>
+            <p-tag [severity]="isCurrentProviderKeyConfigured() ? 'success' : 'warning'" [value]="(isCurrentProviderKeyConfigured() ? 'ai_readiness_check_ok' : 'ai_readiness_check_missing') | translate"></p-tag>
+          </div>
+          <div class="col-12 md:col-3">
+            <p class="m-0 text-xs mb-1 ai-health-check-label">{{ 'ai_readiness_check_test' | translate }}</p>
+            <p-tag [severity]="isLastTestSuccessful() ? 'success' : 'warning'" [value]="(isLastTestSuccessful() ? 'ai_readiness_check_ok' : 'ai_readiness_check_missing') | translate"></p-tag>
+          </div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="col-12 md:col-3">
+          <p class="m-0 text-600 text-sm">{{ 'ai_status_integration' | translate }}</p>
+          <p-tag
+            [severity]="isIntegrationEnabled() ? 'success' : 'danger'"
+            [value]="isIntegrationEnabled() ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
+        </div>
+        <div class="col-12 md:col-3">
+          <p class="m-0 text-600 text-sm">{{ 'ai_status_provider' | translate }}</p>
+          <p class="m-0 text-900 font-medium">{{ getCurrentProviderLabel() || '-' }}</p>
+        </div>
+        <div class="col-12 md:col-3">
+          <p class="m-0 text-600 text-sm">{{ 'ai_status_model' | translate }}</p>
+          <p class="m-0 text-900 font-mono text-sm break-all">{{ getCurrentProviderModel() || '-' }}</p>
+        </div>
+        <div class="col-12 md:col-3">
+          <p class="m-0 text-600 text-sm">{{ 'ai_status_api_key' | translate }}</p>
+          <p-tag
+            [severity]="isCurrentProviderKeyConfigured() ? 'success' : 'warning'"
+            [value]="isCurrentProviderKeyConfigured() ? ('ai_status_key_set' | translate) : ('ai_status_key_missing' | translate)"></p-tag>
+        </div>
+      </div>
+      <div class="mt-3" *ngIf="lastTestStatus !== 'idle'">
+        <p class="m-0 text-600 text-sm">{{ 'ai_status_last_test' | translate }}: {{ lastTestAt }}</p>
+        <p-tag
+          class="mt-2"
+          [severity]="lastTestStatus === 'success' ? 'success' : 'danger'"
+          [value]="lastTestStatus === 'success' ? ('ai_status_test_ok' | translate) : ('ai_status_test_failed' | translate)"></p-tag>
+        <p class="m-0 mt-2 text-700 text-sm line-height-3">{{ lastTestMessage }}</p>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1">
+      <h3 class="m-0 mb-2 text-900">{{ 'ai_quick_start_title' | translate }}</h3>
+      <p class="text-600 text-sm m-0 mb-3 line-height-3">{{ 'ai_quick_start_subtitle' | translate }}</p>
+      <div class="grid">
+        <div class="col-12 md:col-4">
+          <div class="ai-step-card">
+            <div class="ai-step-index">1</div>
+            <p class="m-0 text-700">{{ 'ai_quick_start_step_1' | translate }}</p>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="ai-step-card">
+            <div class="ai-step-index">2</div>
+            <p class="m-0 text-700">{{ 'ai_quick_start_step_2' | translate }}</p>
+          </div>
+        </div>
+        <div class="col-12 md:col-4">
+          <div class="ai-step-card">
+            <div class="ai-step-index">3</div>
+            <p class="m-0 text-700">{{ 'ai_quick_start_step_3' | translate }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1">
+      <div class="flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+          <h3 class="m-0 mb-2 text-900">{{ 'ai_presets_title' | translate }}</h3>
+          <p class="text-600 text-sm m-0 line-height-3">{{ 'ai_presets_subtitle' | translate }}</p>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="col-12 lg:col-6" *ngFor="let preset of providerPresets">
+          <div class="ai-preset-card border-1 surface-border border-round p-3 h-full">
+            <div class="flex align-items-start justify-content-between gap-2 mb-2 flex-wrap">
+              <h4 class="m-0 text-900">{{ getAiProviderLabel(preset.provider) }}</h4>
+              <p-tag [value]="preset.costTierKey | translate" severity="info"></p-tag>
+            </div>
+            <p class="m-0 text-700 text-sm line-height-3 mb-2">{{ preset.summaryKey | translate }}</p>
+            <p class="m-0 text-600 text-xs mb-3">
+              {{ 'ai_presets_model_label' | translate }}:
+              <span class="font-mono">{{ preset.modelKey }}</span>
+            </p>
+            <button
+              pButton
+              pRipple
+              type="button"
+              icon="pi pi-check-circle"
+              class="p-button-outlined p-button-sm"
+              [label]="'ai_presets_apply' | translate"
+              [loading]="isApplyingPreset"
+              [disabled]="isApplyingPreset"
+              (click)="applyProviderPreset(preset.id)"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      *ngFor="let config of displayedConfigs; trackBy: trackByKey"
+      class="ai-param-card surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1">
+      <div class="flex flex-column md:flex-row md:align-items-start md:justify-content-between gap-3">
+        <div class="flex-1 min-w-0">
+          <h3 class="mt-0 mb-2 text-900 text-lg">{{ config.key | translate }}</h3>
+          <p class="text-600 text-sm m-0 mb-3 line-height-3">{{ ('settings_' + config.key + '_hint') | translate }}</p>
+
+          <!-- View mode -->
+          <ng-container *ngIf="!config.isEditing">
+            <ng-container [ngSwitch]="getFieldKind(config.key)">
+              <span *ngSwitchCase="'boolean'" class="inline-flex">
+                <p-tag
+                  [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
+                  [severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
+              </span>
+              <span *ngSwitchCase="'provider'" class="font-medium text-900">{{ getAiProviderLabel(config.value || '') }}</span>
+              <span *ngSwitchCase="'invoiceMode'" class="font-medium text-900">{{ getAiInvoiceModeLabel(config.value || '') }}</span>
+              <span *ngSwitchCase="'secret'" class="font-medium">{{ getAiSecretDisplaySummary(config.value) }}</span>
+              <span *ngSwitchCase="'hybridThreshold'" class="inline-flex align-items-baseline gap-1">
+                <span class="font-medium text-900">{{ (parseFloatVal(config.value) * 100) | number: '1.0-0' }}</span>
+                <span>%</span>
+              </span>
+              <span *ngSwitchCase="'maxChars'" class="inline-flex align-items-baseline gap-2">
+                <span class="font-medium text-900">{{ config.value }}</span>
+                <span class="text-600">{{ 'ai_context_chars_unit' | translate }}</span>
+              </span>
+              <span *ngSwitchCase="'integer'" class="font-medium text-900">{{ parseIntVal(config.value || 0) }}</span>
+              <span *ngSwitchCase="'endpoint'" class="font-mono text-sm text-900 white-space-pre-wrap break-all">{{ config.value }}</span>
+              <span *ngSwitchDefault class="font-mono text-sm">{{ config.value }}</span>
+            </ng-container>
+          </ng-container>
+
+          <!-- Edit mode -->
+          <ng-container *ngIf="config.isEditing">
+            <ng-container [ngSwitch]="getFieldKind(config.key)">
+              <div *ngSwitchCase="'boolean'" class="max-w-30rem">
+                <p-dropdown
+                  [(ngModel)]="config.value"
+                  [options]="booleanOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  [placeholder]="'enabled' | translate"
+                  styleClass="w-full"
+                  appendTo="body"></p-dropdown>
+              </div>
+              <div *ngSwitchCase="'provider'" class="max-w-30rem">
+                <p-dropdown
+                  [(ngModel)]="config.value"
+                  [options]="aiProviderOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  styleClass="w-full"
+                  appendTo="body"></p-dropdown>
+              </div>
+              <div *ngSwitchCase="'invoiceMode'" class="max-w-30rem">
+                <p-dropdown
+                  [(ngModel)]="config.value"
+                  [options]="aiInvoiceModeOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  styleClass="w-full"
+                  appendTo="body"></p-dropdown>
+              </div>
+              <div *ngSwitchCase="'secret'" class="max-w-40rem">
+                <input [(ngModel)]="config.value" type="password" pInputText class="w-full" autocomplete="off" />
+              </div>
+              <div *ngSwitchCase="'hybridThreshold'" class="flex align-items-center gap-2 flex-wrap max-w-30rem">
+                <input [(ngModel)]="config.value" type="number" pInputText class="flex-1" min="0" max="1" step="0.01" />
+                <span class="text-600 text-sm">0–1</span>
+              </div>
+              <div *ngSwitchCase="'maxChars'" class="flex align-items-center gap-2 flex-wrap max-w-30rem">
+                <input [(ngModel)]="config.value" type="number" pInputText class="flex-1" [min]="1" />
+                <span class="text-600 text-sm">{{ 'ai_context_chars_unit' | translate }}</span>
+              </div>
+              <div *ngSwitchCase="'integer'" class="max-w-30rem">
+                <input [(ngModel)]="config.value" type="number" pInputText class="w-full" [min]="1" />
+              </div>
+              <div *ngSwitchCase="'endpoint'" class="max-w-40rem">
+                <input [(ngModel)]="config.value" type="text" pInputText class="w-full" autocomplete="off" />
+              </div>
+              <div *ngSwitchDefault class="max-w-40rem">
+                <input [(ngModel)]="config.value" type="text" pInputText class="w-full" autocomplete="off" />
+              </div>
+            </ng-container>
+          </ng-container>
+        </div>
+
+        <div class="flex-shrink-0">
+          <button
+            pButton
+            pRipple
+            type="button"
+            [icon]="config.isEditing ? 'pi pi-check' : 'pi pi-pencil'"
+            [rounded]="true"
+            [outlined]="true"
+            [label]="config.isEditing ? ('save_button' | translate) : ''"
+            [class]="config.isEditing ? 'p-button-success' : 'p-button-secondary'"
+            styleClass="p-button-sm"
+            (click)="toggleEditMode(config)"></button>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-600 text-sm m-0 mt-2" *ngIf="displayedConfigs.length === 0">{{ 'ai_integration_no_keys' | translate }}</p>
+  </div>
+</div>

@@ -1,17 +1,22 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { KeycloakService } from 'keycloak-angular';
 import { Router } from '@angular/router';
 import { KeycloakProfile } from 'keycloak-js';
 import { environment } from 'src/environments/environment';
+import { ProcessModeService } from './process-mode.service';
 
 @Injectable({providedIn: 'root'})
 export class AuthenticationService {
+  readonly systemRoleNames = ['ADMIN', 'CASHIER', 'VENDOR', 'WAREHOUSEMAN', 'AUDITOR', 'ACCOUNTANT'];
 
-  // host1:string= environment.KcUrl+"/admin/realms/Nadigit_ims";
-  kcRealm:string = "/admin/realms/Nadigit_ims"
+  // IMS backend proxy for Keycloak Admin REST.
+  keycloakAdminSchema: string = "/api/admin/keycloak";
+  profileSchema: string = "/api/profile/me";
+  // Legacy direct Keycloak endpoints still used by register/forgot-password/profile.
+  kcRealm: string = "/admin/realms/" + ((window as any).__env.kcRealm || "Nadigit_ims");
   jwt?:any;
   username?:string= '';
   roles?:Array<any>=[];
@@ -19,12 +24,15 @@ export class AuthenticationService {
   private userProfile: KeycloakProfile | undefined;
 
   apiProtocol: string = (window as any).__env.apiProtocol || 'http';
+  apiHost: string = (window as any).__env.apiHost || 'localhost';
+  apiPort: string = (window as any).__env.apiPort || '8090';
   kcHost: string = (window as any).__env.kcHost || 'localhost';
   kcPort: string = (window as any).__env.kcPort || '8080';
 
   constructor(private http:HttpClient, 
               public keycloakService: KeycloakService,
-              private router: Router) { }
+              private router: Router,
+              private processModeService: ProcessModeService) { }
 
   registerUser(user: any){
     return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/register",user,{observe:'response'})
@@ -39,7 +47,7 @@ export class AuthenticationService {
       this.loadToken();
     }
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/",{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/users",{headers:headers});
   }
 
   getUser(userId: string){
@@ -47,7 +55,7 @@ export class AuthenticationService {
       this.loadToken();
     }
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+userId,{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/users/"+userId,{headers:headers});
   }
 
   // async getUsers() {
@@ -67,25 +75,34 @@ export class AuthenticationService {
   getRoles(){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/",{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/roles",{headers:headers})
+      .pipe(map((roles: any) => this.filterSystemRoles(roles)));
   }
 
   getUserRoles(userId){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.get(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+userId+"/role-mappings/realm",{headers:headers});
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/users/"+userId+"/role-mappings/realm",{headers:headers})
+      .pipe(map((roles: any) => this.filterSystemRoles(roles)));
+  }
+
+  private filterSystemRoles(roles: any): any[] {
+    if (!Array.isArray(roles)) {
+      return [];
+    }
+    return roles.filter((role: any) => this.systemRoleNames.includes((role?.name || role || '').toUpperCase()));
   }
 
   saveUser(user: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/", user, {headers:headers})
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/users", user, {headers:headers})
   }
 
   saveUserRolesMapping(userId, role){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+userId+"/role-mappings/realm", role, {headers:headers});
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/users/"+userId+"/role-mappings/realm", role, {headers:headers});
   }
 
   deleteUserRolesMapping(userId: any, role: any): Observable<any> {
@@ -93,45 +110,63 @@ export class AuthenticationService {
       this.loadToken();
     }
     const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
-    // Append role data as a query parameter in the URL
-    const url = this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +'/users/'+userId+'/role-mappings/realm?role='+role;
-    return this.http.delete(url, { headers: headers });
+    const url = this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +'/users/'+userId+'/role-mappings/realm';
+    const payload = Array.isArray(role) ? role : [role];
+    return this.http.delete(url, { headers: headers, body: payload });
   }
 
   saveRole(role: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.post(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/", role, {headers:headers})
+    return this.http.post(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/roles", role, {headers:headers})
   }
 
   deleteUser(id: string){ 
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+id,{headers:headers});
+    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/users/"+id,{headers:headers});
   }
 
   deleteRole(id: string){ 
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.delete(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/"+id,{headers:headers});
+    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/roles/"+id,{headers:headers});
   }
 
   updateUser(id: any, user: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/users/"+id , user, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/users/"+id , user, {headers:headers});
   }
 
   updateRole(id: any, role: any){
     if(this.jwt==null) this.loadToken();
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
-    return this.http.put(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm +"/roles/"+id , role, {headers:headers});
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema +"/roles/"+id , role, {headers:headers});
   }
 
   changePassword(id: any, credentials: any) {
     if(this.jwt==null) this.loadToken();
     const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
-    return this.http.put(this.apiProtocol+'://'+this.kcHost+':'+this.kcPort+ this.kcRealm  + "/users/"+id+"/reset-password", credentials, { headers: headers });
+    return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+ this.keycloakAdminSchema  + "/users/"+id+"/reset-password", credentials, { headers: headers });
+  }
+
+  updateMyProfile(payload: any) {
+    if (this.jwt == null) this.loadToken();
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.profileSchema, payload, { headers: headers });
+  }
+
+  changeMyPassword(payload: { currentPassword: string; newPassword: string; confirmPassword: string }) {
+    if (this.jwt == null) this.loadToken();
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.profileSchema + '/password', payload, { headers: headers });
+  }
+
+  getMyProfile() {
+    if (this.jwt == null) this.loadToken();
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.profileSchema, { headers: headers });
   }
 
   forgotPassword(data: any): Observable<any> {
@@ -175,15 +210,17 @@ export class AuthenticationService {
   }
 
   async checkRolesAndRedirect(): Promise<void> {
+    await this.processModeService.ensureLoaded();
     const userRoles = await this.keycloakService.getUserRoles();
     const currentUrl = this.router.url;
-  
+    const cashierHome = this.processModeService.posEnabled ? '/pos' : '/profile';
+
     // Define the allowed routes for each role
     const roleRouteMap: { [key: string]: string } = {
       'ADMIN': '/',
       'VENDOR': '/',
       'WAREHOUSEMAN': '/',
-      'CASHIER': '/pos'
+      'CASHIER': cashierHome
     };
   
     // Determine if the current route is accessible for the user roles
@@ -204,7 +241,7 @@ export class AuthenticationService {
       } else if (userRoles.includes('WAREHOUSEMAN')) {
         this.router.navigate(['/']);
       } else if (userRoles.includes('CASHIER')) {
-        this.router.navigate(['/pos']);
+        this.router.navigate([cashierHome]);
       } else {
         this.router.navigate(['/auth/access']);
       }
@@ -222,7 +259,7 @@ export class AuthenticationService {
     if (this.jwt == null) this.loadToken();
     let headers = new HttpHeaders({'authorization': 'Bearer ' + this.jwt});
     
-    let url = this.apiProtocol + '://' + this.kcHost + ':' + this.kcPort + this.kcRealm + '/events';
+    let url = this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.keycloakAdminSchema + '/events';
     let params = new HttpParams()
       .set('user', userId)
       .set('max', maxResults.toString());

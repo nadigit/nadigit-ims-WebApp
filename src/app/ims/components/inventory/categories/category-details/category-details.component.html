@@ -269,7 +269,7 @@
                                 <div class="top-product-item" *ngFor="let product of categoryStats.topProductsByValue; let i = index"
                                     (click)="viewProductDetails(product)">
                                     <div class="product-rank">{{ i + 1 }}</div>
-                                    <img [src]="product.productImage || 'assets/core-images/no-image.png'"
+                                    <img [src]="product | productImage"
                                         [alt]="product.name" class="product-thumbnail">
                                     <div class="product-info">
                                         <span class="product-name">{{ product.name }}</span>
@@ -304,9 +304,13 @@
                     <!-- Products Section -->
                     <div *ngIf="!loadingCategoryDetails" class="detail-card">
                         <div class="card-header products-header">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-list"></i>
-                                <span>{{ 'products_list' | translate }}</span>
+                            <div class="flex flex-column gap-2 align-items-start">
+                                <div class="flex align-items-center gap-2">
+                                    <i class="pi pi-list"></i>
+                                    <span>{{ 'products_list' | translate }}</span>
+                                </div>
+                                <p-message *ngIf="!isAdmin" severity="info" [text]="'category_products_scope_hint' | translate"
+                                    styleClass="w-full" [closable]="false"></p-message>
                             </div>
                             <div class="products-filters">
                                 <span class="p-input-icon-left">
@@ -315,7 +319,7 @@
                                         (ngModelChange)="filterCategoryProducts()"
                                         [placeholder]="'search_products_placeholder' | translate" />
                                 </span>
-                                <p-dropdown [(ngModel)]="selectedWarehouseFilter" [options]="uniqueWarehouses"
+                                <p-dropdown *ngIf="showWarehouseFilterInCategory" [(ngModel)]="selectedWarehouseFilter" [options]="uniqueWarehouses"
                                     optionLabel="name" [showClear]="true"
                                     [placeholder]="'filter_by_warehouse' | translate"
                                     (onChange)="filterCategoryProducts()" (onClear)="filterCategoryProducts()"
@@ -372,7 +376,7 @@
                                 <ng-template pTemplate="body" let-product>
                                     <tr [class.out-of-stock-row]="product.quantityAvailable <= 0">
                                         <td>
-                                            <img [src]="product.productImage || 'assets/core-images/no-image.png'"
+                                            <img [src]="product | productImage"
                                                 [alt]="product.name" class="product-table-image">
                                         </td>
                                         <td>

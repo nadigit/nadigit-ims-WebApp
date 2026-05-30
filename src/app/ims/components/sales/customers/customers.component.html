@@ -212,11 +212,17 @@
                                 class="text-green-600">
                                 {{ getCreditInfo(customer.customerId)?.availableCredit | currency:currency:'symbol':'1.2-2' }}
                             </span>
-                            <span *ngIf="!getCreditInfo(customer.customerId)" 
+                            <span *ngIf="!getCreditInfo(customer.customerId) && !hasCreditInfoLoaded(customer.customerId) && !isCreditInfoLoading(customer.customerId)" 
                                 class="text-500 cursor-pointer"
                                 (click)="loadCreditInfoForCustomer(customer.customerId); $event.stopPropagation()"
                                 pTooltip="{{ 'click_to_load' | translate }}">
+                                -
+                            </span>
+                            <span *ngIf="isCreditInfoLoading(customer.customerId)" class="text-500">
                                 {{ 'loading' | translate }}...
+                            </span>
+                            <span *ngIf="!getCreditInfo(customer.customerId) && hasCreditInfoLoaded(customer.customerId)" class="text-500">
+                                -
                             </span>
                         </td>
                         

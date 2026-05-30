@@ -148,7 +148,8 @@
                             (onChange)="onSelectedCountry(config.customer.country)" name="country"
                             [options]="countries" optionValue="name" optionLabel="translatedName"
                             [filter]="true" [filterFields]="['name', 'translatedName']"
-                            [showClear]="true" placeholder="{{ 'select_country_option' | translate }}">
+                            [showClear]="true" appendTo="body" [autoDisplayFirst]="false"
+                            [resetFilterOnHide]="false" placeholder="{{ 'select_country_option' | translate }}">
 
                             <ng-template pTemplate="selectedItem">
                                 <span *ngIf="config.customer && config.customer.country"
@@ -173,7 +174,8 @@
                         </label>
                         <p-dropdown [(ngModel)]="config.customer.city" name="city" optionValue="name"
                             optionLabel="name" [filter]="true" filterBy="name" [options]="states"
-                            [showClear]="true" placeholder="{{ 'select_city_option' | translate }}">
+                            [showClear]="true" appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+                            placeholder="{{ 'select_city_option' | translate }}">
                             <ng-template pTemplate="selectedItem">
                                 <span *ngIf="config.customer && config.customer.city" class="flex align-items-center gap-2">
                                     <i class="pi pi-map-marker"></i>
@@ -230,7 +232,7 @@
                 </div>
 
                 <!-- Pricing Profile -->
-                <div class="field card p-3 mb-3">
+                <div class="field card p-3 mb-3" *ngIf="config.canManagePricingProfile">
                     <label for="pricingProfile" class="block mb-2 font-bold">
                         {{ 'pricing_profile' | translate }}
                     </label>

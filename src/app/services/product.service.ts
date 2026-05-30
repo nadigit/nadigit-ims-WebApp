@@ -27,6 +27,77 @@ export class ProductService {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('product', data, 'productId', 'reference'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers })
   }
+  uploadProductImage(file: File) {
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ url: string; message?: string }>(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'upload-image',
+      formData,
+      { headers: headers }
+    );
+  }
+  getProductImages(productId: number) {
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get<any[]>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/images`,
+      { headers }
+    );
+  }
+  uploadAndAttachProductImage(productId: number, file: File) {
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<any>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/images`,
+      formData,
+      { headers }
+    );
+  }
+
+  /** Replace binary content for an existing gallery row (same image id / slot). */
+  replaceProductImage(productId: number, imageId: number, file: File) {
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Replace product gallery image');
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.put<any>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/images/${imageId}`,
+      formData,
+      { headers }
+    );
+  }
+  attachProductImageUrl(productId: number, url: string) {
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const encodedUrl = encodeURIComponent(url);
+    return this.http.post<any>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/images/link?url=${encodedUrl}`,
+      {},
+      { headers }
+    );
+  }
+  setPrimaryProductImage(productId: number, imageId: number) {
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Set product primary image');
+    return this.http.put(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/images/${imageId}/primary`,
+      {},
+      { headers }
+    );
+  }
+  deleteProductImage(productId: number, imageId: number) {
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Delete product image');
+    return this.http.delete(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/images/${imageId}`,
+      { headers }
+    );
+  }
+  reorderProductImages(productId: number, imageIds: number[]) {
+    const headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Reorder product images');
+    return this.http.put(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/images/reorder`,
+      imageIds,
+      { headers }
+    );
+  }
   updateProduct(id: any, product: any) {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated product');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, product, { headers: headers });
@@ -163,6 +234,22 @@ export class ProductService {
   searchProductsForPurchase(searchTerm: string = '', warehouseId?: number) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}search-for-purchases`;
+    const params: string[] = [];
+    if (searchTerm) {
+      params.push(`search=${encodeURIComponent(searchTerm)}`);
+    }
+    if (warehouseId != null) {
+      params.push(`warehouseId=${encodeURIComponent(warehouseId)}`);
+    }
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+    return this.http.get(url, { headers });
+  }
+
+  searchDistinctProductsForPurchase(searchTerm: string = '', warehouseId?: number) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    let url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}search-for-purchases-distinct`;
     const params: string[] = [];
     if (searchTerm) {
       params.push(`search=${encodeURIComponent(searchTerm)}`);

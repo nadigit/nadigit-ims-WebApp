@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MyCompanyRoutingModule } from './my-company-routing.module';
+import { RouterModule } from '@angular/router';
 import { MyCompanyComponent } from './my-company.component';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -23,6 +24,7 @@ import { CardModule } from 'primeng/card';
 @NgModule({
     imports: [
         CommonModule,
+        RouterModule,
         MyCompanyRoutingModule,
         FileUploadModule,
         FormsModule,

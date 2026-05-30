@@ -310,7 +310,7 @@
 				</ng-template>
 				<ng-template pTemplate="body" let-item>
 					<tr>
-						<td><img [src]="item.product.productImage ? item.product.productImage : 'assets/core-images/no-image.png'"
+						<td><img [src]="item.product | productImage"
 								[alt]="item.product.name" width="60" [ngClass]="{'shadow-4': product.productImage}" />
 						</td>
 						<td>{{ item.product?.name || 'N/A' }}</td>
@@ -471,7 +471,7 @@
 						<ng-template let-product pTemplate="item">
 							<div class="flex flex-wrap p-2 align-items-center gap-3">
 								<img class="w-4rem shadow-2 flex-shrink-0 border-round"
-									[src]="product.productImage ? product.productImage : 'assets/core-images/no-image.png'"
+									[src]="product | productImage"
 									[alt]="product.name" />
 								<div class="flex-1 flex flex-column gap-2">
 									<span class="font-bold">{{ product.name }}</span>

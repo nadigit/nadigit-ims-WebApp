@@ -65,6 +65,49 @@ export class PurchaseService {
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'eligible-purchases-returns', { headers: headers });
   }
 
+  getPurchaseAttachments(purchaseId: number): Observable<any> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${purchaseId}/attachments`;
+    return this.http.get(url, { headers });
+  }
+
+  getPurchaseAttachmentDocumentTypes(): Observable<any> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}attachments/document-types`;
+    return this.http.get(url, { headers });
+  }
+
+  uploadPurchaseAttachment(purchaseId: number, file: File, documentType?: string, notes?: string): Observable<any> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    if (documentType && documentType.trim().length > 0) {
+      formData.append('documentType', documentType.trim());
+    }
+    if (notes && notes.trim().length > 0) {
+      formData.append('notes', notes.trim());
+    }
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${purchaseId}/attachments`;
+    return this.http.post(url, formData, { headers });
+  }
+
+  deletePurchaseAttachment(purchaseId: number, attachmentId: number): Observable<any> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${purchaseId}/attachments/${attachmentId}`;
+    return this.http.delete(url, { headers });
+  }
+
+  getPurchaseAttachmentBlob(purchaseId: number, attachmentId: number): Observable<Blob> {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${purchaseId}/attachments/${attachmentId}/content`;
+    return this.http.get(url, { headers, responseType: 'blob' });
+  }
+
   getPurchasesPaginated(
     page: number,
     size: number,

@@ -36,6 +36,9 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { SliderModule } from 'primeng/slider';
 import { PurchaseImportComponent } from './purchase-import/purchase-import.component';
 import { InventorySharedModule } from '../../inventory/shared/inventory-shared.module';
+import { CategoriesModule } from '../../inventory/categories/categories.module';
+import { StepsModule } from 'primeng/steps';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 
 @NgModule({
     imports: [
@@ -71,7 +74,10 @@ import { InventorySharedModule } from '../../inventory/shared/inventory-shared.m
         DividerModule,
         CheckboxModule,
         SliderModule,
-        InventorySharedModule
+        InventorySharedModule,
+        CategoriesModule,
+        StepsModule,
+        AutoCompleteModule
     ],
     declarations: [PurchasesComponent, PurchaseDetailsPageComponent, PurchaseImportComponent],
     providers: [ReportingService],

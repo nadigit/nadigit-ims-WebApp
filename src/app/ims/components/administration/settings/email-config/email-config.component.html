@@ -1,221 +1,171 @@
-<div class="grid">
-  <div class="col-12">
-    <!-- Header -->
-    <div class="mb-4">
-      <div class="flex align-items-center gap-2 mb-3">
-        <button pButton pRipple icon="pi pi-arrow-left"
-          class="p-button-text p-button-rounded p-button-plain"
-          [pTooltip]="'back' | translate" tooltipPosition="bottom"
-          (click)="goBack()"></button>
-        <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
-        <i class="pi pi-angle-right text-400 text-sm"></i>
-        <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
-        <i class="pi pi-angle-right text-400 text-sm"></i>
-        <span class="text-700 text-sm font-medium">{{ 'email_configuration' | translate }}</span>
+<div class="integration-config-page email-config-page">
+  <p-toast></p-toast>
+
+  <div class="mb-4">
+    <div class="flex align-items-center gap-2 mb-3">
+      <button pButton pRipple icon="pi pi-arrow-left"
+        class="p-button-text p-button-rounded p-button-plain"
+        [pTooltip]="'back' | translate" tooltipPosition="bottom"
+        (click)="goBack()"></button>
+      <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+      <i class="pi pi-angle-right text-400 text-sm"></i>
+      <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+      <i class="pi pi-angle-right text-400 text-sm"></i>
+      <span class="text-700 text-sm font-medium">{{ 'email_configuration' | translate }}</span>
+    </div>
+    <div class="integration-hero">
+      <div class="integration-hero__icon" aria-hidden="true">
+        <i class="pi pi-envelope"></i>
       </div>
-      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
-        <div>
-          <h2 class="m-0 text-900">{{ 'email_configuration' | translate }}</h2>
-          <p class="text-600 mt-2 mb-0">{{ 'email_configuration_description' | translate }}</p>
-        </div>
+      <div class="integration-hero__body">
+        <h2 class="m-0 text-900">{{ 'email_configuration' | translate }}</h2>
+        <p class="text-600 mt-2 mb-0 line-height-3">{{ 'email_configuration_description' | translate }}</p>
       </div>
     </div>
-
-    <p-toast></p-toast>
-
-    <!-- Loading State -->
-    <div class="card flex justify-content-center" *ngIf="isLoading">
-      <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-    </div>
-
-    <!-- Email Configuration Form -->
-    <div class="card" *ngIf="!isLoading">
-      <form [formGroup]="emailConfigForm" class="p-fluid">
-        <!-- Enable Email Toggle -->
-        <div class="field mb-4">
-          <div class="flex align-items-center gap-2">
-            <p-inputSwitch formControlName="enabled" [binary]="true"></p-inputSwitch>
-            <label class="font-medium">{{ 'enable_email' | translate }}</label>
-          </div>
-        </div>
-
-        <div class="grid">
-          <!-- SMTP Host -->
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label for="smtpHost">
-                {{ 'smtp_host' | translate }} <span class="required-asterisk">*</span>
-              </label>
-              <input 
-                id="smtpHost" 
-                type="text" 
-                pInputText 
-                formControlName="smtpHost"
-                [placeholder]="'smtp_host_placeholder' | translate"
-                [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpHost')}" />
-              <small class="p-error" *ngIf="isFieldInvalid('smtpHost')">
-                {{ 'smtp_host_required' | translate }}
-              </small>
-            </div>
-          </div>
-
-          <!-- SMTP Port -->
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label for="smtpPort">
-                {{ 'smtp_port' | translate }} <span class="required-asterisk">*</span>
-              </label>
-              <p-dropdown 
-                id="smtpPort"
-                [options]="commonPorts" 
-                formControlName="smtpPort"
-                optionLabel="label" 
-                optionValue="value"
-                [showClear]="false"
-                [placeholder]="'select_port' | translate"
-                [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpPort')}">
-              </p-dropdown>
-              <input 
-                *ngIf="showCustomPortInput()"
-                type="number" 
-                pInputText 
-                formControlName="smtpPort"
-                [placeholder]="'custom_port' | translate"
-                [min]="1"
-                [max]="65535"
-                class="mt-2" />
-              <small class="p-error" *ngIf="isFieldInvalid('smtpPort')">
-                {{ 'smtp_port_required' | translate }}
-              </small>
-            </div>
-          </div>
-
-          <!-- SMTP Username -->
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label for="smtpUsername">
-                {{ 'smtp_username' | translate }} <span class="required-asterisk">*</span>
-              </label>
-              <input 
-                id="smtpUsername" 
-                type="text" 
-                pInputText 
-                formControlName="smtpUsername"
-                [placeholder]="'smtp_username_placeholder' | translate"
-                [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpUsername')}" />
-              <small class="p-error" *ngIf="isFieldInvalid('smtpUsername')">
-                {{ 'smtp_username_required' | translate }}
-              </small>
-            </div>
-          </div>
-
-          <!-- SMTP Password -->
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label for="smtpPassword">
-                {{ 'smtp_password' | translate }} <span class="required-asterisk" *ngIf="!emailConfig">*</span>
-              </label>
-              <span class="p-input-icon-right w-full">
-                <input 
-                  id="smtpPassword" 
-                  [type]="showPassword ? 'text' : 'password'" 
-                  pInputText 
-                  formControlName="smtpPassword"
-                  [placeholder]="'smtp_password_placeholder' | translate"
-                  [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpPassword')}" />
-                <i [class]="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" 
-                   (click)="togglePasswordVisibility()" 
-                   class="cursor-pointer"></i>
-              </span>
-              <small class="p-error" *ngIf="isFieldInvalid('smtpPassword')">
-                {{ 'smtp_password_required' | translate }}
-              </small>
-              <small class="text-500" *ngIf="emailConfig">
-                {{ 'leave_blank_to_keep_current' | translate }}
-              </small>
-            </div>
-          </div>
-
-          <!-- From Address -->
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label for="smtpFromAddress">
-                {{ 'from_address' | translate }} <span class="required-asterisk">*</span>
-              </label>
-              <input 
-                id="smtpFromAddress" 
-                type="email" 
-                pInputText 
-                formControlName="smtpFromAddress"
-                [placeholder]="'from_address_placeholder' | translate"
-                [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpFromAddress')}" />
-              <small class="p-error" *ngIf="isFieldInvalid('smtpFromAddress')">
-                {{ 'valid_email_required' | translate }}
-              </small>
-            </div>
-          </div>
-
-          <!-- From Name -->
-          <div class="col-12 md:col-6">
-            <div class="field">
-              <label for="smtpFromName">
-                {{ 'from_name' | translate }} <span class="required-asterisk">*</span>
-              </label>
-              <input 
-                id="smtpFromName" 
-                type="text" 
-                pInputText 
-                formControlName="smtpFromName"
-                [placeholder]="'from_name_placeholder' | translate"
-                [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpFromName')}" />
-              <small class="p-error" *ngIf="isFieldInvalid('smtpFromName')">
-                {{ 'from_name_required' | translate }}
-              </small>
-            </div>
-          </div>
-        </div>
-
-        <!-- SMTP Options -->
-        <div class="field-checkbox mb-3">
-          <p-checkbox formControlName="smtpAuth" [binary]="true" inputId="smtpAuth"></p-checkbox>
-          <label for="smtpAuth">{{ 'enable_smtp_authentication' | translate }}</label>
-        </div>
-
-        <div class="field-checkbox mb-3">
-          <p-checkbox formControlName="smtpStartTls" [binary]="true" inputId="smtpStartTls"></p-checkbox>
-          <label for="smtpStartTls">{{ 'enable_starttls' | translate }}</label>
-        </div>
-
-        <div class="field-checkbox mb-4">
-          <p-checkbox formControlName="smtpSsl" [binary]="true" inputId="smtpSsl"></p-checkbox>
-          <label for="smtpSsl">{{ 'enable_ssl' | translate }}</label>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-2 justify-content-end">
-          <button 
-            pButton 
-            pRipple 
-            type="button"
-            label="{{ 'send_test_email' | translate }}" 
-            icon="pi pi-send"
-            class="p-button-outlined"
-            (click)="openTestEmailDialog()"
-            [disabled]="isSaving || emailConfigForm.invalid"></button>
-          <button 
-            pButton 
-            pRipple 
-            type="button"
-            label="{{ 'save_configuration' | translate }}" 
-            icon="pi pi-save"
-            class="p-button-primary"
-            (click)="saveConfig()"
-            [loading]="isSaving"
-            [disabled]="isSaving || emailConfigForm.invalid"></button>
-        </div>
-      </form>
+    <div class="integration-status-chips mt-3">
+      <p-tag [severity]="emailConfig ? 'success' : 'warning'" [rounded]="true"
+        [value]="emailConfig ? ('ai_readiness_check_ok' | translate) : ('ai_readiness_check_missing' | translate)"></p-tag>
+      <p-tag [severity]="emailConfigForm.get('enabled')?.value ? 'success' : 'info'" [rounded]="true"
+        [value]="emailConfigForm.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
+      <p-tag [severity]="emailConfigForm.valid ? 'success' : 'warning'" [rounded]="true"
+        [value]="('smtp_host' | translate) + ' / ' + ('smtp_port' | translate)"></p-tag>
     </div>
   </div>
+
+  <div class="integration-loading surface-card border-1 surface-border border-round p-5 flex justify-content-center" *ngIf="isLoading">
+    <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+  </div>
+
+  <form [formGroup]="emailConfigForm" class="integration-form p-fluid" *ngIf="!isLoading">
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head">
+        <h3 class="m-0 text-900">{{ 'enable_email' | translate }}</h3>
+      </div>
+      <div class="integration-toggle-row mt-3">
+        <p-inputSwitch formControlName="enabled" [binary]="true"></p-inputSwitch>
+        <span class="font-medium text-800">{{ emailConfigForm.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate) }}</span>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head mb-3">
+        <h3 class="m-0 text-900">{{ 'smtp_host' | translate }} & {{ 'smtp_port' | translate }}</h3>
+      </div>
+      <div class="grid">
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="smtpHost">{{ 'smtp_host' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="smtpHost" type="text" pInputText formControlName="smtpHost"
+              [placeholder]="'smtp_host_placeholder' | translate"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpHost')}" />
+            <small class="p-error" *ngIf="isFieldInvalid('smtpHost')">{{ 'smtp_host_required' | translate }}</small>
+          </div>
+        </div>
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="smtpPort">{{ 'smtp_port' | translate }} <span class="required-asterisk">*</span></label>
+            <p-dropdown id="smtpPort" [options]="commonPorts" formControlName="smtpPort"
+              optionLabel="label" optionValue="value"
+              [showClear]="false"
+              [placeholder]="'select_port' | translate"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpPort')}"></p-dropdown>
+            <input *ngIf="showCustomPortInput()" type="number" pInputText formControlName="smtpPort"
+              [placeholder]="'custom_port' | translate" [min]="1" [max]="65535" class="mt-2" />
+            <small class="p-error" *ngIf="isFieldInvalid('smtpPort')">{{ 'smtp_port_required' | translate }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head mb-3">
+        <h3 class="m-0 text-900">{{ 'smtp_username' | translate }} / {{ 'smtp_password' | translate }}</h3>
+      </div>
+      <div class="grid">
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="smtpUsername">{{ 'smtp_username' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="smtpUsername" type="text" pInputText formControlName="smtpUsername"
+              [placeholder]="'smtp_username_placeholder' | translate"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpUsername')}" />
+            <small class="p-error" *ngIf="isFieldInvalid('smtpUsername')">{{ 'smtp_username_required' | translate }}</small>
+          </div>
+        </div>
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="smtpPassword">{{ 'smtp_password' | translate }} <span class="required-asterisk" *ngIf="!emailConfig">*</span></label>
+            <span class="p-input-icon-right w-full">
+              <input id="smtpPassword" [type]="showPassword ? 'text' : 'password'" pInputText formControlName="smtpPassword"
+                [placeholder]="'smtp_password_placeholder' | translate"
+                [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpPassword')}" />
+              <i [class]="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"
+                (click)="togglePasswordVisibility()" class="cursor-pointer"></i>
+            </span>
+            <small class="p-error" *ngIf="isFieldInvalid('smtpPassword')">{{ 'smtp_password_required' | translate }}</small>
+            <small class="text-500 block mt-2" *ngIf="emailConfig">{{ 'leave_blank_to_keep_current' | translate }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head mb-3">
+        <h3 class="m-0 text-900">{{ 'from_address' | translate }} / {{ 'from_name' | translate }}</h3>
+      </div>
+      <div class="grid">
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="smtpFromAddress">{{ 'from_address' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="smtpFromAddress" type="email" pInputText formControlName="smtpFromAddress"
+              [placeholder]="'from_address_placeholder' | translate"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpFromAddress')}" />
+            <small class="p-error" *ngIf="isFieldInvalid('smtpFromAddress')">{{ 'valid_email_required' | translate }}</small>
+          </div>
+        </div>
+        <div class="col-12 md:col-6">
+          <div class="field mb-0">
+            <label for="smtpFromName">{{ 'from_name' | translate }} <span class="required-asterisk">*</span></label>
+            <input id="smtpFromName" type="text" pInputText formControlName="smtpFromName"
+              [placeholder]="'from_name_placeholder' | translate"
+              [ngClass]="{'ng-invalid ng-dirty': isFieldInvalid('smtpFromName')}" />
+            <small class="p-error" *ngIf="isFieldInvalid('smtpFromName')">{{ 'from_name_required' | translate }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
+      <div class="integration-section-head mb-3">
+        <h3 class="m-0 text-900">{{ 'settings' | translate }}</h3>
+      </div>
+      <div class="field-checkbox mb-3">
+        <p-checkbox formControlName="smtpAuth" [binary]="true" inputId="smtpAuth"></p-checkbox>
+        <label for="smtpAuth">{{ 'enable_smtp_authentication' | translate }}</label>
+      </div>
+      <div class="field-checkbox mb-3">
+        <p-checkbox formControlName="smtpStartTls" [binary]="true" inputId="smtpStartTls"></p-checkbox>
+        <label for="smtpStartTls">{{ 'enable_starttls' | translate }}</label>
+      </div>
+      <div class="field-checkbox mb-0">
+        <p-checkbox formControlName="smtpSsl" [binary]="true" inputId="smtpSsl"></p-checkbox>
+        <label for="smtpSsl">{{ 'enable_ssl' | translate }}</label>
+      </div>
+    </div>
+
+    <div class="integration-actions surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1">
+      <button pButton pRipple type="button"
+        [label]="'send_test_email' | translate"
+        icon="pi pi-send" class="p-button-outlined"
+        (click)="openTestEmailDialog()"
+        [disabled]="isSaving || emailConfigForm.invalid"></button>
+      <button pButton pRipple type="button"
+        [label]="'save_configuration' | translate"
+        icon="pi pi-save" class="p-button-primary"
+        (click)="saveConfig()"
+        [loading]="isSaving"
+        [disabled]="isSaving || emailConfigForm.invalid"></button>
+    </div>
+  </form>
 </div>
 
 <!-- Test Email Dialog -->

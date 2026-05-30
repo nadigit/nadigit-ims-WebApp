@@ -1,15 +1,19 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { TranslateService } from '@ngx-translate/core';
-import { MessageService } from 'primeng/api';
-import { Purchase } from 'src/app/models/purchase';
+import { MessageService, MenuItem } from 'primeng/api';
+import { Purchase, PurchaseAttachment, PurchaseAttachmentTypeConfig } from 'src/app/models/purchase';
+import { FinancialDocument } from 'src/app/models/financialDocument';
 import { PurchaseService } from 'src/app/services/purchase.service';
+import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { TranslationService } from 'src/app/services/translation.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
+import { ProcessModeService } from 'src/app/services/process-mode.service';
 
 @Component({
   selector: 'app-purchase-details-page',
@@ -32,17 +36,45 @@ export class PurchaseDetailsPageComponent implements OnInit {
 
   purchaseEvents: any[] = [];
 
+  purchaseDocumentChainMode = false;
+  documentChainSteps: MenuItem[] = [];
+  documentChainActiveIndex = 0;
+  purchaseAttachments: PurchaseAttachment[] = [];
+  attachmentUploading: boolean = false;
+  attachmentNotes: string = '';
+  attachmentDocumentType: string = '';
+  attachmentTypes: string[] = ['SUPPLIER_INVOICE', 'RECEIPT', 'DELIVERY_NOTE', 'PURCHASE_ORDER', 'OTHER'];
+  attachmentTypeConfigs: PurchaseAttachmentTypeConfig[] = [];
+  requiredAttachmentTypes: string[] = [];
+  attachmentPreviewVisible: boolean = false;
+  attachmentPreviewUrl: string = '';
+  attachmentPreviewSafeUrl: SafeResourceUrl | null = null;
+  attachmentPreviewIsPdf: boolean = false;
+  attachmentPreviewTitle: string = '';
+
+  private processFlagsSub?: Subscription;
+  private readonly attachmentDocumentTypeTranslationKeys: Record<string, string> = {
+    SUPPLIER_INVOICE: 'purchase_attachment_document_type_supplier_invoice',
+    RECEIPT: 'purchase_attachment_document_type_receipt',
+    DELIVERY_NOTE: 'purchase_attachment_document_type_delivery_note',
+    PURCHASE_ORDER: 'purchase_attachment_document_type_purchase_order',
+    OTHER: 'purchase_attachment_document_type_other'
+  };
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private location: Location,
     private purchaseService: PurchaseService,
+    private financialDocService: FinancialDocumentsService,
     private messageService: MessageService,
     private translate: TranslateService,
+    private sanitizer: DomSanitizer,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
-    private translateService: TranslationService
+    private translateService: TranslationService,
+    private processModeService: ProcessModeService
   ) {}
 
   async ngOnInit() {
@@ -50,6 +82,10 @@ export class PurchaseDetailsPageComponent implements OnInit {
     
     // Load token first
     this.purchaseService.loadToken();
+
+    await this.processModeService.ensureLoaded();
+    this.purchaseDocumentChainMode = this.processModeService.isPurchaseDocumentChain();
+    await this.loadAttachmentTypeConfigs();
     
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -59,6 +95,10 @@ export class PurchaseDetailsPageComponent implements OnInit {
 
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
+      if (this.purchase) {
+        this.generatePurchaseEvents();
+        this.refreshDocumentChainStepper();
+      }
     });
 
     this.route.params.subscribe(async params => {
@@ -70,13 +110,26 @@ export class PurchaseDetailsPageComponent implements OnInit {
           detail: this.translate.instant('invalid_purchase_id'),
           life: 3000
         });
-        this.router.navigate(['/inventory/purchases']);
+        this.router.navigate(['/purchases/purchases']);
         return;
       }
       await this.checkPermissions();
       await this.setUserRoles();
       await this.loadPurchase();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.processFlagsSub?.unsubscribe();
+    this.closeAttachmentPreview(true);
+  }
+
+  private applyPurchaseProcessFlagsAfterSettingsSave(): void {
+    this.purchaseDocumentChainMode = this.processModeService.isPurchaseDocumentChain();
+    if (this.purchase) {
+      this.generatePurchaseEvents();
+      this.refreshDocumentChainStepper();
+    }
   }
 
   async loadPurchase(): Promise<void> {
@@ -103,11 +156,13 @@ export class PurchaseDetailsPageComponent implements OnInit {
           detail: this.translate.instant('purchase_not_found'),
           life: 3000
         });
-        this.router.navigate(['/inventory/purchases']);
+        this.router.navigate(['/purchases/purchases']);
         return;
       }
 
       this.generatePurchaseEvents();
+      this.refreshDocumentChainStepper();
+      await this.loadAttachments();
       this.isLoading = false;
     } catch (error: any) {
       console.error('Error loading purchase:', error);
@@ -120,40 +175,91 @@ export class PurchaseDetailsPageComponent implements OnInit {
         life: 3000
       });
       setTimeout(() => {
-        this.router.navigate(['/inventory/purchases']);
+        this.router.navigate(['/purchases/purchases']);
       }, 2000);
     }
   }
 
   generatePurchaseEvents() {
     if (!this.purchase) return;
-    
+    const dc = this.purchaseDocumentChainMode;
+
     this.purchaseEvents = [
       {
         status: 'PENDING',
         date: this.purchase?.dateOfPurchase,
         icon: 'pi pi-shopping-cart',
-        button: 'Process Purchase'
+        button: dc
+          ? this.translate.instant('doc_chain_purchase_timeline_btn_to_approved')
+          : this.translate.instant('purchase_timeline_btn_to_approved'),
       },
       {
         status: 'APPROVED',
         date: this.purchase?.approvedDate,
         icon: 'pi pi-box',
-        button: 'Mark as Received'
+        button: dc
+          ? this.translate.instant('doc_chain_purchase_timeline_btn_to_received')
+          : this.translate.instant('purchase_timeline_btn_to_received'),
       },
       {
         status: 'RECEIVED',
         date: this.purchase?.receivedDate,
         icon: 'pi pi-check-circle',
-        button: 'Complete Purchase'
+        button: dc
+          ? this.translate.instant('doc_chain_purchase_timeline_btn_to_completed')
+          : this.translate.instant('purchase_timeline_btn_to_completed'),
       },
       {
         status: 'COMPLETED',
         date: this.purchase?.completionDate,
         icon: 'pi pi-flag-fill',
-        button: null
-      }
+        button: null,
+      },
     ].filter(event => event.date != null || event.status === 'PENDING');
+  }
+
+  private refreshDocumentChainStepper(): void {
+    if (!this.purchaseDocumentChainMode || !this.purchase) {
+      this.documentChainSteps = [];
+      this.documentChainActiveIndex = 0;
+      return;
+    }
+    const L = (key: string) => this.translate.instant(key);
+    this.documentChainSteps = [
+      { label: L('doc_chain_purchase_step_request') },
+      { label: L('doc_chain_purchase_step_approval') },
+      { label: L('doc_chain_purchase_step_receipt') },
+      { label: L('doc_chain_purchase_step_closure') },
+    ];
+    switch (this.purchase.purchaseStatus) {
+      case 'PENDING':
+        this.documentChainActiveIndex = 0;
+        break;
+      case 'APPROVED':
+        this.documentChainActiveIndex = 1;
+        break;
+      case 'RECEIVED':
+        this.documentChainActiveIndex = 2;
+        break;
+      case 'COMPLETED':
+        this.documentChainActiveIndex = 3;
+        break;
+      default:
+        this.documentChainActiveIndex = 0;
+        break;
+    }
+  }
+
+  getHeroPurchaseStatusKey(): string {
+    if (!this.purchase?.purchaseStatus) return '';
+    const s = this.purchase.purchaseStatus.toLowerCase();
+    return (this.purchaseDocumentChainMode ? 'doc_chain_purchase_tag_status_' : 'purchase_status_') + s;
+  }
+
+  getHeroPurchasePaymentKey(): string {
+    if (!this.purchase?.paymentStatus) return '';
+    const s = this.purchase.paymentStatus.toLowerCase();
+    return (this.purchaseDocumentChainMode ? 'doc_chain_purchase_payment_tag_' : 'purchase_payment_status_') + s;
   }
 
   getPurchaseStatusSeverity(status: string): string {
@@ -210,6 +316,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
 
   showPurchaseEventButton(event: any): boolean {
     if (!this.purchase) return false;
+    if (!this.canProcess) return false;
     const statusOrder = ['PENDING', 'APPROVED', 'RECEIVED', 'COMPLETED'];
     const currentStatusIndex = statusOrder.indexOf(this.purchase?.purchaseStatus);
     const eventStatusIndex = statusOrder.indexOf(event.status);
@@ -217,53 +324,105 @@ export class PurchaseDetailsPageComponent implements OnInit {
   }
 
   getPurchaseStatusDescription(status: string): string {
+    if (this.purchaseDocumentChainMode) {
+      const dc: { [key: string]: string } = {
+        PENDING: this.translate.instant('doc_chain_purchase_desc_pending'),
+        APPROVED: this.translate.instant('doc_chain_purchase_desc_approved'),
+        RECEIVED: this.translate.instant('doc_chain_purchase_desc_received'),
+        COMPLETED: this.translate.instant('doc_chain_purchase_desc_completed'),
+        CANCELED: this.translate.instant('purchase_status_cancelled_description'),
+      };
+      return dc[status] || this.translate.instant('status_description_not_available');
+    }
     const descriptions: { [key: string]: string } = {
       'PENDING': this.translate.instant('purchase_status_pending_description'),
       'APPROVED': this.translate.instant('purchase_status_approved_description'),
       'RECEIVED': this.translate.instant('purchase_status_received_description'),
       'COMPLETED': this.translate.instant('purchase_status_completed_description'),
-      'CANCELED': this.translate.instant('purchase_status_canceled_description')
+      'CANCELED': this.translate.instant('purchase_status_cancelled_description')
     };
     return descriptions[status] || this.translate.instant('status_description_not_available');
   }
 
   updatePurchaseStatus() {
     if (!this.purchase) return;
+    if (!this.canProcess) return;
     const currentStatus = this.purchase?.purchaseStatus;
     const statusOrder = ['PENDING', 'APPROVED', 'RECEIVED', 'COMPLETED'];
     const currentIndex = statusOrder.indexOf(currentStatus);
 
     if (currentIndex < statusOrder.length - 1) {
       const nextStatus = statusOrder[currentIndex + 1];
-      this.purchase.purchaseStatus = nextStatus;
-      this.updatePurchaseStatusInBackend(this.purchase);
+      this.updatePurchaseStatusInBackend(nextStatus);
     }
   }
 
-  updatePurchaseStatusInBackend(purchase: Purchase) {
-    this.purchaseService.updatePurchaseStatus(purchase.purchaseId, purchase).subscribe({
+  updatePurchaseStatusInBackend(nextStatus: string) {
+    if (!this.purchase?.purchaseId) {
+      return;
+    }
+    const payload: Purchase = {
+      ...this.purchase,
+      purchaseStatus: nextStatus,
+    };
+    this.purchaseService.updatePurchaseStatus(this.purchase.purchaseId, payload).subscribe({
       next: (updatedPurchase) => {
         this.purchase = updatedPurchase;
         this.generatePurchaseEvents();
+        this.refreshDocumentChainStepper();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('success'),
           detail: this.translate.instant('purchase_status_updated')
         });
       },
-      error: () => {
+      error: (error: any) => {
+        const rawErrorMessage = String(error?.error?.message || error?.message || '').toLowerCase();
+        const isPaymentConfirmationBlocked =
+          rawErrorMessage.includes('cannot confirm payment') ||
+          rawErrorMessage.includes('reconcil') ||
+          rawErrorMessage.includes('bank transaction');
+        const errorMessage = isPaymentConfirmationBlocked
+          ? this.translate.instant('cannot_confirm_payment_reconciliation_required_detail')
+          : (error?.error?.message ||
+            error?.message ||
+            this.translate.instant('purchase_status_update_failed'));
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
-          detail: this.translate.instant('purchase_status_update_failed')
+          detail: errorMessage
         });
+        if (isPaymentConfirmationBlocked) {
+          this.messageService.add({
+            severity: 'info',
+            summary: this.translate.instant('purchase_payments'),
+            detail: this.translate.instant('cannot_confirm_payment_reconciliation_required')
+          });
+        }
+        // Ensure UI stays in sync when backend rejects transition.
+        void this.loadPurchase();
       }
     });
   }
 
   getPurchaseSubtotal(): number {
     return this.purchase?.purchaseItems?.reduce((sum: number, item: any) =>
-      sum + (item.totalCost || 0), 0) || 0;
+      sum + (item.lineNetAmount ?? item.totalCost ?? ((item.quantityPurchased || 0) * (item.buyingPrice || 0))), 0) || 0;
+  }
+
+  getPurchaseLineTaxTotal(): number {
+    return this.purchase?.purchaseItems?.reduce((sum: number, item: any) =>
+      sum + (item.lineTaxAmount || 0), 0) || 0;
+  }
+
+  getPurchaseLineGrossTotal(): number {
+    return this.purchase?.purchaseItems?.reduce((sum: number, item: any) =>
+      sum + (item.lineGrossAmount ?? (item.lineNetAmount ?? item.totalCost ?? ((item.quantityPurchased || 0) * (item.buyingPrice || 0))) + (item.lineTaxAmount || 0)), 0) || 0;
+  }
+
+  formatTaxRate(rate?: number | null): string {
+    if (rate == null) return '—';
+    return `${(rate * 100).toFixed(2)}%`;
   }
 
   isPurchaseEventActive(event: any): boolean {
@@ -298,7 +457,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
 
   editPurchase() {
     if (!this.canEdit || !this.purchase) return;
-    this.router.navigate(['/inventory/purchases'], { queryParams: { edit: this.purchaseId } });
+    this.router.navigate(['/purchases/purchases'], { queryParams: { edit: this.purchaseId } });
   }
 
   deletePurchase() {
@@ -312,7 +471,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
             detail: this.translate.instant('purchase_deleted'),
             life: 3000
           });
-          this.router.navigate(['/inventory/purchases']);
+          this.router.navigate(['/purchases/purchases']);
         },
         error: (err: any) => {
           this.messageService.add({
@@ -328,14 +487,279 @@ export class PurchaseDetailsPageComponent implements OnInit {
 
   navigateToReturns(): void {
     if (this.purchase?.purchaseId) {
-      this.router.navigate(['/inventory/purchase-returns'], { 
+      this.router.navigate(['/purchases/purchase-returns'], { 
         queryParams: { purchaseId: this.purchase.purchaseId } 
       });
     }
   }
 
+  navigateToPurchasePayments(): void {
+    if (!this.purchase?.purchaseId) {
+      this.router.navigate(['/finance/payments/purchase']);
+      return;
+    }
+    this.router.navigate(['/finance/payments/purchase'], {
+      queryParams: { purchaseId: this.purchase.purchaseId }
+    });
+  }
+
   goBack(): void {
     this.location.back();
   }
+
+  async loadAttachments(): Promise<void> {
+    if (!this.purchase?.purchaseId) {
+      this.purchaseAttachments = [];
+      return;
+    }
+    try {
+      const response = await firstValueFrom(this.purchaseService.getPurchaseAttachments(this.purchase.purchaseId));
+      this.purchaseAttachments = Array.isArray(response) ? response : [];
+    } catch (error) {
+      this.purchaseAttachments = [];
+    }
+  }
+
+  private async loadAttachmentTypeConfigs(): Promise<void> {
+    try {
+      const response = await firstValueFrom(this.purchaseService.getPurchaseAttachmentDocumentTypes());
+      const configs: PurchaseAttachmentTypeConfig[] = Array.isArray(response) ? response : [];
+      if (!configs.length) {
+        return;
+      }
+      this.attachmentTypeConfigs = configs;
+      this.attachmentTypes = configs.map(c => c.code);
+      this.requiredAttachmentTypes = configs.filter(c => c.required).map(c => c.code);
+      if (!this.attachmentDocumentType && this.requiredAttachmentTypes.length === 1) {
+        this.attachmentDocumentType = this.requiredAttachmentTypes[0];
+      }
+    } catch (error) {
+      // fallback to default static list when backend config is unavailable
+    }
+  }
+
+  getAttachmentDocumentTypeLabel(type?: string | null): string {
+    const value = (type || '').trim();
+    if (!value) {
+      return '';
+    }
+
+    const normalizedValue = value.toUpperCase().replace(/[\s-]+/g, '_');
+    const key = this.attachmentDocumentTypeTranslationKeys[normalizedValue];
+    if (key) {
+      return this.translate.instant(key);
+    }
+
+    return value
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, char => char.toUpperCase());
+  }
+
+  getAttachmentDocumentTypeLabels(types: string[]): string {
+    return types.map(type => this.getAttachmentDocumentTypeLabel(type)).filter(Boolean).join(', ');
+  }
+
+  triggerAttachmentUpload(fileInput: HTMLInputElement): void {
+    if (this.attachmentUploading) {
+      return;
+    }
+    fileInput.click();
+  }
+
+  onAttachmentFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file || !this.purchase?.purchaseId) {
+      return;
+    }
+
+    this.attachmentUploading = true;
+    this.purchaseService.uploadPurchaseAttachment(
+      this.purchase.purchaseId,
+      file,
+      this.attachmentDocumentType || undefined,
+      this.attachmentNotes || undefined
+    ).subscribe({
+      next: () => {
+        this.attachmentUploading = false;
+        this.attachmentNotes = '';
+        this.attachmentDocumentType = '';
+        input.value = '';
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('success'),
+          detail: this.translate.instant('expense_attachment_uploaded')
+        });
+        void this.loadAttachments();
+      },
+      error: (err: any) => {
+        this.attachmentUploading = false;
+        input.value = '';
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: err?.error?.message || err?.message || this.translate.instant('expense_attachment_upload_failed')
+        });
+      }
+    });
+  }
+
+  deleteAttachment(att: PurchaseAttachment): void {
+    if (!this.purchase?.purchaseId || !att?.id) {
+      return;
+    }
+    this.purchaseService.deletePurchaseAttachment(this.purchase.purchaseId, att.id).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('success'),
+          detail: this.translate.instant('expense_attachment_deleted')
+        });
+        this.purchaseAttachments = this.purchaseAttachments.filter(a => a.id !== att.id);
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: err?.error?.message || err?.message || this.translate.instant('error')
+        });
+      }
+    });
+  }
+
+  downloadAttachment(att: PurchaseAttachment): void {
+    if (!this.purchase?.purchaseId || !att?.id) {
+      return;
+    }
+    this.purchaseService.getPurchaseAttachmentBlob(this.purchase.purchaseId, att.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = this.attachmentDisplayName(att);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: err?.error?.message || err?.message || this.translate.instant('error')
+        });
+      }
+    });
+  }
+
+  attachmentDisplayName(att: PurchaseAttachment): string {
+    return att?.originalFilename || `attachment-${att?.id ?? ''}`;
+  }
+
+  async viewPurchaseOrderDocument(_purchase: Purchase): Promise<void> {
+    const handled = await this.openGeneratedPurchaseOrderIfExists();
+    if (handled) {
+      return;
+    }
+    const supplierPo = this.findLatestAttachmentByType('PURCHASE_ORDER');
+    if (supplierPo) {
+      this.previewAttachment(supplierPo);
+      return;
+    }
+    this.messageService.add({
+      severity: 'info',
+      summary: this.translate.instant('purchase_documents_menu_title'),
+      detail: this.translate.instant('expense_attachments_empty')
+    });
+  }
+
+  previewAttachment(att: PurchaseAttachment): void {
+    if (!this.purchase?.purchaseId || !att?.id) {
+      return;
+    }
+    this.purchaseService.getPurchaseAttachmentBlob(this.purchase.purchaseId, att.id).subscribe({
+      next: (blob: Blob) => {
+        this.closeAttachmentPreview(true);
+        const url = window.URL.createObjectURL(blob);
+        const contentType = (att.contentType || blob.type || '').toLowerCase();
+        this.attachmentPreviewIsPdf = contentType.includes('pdf');
+        this.attachmentPreviewTitle = this.attachmentDisplayName(att);
+        this.attachmentPreviewUrl = url;
+        this.attachmentPreviewSafeUrl = this.attachmentPreviewIsPdf
+          ? this.sanitizer.bypassSecurityTrustResourceUrl(url)
+          : null;
+        this.attachmentPreviewVisible = true;
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: err?.error?.message || err?.message || this.translate.instant('error')
+        });
+      }
+    });
+  }
+
+  closeAttachmentPreview(force: boolean = false): void {
+    if (!force && !this.attachmentPreviewVisible) {
+      return;
+    }
+    if (this.attachmentPreviewUrl) {
+      window.URL.revokeObjectURL(this.attachmentPreviewUrl);
+    }
+    this.attachmentPreviewVisible = false;
+    this.attachmentPreviewUrl = '';
+    this.attachmentPreviewSafeUrl = null;
+    this.attachmentPreviewIsPdf = false;
+    this.attachmentPreviewTitle = '';
+  }
+
+  private async openGeneratedPurchaseOrderIfExists(): Promise<boolean> {
+    try {
+      this.financialDocService.loadToken();
+      const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
+      const financialDocs = this.extractFinancialDocs(response);
+      const generatedPo = financialDocs.find((doc: FinancialDocument) => {
+        const isPo = doc.docType === 'PURCHASE_ORDER';
+        const linkedByPurchase = (doc as any)?.purchase?.purchaseId === this.purchase?.purchaseId;
+        const linkedByReference = !!this.purchase?.reference
+          && String((doc as any)?.additionalReferences || '').includes(this.purchase.reference);
+        return isPo && (linkedByPurchase || linkedByReference);
+      });
+      if (generatedPo?.docNumber) {
+        this.financialDocService.printFinancialDoc(generatedPo.docNumber);
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  private extractFinancialDocs(response: any): FinancialDocument[] {
+    if (!response) {
+      return [];
+    }
+    if (Array.isArray(response)) {
+      return response as FinancialDocument[];
+    }
+    if (Array.isArray(response.page?.content)) {
+      return response.page.content as FinancialDocument[];
+    }
+    if (Array.isArray(response.content)) {
+      return response.content as FinancialDocument[];
+    }
+    return [];
+  }
+
+  private findLatestAttachmentByType(type: string): PurchaseAttachment | null {
+    const matches = this.purchaseAttachments.filter(a => (a.documentType || '').toUpperCase() === type.toUpperCase());
+    if (!matches.length) {
+      return null;
+    }
+    return [...matches].sort((a, b) => String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')))[0];
+  }
+
 }
 

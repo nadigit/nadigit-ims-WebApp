@@ -1,11 +1,12 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
-import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { Category } from 'src/app/models/category';
 import { Product } from 'src/app/models/product';
 import { Supplier } from 'src/app/models/supplier';
@@ -41,6 +42,8 @@ export class CategoriesComponent implements OnInit {
   };
 
   lowStockThreshold;
+
+  private readonly destroy$ = new Subject<void>();
 
   deleteCategoryDialog: boolean = false;
 
@@ -145,6 +148,11 @@ export class CategoriesComponent implements OnInit {
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
 
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   deleteSelectedCategories() {

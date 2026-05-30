@@ -1,8 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
-import { MessageService } from 'primeng/api';
+import { MessageService, MenuItem } from 'primeng/api';
 import { Order } from 'src/app/models/order';
 import { OrderService } from 'src/app/services/order.service';
 import { PaymentService } from 'src/app/services/payment.service';
@@ -15,8 +15,10 @@ import { Product } from 'src/app/models/product';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
 import { FinancialDocument } from 'src/app/models/financialDocument';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { getPaymentStatusSeverity } from 'src/app/shared/payment-utils';
+import { ProcessModeService } from 'src/app/services/process-mode.service';
+import { getPreferredProductImageUrl } from 'src/app/shared/product-image.utils';
 
 interface EventItem {
   status?: string;
@@ -33,7 +35,7 @@ interface EventItem {
   templateUrl: './order-details-page.component.html',
   styleUrls: ['./order-details-page.component.css', '../orders.component.css']
 })
-export class OrderDetailsPageComponent implements OnInit {
+export class OrderDetailsPageComponent implements OnInit, OnDestroy {
   orderId!: number;
   order: Order | null = null;
   isLoading: boolean = true;
@@ -62,6 +64,13 @@ export class OrderDetailsPageComponent implements OnInit {
   
   // Status guide visibility (persisted in localStorage)
   showStatusGuide: boolean = true;
+
+  /** Mirrors admin setting sales.process.mode === DOCUMENT_CHAIN */
+  salesDocumentChainMode = false;
+  documentChainSteps: MenuItem[] = [];
+  documentChainActiveIndex = 0;
+
+  private processFlagsSub?: Subscription;
 
   // Financial document generation loading flags
   isGeneratingInvoice: boolean = false;
@@ -97,7 +106,9 @@ export class OrderDetailsPageComponent implements OnInit {
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private translateService: TranslationService,
-    public financialDocService: FinancialDocumentsService
+    public financialDocService: FinancialDocumentsService,
+    private processModeService: ProcessModeService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   async ngOnInit() {
@@ -105,7 +116,14 @@ export class OrderDetailsPageComponent implements OnInit {
     
     // Load token first
     this.orderService.loadToken();
-    
+
+    await this.processModeService.ensureLoaded();
+    this.salesDocumentChainMode = this.processModeService.isSalesDocumentChain();
+
+    this.processFlagsSub = this.processModeService.processFlagsChanged$.subscribe(() => {
+      void this.applySalesProcessFlagsAfterSettingsSave();
+    });
+
     // Load status guide visibility preference from localStorage
     const savedPreference = localStorage.getItem('orderDetails_showStatusGuide');
     this.showStatusGuide = savedPreference !== 'false'; // Default to true if not set
@@ -139,6 +157,20 @@ export class OrderDetailsPageComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.processFlagsSub?.unsubscribe();
+  }
+
+  private async applySalesProcessFlagsAfterSettingsSave(): Promise<void> {
+    this.salesDocumentChainMode = this.processModeService.isSalesDocumentChain();
+    await this.initializeEvents();
+    if (this.order) {
+      this.buildOrderTimeline();
+      this.refreshDocumentChainStepper();
+    }
+    this.cdr.markForCheck();
+  }
+
   hideStatusGuide() {
     this.showStatusGuide = false;
     localStorage.setItem('orderDetails_showStatusGuide', 'false');
@@ -153,7 +185,8 @@ export class OrderDetailsPageComponent implements OnInit {
     const translations = await firstValueFrom(
       this.translate.getTranslation(this.translateService.getPreferredLanguage())
     );
-    
+    const dc = this.salesDocumentChainMode;
+
     this.events = [
       {
         status: 'Ordered',
@@ -161,8 +194,8 @@ export class OrderDetailsPageComponent implements OnInit {
         icon: 'pi pi-shopping-cart',
         color: '#9C27B0',
         image: 'game-controller.jpg',
-        button: translations['process_order_button'],
-        buttonDescription: translations['generate_quote'],
+        button: dc ? translations['doc_chain_timeline_btn_to_processing'] : translations['process_order_button'],
+        buttonDescription: dc ? translations['doc_chain_timeline_hint_ordered'] : translations['generate_quote'],
       },
       {
         status: 'Canceled',
@@ -175,23 +208,23 @@ export class OrderDetailsPageComponent implements OnInit {
         date: null,
         icon: 'pi pi-cog',
         color: '#673AB7',
-        button: translations['deliver_order_button'],
-        buttonDescription: translations['generate_purchase_order']
+        button: dc ? translations['doc_chain_timeline_btn_to_delivered'] : translations['deliver_order_button'],
+        buttonDescription: dc ? translations['doc_chain_timeline_hint_processing'] : translations['generate_purchase_order']
       },
       {
         status: 'Delivered',
         date: null,
         icon: 'pi pi-truck',
         color: '#2196F3',
-        button: translations['complete_order_button'],
-        buttonDescription: translations['generate_delivery_order']
+        button: dc ? translations['doc_chain_timeline_btn_to_completed'] : translations['complete_order_button'],
+        buttonDescription: dc ? translations['doc_chain_timeline_hint_delivered'] : translations['generate_delivery_order']
       },
       {
         status: 'Completed',
         date: null,
         icon: 'pi pi-check-circle',
         color: '#4CAF50',
-        buttonDescription: translations['generate_invoice']
+        buttonDescription: dc ? translations['doc_chain_timeline_hint_completed'] : translations['generate_invoice']
       },
       {
         status: 'Return_Pending',
@@ -257,11 +290,12 @@ export class OrderDetailsPageComponent implements OnInit {
       this.images = [];
       if (this.order.orderItems) {
         this.order.orderItems.forEach(item => {
-          this.images.push(item.product?.productImage ?? 'assets/core-images/no-image.png');
+          this.images.push(getPreferredProductImageUrl(item.product));
         });
       }
 
       this.buildOrderTimeline();
+      this.refreshDocumentChainStepper();
       this.isLoading = false;
     } catch (error: any) {
       console.error('Error loading order:', error);
@@ -272,6 +306,38 @@ export class OrderDetailsPageComponent implements OnInit {
         life: 3000
       });
       this.isLoading = false;
+    }
+  }
+
+  private refreshDocumentChainStepper(): void {
+    if (!this.salesDocumentChainMode || !this.order) {
+      this.documentChainSteps = [];
+      this.documentChainActiveIndex = 0;
+      return;
+    }
+    const L = (key: string) => this.translate.instant(key);
+    this.documentChainSteps = [
+      { label: L('doc_chain_step_sales_ordered') },
+      { label: L('doc_chain_step_fulfillment') },
+      { label: L('doc_chain_step_shipment') },
+      { label: L('doc_chain_step_closure') },
+    ];
+    switch (this.order.orderStatus) {
+      case 'Ordered':
+        this.documentChainActiveIndex = 0;
+        break;
+      case 'Processing':
+        this.documentChainActiveIndex = 1;
+        break;
+      case 'Delivered':
+        this.documentChainActiveIndex = 2;
+        break;
+      case 'Completed':
+        this.documentChainActiveIndex = 3;
+        break;
+      default:
+        this.documentChainActiveIndex = 0;
+        break;
     }
   }
 
@@ -406,15 +472,26 @@ export class OrderDetailsPageComponent implements OnInit {
     this.location.back();
   }
 
+  /** i18n key for hero order-status tag (document-chain wording when enabled). */
+  getHeroOrderStatusKey(): string {
+    if (!this.order?.orderStatus) return '';
+    const s = this.order.orderStatus.toLowerCase();
+    return (this.salesDocumentChainMode ? 'doc_chain_order_status_' : 'order_status_') + s;
+  }
+
+  /** i18n key for hero payment-status tag (document-chain wording when enabled). */
+  getHeroPaymentStatusKey(): string {
+    if (!this.order?.paymentStatus) return '';
+    const s = this.order.paymentStatus.toLowerCase();
+    return (this.salesDocumentChainMode ? 'doc_chain_order_payment_status_' : 'order_payment_status_') + s;
+  }
+
   showEventButton(event: any): boolean {
     if (!this.order) return false;
     const statusMatches = event.status === this.order.orderStatus;
     const hasButton = !!event.button;
-    const isDelivered = event.status === 'Delivered';
-    const isPaid = this.order.paymentStatus === 'PAID';
 
     if (!hasButton || !statusMatches) return false;
-    if (isDelivered && !isPaid) return false;
     return true;
   }
 
@@ -423,17 +500,32 @@ export class OrderDetailsPageComponent implements OnInit {
   }
 
   getStatusDescription(status: string): string {
+    const norm = status?.toUpperCase().replace(/-/g, '_');
+    if (this.salesDocumentChainMode) {
+      const paid = this.order?.paymentStatus === 'PAID';
+      const dc: { [key: string]: string } = {
+        'ORDERED': this.translate.instant('doc_chain_status_ordered'),
+        'PROCESSING': this.translate.instant('doc_chain_status_processing'),
+        'DELIVERED': paid
+          ? this.translate.instant('doc_chain_status_delivered_paid')
+          : this.translate.instant('doc_chain_status_delivered_unpaid'),
+        'COMPLETED': this.translate.instant('doc_chain_status_completed'),
+        'CANCELED': this.translate.instant('order_canceled_text'),
+        'PARTIAL_RETURN': this.translate.instant('order_partial_return_text'),
+        'RETURNED': this.translate.instant('order_return_text'),
+        'RETURN_PENDING': this.translate.instant('order_under_processing'),
+      };
+      return dc[norm] || '';
+    }
     const descriptions: { [key: string]: string } = {
       'PROCESSING': this.translate.instant('order_under_processing'),
-      'DELIVERED': this.order?.paymentStatus === 'PAID'
-        ? this.translate.instant('order_delivered_tocomplete_text')
-        : this.translate.instant('order_payment_required_text'),
+      'DELIVERED': this.translate.instant('order_delivered_tocomplete_text'),
       'COMPLETED': this.translate.instant('order_completed_text'),
       'CANCELED': this.translate.instant('order_canceled_text'),
       'PARTIAL_RETURN': this.translate.instant('order_partial_return_text'),
       'RETURNED': this.translate.instant('order_return_text')
     };
-    return descriptions[status] || '';
+    return descriptions[norm] || '';
   }
 
   getActionButtonIcon(status: string): string {
@@ -497,23 +589,37 @@ export class OrderDetailsPageComponent implements OnInit {
   getOrderSubtotal(): number {
     if (!this.order?.orderItems) return 0;
     return this.order.orderItems.reduce((total, item) =>
-      total + (item.quantity * item.pricePerUnit), 0);
+      total + (item.lineNetAmount ?? ((item.quantity || 0) * (item.pricePerUnit || 0))), 0);
   }
 
   calculateOrderDiscount(): number {
-    if (!this.order?.discount) return 0;
-    if (this.order.discountType === 'Percentage') {
-      return (this.getOrderSubtotal() * this.order.discount) / 100;
-    }
-    return this.order.discount;
+    if (!this.order) return 0;
+    const netSubtotal = this.getOrderSubtotal();
+    const taxAmount = this.order.taxAmount || 0;
+    const transportAmount = this.order.transportAmount || 0;
+    return Math.max(0, netSubtotal + taxAmount + transportAmount - (this.order.totalAmount || 0));
   }
 
   calculateOrderTax(): number {
-    if (!this.order?.taxEnabled) return 0;
-    const subtotal = this.getOrderSubtotal();
-    const discountAmount = this.calculateOrderDiscount();
-    const taxableAmount = subtotal - discountAmount;
-    return taxableAmount * this.taxRate;
+    return this.order?.taxAmount || 0;
+  }
+
+  getOrderLineTaxTotal(): number {
+    if (!this.order?.orderItems) return 0;
+    return this.order.orderItems.reduce((total, item) => total + (item.lineTaxAmount || 0), 0);
+  }
+
+  getOrderLineGrossTotal(): number {
+    if (!this.order?.orderItems) return 0;
+    return this.order.orderItems.reduce(
+      (total, item) => total + (item.lineGrossAmount ?? (item.lineNetAmount ?? ((item.quantity || 0) * (item.pricePerUnit || 0))) + (item.lineTaxAmount || 0)),
+      0
+    );
+  }
+
+  formatTaxRate(rate?: number | null): string {
+    if (rate == null) return '—';
+    return `${(rate * 100).toFixed(2)}%`;
   }
 
   // Cost and Profit helper methods

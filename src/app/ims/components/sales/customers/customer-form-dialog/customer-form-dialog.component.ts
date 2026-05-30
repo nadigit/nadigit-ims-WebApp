@@ -31,6 +31,7 @@ export interface CustomerFormDialogConfig {
   customer: Customer;
   selectedPriceListId: number | null;
   isLoadingPriceLists: boolean;
+  canManagePricingProfile: boolean;
 }
 
 @Component({

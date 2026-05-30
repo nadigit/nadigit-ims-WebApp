@@ -19,6 +19,7 @@ import { Customer } from 'src/app/models/customer';
 import { WarehouseTransferService } from 'src/app/services/warehouse-transfer.service';
 import { PaymentService } from 'src/app/services/payment.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 
 // Utility function for memoization
@@ -107,6 +108,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   topCustomersByRevenue: any[] = [];
   criticalAlerts: any[] = [];
   isWarehouseman = false;
+  isWarehouseTransfersFeatureEnabled = true;
 
   // Vendor-specific metrics
   vendorTodaySales = 0;
@@ -165,7 +167,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     public keycloakService: KeycloakService,
     public messageService: MessageService,
     private cdr: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private licenseCapabilitiesService: LicenseCapabilitiesService
   ) {
     this.subscription = this.layoutService.configUpdate$
       .pipe(debounceTime(25))
@@ -207,6 +210,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
         });
       }
     }, 5000);
+
+    try {
+      await this.loadLicenseCapabilities();
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for dashboard.', error);
+    }
 
     try {
       // Load critical data first for initial render with timeout
@@ -497,6 +506,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isAdmin = this.userRoles.includes('ADMIN');
     this.isVendor = this.userRoles.includes('VENDOR');
     this.isWarehouseman = this.userRoles.includes('WAREHOUSEMAN');
+  }
+
+  private async loadLicenseCapabilities(): Promise<void> {
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.isWarehouseTransfersFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('WAREHOUSE_TRANSFERS');
   }
 
   // Memoized calculations
@@ -1292,6 +1306,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.router.navigate(['/sales/customers']);
   }
 
+  openCustomerDetails(customerId?: number): void {
+    const id = Number(customerId);
+    if (!id || Number.isNaN(id)) {
+      return;
+    }
+    this.router.navigate(['/sales/customers', id]);
+  }
+
   navigateToNewSupplier() {
     this.router.navigate(['/purchases/suppliers']);
   }
@@ -1424,6 +1446,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private getPendingTransfers() {
+    if (!this.isWarehouseTransfersFeatureEnabled) {
+      return of([]);
+    }
+
     const cacheKey = 'pending-transfers';
     const cached = this.getCachedData(cacheKey);
     if (cached) return of(cached);
@@ -1473,17 +1499,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private calculateAdminMetrics(data: any) {
+    if (!this.isWarehouseTransfersFeatureEnabled) {
+      this.pendingTransfers = 0;
+      this.overdueTransfers = 0;
+    }
+
     // Calculate pending transfers
     const transfers = Array.isArray(data.transfers) ? data.transfers : (data.transfers?.content ?? []);
-    this.pendingTransfers = transfers.length;
+    this.pendingTransfers = this.isWarehouseTransfersFeatureEnabled ? transfers.length : 0;
 
     // Calculate overdue transfers (pending for more than 3 days)
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    this.overdueTransfers = transfers.filter((t: any) => {
+    this.overdueTransfers = this.isWarehouseTransfersFeatureEnabled ? transfers.filter((t: any) => {
       const creationDate = new Date(t.creationDate || t.transferDate);
       return creationDate < threeDaysAgo;
-    }).length;
+    }).length : 0;
 
     // Calculate MTD expenses and purchases
     const now = new Date();
@@ -1609,7 +1640,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     // Overdue transfers
-    if (this.overdueTransfers > 0) {
+    if (this.isWarehouseTransfersFeatureEnabled && this.overdueTransfers > 0) {
       this.criticalAlerts.push({
         type: 'warning',
         icon: 'pi-clock',
@@ -1794,7 +1825,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     };
 
-    return [
+    const actions = [
       { label: getLabel('users_menu_title', 'Users'), icon: 'pi pi-user-plus', route: ['/administration/users'], tooltip: 'Manage system users' },
       { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'Manage products' },
       { label: getLabel('orders_menu_title', 'Orders'), icon: 'pi pi-shopping-cart', route: ['/sales/orders'], tooltip: 'View all orders' },
@@ -1804,6 +1835,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       { label: getLabel('warehouse_transfers_menu_title', 'Transfers'), icon: 'pi pi-arrow-right-arrow-left', route: ['/inventory/warehouse-transfers'], tooltip: 'Warehouse transfers' },
       { label: getLabel('expenses_menu_title', 'Expenses'), icon: 'pi pi-money-bill', route: ['/finance/expenses'], tooltip: 'Manage expenses' }
     ];
+    return this.isWarehouseTransfersFeatureEnabled
+      ? actions
+      : actions.filter(action => action.route?.[0] !== '/inventory/warehouse-transfers');
   }
 
   getVendorQuickActions(): any[] {
@@ -1836,7 +1870,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     };
 
-    return [
+    const actions = [
       { label: getLabel('warehouse_transfers_menu_title', 'Transfers'), icon: 'pi pi-arrow-right-arrow-left', route: ['/inventory/warehouse-transfers'], tooltip: 'Manage transfers' },
       { label: getLabel('new_transfer', 'New Transfer'), icon: 'pi pi-plus-circle', route: ['/inventory/warehouse-transfers'], tooltip: 'Create new transfer' },
       { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View products' },
@@ -1844,6 +1878,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       { label: getLabel('warehouses_menu_title', 'Warehouses'), icon: 'pi pi-database', route: ['/inventory/warehouses'], tooltip: 'View warehouses' },
       { label: getLabel('purchases_menu_title', 'Purchases'), icon: 'pi pi-shopping-bag', route: ['/finance/purchases'], tooltip: 'View purchases' }
     ];
+    return this.isWarehouseTransfersFeatureEnabled
+      ? actions
+      : actions.filter(action => action.route?.[0] !== '/inventory/warehouse-transfers');
   }
 
   // ==================== VENDOR-SPECIFIC METHODS ====================

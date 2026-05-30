@@ -47,8 +47,9 @@
 					<p-dropdown [(ngModel)]="config.warehouse.country"
 						(onChange)="onSelectedCountry(config.warehouse.country)" name="country"
 						[options]="countries" optionValue="name" optionLabel="translatedName"
-						[filter]="true" [filterFields]="['name', 'translatedName']" [filterBy]="filterCountry"
-						[showClear]="true" placeholder="{{ 'select_country_option' | translate }}">
+						[filter]="true" [filterFields]="['name', 'translatedName']"
+						[showClear]="true" appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+						placeholder="{{ 'select_country_option' | translate }}">
 						<ng-template pTemplate="selectedItem">
 							<span *ngIf="config.warehouse?.country" class="flex align-items-center gap-2">
 								<i class="pi pi-globe"></i>
@@ -72,6 +73,7 @@
 						</label>
 						<p-dropdown [(ngModel)]="config.warehouse.city" name="city" [options]="states"
 							optionLabel="name" optionValue="name" [filter]="true" filterBy="name" [showClear]="true"
+							appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
 							placeholder="{{ 'select_city_option' | translate }}">
 							<ng-template pTemplate="selectedItem">
 								<span *ngIf="config.warehouse && config.warehouse.city" class="flex align-items-center gap-2">

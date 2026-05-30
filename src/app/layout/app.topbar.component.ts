@@ -12,6 +12,7 @@ import { Router } from '@angular/router';
 import { TieredMenu } from 'primeng/tieredmenu';
 import { MessageService } from 'primeng/api';
 import { AppConfigurationService } from '../services/app-configuration.service';
+import { ActionReminderService } from '../services/action-reminder.service';
 
 
 @Component({
@@ -62,6 +63,7 @@ export class AppTopBarComponent implements OnInit {
 
   // Permissions
   isAdminUser: boolean = false;
+  adminActionReminderCount = 0;
 
   @ViewChild('menubutton') menuButton!: ElementRef;
 
@@ -77,6 +79,7 @@ export class AppTopBarComponent implements OnInit {
     private translateService: TranslationService,
     private confirmationService: ConfirmationService,
     private configService: AppConfigurationService,
+    private actionReminderService: ActionReminderService,
     private router: Router) {
 
   }
@@ -100,6 +103,9 @@ export class AppTopBarComponent implements OnInit {
     const roles = await this.keycloakService.getUserRoles();
     this.isAdminUser = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN');
     console.log('Topbar user roles:', roles, 'isAdminUser:', this.isAdminUser);
+    if (this.isAdminUser) {
+      this.loadAdminActionRemindersCount();
+    }
     // this.items = [
     //     {
     //         label: 'Settings',
@@ -118,6 +124,18 @@ export class AppTopBarComponent implements OnInit {
     this.filteredRecentNotifications = [];
     this.filteredOlderNotifications = [];
     this.filteredPriorityNotifications = [];
+  }
+
+  loadAdminActionRemindersCount() {
+    this.actionReminderService.getAdminActionReminders().subscribe({
+      next: (response) => {
+        const items = response?.items || [];
+        this.adminActionReminderCount = items.reduce((sum, item) => sum + (item.count || 0), 0);
+      },
+      error: () => {
+        this.adminActionReminderCount = 0;
+      }
+    });
   }
 
   setupMenu(translations: any) {
@@ -700,9 +718,13 @@ export class AppTopBarComponent implements OnInit {
       }
     }
 
-    // Default fallback
-    return notification.message;
-  };
+    // Default fallback: API may send an i18n key or plain text
+    const raw = notification.message;
+    if (raw == null || raw === '') {
+      return '';
+    }
+    return this.translate.instant(raw);
+  }
 
   getRelativeTime(date: string): string {
     return moment(date).fromNow();

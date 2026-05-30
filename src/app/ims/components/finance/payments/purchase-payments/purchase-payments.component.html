@@ -263,7 +263,7 @@
 
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="Transfer" [(ngModel)]="payment.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod4"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod4" [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
                             <label for="paymentMethod4" class="ml-2">{{'payment_method_transfer' | translate}}</label>
                         </div>
 
@@ -275,13 +275,13 @@
 
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="Check" [(ngModel)]="payment.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod3"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod3" [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
                             <label for="paymentMethod3" class="ml-2">{{'payment_method_check' | translate}}</label>
                         </div>
 
                         <div class="flex align-items-center">
                             <p-radioButton name="paymentMethod" value="BOE" [(ngModel)]="payment.paymentMethod"
-                                ngDefaultControl inputId="paymentMethod5"></p-radioButton>
+                                ngDefaultControl inputId="paymentMethod5" [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
                             <label for="paymentMethod5" class="ml-2">{{'payment_method_boe' | translate}}</label>
                         </div>
                     </div>
@@ -428,6 +428,22 @@
                                 {{'and_more_transactions' | translate: {count: reconciliationStatus.unreconciledCount - 5} }}
                             </p>
                         </div>
+                        <ng-container *ngIf="reconciliationNavTargets() as recNavTargets">
+                            <div class="flex flex-wrap gap-2 mt-3" *ngIf="recNavTargets.length > 0">
+                                <button *ngFor="let target of recNavTargets" pButton pRipple type="button"
+                                    class="p-button-outlined p-button-sm"
+                                    icon="pi pi-external-link"
+                                    [label]="recNavTargets.length === 1 ? ('open_bank_reconciliation' | translate) : ('open_bank_reconciliation_for_account' | translate: { account: target.accountLabel })"
+                                    (click)="navigateToBankReconciliation(target.accountId)"></button>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-3" *ngIf="recNavTargets.length === 0">
+                                <button pButton pRipple type="button"
+                                    class="p-button-outlined p-button-sm"
+                                    icon="pi pi-list"
+                                    [label]="'view_bank_accounts' | translate"
+                                    (click)="navigateToBankingAccounts()"></button>
+                            </div>
+                        </ng-container>
                     </div>
 
                     <!-- Reconciliation Status Success -->
@@ -465,6 +481,13 @@
                             <i class="pi pi-info-circle mr-1"></i>
                             {{'error_loading_reconciliation_status' | translate}}
                         </p>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <button pButton pRipple type="button"
+                                class="p-button-outlined p-button-sm"
+                                icon="pi pi-list"
+                                [label]="'view_bank_accounts' | translate"
+                                (click)="navigateToBankingAccounts()"></button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -15,7 +15,19 @@ export class PaymentValidationService {
   private minimumAmountConfig: number | null = null;
   private configLoaded: boolean = false;
 
-  constructor(private configService: AppConfigurationService) {}
+  constructor(private configService: AppConfigurationService) {
+    this.configService.configurationSaved$.subscribe((key) => {
+      if (key?.startsWith('payment.bank.methods.')) {
+        this.invalidateBankPaymentConfig();
+      }
+    });
+  }
+
+  private invalidateBankPaymentConfig(): void {
+    this.configLoaded = false;
+    this.requireAccountConfig = null;
+    this.minimumAmountConfig = null;
+  }
 
   /**
    * Check if a payment method is a bank method (Check, Transfer, BOE)

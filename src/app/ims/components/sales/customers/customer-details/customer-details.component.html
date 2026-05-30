@@ -628,7 +628,7 @@
             </p-tabPanel>
 
             <!-- Special Prices Tab -->
-            <p-tabPanel>
+            <p-tabPanel *ngIf="canManagePricingProfile">
                 <ng-template pTemplate="header">
                     <i class="pi pi-tag mr-2"></i>
                     <span>{{ 'special_prices' | translate }}</span>

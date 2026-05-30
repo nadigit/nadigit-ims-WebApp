@@ -302,7 +302,7 @@
                             <div class="card-body">
                                 <div class="items-preview">
                                     <div *ngFor="let item of return.returnItems?.slice(0, 3)" class="item-preview">
-                                        <img [src]="item.product?.productImage || 'assets/core-images/no-image.png'" 
+                                        <img [src]="item.product | productImage"
                                             [alt]="item.product?.name" class="item-image" />
                                         <div class="item-info">
                                             <span class="item-name">{{ item.product?.name }}</span>
@@ -355,7 +355,7 @@
                                     <tr>
                                         <td>
                                             <div class="product-cell">
-                                                <img [src]="item.product?.productImage || 'assets/core-images/no-image.png'"
+                                                <img [src]="item.product | productImage"
                                                     [alt]="item.product?.name" class="product-image" />
                                                 <div class="product-info">
                                                     <span class="product-name">{{ item.product?.name || 'N/A' }}</span>

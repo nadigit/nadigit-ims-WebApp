@@ -59,6 +59,9 @@ export class ProductImportComponent implements OnInit {
   currentStep: 'upload' | 'validation' | 'preview' | 'import' | 'results' = 'upload';
   showAdvancedOptions: boolean = false;
   showHelpGuide: boolean = false;
+  /** Max rows to ask the preview API to analyze (full file for accurate counts; capped for safety) */
+  private static readonly PREVIEW_ROWS_MAX = 50000;
+
   previewRowCount: number = 10;
 
   constructor(
@@ -231,9 +234,15 @@ export class ProductImportComponent implements OnInit {
 
     try {
       this.previewing = true;
+      const totalFromValidation = this.validationResult?.totalRows;
+      const previewRowsRequest =
+        totalFromValidation != null && totalFromValidation > 0
+          ? Math.min(Math.max(totalFromValidation, 1), ProductImportComponent.PREVIEW_ROWS_MAX)
+          : this.previewRowCount;
       this.preview = await firstValueFrom(
-        this.productImportService.previewImport(this.selectedFile, this.previewRowCount, this.importOptions)
+        this.productImportService.previewImport(this.selectedFile, previewRowsRequest, this.importOptions)
       );
+      this.normalizePreviewEstimates(this.preview);
       this.currentStep = 'preview';
     } catch (error: any) {
       console.error('Error previewing import:', error);
@@ -336,6 +345,75 @@ export class ProductImportComponent implements OnInit {
 
   getErrorSeverity(severity: string): string {
     return severity === 'ERROR' ? 'danger' : 'warning';
+  }
+
+  /**
+   * Some APIs return estimatedCreates/Updates/Skips only for the first N preview rows while totalRows is file-wide.
+   * If totals still look sample-sized, scale from the status mix in previewData to totalRows.
+   */
+  private normalizePreviewEstimates(preview: ImportPreview): void {
+    const rows = preview.previewData || [];
+    const sampleLen = rows.length;
+    const total = preview.totalRows ?? 0;
+    if (sampleLen === 0 || total === 0) {
+      return;
+    }
+
+    const c = preview.estimatedCreates ?? 0;
+    const u = preview.estimatedUpdates ?? 0;
+    const s = preview.estimatedSkips ?? 0;
+    const sum = c + u + s;
+
+    if (!(total > sampleLen && sum <= sampleLen)) {
+      return;
+    }
+
+    let nNew = 0;
+    let nUpd = 0;
+    let nSkip = 0;
+    let nErr = 0;
+    for (const row of rows) {
+      switch (row.status) {
+        case 'NEW':
+          nNew++;
+          break;
+        case 'UPDATE':
+          nUpd++;
+          break;
+        case 'SKIP':
+          nSkip++;
+          break;
+        case 'ERROR':
+          nErr++;
+          break;
+        default:
+          break;
+      }
+    }
+    const denom = nNew + nUpd + nSkip + nErr;
+    if (denom === 0) {
+      return;
+    }
+
+    let estC = Math.round((nNew / denom) * total);
+    let estU = Math.round((nUpd / denom) * total);
+    const errPart = Math.round((nErr / denom) * total);
+    let estS = Math.round((nSkip / denom) * total) + errPart;
+
+    let drift = total - estC - estU - estS;
+    if (drift !== 0) {
+      if (nNew >= nUpd && nNew >= nSkip && nNew >= nErr) {
+        estC += drift;
+      } else if (nUpd >= nSkip && nUpd >= nErr) {
+        estU += drift;
+      } else {
+        estS += drift;
+      }
+    }
+
+    preview.estimatedCreates = estC;
+    preview.estimatedUpdates = estU;
+    preview.estimatedSkips = estS;
   }
 
   formatFileSize(bytes: number): string {

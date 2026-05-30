@@ -398,14 +398,6 @@ export class SupplierDetailsComponent implements OnInit {
       });
   }
 
-  filterCountry(value: any, filter: string): boolean {
-    const normalizedFilter = filter.toLowerCase();
-    return (
-      value.name.toLowerCase().includes(normalizedFilter) ||
-      value.translatedName.toLowerCase().includes(normalizedFilter)
-    );
-  }
-
   contactSupplier(): void {
     if (this.supplier?.email) {
       window.location.href = `mailto:${this.supplier.email}`;

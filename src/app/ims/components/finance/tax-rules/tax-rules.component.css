@@ -1,0 +1,11 @@
+.tax-rules-page {
+  max-width: 1400px;
+}
+
+.tax-rules-page--embedded {
+  max-width: none;
+}
+
+::ng-deep .tax-rules-toolbar--embedded.p-toolbar {
+  justify-content: flex-end;
+}

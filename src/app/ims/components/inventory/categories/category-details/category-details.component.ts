@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Category } from 'src/app/models/category';
@@ -12,7 +12,8 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { getMeasureUnit } from 'src/app/shared/product-utils';
@@ -25,7 +26,7 @@ import { Location } from '@angular/common';
   styleUrls: ['./category-details.component.css', '../../inventory.component.css'],
   providers: [MessageService]
 })
-export class CategoryDetailsComponent implements OnInit {
+export class CategoryDetailsComponent implements OnInit, OnDestroy {
   categoryId!: number;
   category: Category | null = null;
   isLoading: boolean = true;
@@ -38,6 +39,8 @@ export class CategoryDetailsComponent implements OnInit {
   selectedStatusFilter: string | null = null;
   lowStockThreshold: number = 10;
   uniqueWarehouses: Warehouse[] = [];
+
+  private readonly destroy$ = new Subject<void>();
 
   // Permissions
   canListProducts: boolean = false;
@@ -101,6 +104,14 @@ export class CategoryDetailsComponent implements OnInit {
 
     this.lowStockThreshold = await this.getLowStockThreshold();
 
+    this.configService.configurationSaved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((key) => {
+        if (key === 'lowStockThreshold') {
+          void this.getLowStockThreshold().then((t) => (this.lowStockThreshold = t));
+        }
+      });
+
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
     });
@@ -117,6 +128,11 @@ export class CategoryDetailsComponent implements OnInit {
       await this.onGetAllSuppliers();
       this.isLoading = false;
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   async loadCategory(): Promise<void> {
@@ -663,6 +679,11 @@ export class CategoryDetailsComponent implements OnInit {
 
   goBack(): void {
     this.location.back();
+  }
+
+  /** Warehouse filter is only useful when the user can see multiple warehouses (admins, or org-scoped lists). */
+  get showWarehouseFilterInCategory(): boolean {
+    return this.isAdmin || (this.uniqueWarehouses?.length ?? 0) > 1;
   }
 }
 

@@ -3,12 +3,15 @@ import { NgModule } from '@angular/core';
 import { NotfoundComponent } from './ims/components/notfound/notfound.component';
 import { AppLayoutComponent } from "./layout/app.layout.component";
 import { AuthGuard } from './guards/auth.guard';
+import { BusinessActivityProfileGuard } from './guards/business-activity-profile.guard';
+import { PosEnabledGuard } from './guards/pos-enabled.guard';
 
 @NgModule({
     imports: [
         RouterModule.forRoot([
             {
                 path: '', component: AppLayoutComponent,
+                canActivate: [AuthGuard, BusinessActivityProfileGuard],
                 children: [
                     // Dashboard
                     { path: '', loadChildren: () => import('./ims/components/dashboard/dashboard.module').then(m => m.DashboardModule), canActivate: [AuthGuard], data: { roles: ['ADMIN', 'VENDOR', 'WAREHOUSEMAN'] } },
@@ -41,7 +44,7 @@ import { AuthGuard } from './guards/auth.guard';
                     {
                         path: 'pos',
                         loadChildren: () => import('./ims/components/pos/pos.module').then(m => m.PosModule),
-                        canActivate: [AuthGuard],
+                        canActivate: [AuthGuard, PosEnabledGuard],
                         data: { roles: ['ADMIN', 'VENDOR', 'CASHIER'] }
                     },
 

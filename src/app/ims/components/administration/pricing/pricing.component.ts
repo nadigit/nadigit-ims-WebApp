@@ -1,20 +1,30 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { Product } from 'src/app/models/product';
-import { CustomerPriceOverrideDTO, PriceListDTO, PriceListItemDTO } from 'src/app/models/pricing';
+import { PriceListDTO, PriceListItemDTO } from 'src/app/models/pricing';
 import { PricingService } from 'src/app/services/pricing.service';
 import { ProductService } from 'src/app/services/product.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 
 @Component({
   templateUrl: './pricing.component.html',
   styleUrls: ['./pricing.component.css'],
   providers: [MessageService, ConfirmationService]
 })
-export class PricingComponent implements OnInit {
+export class PricingComponent implements OnInit, OnDestroy {
   isLoading = true;
+  isLoadingItems = false;
+  savingPriceList = false;
+  savingItem = false;
+  currency: string = 'USD';
+  /** TabView: 0 = price lists, 1 = tier rules */
+  activeTabIndex = 0;
+  private readonly destroy$ = new Subject<void>();
+
   priceLists: PriceListDTO[] = [];
   selectedPriceList: PriceListDTO | null = null;
   priceListItems: PriceListItemDTO[] = [];
@@ -36,13 +46,27 @@ export class PricingComponent implements OnInit {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private translate: TranslateService,
-    private translateService: TranslationService
+    private translateService: TranslationService,
+    private configService: AppConfigurationService
   ) {}
 
   async ngOnInit() {
-    this.translateService.currentLanguage$.subscribe(lang => this.translate.use(lang));
+    this.translateService.currentLanguage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(lang => this.translate.use(lang));
+    this.configService.currency$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((c) => {
+        if (c) this.currency = c;
+      });
+    await this.configService.loadCurrencyOnce();
     await this.loadPriceLists();
     this.isLoading = false;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   async loadPriceLists(): Promise<void> {
@@ -69,6 +93,7 @@ export class PricingComponent implements OnInit {
       this.priceListItems = [];
       return;
     }
+    this.isLoadingItems = true;
     try {
       const items = await firstValueFrom(
         await this.pricingService.getPriceListItems(this.selectedPriceList.id)
@@ -117,11 +142,13 @@ export class PricingComponent implements OnInit {
         detail: this.translate.instant('error_loading_price_list_items'),
         life: 3000
       });
+    } finally {
+      this.isLoadingItems = false;
     }
   }
 
-  onPriceListChange(): void {
-    this.loadPriceListItems();
+  async onPriceListChange(): Promise<void> {
+    await this.loadPriceListItems();
   }
 
   openNewPriceList(): void {
@@ -136,10 +163,24 @@ export class PricingComponent implements OnInit {
     this.priceListDialog = true;
   }
 
+  /** Switch to tier rules tab with this list pre-selected (fewer clicks). */
+  async openTierRulesForList(list: PriceListDTO): Promise<void> {
+    this.selectedPriceList = list;
+    this.activeTabIndex = 1;
+    await this.loadPriceListItems();
+  }
+
   async savePriceList(): Promise<void> {
     if (!this.priceListForm.name?.trim()) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('pricing_name_required'),
+        life: 3000
+      });
       return;
     }
+    this.savingPriceList = true;
     try {
       if (this.isEditingPriceList && this.priceListForm.id) {
         await firstValueFrom(
@@ -170,6 +211,8 @@ export class PricingComponent implements OnInit {
         detail: this.translate.instant('error_saving_price_list'),
         life: 3000
       });
+    } finally {
+      this.savingPriceList = false;
     }
   }
 
@@ -187,7 +230,11 @@ export class PricingComponent implements OnInit {
   editItem(item: PriceListItemDTO): void {
     this.isEditingItem = true;
     this.itemForm = { ...item };
-    this.selectedProduct = null;
+    this.selectedProduct = {
+      productId: item.productId,
+      name: item.productName || `#${item.productId}`,
+      reference: ''
+    } as Product;
     this.itemDialog = true;
   }
 
@@ -241,6 +288,19 @@ export class PricingComponent implements OnInit {
       });
       return;
     }
+
+    const overlapping = this.findOverlappingTierRuleForCurrentForm();
+    if (overlapping) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('pricing_tier_rule_overlap'),
+        life: 6000
+      });
+      return;
+    }
+
+    this.savingItem = true;
     try {
       if (this.isEditingItem && this.itemForm.id) {
         await firstValueFrom(
@@ -270,9 +330,11 @@ export class PricingComponent implements OnInit {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_saving_price_list_item'),
-        life: 3000
+        detail: this.getPricingItemSaveErrorMessage(error),
+        life: 5000
       });
+    } finally {
+      this.savingItem = false;
     }
   }
 
@@ -323,16 +385,18 @@ export class PricingComponent implements OnInit {
   }
 
   onProductSelect(event: any): void {
-    const product = event.value;
-    if (!product?.productId) return;
-    this.itemForm.productId = product.productId;
-    this.itemForm.productName = product.name;
+    const product = event?.value;
+    const id = product?.productId ?? product?.id;
+    if (product == null || id == null) return;
+    this.itemForm.productId = Number(id);
+    this.itemForm.productName = product.name || '';
   }
 
-  onProductChange(product: Product): void {
-    if (product?.productId) {
-      this.itemForm.productId = product.productId;
-      this.itemForm.productName = product.name;
+  onProductChange(product: Product | null): void {
+    const id = product?.productId ?? (product as any)?.id;
+    if (id != null) {
+      this.itemForm.productId = Number(id);
+      this.itemForm.productName = product!.name || '';
     } else if (!product) {
       // Clear the form if product is cleared
       this.itemForm.productId = null as any;
@@ -340,8 +404,94 @@ export class PricingComponent implements OnInit {
     }
   }
 
-  getProductDisplay(item: PriceListItemDTO): string {
-    return item.productName || `#${item.productId}`;
+  formatUnitPrice(value: number | null | undefined): string {
+    if (value == null || Number.isNaN(Number(value))) return '—';
+    const code = (this.currency || 'USD').trim() || 'USD';
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(Number(value));
+    } catch {
+      return `${code} ${Number(value).toFixed(2)}`;
+    }
+  }
+
+  tierProductDisplayName(item: PriceListItemDTO): string {
+    return item.productName?.trim() || `#${item.productId}`;
+  }
+
+  autocompleteProductLabel(product: Product | null): string {
+    if (!product) return '';
+    const ref = product.reference?.trim();
+    const name = product.name?.trim() || '';
+    if (ref && name) return `${ref} — ${name}`;
+    return name || ref || '';
+  }
+
+  /** Inclusive quantity bands [min, max] where null max means no upper bound. */
+  private tierQtyRangesOverlap(
+    minA: number,
+    maxA: number | null | undefined,
+    minB: number,
+    maxB: number | null | undefined
+  ): boolean {
+    const high = (max: number | null | undefined) =>
+      max == null ? Number.POSITIVE_INFINITY : Number(max);
+    const endA = high(maxA);
+    const endB = high(maxB);
+    return !(endA < minB || endB < minA);
+  }
+
+  /** Another rule for the same product with an overlapping min/max band (excluding current row when editing). */
+  private findOverlappingTierRuleForCurrentForm(): PriceListItemDTO | null {
+    const pid = Number(this.itemForm.productId);
+    const selfId = this.itemForm.id;
+    const minQ = Number(this.itemForm.minQty);
+
+    for (const other of this.priceListItems) {
+      if (Number(other.productId) !== pid) continue;
+      if (selfId != null && other.id != null && Number(other.id) === Number(selfId)) continue;
+      if (this.tierQtyRangesOverlap(minQ, this.itemForm.maxQty, other.minQty, other.maxQty)) {
+        return other;
+      }
+    }
+    return null;
+  }
+
+  private getPricingItemSaveErrorMessage(error: any): string {
+    const fallback = this.translate.instant('error_saving_price_list_item');
+    if (!error) return fallback;
+
+    const body = error.error;
+    let msg = '';
+    if (typeof body === 'string') {
+      msg = body;
+    } else if (body && typeof body === 'object') {
+      msg = String((body as any).message || (body as any).detail || (body as any).error || (body as any).title || '');
+      const errs = (body as any).errors;
+      if (Array.isArray(errs) && errs.length) {
+        msg = errs.map((e: any) => (typeof e === 'string' ? e : e?.message || JSON.stringify(e))).join('; ');
+      }
+    }
+    if (!msg && error.message) msg = String(error.message);
+    const m = msg.toLowerCase();
+    if (
+      m.includes('duplicate') ||
+      m.includes('unique constraint') ||
+      m.includes('already exists') ||
+      m.includes('uq_') ||
+      m.includes('violates unique') ||
+      m.includes('duplicate key')
+    ) {
+      return this.translate.instant('pricing_tier_rule_duplicate_error');
+    }
+    if (m.includes('overlap') || m.includes('overlapping')) {
+      return this.translate.instant('pricing_tier_rule_overlap');
+    }
+    return msg.trim() ? msg : fallback;
   }
 
   getPriceListLabel(list: PriceListDTO | null | undefined): string {

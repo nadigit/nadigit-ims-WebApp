@@ -9,6 +9,11 @@ export class OrderItem {
   returnedQuantity?: number;
   subTotal?: number;
   pricePerUnit?: number;
+  lineNetAmount?: number;
+  lineTaxAmount?: number;
+  lineGrossAmount?: number;
+  /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
+  taxRateUsed?: number;
   
   // ⚠️ NEW FIELDS for cost and profit calculation
   costPerUnit?: number;      // Cost per unit (from batches or price history)

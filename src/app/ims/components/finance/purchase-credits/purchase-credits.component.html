@@ -18,7 +18,8 @@
                 <div class="flex align-items-center gap-2">
                     <button pButton pRipple *ngIf="canAddCredit" label="{{ 'new_button' | translate }}"
                         icon="pi pi-plus" class="p-button-success" (click)="openNew()"
-                        pTooltip="{{'add_new_credit'|translate}}"></button>
+                        [disabled]="!isPurchaseCreditsFeatureEnabled"
+                        [pTooltip]="!isPurchaseCreditsFeatureEnabled ? 'Upgrade plan to create purchase credits.' : ('add_new_credit' | translate)"></button>
                     <button pButton pRipple *ngIf="canDeleteCredit" label="{{ 'delete_button' | translate }}"
                         icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedCredits()"
                         pTooltip="{{'delete_credit'|translate}}"

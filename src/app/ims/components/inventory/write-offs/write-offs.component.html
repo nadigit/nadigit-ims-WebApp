@@ -22,7 +22,8 @@
                 <div class="flex align-items-center gap-2">
                     <button pButton pRipple *ngIf="canCreateWriteOff" label="{{ 'new_write_off' | translate }}"
                         icon="pi pi-plus" class="p-button-success" (click)="navigateToCreate()"
-                        pTooltip="{{'create_new_write_off'|translate}}"></button>
+                        [disabled]="!isWriteOffFeatureEnabled"
+                        [pTooltip]="!isWriteOffFeatureEnabled ? 'Upgrade plan to create write-offs.' : ('create_new_write_off' | translate)"></button>
                 </div>
             </div>
 

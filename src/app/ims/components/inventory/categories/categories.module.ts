@@ -29,6 +29,7 @@ import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TabViewModule } from 'primeng/tabview';
 import { BadgeModule } from 'primeng/badge';
+import { MessageModule } from 'primeng/message';
 import { DividerModule } from 'primeng/divider';
 import { ChartModule } from 'primeng/chart';
 import { SharedModule } from 'src/app/shared/shared.module';
@@ -64,6 +65,7 @@ import { InventorySharedModule } from '../shared/inventory-shared.module';
         CheckboxModule,
         TabViewModule,
         BadgeModule,
+        MessageModule,
         DividerModule,
         ChartModule,
         SharedModule,

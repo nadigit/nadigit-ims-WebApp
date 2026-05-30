@@ -23,8 +23,15 @@ export class OrderService {
     this.jwt = this.keycloakService.getToken();
   }
 
-  saveOrder(data: any): Observable<any> {
+  saveOrder(
+    data: any,
+    opts?: { checkoutReservationContext?: string }
+  ): Observable<any> {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('order', data, 'orderId', 'reference'));
+    const ctx = opts?.checkoutReservationContext?.trim();
+    if (ctx) {
+      headers = headers.set('X-Checkout-Reservation-Context', ctx);
+    }
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers }).pipe(
       catchError((error: HttpErrorResponse) => {
         // Handle insufficient stock errors with write-off details

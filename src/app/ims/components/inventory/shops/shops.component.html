@@ -18,7 +18,8 @@
                 <div class="flex align-items-center gap-2">
                     <button pButton pRipple *ngIf="canAddShop" label="{{'new_button' | translate}}"
                         icon="pi pi-plus" class="p-button-success" (click)="openNew()"
-                        pTooltip="{{'add_new_shop'|translate}}"></button>
+                        [disabled]="isAtShopsCapacity"
+                        [pTooltip]="isAtShopsCapacity ? ('Limit reached: ' + maxShopsCap + ' shops allowed by current plan.') : ('add_new_shop'|translate)"></button>
                     <button pButton pRipple *ngIf="canDeleteShop" label="{{'delete_button' | translate}}"
                         icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedShops()"
                         pTooltip="{{'delete_shop'|translate}}"

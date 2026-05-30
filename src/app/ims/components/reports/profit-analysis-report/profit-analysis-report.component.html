@@ -1,18 +1,18 @@
 <div class="grid">
   <div class="col-12">
-    <div class="mb-4">
-      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
-        <div>
-          <h2 class="m-0 text-900">{{ 'reports_profit_analysis' | translate }}</h2>
-          <p class="text-600 mt-2 mb-0" *ngIf="profitData && !profitLoading">
-            <i class="pi pi-calendar mr-2 text-500"></i>
-            {{ (profitData.startDate | date:'mediumDate') }} {{ 'to' | translate }} {{ (profitData.endDate | date:'mediumDate') }}
-          </p>
+    <div class="card px-6 py-6 profit-report-card">
+      <div class="mb-4">
+        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+          <div>
+            <h2 class="m-0 text-900">{{ 'reports_profit_analysis' | translate }}</h2>
+            <p class="text-600 mt-2 mb-0" *ngIf="profitData && !profitLoading">
+              <i class="pi pi-calendar mr-2 text-500"></i>
+              {{ (profitData.startDate | date:'mediumDate') }} {{ 'to' | translate }} {{ (profitData.endDate | date:'mediumDate') }}
+            </p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="card px-6 py-6 profit-report-card">
       <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">
         <div class="flex flex-column flex-1" style="min-width: 12rem; max-width: 22rem">
           <label class="reports-filter-label">
