@@ -1,0 +1,296 @@
+<div class="treasury-overview-container">
+    <p-toast></p-toast>
+
+    <div class="loading-wrapper" *ngIf="isLoading">
+        <div class="loading-content">
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+        </div>
+    </div>
+
+    <div class="dashboard-content" *ngIf="!isLoading">
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'treasury_overview_title' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'treasury_overview_description' | translate }}</p>
+                </div>
+                <div class="flex flex-wrap align-items-center gap-2">
+                    <p-selectButton [options]="activityPeriodOptions" [(ngModel)]="activityDays"
+                        optionLabel="label" optionValue="value" (onChange)="onActivityPeriodChange()"
+                        [pTooltip]="'treasury_activity_period_hint' | translate"></p-selectButton>
+                    <button pButton pRipple icon="pi pi-file-excel" class="p-button-success p-button-outlined"
+                        [label]="'export_to_excel' | translate" (click)="exportExcel()"
+                        [disabled]="isLoading || isExporting"></button>
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-danger p-button-outlined"
+                        [label]="'export_pdf' | translate" (click)="exportPdf()"
+                        [disabled]="isLoading || isExporting"></button>
+                    <button pButton pRipple icon="pi pi-refresh" [label]="'refresh' | translate"
+                        class="p-button-outlined" (click)="refresh()" [disabled]="isLoading"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status banner -->
+        <div class="status-banner mb-4" *ngIf="canReadCash && openRegistersCount > 0">
+            <div class="flex align-items-center gap-3 flex-wrap">
+                <i class="pi pi-info-circle text-xl"></i>
+                <span class="font-medium">
+                    {{ 'treasury_open_registers_banner' | translate:{ count: openRegistersCount } }}
+                </span>
+                <p-tag [value]="openRegistersCount.toString()" severity="warning" [rounded]="true"></p-tag>
+            </div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="card mb-4 alert-card" *ngIf="canReadCash && pastClosingAlerts.length > 0">
+            <div class="flex align-items-center gap-2 mb-3">
+                <i class="pi pi-exclamation-triangle text-orange-500 text-xl"></i>
+                <h3 class="m-0">{{ 'treasury_past_closing_alert_title' | translate }}</h3>
+                <p-tag [value]="pastClosingAlerts.length.toString()" severity="danger" [rounded]="true"></p-tag>
+            </div>
+            <p class="text-600 mt-0 mb-3">{{ 'treasury_past_closing_alert_description' | translate }}</p>
+            <p-table [value]="pastClosingAlerts" styleClass="p-datatable-sm p-datatable-gridlines">
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th>{{ 'shop_name' | translate }}</th>
+                        <th>{{ 'cash_register_balance' | translate }}</th>
+                        <th>{{ 'cash_register_closing_time' | translate }}</th>
+                        <th>{{ 'cashier' | translate }}</th>
+                        <th class="text-center">{{ 'actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-row>
+                    <tr>
+                        <td class="font-medium">{{ row.shopName }}</td>
+                        <td>{{ row.balance | currency:currency:'symbol':'1.2-2' }}</td>
+                        <td>{{ row.closingTime || '—' }}</td>
+                        <td>{{ row.openedBy || '—' }}</td>
+                        <td class="text-center">
+                            <button pButton icon="pi pi-eye" class="p-button-text p-button-sm p-button-rounded p-button-primary"
+                                [pTooltip]="'view_cash_register' | translate"
+                                (click)="navigateToRegister(row.shopId)"></button>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="grid mb-4">
+            <div class="col-12 md:col-6 lg:col-3" *ngIf="canReadCash">
+                <div class="summary-card clickable" (click)="navigateToCashRegisters()">
+                    <div class="card-icon cash">
+                        <i class="pi pi-wallet"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'total_cash_balance' | translate }}</span>
+                        <div class="card-value">{{ totalCashBalance | currency:currency:'symbol':'1.2-2' }}</div>
+                        <small class="card-meta">{{ openRegistersCount }} {{ 'open' | translate | lowercase }} · {{ closedRegistersCount }} {{ 'closed' | translate | lowercase }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6 lg:col-3" *ngIf="canReadBank">
+                <div class="summary-card clickable" (click)="navigateToBankAccounts()">
+                    <div class="card-icon bank">
+                        <i class="pi pi-credit-card"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'treasury_total_bank_balance' | translate }}</span>
+                        <div class="card-value">{{ totalBankBalance | currency:currency:'symbol':'1.2-2' }}</div>
+                        <small class="card-meta">{{ bankAccountsCount }} {{ 'bank_accounts_menu_title' | translate | lowercase }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6 lg:col-3" *ngIf="canViewCredit">
+                <div class="summary-card clickable" (click)="navigateToCustomerCredits()">
+                    <div class="card-icon credit">
+                        <i class="pi pi-chart-pie"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'outstanding_credit_balance' | translate }}</span>
+                        <div class="card-value">{{ outstandingCreditBalance | currency:currency:'symbol':'1.2-2' }}</div>
+                        <small class="card-meta">{{ customersWithCredit }} {{ 'customers_with_credit' | translate | lowercase }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6 lg:col-3" *ngIf="canReadCash || canReadBank">
+                <div class="summary-card">
+                    <div class="card-icon liquidity">
+                        <i class="pi pi-wallet"></i>
+                    </div>
+                    <div class="card-content">
+                        <span class="card-label">{{ 'treasury_net_liquidity' | translate }}</span>
+                        <div class="card-value">{{ netLiquidity | currency:currency:'symbol':'1.2-2' }}</div>
+                        <small class="card-meta">{{ 'treasury_net_liquidity_hint' | translate }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash flow: register → bank -->
+        <div class="card mb-4" *ngIf="canReadCash">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-start gap-3 mb-3">
+                <div>
+                    <div class="flex align-items-center gap-2 mb-2">
+                        <i class="pi pi-arrow-right-arrow-left text-primary"></i>
+                        <h3 class="m-0">{{ 'treasury_cash_flow_title' | translate }}</h3>
+                    </div>
+                    <p class="text-600 mt-0 mb-0">{{ 'treasury_cash_flow_description' | translate }}</p>
+                </div>
+                <div class="cash-flow-summary" *ngIf="canReadBank">
+                    <span class="text-600">{{ 'treasury_total_collections_period' | translate:{ days: activityDays } }}</span>
+                    <div class="text-2xl font-bold text-primary">
+                        {{ totalCollectionsInPeriod | currency:currency:'symbol':'1.2-2' }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-banner mb-3" *ngIf="canReadBank && unlinkedRegistersCount > 0">
+                <div class="flex align-items-center gap-2">
+                    <i class="pi pi-exclamation-circle text-orange-500"></i>
+                    <span>{{ 'treasury_unlinked_registers_warning' | translate:{ count: unlinkedRegistersCount } }}</span>
+                </div>
+            </div>
+
+            <p-table [value]="cashFlowRows" styleClass="p-datatable-sm p-datatable-gridlines"
+                *ngIf="cashFlowRows.length; else noCashFlow">
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th>{{ 'shop_name' | translate }}</th>
+                        <th class="text-right">{{ 'cash_register_balance' | translate }}</th>
+                        <th *ngIf="canReadBank">{{ 'treasury_register_to_bank' | translate }}</th>
+                        <th class="text-right" *ngIf="canReadBank">{{ 'treasury_collections_period' | translate:{ days: activityDays } }}</th>
+                        <th class="text-center">{{ 'actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-row>
+                    <tr>
+                        <td class="font-medium">{{ row.shopName }}</td>
+                        <td class="text-right font-bold">{{ row.registerBalance | currency:currency:'symbol':'1.2-2' }}</td>
+                        <td *ngIf="canReadBank">
+                            <span *ngIf="row.hasLinkedBank" class="flex align-items-center gap-2">
+                                <i class="pi pi-credit-card text-500"></i>
+                                {{ row.bankAccountName }}
+                            </span>
+                            <p-tag *ngIf="!row.hasLinkedBank" [value]="'treasury_no_linked_bank' | translate" severity="warning"></p-tag>
+                        </td>
+                        <td class="text-right text-blue-500 font-bold" *ngIf="canReadBank">
+                            {{ row.collectionsInPeriod | currency:currency:'symbol':'1.2-2' }}
+                        </td>
+                        <td class="text-center">
+                            <button pButton icon="pi pi-eye" class="p-button-text p-button-sm p-button-rounded p-button-primary"
+                                [pTooltip]="'view_cash_register' | translate"
+                                (click)="navigateToRegister(row.shopId)"></button>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+            <ng-template #noCashFlow>
+                <div class="empty-panel text-center py-4">
+                    <p class="text-600 m-0">{{ 'treasury_no_cash_flow_data' | translate }}</p>
+                </div>
+            </ng-template>
+        </div>
+
+        <div class="grid">
+            <!-- Open registers -->
+            <div class="col-12 lg:col-6" *ngIf="canReadCash">
+                <div class="card h-full">
+                    <div class="flex align-items-center justify-content-between mb-3">
+                        <div class="flex align-items-center gap-2">
+                            <i class="pi pi-unlock text-orange-500"></i>
+                            <h3 class="m-0">{{ 'open_registers' | translate }}</h3>
+                            <p-tag [value]="openRegisters.length.toString()" severity="warning"></p-tag>
+                        </div>
+                        <button pButton pRipple [label]="'view_all' | translate" icon="pi pi-arrow-right" iconPos="right"
+                            class="p-button-text p-button-sm" (click)="navigateToCashRegisters()"></button>
+                    </div>
+
+                    <p-table [value]="openRegisters" styleClass="p-datatable-sm p-datatable-gridlines"
+                        *ngIf="openRegisters.length; else noOpenRegisters">
+                        <ng-template pTemplate="header">
+                            <tr>
+                                <th>{{ 'shop_name' | translate }}</th>
+                                <th class="text-right">{{ 'cash_register_balance' | translate }}</th>
+                                <th>{{ 'opened_at' | translate }}</th>
+                                <th class="text-center">{{ 'actions' | translate }}</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template pTemplate="body" let-row>
+                            <tr>
+                                <td class="font-medium">{{ row.shopName }}</td>
+                                <td class="text-right font-bold">{{ row.balance | currency:currency:'symbol':'1.2-2' }}</td>
+                                <td>
+                                    <span *ngIf="row.openedAt">{{ row.openedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                                    <span *ngIf="!row.openedAt">—</span>
+                                </td>
+                                <td class="text-center">
+                                    <button pButton icon="pi pi-eye" class="p-button-text p-button-sm p-button-rounded p-button-primary"
+                                        (click)="navigateToRegister(row.shopId)"></button>
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                    <ng-template #noOpenRegisters>
+                        <div class="empty-panel text-center py-5">
+                            <i class="pi pi-lock text-4xl text-400 mb-3"></i>
+                            <p class="text-600 m-0">{{ 'treasury_no_open_registers' | translate }}</p>
+                        </div>
+                    </ng-template>
+                </div>
+            </div>
+
+            <!-- Recent activity -->
+            <div class="col-12 lg:col-6" *ngIf="canReadCash">
+                <div class="card h-full">
+                    <div class="flex align-items-center gap-2 mb-3">
+                        <i class="pi pi-history text-primary"></i>
+                        <h3 class="m-0">{{ 'treasury_recent_activity' | translate }} ({{ activityDays }} {{ 'days' | translate | lowercase }})</h3>
+                    </div>
+
+                    <p-table [value]="recentActivity" styleClass="p-datatable-sm p-datatable-gridlines"
+                        *ngIf="recentActivity.length; else noActivity">
+                        <ng-template pTemplate="header">
+                            <tr>
+                                <th>{{ 'shop_name' | translate }}</th>
+                                <th>{{ 'type' | translate }}</th>
+                                <th class="text-right">{{ 'amount' | translate }}</th>
+                                <th>{{ 'timestamp' | translate }}</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template pTemplate="body" let-item>
+                            <tr class="cursor-pointer" (click)="navigateToRegister(item.shopId)">
+                                <td class="font-medium">{{ item.shopName }}</td>
+                                <td>
+                                    <p-tag *ngIf="item.kind === 'MOVEMENT'"
+                                        [value]="('movement_' + (item.movementType || '').toLowerCase()) | translate"
+                                        [severity]="getMovementSeverity(item.movementType)"></p-tag>
+                                    <p-tag *ngIf="item.kind === 'COLLECTION'"
+                                        [value]="'collections' | translate" severity="info"></p-tag>
+                                </td>
+                                <td class="text-right font-bold"
+                                    [ngClass]="{
+                                        'text-green-500': item.movementType === 'DEPOSIT',
+                                        'text-red-500': item.movementType === 'WITHDRAWAL' || item.movementType === 'EXPENSE',
+                                        'text-blue-500': item.kind === 'COLLECTION'
+                                    }">
+                                    {{ item.amount | currency:currency:'symbol':'1.2-2' }}
+                                </td>
+                                <td>{{ item.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                    <ng-template #noActivity>
+                        <div class="empty-panel text-center py-5">
+                            <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
+                            <p class="text-600 m-0">{{ 'treasury_no_recent_activity' | translate }}</p>
+                        </div>
+                    </ng-template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

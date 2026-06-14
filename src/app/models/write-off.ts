@@ -50,6 +50,10 @@ export interface InventoryWriteOff {
   batch?: ProductBatch | null;
   // Common fields
   quantity: number;
+  /** Human-readable quantity from API (kg, liters, MAD). */
+  displayQuantity?: number;
+  /** Formatted quantity + unit from API. */
+  quantityLabel?: string;
   condition: ItemCondition | string; // DAMAGED, UNUSABLE, LOST, EXPIRED
   sourceType: WriteOffSourceType | string; // MANUAL_ADJUSTMENT, ORDER_RETURN, etc.
   writeOffCost?: number; // Total cost (quantity * buying price)

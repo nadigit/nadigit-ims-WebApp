@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
     <div class="col-12">
         <!-- Bank Accounts Management Section - Above Card (matching dashboard style) -->
         <div class="mb-4">
@@ -14,7 +14,7 @@
             <p-toast></p-toast>
 
             <!-- Action Buttons -->
-            <div class="flex justify-content-end align-items-center mb-4">
+            <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
                 <div class="flex align-items-center gap-2">
                     <button *ngIf="canAddAccount" pButton pRipple icon="pi pi-plus" 
                         [label]="'add_account' | translate" class="p-button-success"
@@ -52,10 +52,20 @@
             </div>
 
             <!-- Accounts Table -->
-            <p-table #dt [value]="accounts" [(selection)]="selectedAccounts" 
-                [paginator]="true" [rows]="20" [rowsPerPageOptions]="rowsPerPageOptions"
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+                *ngIf="(isLoading || isInitialLoad) && !accounts.length">
+                <div class="ims-loading-panel__inner">
+                    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                </div>
+            </div>
+
+            <p-table
+                *ngIf="(!isInitialLoad || accounts.length) && (!isLoading || accounts.length)"
+                #dt [value]="accounts" [(selection)]="selectedAccounts" 
+                [paginator]="true" [rows]="pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
+                (onPage)="onTablePage($event)"
                 [globalFilterFields]="['accountName','bank.name','accountNumber']"
-                [loading]="isLoading" dataKey="accountId"
+                [loading]="isLoading && accounts.length > 0" dataKey="accountId"
                 [responsive]="true" styleClass="p-datatable-gridlines">
                 
                 <ng-template pTemplate="header">
@@ -109,25 +119,16 @@
                         <td>
                             <div class="flex gap-2">
                                 <button *ngIf="canReadAccount" pButton pRipple icon="pi pi-eye" 
-                                    class="p-button-rounded p-button-text p-button-info"
+                                    class="p-button-rounded p-button-text p-button-primary"
                                     (click)="viewAccountDetails(account)"
                                     [pTooltip]="'view_details' | translate"></button>
-                                <button *ngIf="canReadAccount" pButton pRipple icon="pi pi-list" 
-                                    class="p-button-rounded p-button-text p-button-help"
-                                    (click)="viewTransactions(account)"
-                                    [pTooltip]="'view_transactions' | translate"></button>
-                                <button *ngIf="canEditAccount" pButton pRipple icon="pi pi-pencil" 
-                                    class="p-button-rounded p-button-text p-button-warning"
+                                <button *ngIf="canEditAccount" pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
                                     (click)="editAccount(account)"
                                     [pTooltip]="'edit' | translate"></button>
                                 <button *ngIf="canAddAccount" pButton pRipple icon="pi pi-plus-circle" 
                                     class="p-button-rounded p-button-text p-button-success"
                                     (click)="recordTransaction(account)"
                                     [pTooltip]="'record_transaction' | translate"></button>
-                                <button *ngIf="canEditAccount" pButton pRipple icon="pi pi-refresh" 
-                                    class="p-button-rounded p-button-text"
-                                    (click)="recalculateBalance(account)"
-                                    [pTooltip]="'recalculate_balance' | translate"></button>
                                 <button *ngIf="canDeleteAccount" pButton pRipple icon="pi pi-trash" 
                                     class="p-button-rounded p-button-text p-button-danger"
                                     (click)="deleteAccount(account)"
@@ -138,7 +139,7 @@
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
-                    <tr>
+                    <tr *ngIf="!isLoading && !isInitialLoad">
                         <td colspan="9" class="text-center">
                             {{'no_accounts_found' | translate}}
                         </td>
@@ -155,150 +156,241 @@
         </div>
 
         <!-- Account Dialog -->
-        <p-dialog [(visible)]="accountDialog" [style]="{width: '700px'}" 
+        <p-dialog [(visible)]="accountDialog" [style]="{width: 'min(92vw, 640px)'}"
+            [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
             [header]="(account.accountId ? 'edit_account' : 'add_account') | translate"
-            [modal]="true" class="p-fluid">
-            
+            [modal]="true" [draggable]="false" [resizable]="false"
+            styleClass="ims-form-dialog-shell bank-account-form-dialog-shell"
+            class="p-fluid bank-account-dialog">
+
             <ng-template pTemplate="content">
-                <div class="field">
-                    <label for="bank">
-                        {{'bank' | translate}} <span class="required-asterisk">*</span>
-                    </label>
-                    <p-dropdown id="bank" [(ngModel)]="account.bank" [options]="banks" 
-                        optionLabel="name" [filter]="true" [showClear]="false"
-                        [ngClass]="{'ng-invalid ng-dirty': submitted && !account.bank?.bankId}"
-                        placeholder="{{'select_bank' | translate}}">
-                    </p-dropdown>
-                    <small *ngIf="submitted && !account.bank?.bankId" class="ng-dirty ng-invalid">
-                        {{'bank' | translate}} {{'is_required_label' | translate}}
-                    </small>
-                </div>
+                <div class="ims-form-layout">
+                    <div class="ims-form-fields">
+                        <section class="ims-form-section">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                                    <i class="pi pi-wallet"></i>
+                                </div>
+                                <h3 class="ims-form-section__title">{{ 'account_information' | translate }}</h3>
+                            </header>
+                            <div class="grid ims-form-section__body">
+                                <div class="field col-12">
+                                    <label for="bank" class="ims-form-label">
+                                        {{ 'bank' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <p-dropdown inputId="bank" name="bank" [(ngModel)]="account.bank" [options]="banks"
+                                        optionLabel="name" [filter]="true" filterBy="name" [showClear]="false"
+                                        styleClass="w-full" appendTo="body" [autoDisplayFirst]="false"
+                                        [resetFilterOnHide]="false" placeholder="{{ 'select_bank' | translate }}"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !account.bank?.bankId}">
+                                        <ng-template pTemplate="selectedItem">
+                                            <span *ngIf="account?.bank?.name" class="flex align-items-center gap-2">
+                                                <i class="pi pi-building"></i>{{ account.bank.name }}
+                                            </span>
+                                        </ng-template>
+                                        <ng-template let-bank pTemplate="item">
+                                            <span class="flex align-items-center gap-2">
+                                                <i class="pi pi-building"></i>{{ bank.name }}
+                                            </span>
+                                        </ng-template>
+                                    </p-dropdown>
+                                    <small class="p-error" *ngIf="submitted && !account.bank?.bankId">
+                                        {{ 'bank' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                <div class="field">
-                    <label for="accountName">
-                        {{'account_name' | translate}} <span class="required-asterisk">*</span>
-                    </label>
-                    <input id="accountName" type="text" pInputText [(ngModel)]="account.accountName" 
-                        [ngClass]="{'ng-invalid ng-dirty': submitted && !account.accountName}" />
-                    <small *ngIf="submitted && !account.accountName" class="ng-dirty ng-invalid">
-                        {{'account_name' | translate}} {{'is_required_label' | translate}}
-                    </small>
-                </div>
+                                <div class="field col-12">
+                                    <label for="accountName" class="ims-form-label">
+                                        {{ 'account_name' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-id-card"></i>
+                                        </span>
+                                        <input type="text" pInputText id="accountName" name="accountName"
+                                            [(ngModel)]="account.accountName" required
+                                            placeholder="{{ 'account_name' | translate }}"
+                                            [ngClass]="{'ng-invalid ng-dirty': submitted && !account.accountName}" />
+                                    </div>
+                                    <small class="p-error" *ngIf="submitted && !account.accountName">
+                                        {{ 'account_name' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                <div class="grid">
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="accountNumber">{{'account_number' | translate}}</label>
-                            <input id="accountNumber" type="text" pInputText [(ngModel)]="account.accountNumber" />
-                        </div>
-                    </div>
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="accountType">
-                                {{'account_type' | translate}} <span class="required-asterisk">*</span>
-                            </label>
-                            <p-dropdown id="accountType" [(ngModel)]="account.accountType" 
-                                [options]="accountTypes" optionLabel="label" optionValue="value"
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !account.accountType}">
-                            </p-dropdown>
-                            <small *ngIf="submitted && !account.accountType" class="ng-dirty ng-invalid">
-                                {{'account_type' | translate}} {{'is_required_label' | translate}}
-                            </small>
-                        </div>
-                    </div>
-                </div>
+                                <div class="field col-12 md:col-6">
+                                    <label for="accountNumber" class="ims-form-label">{{ 'account_number' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-hashtag"></i>
+                                        </span>
+                                        <input type="text" pInputText id="accountNumber" name="accountNumber"
+                                            [(ngModel)]="account.accountNumber"
+                                            placeholder="{{ 'enter_bank_account_number' | translate }}" />
+                                    </div>
+                                </div>
 
-                <div class="grid">
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="currency">{{'currency' | translate}}</label>
-                            <input id="currency" type="text" pInputText [(ngModel)]="account.currency" 
-                                [value]="account.currency || currency" />
-                        </div>
-                    </div>
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="openingBalance">{{'opening_balance' | translate}}</label>
-                            <input id="openingBalance" type="number" pInputText [(ngModel)]="account.openingBalance" 
-                                [step]="0.01" />
-                        </div>
-                    </div>
-                </div>
+                                <div class="field col-12 md:col-6">
+                                    <label for="accountType" class="ims-form-label">
+                                        {{ 'account_type' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <p-dropdown inputId="accountType" name="accountType" [(ngModel)]="account.accountType"
+                                        [options]="accountTypes" optionLabel="label" optionValue="value"
+                                        styleClass="w-full" appendTo="body" [autoDisplayFirst]="false"
+                                        [resetFilterOnHide]="false"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !account.accountType}">
+                                    </p-dropdown>
+                                    <small class="p-error" *ngIf="submitted && !account.accountType">
+                                        {{ 'account_type' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                <div class="grid">
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="routingNumber">{{'routing_number' | translate}}</label>
-                            <input id="routingNumber" type="text" pInputText [(ngModel)]="account.routingNumber" />
-                        </div>
-                    </div>
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="iban">{{'iban' | translate}}</label>
-                            <input id="iban" type="text" pInputText [(ngModel)]="account.iban" />
-                        </div>
-                    </div>
-                </div>
+                                <div class="field col-12 md:col-6">
+                                    <label for="currency" class="ims-form-label">{{ 'currency' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-money-bill"></i>
+                                        </span>
+                                        <input type="text" pInputText id="currency" name="currency"
+                                            [(ngModel)]="account.currency" [placeholder]="currency" maxlength="3" />
+                                    </div>
+                                </div>
 
-                <div class="grid">
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="swiftCode">{{'swift_code' | translate}}</label>
-                            <input id="swiftCode" type="text" pInputText [(ngModel)]="account.swiftCode" />
-                        </div>
-                    </div>
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="accountHolderName">{{'account_holder_name' | translate}}</label>
-                            <input id="accountHolderName" type="text" pInputText [(ngModel)]="account.accountHolderName" />
-                        </div>
-                    </div>
-                </div>
+                                <div class="field col-12 md:col-6">
+                                    <label for="openingBalance" class="ims-form-label">{{ 'opening_balance' | translate }}</label>
+                                    <p-inputNumber inputId="openingBalance" name="openingBalance"
+                                        [(ngModel)]="account.openingBalance" mode="currency"
+                                        [currency]="account.currency || currency" [step]="0.01" styleClass="w-full" />
+                                </div>
 
-                <div class="grid">
-                    <div class="col-12 md:col-6">
-                        <div class="field">
-                            <label for="minimumBalance">{{'minimum_balance' | translate}}</label>
-                            <input id="minimumBalance" type="number" pInputText [(ngModel)]="account.minimumBalance" 
-                                [step]="0.01" />
-                        </div>
+                                <div class="field col-12 md:col-6">
+                                    <label for="openingDate" class="ims-form-label">{{ 'opening_date' | translate }}</label>
+                                    <p-calendar inputId="openingDate" name="openingDate" [(ngModel)]="account.openingDate"
+                                        dateFormat="dd/mm/yy" [showIcon]="true" [showOnFocus]="false"
+                                        styleClass="w-full" appendTo="body"
+                                        placeholder="{{ 'opening_date' | translate }}" />
+                                </div>
+
+                                <div class="field col-12 md:col-6">
+                                    <label for="active" class="ims-form-label">{{ 'status' | translate }}</label>
+                                    <div class="ims-form-checkbox-row">
+                                        <p-checkbox [(ngModel)]="account.active" name="active" inputId="active"
+                                            [binary]="true"></p-checkbox>
+                                        <label for="active" class="ims-form-label ims-form-label--inline">
+                                            {{ 'active' | translate }}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="ims-form-section">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                                    <i class="pi pi-credit-card"></i>
+                                </div>
+                                <h3 class="ims-form-section__title">{{ 'bank_details' | translate }}</h3>
+                            </header>
+                            <div class="grid ims-form-section__body">
+                                <div class="field col-12 md:col-6">
+                                    <label for="routingNumber" class="ims-form-label">{{ 'routing_number' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-sort-numeric-down"></i>
+                                        </span>
+                                        <input type="text" pInputText id="routingNumber" name="routingNumber"
+                                            [(ngModel)]="account.routingNumber"
+                                            placeholder="{{ 'routing_number' | translate }}" />
+                                    </div>
+                                </div>
+
+                                <div class="field col-12 md:col-6">
+                                    <label for="iban" class="ims-form-label">{{ 'iban' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-qrcode"></i>
+                                        </span>
+                                        <input type="text" pInputText id="iban" name="iban"
+                                            [(ngModel)]="account.iban" placeholder="{{ 'iban' | translate }}" />
+                                    </div>
+                                </div>
+
+                                <div class="field col-12 md:col-6">
+                                    <label for="swiftCode" class="ims-form-label">{{ 'swift_code' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-globe"></i>
+                                        </span>
+                                        <input type="text" pInputText id="swiftCode" name="swiftCode"
+                                            [(ngModel)]="account.swiftCode"
+                                            placeholder="{{ 'enter_bank_swiftbic' | translate }}" />
+                                    </div>
+                                </div>
+
+                                <div class="field col-12 md:col-6">
+                                    <label for="accountHolderName" class="ims-form-label">{{ 'account_holder_name' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-user"></i>
+                                        </span>
+                                        <input type="text" pInputText id="accountHolderName" name="accountHolderName"
+                                            [(ngModel)]="account.accountHolderName"
+                                            placeholder="{{ 'account_holder_name' | translate }}" />
+                                    </div>
+                                </div>
+
+                                <div class="field col-12 md:col-6">
+                                    <label for="minimumBalance" class="ims-form-label">{{ 'minimum_balance' | translate }}</label>
+                                    <p-inputNumber inputId="minimumBalance" name="minimumBalance"
+                                        [(ngModel)]="account.minimumBalance" mode="currency"
+                                        [currency]="account.currency || currency" [step]="0.01" styleClass="w-full" />
+                                </div>
+
+                                <div class="field col-12 md:col-6" *ngIf="account.accountType === 'CREDIT_LINE'">
+                                    <label for="creditLimit" class="ims-form-label">{{ 'credit_limit' | translate }}</label>
+                                    <p-inputNumber inputId="creditLimit" name="creditLimit"
+                                        [(ngModel)]="account.creditLimit" mode="currency"
+                                        [currency]="account.currency || currency" [step]="0.01" styleClass="w-full" />
+                                </div>
+
+                                <div class="field col-12">
+                                    <label for="notes" class="ims-form-label">{{ 'notes' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon">
+                                            <i class="pi pi-align-left"></i>
+                                        </span>
+                                        <textarea id="notes" name="notes" rows="3" pInputTextarea
+                                            [(ngModel)]="account.notes" [autoResize]="true"
+                                            placeholder="{{ 'notes' | translate }}"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     </div>
-                    <div class="col-12 md:col-6" *ngIf="account.accountType === 'CREDIT_LINE'">
-                        <div class="field">
-                            <label for="creditLimit">{{'credit_limit' | translate}}</label>
-                            <input id="creditLimit" type="number" pInputText [(ngModel)]="account.creditLimit" 
-                                [step]="0.01" />
-                        </div>
-                    </div>
-                </div>
 
-                <div class="field">
-                    <label for="openingDate">{{'opening_date' | translate}}</label>
-                    <p-calendar id="openingDate" [(ngModel)]="account.openingDate" 
-                        dateFormat="yy-mm-dd" [showIcon]="true" appendTo="body"></p-calendar>
-                </div>
-
-                <div class="field">
-                    <label for="notes">{{'notes' | translate}}</label>
-                    <textarea id="notes" rows="3" pInputTextarea [(ngModel)]="account.notes"></textarea>
-                </div>
-
-                <div class="field">
-                    <div class="flex align-items-center">
-                        <p-checkbox [(ngModel)]="account.active" inputId="active" 
-                            [binary]="true"></p-checkbox>
-                        <label for="active" class="ml-2">{{'active' | translate}}</label>
+                    <div class="ims-form-required-note">
+                        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
                     </div>
                 </div>
             </ng-template>
 
             <ng-template pTemplate="footer">
-                <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
-                    class="p-button-text" (click)="hideDialog()"></button>
-                <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
-                    class="p-button-raised" (click)="saveAccount()"></button>
+                <div class="flex justify-content-between align-items-center w-full">
+                    <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+                        class="p-button-text" (click)="hideDialog()"></button>
+                    <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
+                        class="p-button-primary" (click)="saveAccount()"></button>
+                </div>
             </ng-template>
         </p-dialog>
+
+        <app-transaction-form-dialog
+            [config]="transactionDialogConfig"
+            [account]="transactionAccount"
+            [currency]="currency"
+            (configChange)="onTransactionDialogConfigChange($event)"
+            (save)="onTransactionSave($event)"
+            (cancel)="onTransactionCancel()">
+        </app-transaction-form-dialog>
 
         <!-- Delete Confirmation Dialogs -->
         <p-dialog [(visible)]="deleteAccountDialog" [style]="{width: '450px'}" 

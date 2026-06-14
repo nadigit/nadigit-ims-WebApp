@@ -23,6 +23,11 @@ import { Supplier } from 'src/app/models/supplier';
 import { firstValueFrom } from 'rxjs';
 import { getPaymentMethodIcon as paymentMethodIconFromUtils } from 'src/app/shared/payment-utils';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -50,6 +55,7 @@ export class PurchaseCreditsComponent implements OnInit {
   submitted: boolean = false;
   cols: any[] = [];
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
   exportColumns!: ExportColumn[];
   userRoles: any;
   isAdmin: boolean = false;
@@ -119,6 +125,10 @@ export class PurchaseCreditsComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.purchaseCredits, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     this.maxCreditDate = new Date();
     this.maxCreditDate.setHours(23, 59, 59, 999);
     this.configService.currency$.subscribe(currency => {
@@ -214,6 +224,18 @@ export class PurchaseCreditsComponent implements OnInit {
     await this.loadEligibleReturns();
     await this.loadBankAccounts();
     this.credit = { ...credit };
+    if (this.credit.creditDate && typeof this.credit.creditDate === 'string') {
+      this.credit.creditDate = new Date(this.credit.creditDate);
+    }
+    if (this.credit.checkExpirationDate && typeof this.credit.checkExpirationDate === 'string') {
+      this.credit.checkExpirationDate = new Date(this.credit.checkExpirationDate);
+    }
+    if (this.credit.boeExpirationDate && typeof this.credit.boeExpirationDate === 'string') {
+      this.credit.boeExpirationDate = new Date(this.credit.boeExpirationDate);
+    }
+    if (this.credit.purchaseReturn) {
+      await this.onReturnSelect(this.credit.purchaseReturn);
+    }
     await this.updateBankAccountFieldVisibility();
     this.creditDialog = true;
   }
@@ -561,9 +583,13 @@ export class PurchaseCreditsComponent implements OnInit {
   }
 
   updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.purchaseCredits, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    const rows = event.rows || this.lastLazyLoadEvent.rows || this.pageSize;
     this.lastLazyLoadEvent = {
       first: event.first || 0,
-      rows: event.rows || 20,
+      rows,
       sortField: event.sortField || 'creditDate',
       sortOrder: event.sortOrder || -1,
       globalFilter: event.globalFilter || this.globalFilter,

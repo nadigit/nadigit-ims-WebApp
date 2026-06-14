@@ -27,7 +27,6 @@ import { CardModule } from 'primeng/card';
 import { TabViewModule } from 'primeng/tabview';
 import { TagModule } from 'primeng/tag';
 import { SharedModule } from 'src/app/shared/shared.module';
-import { CashRegisterSessionModule } from 'src/app/ims/components/cash-register/cash-register-session/cash-register-session.module';
 import { AvatarModule } from 'primeng/avatar';
 import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
@@ -60,7 +59,6 @@ import { PaginatorModule } from 'primeng/paginator';
         TabViewModule,
         TagModule,
         SharedModule,
-        CashRegisterSessionModule,
         AvatarModule,
         BadgeModule,
         DividerModule,

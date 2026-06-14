@@ -14,7 +14,8 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { TranslationService } from 'src/app/services/translation.service';
 import { getPaymentMethodLabel } from 'src/app/shared/payment-utils';
 import { getExpirationStatus, getExpirationInfo, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
-import { getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
+import { displayWarehouseStockQuantity, formatProductStockLabel, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
+import { QuantityScale } from 'src/app/utils/quantity-scale.util';
 import { getPreferredProductImageUrl } from 'src/app/shared/product-image.utils';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
@@ -33,6 +34,7 @@ export class ProductsTableComponent {
   @Input() products: Product[] = [];
   @Input() cols: any[] = [];
   @Input() pageSize = 20;
+  @Input() rowsPerPageOptions: number[] = [10, 20, 50, 100];
   @Input() totalRecords = 0;
   @Input() totalAmount = 0;
   @Input() totalPaid = 0
@@ -101,7 +103,6 @@ export class ProductsTableComponent {
 
   items: MenuItem[] | undefined;
   sortOptions: SelectItem[] = [];
-  rowsPerPageOptions = [10, 20, 50, 100];
 
   // Filter properties
   globalFilter: string = '';
@@ -142,24 +143,12 @@ export class ProductsTableComponent {
       { label: this.translate.instant('product_outofstock'), value: 'OUTOFSTOCK' }
     ];
 
-    // Use a disabled first option as a visual placeholder ("Filtrer par type", etc.)
-    // so that the label is always visible even before the user opens the dropdown.
     this.productTypeOptions = [
-      {
-        label: this.translate.instant('filter_by_type'),
-        value: null,
-        disabled: true
-      },
       { label: this.translate.instant('product_type_product'), value: 'PRODUCT' },
       { label: this.translate.instant('product_type_service'), value: 'SERVICE' }
     ];
 
     this.expirationStatusOptions = [
-      {
-        label: this.translate.instant('filter_by_expiration_status'),
-        value: null,
-        disabled: true
-      },
       { label: this.translate.instant('with_expiration'), value: 'with_expiration' },
       { label: this.translate.instant('without_expiration'), value: 'without_expiration' },
       { label: this.translate.instant('expired'), value: 'expired' },
@@ -256,22 +245,23 @@ export class ProductsTableComponent {
         icon: 'pi pi-fw pi-pencil',
         command: () => this.editProductEvent.emit(product),
       },
-      {
-        label: product.deletable
-          ? this.translate.instant('delete_button')
-          : this.translate.instant('archive_button'),
-        icon: product.deletable
-          ? 'pi pi-fw pi-trash'
-          : 'pi pi-fw pi-folder',
-        command: () => {
-          if (product.deletable) {
-            this.deleteProductEvent.emit(product);
-          } else {
-            this.archiveProductEvent.emit(product);
-          }
-        },
-      },
     ];
+
+    if (this.canDeleteProduct) {
+      this.items.push({
+        label: this.translate.instant('delete_button'),
+        icon: 'pi pi-fw pi-trash',
+        command: () => this.deleteProductEvent.emit(product),
+      });
+    }
+
+    if (this.canArchiveProduct) {
+      this.items.push({
+        label: this.translate.instant('archive_button'),
+        icon: 'pi pi-fw pi-folder',
+        command: () => this.archiveProductEvent.emit(product),
+      });
+    }
   }
 
   // Expiration status helper methods
@@ -335,5 +325,19 @@ export class ProductsTableComponent {
 
   getProductImage(product: Product | null | undefined): string {
     return getPreferredProductImageUrl(product);
+  }
+
+  formatStockLabel(product: Product): { quantity: string; unit: string } {
+    return formatProductStockLabel(product);
+  }
+
+  warehouseDisplayQuantity(product: Product, storageQuantity: number | null | undefined): number {
+    return displayWarehouseStockQuantity(product, storageQuantity);
+  }
+
+  formatWarehouseStock(product: Product, storageQuantity: number | null | undefined): string {
+    const displayQty = displayWarehouseStockQuantity(product, storageQuantity);
+    const precision = QuantityScale.isFractional(product) ? QuantityScale.effectivePrecision(product) : 0;
+    return precision > 0 ? displayQty.toFixed(precision) : String(Math.round(displayQty));
   }
 }

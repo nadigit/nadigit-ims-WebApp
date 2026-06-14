@@ -12,6 +12,7 @@ import { ProcessModeService } from './services/process-mode.service';
 import { ActivityProfileService } from './services/activity-profile.service';
 import { Subscription } from 'rxjs';
 import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
+import { SessionAuditService } from './services/session-audit.service';
 
 @Component({
     selector: 'app-root',
@@ -38,6 +39,7 @@ export class AppComponent implements OnInit, OnDestroy {
         private backendStatusService: BackendStatusService,
         private processModeService: ProcessModeService,
         public activityProfileService: ActivityProfileService,
+        private sessionAuditService: SessionAuditService,
     ) { }
 
     async ngOnInit() {
@@ -154,6 +156,7 @@ export class AppComponent implements OnInit, OnDestroy {
                 } catch {
                     this.isAdmin = false;
                 }
+                await this.sessionAuditService.recordLoginIfNeeded();
                 await this.authService.checkRolesAndRedirect();
             }
         } else {
@@ -183,6 +186,6 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     logOut() {
-        this.keycloakService.logout(window.location.origin + '/webconsole')
+        void this.sessionAuditService.logout(window.location.origin + '/webconsole');
     }
 }

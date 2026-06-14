@@ -9,6 +9,7 @@ import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service'
 import { Role } from 'src/app/models/role';
 import { Credential } from 'src/app/models/credential';
 import { forkJoin, Observable } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { ShopService } from 'src/app/services/shop.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { Warehouse } from 'src/app/models/warehouse';
@@ -16,11 +17,13 @@ import { Shop } from 'src/app/models/shop';
 import { PermissionService } from 'src/app/services/permission.service';
 import { Router } from '@angular/router';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 
 @Component({
   templateUrl: './users.component.html',
-  styleUrls: ['../administration.component.css'],
+  styleUrls: ['../administration.component.css', './users.component.css'],
   providers: [MessageService]
 })
 export class UsersComponent implements OnInit {
@@ -53,14 +56,15 @@ export class UsersComponent implements OnInit {
 
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   appRoles: Role[] = [];
 
   appRole: Role = {};
 
-  sourceRoles: Role[] = [];
-
   targetRoles: Role[] = [];
+
+  roleSearchFilter: string = '';
 
   userRoles: Role[] = [];
 
@@ -81,13 +85,7 @@ export class UsersComponent implements OnInit {
 
   activeItem: MenuItem | undefined;
 
-  activeIndex: number = 0;
-
-  userCreationSteps: MenuItem[] | undefined;
-
   selectedRole: Role;
-
-  isUserInfoValid: boolean = false;
 
   isUserRoleMapped: boolean = false;
 
@@ -103,6 +101,9 @@ export class UsersComponent implements OnInit {
   
   posPin: string = ''; // POS PIN for user
   isLoading: boolean = true;
+  isInitialLoad: boolean = true;
+  rolesLoading: boolean = true;
+  rolesInitialLoad: boolean = true;
   isStarterPlan: boolean = false;
   isRoleManagementLocked: boolean = false;
   /** null = no numeric cap (Enterprise / unknown) */
@@ -119,12 +120,16 @@ export class UsersComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private permissionService: PermissionService,
     private router: Router,
-    private licenseCapabilitiesService: LicenseCapabilitiesService) {  
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
+    public pageSizeService: TablePageSizeService) {  
 
     }
 
     async ngOnInit() {
       this.isLoading = true;
+      this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.users, this.rowsPerPageOptions, {
+        pageSize: this.pageSize,
+      });
       await this.loadLicenseCapabilities();
   
       // Subscribe to language changes
@@ -184,24 +189,6 @@ export class UsersComponent implements OnInit {
       // Set the active menu item
       this.activeItem = this.menuItems[0];
   
-      // Initialize user creation steps
-      this.userCreationSteps = this.isStarterPlan
-        ? [
-            {
-              label: translations['user_information'],
-            },
-          ]
-        : [
-            {
-              label: translations['user_information'],
-              // command: () => showUserRoleMapping()
-            },
-            {
-              label: translations['user_role'],
-              command: (event: any) => console.log(event.item.label)
-            },
-          ];
-  
       // Fetch data and initialize other components
       this.onGetAllUsers();
       if (!this.isRoleManagementLocked) {
@@ -212,6 +199,10 @@ export class UsersComponent implements OnInit {
       this.initializePickList();
   
       this.isLoading = false;
+  }
+
+  onTablePage(event: any): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.users, this.rowsPerPageOptions, event, this);
   }
 
   async loadLicenseCapabilities(): Promise<void> {
@@ -300,10 +291,6 @@ export class UsersComponent implements OnInit {
           });
         }
       })
-  }
-
-  onActiveIndexChange(event: number) {
-    this.activeIndex = event;
   }
 
   onActiveItemChange(event: MenuItem) {
@@ -430,7 +417,7 @@ export class UsersComponent implements OnInit {
       this.roleDialog = false;
     }
     this.submitted = false;
-    this.isUserInfoValid = false;
+    this.roleSearchFilter = '';
     this.isUserRoleMapped = false;
   }
 
@@ -475,11 +462,6 @@ export class UsersComponent implements OnInit {
             this.targetRoles = this.appRoles.filter(role => userRoleIds.includes(role.id));
             console.log("Target Roles:", this.targetRoles); // Log targetRoles to inspect its contents
 
-            // Filter sourceRoles to remove roles that exist in targetRoles
-            this.sourceRoles = this.appRoles.filter(role => !this.targetRoles.some(targetRole => targetRole.id === role.id));
-
-            console.log("Source Roles:", this.sourceRoles); // Log sourceRoles to inspect its contents
-
             this.loading = false; // Set loading flag to false after initialization is complete
             observer.next();
           } else {
@@ -505,10 +487,7 @@ export class UsersComponent implements OnInit {
           observer.complete(); // Emit completion signal
         });
       } else {
-        // If user ID is not available, set targetRoles to an empty array
         this.targetRoles = [];
-        // Set sourceRoles to include all appRoles
-        this.sourceRoles = this.appRoles;
         this.loading = false;
         observer.next();
         observer.complete(); // Emit completion signal
@@ -516,67 +495,42 @@ export class UsersComponent implements OnInit {
     });
   }
 
-  onMoveToTarget(event: any): void {
-    // Move the selected roles from the source to the target
-    event.items.forEach((role: any) => {
-      if (!this.targetRoles.includes(role)) {
-        this.targetRoles.push(role);
-        this.sourceRoles = this.sourceRoles.filter(r => r !== role);
-      }
+  get filteredRoles(): Role[] {
+    const term = (this.roleSearchFilter || '').trim().toLowerCase();
+    if (!term) {
+      return this.appRoles;
+    }
+    return this.appRoles.filter((role) => {
+      const label = this.getRoleLabel(role.name).toLowerCase();
+      return (
+        (role.name || '').toLowerCase().includes(term) ||
+        (role.description || '').toLowerCase().includes(term) ||
+        label.includes(term)
+      );
     });
   }
 
-  onMoveToSource(event: any): void {
-    // Move the selected roles from the target to the source
-    event.items.forEach((role: any) => {
-      // Assuming role.id is a unique identifier for roles
-      const roleIdToRemove = role.id;
-
-      // Filter out the role with the matching ID from targetRoles
-      this.targetRoles = this.targetRoles.filter(r => r.id !== roleIdToRemove);
-
-      // Check if the role already exists in sourceRoles
-      const roleExistsInSource = this.sourceRoles.some(r => r.id === roleIdToRemove);
-
-      // Add the role back to sourceRoles only if it doesn't already exist
-      if (!roleExistsInSource) {
-        const roleToAdd = this.appRoles.find(r => r.id === roleIdToRemove);
-        if (roleToAdd) {
-          this.sourceRoles.push(roleToAdd);
-        }
-      }
-    });
+  isRoleSelected(role: Role): boolean {
+    return this.targetRoles.some((selected) => selected.id === role.id);
   }
 
-  async NextRoleDialog() {
-    if (this.isStarterPlan) {
-      this.saveUser();
-      return;
-    }
-    this.submitted=true;
-    if (this.user && this.user.username && this.user.email && this.user.lastName && this.user.firstName && this.userCredential) {
-      try {
-      this.onGetAllRoles()
-      await this.initializePickList().toPromise();
-      console.log(this.targetRoles);
-      this.isUserInfoValid = true;
-      } catch (error) {
-      console.error('Error initializing picklist:', error);
-      this.isUserInfoValid = false;
-      alert(this.translate.instant('error_initializing_picklist') || "Error initializing picklist. Please try again.");
+  toggleRole(role: Role, selected: boolean): void {
+    if (selected) {
+      if (!this.isRoleSelected(role)) {
+        this.targetRoles = [...this.targetRoles, role];
       }
-    } else {
-      this.isUserInfoValid = false;
-      this.messageService.add({ 
-      severity: 'error', 
-      summary: this.translate.instant('error'), 
-      detail: this.translate.instant('please_fill_required_user_data'), 
-      life: 3000 
-      });
       return;
     }
+    this.targetRoles = this.targetRoles.filter((selectedRole) => selectedRole.id !== role.id);
   }
 
+  selectAllRoles(): void {
+    this.targetRoles = [...this.appRoles];
+  }
+
+  clearSelectedRoles(): void {
+    this.targetRoles = [];
+  }
 
   async saveUser() {
     this.submitted = true;
@@ -614,24 +568,24 @@ export class UsersComponent implements OnInit {
       this.posPin = '';
       this.selectedShop = {};
       this.selectedWarehouse = {};
+      this.roleSearchFilter = '';
     }
-    this.isUserInfoValid = false;
     this.cdr.detectChanges(); // Detect changes to update the UI
   }
 
   private isUserFormValid(): boolean {
+    const passwordOk = this.user.id ? true : !!this.userCredential?.value;
+    const rolesOk = this.isRoleManagementLocked || (this.targetRoles?.length > 0);
     return !!(
       this.user &&
       this.user.username &&
       this.user.email &&
       this.user.lastName &&
       this.user.firstName &&
-      this.userCredential &&
-      this.selectedShop &&
-      this.selectedShop.shopId &&
-      this.selectedWarehouse &&
-      this.selectedWarehouse.warehouseId &&
-      (this.user.id || this.userCredential.value)
+      this.selectedShop?.shopId &&
+      this.selectedWarehouse?.warehouseId &&
+      passwordOk &&
+      rolesOk
     );
   }
 
@@ -761,12 +715,19 @@ export class UsersComponent implements OnInit {
   onGetAllRoles() {
     if (this.isRoleManagementLocked) {
       this.appRoles = [];
+      this.rolesLoading = false;
+      this.rolesInitialLoad = false;
       return;
     }
+    this.rolesLoading = true;
     this.authService.getRoles()
+      .pipe(finalize(() => {
+        this.rolesLoading = false;
+        this.rolesInitialLoad = false;
+        this.cdr.markForCheck();
+      }))
       .subscribe({
         next: (response: any) => {
-          // Filter out roles with composite set to true
           this.appRoles = response.filter((role: any) => !role.composite);
           console.log(this.appRoles);
         },
@@ -784,6 +745,7 @@ export class UsersComponent implements OnInit {
 
 
   async onGetAllUsers() {
+    this.isLoading = true;
     try {
       const response = await this.authService.getUsers().toPromise();
       this.users = response as User[];
@@ -792,7 +754,6 @@ export class UsersComponent implements OnInit {
         user.creationDate = new Date(<Date>user.creationDate);
         user.roles = await this.getUserRoles(user.id);
       });
-      this.isLoading = false;
     } catch (error) {
       console.log(error);
       this.messageService.add({
@@ -801,7 +762,10 @@ export class UsersComponent implements OnInit {
         detail: this.translate.instant('error_while_getting_users'),
         life: 3000
       });
+    } finally {
       this.isLoading = false;
+      this.isInitialLoad = false;
+      this.cdr.markForCheck();
     }
   }
 

@@ -1,0 +1,324 @@
+:host ::ng-deep .layout-config-sidebar {
+  width: min(24rem, 100vw) !important;
+}
+
+:host ::ng-deep .layout-config-sidebar.p-sidebar {
+  border-left: 1px solid var(--brand-border);
+  box-shadow: -12px 0 40px rgba(11, 31, 74, 0.12);
+}
+
+:host ::ng-deep .layout-config-sidebar .p-sidebar-header {
+  display: none;
+}
+
+:host ::ng-deep .layout-config-sidebar .p-sidebar-content {
+  padding: 0;
+  height: 100%;
+  background: var(--brand-bg-secondary);
+  color: var(--text-color);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .p-sidebar-content,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .p-sidebar-content {
+  background: var(--brand-dark-bg-secondary);
+}
+
+.config-container {
+  background: inherit;
+}
+
+.config-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.15rem 1.25rem 1rem;
+  background: var(--brand-gradient-primary);
+  color: #fff;
+}
+
+.config-hero__pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.14;
+  background-image:
+    radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.55) 0, transparent 34%),
+    radial-gradient(circle at 82% 72%, rgba(24, 197, 216, 0.45) 0, transparent 36%);
+  pointer-events: none;
+}
+
+.config-hero__top {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.config-hero__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.config-hero__meta {
+  min-width: 0;
+}
+
+.config-hero__title {
+  font-family: var(--brand-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+
+.config-hero__summary {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.config-hero__close {
+  color: rgba(255, 255, 255, 0.88) !important;
+  flex-shrink: 0;
+}
+
+.config-hero__close:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+}
+
+.config-content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.config-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0 0.15rem;
+}
+
+.config-section-head__title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-color-secondary);
+}
+
+.config-card {
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-card);
+  box-shadow: 0 2px 10px rgba(11, 31, 74, 0.04);
+}
+
+.config-card--toggle {
+  padding: 0.85rem 1rem;
+}
+
+.config-scale-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+:host ::ng-deep .config-scale-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--brand-saas) !important;
+}
+
+:host ::ng-deep .config-scale-btn:disabled {
+  opacity: 0.35;
+}
+
+.config-scale-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.config-scale-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-border);
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.config-scale-dot--active {
+  background: var(--brand-saas);
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.18);
+  transform: scale(1.15);
+}
+
+.config-scale-value {
+  margin-top: 0.65rem !important;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+}
+
+.config-option-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.config-option-chips--menu-display .config-option-chip {
+  flex: 1 1 calc(50% - 0.25rem);
+  min-width: 7.5rem;
+}
+
+.config-option-chips--menu-display .config-option-chip:last-child:nth-child(odd) {
+  flex-basis: 100%;
+}
+
+.config-option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-ground);
+  color: var(--text-color-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.config-option-chip i {
+  font-size: 0.9rem;
+}
+
+.config-option-chip:hover {
+  border-color: color-mix(in srgb, var(--brand-saas) 35%, var(--surface-border));
+  color: var(--text-color);
+}
+
+.config-option-chip--active {
+  background: var(--brand-gradient-primary);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(30, 94, 255, 0.22);
+}
+
+.config-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.config-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.config-toggle-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.config-toggle-desc {
+  font-size: 0.78rem;
+  color: var(--text-color-secondary);
+}
+
+/* Dark mode — sidebar is portaled to body */
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-section-head__title,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-section-head__title {
+  color: var(--brand-dark-text-secondary);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-card,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-card {
+  background: var(--brand-dark-surface);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-toggle-label,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-toggle-label {
+  color: var(--brand-dark-text);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-toggle-desc,
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-scale-value,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-toggle-desc,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-scale-value {
+  color: var(--brand-dark-text-secondary);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-option-chip,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-option-chip {
+  background: var(--brand-dark-bg);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--brand-dark-text-secondary);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-option-chip:hover,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-option-chip:hover {
+  color: var(--brand-dark-text);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-option-chip--active,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-option-chip--active {
+  background: var(--brand-gradient-primary);
+  border-color: rgba(120, 168, 255, 0.55);
+  color: #fff;
+  box-shadow:
+    0 0 0 1px rgba(30, 94, 255, 0.45),
+    0 8px 22px rgba(30, 94, 255, 0.38);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-option-chip--active:hover,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-option-chip--active:hover {
+  color: #fff;
+  border-color: rgba(160, 192, 255, 0.65);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-option-chip--active i,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-option-chip--active i {
+  color: #fff;
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-scale-dot--active,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-scale-dot--active {
+  background: var(--brand-saas);
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.35);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar .config-scale-dot,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar .config-scale-dot {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+:host ::ng-deep :root[color-scheme='dark'] .layout-config-sidebar.p-sidebar,
+:host ::ng-deep .layout-theme-dark .layout-config-sidebar.p-sidebar {
+  border-left-color: rgba(255, 255, 255, 0.08);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.35);
+}

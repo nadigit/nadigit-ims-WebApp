@@ -1,4 +1,4 @@
-<p-toast></p-toast>
+﻿<p-toast></p-toast>
 <p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
 
 <div class="tax-rules-page" [class.tax-rules-page--embedded]="embedded" *ngIf="!isLoading; else loadingTpl">
@@ -14,13 +14,6 @@
         (onClick)="openCreate()"
         styleClass="p-button-sm">
       </p-button>
-      <p-button
-        icon="pi pi-refresh"
-        [outlined]="true"
-        (onClick)="refreshList()"
-        [pTooltip]="'refresh' | translate"
-        styleClass="p-button-sm">
-      </p-button>
     </ng-template>
   </p-toolbar>
 
@@ -28,7 +21,7 @@
   <p *ngIf="!isAdmin && !embedded" class="text-600 mb-4">{{ 'tax_rules_readonly_hint' | translate }}</p>
   <p *ngIf="!isAdmin && embedded" class="text-600 mb-3 text-sm">{{ 'tax_rules_readonly_hint' | translate }}</p>
 
-  <p-table [value]="rules" [paginator]="true" [rows]="20" [rowsPerPageOptions]="[20, 50, 100]" styleClass="p-datatable-sm p-datatable-striped">
+  <p-table [value]="rules" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.taxRules, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]" (onPage)="pageSizeService.onPage(TablePageSizeKeys.taxRules, [20, 50, 100], $event)" styleClass="p-datatable-sm p-datatable-striped">
     <ng-template pTemplate="header">
       <tr>
         <th>{{ 'tax_rule_code' | translate }}</th>
@@ -57,7 +50,7 @@
         <td class="text-right">{{ row.productId ?? '—' }}</td>
         <td class="text-right">{{ row.categoryId ?? '—' }}</td>
         <td *ngIf="isAdmin">
-          <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="secondary" (onClick)="openEdit(row)" [pTooltip]="'edit' | translate"></p-button>
+          <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="primary" (onClick)="openEdit(row)" [pTooltip]="'edit' | translate"></p-button>
           <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger" (onClick)="confirmDelete(row)" [pTooltip]="'delete' | translate"></p-button>
         </td>
       </tr>
@@ -71,8 +64,10 @@
 </div>
 
 <ng-template #loadingTpl>
-  <div class="flex justify-content-center align-items-center py-6">
-    <p-progressSpinner strokeWidth="4" [style]="{ width: '48px', height: '48px' }"></p-progressSpinner>
+  <div class="ims-loading-panel ims-loading-panel--section">
+    <div class="ims-loading-panel__inner">
+      <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+    </div>
   </div>
 </ng-template>
 

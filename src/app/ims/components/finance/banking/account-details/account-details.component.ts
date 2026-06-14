@@ -11,6 +11,12 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { firstValueFrom } from 'rxjs';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import {
+  TransactionFormDialogConfig,
+  TransactionFormDialogData
+} from '../transactions/transaction-form-dialog/transaction-form-dialog.component';
 
 @Component({
   templateUrl: './account-details.component.html',
@@ -18,6 +24,7 @@ import { KeycloakService } from 'keycloak-angular';
   providers: [MessageService]
 })
 export class AccountDetailsComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
 
   accountId!: number;
   account: BankAccount | null = null;
@@ -36,7 +43,16 @@ export class AccountDetailsComponent implements OnInit {
   transactionTypeFilter: string | undefined = undefined;
   reconciledFilter: boolean | undefined = undefined;
 
-  transactionDialog: boolean = false;
+  transactionDialogConfig: TransactionFormDialogConfig = {
+    visible: false,
+    transaction: {
+      account: {} as BankAccount,
+      type: 'DEPOSIT',
+      amount: 0,
+      transactionDate: new Date().toISOString().split('T')[0]
+    },
+    submitted: false
+  };
   reconcileDialog: boolean = false;
   transactionDetailsDialog: boolean = false;
   selectedTransaction: BankTransaction | null = null;
@@ -57,10 +73,17 @@ export class AccountDetailsComponent implements OnInit {
     private configService: AppConfigurationService,
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    public pageSizeService: TablePageSizeService
   ) { }
 
   async ngOnInit() {
+    this.pageSize = this.pageSizeService.initState(
+      TablePageSizeKeys.accountDetailsTransactions,
+      [20, 50, 100],
+      { pageSize: this.pageSize },
+      this.pageSize
+    );
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -133,6 +156,14 @@ export class AccountDetailsComponent implements OnInit {
     this.transactionsLoading = true;
 
     try {
+      if (event) {
+        this.pageSizeService.applyPageEvent(
+          TablePageSizeKeys.accountDetailsTransactions,
+          [20, 50, 100],
+          event,
+          this
+        );
+      }
       const filter: TransactionFilter = {
         page: event?.first ? Math.floor(event.first / (event.rows || this.pageSize)) : this.currentPage,
         size: event?.rows || this.pageSize,
@@ -179,7 +210,85 @@ export class AccountDetailsComponent implements OnInit {
   }
 
   recordTransaction() {
-    this.router.navigate(['/finance/banking/accounts', this.accountId, 'transactions', 'new']);
+    if (!this.canRecordTransaction || !this.account) return;
+    this.transactionDialogConfig = {
+      visible: true,
+      transaction: this.createEmptyTransaction(this.account),
+      submitted: false
+    };
+  }
+
+  createEmptyTransaction(account: BankAccount): BankTransaction {
+    return {
+      account,
+      type: 'DEPOSIT',
+      amount: 0,
+      transactionDate: new Date().toISOString().split('T')[0]
+    };
+  }
+
+  onTransactionDialogConfigChange(config: TransactionFormDialogConfig) {
+    this.transactionDialogConfig = config;
+  }
+
+  onTransactionCancel() {
+    this.transactionDialogConfig.visible = false;
+    this.transactionDialogConfig.submitted = false;
+  }
+
+  async onTransactionSave(data: TransactionFormDialogData) {
+    this.transactionDialogConfig.submitted = true;
+    const transaction = data.transaction;
+
+    if (!transaction.type) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('transaction_type_required'),
+        life: 3000
+      });
+      return;
+    }
+
+    if (!transaction.amount || transaction.amount <= 0) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('transaction_amount_required'),
+        life: 3000
+      });
+      return;
+    }
+
+    if (!transaction.transactionDate) {
+      transaction.transactionDate = new Date().toISOString().split('T')[0];
+    }
+
+    try {
+      await firstValueFrom(
+        await this.bankAccountService.recordTransaction(this.accountId, transaction)
+      );
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('transaction_recorded'),
+        life: 3000
+      });
+      this.transactionDialogConfig.visible = false;
+      this.transactionDialogConfig.submitted = false;
+      await this.loadAccount();
+      await this.loadSummary();
+      await this.loadTransactions();
+    } catch (error: any) {
+      console.error('Error recording transaction:', error);
+      const errorMsg = error?.error?.message || this.translate.instant('error_recording_transaction');
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: errorMsg,
+        life: 3000
+      });
+    }
   }
 
   viewTransactionDetails(transaction: BankTransaction) {

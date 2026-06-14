@@ -30,10 +30,12 @@ export class PricingComponent implements OnInit, OnDestroy {
   priceListItems: PriceListItemDTO[] = [];
 
   priceListDialog = false;
+  priceListSubmitted = false;
   priceListForm: PriceListDTO = this.getEmptyPriceList();
   isEditingPriceList = false;
 
   itemDialog = false;
+  itemSubmitted = false;
   itemForm: PriceListItemDTO = this.getEmptyItem();
   isEditingItem = false;
   selectedProduct: Product | null = null;
@@ -153,14 +155,21 @@ export class PricingComponent implements OnInit, OnDestroy {
 
   openNewPriceList(): void {
     this.isEditingPriceList = false;
+    this.priceListSubmitted = false;
     this.priceListForm = this.getEmptyPriceList();
     this.priceListDialog = true;
   }
 
   editPriceList(list: PriceListDTO): void {
     this.isEditingPriceList = true;
+    this.priceListSubmitted = false;
     this.priceListForm = { ...list };
     this.priceListDialog = true;
+  }
+
+  closePriceListDialog(): void {
+    this.priceListDialog = false;
+    this.priceListSubmitted = false;
   }
 
   /** Switch to tier rules tab with this list pre-selected (fewer clicks). */
@@ -171,13 +180,8 @@ export class PricingComponent implements OnInit, OnDestroy {
   }
 
   async savePriceList(): Promise<void> {
+    this.priceListSubmitted = true;
     if (!this.priceListForm.name?.trim()) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('pricing_name_required'),
-        life: 3000
-      });
       return;
     }
     this.savingPriceList = true;
@@ -221,6 +225,7 @@ export class PricingComponent implements OnInit, OnDestroy {
       return;
     }
     this.isEditingItem = false;
+    this.itemSubmitted = false;
     this.itemForm = this.getEmptyItem();
     this.itemForm.priceListId = this.selectedPriceList.id;
     this.selectedProduct = null;
@@ -229,6 +234,7 @@ export class PricingComponent implements OnInit, OnDestroy {
 
   editItem(item: PriceListItemDTO): void {
     this.isEditingItem = true;
+    this.itemSubmitted = false;
     this.itemForm = { ...item };
     this.selectedProduct = {
       productId: item.productId,
@@ -238,8 +244,14 @@ export class PricingComponent implements OnInit, OnDestroy {
     this.itemDialog = true;
   }
 
+  closeItemDialog(): void {
+    this.itemDialog = false;
+    this.itemSubmitted = false;
+  }
+
   async saveItem(): Promise<void> {
-    // Validate required fields and show error messages
+    this.itemSubmitted = true;
+
     if (!this.itemForm.priceListId) {
       this.messageService.add({
         severity: 'error',
@@ -251,32 +263,14 @@ export class PricingComponent implements OnInit, OnDestroy {
     }
 
     if (!this.itemForm.productId) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('product_required'),
-        life: 3000
-      });
       return;
     }
 
     if (this.itemForm.minQty == null || this.itemForm.minQty < 1) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('min_qty_required'),
-        life: 3000
-      });
       return;
     }
 
     if (this.itemForm.unitPrice == null || this.itemForm.unitPrice < 0) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('unit_price_required'),
-        life: 3000
-      });
       return;
     }
     if (this.itemForm.maxQty != null && this.itemForm.maxQty < this.itemForm.minQty) {

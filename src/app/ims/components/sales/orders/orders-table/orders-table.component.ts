@@ -4,9 +4,21 @@ import { LazyLoadEvent } from 'primeng/api';
 import { Customer } from 'src/app/models/customer';
 import { Order } from 'src/app/models/order';
 import { Payment } from 'src/app/models/payment';
+import { OrderItem } from 'src/app/models/orderItem';
 import { Product } from 'src/app/models/product';
 import { Shop } from 'src/app/models/shop';
 import { getPaymentMethodLabel } from 'src/app/shared/payment-utils';
+import {
+  formatLineQuantity,
+  getLineMeasureUnit,
+  getOrderItemDisplayQuantity,
+  getOrderItemDisplayRemainingQuantity,
+  getOrderItemDisplayReturnedQuantity,
+  getProductTypeBadgeIcon,
+  getProductTypeBadgeKey,
+  getProductTypeBadgeSeverity,
+  shouldShowLineMeasureUnit,
+} from 'src/app/shared/product-utils';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -22,6 +34,7 @@ export class OrdersTableComponent implements OnChanges {
   @Input() orders: Order[] = [];
   @Input() cols: any[] = [];
   @Input() pageSize = 20;
+  @Input() rowsPerPageOptions: number[] = [10, 20, 50];
   @Input() totalRecords = 0;
   @Input() totalAmount = 0;
   @Input() totalPaid = 0
@@ -29,6 +42,7 @@ export class OrdersTableComponent implements OnChanges {
   @Input() totalCost = 0;
   @Input() totalProfit = 0;
   @Input() isLoading = false;
+  @Input() isInitialLoad = false;
   @Input() isExporting = false;
   @Input() isAdmin = false;
   @Input() canEditOrder = false;
@@ -258,6 +272,42 @@ export class OrdersTableComponent implements OnChanges {
 
   clearFilters() {
     this.resetFilters();
+  }
+
+  formatOrderItemQty(orderItem: OrderItem): string {
+    return formatLineQuantity(orderItem?.product, getOrderItemDisplayQuantity(orderItem));
+  }
+
+  getOrderItemMeasureUnit(orderItem: OrderItem): string {
+    return getLineMeasureUnit(orderItem?.product, getOrderItemDisplayQuantity(orderItem));
+  }
+
+  formatOrderItemReturnedQty(orderItem: OrderItem): string {
+    return formatLineQuantity(orderItem?.product, getOrderItemDisplayReturnedQuantity(orderItem));
+  }
+
+  formatOrderItemRemainingQty(orderItem: OrderItem): string {
+    return formatLineQuantity(orderItem?.product, getOrderItemDisplayRemainingQuantity(orderItem));
+  }
+
+  hasReturnedQuantity(orderItem: OrderItem): boolean {
+    return getOrderItemDisplayReturnedQuantity(orderItem) > 0;
+  }
+
+  getProductBadgeKey(product?: Product): string {
+    return getProductTypeBadgeKey(product);
+  }
+
+  getProductBadgeSeverity(product?: Product): string {
+    return getProductTypeBadgeSeverity(product);
+  }
+
+  getProductBadgeIcon(product?: Product): string {
+    return getProductTypeBadgeIcon(product);
+  }
+
+  showOrderItemMeasureUnit(orderItem: OrderItem): boolean {
+    return shouldShowLineMeasureUnit(orderItem?.product);
   }
 
 }

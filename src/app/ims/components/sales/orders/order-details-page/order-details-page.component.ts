@@ -19,6 +19,18 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { getPaymentStatusSeverity } from 'src/app/shared/payment-utils';
 import { ProcessModeService } from 'src/app/services/process-mode.service';
 import { getPreferredProductImageUrl } from 'src/app/shared/product-image.utils';
+import {
+  formatLineQuantity,
+  getLineMeasureUnit,
+  getOrderItemLineGrossAmount,
+  getOrderItemLineNetAmount,
+  shouldShowLineMeasureUnit,
+  getOrderItemDisplayQuantity,
+  getOrderItemDisplayReturnedQuantity,
+} from 'src/app/shared/product-utils';
+import { OrderItem } from 'src/app/models/orderItem';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 interface EventItem {
   status?: string;
@@ -36,6 +48,7 @@ interface EventItem {
   styleUrls: ['./order-details-page.component.css', '../orders.component.css']
 })
 export class OrderDetailsPageComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
   orderId!: number;
   order: Order | null = null;
   isLoading: boolean = true;
@@ -108,7 +121,8 @@ export class OrderDetailsPageComponent implements OnInit, OnDestroy {
     private translateService: TranslationService,
     public financialDocService: FinancialDocumentsService,
     private processModeService: ProcessModeService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
@@ -588,16 +602,46 @@ export class OrderDetailsPageComponent implements OnInit, OnDestroy {
 
   getOrderSubtotal(): number {
     if (!this.order?.orderItems) return 0;
-    return this.order.orderItems.reduce((total, item) =>
-      total + (item.lineNetAmount ?? ((item.quantity || 0) * (item.pricePerUnit || 0))), 0);
+    return this.order.orderItems.reduce((total, item) => total + getOrderItemLineNetAmount(item), 0);
+  }
+
+  private normalizeDiscountType(raw: unknown): 'Amount' | 'Percentage' {
+    const s = String(raw ?? '').trim().toLowerCase();
+    if (s === 'percentage' || s === 'percent') {
+      return 'Percentage';
+    }
+    return 'Amount';
+  }
+
+  private getOrderGrossSubtotal(): number {
+    if (!this.order?.orderItems) return 0;
+    return this.order.orderItems.reduce((total, item) => total + (item.subTotal ?? 0), 0);
+  }
+
+  private getOrderDiscountAmountFromLines(): number {
+    if (!this.order?.orderItems) return 0;
+    return this.order.orderItems.reduce((total, item) => {
+      const gross = item.subTotal;
+      const net = item.lineNetAmount;
+      if (gross == null || net == null) {
+        return total;
+      }
+      return total + Math.max(0, gross - net);
+    }, 0);
   }
 
   calculateOrderDiscount(): number {
-    if (!this.order) return 0;
-    const netSubtotal = this.getOrderSubtotal();
-    const taxAmount = this.order.taxAmount || 0;
-    const transportAmount = this.order.transportAmount || 0;
-    return Math.max(0, netSubtotal + taxAmount + transportAmount - (this.order.totalAmount || 0));
+    if (!this.order?.discount) return 0;
+    const discountType = this.normalizeDiscountType(this.order.discountType);
+    if (discountType === 'Amount') {
+      return this.order.discount;
+    }
+    const fromLines = this.getOrderDiscountAmountFromLines();
+    if (fromLines > 0) {
+      return fromLines;
+    }
+    const grossSubtotal = this.getOrderGrossSubtotal();
+    return (grossSubtotal * this.order.discount) / 100;
   }
 
   calculateOrderTax(): number {
@@ -611,10 +655,19 @@ export class OrderDetailsPageComponent implements OnInit, OnDestroy {
 
   getOrderLineGrossTotal(): number {
     if (!this.order?.orderItems) return 0;
-    return this.order.orderItems.reduce(
-      (total, item) => total + (item.lineGrossAmount ?? (item.lineNetAmount ?? ((item.quantity || 0) * (item.pricePerUnit || 0))) + (item.lineTaxAmount || 0)),
-      0
-    );
+    return this.order.orderItems.reduce((total, item) => total + getOrderItemLineGrossAmount(item), 0);
+  }
+
+  getLineNetAmount(orderItem: OrderItem): number {
+    return getOrderItemLineNetAmount(orderItem);
+  }
+
+  getLineGrossAmount(orderItem: OrderItem): number {
+    return getOrderItemLineGrossAmount(orderItem);
+  }
+
+  showOrderItemMeasureUnit(orderItem: OrderItem): boolean {
+    return shouldShowLineMeasureUnit(orderItem?.product);
   }
 
   formatTaxRate(rate?: number | null): string {
@@ -1159,6 +1212,37 @@ export class OrderDetailsPageComponent implements OnInit, OnDestroy {
   viewProductDetails(product: Product) {
     if (!product) return;
     this.router.navigate(['/inventory/products', product.productId]);
+  }
+
+  formatOrderItemQty(orderItem: OrderItem): string {
+    return formatLineQuantity(orderItem?.product, getOrderItemDisplayQuantity(orderItem));
+  }
+
+  getOrderItemMeasureUnit(orderItem: OrderItem): string {
+    return getLineMeasureUnit(orderItem?.product, getOrderItemDisplayQuantity(orderItem));
+  }
+
+  formatReturnItemQty(returnItem: any): string {
+    const product = returnItem?.product;
+    const qty = getOrderItemDisplayReturnedQuantity({
+      product,
+      returnedQuantity: returnItem?.returnedQuantity,
+      displayReturnedQuantity: returnItem?.displayReturnedQuantity,
+    } as OrderItem);
+    return formatLineQuantity(product, qty);
+  }
+
+  getReturnItemMeasureUnit(returnItem: any): string {
+    const qty = getOrderItemDisplayReturnedQuantity({
+      product: returnItem?.product,
+      returnedQuantity: returnItem?.returnedQuantity,
+    } as OrderItem);
+    return getLineMeasureUnit(returnItem?.product, qty);
+  }
+
+  getUnitPriceLabel(orderItem: OrderItem): string {
+    const unit = getLineMeasureUnit(orderItem?.product, 1);
+    return unit;
   }
 }
 

@@ -51,13 +51,13 @@
 
         &.layout-static {
             .layout-main-container {
-                margin-left: 300px;
+                margin-left: var(--layout-sidebar-width, 300px);
             }
 
             [dir="rtl"] & .layout-main-container,
             html[dir="rtl"] & .layout-main-container {
                 margin-left: 0;
-                margin-right: 300px;
+                margin-right: var(--layout-sidebar-width, 300px);
             }
 
             &.layout-static-inactive {

@@ -9,6 +9,8 @@ import { RestoreConfig, RestoreJob, RestoreRequest, RestoreSettings } from 'src/
 import { BackupService } from 'src/app/services/backup.service';
 import { MaintenanceService } from 'src/app/services/maintenance.service';
 import { RestoreService } from 'src/app/services/restore.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './backups.component.html',
@@ -16,12 +18,14 @@ import { RestoreService } from 'src/app/services/restore.service';
   providers: [MessageService, ConfirmationService]
 })
 export class BackupsComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
   backups: BackupJob[] = [];
   config: BackupConfig | null = null;
   selectedJob: BackupJob | null = null;
   backupOptions: { label: string; value: BackupJob }[] = [];
 
-  isLoadingBackups = false;
+  isLoadingBackups = true;
+  isInitialLoadBackups = true;
   isLoadingConfig = false;
   isCreating = false;
   pollingActive = false;
@@ -47,7 +51,8 @@ export class BackupsComponent implements OnInit, OnDestroy {
 
   isLoadingRestoreConfig = false;
   isLoadingRestoreSettings = false;
-  isLoadingRestoreJobs = false;
+  isLoadingRestoreJobs = true;
+  isInitialLoadRestoreJobs = true;
   isUpdatingRestoreSettings = false;
   isRestoring = false;
   restorePollingActive = false;
@@ -63,7 +68,8 @@ export class BackupsComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private translate: TranslateService,
-    private location: Location
+    private location: Location,
+    public pageSizeService: TablePageSizeService
   ) { }
 
   async ngOnInit(): Promise<void> {
@@ -109,8 +115,10 @@ export class BackupsComponent implements OnInit, OnDestroy {
     }
   }
 
-  async loadBackups(showError = true): Promise<void> {
-    this.isLoadingBackups = true;
+  async loadBackups(showError = true, silent = false): Promise<void> {
+    if (!silent) {
+      this.isLoadingBackups = true;
+    }
     try {
       const backups$ = await this.backupService.listBackups();
       this.backups = (await firstValueFrom(backups$)) || [];
@@ -125,7 +133,10 @@ export class BackupsComponent implements OnInit, OnDestroy {
         });
       }
     } finally {
-      this.isLoadingBackups = false;
+      if (!silent) {
+        this.isLoadingBackups = false;
+        this.isInitialLoadBackups = false;
+      }
     }
   }
 
@@ -180,8 +191,10 @@ export class BackupsComponent implements OnInit, OnDestroy {
     }
   }
 
-  async loadRestoreJobs(showError = true): Promise<void> {
-    this.isLoadingRestoreJobs = true;
+  async loadRestoreJobs(showError = true, silent = false): Promise<void> {
+    if (!silent) {
+      this.isLoadingRestoreJobs = true;
+    }
     try {
       const restores$ = await this.restoreService.listRestores();
       this.restoreJobs = (await firstValueFrom(restores$)) || [];
@@ -195,20 +208,10 @@ export class BackupsComponent implements OnInit, OnDestroy {
         });
       }
     } finally {
-      this.isLoadingRestoreJobs = false;
-    }
-  }
-
-  async refresh(): Promise<void> {
-    await this.loadBackups();
-    await this.loadMaintenanceStatus();
-    await this.loadRestoreSettings();
-    await this.loadRestoreJobs(false);
-    if (!this.hasRunningJobs()) {
-      this.stopPolling();
-    }
-    if (!this.hasRunningRestoreJobs()) {
-      this.stopRestorePolling();
+      if (!silent) {
+        this.isLoadingRestoreJobs = false;
+        this.isInitialLoadRestoreJobs = false;
+      }
     }
   }
 
@@ -591,7 +594,7 @@ export class BackupsComponent implements OnInit, OnDestroy {
     }
     this.restorePollingActive = true;
     this.restorePollingSub = interval(3000).subscribe(async () => {
-      await this.loadRestoreJobs(false);
+      await this.loadRestoreJobs(false, true);
       if (!this.hasRunningRestoreJobs()) {
         this.stopRestorePolling();
       }
@@ -662,7 +665,7 @@ export class BackupsComponent implements OnInit, OnDestroy {
     }
     this.pollingActive = true;
     this.pollingSub = interval(3000).subscribe(async () => {
-      await this.loadBackups(false);
+      await this.loadBackups(false, true);
       if (!this.hasRunningJobs()) {
         this.stopPolling();
       }

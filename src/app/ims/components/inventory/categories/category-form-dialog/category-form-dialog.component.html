@@ -1,72 +1,91 @@
-<p-dialog [(visible)]="config.visible" [style]="{width: '500px'}"
+<p-dialog [(visible)]="config.visible" [style]="{width: 'min(92vw, 560px)'}"
     [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{'category_details' | translate}}"
-    [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid category-dialog">
+    [modal]="true" [draggable]="false" [resizable]="false"
+    styleClass="ims-form-dialog-shell category-form-dialog-shell"
+    class="p-fluid category-dialog">
     <ng-template pTemplate="content">
-        <div class="grid p-fluid">
-            <div class="col-12">
-                <!-- Category Name -->
-                <div class="field">
-                    <label for="categoryName" class="block mb-2 font-bold">
-                        {{'category_name' | translate}} <span class="required-asterisk">*</span>
-                    </label>
-                    <div class="p-inputgroup">
-                        <span class="p-inputgroup-addon">
-                            <i class="pi pi-tag"></i>
-                        </span>
-                        <input type="text" pInputText name="categoryName" [(ngModel)]="config.category.categoryName"
-                            required placeholder="{{ 'enter_category_name' | translate }}"
-                            [ngClass]="{'ng-invalid ng-dirty': submitted && !config.category.categoryName}" />
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+                <!-- Category information -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                            <i class="pi pi-folder"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'category_information' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="categoryName" class="ims-form-label">
+                                {{ 'category_name' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-tag"></i>
+                                </span>
+                                <input type="text" pInputText id="categoryName" name="categoryName"
+                                    [(ngModel)]="config.category.categoryName" required
+                                    placeholder="{{ 'enter_category_name' | translate }}"
+                                    [ngClass]="{'ng-invalid ng-dirty': submitted && !config.category.categoryName}" />
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !config.category.categoryName">
+                                {{ 'category_name' | translate }} {{ 'is_required_label' | translate }}
+                            </small>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="description" class="ims-form-label">
+                                {{ 'category_description' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-align-left"></i>
+                                </span>
+                                <textarea pInputTextarea id="description" [(ngModel)]="config.category.description"
+                                    name="description" rows="3" [autoResize]="true"
+                                    placeholder="{{ 'enter_category_description' | translate }}"></textarea>
+                            </div>
+                        </div>
                     </div>
-                    <small class="p-error" *ngIf="submitted && !config.category.categoryName">
-                        {{'category_name' | translate}} {{'is_required_label' | translate}}
-                    </small>
-                </div>
+                </section>
 
-                <!-- Category Description -->
-                <div class="field">
-                    <label for="description" class="block mb-2 font-bold">
-                        {{'category_description' | translate}}
-                    </label>
-                    <div class="p-inputgroup">
-                        <span class="p-inputgroup-addon">
-                            <i class="pi pi-align-left"></i>
-                        </span>
-                        <textarea pInputTextarea [(ngModel)]="config.category.description" name="description" rows="3"
-                            [autoResize]="true"
-                            placeholder="{{ 'enter_category_description' | translate }}"></textarea>
+                <!-- Costing method -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+                            <i class="pi pi-calculator"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'category_costing_method' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="costingMethod" class="ims-form-label">
+                                {{ 'category_costing_method' | translate }}
+                            </label>
+                            <p-dropdown appendTo="body" inputId="costingMethod"
+                                [(ngModel)]="config.category.costingMethod" name="costingMethod"
+                                [options]="costingMethods" optionLabel="label" optionValue="value"
+                                placeholder="{{ 'inherit_costing_method' | translate }}" [showClear]="true"
+                                styleClass="w-full">
+                            </p-dropdown>
+                            <small class="ims-form-hint">{{ 'costing_method_inheritance_help' | translate }}</small>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Costing Method -->
-                <div class="field">
-                    <label for="costingMethod" class="block mb-2 font-bold">
-                        {{ 'category_costing_method' | translate }}
-                    </label>
-
-                    <p-dropdown appendTo="body" [(ngModel)]="config.category.costingMethod" name="costingMethod"
-                        [options]="costingMethods" optionLabel="label" optionValue="value"
-                        placeholder="{{ 'inherit_costing_method' | translate }}" [showClear]="true">
-                    </p-dropdown>
-
-                    <small class="text-color-secondary">
-                        {{ 'costing_method_inheritance_help' | translate }}
-                    </small>
-                </div>
+                </section>
             </div>
-        </div>
 
-        <div class="required-note mt-3">
-            <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
-                translate}}</small>
+            <div class="ims-form-required-note">
+                <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+            </div>
         </div>
     </ng-template>
 
     <ng-template pTemplate="footer">
         <div class="flex justify-content-between align-items-center w-full">
-            <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-                class="p-button-text p-button-danger" (click)="onCancel()"></button>
-            <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
-                class="p-button-raised" (click)="onSave()"></button>
+            <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                class="p-button-text" (click)="onCancel()"></button>
+            <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                class="p-button-primary" (click)="onSave()"></button>
         </div>
     </ng-template>
 </p-dialog>

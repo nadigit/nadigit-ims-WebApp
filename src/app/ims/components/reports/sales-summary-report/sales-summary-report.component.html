@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
   <div class="col-12">
     <div class="card px-6 py-6">
       <div class="mb-4">
@@ -47,14 +47,17 @@
         </div>
       </div>
 
-      <div *ngIf="loading" class="flex flex-column align-items-center justify-content-center py-6 reports-loading-panel">
-        <p-progressSpinner [style]="{ width: '3rem', height: '3rem' }" strokeWidth="3"></p-progressSpinner>
-        <span class="text-600 mt-3">{{ 'loading' | translate }}</span>
+      <div class="ims-loading-panel ims-loading-panel--section reports-loading-panel"
+        *ngIf="(loading || isInitialLoad) && !summary">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+          <p class="ims-loading-label">{{ 'loading' | translate }}</p>
+        </div>
       </div>
 
-      <p-message *ngIf="error && !loading" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
+      <p-message *ngIf="error && !loading && !isInitialLoad" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
 
-      <div *ngIf="summary && !loading" class="grid">
+      <div *ngIf="summary && (!isInitialLoad || summary) && (!loading || summary)" class="grid">
         <div class="col-12">
           <h3 class="text-900 text-lg font-semibold mt-0 mb-3">{{ 'reports_sales_section_completed' | translate }}</h3>
         </div>

@@ -20,8 +20,16 @@ export class NotificationPreferencesComponent implements OnInit {
     pushNotifications: false,
     workingHoursOnly: false,
     priorityOnly: false,
-    mutedTypes: []
+    mutedTypes: [],
+    preferredLocale: 'en'
   };
+
+  readonly localeOptions = [
+    { label: 'English', value: 'en' },
+    { label: 'الْعَرَبِيَّةُ', value: 'ar' },
+    { label: 'Français', value: 'fr' },
+    { label: 'Español', value: 'es' }
+  ];
 
   notificationTypes = [
     { value: 'INVENTORY', label: 'INVENTORY' },
@@ -72,7 +80,8 @@ export class NotificationPreferencesComponent implements OnInit {
         next: (prefs) => {
           this.preferences = {
             ...prefs,
-            userId: prefs.userId || this.preferences.userId
+            userId: prefs.userId || this.preferences.userId,
+            preferredLocale: prefs.preferredLocale || this.translate.currentLang || 'en'
           };
           this.isLoading = false;
         },

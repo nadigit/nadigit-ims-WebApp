@@ -8,6 +8,7 @@ export class PurchaseReturnItem {
   product?: Product;
   purchaseItem?: PurchaseItem;
   returnedQuantity?: number;
+  displayReturnedQuantity?: number;
   refundAmount?: number;
   creditAmount?: number; // Alias for refundAmount in purchase returns
   reason?: string;

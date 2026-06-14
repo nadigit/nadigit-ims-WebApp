@@ -1,10 +1,10 @@
-<div class="category-details-container">
+﻿<div class="category-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="category-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
                             <i class="pi pi-folder"></i>
                         </div>
                         <div>
@@ -43,19 +43,15 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" 
-                            [label]="'refresh' | translate"
-                            class="p-button-outlined"
-                            (click)="refreshCategoryDetails()"
-                            [disabled]="loadingCategoryDetails"></button>
                         <button pButton pRipple icon="pi pi-pencil" 
                             [label]="'edit_category' | translate" 
                             *ngIf="canEditCategory"
                             class="p-button-primary"
                             (click)="editCategory()"></button>
-                        <button pButton pRipple icon="pi pi-file-excel" 
+                        <button pButton pRipple icon="pi pi-file-excel"
                             class="p-button-success"
                             [pTooltip]="'export_to_excel' | translate"
+                            tooltipPosition="bottom"
                             (click)="exportCategoryProducts()"
                             [disabled]="!filteredCategoryProducts || filteredCategoryProducts.length === 0"></button>
                     </div>
@@ -66,7 +62,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon products">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
@@ -76,7 +72,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon quantity">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
                     <i class="pi pi-chart-bar"></i>
                 </div>
                 <div class="stat-content">
@@ -86,7 +82,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon value">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -96,7 +92,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="isAdmin">
-                <div class="stat-icon profit">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                     <i class="pi pi-dollar"></i>
                 </div>
                 <div class="stat-content">
@@ -128,7 +124,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="category.categoryName">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-folder"></i>
                                         </div>
                                         <div class="info-content">
@@ -138,17 +134,17 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="category.costingMethod">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
                                             <i class="pi pi-calculator"></i>
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'costing_method' | translate }}</span>
-                                            <span class="info-value">{{ category.costingMethod | translate }}</span>
+                                            <span class="info-value">{{ costingMethodTranslationKey(category.costingMethod) | translate }}</span>
                                         </div>
                                     </div>
                                     
                                     <div class="info-item" *ngIf="category.creationDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -174,7 +170,7 @@
                             <div class="card-body">
                                 <div class="stock-status-grid">
                                     <div class="stock-status-item success">
-                                        <div class="status-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-check-circle"></i>
                                         </div>
                                         <div class="status-content">
@@ -184,7 +180,7 @@
                                     </div>
                                     
                                     <div class="stock-status-item warning">
-                                        <div class="status-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-exclamation-circle"></i>
                                         </div>
                                         <div class="status-content">
@@ -194,7 +190,7 @@
                                     </div>
                                     
                                     <div class="stock-status-item danger">
-                                        <div class="status-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger">
                                             <i class="pi pi-times-circle"></i>
                                         </div>
                                         <div class="status-content">
@@ -206,29 +202,6 @@
                             </div>
                         </div>
 
-                        <!-- Alerts Card -->
-                        <div class="detail-card alerts-card" *ngIf="categoryStats?.lowStockCount > 0 || categoryStats?.outOfStockCount > 0">
-                            <div class="card-header warning">
-                                <i class="pi pi-exclamation-triangle"></i>
-                                <span>{{ 'alerts' | translate }}</span>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="alert-item danger" *ngIf="categoryStats?.outOfStockCount > 0">
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-times-circle"></i>
-                                        <span>{{ 'out_of_stock_products' | translate }}</span>
-                                    </div>
-                                    <p-tag [value]="categoryStats.outOfStockCount.toString()" severity="danger"></p-tag>
-                                </div>
-                                <div class="alert-item warning" *ngIf="categoryStats?.lowStockCount > 0">
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-exclamation-circle"></i>
-                                        <span>{{ 'low_stock_products' | translate }}</span>
-                                    </div>
-                                    <p-tag [value]="categoryStats.lowStockCount.toString()" severity="warning"></p-tag>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     
                     <!-- Right Column - Top Products & Warehouse Distribution -->
@@ -242,7 +215,7 @@
                             <div class="card-body">
                                 <div class="warehouse-grid">
                                     <div class="warehouse-item" *ngFor="let wh of categoryStats.warehouseDistribution">
-                                        <div class="warehouse-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-building"></i>
                                         </div>
                                         <div class="warehouse-content">
@@ -298,7 +271,7 @@
                 <div class="mt-3">
                     <!-- Loading State -->
                     <div *ngIf="loadingCategoryDetails" class="flex justify-content-center align-items-center py-8">
-                        <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+                        <p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
                     </div>
 
                     <!-- Products Section -->
@@ -336,17 +309,19 @@
                                     (onChange)="filterCategoryProducts()" (onClear)="filterCategoryProducts()"
                                     appendTo="body" styleClass="filter-dropdown">
                                 </p-dropdown>
-                                <button pButton pRipple icon="pi pi-filter-slash" 
-                                    class="p-button-outlined p-button-sm"
+                                <button pButton pRipple icon="pi pi-filter-slash"
+                                    class="p-button-outlined p-button-secondary"
+                                    tooltipPosition="bottom"
                                     (click)="clearCategoryProductFilters()"
                                     [pTooltip]="'clear_filters' | translate"></button>
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="filteredCategoryProducts" [paginator]="true" [rows]="15"
+                            <p-table [value]="filteredCategoryProducts" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.categoryDetailsProducts, [15,30,50])"
                                 [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="loadingCategoryDetails"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.categoryDetailsProducts, [15,30,50], $event)"
                                 [globalFilterFields]="['name', 'reference']">
                                 <ng-template pTemplate="header">
                                     <tr>
@@ -413,13 +388,21 @@
                                         <td class="text-center">
                                             <div class="flex justify-content-center gap-1">
                                                 <button pButton pRipple icon="pi pi-eye" *ngIf="canReadProduct"
-                                                    class="p-button-sm p-button-rounded p-button-text"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-primary"
                                                     (click)="viewProductDetails(product)"
                                                     [pTooltip]="'view_details' | translate"></button>
                                                 <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditProduct"
-                                                    class="p-button-sm p-button-rounded p-button-text p-button-success"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-primary"
                                                     (click)="editProduct(product)"
-                                                    [pTooltip]="'edit' | translate"></button>
+                                                    [pTooltip]="'edit' | translate" tooltipPosition="bottom"></button>
+                                                <button pButton pRipple icon="pi pi-trash" *ngIf="canDeleteProduct"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-danger"
+                                                    (click)="deleteProduct(product)"
+                                                    [pTooltip]="'delete_product' | translate" tooltipPosition="bottom"></button>
+                                                <button pButton pRipple icon="pi pi-folder" *ngIf="canArchiveProduct"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-warning"
+                                                    (click)="archiveProduct(product)"
+                                                    [pTooltip]="'archive_product' | translate" tooltipPosition="bottom"></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -461,7 +444,7 @@
                             <div class="card-body">
                                 <div class="financial-grid">
                                     <div class="financial-item">
-                                        <div class="financial-icon cost">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
                                             <i class="pi pi-shopping-cart"></i>
                                         </div>
                                         <div class="financial-content">
@@ -471,7 +454,7 @@
                                     </div>
                                     
                                     <div class="financial-item">
-                                        <div class="financial-icon retail">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="financial-content">
@@ -481,7 +464,7 @@
                                     </div>
                                     
                                     <div class="financial-item">
-                                        <div class="financial-icon profit">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                                             <i class="pi pi-dollar"></i>
                                         </div>
                                         <div class="financial-content">
@@ -491,7 +474,7 @@
                                     </div>
                                     
                                     <div class="financial-item">
-                                        <div class="financial-icon margin">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                                             <i class="pi pi-percentage"></i>
                                         </div>
                                         <div class="financial-content">
@@ -572,33 +555,15 @@
 </app-product-form>
 
 <!-- Delete Product Dialog -->
-<p-dialog [(visible)]="deleteProductDialog" [header]="'confirm_label' | translate" [modal]="true"
-    [style]="{width:'450px'}">
-    <div class="flex align-items-center justify-content-center gap-3">
-        <i class="pi pi-exclamation-triangle text-4xl text-orange-500"></i>
-        <span *ngIf="selectedProduct">{{ 'delete_confirmation_msg_with_param' | translate }}
-            <b>{{ selectedProduct.name }}</b>?</span>
-    </div>
-    <ng-template pTemplate="footer">
-        <button pButton pRipple icon="pi pi-times" class="p-button-text" [label]="'no_button' | translate"
-            (click)="deleteProductDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-danger" [label]="'yes_button' | translate"
-            (click)="confirmProductDelete()"></button>
-    </ng-template>
-</p-dialog>
+<app-product-delete-dialog
+    [(visible)]="deleteProductDialog"
+    [productId]="selectedProduct?.productId"
+    (confirmed)="onProductDeleteConfirmed($event)">
+</app-product-delete-dialog>
 
 <!-- Archive Product Dialog -->
-<p-dialog [(visible)]="archiveProductDialog" [header]="'confirm_label' | translate" [modal]="true"
-    [style]="{width:'450px'}">
-    <div class="flex align-items-center justify-content-center gap-3">
-        <i class="pi pi-exclamation-triangle text-4xl text-orange-500"></i>
-        <span *ngIf="selectedProduct">{{ 'archive_confirmation_msg_with_param' | translate }}
-            <b>{{ selectedProduct.name }}</b>?</span>
-    </div>
-    <ng-template pTemplate="footer">
-        <button pButton pRipple icon="pi pi-times" class="p-button-text" [label]="'no_button' | translate"
-            (click)="archiveProductDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-warning" [label]="'yes_button' | translate"
-            (click)="confirmArchive()"></button>
-    </ng-template>
-</p-dialog>
+<app-product-archive-dialog
+    [(visible)]="archiveProductDialog"
+    [productName]="selectedProduct?.name || ''"
+    (confirmed)="confirmArchive()">
+</app-product-archive-dialog>

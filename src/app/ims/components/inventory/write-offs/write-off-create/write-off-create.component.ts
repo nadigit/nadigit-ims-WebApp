@@ -17,6 +17,17 @@ import { KeycloakProfile } from 'keycloak-js';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { firstValueFrom, combineLatest, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import {
+  computeWriteOffEstimatedCost,
+  displayProductStockQuantity,
+  displayWarehouseStockQuantity as warehouseStockDisplayQty,
+  formatLineQuantity,
+  getLineMeasureUnit,
+  lineQuantityDecimals,
+  lineQuantityMin,
+  lineQuantityStep,
+  toWriteOffStorageQuantity,
+} from 'src/app/shared/product-utils';
 
 @Component({
   selector: 'app-write-off-create',
@@ -128,7 +139,7 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
     // Reset form if it exists
     if (this.writeOffForm) {
       this.writeOffForm.reset({
-        quantity: 1,
+        quantity: lineQuantityMin(this.selectedProduct),
         sourceType: 'MANUAL_ADJUSTMENT',
         notes: ''
       });
@@ -212,7 +223,7 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
       productId: [{value: null, disabled: true}, Validators.required], // Will store the product object, not just ID - disabled by default
       warehouseId: [null, Validators.required],
       batchId: [null],
-      quantity: [1, [Validators.required, Validators.min(0.01)]],
+      quantity: [lineQuantityMin(null), [Validators.required, Validators.min(lineQuantityStep(null))]],
       condition: [null, Validators.required],
       sourceType: ['MANUAL_ADJUSTMENT'], // Optional, defaults to MANUAL_ADJUSTMENT
       reason: [''], // Optional, max 500 chars
@@ -354,46 +365,41 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onProductChange(event?: any) {
-    // Handle onClear event (when product is cleared)
-    if (event === undefined || event === null || (event && !event.value)) {
+    if (event === undefined || event === null) {
       this.selectedProduct = null;
       this.selectedBatch = null;
       this.batches = [];
       return;
     }
-    
-    // Get the selected product from the event
-    let productValue: any;
-    if (event && event.value) {
-      // Event from onSelect contains the selected product
-      productValue = event.value;
-    } else {
-      // Fallback to form value
-      productValue = this.writeOffForm.get('productId')?.value;
+
+    const productValue =
+      event?.value ??
+      (typeof event === 'object' && event?.productId != null ? event : null);
+
+    if (!productValue) {
+      this.selectedProduct = null;
+      this.selectedBatch = null;
+      this.batches = [];
+      return;
     }
-    
-    if (productValue) {
-      // Autocomplete returns the full product object when [field] is not set
-      const product = typeof productValue === 'object' ? productValue : 
-                     this.productSuggestions.find(p => p.productId === productValue);
-      
-      if (product && product.productId) {
-        this.selectedProduct = product;
-        // Ensure the form control has the full product object
-        this.writeOffForm.patchValue({ productId: product }, { emitEvent: false });
-        this.writeOffForm.patchValue({ batchId: null }, { emitEvent: false });
-        this.selectedBatch = null;
-        this.batches = [];
-        
-        // Load batches if product and warehouse are selected
-        if (this.selectedProduct && this.writeOffForm.get('warehouseId')?.value) {
-          this.loadBatches();
-        }
-      } else {
-        this.selectedProduct = null;
+
+    const product =
+      typeof productValue === 'object'
+        ? productValue
+        : this.productSuggestions.find((p) => p.productId === productValue);
+
+    if (product?.productId) {
+      this.selectedProduct = product;
+      this.writeOffForm.patchValue({ productId: product }, { emitEvent: false });
+      this.writeOffForm.patchValue({ batchId: null }, { emitEvent: false });
+      this.selectedBatch = null;
+      this.batches = [];
+
+      this.resetQuantityValidatorsForProduct(product);
+      if (this.writeOffForm.get('warehouseId')?.value) {
+        this.loadBatches();
       }
     } else {
-      // Product was cleared
       this.selectedProduct = null;
       this.selectedBatch = null;
       this.batches = [];
@@ -424,25 +430,12 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
     }, 0);
   }
 
-  /**
-   * Quantity still available to write off (prefers net when API sends it).
-   */
-  private getAvailableQuantityForWriteOff(p: Product): number {
-    const toNum = (v: unknown): number => {
-      if (v == null || v === '') return NaN;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : NaN;
-    };
-    const net = toNum(p.netAvailableQuantity);
-    if (!Number.isNaN(net)) {
-      return net;
-    }
-    const qty = toNum(p.quantityAvailable);
-    return Number.isNaN(qty) ? 0 : qty;
+  private getAvailableDisplayQuantityForWriteOff(p: Product): number {
+    return displayProductStockQuantity(p);
   }
 
   private hasAvailableStockForWriteOff(p: Product): boolean {
-    return this.getAvailableQuantityForWriteOff(p) > 0;
+    return this.getAvailableDisplayQuantityForWriteOff(p) > 0;
   }
 
   /**
@@ -574,48 +567,75 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
     const batchId = this.writeOffForm.get('batchId')?.value;
     if (batchId) {
       this.selectedBatch = this.batches.find(b => b.batchId === batchId) || null;
-      // Set max quantity to batch available quantity
-      if (this.selectedBatch && this.selectedBatch.quantityAvailable) {
-        const quantityControl = this.writeOffForm.get('quantity');
-        if (quantityControl) {
-          quantityControl.setValidators([
-            Validators.required,
-            Validators.min(0.01),
-            Validators.max(this.selectedBatch.quantityAvailable)
-          ]);
-          quantityControl.updateValueAndValidity();
-        }
-      }
+      this.resetQuantityValidatorsForProduct(this.selectedProduct);
     } else {
       this.selectedBatch = null;
-      // Reset max validator
-      const quantityControl = this.writeOffForm.get('quantity');
-      if (quantityControl) {
-        quantityControl.setValidators([Validators.required, Validators.min(0.01)]);
-        quantityControl.updateValueAndValidity();
-      }
+      this.resetQuantityValidatorsForProduct(this.selectedProduct);
     }
   }
 
+  private resetQuantityValidatorsForProduct(product: Product | null): void {
+    const quantityControl = this.writeOffForm.get('quantity');
+    if (!quantityControl) {
+      return;
+    }
+    const min = lineQuantityMin(product);
+    const max = this.getMaxQuantity();
+    quantityControl.setValidators([
+      Validators.required,
+      Validators.min(min),
+      ...(max > 0 ? [Validators.max(max)] : []),
+    ]);
+    const current = quantityControl.value;
+    if (current == null || current < min) {
+      quantityControl.setValue(min);
+    } else if (max > 0 && current > max) {
+      quantityControl.setValue(max);
+    }
+    quantityControl.updateValueAndValidity();
+  }
+
   getMaxQuantity(): number {
-    if (this.selectedBatch) {
-      return this.selectedBatch.quantityAvailable || 0;
+    if (this.selectedBatch && this.selectedProduct) {
+      return warehouseStockDisplayQty(this.selectedProduct, this.selectedBatch.quantityAvailable);
     }
     if (this.selectedProduct) {
-      return this.getAvailableQuantityForWriteOff(this.selectedProduct);
+      return this.getAvailableDisplayQuantityForWriteOff(this.selectedProduct);
     }
     return 0;
   }
 
   getEstimatedCost(): number {
-    const quantity = this.writeOffForm.get('quantity')?.value || 0;
-    if (this.selectedBatch && this.selectedBatch.buyingPrice) {
-      return quantity * this.selectedBatch.buyingPrice;
+    const displayQuantity = this.writeOffForm.get('quantity')?.value || 0;
+    if (!this.selectedProduct || !displayQuantity) {
+      return 0;
     }
-    if (this.selectedProduct && this.selectedProduct.buyingPrice) {
-      return quantity * this.selectedProduct.buyingPrice;
-    }
-    return 0;
+    const unitCost = this.selectedBatch?.buyingPrice ?? this.selectedProduct.buyingPrice;
+    return computeWriteOffEstimatedCost(this.selectedProduct, displayQuantity, unitCost ?? undefined);
+  }
+
+  quantityInputStep(): number {
+    return lineQuantityStep(this.selectedProduct);
+  }
+
+  quantityInputDecimals(): number {
+    return lineQuantityDecimals(this.selectedProduct);
+  }
+
+  quantityInputMin(): number {
+    return lineQuantityMin(this.selectedProduct);
+  }
+
+  formatDisplayQuantity(quantity: number | null | undefined): string {
+    return formatLineQuantity(this.selectedProduct, quantity);
+  }
+
+  getQuantityMeasureUnit(quantity?: number): string {
+    return getLineMeasureUnit(this.selectedProduct, quantity);
+  }
+
+  displayWarehouseStockQuantity(product: Product, storageQuantity: number | null | undefined): number {
+    return warehouseStockDisplayQty(product, storageQuantity);
   }
 
   async onSubmit() {
@@ -710,10 +730,13 @@ export class WriteOffCreateComponent implements OnInit, OnChanges, OnDestroy {
       }
       
       // Build request according to new API structure
+      const displayQuantity = formValue.quantity;
+      const storageQuantity = toWriteOffStorageQuantity(this.selectedProduct, displayQuantity);
+
       const request: CreateWriteOffRequest = {
         productId: productId,
         warehouseId: warehouseId,
-        quantity: formValue.quantity,
+        quantity: storageQuantity,
         condition: formValue.condition,
         sourceType: formValue.sourceType || 'MANUAL_ADJUSTMENT',
         reason: formValue.reason || undefined,

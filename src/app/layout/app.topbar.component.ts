@@ -13,6 +13,8 @@ import { TieredMenu } from 'primeng/tieredmenu';
 import { MessageService } from 'primeng/api';
 import { AppConfigurationService } from '../services/app-configuration.service';
 import { ActionReminderService } from '../services/action-reminder.service';
+import { SessionAuditService } from '../services/session-audit.service';
+import { BRAND_ASSETS } from '../utils/brand-assets';
 
 
 @Component({
@@ -22,6 +24,8 @@ import { ActionReminderService } from '../services/action-reminder.service';
   providers: [ConfirmationService]
 })
 export class AppTopBarComponent implements OnInit {
+  readonly brandAssets = BRAND_ASSETS;
+
   @ViewChild('notificationMenu') notificationMenu!: TieredMenu;
 
   items!: MenuItem[];
@@ -71,6 +75,8 @@ export class AppTopBarComponent implements OnInit {
 
   @ViewChild('topbarmenu') menu!: ElementRef;
 
+  @ViewChild('copilotTopbarBtn') copilotTopbarBtn?: ElementRef<HTMLButtonElement>;
+
   constructor(public layoutService: LayoutService,
     public keycloakService: KeycloakService,
     private notificationService: NotificationService,
@@ -80,7 +86,8 @@ export class AppTopBarComponent implements OnInit {
     private confirmationService: ConfirmationService,
     private configService: AppConfigurationService,
     private actionReminderService: ActionReminderService,
-    private router: Router) {
+    private router: Router,
+    private sessionAuditService: SessionAuditService) {
 
   }
   async ngOnInit(): Promise<void> {
@@ -124,6 +131,10 @@ export class AppTopBarComponent implements OnInit {
     this.filteredRecentNotifications = [];
     this.filteredOlderNotifications = [];
     this.filteredPriorityNotifications = [];
+  }
+
+  onCopilotTopbarClick(): void {
+    this.layoutService.requestCopilotToggle();
   }
 
   loadAdminActionRemindersCount() {
@@ -376,27 +387,44 @@ export class AppTopBarComponent implements OnInit {
   }
 
   getNotificationIconClass(notification: any): string {
-    // Handle expiration-related notifications
-    if (notification.title === 'product expired' || 
+    if (notification.title === 'product expired' ||
         (notification.title && notification.title.toLowerCase().includes('expired'))) {
-      return 'notification-icon-error';
+      return 'ims-icon-tile--danger';
     }
-    if (notification.title === 'product expiring soon' || 
+    if (notification.title === 'product expiring soon' ||
         (notification.title && notification.title.toLowerCase().includes('expiring'))) {
-      return 'notification-icon-warning';
+      return 'ims-icon-tile--amber';
     }
 
-    const classMap: { [key: string]: string } = {
-      'high': 'notification-icon-high',
-      'medium': 'notification-icon-medium',
-      'low': 'notification-icon-low',
-      'success': 'notification-icon-success',
-      'warning': 'notification-icon-warning',
-      'error': 'notification-icon-error',
-      'info': 'notification-icon-info'
+    const priorityMap: { [key: string]: string } = {
+      'high': 'ims-icon-tile--danger',
+      'medium': 'ims-icon-tile--amber',
+      'low': 'ims-icon-tile--cyan',
     };
 
-    return classMap[notification.priority] || classMap[notification.severity] || 'notification-icon-default';
+    const severityMap: { [key: string]: string } = {
+      'success': 'ims-icon-tile--success',
+      'warning': 'ims-icon-tile--amber',
+      'error': 'ims-icon-tile--danger',
+      'info': 'ims-icon-tile--cyan',
+    };
+
+    const typeMap: { [key: string]: string } = {
+      'inventory': 'ims-icon-tile--teal',
+      'order': 'ims-icon-tile--blue',
+      'orders': 'ims-icon-tile--blue',
+      'financial': 'ims-icon-tile--green',
+      'system': 'ims-icon-tile--neutral',
+      'user': 'ims-icon-tile--purple',
+      'alert': 'ims-icon-tile--danger',
+    };
+
+    const category = notification.category?.toLowerCase?.() || '';
+    return priorityMap[notification.priority]
+      || severityMap[notification.severity]
+      || typeMap[notification.type]
+      || typeMap[category]
+      || 'ims-icon-tile--blue';
   }
 
   getNotificationTitle(notification: any): string {
@@ -484,7 +512,7 @@ export class AppTopBarComponent implements OnInit {
 
       // Fallback if we couldn't extract a meaningful name (or got a template placeholder like "{product}")
       if (!productName || productName.includes('{')) {
-        productName = this.translate.instant('product') || 'Product';
+        productName = this.translate.instant('product') || 'Item';
       }
 
       return this.translate.instant('product_x_has_expired', { product: productName });
@@ -495,7 +523,7 @@ export class AppTopBarComponent implements OnInit {
       const productName = notification.message?.match(/\(([^)]+)\)/)?.[1] || 
                          notification.message?.split(' - ')?.[0] ||
                          notification.message?.split(' is expiring')?.[0] ||
-                         'Product';
+                         'Item';
       const daysMatch = notification.message?.match(/(\d+)\s*days?/i);
       const days = daysMatch ? daysMatch[1] : '7';
       return this.translate.instant('product_x_expiring_soon_days', { product: productName, days: days });
@@ -646,7 +674,7 @@ export class AppTopBarComponent implements OnInit {
         if (matches && matches.length >= 7) {
           const reference = matches[1] || 'N/A';
           const quantity = matches[2] || '0';
-          const product = matches[3]?.trim() || 'Product';
+          const product = matches[3]?.trim() || 'Item';
           const condition = matches[4]?.trim() || 'N/A';
           const rawCost = matches[5] || '0';
           const status = matches[6]?.trim() || 'Pending approval';
@@ -675,7 +703,7 @@ export class AppTopBarComponent implements OnInit {
         if (matches && matches.length >= 6) {
           const reference = matches[1] || 'N/A';
           const quantity = matches[2] || '0';
-          const product = matches[3]?.trim() || 'Product';
+          const product = matches[3]?.trim() || 'Item';
           const rawCost = matches[4] || '0';
           const approver = matches[5]?.trim() || 'System';
           const cost = rawCost.replace(/[^0-9.,-]/g, '');
@@ -701,7 +729,7 @@ export class AppTopBarComponent implements OnInit {
         
         if (matches && matches.length >= 2) {
           const reference = matches[1] || 'N/A';
-          const product = matches[2]?.trim() || 'Product';
+          const product = matches[2]?.trim() || 'Item';
           const rejectionReason = matches[3]?.trim() || '';
           // Format reason with " Reason: " prefix if it exists
           const reason = rejectionReason ? ` Reason: ${rejectionReason}` : '';
@@ -750,10 +778,15 @@ export class AppTopBarComponent implements OnInit {
   }
 
   getActionDescription(notification: any): string {
+    if (notification?.referenceId != null && this.getNotificationReferenceType(notification)) {
+      return this.translate.instant('action.navigate_to_related_section');
+    }
+
     const keyMap: { [key: string]: string } = {
       'product in low stock': 'action.navigate_to_products_review_stock',
       'product is out of stock': 'action.navigate_to_products_restock',
       'new order': 'action.navigate_to_orders_view_process',
+      'order created': 'action.navigate_to_orders_view_process',
       'payment received': 'action.navigate_to_payments_view',
       'purchase created': 'action.navigate_to_purchases_view'
     };
@@ -821,30 +854,174 @@ export class AppTopBarComponent implements OnInit {
   }
 
   hasAction(notification: any): boolean {
-    const actionableTypes = ['product in low stock', 'product is out of stock', 'new order', 'payment received'];
-    return actionableTypes.includes(notification.title);
+    return !!this.resolveNotificationActionUrl(notification);
   }
 
-
-
   executeNotificationAction(notification: any) {
-    const actionMap: { [key: string]: () => void } = {
-      'product in low stock': () => this.router.navigate(['/inventory/products']),
-      'product is out of stock': () => this.router.navigate(['/inventory/products']),
-      'new order': () => this.router.navigate(['/sales/orders']),
-      'payment received': () => this.router.navigate(['/finance/sales-payments']),
-      'purchase created': () => this.router.navigate(['/inventory/purchases']),
-      'inventory audit': () => this.router.navigate(['/inventory/warehouses']),
+    const target = this.resolveNotificationActionUrl(notification);
+    if (!target) {
+      return;
+    }
+
+    this.router.navigateByUrl(target);
+    this.notificationVisible = false;
+    this.notificationDialogVisible = false;
+    this.selectedNotification = null;
+  }
+
+  private getNotificationReferenceType(notification: Notification): string {
+    return (notification.referenceType || notification.entity || '').trim().toUpperCase();
+  }
+
+  private resolveNotificationActionUrl(notification: Notification): string | null {
+    const referenceType = this.getNotificationReferenceType(notification);
+    const referenceId = notification.referenceId;
+
+    if (referenceId != null && referenceType) {
+      const detailUrl = this.buildDetailUrlFromReference(referenceType, referenceId, notification);
+      if (detailUrl) {
+        return detailUrl;
+      }
+    }
+
+    if (notification.actionUrl?.trim()) {
+      const normalized = this.normalizeNotificationActionUrl(notification.actionUrl, notification);
+      if (normalized) {
+        return normalized;
+      }
+    }
+
+    return this.getTitleFallbackActionUrl(notification.title);
+  }
+
+  private buildDetailUrlFromReference(
+    referenceType: string,
+    referenceId: number,
+    notification: Notification
+  ): string | null {
+    const id = String(referenceId);
+    const title = (notification.title || '').toLowerCase();
+
+    const routes: Record<string, string> = {
+      PRODUCT: `/inventory/products/${id}`,
+      ORDER: `/sales/orders/${id}`,
+      SALES_ORDER: `/sales/orders/${id}`,
+      PURCHASE: `/purchases/purchases/${id}`,
+      EXPENSE: `/finance/expenses/${id}`,
+      REFUND: `/finance/refunds/${id}`,
+      CUSTOMER: `/sales/customers/${id}`,
+      SUPPLIER: `/purchases/suppliers/${id}`,
+      WAREHOUSE: `/inventory/warehouses/${id}`,
+      SHOP: `/inventory/shops/${id}`,
+      CATEGORY: `/inventory/categories/${id}`,
+      WRITE_OFF: `/inventory/write-offs/${id}`,
+      WAREHOUSE_TRANSFER: `/inventory/warehouse-transfers/${id}`,
+      RETURN: `/sales/returns/${id}`,
+      PURCHASE_RETURN: `/purchases/purchase-returns/${id}`,
     };
 
-    const action = actionMap[notification.title];
-    if (action) {
-      action();
-      this.notificationVisible = false;
-      // Close the notification details dialog if open
-      this.notificationDialogVisible = false;
-      this.selectedNotification = null;
+    if (referenceType === 'PURCHASE_PAYMENT') {
+      return `/finance/payments/purchase/${id}`;
     }
+    if (referenceType === 'PAYMENT' || referenceType === 'SALES_PAYMENT') {
+      if (title.includes('purchase')) {
+        return `/finance/payments/purchase/${id}`;
+      }
+      return `/finance/payments/sales/${id}`;
+    }
+
+    return routes[referenceType] || null;
+  }
+
+  private normalizeNotificationActionUrl(raw: string, notification: Notification): string | null {
+    let url = raw.trim();
+    if (!url) {
+      return null;
+    }
+
+    const qIndex = url.indexOf('?');
+    let pathOnly = (qIndex >= 0 ? url.slice(0, qIndex) : url).replace(/\/+$/, '') || '/';
+    const query = qIndex >= 0 ? url.slice(qIndex) : '';
+
+    const legacyMap: Record<string, string> = {
+      '/pages/expenses': '/finance/expenses',
+      '/pages/inventory-write-offs': '/inventory/write-offs',
+      '/pages/order-returns': '/sales/returns',
+      '/pages/purchase-returns': '/purchases/purchase-returns',
+      '/pages/refunds': '/finance/refunds',
+      '/pages/warehouse-transfers': '/inventory/warehouse-transfers',
+      '/pages/inventory/products': '/inventory/products',
+      '/pages/sales/orders': '/sales/orders',
+      '/pages/purchases/purchases': '/purchases/purchases',
+      '/pages/payments': '/finance/payments/sales',
+      '/pages/sales-payments': '/finance/payments/sales',
+      '/pages/purchase-payments': '/finance/payments/purchase',
+    };
+
+    for (const [from, to] of Object.entries(legacyMap)) {
+      if (pathOnly === from || pathOnly.startsWith(from + '/')) {
+        const rest = pathOnly.length > from.length ? pathOnly.slice(from.length) : '';
+        pathOnly = to + rest;
+        break;
+      }
+    }
+
+    if (pathOnly.startsWith('/pages/')) {
+      return null;
+    }
+
+    url = pathOnly + query;
+    url = this.appendReferenceIdToListUrl(url, notification);
+    return url;
+  }
+
+  private appendReferenceIdToListUrl(url: string, notification: Notification): string {
+    const referenceId = notification.referenceId;
+    if (referenceId == null) {
+      return url;
+    }
+
+    const qIndex = url.indexOf('?');
+    const pathOnly = qIndex >= 0 ? url.slice(0, qIndex) : url;
+    const query = qIndex >= 0 ? url.slice(qIndex) : '';
+
+    if (/\/\d+$/.test(pathOnly)) {
+      return url;
+    }
+
+    const listPaths = [
+      '/inventory/products',
+      '/sales/orders',
+      '/purchases/purchases',
+      '/finance/expenses',
+      '/finance/refunds',
+      '/sales/customers',
+      '/purchases/suppliers',
+      '/finance/payments/sales',
+      '/finance/payments/purchase',
+    ];
+
+    if (listPaths.includes(pathOnly)) {
+      return `${pathOnly}/${referenceId}${query}`;
+    }
+
+    return url;
+  }
+
+  private getTitleFallbackActionUrl(title?: string): string | null {
+    const actionMap: Record<string, string> = {
+      'product in low stock': '/inventory/products',
+      'product is out of stock': '/inventory/products',
+      'product expired': '/inventory/products',
+      'product expiring soon': '/inventory/products',
+      'new order': '/sales/orders',
+      'order created': '/sales/orders',
+      'payment received': '/finance/payments/sales',
+      'purchase created': '/purchases/purchases',
+      'inventory audit': '/inventory/warehouses',
+    };
+
+    return title ? actionMap[title] || null : null;
   }
 
   showNotificationMenu(notification: any, event: Event) {
@@ -972,7 +1149,7 @@ export class AppTopBarComponent implements OnInit {
 
 
   logOut() {
-    this.keycloakService.logout(window.location.origin + '/webconsole')
+    void this.sessionAuditService.logout(window.location.origin + '/webconsole');
   }
 
   loadRecentNotifications() {

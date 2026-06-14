@@ -3,12 +3,21 @@ import { Product } from 'src/app/models/product';
 import { Category } from 'src/app/models/category';
 import { Supplier } from 'src/app/models/supplier';
 import { Warehouse } from 'src/app/models/warehouse';
-import { lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
 import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
+import { StockTrackingMode } from 'src/app/enums/stock-tracking-mode.enum';
+import { QuantityScale } from 'src/app/utils/quantity-scale.util';
 import { ProductService } from 'src/app/services/product.service';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { OrganizationService } from 'src/app/services/organization.service';
+import { Organization } from 'src/app/models/organization';
+import {
+  EffectiveCostingSource,
+  getCostingMethodDisplayLabel,
+  resolveEffectiveCosting,
+} from 'src/app/utils/costing-method.util';
 
 @Component({
   selector: 'app-product-form',
@@ -67,9 +76,16 @@ export class ProductFormComponent implements OnInit, OnChanges {
   attributeTypes: any[] = [];
   costingMethods: any[] = [];
   effectiveCostingMethodLabel = '';
+  effectiveCostingSource: EffectiveCostingSource = 'none';
+  effectiveCostingMethodValue: string | null = null;
   isCostingMethodNone: boolean = false;
+  organizationCostingMethod: string | null = null;
   productTypeOptions: any[] = [];
   profileAwareProductTypeOptions: any[] = [];
+  stockTrackingModeOptions: { label: string; value: StockTrackingMode }[] = [];
+
+  /** UI field for fractional/prepaid initial stock (maps to displayQuantityAvailable on save). */
+  displayQuantityAvailableUi = 0;
 
   // Expiration date
   hasExpirationDate: boolean = false;
@@ -84,6 +100,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
     private messageService: MessageService,
     private productService: ProductService,
     public activityProfileService: ActivityProfileService,
+    private organizationService: OrganizationService,
   ) {
     this.initializeOptions();
   }
@@ -106,8 +123,10 @@ export class ProductFormComponent implements OnInit, OnChanges {
       // Initialize with defaults if no product provided
       this.localProduct = {
         productType: 'PRODUCT',
-        quantityAvailable: 0
+        quantityAvailable: 0,
+        stockTrackingMode: StockTrackingMode.DISCRETE_UNITS,
       };
+      this.hydrateStockTrackingFields();
       this.applyProfileDrivenDefaultsForNewProduct();
       this.updateMeasureUnitsForType();
     }
@@ -128,14 +147,19 @@ export class ProductFormComponent implements OnInit, OnChanges {
         this.applyProfileProductTypePolicy();
         this.applyProfileDrivenDefaultsForNewProduct();
         this.applyDefaultWarehouseIfSingle();
+        void this.loadOrganizationCostingMethod();
       } else {
         // When dialog closes, reset form
         this.resetForm();
       }
     }
-    // When warehouses input changes, and we are editing/creating a product, apply default if needed
-    if (changes['warehouses'] && this.visible) {
-      this.applyDefaultWarehouseIfSingle();
+    // When warehouses/categories input changes, re-resolve inheritance from full list objects
+    if ((changes['warehouses'] || changes['categories']) && this.visible) {
+      if (changes['warehouses']) {
+        this.applyDefaultWarehouseIfSingle();
+      }
+      this.enrichEssentialsReferences();
+      this.updateEffectiveCostingMethodLabel();
     }
   }
 
@@ -153,6 +177,58 @@ export class ProductFormComponent implements OnInit, OnChanges {
       ...this.localProduct,
       warehouse: this.warehouses[0]
     };
+    this.updateEffectiveCostingMethodLabel();
+  }
+
+  private async loadOrganizationCostingMethod(): Promise<void> {
+    try {
+      await this.organizationService.loadToken();
+      const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
+      this.organizationCostingMethod = organization?.costingMethod ?? null;
+    } catch {
+      this.organizationCostingMethod = null;
+    }
+    this.enrichEssentialsReferences();
+    this.updateEffectiveCostingMethodLabel();
+  }
+
+  /** Merge category/warehouse selections with full list rows (costingMethod, organization, etc.). */
+  private enrichEssentialsReferences(): void {
+    if (this.localProduct.category?.categoryId && this.categories?.length) {
+      const full = this.categories.find(c => c.categoryId === this.localProduct.category!.categoryId);
+      if (full) {
+        this.localProduct.category = { ...full, ...this.localProduct.category };
+      }
+    }
+    if (this.localProduct.warehouse?.warehouseId && this.warehouses?.length) {
+      const full = this.warehouses.find(w => w.warehouseId === this.localProduct.warehouse!.warehouseId);
+      if (full) {
+        this.localProduct.warehouse = { ...full, ...this.localProduct.warehouse };
+      }
+    }
+  }
+
+  onCategoryChange(): void {
+    this.enrichEssentialsReferences();
+    this.updateEffectiveCostingMethodLabel();
+  }
+
+  onWarehouseChange(): void {
+    this.enrichEssentialsReferences();
+    this.updateEffectiveCostingMethodLabel();
+  }
+
+  get effectiveCostingSourceBadge(): string {
+    switch (this.effectiveCostingSource) {
+      case 'product':
+        return this.translate.instant('costing_source_product');
+      case 'category':
+        return this.translate.instant('costing_source_category');
+      case 'organization':
+        return this.translate.instant('costing_source_organization');
+      default:
+        return this.translate.instant('costing_source_none');
+    }
   }
 
   private initializeProduct(): void {
@@ -201,8 +277,15 @@ export class ProductFormComponent implements OnInit, OnChanges {
       if (this.product.measureUnit) {
         this.localProduct.measureUnit = this.product.measureUnit;
       }
+      if (this.product.stockTrackingMode) {
+        this.localProduct.stockTrackingMode = this.product.stockTrackingMode;
+      }
+      if (this.product.quantityPrecision != null) {
+        this.localProduct.quantityPrecision = this.product.quantityPrecision;
+      }
+      this.hydrateStockTrackingFields();
       if (this.product.costingMethod !== undefined) {
-        this.localProduct.costingMethod = this.product.costingMethod;
+        this.localProduct.costingMethod = this.product.costingMethod === 'NONE' ? null : this.product.costingMethod;
       }
       if (this.product.standardCost !== undefined) {
         this.localProduct.standardCost = this.product.standardCost;
@@ -221,6 +304,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
         this.localProduct.expirationDate = null;
       }
       
+      this.enrichEssentialsReferences();
       this.updateEffectiveCostingMethodLabel();
       
       // Reset image preview when loading existing product with image
@@ -329,9 +413,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
       }
       if (!this.localProduct.expirationDate) {
         this.localProduct.expirationDate = this.expirationDateValue;
-      }
-      if (!this.localProduct.costingMethod || this.localProduct.costingMethod === 'NONE') {
-        this.localProduct.costingMethod = 'FIFO';
       }
     }
 
@@ -489,7 +570,10 @@ export class ProductFormComponent implements OnInit, OnChanges {
     this.measureUnits = [
       { value: MeasureUnit.UNIT, label: this.translate.instant('UNIT') },
       { value: MeasureUnit.KG, label: this.translate.instant('KG') },
+      { value: MeasureUnit.G, label: this.translate.instant('G') },
       { value: MeasureUnit.LITER, label: this.translate.instant('LITER') },
+      { value: MeasureUnit.ML, label: this.translate.instant('ML') },
+      { value: MeasureUnit.CURRENCY, label: this.translate.instant('CURRENCY') },
       { value: MeasureUnit.PIECE, label: this.translate.instant('PIECE') },
       { value: MeasureUnit.BOX, label: this.translate.instant('BOX') },
       { value: MeasureUnit.METER, label: this.translate.instant('METER') },
@@ -519,6 +603,105 @@ export class ProductFormComponent implements OnInit, OnChanges {
       { label: this.translate.instant('costing_method_standard_cost'), value: 'STANDARD_COST' },
       { label: this.translate.instant('costing_method_none'), value: 'NONE' }
     ];
+
+    this.stockTrackingModeOptions = [
+      { value: StockTrackingMode.DISCRETE_UNITS, label: this.translate.instant('stock_tracking_mode_discrete') },
+      { value: StockTrackingMode.FRACTIONAL_PHYSICAL, label: this.translate.instant('stock_tracking_mode_fractional') },
+      { value: StockTrackingMode.PREPAID_VALUE_POOL, label: this.translate.instant('stock_tracking_mode_prepaid') },
+    ];
+  }
+
+  isFractionalStock(): boolean {
+    return QuantityScale.isFractional(this.localProduct);
+  }
+
+  isPrepaidPool(): boolean {
+    return QuantityScale.isPrepaidPool(this.localProduct);
+  }
+
+  /** Params for prepaid i18n strings ({{currency}} placeholder). */
+  get prepaidCurrencyParams(): { currency: string } {
+    return { currency: this.currency || 'USD' };
+  }
+
+  prepaidCurrencyParamsWith(extra: Record<string, string>): { currency: string } & Record<string, string> {
+    return { ...this.prepaidCurrencyParams, ...extra };
+  }
+
+  /** Suggested cost per display unit when pool cost looks like a lump sum. */
+  suggestedPrepaidCostPerUnit(): number | null {
+    if (!this.isPrepaidPool()) {
+      return null;
+    }
+    const pool = this.displayQuantityAvailableUi;
+    const buying = this.localProduct.buyingPrice;
+    if (pool == null || pool <= 0 || buying == null || buying <= 0) {
+      return null;
+    }
+    if (buying >= pool) {
+      return Math.round((buying / pool) * 100) / 100;
+    }
+    return null;
+  }
+
+  quantityInputStep(): number {
+    return QuantityScale.inputStep(this.localProduct);
+  }
+
+  quantityInputDecimals(): number {
+    return QuantityScale.effectivePrecision(this.localProduct);
+  }
+
+  onStockTrackingModeChange(): void {
+    if (!this.localProduct.stockTrackingMode) {
+      this.localProduct.stockTrackingMode = StockTrackingMode.DISCRETE_UNITS;
+    }
+    if (this.localProduct.stockTrackingMode === StockTrackingMode.FRACTIONAL_PHYSICAL) {
+      if (!this.localProduct.measureUnit || this.localProduct.measureUnit === MeasureUnit.UNIT) {
+        this.localProduct.measureUnit = MeasureUnit.KG;
+      }
+    } else if (this.localProduct.stockTrackingMode === StockTrackingMode.PREPAID_VALUE_POOL) {
+      this.localProduct.measureUnit = MeasureUnit.CURRENCY;
+      const selling = this.localProduct.sellingPrice;
+      if (selling == null || selling <= 0 || selling >= 100) {
+        this.localProduct.sellingPrice = 1.0;
+      }
+    }
+    this.localProduct.quantityPrecision = QuantityScale.defaultPrecision(
+      this.localProduct.stockTrackingMode,
+      this.localProduct.measureUnit
+    );
+    this.syncDisplayQuantityFromStorage();
+    this.updateMeasureUnitsForType();
+  }
+
+  private syncDisplayQuantityFromStorage(): void {
+    if (!this.isProduct()) {
+      return;
+    }
+    if (this.localProduct.displayQuantityAvailable != null) {
+      this.displayQuantityAvailableUi = this.localProduct.displayQuantityAvailable;
+      return;
+    }
+    const raw = this.localProduct.quantityAvailable ?? 0;
+    if (QuantityScale.isFractional(this.localProduct)) {
+      const factor = QuantityScale.storageFactor(this.localProduct);
+      // Legacy rows may store human units (e.g. 25 kg) as 25 instead of 25000 g.
+      if (factor > 1 && raw > 0 && raw < factor) {
+        this.displayQuantityAvailableUi = raw;
+      } else {
+        this.displayQuantityAvailableUi = QuantityScale.toDisplayQuantity(this.localProduct, raw);
+      }
+    } else {
+      this.displayQuantityAvailableUi = raw;
+    }
+  }
+
+  private hydrateStockTrackingFields(): void {
+    if (!this.localProduct.stockTrackingMode) {
+      this.localProduct.stockTrackingMode = StockTrackingMode.DISCRETE_UNITS;
+    }
+    this.syncDisplayQuantityFromStorage();
   }
 
   // Helper methods for product type
@@ -579,9 +762,18 @@ export class ProductFormComponent implements OnInit, OnChanges {
         [MeasureUnit.HOUR, MeasureUnit.SESSION, MeasureUnit.DAY, MeasureUnit.MONTH, MeasureUnit.YEAR, MeasureUnit.SERVICE_UNIT].includes(u.value)
       );
     } else {
-      this.measureUnitsForCurrentType = this.measureUnits.filter(u => 
-        ![MeasureUnit.HOUR, MeasureUnit.SESSION, MeasureUnit.DAY, MeasureUnit.MONTH, MeasureUnit.YEAR, MeasureUnit.SERVICE_UNIT].includes(u.value)
-      );
+      this.measureUnitsForCurrentType = this.measureUnits.filter(u => {
+        if ([MeasureUnit.HOUR, MeasureUnit.SESSION, MeasureUnit.DAY, MeasureUnit.MONTH, MeasureUnit.YEAR, MeasureUnit.SERVICE_UNIT].includes(u.value)) {
+          return false;
+        }
+        if (this.localProduct.stockTrackingMode === StockTrackingMode.FRACTIONAL_PHYSICAL) {
+          return QuantityScale.allowedMeasureUnits(StockTrackingMode.FRACTIONAL_PHYSICAL).includes(u.value);
+        }
+        if (this.localProduct.stockTrackingMode === StockTrackingMode.PREPAID_VALUE_POOL) {
+          return QuantityScale.allowedMeasureUnits(StockTrackingMode.PREPAID_VALUE_POOL).includes(u.value);
+        }
+        return true;
+      });
     }
   }
 
@@ -589,7 +781,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
    * Backend often returns paths like `/api/stock/...`. The browser resolves those against the SPA
    * origin (e.g. localhost:4200), not the API (8090), so image requests 404 unless we prefix the API origin
    * (same pattern as {@link ProductService}).
-   * Fully-qualified http(s) URLs are returned unchanged (e.g. CDN / Firebase — may still 403 when expired).
+   * Fully-qualified http(s) URLs are returned unchanged.
    */
   resolvePublicImageUrl(url: string | null | undefined): string {
     if (url == null) return '';
@@ -677,21 +869,39 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   updateEffectiveCostingMethodLabel(): void {
-    if (this.localProduct.costingMethod) {
-      const method = this.costingMethods.find(m => m.value === this.localProduct.costingMethod);
-      this.effectiveCostingMethodLabel = this.translate.instant('product_costing_method') + ': ' + (method?.label || this.localProduct.costingMethod);
-      this.isCostingMethodNone = this.localProduct.costingMethod === 'NONE';
-    } else if (this.localProduct.category?.costingMethod && this.localProduct.category.costingMethod !== 'NONE') {
-      const method = this.costingMethods.find(m => m.value === this.localProduct.category?.costingMethod);
-      this.effectiveCostingMethodLabel = this.translate.instant('inherited_from_category') + ': ' + (method?.label || this.localProduct.category.costingMethod);
-      this.isCostingMethodNone = false;
-    } else if (this.localProduct.warehouse?.organization?.costingMethod && this.localProduct.warehouse.organization.costingMethod !== 'NONE') {
-      const method = this.costingMethods.find(m => m.value === this.localProduct.warehouse?.organization?.costingMethod);
-      this.effectiveCostingMethodLabel = this.translate.instant('inherited_from_organization') + ': ' + (method?.label || this.localProduct.warehouse.organization.costingMethod);
-      this.isCostingMethodNone = false;
-    } else {
-      this.effectiveCostingMethodLabel = this.translate.instant('costing_method_none');
-      this.isCostingMethodNone = true;
+    const resolved = resolveEffectiveCosting({
+      productCostingMethod: this.localProduct.costingMethod,
+      categoryCostingMethod: this.localProduct.category?.costingMethod,
+      warehouseOrganizationCostingMethod: this.localProduct.warehouse?.organization?.costingMethod,
+      organizationCostingMethod: this.organizationCostingMethod,
+    });
+
+    this.effectiveCostingSource = resolved.source;
+    this.effectiveCostingMethodValue = resolved.method;
+    this.isCostingMethodNone = resolved.source === 'none';
+
+    const methodLabel = getCostingMethodDisplayLabel(this.translate, resolved.method);
+    switch (resolved.source) {
+      case 'product':
+        this.effectiveCostingMethodLabel = this.translate.instant(
+          'costing_method_defined_at_product',
+          { method: methodLabel }
+        );
+        break;
+      case 'category':
+        this.effectiveCostingMethodLabel = this.translate.instant(
+          'costing_method_inherited_from_category',
+          { method: methodLabel }
+        );
+        break;
+      case 'organization':
+        this.effectiveCostingMethodLabel = this.translate.instant(
+          'costing_method_inherited_from_organization',
+          { method: methodLabel }
+        );
+        break;
+      default:
+        this.effectiveCostingMethodLabel = this.translate.instant('costing_method_none_fallback');
     }
   }
 
@@ -1895,6 +2105,11 @@ export class ProductFormComponent implements OnInit, OnChanges {
       warehouse: this.localProduct.warehouse?.warehouseId != null ? { warehouseId: this.localProduct.warehouse.warehouseId } : null,
       attributes: this.localProduct.attributes ?? [],
       measureUnit: this.localProduct.measureUnit,
+      stockTrackingMode: this.localProduct.stockTrackingMode ?? StockTrackingMode.DISCRETE_UNITS,
+      quantityPrecision: this.localProduct.quantityPrecision ?? QuantityScale.defaultPrecision(
+        this.localProduct.stockTrackingMode ?? StockTrackingMode.DISCRETE_UNITS,
+        this.localProduct.measureUnit
+      ),
       active: this.localProduct['active'] ?? true,
       standardCost: this.localProduct.standardCost ?? null,
       costingMethod: this.localProduct.costingMethod ?? null,
@@ -1916,6 +2131,16 @@ export class ProductFormComponent implements OnInit, OnChanges {
       payload.serviceProvider = null;
       payload.estimatedDurationMinutes = null;
       payload.serviceCategory = null;
+      if (QuantityScale.isFractional(this.localProduct)) {
+        payload.displayQuantityAvailable = this.displayQuantityAvailableUi ?? 0;
+        delete payload.quantityAvailable;
+      }
+      if (QuantityScale.isPrepaidPool(this.localProduct)) {
+        const selling = payload.sellingPrice;
+        if (selling == null || selling <= 0 || selling >= 100) {
+          payload.sellingPrice = 1.0;
+        }
+      }
     }
 
     return payload;

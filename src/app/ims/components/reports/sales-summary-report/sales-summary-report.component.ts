@@ -14,7 +14,8 @@ import { KeycloakService } from 'keycloak-angular';
   styleUrls: ['../reports-common.css', './sales-summary-report.component.css']
 })
 export class SalesSummaryReportComponent implements OnInit, OnDestroy {
-  loading = false;
+  loading = true;
+  isInitialLoad = true;
   periods: { label: string; value: ProfitPeriod }[] = [];
   selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
   selectedShop: Shop | null = null;
@@ -114,7 +115,6 @@ export class SalesSummaryReportComponent implements OnInit, OnDestroy {
   }
 
   private async loadData(): Promise<void> {
-    if (this.loading) return;
     this.loading = true;
     this.error = null;
     this.cdr.markForCheck();
@@ -128,6 +128,7 @@ export class SalesSummaryReportComponent implements OnInit, OnDestroy {
       this.summary = null;
     } finally {
       this.loading = false;
+      this.isInitialLoad = false;
       this.cdr.markForCheck();
     }
   }

@@ -18,6 +18,8 @@ import { ReturnStatus } from 'src/app/enums/return-status.enum';
 import { firstValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { getQuantitySeverity, getMeasureUnit } from 'src/app/shared/product-utils';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-return-details-page',
@@ -25,6 +27,7 @@ import { getQuantitySeverity, getMeasureUnit } from 'src/app/shared/product-util
   styleUrls: ['./return-details-page.component.css', '../returns.component.css']
 })
 export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
   returnId!: number;
   return: OrderReturn | null = null;
   isLoading: boolean = true;
@@ -40,6 +43,7 @@ export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
   
   lowStockThreshold: number = 10;
   returnNoteDocNumber: string | null = null;
+  creditNoteDocNumber: string | null = null;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -57,7 +61,8 @@ export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private translateService: TranslationService,
-    public financialDocService: FinancialDocumentsService
+    public financialDocService: FinancialDocumentsService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
@@ -160,7 +165,7 @@ export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
       }
 
       this.generateReturnEvents();
-      await this.checkForReturnNote(this.return.returnId);
+      await this.checkForLinkedFinancialDocuments(this.return.returnId);
       this.isLoading = false;
     } catch (error: any) {
       console.error('Error loading return:', error);
@@ -378,137 +383,199 @@ export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
     window.print();
   }
 
-  refreshReturnDetails(): void {
-    if (this.return?.returnId) {
-      this.loadReturn();
+  private extractFinancialDocs(response: any): FinancialDocument[] {
+    if (!response) {
+      return [];
     }
+    if (Array.isArray(response)) {
+      return response as FinancialDocument[];
+    }
+    if (Array.isArray(response.page?.content)) {
+      return response.page.content as FinancialDocument[];
+    }
+    if (Array.isArray(response.content)) {
+      return response.content as FinancialDocument[];
+    }
+    return [];
   }
 
-  async checkForReturnNote(returnId: number): Promise<void> {
+  private async loadFinancialDocsForReturnLookup(): Promise<FinancialDocument[]> {
+    this.financialDocService.loadToken();
+
+    const orderId = this.return?.order?.orderId;
+    if (orderId) {
+      try {
+        const orderDocs = await firstValueFrom(
+          this.financialDocService.getFinancialDocsByOrder(orderId)
+        );
+        const extracted = this.extractFinancialDocs(orderDocs);
+        if (extracted.length > 0) {
+          return extracted;
+        }
+      } catch (error) {
+        console.warn('Could not load financial documents by order, falling back to global list:', error);
+      }
+    }
+
+    const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
+    return this.extractFinancialDocs(response);
+  }
+
+  hasProcessedRefund(): boolean {
+    const refunds = this.return?.refunds || [];
+    return refunds.some((refund) => {
+      const status = String(refund.status || '').toUpperCase();
+      return status === 'SETTLED' || status === 'PARTIAL_REFUND';
+    });
+  }
+
+  canGenerateCreditNote(): boolean {
+    if (!this.isAdmin || !this.return || this.creditNoteDocNumber) {
+      return false;
+    }
+
+    const status = String(this.return.returnStatus || '').toUpperCase();
+    if (status === 'CANCELLED' || status === 'CANCELED') {
+      return false;
+    }
+
+    const eligibleStatuses = ['PROCESSING', 'PARTIALLY_REFUNDED', 'COMPLETED'];
+    if (!eligibleStatuses.includes(status)) {
+      return false;
+    }
+
+    return (this.return.totalRefundableAmount ?? 0) > 0 && this.hasProcessedRefund();
+  }
+
+  private resolveLinkedReturnDocNumber(
+    financialDocs: FinancialDocument[],
+    returnId: number,
+    docType: 'RETURN_NOTE' | 'CREDIT_NOTE'
+  ): string | null {
+    const matchedByReturnId = financialDocs.find(
+      (doc: FinancialDocument) =>
+        doc.docType === docType &&
+        doc.returnId === returnId &&
+        doc.docStatus !== 'CANCELLED'
+    );
+    if (matchedByReturnId?.docNumber) {
+      return matchedByReturnId.docNumber;
+    }
+
+    if (docType === 'RETURN_NOTE') {
+      const returnIdPattern = `RETURN-${returnId}`;
+      const matchedByRef = financialDocs.find(
+        (doc: FinancialDocument) =>
+          doc.docType === docType &&
+          doc.docStatus !== 'CANCELLED' &&
+          (doc.additionalReferences?.includes(returnIdPattern) ||
+            doc.additionalReferences?.includes(`RET-${returnId}`) ||
+            doc.notes?.includes(returnIdPattern))
+      );
+      if (matchedByRef?.docNumber) {
+        return matchedByRef.docNumber;
+      }
+    }
+
+    if (!this.return?.order?.orderId) {
+      return null;
+    }
+
+    const orderId = Number(this.return.order.orderId);
+    const linkedDocs = financialDocs.filter((doc: FinancialDocument) => {
+      const docOrderId = doc.order?.orderId ? Number(doc.order.orderId) : null;
+      return doc.docType === docType &&
+        docOrderId === orderId &&
+        doc.docStatus !== 'CANCELLED';
+    });
+
+    if (linkedDocs.length === 0) {
+      return null;
+    }
+    if (linkedDocs.length === 1) {
+      return linkedDocs[0].docNumber || null;
+    }
+
+    if (this.return?.returnDate) {
+      const returnDate = new Date(this.return.returnDate);
+      const matchedByDate = linkedDocs.find((doc: FinancialDocument) => {
+        if (!doc.issuedAt && !doc.createdAt) {
+          return false;
+        }
+        const docDate = doc.issuedAt
+          ? new Date(doc.issuedAt)
+          : new Date(doc.createdAt as any);
+        const diffDays = Math.abs(
+          (docDate.getTime() - returnDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return diffDays <= 1;
+      });
+      if (matchedByDate?.docNumber) {
+        return matchedByDate.docNumber;
+      }
+    }
+
+    const sortedDocs = [...linkedDocs].sort((a, b) => {
+      const dateA = a.issuedAt
+        ? new Date(a.issuedAt).getTime()
+        : (a.createdAt ? new Date(a.createdAt as any).getTime() : 0);
+      const dateB = b.issuedAt
+        ? new Date(b.issuedAt).getTime()
+        : (b.createdAt ? new Date(b.createdAt as any).getTime() : 0);
+      return dateB - dateA;
+    });
+
+    return sortedDocs[0]?.docNumber || null;
+  }
+
+  async checkForLinkedFinancialDocuments(returnId: number): Promise<void> {
     try {
       if (!this.return || !this.return.returnId) {
-        console.log('Return not loaded yet');
         this.returnNoteDocNumber = null;
+        this.creditNoteDocNumber = null;
         return;
       }
-      
-      this.financialDocService.loadToken();
-      const financialDocs = await firstValueFrom(this.financialDocService.getFinancialDocs());
-      
-      // Strategy 1 (BEST): Match by returnId if available in FinancialDocument
-      const matchedByReturnId = (financialDocs as FinancialDocument[]).find(
-        (doc: FinancialDocument) => 
-          doc.docType === 'RETURN_NOTE' && 
-          doc.returnId === returnId &&
-          doc.docStatus !== 'CANCELLED'
+
+      const financialDocs = await this.loadFinancialDocsForReturnLookup();
+      this.returnNoteDocNumber = this.resolveLinkedReturnDocNumber(
+        financialDocs,
+        returnId,
+        'RETURN_NOTE'
       );
-      
-      if (matchedByReturnId) {
-        this.returnNoteDocNumber = matchedByReturnId.docNumber || null;
-        console.log('Matched return note by returnId:', this.returnNoteDocNumber);
-        return;
-      }
-      
-      // Strategy 2: Match by returnId stored in additionalReferences (format: "RETURN-{returnId}")
-      const returnIdPattern = `RETURN-${returnId}`;
-      const matchedByRef = (financialDocs as FinancialDocument[]).find(
-        (doc: FinancialDocument) => 
-          doc.docType === 'RETURN_NOTE' && 
-          doc.docStatus !== 'CANCELLED' &&
-          (doc.additionalReferences?.includes(returnIdPattern) || 
-           doc.additionalReferences?.includes(`RET-${returnId}`) ||
-           doc.notes?.includes(returnIdPattern))
+      this.creditNoteDocNumber = this.resolveLinkedReturnDocNumber(
+        financialDocs,
+        returnId,
+        'CREDIT_NOTE'
       );
-      
-      if (matchedByRef) {
-        this.returnNoteDocNumber = matchedByRef.docNumber || null;
-        console.log('Matched return note by additionalReferences:', this.returnNoteDocNumber);
-        return;
-      }
-      
-      // Strategy 3: Fallback - match by orderId (if only one return note for the order)
-      if (!this.return.order || !this.return.order.orderId) {
-        this.returnNoteDocNumber = null;
-        return;
-      }
-      
-      const orderId = this.return.order.orderId;
-      const returnNotes = (financialDocs as FinancialDocument[]).filter(
-        (doc: FinancialDocument) => {
-          const docOrderId = doc.order?.orderId ? Number(doc.order.orderId) : null;
-          const returnOrderId = orderId ? Number(orderId) : null;
-          return doc.docType === 'RETURN_NOTE' && 
-                 docOrderId === returnOrderId &&
-                 doc.docStatus !== 'CANCELLED';
-        }
-      );
-      
-      console.log('Checking for return note - Return ID:', returnId, 'Order ID:', orderId);
-      console.log('Found return notes for order:', returnNotes.length);
-      
-      if (returnNotes.length === 0) {
-        this.returnNoteDocNumber = null;
-        return;
-      }
-      
-      // If only one return note for this order, use it
-      if (returnNotes.length === 1) {
-        this.returnNoteDocNumber = returnNotes[0].docNumber || null;
-        console.log('Using single return note for order:', this.returnNoteDocNumber);
-        return;
-      }
-      
-      // If multiple return notes exist, try to match by return date
-      if (this.return?.returnDate) {
-        const returnDate = new Date(this.return.returnDate);
-        const matchedByDate = returnNotes.find((doc: FinancialDocument) => {
-          if (!doc.issuedAt && !doc.createdAt) return false;
-          const docDate = doc.issuedAt ? new Date(doc.issuedAt) : new Date(doc.createdAt as any);
-          const diffDays = Math.abs((docDate.getTime() - returnDate.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays <= 1;
-        });
-        if (matchedByDate) {
-          this.returnNoteDocNumber = matchedByDate.docNumber || null;
-          console.log('Matched return note by date:', this.returnNoteDocNumber);
-          return;
-        }
-      }
-      
-      // Last resort: Use the most recent return note
-      const sortedNotes = returnNotes.sort((a, b) => {
-        const dateA = a.issuedAt ? new Date(a.issuedAt).getTime() : (a.createdAt ? new Date(a.createdAt as any).getTime() : 0);
-        const dateB = b.issuedAt ? new Date(b.issuedAt).getTime() : (b.createdAt ? new Date(b.createdAt as any).getTime() : 0);
-        return dateB - dateA;
-      });
-      
-      this.returnNoteDocNumber = sortedNotes[0]?.docNumber || null;
-      console.log('Using most recent return note:', this.returnNoteDocNumber);
     } catch (error: any) {
-      console.error('Error checking for return note:', error);
-      this.returnNoteDocNumber = null;
+      console.error('Error checking for linked financial documents:', error);
     }
   }
 
   generateReturnNote(): void {
     if (!this.return?.returnId) return;
-    
+
     this.financialDocService.generateReturnNoteFromReturn(this.return.returnId, {
       origin: 'BACK_OFFICE'
     }).subscribe({
       next: (response: any) => {
-        // Extract document number from response
-        if (response && response.number) {
-          this.returnNoteDocNumber = response.number;
+        const generatedDocNumber = response?.number || response?.docNumber || null;
+        if (generatedDocNumber) {
+          this.returnNoteDocNumber = generatedDocNumber;
         }
-        
+
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
           detail: this.translate.instant('return_note_generated_successfully') || 'Return note generated successfully',
           life: 3000
         });
-        // Reload return to get updated document status
-        this.loadReturn();
+
+        void this.checkForLinkedFinancialDocuments(this.return!.returnId).then(() => {
+          if (!this.returnNoteDocNumber && generatedDocNumber) {
+            this.returnNoteDocNumber = generatedDocNumber;
+          }
+        });
       },
       error: (error: any) => {
         this.messageService.add({
@@ -521,10 +588,53 @@ export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  generateCreditNote(): void {
+    if (!this.return?.returnId || !this.canGenerateCreditNote()) {
+      return;
+    }
+
+    this.financialDocService.generateCreditNoteFromReturn(this.return.returnId, {
+      origin: 'BACK_OFFICE'
+    }).subscribe({
+      next: (response: any) => {
+        const generatedDocNumber = response?.number || response?.docNumber || null;
+        if (generatedDocNumber) {
+          this.creditNoteDocNumber = generatedDocNumber;
+        }
+
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('credit_note_generated_successfully') || 'Credit note generated successfully',
+          life: 3000
+        });
+
+        void this.checkForLinkedFinancialDocuments(this.return!.returnId).then(() => {
+          if (!this.creditNoteDocNumber && generatedDocNumber) {
+            this.creditNoteDocNumber = generatedDocNumber;
+          }
+        });
+      },
+      error: (error: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_generating_credit_note') || 'Error while generating credit note',
+          life: 3000
+        });
+      }
+    });
+  }
+
   viewReturnNote(): void {
     if (this.returnNoteDocNumber) {
       this.financialDocService.printFinancialDoc(this.returnNoteDocNumber);
     }
   }
-}
 
+  viewCreditNote(): void {
+    if (this.creditNoteDocNumber) {
+      this.financialDocService.printFinancialDoc(this.creditNoteDocNumber);
+    }
+  }
+}

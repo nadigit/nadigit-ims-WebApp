@@ -29,6 +29,8 @@ import {
   reconciliationNavTargetsFromTransactions,
   ReconciliationNavTarget
 } from 'src/app/shared/bank-reconciliation-navigation.utils';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-sales-payment-details-page',
@@ -36,6 +38,7 @@ import {
   styleUrls: ['./sales-payment-details-page.component.css']
 })
 export class SalesPaymentDetailsPageComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
   paymentId!: number;
   payment: Payment | null = null;
   payments: Payment[] = []; // All payments in the transaction
@@ -70,7 +73,8 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
     private configService: AppConfigurationService,
     private translateService: TranslationService,
     public financialDocService: FinancialDocumentsService,
-    private reconciliationValidationService: ReconciliationValidationService
+    private reconciliationValidationService: ReconciliationValidationService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {

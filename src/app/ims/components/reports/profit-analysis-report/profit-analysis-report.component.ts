@@ -12,7 +12,8 @@ import { AnalysisService, ProfitPeriod, Shop } from 'src/app/services/analysis.s
   styleUrls: ['../reports-common.css', './profit-analysis-report.component.css']
 })
 export class ProfitAnalysisReportComponent implements OnInit, OnDestroy {
-  profitLoading = false;
+  profitLoading = true;
+  isInitialLoad = true;
   profitPeriods: { label: string; value: ProfitPeriod }[] = [];
   selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
   selectedShop: Shop | null = null;
@@ -60,6 +61,9 @@ export class ProfitAnalysisReportComponent implements OnInit, OnDestroy {
   }
 
   onFilterChange(): void {
+    if (this.isInitialLoad) {
+      return;
+    }
     this.filterChange$.next();
   }
 
@@ -111,8 +115,6 @@ export class ProfitAnalysisReportComponent implements OnInit, OnDestroy {
   }
 
   async loadProfitData(): Promise<void> {
-    if (this.profitLoading) return;
-
     this.profitLoading = true;
     this.error = null;
     this.cdr.markForCheck();
@@ -128,6 +130,7 @@ export class ProfitAnalysisReportComponent implements OnInit, OnDestroy {
       console.error('Error loading profit data:', err);
     } finally {
       this.profitLoading = false;
+      this.isInitialLoad = false;
       this.cdr.markForCheck();
     }
   }

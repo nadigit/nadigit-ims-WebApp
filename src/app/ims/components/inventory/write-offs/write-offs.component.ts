@@ -21,6 +21,16 @@ import { Organization } from 'src/app/models/organization';
 import { firstValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
+import {
+  formatLineQuantity,
+  getLineMeasureUnit,
+  getWriteOffDisplayQuantity,
+} from 'src/app/shared/product-utils';
 
 @Component({
   templateUrl: './write-offs.component.html',
@@ -33,12 +43,13 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
   // List view
   writeOffs: InventoryWriteOff[] = [];
   selectedWriteOffs: InventoryWriteOff[] = [];
-  isLoading: boolean = false;
+  isLoading: boolean = true;
   isExporting: boolean = false;
   exportProgress: string = '';
   totalRecords: number = 0;
   lastLazyLoadEvent?: LazyLoadEvent;
   isInitialLoad: boolean = true;
+  private lazyLoadCallCount = 0;
   
   // Filters
   selectedProduct: any = null;
@@ -113,6 +124,10 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
+    initTablePageSizeState(TablePageSizeKeys.writeOffs, this.pageSizeOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     const qpStatus = this.route.snapshot.queryParamMap.get('status');
     if (qpStatus) {
       const upper = qpStatus.trim().toUpperCase();
@@ -251,6 +266,13 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
   async loadInitialData() {
     await this.loadWarehouses();
     await this.loadProducts();
+    this.lastLazyLoadEvent = {
+      first: 0,
+      rows: this.pageSize,
+      sortField: 'writeOffDate',
+      sortOrder: -1,
+    };
+    this.loadWriteOffs();
   }
 
   async loadWarehouses() {
@@ -304,8 +326,21 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
     if (this.isLoading) {
       return;
     }
-    this.lastLazyLoadEvent = event;
+    this.lazyLoadCallCount++;
+    if (this.lazyLoadCallCount === 1 && this.writeOffs.length > 0) {
+      this.isInitialLoad = false;
+      return;
+    }
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.writeOffs, this.pageSizeOptions, event, {
+      pageSize: this.pageSize,
+    });
+    this.lastLazyLoadEvent = {
+      ...event,
+      rows: event.rows ?? this.lastLazyLoadEvent?.rows ?? this.pageSize,
+    };
     this.isInitialLoad = false;
+    this.isLoading = true;
+    this.cdr.markForCheck();
     setTimeout(() => {
       this.loadWriteOffs();
     }, 0);
@@ -390,11 +425,13 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
           }));
           this.totalRecords = response.totalElements || 0;
           this.isLoading = false;
+          this.isInitialLoad = false;
           this.cdr.markForCheck();
         },
         error: (err: any) => {
           console.error('Error loading write-offs:', err);
           this.isLoading = false;
+          this.isInitialLoad = false;
           this.cdr.markForCheck();
           this.messageService.add({
             severity: 'error',
@@ -426,6 +463,7 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
       sortField: 'writeOffDate',
       sortOrder: -1
     };
+    this.isLoading = true;
     this.loadWriteOffs();
   }
 
@@ -1030,6 +1068,20 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
       this.isExporting = false;
       this.exportProgress = '';
     }
+  }
+
+  formatWriteOffQuantity(writeOff: InventoryWriteOff): string {
+    if (writeOff?.quantityLabel) {
+      return writeOff.quantityLabel;
+    }
+    return formatLineQuantity(writeOff?.product, getWriteOffDisplayQuantity(writeOff));
+  }
+
+  getWriteOffQuantityUnit(writeOff: InventoryWriteOff): string {
+    if (writeOff?.quantityLabel) {
+      return '';
+    }
+    return getLineMeasureUnit(writeOff?.product, getWriteOffDisplayQuantity(writeOff));
   }
 }
 

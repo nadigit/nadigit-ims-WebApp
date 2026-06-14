@@ -1,0 +1,742 @@
+@import 'brand-tokens';
+
+// ---------------------------------------------------------------------------
+// Nadigit IMS — unified corner radius (fields 8px · surfaces 12px)
+// ---------------------------------------------------------------------------
+
+// Layout & page surfaces
+.card,
+.p-card,
+.p-panel,
+.p-panel .p-panel-header,
+.p-panel .p-panel-content,
+.p-panel .p-panel-footer,
+.filter-bar,
+.reports-filter-bar,
+.p-fieldset,
+.p-fieldset .p-fieldset-legend {
+  border-radius: var(--brand-radius-surface) !important;
+}
+
+// Dialogs & drawers
+.p-dialog {
+  border-radius: var(--brand-radius-surface) !important;
+  overflow: hidden;
+
+  .p-dialog-header {
+    border-radius: var(--brand-radius-surface) var(--brand-radius-surface) 0 0 !important;
+  }
+
+  .p-dialog-footer {
+    border-radius: 0 0 var(--brand-radius-surface) var(--brand-radius-surface) !important;
+  }
+
+  // Custom hero headers when showHeader=false — match shell top corners
+  .notification-details-hero {
+    border-radius: var(--brand-radius-surface) var(--brand-radius-surface) 0 0;
+  }
+}
+
+.p-sidebar,
+.p-drawer {
+  border-radius: var(--brand-radius-surface) !important;
+  overflow: hidden;
+}
+
+// Right-positioned drawers: inner chrome matches the inner edge radius
+.p-sidebar-right {
+  .notification-hero,
+  .config-hero {
+    border-top-left-radius: var(--brand-radius-surface);
+  }
+
+  .notification-footer {
+    border-bottom-left-radius: var(--brand-radius-surface);
+  }
+}
+
+// Left-positioned drawers
+.p-sidebar-left {
+  .notification-hero,
+  .config-hero {
+    border-top-right-radius: var(--brand-radius-surface);
+  }
+
+  .notification-footer {
+    border-bottom-right-radius: var(--brand-radius-surface);
+  }
+}
+
+[dir='rtl'] .p-sidebar-right,
+html[dir='rtl'] .p-sidebar-right {
+  .notification-hero,
+  .config-hero {
+    border-top-left-radius: 0;
+    border-top-right-radius: var(--brand-radius-surface);
+  }
+
+  .notification-footer {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: var(--brand-radius-surface);
+  }
+}
+
+[dir='rtl'] .p-sidebar-left,
+html[dir='rtl'] .p-sidebar-left {
+  .notification-hero,
+  .config-hero {
+    border-top-right-radius: 0;
+    border-top-left-radius: var(--brand-radius-surface);
+  }
+
+  .notification-footer {
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: var(--brand-radius-surface);
+  }
+}
+
+// Form fields & pickers
+.p-inputtext,
+.p-inputtextarea,
+.p-inputmask,
+.p-dropdown,
+.p-multiselect,
+.p-autocomplete:not(.p-autocomplete-dd) .p-autocomplete-input,
+.p-calendar .p-inputtext,
+.p-inputnumber .p-inputnumber-input,
+.p-password .p-password-input,
+.p-chips .p-chips-multiple-container,
+.p-treeselect,
+.p-listbox,
+.p-cascadeselect,
+.p-selectbutton.p-buttonset,
+.p-togglebutton.p-button,
+.p-fileupload .p-fileupload-buttonbar,
+.p-fileupload .p-fileupload-content {
+  border-radius: var(--brand-radius-field) !important;
+}
+
+// Dropdown / multiselect chevron area follows field radius
+.p-dropdown .p-dropdown-trigger,
+.p-multiselect .p-multiselect-trigger,
+.p-treeselect .p-treeselect-trigger {
+  border-top-right-radius: calc(var(--brand-radius-field) - 1px) !important;
+  border-bottom-right-radius: calc(var(--brand-radius-field) - 1px) !important;
+}
+
+// Overlay panels (menus, pick lists)
+.p-dropdown-panel,
+.p-multiselect-panel,
+.p-autocomplete-panel,
+.p-cascadeselect-panel,
+.p-treeselect-panel,
+.p-listbox,
+.p-datepicker,
+.p-datepicker:not(.p-datepicker-inline) .p-datepicker-header,
+.p-overlaypanel,
+.p-menu,
+.p-tieredmenu,
+.p-contextmenu,
+.p-slidemenu,
+.p-confirm-popup,
+.p-colorpicker-panel {
+  border-radius: var(--brand-radius-field) !important;
+}
+
+// Menu item hover chips inside overlays
+.p-menu .p-menuitem > .p-menuitem-content,
+.p-tieredmenu .p-menuitem > .p-menuitem-content,
+.p-contextmenu .p-menuitem > .p-menuitem-content,
+.p-slidemenu .p-menuitem > .p-menuitem-content,
+.p-menubar .p-menuitem > .p-menuitem-content,
+.p-panelmenu .p-panelmenu-content .p-menuitem > .p-menuitem-content {
+  border-radius: calc(var(--brand-radius-field) - 2px) !important;
+}
+
+// Feedback & inline UI
+.p-message,
+.p-inline-message,
+.p-toast .p-toast-message,
+.p-tag:not(.p-tag-rounded),
+.p-chip {
+  border-radius: var(--brand-radius-field) !important;
+}
+
+.p-tooltip .p-tooltip-text {
+  border-radius: var(--brand-radius-field) !important;
+}
+
+// Selection controls (checkbox only — radio stays circular)
+.p-checkbox .p-checkbox-box {
+  border-radius: calc(var(--brand-radius-field) - 2px) !important;
+}
+
+// Data display shells
+.p-datatable .p-datatable-header,
+.p-datatable .p-datatable-footer,
+.p-treetable .p-treetable-header,
+.p-treetable .p-treetable-footer,
+.p-paginator {
+  border-radius: var(--brand-radius-field) !important;
+}
+
+// Tabs — active panel corners
+.p-tabview .p-tabview-nav {
+  border-radius: var(--brand-radius-field) var(--brand-radius-field) 0 0 !important;
+}
+
+.p-tabview .p-tabview-panels {
+  border-radius: 0 0 var(--brand-radius-field) var(--brand-radius-field) !important;
+}
+
+// Accordion headers
+.p-accordion .p-accordion-header .p-accordion-header-link {
+  border-radius: var(--brand-radius-field) !important;
+}
+
+// PrimeFlex / utility alignment
+.border-round {
+  border-radius: var(--brand-radius-surface) !important;
+}
+
+.border-round-lg {
+  border-radius: calc(var(--brand-radius-surface) + 4px) !important;
+}
+
+.border-round-xl {
+  border-radius: calc(var(--brand-radius-surface) + 8px) !important;
+}
+
+// Preserve intentional circles / pills
+.p-radiobutton .p-radiobutton-box,
+.p-avatar,
+.p-avatar-circle,
+.p-button.p-button-rounded:not(.p-button-icon-only),
+.p-tag.p-tag-rounded,
+.p-scrolltop,
+.p-badge.p-badge-circle {
+  border-radius: 50% !important;
+}
+
+.p-button.p-button-rounded.p-button-icon-only {
+  border-radius: 50% !important;
+}
+
+// ---------------------------------------------------------------------------
+// Input groups — icon addon + input/textarea as one unified field
+// (overrides per-control radius/border from rules above)
+// ---------------------------------------------------------------------------
+.p-inputgroup {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  width: 100%;
+  border: 1px solid var(--brand-field-border) !important;
+  border-radius: var(--brand-radius-field) !important;
+  overflow: hidden;
+  background: var(--brand-field-bg) !important;
+  isolation: isolate;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: none !important;
+
+  .p-inputgroup-addon {
+    border: none !important;
+    border-radius: 0 !important;
+    border-inline-end: 1px solid var(--brand-field-border) !important;
+    background: var(--surface-hover) !important;
+    color: var(--text-color-secondary) !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    padding: 0 0.75rem !important;
+    flex-shrink: 0;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  &:has(textarea) .p-inputgroup-addon {
+    align-items: flex-start;
+    padding-top: 0.75rem !important;
+  }
+
+  // Inner controls share one shell — no per-segment borders or corner radius
+  > .p-inputtext,
+  > input.p-inputtext,
+  > textarea,
+  > textarea.p-inputtextarea,
+  > .p-inputtextarea,
+  > .p-component.p-inputtext,
+  > .p-component.p-inputtextarea,
+  > .p-inputwrapper > .p-inputtext,
+  > .p-inputwrapper > .p-component,
+  > .p-inputwrapper > .p-component > .p-inputtext,
+  > p-inputnumber,
+  > p-inputnumber .p-inputnumber,
+  > .p-inputnumber,
+  > p-inputnumber .p-inputnumber-input,
+  > .p-inputnumber > .p-inputnumber-input,
+  .p-inputtext,
+  .p-inputtextarea,
+  input.p-inputtext,
+  textarea.p-inputtextarea {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    flex: 1 1 auto;
+    width: 1% !important;
+    min-width: 0;
+    margin: 0 !important;
+  }
+
+  > p-inputnumber {
+    display: flex;
+  }
+
+  > p-inputnumber .p-inputnumber-input,
+  > .p-inputnumber > .p-inputnumber-input {
+    width: 100% !important;
+  }
+
+  .p-inputtext:enabled:hover,
+  .p-inputtextarea:enabled:hover,
+  > .p-inputtext:enabled:hover,
+  > input.p-inputtext:enabled:hover,
+  > textarea:enabled:hover,
+  > textarea.p-inputtextarea:enabled:hover {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  > .p-inputtext:enabled:focus,
+  > input.p-inputtext:enabled:focus,
+  > textarea:enabled:focus,
+  > textarea.p-inputtextarea:enabled:focus,
+  > .p-inputwrapper > .p-inputtext:enabled:focus,
+  .p-inputtext:enabled:focus,
+  .p-inputtextarea:enabled:focus,
+  > p-inputnumber .p-inputnumber-input:enabled:focus,
+  > .p-inputnumber > .p-inputnumber-input:enabled:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  &:hover {
+    border-color: var(--primary-color) !important;
+  }
+
+  &:focus-within {
+    border-color: var(--primary-color) !important;
+    box-shadow: var(--focus-ring) !important;
+  }
+
+  &:has(.ng-invalid.ng-dirty) {
+    border-color: var(--brand-field-invalid-border) !important;
+  }
+}
+
+// Addon on the right (less common)
+.p-inputgroup > .p-inputgroup-addon:last-child:not(:first-child) {
+  border-inline-end: none !important;
+  border-inline-start: 1px solid var(--brand-field-border) !important;
+}
+
+// Override PrimeNG per-segment corner radius — the shell owns the outer shape
+.p-inputgroup > .p-inputgroup-addon:first-child,
+.p-inputgroup > .p-inputgroup-addon:last-child,
+.p-inputgroup > input.p-inputtext:first-child,
+.p-inputgroup > input.p-inputtext:last-child,
+.p-inputgroup > .p-inputtext:first-child,
+.p-inputgroup > .p-inputtext:last-child,
+.p-inputgroup > textarea:first-child,
+.p-inputgroup > textarea:last-child,
+.p-inputgroup > .p-inputwrapper:first-child > .p-component,
+.p-inputgroup > .p-inputwrapper:first-child > .p-component > .p-inputtext,
+.p-inputgroup > .p-inputwrapper:last-child > .p-component,
+.p-inputgroup > .p-inputwrapper:last-child > .p-component > .p-inputtext {
+  border-radius: 0 !important;
+}
+
+// ---------------------------------------------------------------------------
+// Autocomplete with dropdown — input + chevron as one unified field
+// ---------------------------------------------------------------------------
+.p-autocomplete.p-autocomplete-dd {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  width: 100%;
+  border: 1px solid var(--brand-field-border) !important;
+  border-radius: var(--brand-radius-field) !important;
+  overflow: hidden;
+  background: var(--brand-field-bg) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  box-shadow: none !important;
+
+  .p-autocomplete-input.p-inputtext,
+  input.p-autocomplete-input,
+  .p-autocomplete-multiple-container {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    flex: 1 1 auto;
+    width: 1% !important;
+    min-width: 0;
+  }
+
+  .p-autocomplete-input.p-inputtext:enabled:focus,
+  input.p-autocomplete-input:enabled:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .p-autocomplete-dropdown.p-button {
+    border: none !important;
+    border-radius: 0 !important;
+    border-inline-start: 1px solid var(--brand-field-border) !important;
+    background: transparent !important;
+    color: var(--text-color-secondary) !important;
+    min-width: 2.75rem !important;
+    width: 2.75rem !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    flex-shrink: 0;
+
+    &::after {
+      content: none !important;
+      display: none !important;
+    }
+
+    .p-button-icon,
+    .p-icon,
+    svg {
+      color: inherit !important;
+    }
+
+    &:enabled:hover,
+    &:enabled:focus,
+    &:enabled:active {
+      background: var(--surface-hover) !important;
+      color: var(--primary-color) !important;
+      border-color: transparent !important;
+      border-inline-start-color: var(--brand-field-border) !important;
+      box-shadow: none !important;
+    }
+  }
+
+  .p-autocomplete-loader {
+    right: 3.25rem !important;
+  }
+
+  .p-autocomplete-clear-icon {
+    right: 3rem !important;
+  }
+
+  &:not(.p-disabled):hover {
+    border-color: var(--primary-color) !important;
+  }
+
+  &.p-focus,
+  &.p-inputwrapper-focus,
+  &:focus-within {
+    border-color: var(--primary-color) !important;
+    box-shadow: var(--focus-ring) !important;
+  }
+
+  &:not(.p-disabled):hover .p-autocomplete-input,
+  &.p-focus .p-autocomplete-input,
+  &.p-inputwrapper-focus .p-autocomplete-input {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+// POS hero search keeps its custom separated layout
+.pos-autocomplete--hero.p-autocomplete.p-autocomplete-dd {
+  border: none !important;
+  overflow: visible;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+// ---------------------------------------------------------------------------
+// Calendar with icon button — input + trigger as one unified field
+// ---------------------------------------------------------------------------
+.p-calendar.p-calendar-w-btn {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  width: 100%;
+  border: 1px solid var(--brand-field-border) !important;
+  border-radius: var(--brand-radius-field) !important;
+  overflow: hidden;
+  background: var(--brand-field-bg) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  box-shadow: none !important;
+
+  .p-inputtext {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    flex: 1 1 auto;
+    width: 1% !important;
+    min-width: 0;
+  }
+
+  .p-inputtext:enabled:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .p-datepicker-trigger.p-button {
+    position: static !important;
+    border: none !important;
+    border-radius: 0 !important;
+    border-inline-start: 1px solid var(--brand-field-border) !important;
+    background: transparent !important;
+    color: var(--text-color-secondary) !important;
+    min-width: 2.75rem !important;
+    width: 2.75rem !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    flex-shrink: 0;
+
+    &::after {
+      content: none !important;
+      display: none !important;
+    }
+
+    .p-button-icon,
+    .p-icon,
+    svg {
+      color: inherit !important;
+    }
+
+    &:enabled:hover,
+    &:enabled:focus,
+    &:enabled:active {
+      background: var(--surface-hover) !important;
+      color: var(--primary-color) !important;
+      border-color: transparent !important;
+      border-inline-start-color: var(--brand-field-border) !important;
+      box-shadow: none !important;
+    }
+  }
+
+  &:not(.p-calendar-disabled):hover {
+    border-color: var(--primary-color) !important;
+  }
+
+  &.p-focus,
+  &.p-inputwrapper-focus,
+  &:focus-within {
+    border-color: var(--primary-color) !important;
+    box-shadow: var(--focus-ring) !important;
+  }
+
+  &.p-focus .p-inputtext,
+  &.p-inputwrapper-focus .p-inputtext,
+  &:focus-within .p-inputtext {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Split button — main action + chevron as one unified control (like autocomplete-dd)
+// ---------------------------------------------------------------------------
+.p-splitbutton.p-component {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  flex-wrap: nowrap;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0;
+  border-radius: var(--brand-radius-field) !important;
+  overflow: hidden;
+  position: relative;
+  box-shadow: none !important;
+  vertical-align: middle;
+
+  > .p-button {
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 2.5rem;
+
+    &::after {
+      content: none !important;
+      display: none !important;
+    }
+  }
+
+  > .p-splitbutton-defaultbutton,
+  > .p-button.p-splitbutton-defaultbutton,
+  > .p-button:first-child {
+    flex: 1 1 auto;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem;
+    padding-inline: 1rem !important;
+  }
+
+  > .p-splitbutton-menubutton,
+  > .p-button.p-splitbutton-menubutton,
+  > .p-button:last-child:not(:only-child) {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 2.75rem !important;
+    width: 2.75rem !important;
+    max-width: 2.75rem !important;
+    padding: 0 !important;
+    border-inline-start: 1px solid var(--brand-field-border) !important;
+
+    .p-button-icon,
+    .p-icon,
+    svg {
+      margin: 0 !important;
+      line-height: 1 !important;
+    }
+  }
+
+  &.p-button-sm {
+    > .p-button {
+      min-height: 2rem;
+      font-size: 0.875rem;
+    }
+
+    > .p-splitbutton-menubutton,
+    > .p-button.p-splitbutton-menubutton,
+    > .p-button:last-child:not(:only-child) {
+      min-width: 2.25rem !important;
+      width: 2.25rem !important;
+      max-width: 2.25rem !important;
+    }
+  }
+
+  // Outlined variant
+  &.p-button-outlined {
+    border: 1px solid var(--brand-saas) !important;
+    background: var(--surface-card) !important;
+
+    > .p-button {
+      background: transparent !important;
+      color: var(--brand-saas) !important;
+    }
+
+    > .p-button .p-button-label,
+    > .p-button .p-button-icon {
+      color: inherit !important;
+    }
+
+    > .p-splitbutton-menubutton,
+    > .p-button.p-splitbutton-menubutton,
+    > .p-button:last-child:not(:only-child) {
+      color: var(--text-color-secondary) !important;
+      border-inline-start-color: var(--brand-field-border) !important;
+
+      &:enabled:hover,
+      &:enabled:focus {
+        background: var(--surface-hover) !important;
+        color: var(--primary-color) !important;
+      }
+    }
+
+    > .p-splitbutton-defaultbutton,
+    > .p-button.p-splitbutton-defaultbutton,
+    > .p-button:first-child {
+      &:enabled:hover,
+      &:enabled:focus {
+        background: rgba(30, 94, 255, 0.06) !important;
+      }
+    }
+
+    &:not(.p-disabled):hover {
+      border-color: var(--brand-saas-hover) !important;
+    }
+
+    &:focus-within {
+      border-color: var(--primary-color) !important;
+      box-shadow: var(--focus-ring) !important;
+    }
+  }
+
+  // Solid primary (default)
+  &:not(.p-button-outlined):not(.p-button-text):not(.p-button-secondary):not(.p-button-success):not(.p-button-warning):not(.p-button-danger):not(.p-button-info):not(.p-button-help) {
+    border: 1px solid var(--primary-color) !important;
+    background: var(--primary-color) !important;
+
+    > .p-button,
+    > .p-button.p-button-primary {
+      background: transparent !important;
+      border-color: transparent !important;
+      color: #ffffff !important;
+    }
+
+    > .p-button .p-button-label,
+    > .p-button .p-button-icon,
+    > .p-button.p-button-primary .p-button-label,
+    > .p-button.p-button-primary .p-button-icon {
+      color: #ffffff !important;
+    }
+
+    > .p-button:last-child:not(:only-child),
+    > .p-button.p-button-primary:last-child:not(:only-child) {
+      border-inline-start-color: rgba(255, 255, 255, 0.28) !important;
+
+      &:enabled:hover,
+      &:enabled:focus {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-color: transparent !important;
+      }
+    }
+
+    > .p-button:first-child:enabled:hover,
+    > .p-button:first-child:enabled:focus,
+    > .p-button.p-button-primary:first-child:enabled:hover,
+    > .p-button.p-button-primary:first-child:enabled:focus {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border-color: transparent !important;
+    }
+
+    &:not(.p-disabled):hover {
+      border-color: var(--primary-600, var(--primary-color)) !important;
+      background: var(--primary-600, var(--primary-color)) !important;
+    }
+
+    > .p-button:not(:disabled):hover,
+    > .p-button:not(:disabled):focus,
+    > .p-button:not(:disabled):active {
+      border-color: transparent !important;
+    }
+  }
+}
+
+:root[color-scheme='dark'] .p-splitbutton.p-component,
+.layout-theme-dark .p-splitbutton.p-component {
+  &.p-button-outlined {
+    border-color: var(--primary-color) !important;
+    background: var(--surface-card) !important;
+
+    > .p-button {
+      color: var(--primary-color) !important;
+    }
+
+    > .p-button:last-child:not(:only-child) {
+      border-inline-start-color: var(--surface-border) !important;
+    }
+  }
+}

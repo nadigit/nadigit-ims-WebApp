@@ -1,10 +1,10 @@
-<div class="financial-doc-details-container">
+﻿<div class="financial-doc-details-container">
 	<p-toast></p-toast>
 
 	<!-- Loading State -->
 	<div class="loading-wrapper" *ngIf="isLoading">
 		<div class="loading-content">
-			<p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+			<p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
 		</div>
 	</div>
 
@@ -27,7 +27,7 @@
 				
 				<div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
 					<div class="flex align-items-center gap-4">
-						<div class="financial-doc-hero-icon">
+						<div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
 							<i [class]="getDocTypeIcon(financialDoc?.docType)"></i>
 						</div>
 						<div>
@@ -89,7 +89,7 @@
 		<!-- Quick Stats Row -->
 		<div class="stats-row">
 			<div class="stat-card-modern amount-card">
-				<div class="stat-icon amount">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
 					<i class="pi pi-money-bill"></i>
 				</div>
 				<div class="stat-content">
@@ -104,7 +104,11 @@
 			</div>
 			
 			<div class="stat-card-modern status-card">
-				<div class="stat-icon status" [ngClass]="'status-' + (financialDoc?.docStatus || '')?.toLowerCase()">
+				<div class="ims-icon-tile ims-icon-tile--md" [ngClass]="{
+					'ims-icon-tile--neutral': (financialDoc?.docStatus || '').toUpperCase() === 'DRAFT',
+					'ims-icon-tile--green': (financialDoc?.docStatus || '').toUpperCase() === 'ISSUED',
+					'ims-icon-tile--danger': (financialDoc?.docStatus || '').toUpperCase() === 'CANCELLED'
+				}">
 					<i [class]="getDocStatusIcon(financialDoc?.docStatus)"></i>
 				</div>
 				<div class="stat-content">
@@ -114,7 +118,7 @@
 			</div>
 			
 			<div class="stat-card-modern type-card">
-				<div class="stat-icon type">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
 					<i [class]="getDocTypeIcon(financialDoc?.docType)"></i>
 				</div>
 				<div class="stat-content">
@@ -124,7 +128,7 @@
 			</div>
 			
 			<div class="stat-card-modern items-card" *ngIf="financialDoc?.order?.orderItems">
-				<div class="stat-icon items">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
 					<i class="pi pi-list"></i>
 				</div>
 				<div class="stat-content">
@@ -158,7 +162,7 @@
 							<div class="card-body">
 								<div class="info-grid">
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
 											<i class="pi pi-hashtag"></i>
 										</div>
 										<div class="info-content">
@@ -168,7 +172,7 @@
 									</div>
 									
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
 											<i class="pi pi-file-edit"></i>
 										</div>
 										<div class="info-content">
@@ -178,7 +182,7 @@
 									</div>
 									
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
 											<i [class]="getDocTypeIcon(financialDoc?.docType)"></i>
 										</div>
 										<div class="info-content">
@@ -188,7 +192,11 @@
 									</div>
 									
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm" [ngClass]="{
+											'ims-icon-tile--neutral': (financialDoc?.docStatus || '').toUpperCase() === 'DRAFT',
+											'ims-icon-tile--green': (financialDoc?.docStatus || '').toUpperCase() === 'ISSUED',
+											'ims-icon-tile--danger': (financialDoc?.docStatus || '').toUpperCase() === 'CANCELLED'
+										}">
 											<i [class]="getDocStatusIcon(financialDoc?.docStatus)"></i>
 										</div>
 										<div class="info-content">
@@ -198,7 +206,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.dueDate">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
 											<i class="pi pi-calendar"></i>
 										</div>
 										<div class="info-content">
@@ -208,7 +216,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.validityDays">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
 											<i class="pi pi-clock"></i>
 										</div>
 										<div class="info-content">
@@ -218,7 +226,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.origin">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
 											<i class="pi pi-map-marker"></i>
 										</div>
 										<div class="info-content">
@@ -239,7 +247,7 @@
 							<div class="card-body">
 								<div class="info-grid">
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
 											<i class="pi pi-calendar-plus"></i>
 										</div>
 										<div class="info-content">
@@ -249,7 +257,7 @@
 									</div>
 									
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
 											<i class="pi pi-user"></i>
 										</div>
 										<div class="info-content">
@@ -259,7 +267,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.issuedAt">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
 											<i class="pi pi-check-circle"></i>
 										</div>
 										<div class="info-content">
@@ -269,7 +277,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.issuedBy">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
 											<i class="pi pi-user-plus"></i>
 										</div>
 										<div class="info-content">
@@ -279,7 +287,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.canceledAt">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger">
 											<i class="pi pi-times-circle"></i>
 										</div>
 										<div class="info-content">
@@ -289,7 +297,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.canceledBy">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
 											<i class="pi pi-user-minus"></i>
 										</div>
 										<div class="info-content">
@@ -313,7 +321,7 @@
 							<div class="card-body">
 								<div class="info-grid">
 									<div class="info-item" *ngIf="financialDoc?.paymentTerms">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
 											<i class="pi pi-credit-card"></i>
 										</div>
 										<div class="info-content">
@@ -323,7 +331,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.notes">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
 											<i class="pi pi-align-left"></i>
 										</div>
 										<div class="info-content">
@@ -333,7 +341,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.additionalReferences">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
 											<i class="pi pi-bookmark"></i>
 										</div>
 										<div class="info-content">
@@ -343,7 +351,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.requiresSignature">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
 											<i class="pi pi-pencil"></i>
 										</div>
 										<div class="info-content">
@@ -353,7 +361,7 @@
 									</div>
 									
 									<div class="info-item" *ngIf="financialDoc?.fileUrl">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger">
 											<i class="pi pi-file-pdf"></i>
 										</div>
 										<div class="info-content">
@@ -403,9 +411,10 @@
 							<span>{{ 'ordered_products' | translate }}</span>
 						</div>
 						<div class="card-body p-0">
-							<p-table #dt1 [value]="financialDoc.order.orderItems || []" responsiveLayout="scroll" [rows]="20"
+							<p-table #dt1 [value]="financialDoc.order.orderItems || []" responsiveLayout="scroll" [rows]="pageSizeService.get(TablePageSizeKeys.financialDocumentDetailsLines, [10,20,50,100])"
 								[globalFilterFields]="['product.name','product.reference','quantity','pricePerUnit']"
 								[paginator]="true" [rowsPerPageOptions]="[10,20,50,100]" [showCurrentPageReport]="true"
+								(onPage)="pageSizeService.onPage(TablePageSizeKeys.financialDocumentDetailsLines, [10,20,50,100], $event)"
 								currentPageReportTemplate="{first} - {last} / {totalRecords} {{'table_records' | translate}}"
 								[rowHover]="true" dataKey="id" styleClass="p-datatable-sm p-datatable-striped"
 								*ngIf="financialDoc.order.orderItems?.length > 0; else noItems">

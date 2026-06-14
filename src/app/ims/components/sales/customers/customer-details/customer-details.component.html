@@ -1,10 +1,10 @@
-<div class="customer-details-container">
+﻿<div class="customer-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 <div
                     class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="customer-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
                             <i class="pi pi-user"></i>
                         </div>
                         <div>
@@ -62,13 +62,8 @@
                     </div>
 
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" [label]="'refresh' | translate"
-                            class="p-button-outlined" (click)="refreshData()" [disabled]="isLoading"></button>
                         <button pButton pRipple icon="pi pi-pencil" [label]="'update_customer' | translate"
                             *ngIf="canEditCustomer" class="p-button-primary" (click)="editCustomer()"></button>
-                        <button pButton pRipple icon="pi pi-envelope" *ngIf="customer?.email || customer?.phoneNumber"
-                            class="p-button-success" [label]="'contact_customer' | translate"
-                            (click)="contactCustomer()"></button>
                     </div>
                 </div>
             </div>
@@ -77,7 +72,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon orders">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-shopping-cart"></i>
                 </div>
                 <div class="stat-content">
@@ -87,7 +82,7 @@
             </div>
 
             <div class="stat-card-modern">
-                <div class="stat-icon value">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -98,7 +93,7 @@
             </div>
 
             <div class="stat-card-modern" *ngIf="customer?.totalPaid || getTotalPaid()">
-                <div class="stat-icon paid">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-money-bill"></i>
                 </div>
                 <div class="stat-content">
@@ -110,7 +105,7 @@
 
             <div class="stat-card-modern"
                 *ngIf="(customer?.totalAmount || getTotalSpent()) && (customer?.totalPaid || getTotalPaid())">
-                <div class="stat-icon balance">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                     <i class="pi pi-chart-line"></i>
                 </div>
                 <div class="stat-content">
@@ -143,7 +138,7 @@
                                 <div class="info-list">
 
                                     <div class="info-item" *ngIf="customer.customerType">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm" [ngClass]="customer.customerType === 'Company' ? 'ims-icon-tile--orange' : 'ims-icon-tile--blue'">
                                             <i class="pi"
                                                 [ngClass]="customer.customerType === 'Company' ? 'pi-building' : 'pi-user'"></i>
                                         </div>
@@ -157,7 +152,7 @@
                                     </div>
 
                                     <div class="info-item" *ngIf="customer.cin || customer.ice">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-id-card"></i>
                                         </div>
                                         <div class="info-content">
@@ -168,7 +163,7 @@
                                     </div>
 
                                     <div class="info-item" *ngIf="customer.creationDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -179,7 +174,7 @@
                                     </div>
 
                                     <div class="info-item" *ngIf="customer.priceList">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-dollar"></i>
                                         </div>
                                         <div class="info-content">
@@ -201,7 +196,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="customer.email">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                                             <i class="pi pi-envelope"></i>
                                         </div>
                                         <div class="info-content">
@@ -211,7 +206,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="customer.phoneNumber">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                                             <i class="pi pi-phone"></i>
                                         </div>
                                         <div class="info-content">
@@ -221,7 +216,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="customer.address">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-compass"></i>
                                         </div>
                                         <div class="info-content">
@@ -230,7 +225,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="customer.country">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-globe"></i>
                                         </div>
                                         <div class="info-content">
@@ -239,7 +234,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="customer.city">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-map-marker"></i>
                                         </div>
                                         <div class="info-content">
@@ -248,7 +243,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="customer.zip">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-map"></i>
                                         </div>
                                         <div class="info-content">
@@ -269,7 +264,7 @@
                             <div class="card-body">
                                 <div class="stock-status-grid">
                                     <div class="stock-status-item success" *ngIf="customer?.isActive !== false">
-                                        <div class="status-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-check-circle"></i>
                                         </div>
                                         <div class="status-content">
@@ -278,7 +273,7 @@
                                     </div>
 
                                     <div class="stock-status-item info" *ngIf="customer?.isPreferred">
-                                        <div class="status-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-star"></i>
                                         </div>
                                         <div class="status-content">
@@ -297,7 +292,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="info-item">
-                                    <div class="info-icon">
+                                    <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                         <i class="pi pi-calendar"></i>
                                     </div>
                                     <div class="info-content">
@@ -318,7 +313,7 @@
                                 <div class="info-list">
                                     <!-- Credit Balance (Available to Use) -->
                                     <div class="info-item">
-                                        <div class="info-icon text-green-600">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-wallet"></i>
                                         </div>
                                         <div class="info-content">
@@ -334,7 +329,7 @@
                                     <!-- Outstanding Balance (Customer Owes) -->
                                     <div class="info-item"
                                         *ngIf="creditInfo.outstandingBalance && creditInfo.outstandingBalance > 0">
-                                        <div class="info-icon text-red-600">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger">
                                             <i class="pi pi-exclamation-triangle"></i>
                                         </div>
                                         <div class="info-content">
@@ -350,7 +345,7 @@
                                     <!-- Overdue Balance -->
                                     <div class="info-item"
                                         *ngIf="creditInfo.overdueBalance && creditInfo.overdueBalance > 0">
-                                        <div class="info-icon text-red-600">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -366,8 +361,8 @@
 
                                     <!-- Net Position -->
                                     <div class="info-item" *ngIf="getSafeNetBalance() !== null">
-                                        <div class="info-icon"
-                                            [ngClass]="(getSafeNetBalance() || 0) > 0 ? 'text-red-600' : 'text-green-600'">
+                                        <div class="ims-icon-tile ims-icon-tile--sm"
+                                            [ngClass]="(getSafeNetBalance() || 0) > 0 ? 'ims-icon-tile--danger' : 'ims-icon-tile--success'">
                                             <i class="pi"
                                                 [ngClass]="(getSafeNetBalance() || 0) > 0 ? 'pi-arrow-down' : 'pi-arrow-up'"></i>
                                         </div>
@@ -386,8 +381,8 @@
 
                                     <!-- Credit Limit Info -->
                                     <div class="info-item" *ngIf="creditInfo.creditLimit">
-                                        <div class="info-icon"
-                                            [ngClass]="(creditInfo.availableCreditLimit || 0) < 100 ? 'text-orange-600' : 'text-600'">
+                                        <div class="ims-icon-tile ims-icon-tile--sm"
+                                            [ngClass]="(creditInfo.availableCreditLimit || 0) < 100 ? 'ims-icon-tile--amber' : 'ims-icon-tile--neutral'">
                                             <i class="pi pi-credit-card"></i>
                                         </div>
                                         <div class="info-content">
@@ -412,7 +407,7 @@
 
                                     <!-- Payment Terms -->
                                     <div class="info-item" *ngIf="creditInfo.creditTermsDays">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -489,22 +484,31 @@
                                         </span>
                                     </div>
                                 </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <button pButton type="button" icon="pi pi-file"
-                                        class="p-button-sm p-button-outlined" [label]="'download_csv' | translate"
-                                        [loading]="isDownloadingFollowupCsv"
+                                <div class="ims-export-actions flex flex-wrap gap-2">
+                                    <button pButton pRipple type="button"
+                                        [icon]="isDownloadingFollowupCsv ? 'pi pi-spin pi-spinner' : 'pi pi-file'"
+                                        class="p-button-secondary"
+                                        [pTooltip]="'download_csv' | translate"
+                                        tooltipPosition="bottom"
+                                        [disabled]="isDownloadingFollowupCsv || isDownloadingFollowupExcel || isDownloadingFollowupPdf"
                                         (click)="downloadCustomerFollowupReport('csv')">
                                     </button>
 
-                                    <button pButton type="button" icon="pi pi-file-excel"
-                                        class="p-button-sm p-button-success" [label]="'download_excel' | translate"
-                                        [loading]="isDownloadingFollowupExcel"
+                                    <button pButton pRipple type="button"
+                                        [icon]="isDownloadingFollowupExcel ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
+                                        class="p-button-success"
+                                        [pTooltip]="'download_excel' | translate"
+                                        tooltipPosition="bottom"
+                                        [disabled]="isDownloadingFollowupCsv || isDownloadingFollowupExcel || isDownloadingFollowupPdf"
                                         (click)="downloadCustomerFollowupReport('excel')">
                                     </button>
 
-                                    <button pButton type="button" icon="pi pi-file-pdf"
-                                        class="p-button-sm p-button-warning" [label]="'download_pdf' | translate"
-                                        [loading]="isDownloadingFollowupPdf"
+                                    <button pButton pRipple type="button"
+                                        [icon]="isDownloadingFollowupPdf ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
+                                        class="p-button-primary"
+                                        [pTooltip]="'download_pdf' | translate"
+                                        tooltipPosition="bottom"
+                                        [disabled]="isDownloadingFollowupCsv || isDownloadingFollowupExcel || isDownloadingFollowupPdf"
                                         (click)="downloadCustomerFollowupReport('pdf')">
                                     </button>
                                 </div>
@@ -525,7 +529,7 @@
                                 <div class="grid">
                                     <div class="col-12 md:col-6" *ngIf="customerOrders?.length">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                                                 <i class="pi pi-shopping-cart"></i>
                                             </div>
                                             <div class="stat-content">
@@ -536,7 +540,7 @@
                                     </div>
                                     <div class="col-12 md:col-6" *ngIf="customerReturns?.length">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                                                 <i class="pi pi-undo"></i>
                                             </div>
                                             <div class="stat-content">
@@ -547,7 +551,7 @@
                                     </div>
                                     <div class="col-12 md:col-6" *ngIf="customer?.totalAmount || getTotalSpent()">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                                                 <i class="pi pi-money-bill"></i>
                                             </div>
                                             <div class="stat-content">
@@ -559,7 +563,7 @@
                                     </div>
                                     <div class="col-12 md:col-6" *ngIf="customer?.totalPaid || getTotalPaid()">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                                                 <i class="pi pi-wallet"></i>
                                             </div>
                                             <div class="stat-content">
@@ -647,10 +651,11 @@
                             </button>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="priceOverrides" [paginator]="true" [rows]="10"
+                            <p-table [value]="priceOverrides" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsPriceOverrides, [10,20,50])"
                                 [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
-                                [rowsPerPageOptions]="[10,20,50]" [loading]="isLoadingOverrides">
+                                [rowsPerPageOptions]="[10,20,50]" [loading]="isLoadingOverrides"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsPriceOverrides, [10,20,50], $event)">
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th>{{ 'product' | translate }}</th>
@@ -675,8 +680,7 @@
                                         </td>
                                         <td>
                                             <div class="flex gap-1">
-                                                <button pButton pRipple icon="pi pi-pencil"
-                                                    class="p-button-rounded p-button-text p-button-warning"
+                                                <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
                                                     (click)="openOverrideDialog(override)"></button>
                                                 <button pButton pRipple icon="pi pi-times"
                                                     class="p-button-rounded p-button-text p-button-danger"
@@ -723,10 +727,11 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table #ordersTable [value]="customerOrders" [paginator]="true" [rows]="15"
+                            <p-table #ordersTable [value]="customerOrders" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsOrders, [15,30,50])"
                                 [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsOrders, [15,30,50], $event)"
                                 [globalFilterFields]="['reference', 'orderStatus', 'paymentStatus']">
                                 <ng-template pTemplate="header">
                                     <tr>
@@ -832,10 +837,11 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table #returnsTable [value]="customerReturns" [paginator]="true" [rows]="15"
+                            <p-table #returnsTable [value]="customerReturns" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsReturns, [15,30,50])"
                                 [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsReturns, [15,30,50], $event)"
                                 [globalFilterFields]="['reference', 'returnStatus']">
                                 <ng-template pTemplate="header">
                                     <tr>
@@ -931,10 +937,11 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table #paymentsTable [value]="customerPayments" [paginator]="true" [rows]="15"
+                            <p-table #paymentsTable [value]="customerPayments" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsPayments, [15,30,50])"
                                 [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsPayments, [15,30,50], $event)"
                                 [globalFilterFields]="['transactionId', 'paymentMethod', 'paymentStatus']">
                                 <ng-template pTemplate="header">
                                     <tr>

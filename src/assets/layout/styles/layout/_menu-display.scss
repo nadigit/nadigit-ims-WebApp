@@ -1,0 +1,379 @@
+$sidebar-width-expanded: 300px;
+$sidebar-width-compact: 4.75rem;
+
+.layout-wrapper {
+    --layout-sidebar-width: #{$sidebar-width-expanded};
+
+    &.layout-menu-compact,
+    &.layout-menu-hover {
+        --layout-sidebar-width: #{$sidebar-width-compact};
+    }
+}
+
+.layout-sidebar {
+    width: var(--layout-sidebar-width);
+}
+
+// ---------------------------------------------------------------------------
+// Expanded — clearer labels, less “thin” feel
+// ---------------------------------------------------------------------------
+@mixin menu-expanded-typography {
+    .layout-menuitem-root-header {
+        margin: 0.65rem 0 0.35rem;
+    }
+
+    .layout-menuitem-root-text {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+    }
+
+    ul a {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        padding: 0.65rem 0.9rem;
+
+        .layout-menuitem-text {
+            line-height: 1.35;
+        }
+
+        &.active-route {
+            font-weight: 700;
+        }
+    }
+}
+
+.layout-wrapper.layout-menu-expanded .layout-sidebar .layout-menu {
+    @include menu-expanded-typography;
+}
+
+// ---------------------------------------------------------------------------
+// Icon rail — shared by compact + hover (collapsed) modes
+// ---------------------------------------------------------------------------
+@mixin menu-icon-rail {
+    .layout-menuitem-root-header {
+        display: none;
+    }
+
+    .layout-root-menuitem + .layout-root-menuitem {
+        margin-top: 0.25rem;
+        padding-top: 0.35rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    ul a {
+        justify-content: center;
+        padding: 0.7rem 0.45rem;
+        position: relative;
+
+        .layout-menuitem-icon {
+            margin-right: 0;
+            margin-left: 0;
+            font-size: 1.125rem;
+        }
+
+        .layout-menuitem-text,
+        .layout-submenu-toggler,
+        .layout-menuitem-inline-badge {
+            display: none !important;
+        }
+    }
+
+    ul ul li a,
+    ul ul ul li a,
+    ul ul ul ul li a {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    li:not(.layout-root-menuitem) {
+        position: relative;
+
+        > ul {
+            position: absolute;
+            left: calc(100% + 0.4rem);
+            top: 0;
+            min-width: 13.5rem;
+            max-height: min(70vh, 24rem);
+            overflow-x: visible;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            margin: 0;
+            padding: 0.35rem;
+            border-radius: $borderRadius;
+            background: var(--surface-overlay);
+            border: 1px solid var(--surface-border);
+            box-shadow: 0 12px 32px rgba(11, 31, 74, 0.18);
+            z-index: 1100;
+            display: none !important;
+            height: auto !important;
+
+            // Invisible bridge — keeps flyout open while moving pointer from icon to panel
+            &::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -0.55rem;
+                width: 0.55rem;
+                height: 100%;
+            }
+        }
+
+        &:hover > ul,
+        &:focus-within > ul,
+        &.active-menuitem > ul,
+        &.active-menuitem > ul.layout-submenu-panel--open {
+            display: block !important;
+        }
+
+        > ul.layout-submenu-panel--open {
+            display: block !important;
+            position: fixed !important;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: auto !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto;
+        }
+
+        > ul a {
+            justify-content: flex-start;
+            padding: 0.62rem 0.85rem;
+
+            .layout-menuitem-text {
+                display: inline !important;
+            }
+
+            .layout-menuitem-icon {
+                margin-right: 0.5rem;
+                font-size: 1rem;
+            }
+
+            .layout-submenu-toggler {
+                display: inline-flex !important;
+                margin-left: auto;
+            }
+        }
+
+        // Second-tier flyouts inside a panel (e.g. nested groups)
+        > ul li:not(.layout-root-menuitem) {
+            position: relative;
+
+            > ul {
+                left: calc(100% + 0.25rem);
+                top: 0;
+                z-index: 1110;
+            }
+
+            &:hover > ul,
+            &:focus-within > ul,
+            &.active-menuitem > ul {
+                display: block !important;
+            }
+        }
+
+        > a:has(+ ul)::after {
+            content: '';
+            position: absolute;
+            bottom: 0.3rem;
+            right: 0.3rem;
+            width: 0.28rem;
+            height: 0.28rem;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.45;
+        }
+
+        &.active-menuitem > a:has(+ ul)::after {
+            opacity: 0.85;
+        }
+    }
+
+    .layout-submenu-panel-header {
+        display: block;
+        padding: 0.55rem 0.85rem 0.4rem;
+        margin: 0 0 0.15rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-color-secondary);
+        pointer-events: none;
+        list-style: none;
+        border-bottom: 1px solid var(--surface-border);
+        line-height: 1.2;
+    }
+
+    [dir="rtl"] & li:not(.layout-root-menuitem) > ul,
+    html[dir="rtl"] & li:not(.layout-root-menuitem) > ul {
+        left: auto;
+        right: calc(100% + 0.4rem);
+    }
+
+    [dir="rtl"] & li:not(.layout-root-menuitem) > ul a .layout-menuitem-icon,
+    html[dir="rtl"] & li:not(.layout-root-menuitem) > ul a .layout-menuitem-icon {
+        margin-right: 0;
+        margin-left: 0.5rem;
+    }
+}
+
+@mixin menu-icon-rail-sidebar-padding {
+    padding: 0.5rem 0.35rem 0.5rem 0.45rem;
+
+    > app-sidebar {
+        padding-right: 0.15rem;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Compact — icon rail (desktop only; mobile drawer stays full labels)
+// ---------------------------------------------------------------------------
+@media screen and (min-width: 992px) {
+    .layout-wrapper.layout-menu-compact .layout-sidebar {
+        @include menu-icon-rail-sidebar-padding;
+        overflow: visible;
+
+        > app-sidebar {
+            overflow-x: visible;
+            overflow-y: auto;
+        }
+    }
+
+    .layout-wrapper.layout-menu-compact .layout-sidebar .layout-menu {
+        @include menu-icon-rail;
+    }
+
+    // -----------------------------------------------------------------------
+    // Hover — icon rail that expands over content on sidebar hover
+    // -----------------------------------------------------------------------
+    .layout-wrapper.layout-menu-hover .layout-sidebar {
+        @include menu-icon-rail-sidebar-padding;
+        overflow: visible;
+        transition:
+            width 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+            padding 0.24s ease;
+        z-index: 1001;
+
+        > app-sidebar {
+            overflow-x: visible;
+            overflow-y: auto;
+        }
+
+        .layout-menu {
+            @include menu-icon-rail;
+        }
+
+        &:not(.layout-sidebar--hover-expanded) {
+            overflow: visible;
+        }
+
+        &.layout-sidebar--hover-expanded {
+            width: $sidebar-width-expanded;
+            padding: 0.5rem 0.625rem 0.5rem 1.5rem;
+            box-shadow:
+                0 12px 40px rgba(11, 31, 74, 0.28),
+                0 4px 12px rgba(11, 31, 74, 0.12);
+
+            > app-sidebar {
+                padding-right: 0.25rem;
+            }
+
+            .layout-menu {
+                @include menu-expanded-typography;
+
+                .layout-menuitem-root-header {
+                    display: flex;
+                }
+
+                .layout-root-menuitem + .layout-root-menuitem {
+                    margin-top: 0;
+                    padding-top: 0;
+                    border-top: none;
+                }
+
+                ul a {
+                    justify-content: flex-start;
+
+                    .layout-menuitem-icon {
+                        margin-right: 0.5rem;
+                        font-size: 1rem;
+                    }
+
+                    .layout-menuitem-text,
+                    .layout-submenu-toggler,
+                    .layout-menuitem-inline-badge {
+                        display: inline !important;
+                    }
+
+                    .layout-submenu-toggler {
+                        display: inline-flex !important;
+                        margin-left: auto;
+                    }
+                }
+
+                [dir="rtl"] & ul a .layout-menuitem-icon,
+                html[dir="rtl"] & ul a .layout-menuitem-icon {
+                    margin-right: 0;
+                    margin-left: 0.5rem;
+                }
+
+                ul ul li a {
+                    margin-left: 1rem !important;
+                }
+
+                [dir="rtl"] & ul ul li a,
+                html[dir="rtl"] & ul ul li a {
+                    margin-left: 0 !important;
+                    margin-right: 1rem !important;
+                }
+
+                li:not(.layout-root-menuitem) {
+                    position: static;
+
+                    > a:has(+ ul)::after {
+                        display: none;
+                    }
+
+                    > ul {
+                        position: static;
+                        left: auto;
+                        right: auto;
+                        min-width: 0;
+                        max-height: none;
+                        margin: 0;
+                        padding: 0;
+                        border: none;
+                        border-radius: $borderRadius;
+                        background: transparent;
+                        box-shadow: none;
+                        z-index: auto;
+                        overflow: hidden;
+                        display: block !important;
+                    }
+
+                    &:not(.active-menuitem) > ul {
+                        height: 0 !important;
+                        overflow: hidden !important;
+                    }
+
+                    &.active-menuitem > ul {
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+
+                    > ul a {
+                        justify-content: flex-start;
+                    }
+                }
+            }
+        }
+
+        [dir="rtl"] &.layout-sidebar--hover-expanded,
+        html[dir="rtl"] &.layout-sidebar--hover-expanded {
+            padding: 0.5rem 1.5rem 0.5rem 0.625rem;
+        }
+    }
+}

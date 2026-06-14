@@ -1,0 +1,152 @@
+<p-dialog [(visible)]="config.visible" [style]="{width: 'min(92vw, 640px)'}"
+    [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
+    header="{{ 'record_transaction' | translate }}"
+    [modal]="true" [draggable]="false" [resizable]="false"
+    styleClass="ims-form-dialog-shell transaction-form-dialog-shell"
+    class="p-fluid transaction-dialog">
+
+    <ng-template pTemplate="content">
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+                <section class="ims-form-section ims-form-section--accent transaction-summary-section"
+                    *ngIf="account">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
+                            <i class="pi pi-chart-line"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'balance_after_transaction' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body transaction-summary">
+                        <div class="transaction-summary__item col-12 md:col-4">
+                            <span class="transaction-summary__label">{{ 'current_balance' | translate }}</span>
+                            <span class="transaction-summary__value" [ngClass]="getBalanceColor(account.currentBalance || 0)">
+                                {{ formatBalance(account.currentBalance || 0) }}
+                            </span>
+                        </div>
+                        <div class="transaction-summary__item col-12 md:col-4">
+                            <span class="transaction-summary__label">{{ 'transaction_amount' | translate }}</span>
+                            <span class="transaction-summary__value"
+                                [ngClass]="isCreditTransaction() ? 'text-green-600' : 'text-red-600'">
+                                {{ isCreditTransaction() ? '+' : '-' }}{{ formatBalance(config.transaction.amount || 0) }}
+                            </span>
+                        </div>
+                        <div class="transaction-summary__item col-12 md:col-4">
+                            <span class="transaction-summary__label">{{ 'balance_after' | translate }}</span>
+                            <span class="transaction-summary__value transaction-summary__value--highlight"
+                                [ngClass]="getBalanceColor(getBalanceAfter())">
+                                {{ formatBalance(getBalanceAfter()) }}
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                            <i class="pi pi-wallet"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'transaction_details' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="transactionType" class="ims-form-label">
+                                {{ 'transaction_type' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <p-dropdown inputId="transactionType" name="type" [(ngModel)]="config.transaction.type"
+                                [options]="transactionTypes" optionLabel="label" optionValue="value"
+                                styleClass="w-full" appendTo="body" [autoDisplayFirst]="false"
+                                [resetFilterOnHide]="false"
+                                [ngClass]="{'ng-invalid ng-dirty': config.submitted && !config.transaction.type}">
+                            </p-dropdown>
+                            <small class="p-error" *ngIf="config.submitted && !config.transaction.type">
+                                {{ 'transaction_type' | translate }} {{ 'is_required_label' | translate }}
+                            </small>
+                        </div>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="amount" class="ims-form-label">
+                                {{ 'amount' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <p-inputNumber inputId="amount" name="amount" [(ngModel)]="config.transaction.amount"
+                                mode="currency" [currency]="account?.currency || currency"
+                                [min]="0.01" [step]="0.01" styleClass="w-full"
+                                [ngClass]="{'ng-invalid ng-dirty': config.submitted && (!config.transaction.amount || config.transaction.amount <= 0)}" />
+                            <small class="p-error"
+                                *ngIf="config.submitted && (!config.transaction.amount || config.transaction.amount <= 0)">
+                                {{ 'amount' | translate }} {{ 'must_be_greater_than_zero' | translate }}
+                            </small>
+                        </div>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="transactionDate" class="ims-form-label">{{ 'transaction_date' | translate }}</label>
+                            <p-calendar inputId="transactionDate" name="transactionDate"
+                                [(ngModel)]="config.transaction.transactionDate"
+                                dateFormat="dd/mm/yy" [showIcon]="true" [showOnFocus]="false"
+                                styleClass="w-full" appendTo="body" [maxDate]="maxDate"
+                                placeholder="{{ 'transaction_date' | translate }}" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                            <i class="pi pi-file-edit"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'additional_information' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="description" class="ims-form-label">{{ 'description' | translate }}</label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-align-left"></i>
+                                </span>
+                                <textarea id="description" name="description" rows="3" pInputTextarea
+                                    [(ngModel)]="config.transaction.description" [autoResize]="true"
+                                    placeholder="{{ 'description' | translate }}"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="reference" class="ims-form-label">{{ 'reference' | translate }}</label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-hashtag"></i>
+                                </span>
+                                <input type="text" pInputText id="reference" name="reference"
+                                    [(ngModel)]="config.transaction.reference"
+                                    placeholder="{{ 'enter_transaction_reference' | translate }}" />
+                            </div>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="notes" class="ims-form-label">{{ 'notes' | translate }}</label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon">
+                                    <i class="pi pi-comment"></i>
+                                </span>
+                                <textarea id="notes" name="notes" rows="2" pInputTextarea
+                                    [(ngModel)]="config.transaction.notes" [autoResize]="true"
+                                    placeholder="{{ 'notes' | translate }}"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="ims-form-required-note">
+                <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template pTemplate="footer">
+        <div class="flex justify-content-between align-items-center w-full">
+            <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                class="p-button-text" (click)="onCancel()"></button>
+            <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                class="p-button-primary" (click)="onSave()"></button>
+        </div>
+    </ng-template>
+</p-dialog>

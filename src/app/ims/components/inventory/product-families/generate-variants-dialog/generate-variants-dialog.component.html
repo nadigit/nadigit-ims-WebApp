@@ -1,0 +1,153 @@
+<p-dialog [(visible)]="visible" (visibleChange)="visibleChange.emit($event)" [modal]="true"
+  [style]="{ width: 'min(92vw, 560px)' }" [breakpoints]="{ '960px': '90vw', '640px': '95vw' }"
+  [header]="'product_family_generate_variants_title' | translate"
+  [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell generate-variants-dialog-shell"
+  class="p-fluid generate-variants-dialog" (onHide)="hide()">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout" *ngIf="family">
+      <div class="ims-form-fields">
+        <div class="ims-form-callout">
+          <i class="pi pi-info-circle"></i>
+          <span>{{ 'product_family_generate_hint' | translate }}</span>
+        </div>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+              <i class="pi pi-sitemap"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_family_name' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="generate-variants-family-summary">
+              <span class="generate-variants-family-summary__ref">{{ family.styleReference }}</span>
+              <span class="generate-variants-family-summary__name">{{ family.name }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+              <i class="pi pi-dollar"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_section_pricing' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12 md:col-6">
+              <label for="gvSellingPrice" class="ims-form-label">
+                {{ 'selling_price' | translate }} ({{ currency }})
+                <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-tag"></i></span>
+                <p-inputNumber inputId="gvSellingPrice" [(ngModel)]="sellingPrice" mode="decimal"
+                  [minFractionDigits]="2"
+                  [ngClass]="{ 'ng-invalid ng-dirty': submitted && sellingPrice <= 0 }"></p-inputNumber>
+              </div>
+              <small class="p-error" *ngIf="submitted && sellingPrice <= 0">{{ 'required_field' | translate }}</small>
+            </div>
+
+            <div class="field col-12 md:col-6">
+              <label for="gvBuyingPrice" class="ims-form-label">
+                {{ 'buying_price' | translate }} ({{ currency }})
+                <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-wallet"></i></span>
+                <p-inputNumber inputId="gvBuyingPrice" [(ngModel)]="buyingPrice" mode="decimal"
+                  [minFractionDigits]="2" [min]="0"
+                  [ngClass]="{ 'ng-invalid ng-dirty': submitted && buyingPrice < 0 }"></p-inputNumber>
+              </div>
+              <small class="p-error" *ngIf="submitted && buyingPrice < 0">{{ 'required_field' | translate }}</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+              <i class="pi pi-box"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_section_stock' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12" *ngIf="isAdmin">
+              <label for="gvWarehouse" class="ims-form-label">
+                {{ 'warehouse' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-dropdown id="gvWarehouse" [options]="warehouses" [(ngModel)]="warehouseId" optionLabel="name"
+                optionValue="warehouseId" [placeholder]="'select_warehouse' | translate" appendTo="body"
+                [filter]="true" filterBy="name" [showClear]="true" styleClass="w-full"
+                [ngClass]="{ 'ng-invalid ng-dirty': submitted && !warehouseId }"></p-dropdown>
+              <small class="p-error" *ngIf="submitted && !warehouseId">{{ 'required_field' | translate }}</small>
+            </div>
+
+            <div class="field col-12">
+              <label for="gvInitialQty" class="ims-form-label">{{ 'initial_quantity' | translate }}</label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-box"></i></span>
+                <p-inputNumber inputId="gvInitialQty" [(ngModel)]="initialQuantity" [min]="0"></p-inputNumber>
+              </div>
+              <small class="ims-form-hint">{{ 'product_family_initial_quantity_hint' | translate }}</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+              <i class="pi pi-sliders-h"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_family_variant_axes' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="field" *ngFor="let axis of axes">
+              <label [attr.for]="'gvAxis-' + axis" class="ims-form-label">
+                {{ axis }} <span class="required-asterisk">*</span>
+              </label>
+              <div class="generate-variants-axis-panel">
+                <div class="flex flex-wrap gap-2 mb-2" *ngIf="getValuesForAxis(axis).length">
+                  <p-chip *ngFor="let v of getValuesForAxis(axis)" [label]="v" [removable]="true"
+                    (onRemove)="removeValueFromAxis(axis, v)"></p-chip>
+                </div>
+                <div class="p-inputgroup">
+                  <span class="p-inputgroup-addon"><i class="pi pi-tag"></i></span>
+                  <input [id]="'gvAxis-' + axis" type="text" pInputText [(ngModel)]="axisNewValue[axis]"
+                    [placeholder]="'product_family_add_value' | translate"
+                    (keyup.enter)="addValueToAxis(axis)" />
+                  <button pButton type="button" icon="pi pi-plus" class="p-button-outlined"
+                    [pTooltip]="'product_family_add_value' | translate" tooltipPosition="top"
+                    (click)="addValueToAxis(axis)"></button>
+                </div>
+              </div>
+              <small class="ims-form-hint">{{ 'product_family_axis_values_hint' | translate: { axis } }}</small>
+            </div>
+
+            <div *ngIf="expectedCombinationCount() > 0" class="generate-variants-combination-summary">
+              <i class="pi pi-th-large"></i>
+              <span>
+                {{ 'product_family_combination_count' | translate }}:
+                <strong>{{ expectedCombinationCount() }}</strong>
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-content-between align-items-center w-full">
+      <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+        class="p-button-text" (click)="hide()" [disabled]="isSaving"></button>
+      <button pButton pRipple [label]="'product_family_generate_button' | translate" icon="pi pi-th-large"
+        class="p-button-primary" (click)="generate()" [loading]="isSaving"></button>
+    </div>
+  </ng-template>
+</p-dialog>

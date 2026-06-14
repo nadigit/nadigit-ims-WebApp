@@ -57,8 +57,8 @@
     right: 0;
     bottom: 0;
     background: 
-        radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--purple-500) 5%, transparent) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--purple-500) 8%, transparent) 0%, transparent 50%);
+        radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--brand-cyan) 5%, transparent) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--brand-cyan) 8%, transparent) 0%, transparent 50%);
     pointer-events: none;
 }
 
@@ -77,22 +77,6 @@
 .back-button:hover {
     color: var(--primary-color) !important;
     background: var(--surface-hover) !important;
-}
-
-.expense-hero-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #a855f7, #9333ea);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px rgba(168, 85, 247, 0.3);
-}
-
-.expense-hero-icon i {
-    font-size: 2.5rem;
-    color: white;
 }
 
 .expense-title {
@@ -141,37 +125,6 @@
 .stat-card-modern:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-icon.amount {
-    background: linear-gradient(135deg, #a855f7, #9333ea);
-}
-
-.stat-icon.method {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.stat-icon.date {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.shop {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
 .stat-content {
@@ -323,38 +276,6 @@
     background: var(--surface-100);
 }
 
-.info-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.info-icon i {
-    color: white;
-    font-size: 1rem;
-}
-
-.info-icon.audit {
-    background: linear-gradient(135deg, #64748b, #475569);
-}
-
-.info-icon.purpose {
-    background: linear-gradient(135deg, #a855f7, #9333ea);
-}
-
-.info-icon.date {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.info-icon.amount {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
 .info-content {
     flex: 1;
     min-width: 0;
@@ -421,7 +342,7 @@
     background: var(--surface-50);
     border-radius: 12px;
     padding: 1rem;
-    border-left: 4px solid var(--purple-500);
+    border-left: 4px solid var(--brand-cyan);
     font-style: italic;
     color: var(--text-color);
     line-height: 1.6;
@@ -482,21 +403,12 @@
     height: 100%;
 }
 
-:host ::ng-deep .attachment-thumb-spinner.p-progress-spinner {
-    width: 2.5rem;
-    height: 2.5rem;
-}
-
-:host ::ng-deep .attachment-thumb-spinner.p-progress-spinner-circle {
-    stroke: var(--primary-color);
-}
-
 .attachment-tile-thumb--pdf {
     background: linear-gradient(145deg, rgba(239, 68, 68, 0.12), var(--surface-100));
 }
 
 .attachment-tile-thumb--doc {
-    background: linear-gradient(145deg, rgba(59, 130, 246, 0.1), var(--surface-100));
+    background: linear-gradient(145deg, rgba(30, 94, 255, 0.1), var(--surface-100));
 }
 
 .attachment-thumb-btn {
@@ -632,7 +544,7 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #22c55e, #16a34a);
+    background: linear-gradient(135deg, var(--green-500), var(--green-600));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -779,7 +691,7 @@
 }
 
 .marker-icon.status-recorded {
-    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    background: linear-gradient(135deg, var(--primary-400), var(--primary-500));
 }
 
 .marker-icon.status-pending {
@@ -787,11 +699,11 @@
 }
 
 .marker-icon.status-approved {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
+    background: linear-gradient(135deg, var(--green-500), var(--green-600));
 }
 
 .marker-icon.status-reimbursed {
-    background: linear-gradient(135deg, #a855f7, #9333ea);
+    background: linear-gradient(135deg, #1E5EFF, #18C5D8);
 }
 
 .marker-icon.status-rejected {
@@ -876,11 +788,11 @@
     padding: 0.75rem;
     background: var(--surface-50);
     border-radius: 8px;
-    border-left: 3px solid var(--purple-500);
+    border-left: 3px solid var(--brand-cyan);
 }
 
 .timeline-notes i {
-    color: var(--purple-500);
+    color: var(--brand-cyan);
     margin-top: 2px;
 }
 
@@ -970,16 +882,6 @@
         padding: 1.5rem;
     }
     
-    .expense-hero-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 14px;
-    }
-    
-    .expense-hero-icon i {
-        font-size: 1.75rem;
-    }
-    
     .expense-title {
         font-size: 1.5rem;
     }
@@ -997,11 +899,6 @@
     
     .stat-card-modern {
         padding: 1rem;
-    }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
     }
     
     .stat-value {
@@ -1052,8 +949,8 @@
     
     .hero-background {
         background: 
-            radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--purple-500) 8%, transparent) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--purple-500) 10%, transparent) 0%, transparent 50%);
+            radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--brand-cyan) 8%, transparent) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--brand-cyan) 10%, transparent) 0%, transparent 50%);
     }
     
     .stat-card-modern {

@@ -29,7 +29,29 @@ import { FinancialDocumentsService } from 'src/app/services/financial-documents.
 import { firstValueFrom, lastValueFrom, Subscription } from 'rxjs';
 import { skip } from 'rxjs/operators';
 import { getPaymentMethodLabel, getPaymentMethodSeverity, getPaymentStatusSeverity } from 'src/app/shared/payment-utils';
-import { getMeasureUnit, getQuantitySeverity, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
+import {
+  getMeasureUnit,
+  getQuantitySeverity,
+  getAvailableQuantity,
+  hasWriteOffs,
+  getWriteOffQuantity,
+  buildOrderItemPayload,
+  lineQuantityStep,
+  lineQuantityDecimals,
+  formatProductStockLabel,
+  lineQuantityMin as lineQtyMin,
+  defaultLineQuantity as defaultLineQty,
+  formatLineQuantity as formatLineQty,
+  getLineMeasureUnit,
+  getOrderItemDisplayQuantity,
+  getOrderItemDisplayReturnedQuantity,
+  getOrderItemDisplayRemainingQuantity,
+  getProductTypeBadgeIcon,
+  getProductTypeBadgeKey,
+  getProductTypeBadgeSeverity,
+} from 'src/app/shared/product-utils';
+import { QuantityScale } from 'src/app/utils/quantity-scale.util';
+import { getProductVariantSummary as buildProductVariantSummary, isFashionVariantMissing as isFashionVariantMissingUtil } from 'src/app/shared/variant-summary.utils';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
@@ -44,6 +66,11 @@ import { StockReservationService } from 'src/app/services/stock-reservation.serv
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { ShopFormDialogConfig, ShopFormDialogData } from '../../inventory/shops/shop-form-dialog/shop-form-dialog.component';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 interface EventItem {
   status?: string;
@@ -328,8 +355,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
+  canArchiveProduct: boolean = false;
   canReadProduct: boolean = false;
   isLoading: boolean = true;
+  isInitialLoad: boolean = true;
+  private lazyLoadCallCount = 0;
   isExporting: boolean = false;
   exportProgress: string = '';
   productDetailDialog: boolean = false;
@@ -461,6 +491,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.orders, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      rows: this.rows,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     await this.processModeService.ensureLoaded();
     this.salesDocumentChainMode = this.processModeService.isSalesDocumentChain();
 
@@ -569,17 +604,29 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
 
   onLazyLoad(event: LazyLoadEvent) {
+    if (this.isLoading) {
+      return;
+    }
+    this.lazyLoadCallCount++;
+    if (this.lazyLoadCallCount === 1 && this.orders.length > 0) {
+      this.isInitialLoad = false;
+      return;
+    }
     const extendedEvent: LazyLoadEventExt = {
       ...event,
       globalFilter: this.globalFilter
     };
 
     this.updateLastLazyLoadEvent(extendedEvent);
+    this.isInitialLoad = false;
+    this.isLoading = true;
+    this.cdr.markForCheck();
     this.loadOrders();
   }
 
 
   loadOrders() {
+    this.isLoading = true;
     const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
 
     const page = first! / rows!;
@@ -670,9 +717,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
 
   private updateLastLazyLoadEvent(event: LazyLoadEvent) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.orders, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+      rows: this.rows,
+    });
+    const rows = event.rows ?? this.lastLazyLoadEvent.rows ?? this.pageSize;
     this.lastLazyLoadEvent = {
       first: event.first ?? this.lastLazyLoadEvent.first,
-      rows: event.rows ?? this.lastLazyLoadEvent.rows,
+      rows,
       sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
       sortOrder: event.sortOrder ?? this.lastLazyLoadEvent.sortOrder,
       globalFilter: event.globalFilter ?? this.globalFilter,
@@ -1107,7 +1159,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   private buildCheckoutReservationLines(): { productId: number; quantity: number }[] {
     return this.targetProducts
       .filter(p => this.isProduct(p) && p.productId != null && (p.orderItemQuantity ?? 0) > 0)
-      .map(p => ({ productId: p.productId as number, quantity: p.orderItemQuantity as number }));
+      .map(p => ({
+        productId: p.productId as number,
+        quantity: QuantityScale.isFractional(p)
+          ? QuantityScale.toStorageQuantity(p, p.orderItemQuantity as number)
+          : (p.orderItemQuantity as number),
+      }));
   }
 
   private async syncCheckoutReservationsNow(): Promise<void> {
@@ -1241,7 +1298,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.targetProducts.forEach((product) => {
       // Only update if price wasn't manually overridden
       if (!product['orderItemPricePerUnitManual']) {
-        const quantity = product.orderItemQuantity || 1;
+        const quantity = product.orderItemQuantity || this.defaultLineQuantity(product);
         const effectivePrice = this.getEffectivePrice(product, quantity);
         product.orderItemPricePerUnit = effectivePrice;
       }
@@ -1444,6 +1501,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.canAddProduct = this.permissionService.canCreate('PRODUCTS');
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
+    this.canArchiveProduct = this.permissionService.canArchive('PRODUCTS');
     this.canReadProduct = this.permissionService.canRead('PRODUCTS');
   }
 
@@ -1670,6 +1728,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     if (o.transportAmount == null || Number.isNaN(Number(o.transportAmount))) {
       o.transportAmount = 0;
     }
+    if (o.additionalChargesAmount == null || Number.isNaN(Number(o.additionalChargesAmount))) {
+      o.additionalChargesAmount = 0;
+    }
   }
 
   /**
@@ -1727,21 +1788,24 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.onGetAllShops(),
     console.log(this.discountType);
     this.orderItems = this.order.orderItems.map(item => {
+      const displayQty = item.displayQuantity ?? QuantityScale.toDisplayQuantity(item.product, item.quantity ?? 0);
       return {
         orderItemId: item.orderItemId,
         product: {
           ...item.product,
-          orderItemQuantity: item.quantity,
+          orderItemQuantity: displayQty,
           orderItemPricePerUnit: item.pricePerUnit,
           orderItemPricePerUnitManual: true,
         },
         quantity: item.quantity,
+        displayQuantity: displayQty,
         pricePerUnit: item.pricePerUnit,
       };
     });
     // Mutate shared product refs on order.line items before pick list (getTargetProducts uses these refs)
     this.order.orderItems.forEach((item) => {
-      item.product.orderItemQuantity = item.quantity;
+      const displayQty = item.displayQuantity ?? QuantityScale.toDisplayQuantity(item.product, item.quantity ?? 0);
+      item.product.orderItemQuantity = displayQty;
       item.product.orderItemPricePerUnit = item.pricePerUnit;
       item.product['orderItemPricePerUnitManual'] = true;
     });
@@ -1764,19 +1828,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   // Update the remaining quantity after return
   updateRemainingQuantity(item: any) {
-    item.remainingQuantity = item.quantity - item.returnedQuantity;
-
-    // Log to see if returnedQuantity is updated
-    console.log('Updated returnedQuantity:', item.returnedQuantity);
+    item.remainingQuantity = this.getOrderItemRemainingQty(item) - (item.displayReturnQuantity || 0);
   }
 
   updateReturnedQuantity(item: any) {
-    // Update the corresponding item in selectedItems with the new returnedQuantity value
     const selectedItem = this.selectedItems.find(si => si.orderItemId === item.orderItemId);
     if (selectedItem) {
-      selectedItem.returnedQuantity = item.returnedQuantity;
+      selectedItem.displayReturnQuantity = item.displayReturnQuantity;
+      if (item.product && item.displayReturnQuantity != null) {
+        selectedItem.returnedQuantity = QuantityScale.isFractional(item.product)
+          ? QuantityScale.toStorageQuantity(item.product, item.displayReturnQuantity)
+          : Math.round(item.displayReturnQuantity);
+      }
     }
-    // Optionally update remainingQuantity here as well
     this.updateRemainingQuantity(item);
   }
 
@@ -1846,6 +1910,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.discountType = "Amount";
     this.order.discount = 0;
     this.order.transportAmount = 0;
+    this.order.additionalChargesAmount = 0;
     this.order.taxEnabled = false;
     await this.onGetProductsCategories();
     this.targetProducts = [];
@@ -1962,11 +2027,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     }
 
     // Prepare Order Items
-    const orderItems: OrderItem[] = this.targetProducts.map((product) => ({
-      product,
-      quantity: product['orderItemQuantity'],
-      pricePerUnit: this.getOrderItemPricePerUnitForPayload(product),
-    }));
+    const orderItems: OrderItem[] = this.targetProducts.map((product) =>
+      buildOrderItemPayload(
+        product,
+        product['orderItemQuantity'] ?? this.defaultLineQuantity(product),
+        this.getOrderItemPricePerUnitForPayload(product)
+      )
+    );
 
     // ⚠️ REMOVED: Credit limit validation before order creation
     // The backend will now handle this properly when payments are included
@@ -2770,6 +2837,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     };
 
     this.updateLastLazyLoadEvent(lazyEvent);
+    this.isLoading = true;
     this.loadOrders();
   }
 
@@ -2867,10 +2935,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         }
         this.products = mappedProducts;
 
-        // Filter products by category and net available quantity
-        if (this.selectedCategory) {
-          this.filteredProducts = this.products.filter((product: Product) => 
-            product.productType === 'SERVICE' || this.getAvailableQuantity(product) > 0
+        if (this.selectedCategory?.categoryId) {
+          this.filteredProducts = this.products.filter((product: Product) =>
+            Number(product.category?.categoryId) === Number(this.selectedCategory.categoryId)
           );
         } else {
           this.filteredProducts = [];
@@ -2923,10 +2990,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     await this.productService.getQuickProducts()
       .subscribe({
         next: (response: any) => {
-          // Filter out products with no net available quantity (excluding services)
-          this.quickProducts = response.filter((product: Product) => 
-            (!this.isAdmin || Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)) &&
-            (product.productType === 'SERVICE' || this.getAvailableQuantity(product) > 0)
+          this.quickProducts = response.filter((product: Product) =>
+            !this.isAdmin || Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)
           );
           console.log(this.quickProducts);
           this.cdr.markForCheck();
@@ -3606,7 +3671,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           // Add the orderItemPricePerUnit field and assign the value of sellingPrice from the item
           product.orderItemPricePerUnit = item.sellingPrice;
           product.orderItemPricePerUnitManual = false;
-          product.orderItemQuantity = 1;
+          product.orderItemQuantity = this.defaultLineQuantity(product);
         }
       });
     });
@@ -3635,7 +3700,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         ...product,
         orderItemPricePerUnit: product.sellingPrice,
         orderItemPricePerUnitManual: false,
-        orderItemQuantity: 1
+        orderItemQuantity: this.defaultLineQuantity(product)
       };
       this.targetProducts.push(newProduct);
       this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
@@ -3649,7 +3714,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.scheduleSyncCheckoutReservations();
       this.cdr.detectChanges();
     } else {
-      existingProduct.orderItemQuantity += 1;
+      existingProduct.orderItemQuantity += this.quantityInputStep(existingProduct);
       this.messageService.add({
         severity: 'info',
         summary: this.translate.instant('info'),
@@ -3889,7 +3954,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const discountAmount = this.calculateDiscountAmount();
     const taxAmount = this.calculateTax(subtotal - discountAmount);
     const transportAmount = this.order.transportAmount || 0;
-    return subtotal - discountAmount + taxAmount + transportAmount;
+    const additionalCharges = this.order.additionalChargesAmount || 0;
+    return subtotal - discountAmount + taxAmount + transportAmount + additionalCharges;
   }
 
   calculateTotalAmount(): number {
@@ -3904,8 +3970,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = this.calculateTax(taxableAmount);
     const transportAmount = this.order.transportAmount || 0;
+    const additionalCharges = this.order.additionalChargesAmount || 0;
 
-    return taxableAmount + taxAmount + transportAmount;
+    return taxableAmount + taxAmount + transportAmount + additionalCharges;
   }
 
 
@@ -4196,9 +4263,100 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     return !product.productType || product.productType === 'PRODUCT';
   }
 
+  getProductBadgeKey(product: Product): string {
+    return getProductTypeBadgeKey(product);
+  }
+
+  getProductBadgeSeverity(product: Product): string {
+    return getProductTypeBadgeSeverity(product);
+  }
+
+  getProductBadgeIcon(product: Product): string {
+    return getProductTypeBadgeIcon(product);
+  }
+
   // Write-off integration helpers
   getAvailableQuantity(product: Product): number {
     return getAvailableQuantity(product);
+  }
+
+  getQuantityAlreadyInOrder(product: Product): number {
+    const existing = this.targetProducts.find(p => p.productId === product.productId);
+    return existing?.orderItemQuantity ?? 0;
+  }
+
+  getRemainingAvailableQuantity(product: Product): number {
+    if (this.isService(product)) {
+      return Number.POSITIVE_INFINITY;
+    }
+    return Math.max(0, this.getAvailableQuantity(product) - this.getQuantityAlreadyInOrder(product));
+  }
+
+  canSelectProductForOrder(product: Product): boolean {
+    if (!product) {
+      return false;
+    }
+    if (this.isService(product)) {
+      return true;
+    }
+    return this.getRemainingAvailableQuantity(product) > 0;
+  }
+
+  getProductUnselectableReason(product: Product): string | null {
+    if (this.canSelectProductForOrder(product)) {
+      return null;
+    }
+    if (this.isService(product)) {
+      return null;
+    }
+
+    const available = this.getAvailableQuantity(product);
+    const inOrder = this.getQuantityAlreadyInOrder(product);
+    const writeOffQty = this.hasWriteOffs(product) ? this.getWriteOffQuantity(product) : 0;
+
+    if (available <= 0) {
+      return writeOffQty > 0
+        ? this.translate.instant('product_out_of_stock_writeoffs').replace('{0}', writeOffQty.toString())
+        : this.translate.instant('product_out_of_stock');
+    }
+
+    if (inOrder > 0 && inOrder >= available) {
+      return this.translate.instant('product_max_quantity_in_order', { available });
+    }
+
+    return this.translate.instant('insufficient_stock', {
+      available: this.getRemainingAvailableQuantity(product),
+      required: 1
+    });
+  }
+
+  notifyProductNotSelectable(product: Product): void {
+    this.messageService.add({
+      severity: 'warn',
+      summary: this.translate.instant('warning'),
+      detail: this.getProductUnselectableReason(product) || this.translate.instant('product_quantity_insufficient'),
+      life: 4000
+    });
+  }
+
+  onQuickProductClick(product: Product): void {
+    if (!this.canSelectProductForOrder(product)) {
+      this.notifyProductNotSelectable(product);
+      return;
+    }
+    this.addProductToOrder(product);
+  }
+
+  onCategoryProductClick(product: Product): void {
+    if (!this.canSelectProductForOrder(product)) {
+      this.notifyProductNotSelectable(product);
+      return;
+    }
+    this.addProductToOrder(product);
+  }
+
+  getSelectableCategoryProductsCount(): number {
+    return this.filteredProducts.filter(product => this.canSelectProductForOrder(product)).length;
   }
 
   hasWriteOffs(product: Product): boolean {
@@ -4224,29 +4382,19 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   getProductVariantSummary(product: any): string {
-    const size = this.readProductAttributeText(product, ['size']);
-    const color = this.readProductAttributeText(product, ['color', 'colour']);
-    if (!size && !color) {
-      return '';
-    }
-    if (size && color) {
-      return `${size} / ${color}`;
-    }
-    return size || color;
+    return buildProductVariantSummary(product);
   }
 
   isFashionVariantMissing(product: any): boolean {
-    if (!this.activityProfileService.isFashionProfile) {
-      return false;
-    }
-    if (!this.isProduct(product)) {
-      return false;
-    }
-    return !this.getProductVariantSummary(product);
+    return isFashionVariantMissingUtil(product, this.activityProfileService.isFashionProfile);
   }
 
   openProfileSettings(): void {
     void this.router.navigate(['/administration/settings'], { queryParams: { businessProfile: 1 } });
+  }
+
+  onVariantProductPicked(product: Product): void {
+    this.addProductToOrder(product);
   }
 
   addProductToOrder(product: Product): void {
@@ -4260,29 +4408,18 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       return;
     }
 
-    // Only check quantity for products, not services - use net quantity
-    const availableQty = this.getAvailableQuantity(product);
-    console.log('Available quantity:', availableQty);
-    console.log('Product:', product);
-    if (this.isProduct(product) && (availableQty === null || availableQty === undefined || availableQty <= 0)) {
-      const writeOffQty = this.hasWriteOffs(product) ? this.getWriteOffQuantity(product) : 0;
-      const message = writeOffQty > 0 
-        ? this.translate.instant('product_out_of_stock_writeoffs').replace('{0}', writeOffQty.toString())
-        : this.translate.instant('product_quantity_insufficient');
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: message,
-        life: 3000,
-      });
+    if (!this.canSelectProductForOrder(product)) {
+      this.notifyProductNotSelectable(product);
       return;
     }
+
+    const availableQty = this.getRemainingAvailableQuantity(product);
 
     const existingProduct = this.targetProducts.find(p => p.productId === product.productId);
 
     if (!existingProduct) {
       // Get effective price based on customer pricing
-      const quantity = product.orderItemQuantity ? product.orderItemQuantity : 1;
+      const quantity = product.orderItemQuantity ? product.orderItemQuantity : this.defaultLineQuantity(product);
       const effectivePrice = this.getEffectivePrice(product, quantity);
       
       // Add as new product
@@ -4302,11 +4439,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       });
 
     } else {
-      // Check stock before increasing quantity (only for products) - use net quantity
       if (this.isProduct(product)) {
         const availableQty = this.getAvailableQuantity(product);
         if (existingProduct.orderItemQuantity < availableQty) {
-          existingProduct.orderItemQuantity += 1;
+          existingProduct.orderItemQuantity += this.quantityInputStep(existingProduct);
           // Recalculate price when quantity changes (if not manually overridden)
           if (!existingProduct['orderItemPricePerUnitManual']) {
             // Use async method to get price for new quantity
@@ -4330,7 +4466,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         }
       } else {
         // For services, just increase quantity without stock check
-        existingProduct.orderItemQuantity += 1;
+        existingProduct.orderItemQuantity += this.quantityInputStep(existingProduct);
         // Recalculate price when quantity changes (if not manually overridden)
         if (!existingProduct['orderItemPricePerUnitManual']) {
           // Use async method to get price for new quantity
@@ -4394,7 +4530,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     } else {
       // If override is disabled, revert to customer pricing or default
       product['orderItemPricePerUnitManual'] = false;
-      const quantity = product.orderItemQuantity || 1;
+      const quantity = product.orderItemQuantity || this.defaultLineQuantity(product);
       product.orderItemPricePerUnit = this.getEffectivePrice(product, quantity);
       this.updateProductSubtotal(product);
       this.messageService.add({
@@ -4422,7 +4558,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   async updateProductPriceForQuantity(product: Product): Promise<void> {
     if (!product.productId) return;
     
-    const quantity = product.orderItemQuantity || 1;
+    const quantity = product.orderItemQuantity || this.defaultLineQuantity(product);
     
     // If customer pricing is available, try to get price for this quantity
     if (this.order.customer?.customerId) {
@@ -4485,9 +4621,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       
       if (product.orderItemQuantity > netAvailable) {
         const writeOffs = this.hasWriteOffs(product) ? this.getWriteOffQuantity(product) : 0;
+        const unitLabel = this.translate.instant(this.getMeasureUnit(product, netAvailable));
         const message = writeOffs > 0
-          ? `${product.name}: Only ${netAvailable} units available (${writeOffs} units written off). Requested: ${product.orderItemQuantity}`
-          : `${product.name}: Only ${netAvailable} units available. Requested: ${product.orderItemQuantity}`;
+          ? `${product.name}: Only ${this.formatLineQuantity(product, netAvailable)} ${unitLabel} available (${this.formatLineQuantity(product, writeOffs)} ${unitLabel} written off). Requested: ${this.formatLineQuantity(product, product.orderItemQuantity)} ${unitLabel}`
+          : `${product.name}: Only ${this.formatLineQuantity(product, netAvailable)} ${unitLabel} available. Requested: ${this.formatLineQuantity(product, product.orderItemQuantity)} ${unitLabel}`;
         
         this.messageService.add({
           severity: 'warn',
@@ -4708,8 +4845,53 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.router.navigate(['/inventory/products', product.productId]);
   }
 
-  getMeasureUnit(product: Product): string {
-    return getMeasureUnit(product.measureUnit, product.quantityAvailable);
+  quantityInputStep(product: Product): number {
+    return lineQuantityStep(product);
+  }
+
+  quantityInputDecimals(product: Product): number {
+    return lineQuantityDecimals(product);
+  }
+
+  lineQuantityMin(product: Product): number {
+    return lineQtyMin(product);
+  }
+
+  defaultLineQuantity(product: Product): number {
+    return defaultLineQty(product);
+  }
+
+  formatLineQuantity(product: Product, quantity: number | null | undefined): string {
+    return formatLineQty(product, quantity);
+  }
+
+  getProductStockLabel(product: Product): { quantity: string; unit: string } {
+    return formatProductStockLabel(product);
+  }
+
+  getMeasureUnit(product: Product, quantity?: number): string {
+    const qty = quantity ?? product.orderItemQuantity ?? getAvailableQuantity(product);
+    return getLineMeasureUnit(product, qty);
+  }
+
+  getOrderItemQty(item: any): number {
+    return getOrderItemDisplayQuantity(item);
+  }
+
+  getOrderItemReturnedQty(item: any): number {
+    return getOrderItemDisplayReturnedQuantity(item);
+  }
+
+  getOrderItemRemainingQty(item: any): number {
+    return getOrderItemDisplayRemainingQuantity(item);
+  }
+
+  formatOrderItemQty(item: any): string {
+    return formatLineQty(item?.product, getOrderItemDisplayQuantity(item));
+  }
+
+  getOrderItemMeasureUnit(item: any): string {
+    return getLineMeasureUnit(item?.product, getOrderItemDisplayQuantity(item));
   }
 
   getQuantitySeverity(quantity: number): string {
@@ -4780,14 +4962,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
     this.product = { ...product };
+    this.deleteProductDialog = true;
   }
 
-  async confirmProductDelete() {
+  async onProductDeleteConfirmed(productId: number) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.product.productId);
+    await this.onDeleteProduct(productId);
     this.product = {};
   }
 
@@ -4871,14 +5052,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
 
   archiveProduct(product: Product) {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = true;
     this.product = { ...product };
     this.productDialog = false;
   }
 
   async confirmArchive() {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = false;
     await this.onArchiveProduct(this.product.productId);
     this.product = {};

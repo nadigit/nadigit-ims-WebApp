@@ -1,4 +1,4 @@
-<div class="write-off-details-container">
+﻿<div class="write-off-details-container">
     <p-toast></p-toast>
 
     <p-message *ngIf="writeOffApprovalConfigLoaded && requireManualWriteOffApproval" severity="info"
@@ -8,7 +8,7 @@
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -31,7 +31,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="write-off-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--danger">
                             <i class="pi pi-minus-circle"></i>
                         </div>
                         <div>
@@ -59,10 +59,6 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" 
-                            [label]="'refresh' | translate"
-                            class="p-button-outlined"
-                            (click)="refreshWriteOffDetails()"></button>
                         <button pButton pRipple icon="pi pi-check" 
                             [label]="'approve_write_off' | translate"
                             *ngIf="canApproveWriteOff(writeOff)"
@@ -81,18 +77,18 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon quantity">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-hashtag"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'quantity' | translate }}</span>
-                    <div class="stat-value">{{ writeOff.quantity || 0 }}</div>
+                    <div class="stat-value">{{ formatWriteOffQuantity(writeOff) }}<ng-container *ngIf="getWriteOffQuantityUnit(writeOff)"> {{ getWriteOffQuantityUnit(writeOff) | translate }}</ng-container></div>
                     <span class="stat-sub">{{ 'units' | translate }}</span>
                 </div>
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon cost">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-dollar"></i>
                 </div>
                 <div class="stat-content">
@@ -102,7 +98,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon condition">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
                     <i class="pi pi-exclamation-triangle"></i>
                 </div>
                 <div class="stat-content">
@@ -115,7 +111,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon source">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                     <i class="pi pi-tag"></i>
                 </div>
                 <div class="stat-content">
@@ -147,7 +143,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
@@ -157,7 +153,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="writeOff.writeOffDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -167,7 +163,7 @@
                                     </div>
                                     
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="info-content">
@@ -178,7 +174,7 @@
                                     </div>
 
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-exclamation-triangle"></i>
                                         </div>
                                         <div class="info-content">
@@ -189,7 +185,7 @@
                                     </div>
 
                                     <div class="info-item" *ngIf="writeOff.sourceType">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="info-content">
@@ -199,7 +195,7 @@
                                     </div>
 
                                     <div class="info-item" *ngIf="writeOff.sourceReference">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-file"></i>
                                         </div>
                                         <div class="info-content">
@@ -238,7 +234,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
                                             <i class="pi pi-box"></i>
                                         </div>
                                         <div class="info-content">
@@ -248,7 +244,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="writeOff.product.reference">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
@@ -269,7 +265,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-building"></i>
                                         </div>
                                         <div class="info-content">
@@ -290,7 +286,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="writeOff.batch.batchNumber">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
@@ -300,7 +296,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="writeOff.batch.expirationDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -321,7 +317,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="writeOff.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -330,7 +326,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="writeOff.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -339,7 +335,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="writeOff.approvedBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-check-circle"></i>
                                         </div>
                                         <div class="info-content">
@@ -348,7 +344,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="writeOff.approvedDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-verified"></i>
                                         </div>
                                         <div class="info-content">
@@ -357,7 +353,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="writeOff.rejectedBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger">
                                             <i class="pi pi-times-circle"></i>
                                         </div>
                                         <div class="info-content">
@@ -366,7 +362,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="writeOff.rejectedDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger">
                                             <i class="pi pi-calendar-times"></i>
                                         </div>
                                         <div class="info-content">

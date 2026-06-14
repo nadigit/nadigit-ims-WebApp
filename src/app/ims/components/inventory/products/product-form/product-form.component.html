@@ -3,38 +3,52 @@
 	header="{{'product_details' | translate}}"
 	[modal]="true" [draggable]="false" [resizable]="false"
 	[breakpoints]="{'1199px': '94vw', '960px': '96vw', '640px': '98vw'}"
-	[styleClass]="'product-form-dialog-shell'"
+	[styleClass]="'ims-form-dialog-shell'"
 	class="p-fluid product-dialog">
 	<ng-template pTemplate="content">
 		<form>
-			<div class="grid p-fluid">
-				<div class="col-12" *ngIf="activityProfileService.currentProfile">
-					<div class="p-3 border-round surface-ground border-1 surface-border mb-2">
-						<div class="flex align-items-center justify-content-between gap-2">
-							<div class="font-semibold text-900">
-								{{ 'profile_mode_active' | translate }}: {{ activityProfileService.profileLabelI18nKey() | translate }}
+			<div class="grid p-fluid ims-form-layout">
+				<div class="col-12 product-form-profile-row" *ngIf="activityProfileService.currentProfile">
+					<div class="product-form-profile-banner">
+						<div class="product-form-profile-banner__head">
+							<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+								<i class="pi pi-star" aria-hidden="true"></i>
 							</div>
-							<i class="pi pi-sparkles text-primary"></i>
+							<span class="product-form-profile-banner__title">
+								{{ 'profile_mode_active' | translate }}:
+								{{ activityProfileService.profileLabelI18nKey() | translate }}
+							</span>
 						</div>
-						<div *ngIf="activityProfileService.isPharmacyProfile" class="text-600 text-sm mt-2">
-							<i class="pi pi-check-circle mr-2"></i>{{ 'profile_mode_pharmacy_product_form' | translate }}
-						</div>
-						<div *ngIf="activityProfileService.isFashionProfile" class="text-600 text-sm mt-2">
-							<i class="pi pi-check-circle mr-2"></i>{{ 'profile_mode_fashion_product_form' | translate }}
-						</div>
-						<div *ngIf="activityProfileService.isFashionProfile" class="text-600 text-sm mt-2">
-							<i class="pi pi-exclamation-circle mr-2 text-orange-500"></i>{{ 'profile_mode_fashion_size_color_required' | translate }}
-						</div>
-						<div *ngIf="activityProfileService.isPharmacyProfile" class="text-600 text-sm mt-2">
-							<i class="pi pi-exclamation-circle mr-2 text-orange-500"></i>{{ 'profile_mode_pharmacy_expiration_required' | translate }}
-						</div>
-						<div *ngIf="activityProfileService.suggestRecipesOrComponents" class="text-600 text-sm mt-2">
-							<i class="pi pi-box mr-2"></i>{{ 'activity_profile_hint_recipes_components' | translate }}
-						</div>
+						<ul class="product-form-profile-banner__list">
+							<li *ngIf="activityProfileService.isPharmacyProfile">
+								<i class="pi pi-check-circle"></i>{{ 'profile_mode_pharmacy_product_form' | translate }}
+							</li>
+							<li *ngIf="activityProfileService.isFashionProfile">
+								<i class="pi pi-check-circle"></i>{{ 'profile_mode_fashion_product_form' | translate }}
+							</li>
+							<li *ngIf="activityProfileService.isFashionProfile" class="product-form-profile-banner__warn">
+								<i class="pi pi-exclamation-circle"></i>{{ 'profile_mode_fashion_size_color_required' | translate }}
+							</li>
+							<li *ngIf="activityProfileService.isPharmacyProfile" class="product-form-profile-banner__warn">
+								<i class="pi pi-exclamation-circle"></i>{{ 'profile_mode_pharmacy_expiration_required' | translate }}
+							</li>
+							<li *ngIf="activityProfileService.suggestRecipesOrComponents">
+								<i class="pi pi-box"></i>{{ 'activity_profile_hint_recipes_components' | translate }}
+							</li>
+						</ul>
 					</div>
 				</div>
-				<!-- Left Column — Media (modern layout) -->
-				<div class="col-12 lg:col-5">
+				<!-- Left column — media + classification + expiration + costing -->
+				<div class="col-12 lg:col-6">
+					<div class="ims-form-fields ims-form-fields">
+					<section class="ims-form-section ims-form-section--media">
+						<header class="ims-form-section__header">
+							<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+								<i class="pi pi-images"></i>
+							</div>
+							<h3 class="ims-form-section__title">{{ 'product_image' | translate }}</h3>
+						</header>
+						<div class="ims-form-section__body ims-form-section__body--media">
 					<div class="product-media-shell"
 						*ngIf="localProduct.productImage || imagePreviewUrl || (productImages && productImages.length > 0) || (pendingPreviewUrls && pendingPreviewUrls.length > 0); else upload_image">
 						<div class="product-media-card surface-section">
@@ -68,8 +82,7 @@
 												</p-image>
 												<div class="loading-overlay flex align-items-center justify-content-center border-round-xl"
 													*ngIf="isImageLoading">
-													<p-progressSpinner strokeWidth="3" animationDuration=".5s"
-														styleClass="w-3rem h-3rem" ariaLabel="image-loading">
+													<p-progressSpinner styleClass="ims-spinner--md" ariaLabel="image-loading">
 													</p-progressSpinner>
 												</div>
 											</div>
@@ -317,14 +330,264 @@
 							</div>
 						</div>
 					</ng-template>
+						</div>
+					</section>
+
+						<!-- Classification & inventory -->
+						<section class="ims-form-section">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+									<i class="pi pi-sitemap"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_essentials_title' | translate }}</h3>
+							</header>
+
+							<div class="grid ims-form-section__body ims-form-section__body--sidebar">
+								<!-- Category -->
+								<div class="field col-12">
+									<div class="ims-form-field-head">
+										<label for="category" class="ims-form-label">
+											{{ 'product_category' | translate }}
+											<span class="required-asterisk">*</span>
+										</label>
+										<button type="button" pButton pRipple icon="pi pi-plus"
+											class="p-button-rounded p-button-text p-button-sm ims-form-add-btn"
+											*ngIf="canAddCategory" (click)="openCategoryDialog()"
+											[pTooltip]="'add_new_category' | translate" tooltipPosition="top"
+											[attr.aria-label]="'add_new_category' | translate"></button>
+									</div>
+									<p-dropdown appendTo="body" inputId="category" [(ngModel)]="localProduct.category"
+										[ngModelOptions]="{standalone: true}" name="category" optionLabel="categoryName"
+										[options]="categories" [filter]="true" filterBy="categoryName" [showClear]="true"
+										placeholder="{{ 'select_category' | translate }}" required styleClass="w-full"
+										(onChange)="onCategoryChange()"
+										[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.category}"
+										[disabled]="!isAdmin && localProduct?.productId">
+										<ng-template pTemplate="selectedItem">
+											<span *ngIf="localProduct && localProduct.category"
+												class="flex align-items-center gap-2 min-w-0">
+												<i class="pi pi-folder"></i>
+												<span class="truncate">{{ localProduct.category.categoryName }}</span>
+											</span>
+										</ng-template>
+										<ng-template let-option pTemplate="item">
+											<span class="flex align-items-center gap-2">
+												<i class="pi pi-folder"></i>
+												{{ option.categoryName }}
+											</span>
+										</ng-template>
+									</p-dropdown>
+									<small class="p-error" *ngIf="submitted && !localProduct.category">
+										{{'product_category' | translate}} {{'is_required_label' | translate}}
+									</small>
+								</div>
+
+								<!-- Supplier -->
+								<div class="field col-12">
+									<div class="ims-form-field-head">
+										<label for="supplier" class="ims-form-label">
+											{{'product_supplier' | translate}}
+											<span class="required-asterisk" *ngIf="isProduct()">*</span>
+										</label>
+										<button type="button" pButton pRipple icon="pi pi-plus"
+											class="p-button-rounded p-button-text p-button-sm ims-form-add-btn"
+											*ngIf="canAddSupplier" (click)="openSupplierDialog()"
+											[pTooltip]="'add_new_supplier' | translate" tooltipPosition="top"
+											[attr.aria-label]="'add_new_supplier' | translate"></button>
+									</div>
+									<p-dropdown appendTo="body" inputId="supplier" [(ngModel)]="localProduct.supplier"
+										[ngModelOptions]="{standalone: true}" name="supplier" dataKey="supplierId" optionLabel="name"
+										[options]="suppliers" [filter]="true" filterBy="name" [showClear]="true"
+										placeholder="{{ 'select_supplier' | translate }}" [required]="isProduct()" styleClass="w-full"
+										[ngClass]="{'ng-invalid ng-dirty' : submitted && isProduct() && !localProduct.supplier}"
+										[disabled]="!isAdmin && localProduct?.productId">
+										<ng-template pTemplate="selectedItem">
+											<span *ngIf="localProduct && localProduct.supplier"
+												class="flex align-items-center gap-2 min-w-0">
+												<i class="pi pi-truck"></i>
+												<span class="truncate">{{ localProduct.supplier.name }}</span>
+											</span>
+										</ng-template>
+										<ng-template let-option pTemplate="item">
+											<span class="flex align-items-center gap-2">
+												<i class="pi pi-truck"></i>
+												{{option.name}}
+											</span>
+										</ng-template>
+									</p-dropdown>
+									<small class="p-error" *ngIf="submitted && isProduct() && !localProduct.supplier">
+										{{'product_supplier' | translate}} {{'is_required_label' | translate}}
+									</small>
+									<small class="ims-form-field-note" *ngIf="isService()">
+										{{'product_supplier_optional_services' | translate}}
+									</small>
+								</div>
+
+								<!-- Warehouse -->
+								<div class="field col-12" *ngIf="isAdmin && isProduct()">
+									<div class="ims-form-field-head">
+										<label for="warehouse" class="ims-form-label">
+											{{'product_warehouse' | translate}}
+											<span class="required-asterisk">*</span>
+										</label>
+										<button type="button" pButton pRipple icon="pi pi-plus"
+											class="p-button-rounded p-button-text p-button-sm ims-form-add-btn"
+											*ngIf="canAddWarehouse && !isAggregatedEditMode()" (click)="openWarehouseDialog()"
+											[pTooltip]="'add_new_warehouse' | translate" tooltipPosition="top"
+											[attr.aria-label]="'add_new_warehouse' | translate"></button>
+									</div>
+									<p-dropdown appendTo="body" inputId="warehouse" [(ngModel)]="localProduct.warehouse"
+										[ngModelOptions]="{standalone: true}" name="warehouse" optionLabel="name"
+										[options]="warehouses" [filter]="true" filterBy="name" [showClear]="true"
+										placeholder="{{ 'select_warehouse' | translate }}" required styleClass="w-full"
+										(onChange)="onWarehouseChange()"
+										[disabled]="isAggregatedEditMode()">
+										<ng-template pTemplate="selectedItem">
+											<span *ngIf="localProduct && localProduct.warehouse"
+												class="flex align-items-center gap-2 min-w-0">
+												<i class="pi pi-home"></i>
+												<span class="truncate">{{ localProduct.warehouse.name }}</span>
+											</span>
+										</ng-template>
+										<ng-template let-option pTemplate="item">
+											<span class="flex align-items-center gap-2">
+												<i class="pi pi-home"></i>
+												{{option.name}}
+											</span>
+										</ng-template>
+									</p-dropdown>
+									<small class="p-error" *ngIf="submitted && !localProduct.warehouse">
+										{{'product_warehouse' | translate}} {{'is_required_label' | translate}}
+									</small>
+									<small class="ims-form-field-note" *ngIf="isAggregatedEditMode()">
+										{{ 'warehouse_locked_in_aggregated_mode' | translate }}
+									</small>
+								</div>
+							</div>
+						</section>
+
+						<!-- Expiration & shelf life -->
+						<section class="ims-form-section" *ngIf="isProduct()">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
+									<i class="pi pi-calendar"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_section_expiration' | translate }}</h3>
+							</header>
+							<div class="grid ims-form-section__body ims-form-section__body--sidebar">
+								<div class="field col-12">
+									<div class="ims-form-checkbox-row">
+										<p-checkbox [(ngModel)]="hasExpirationDate" [ngModelOptions]="{standalone: true}"
+											[binary]="true" inputId="hasExpirationDate" (onChange)="onExpirationDateToggle()">
+										</p-checkbox>
+										<label for="hasExpirationDate" class="ims-form-label ims-form-label--inline cursor-pointer">
+											{{'product_has_expiration_date' | translate}}
+										</label>
+									</div>
+									<small class="ims-form-hint">{{ 'expiration_date_help_text' | translate }}</small>
+
+									<div *ngIf="hasExpirationDate" class="mt-3">
+										<label for="expirationDate" class="ims-form-label">
+											{{'expiration_date' | translate}} <span class="required-asterisk">*</span>
+										</label>
+										<p-calendar id="expirationDate" [(ngModel)]="expirationDateValue"
+											[ngModelOptions]="{standalone: true}" name="expirationDate" [showIcon]="true"
+											[showButtonBar]="true" dateFormat="yy-mm-dd"
+											[minDate]="activityProfileService.isPharmacyProfile ? (todayDate || null) : null"
+											[readonly]="!isAdmin && localProduct?.productId" [required]="hasExpirationDate"
+											[ngClass]="{'ng-invalid ng-dirty': submitted && hasExpirationDate && !expirationDateValue}"
+											[placeholder]="'select_expiration_date' | translate" [showOnFocus]="true"
+											[baseZIndex]="10000" appendTo="body" styleClass="w-full">
+										</p-calendar>
+										<small class="p-error" *ngIf="submitted && hasExpirationDate && !expirationDateValue">
+											{{'expiration_date' | translate}} {{'is_required_label' | translate}}
+										</small>
+										<small class="p-error" *ngIf="backendFieldErrors['expirationDate']">
+											{{ backendFieldErrors['expirationDate'] }}
+										</small>
+										<small class="ims-form-hint">{{ 'expiration_date_hint' | translate }}</small>
+										<small class="p-error" *ngIf="submitted && isPharmacyExpirationInvalid()">
+											{{ 'profile_mode_pharmacy_expiration_future' | translate }}
+										</small>
+									</div>
+								</div>
+							</div>
+						</section>
+
+						<!-- Costing method -->
+						<section class="ims-form-section" *ngIf="isProduct()">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+									<i class="pi pi-calculator"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_costing_method' | translate }}</h3>
+							</header>
+							<div class="grid ims-form-section__body ims-form-section__body--sidebar">
+								<div class="field col-12">
+									<label for="costingMethod" class="ims-form-label">
+										{{ 'product_costing_method' | translate }}
+									</label>
+									<p-dropdown appendTo="body" inputId="costingMethod" [(ngModel)]="localProduct.costingMethod"
+										[ngModelOptions]="{standalone: true}" name="costingMethod" [options]="costingMethods"
+										optionLabel="label" optionValue="value" styleClass="w-full"
+										placeholder="{{ 'inherit_costing_method' | translate }}" [showClear]="true"
+										[disabled]="!isAdmin && localProduct?.productId"
+										(onChange)="updateEffectiveCostingMethodLabel()">
+									</p-dropdown>
+									<small class="ims-form-hint">{{ 'costing_method_inheritance_help' | translate }}</small>
+								</div>
+								<div class="field col-12">
+									<label class="ims-form-label">{{ 'effective_costing_method' | translate }}</label>
+									<div class="product-costing-effective"
+										[ngClass]="'product-costing-effective--' + effectiveCostingSource">
+										<div class="product-costing-effective__top">
+											<span class="product-costing-effective__badge">{{ effectiveCostingSourceBadge }}</span>
+											<i class="pi product-costing-effective__icon"
+												[ngClass]="{
+													'pi-box': effectiveCostingSource === 'product',
+													'pi-folder': effectiveCostingSource === 'category',
+													'pi-building': effectiveCostingSource === 'organization',
+													'pi-exclamation-circle': effectiveCostingSource === 'none'
+												}"></i>
+										</div>
+										<span class="product-costing-effective__value">{{ effectiveCostingMethodLabel }}</span>
+									</div>
+									<small class="ims-form-hint">{{ 'effective_costing_method_explanation' | translate }}</small>
+								</div>
+								<div class="field col-12" *ngIf="isStandardCostRequired()">
+									<label for="standardCost" class="ims-form-label">
+										{{ 'product_standard_cost' | translate }}
+										<span class="required-asterisk">*</span>
+									</label>
+									<p-inputNumber inputId="standardCost" name="standardCost" [(ngModel)]="localProduct.standardCost"
+										[ngModelOptions]="{standalone: true}" mode="currency" [currency]="currency"
+										[showButtons]="true" [min]="0" required styleClass="w-full">
+										<ng-template pTemplate="prefix">
+											<i class="pi pi-money-bill"></i>
+										</ng-template>
+									</p-inputNumber>
+								</div>
+							</div>
+						</section>
+					</div>
 				</div>
 
-				<!-- Right Column — Product fields -->
-				<div class="col-12 lg:col-7">
-					<div class="form-section grid product-form-fields">
+				<!-- Right column — general, stock, pricing, service, attributes -->
+				<div class="col-12 lg:col-6">
+					<div class="ims-form-fields">
+
+						<!-- General information -->
+						<section class="ims-form-section">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+									<i class="pi pi-id-card"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_section_general' | translate }}</h3>
+							</header>
+							<div class="grid ims-form-section__body">
 						<!-- Product Type Selector -->
 						<div class="field col-12">
-							<label for="productType" class="block mb-2 font-bold">
+							<label for="productType" class="ims-form-label">
 								{{'product_type' | translate}} <span class="required-asterisk">*</span>
 							</label>
 							<p-dropdown appendTo="body" [(ngModel)]="localProduct.productType"
@@ -349,14 +612,14 @@
 									</span>
 								</ng-template>
 							</p-dropdown>
-							<small class="text-color-secondary">
+							<small class="ims-form-hint">
 								<span *ngIf="localProduct.productType === 'SERVICE'">{{'product_type_service_help' |
 									translate}}</span>
 								<span
 									*ngIf="!localProduct.productType || localProduct.productType === 'PRODUCT'">{{'product_type_product_help'
 									| translate}}</span>
 							</small>
-							<small class="text-orange-600 block mt-1" *ngIf="activityProfileService.isPharmacyProfile">
+							<small class="ims-form-hint ims-form-hint--warn" *ngIf="activityProfileService.isPharmacyProfile">
 								<i class="pi pi-lock mr-1"></i>{{ 'profile_mode_pharmacy_product_only' | translate }}
 							</small>
 							<small class="p-error" *ngIf="submitted && !localProduct.productType">
@@ -366,7 +629,7 @@
 
 						<!-- Product Name -->
 						<div class="field col-12 md:col-6">
-							<label for="name" class="block mb-2 font-bold">
+							<label for="name" class="ims-form-label">
 								{{'product_name' | translate}} <span class="required-asterisk">*</span>
 							</label>
 							<div class="p-inputgroup">
@@ -383,7 +646,7 @@
 								<small class="p-error" *ngIf="submitted && !localProduct.name">
 									{{'product_name' | translate}} {{'is_required_label' | translate}}
 								</small>
-								<small *ngIf="localProduct.name" class="text-color-secondary">
+								<small *ngIf="localProduct.name" class="ims-form-hint">
 									{{ 40 - localProduct.name.length }} {{'characters_remaining_lbl' | translate}}
 								</small>
 							</div>
@@ -391,7 +654,7 @@
 
 						<!-- Product Reference -->
 						<div class="field col-12 md:col-6">
-							<label for="reference" class="block mb-2 font-bold">
+							<label for="reference" class="ims-form-label">
 								{{'product_reference' | translate}} <span class="required-asterisk">*</span>
 							</label>
 							<div class="p-inputgroup">
@@ -409,20 +672,19 @@
 							</small>
 						</div>
 
-						<!-- Product Description -->
 						<div class="field col-12">
-							<label for="description" class="block mb-2 font-bold">
+							<label for="description" class="ims-form-label">
 								{{'product_description' | translate}}
 							</label>
-							<textarea pInputTextarea name="description" [(ngModel)]="localProduct.description"
+							<textarea pInputTextarea id="description" name="description" [(ngModel)]="localProduct.description"
 								[ngModelOptions]="{standalone: true}" rows="3" [autoResize]="true"
 								[maxlength]="productDescriptionMaxLength"
 								placeholder="{{'enter_product_description' | translate}}"></textarea>
 							<div class="flex justify-content-between mt-1">
-								<small class="text-color-secondary">
+								<small class="ims-form-hint">
 									{{ (localProduct.description?.length || 0) }} / {{ productDescriptionMaxLength }}
 								</small>
-								<small class="text-color-secondary">
+								<small class="ims-form-hint">
 									{{ (productDescriptionMaxLength - (localProduct.description?.length || 0)) }} {{ 'characters_remaining_lbl' | translate }}
 								</small>
 							</div>
@@ -431,9 +693,49 @@
 							</small>
 						</div>
 
-						<!-- Quantity Available (Products only) -->
+						<div class="field col-12 md:col-6" *ngIf="isService()">
+							<label for="measureUnit" class="ims-form-label">
+								{{'product_measure_unit' | translate}}
+							</label>
+							<p-dropdown appendTo="body" inputId="measureUnit" [(ngModel)]="localProduct.measureUnit"
+								[ngModelOptions]="{standalone: true}" name="measureUnit"
+								[options]="measureUnitsForCurrentType" optionLabel="label" optionValue="value"
+								placeholder="{{'select_measure_unit' | translate}}" required styleClass="w-full"
+								[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.measureUnit}"
+								[disabled]="!isAdmin && localProduct?.productId">
+							</p-dropdown>
+							<small class="p-error" *ngIf="submitted && !localProduct.measureUnit">
+								{{'product_measure_unit' | translate}} {{'is_required_label' | translate}}
+							</small>
+						</div>
+							</div>
+						</section>
+
+						<!-- Stock & units -->
+						<section class="ims-form-section" *ngIf="isProduct()">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+									<i class="pi pi-box"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_section_stock' | translate }}</h3>
+							</header>
+							<div class="grid ims-form-section__body">
 						<div class="field col-12 md:col-4" *ngIf="isProduct()">
-							<label for="quantityAvailable" class="block mb-2 font-bold">
+							<label for="stockTrackingMode" class="ims-form-label">
+								{{ 'stock_tracking_mode' | translate }}
+							</label>
+							<p-dropdown appendTo="body" [(ngModel)]="localProduct.stockTrackingMode"
+								[ngModelOptions]="{standalone: true}" name="stockTrackingMode"
+								[options]="stockTrackingModeOptions" optionLabel="label" optionValue="value"
+								(onChange)="onStockTrackingModeChange()"
+								[disabled]="!!localProduct?.productId">
+							</p-dropdown>
+							<small class="ims-form-hint">{{ 'stock_tracking_mode_help' | translate }}</small>
+						</div>
+
+						<!-- Quantity Available — discrete (Products only) -->
+						<div class="field col-12 md:col-4" *ngIf="isProduct() && !isFractionalStock()">
+							<label for="quantityAvailable" class="ims-form-label">
 								{{'product_quantity' | translate}}
 							</label>
 							<p-inputNumber name="quantityAvailable" [(ngModel)]="localProduct.quantityAvailable"
@@ -445,38 +747,95 @@
 									<i class="pi pi-box"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="text-color-secondary" *ngIf="!localProduct?.productId">
+							<small class="ims-form-hint" *ngIf="!localProduct?.productId">
 								{{'product_quantity_help' | translate}}
 							</small>
-							<small class="text-warning block mt-1" *ngIf="localProduct?.productId">
+							<small class="ims-form-hint ims-form-hint--warn" *ngIf="localProduct?.productId">
 								<i class="pi pi-info-circle mr-1"></i>
 								{{'quantity_adjustment_help' | translate}}
 							</small>
 						</div>
 
-						<!-- Measure Unit -->
+						<!-- Prepaid pool setup hint -->
+						<div class="field col-12" *ngIf="isPrepaidPool()">
+							<div class="ims-form-callout">
+								<i class="pi pi-wallet ims-form-callout__icon"></i>
+								<div>
+									<div class="ims-form-callout__title">{{ 'product_prepaid_setup_title' | translate }}</div>
+									<p class="ims-form-callout__text">{{ 'product_prepaid_setup_help' | translate:prepaidCurrencyParams }}</p>
+								</div>
+							</div>
+						</div>
+
+						<!-- Quantity Available — fractional / prepaid display units -->
+						<div class="field col-12 md:col-4" *ngIf="isFractionalStock()">
+							<label for="displayQuantityAvailable" class="ims-form-label">
+								<ng-container *ngIf="isPrepaidPool(); else defaultQtyLabel">
+									{{ 'product_prepaid_quantity_label' | translate:{ currency: currency } }}
+								</ng-container>
+								<ng-template #defaultQtyLabel>
+									{{ 'product_quantity' | translate }}
+									<span class="ims-form-hint ims-form-hint--inline" *ngIf="localProduct.measureUnit">({{ localProduct.measureUnit | translate }})</span>
+								</ng-template>
+							</label>
+							<p-inputNumber name="displayQuantityAvailable" [(ngModel)]="displayQuantityAvailableUi"
+								[ngModelOptions]="{standalone: true}" mode="decimal" [showButtons]="true" [min]="0"
+								[minFractionDigits]="0" [maxFractionDigits]="quantityInputDecimals()"
+								[step]="quantityInputStep()"
+								placeholder="0" [readonly]="!!localProduct?.productId"
+								[disabled]="!!localProduct?.productId">
+								<ng-template pTemplate="prefix">
+									<i class="pi pi-box"></i>
+								</ng-template>
+							</p-inputNumber>
+							<small class="ims-form-hint" *ngIf="!localProduct?.productId && !isPrepaidPool()">
+								{{ 'product_fractional_quantity_help' | translate }}
+							</small>
+							<small class="ims-form-hint" *ngIf="!localProduct?.productId && isPrepaidPool()">
+								{{ 'product_prepaid_quantity_help' | translate:prepaidCurrencyParams }}
+							</small>
+							<small class="ims-form-hint ims-form-hint--warn" *ngIf="localProduct?.productId">
+								<i class="pi pi-info-circle mr-1"></i>
+								{{ 'quantity_adjustment_help' | translate }}
+							</small>
+						</div>
+
 						<div class="field col-12 md:col-4">
-							<label for="measureUnit" class="block mb-2 font-bold">
+							<label for="measureUnit" class="ims-form-label">
 								{{'product_measure_unit' | translate}}
 							</label>
-
-							<p-dropdown appendTo="body" [(ngModel)]="localProduct.measureUnit"
+							<p-dropdown appendTo="body" inputId="measureUnitProduct" [(ngModel)]="localProduct.measureUnit"
 								[ngModelOptions]="{standalone: true}" name="measureUnit"
 								[options]="measureUnitsForCurrentType" optionLabel="label" optionValue="value"
-								placeholder="{{'select_measure_unit' | translate}}" required
+								placeholder="{{'select_measure_unit' | translate}}" required styleClass="w-full"
 								[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.measureUnit}"
 								[disabled]="!isAdmin && localProduct?.productId">
 							</p-dropdown>
-
 							<small class="p-error" *ngIf="submitted && !localProduct.measureUnit">
 								{{'product_measure_unit' | translate}} {{'is_required_label' | translate}}
 							</small>
 						</div>
+							</div>
+						</section>
 
-						<!-- Buying Price -->
-						<div class="field col-12 md:col-4" [ngClass]="{'col-12 md:col-6': isService()}">
-							<label for="buyingPrice" class="block mb-2 font-bold">
-								{{'product_buying_price' | translate}} <span class="required-asterisk">*</span>
+						<!-- Pricing -->
+						<section class="ims-form-section">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+									<i class="pi pi-dollar"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_section_pricing' | translate }}</h3>
+							</header>
+							<div class="grid ims-form-section__body">
+						<div class="field col-12 md:col-6">
+							<label for="buyingPrice" class="ims-form-label">
+								<ng-container *ngIf="isPrepaidPool(); else defaultBuyingLabel">
+									{{ 'product_prepaid_buying_price_label' | translate:prepaidCurrencyParams }}
+								</ng-container>
+								<ng-template #defaultBuyingLabel>
+									{{ 'product_buying_price' | translate }}
+								</ng-template>
+								<span class="required-asterisk" *ngIf="isProduct()">*</span>
 							</label>
 							<p-inputNumber [(ngModel)]="localProduct.buyingPrice" [ngModelOptions]="{standalone: true}"
 								mode="currency" [currency]="currency" [showButtons]="true" [min]="0" [max]="9999999999"
@@ -485,310 +844,89 @@
 									<i class="pi pi-money-bill"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="text-color-secondary" *ngIf="isService()">
+							<small class="ims-form-hint" *ngIf="isPrepaidPool()">
+								{{ 'product_prepaid_buying_price_help' | translate:prepaidCurrencyParams }}
+							</small>
+							<small class="ims-form-hint ims-form-hint--accent" *ngIf="isPrepaidPool() && suggestedPrepaidCostPerUnit() as suggested">
+								<i class="pi pi-lightbulb mr-1"></i>
+								{{ 'product_prepaid_buying_price_hint' | translate:prepaidCurrencyParamsWith({ amount: (suggested | currency:currency:'symbol':'1.2-2') }) }}
+							</small>
+							<small class="ims-form-hint" *ngIf="isService()">
 								{{'product_buying_price_optional_services' | translate}}
 							</small>
-							<!-- <small class="text-color-secondary" *ngIf="isProduct()">
-								{{'product_buying_price_optional_products' | translate}}
-							</small> -->
 						</div>
 
-						<!-- Selling Price -->
-						<div class="field col-12 md:col-4">
-							<label for="sellingPrice" class="block mb-2 font-bold">
-								{{'product_selling_price' | translate}} <span class="required-asterisk">*</span>
+						<div class="field col-12 md:col-6">
+							<label for="sellingPrice" class="ims-form-label">
+								<ng-container *ngIf="isPrepaidPool(); else defaultSellingLabel">
+									{{ 'product_prepaid_selling_price_label' | translate:prepaidCurrencyParams }}
+								</ng-container>
+								<ng-template #defaultSellingLabel>
+									{{ 'product_selling_price' | translate }}
+								</ng-template>
+								<span class="required-asterisk">*</span>
 							</label>
 							<p-inputNumber [(ngModel)]="localProduct.sellingPrice" [ngModelOptions]="{standalone: true}"
 								mode="currency" [currency]="currency" [showButtons]="true" [min]="0"
 								[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.sellingPrice}"
-								[max]="9999999999" required [readonly]="!isAdmin && localProduct?.productId">
+								[max]="isPrepaidPool() ? 99.99 : 9999999999" required [readonly]="!isAdmin && localProduct?.productId">
 								<ng-template pTemplate="prefix">
 									<i class="pi pi-tag"></i>
 								</ng-template>
 							</p-inputNumber>
+							<small class="ims-form-hint" *ngIf="isPrepaidPool()">
+								{{ 'product_prepaid_selling_price_help' | translate:prepaidCurrencyParams }}
+							</small>
 							<small class="p-error" *ngIf="submitted && !localProduct.sellingPrice">
 								{{'product_selling_price' | translate}} {{'is_required_label' | translate}}
 							</small>
 						</div>
-
-						<!-- Expiration Date (Products only) -->
-						<div class="field col-12" *ngIf="isProduct()">
-							<div class="flex align-items-center mb-2">
-								<p-checkbox [(ngModel)]="hasExpirationDate" [ngModelOptions]="{standalone: true}"
-									[binary]="true" inputId="hasExpirationDate" (onChange)="onExpirationDateToggle()">
-								</p-checkbox>
-								<label for="hasExpirationDate" class="ml-2 font-bold cursor-pointer">
-									{{'product_has_expiration_date' | translate}}
-								</label>
 							</div>
-							<small class="text-color-secondary block mb-2">
-								{{'expiration_date_help_text' | translate}}
-							</small>
+						</section>
 
-							<div *ngIf="hasExpirationDate" class="mt-2">
-								<label for="expirationDate" class="block mb-2 font-bold">
-									{{'expiration_date' | translate}} <span class="required-asterisk">*</span>
-								</label>
-								<p-calendar id="expirationDate" [(ngModel)]="expirationDateValue"
-									[ngModelOptions]="{standalone: true}" name="expirationDate" [showIcon]="true"
-									[showButtonBar]="true" dateFormat="yy-mm-dd"
-									[minDate]="activityProfileService.isPharmacyProfile ? (todayDate || null) : null"
-									[readonly]="!isAdmin && localProduct?.productId" [required]="hasExpirationDate"
-									[ngClass]="{'ng-invalid ng-dirty': submitted && hasExpirationDate && !expirationDateValue}"
-									[placeholder]="'select_expiration_date' | translate" [showOnFocus]="true"
-									[baseZIndex]="10000" appendTo="body">
-								</p-calendar>
-								<small class="p-error" *ngIf="submitted && hasExpirationDate && !expirationDateValue">
-									{{'expiration_date' | translate}} {{'is_required_label' | translate}}
-								</small>
-							<small class="p-error" *ngIf="backendFieldErrors['expirationDate']">
-								{{ backendFieldErrors['expirationDate'] }}
-							</small>
-								<small class="text-color-secondary block mt-1">
-									{{'expiration_date_hint' | translate}}
-								</small>
-								<small class="p-error" *ngIf="submitted && isPharmacyExpirationInvalid()">
-									{{ 'profile_mode_pharmacy_expiration_future' | translate }}
-								</small>
-							</div>
-						</div>
-
-						<!-- Costing Method (Products only) -->
-						<div class="field col-12 md:col-8" *ngIf="isProduct()">
-							<label for="costingMethod" class="block mb-2 font-bold">
-								{{ 'product_costing_method' | translate }}
+						<!-- Service details -->
+						<section class="ims-form-section" *ngIf="isService()">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+									<i class="pi pi-cog"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_section_service' | translate }}</h3>
+							</header>
+							<div class="grid ims-form-section__body">
+						<div class="field col-12 md:col-6">
+							<label for="estimatedDurationMinutes" class="ims-form-label">
+								{{'estimated_duration_minutes' | translate}}
 							</label>
-
-							<p-dropdown appendTo="body" [(ngModel)]="localProduct.costingMethod"
-								[ngModelOptions]="{standalone: true}" name="costingMethod" [options]="costingMethods"
-								optionLabel="label" optionValue="value"
-								placeholder="{{ 'inherit_costing_method' | translate }}" [showClear]="true"
-								[disabled]="!isAdmin && localProduct?.productId"
-								(onChange)="updateEffectiveCostingMethodLabel()">
-							</p-dropdown>
-
-							<small class="text-color-secondary">
-								{{ 'costing_method_inheritance_help' | translate }}
-							</small>
-						</div>
-
-						<!-- Effective Costing Method (Read Only Info) - Products only -->
-						<div class="field col-12 md:col-8 mt-2" *ngIf="isProduct()">
-							<label class="block mb-1 font-bold">
-								{{ 'effective_costing_method' | translate }}
-							</label>
-
-							<div class="p-2 border-round flex align-items-center gap-2" [ngClass]="{
-         'bg-primary-50 text-primary-700': localProduct.costingMethod,
-         'bg-teal-50 text-teal-700': !localProduct.costingMethod && localProduct.category?.costingMethod && localProduct.category.costingMethod !== 'NONE',
-         'bg-purple-50 text-purple-700': !localProduct.costingMethod && (!localProduct.category?.costingMethod || localProduct.category.costingMethod === 'NONE') 
-                                           && localProduct.warehouse?.organization?.costingMethod && localProduct.warehouse.organization.costingMethod !== 'NONE',
-         'bg-yellow-50 text-yellow-700': isCostingMethodNone
-       }">
-								<i class="pi pi-info-circle"></i>
-								<span>{{ effectiveCostingMethodLabel }}</span>
-							</div>
-
-							<small class="text-color-secondary">
-								{{ 'effective_costing_method_explanation' | translate }}
-							</small>
-						</div>
-
-						<div class="field col-12 md:col-4" *ngIf="isProduct() && isStandardCostRequired()">
-							<label for="standardCost">{{ 'product_standard_cost' | translate }} <span
-									class="required-asterisk">*</span></label>
-							<p-inputNumber name="standardCost" [(ngModel)]="localProduct.standardCost"
-								[ngModelOptions]="{standalone: true}" mode="currency" [currency]="currency"
-								[showButtons]="true" [min]="0" required>
-								<ng-template pTemplate="prefix">
-									<i class="pi pi-money-bill"></i>
-								</ng-template>
-							</p-inputNumber>
-						</div>
-
-
-						<!-- Category -->
-						<div class="field col-12" style="position: relative;">
-							<div class="flex align-items-center justify-content-between mb-2">
-								<label for="category" class="font-bold">
-									{{ 'product_category' | translate }} <span class="required-asterisk">*</span>
-								</label>
-								<a *ngIf="canAddCategory" (click)="openCategoryDialog()"
-									class="text-sm text-primary cursor-pointer">
-									<i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
-								</a>
-							</div>
-							<p-dropdown appendTo="body" [(ngModel)]="localProduct.category"
-								[ngModelOptions]="{standalone: true}" name="category" optionLabel="categoryName"
-								[options]="categories" [filter]="true" filterBy="categoryName" [showClear]="true"
-								placeholder="{{ 'select_category_option' | translate }}" required
-								[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.category}"
-								[disabled]="!isAdmin && localProduct?.productId">
-								<ng-template pTemplate="selectedItem">
-									<span *ngIf="localProduct && localProduct.category"
-										class="flex align-items-center gap-2">
-										<i class="pi pi-folder"></i>
-										{{ localProduct.category.categoryName }}
-									</span>
-								</ng-template>
-								<ng-template let-option pTemplate="item">
-									<span class="flex align-items-center gap-2">
-										<i class="pi pi-folder"></i>
-										{{ option.categoryName }}
-									</span>
-								</ng-template>
-							</p-dropdown>
-							<small class="p-error" *ngIf="submitted && !localProduct.category">
-								{{'product_category' | translate}} {{'is_required_label' | translate}}
-							</small>
-						</div>
-
-						<!-- Supplier -->
-						<div class="field col-12" style="position: relative;">
-							<div class="flex align-items-center justify-content-between mb-2">
-								<label for="supplier" class="font-bold">
-									{{'product_supplier' | translate}}
-									<span class="required-asterisk" *ngIf="isProduct()">*</span>
-								</label>
-								<a *ngIf="canAddSupplier" (click)="openSupplierDialog()"
-									class="text-sm text-primary cursor-pointer">
-									<i class="pi pi-plus"></i> {{ 'add_new_supplier' | translate }}
-								</a>
-							</div>
-							<p-dropdown appendTo="body" [(ngModel)]="localProduct.supplier"
-								[ngModelOptions]="{standalone: true}" name="supplier" dataKey="supplierId" optionLabel="name"
-								[options]="suppliers" [filter]="true" filterBy="name" [showClear]="true"
-								placeholder="{{'select_supplier_option' | translate}}" [required]="isProduct()"
-								[ngClass]="{'ng-invalid ng-dirty' : submitted && isProduct() && !localProduct.supplier}"
-								[disabled]="!isAdmin && localProduct?.productId">
-								<ng-template pTemplate="selectedItem">
-									<span *ngIf="localProduct && localProduct.supplier"
-										class="flex align-items-center gap-2">
-										<i class="pi pi-truck"></i>
-										{{localProduct.supplier.name}}
-									</span>
-								</ng-template>
-								<ng-template let-option pTemplate="item">
-									<span class="flex align-items-center gap-2">
-										<i class="pi pi-truck"></i>
-										{{option.name}}
-									</span>
-								</ng-template>
-							</p-dropdown>
-							<small class="p-error" *ngIf="submitted && isProduct() && !localProduct.supplier">
-								{{'product_supplier' | translate}} {{'is_required_label' | translate}}
-							</small>
-							<small class="text-color-secondary" *ngIf="isService()">
-								{{'product_supplier_optional_services' | translate}}
-							</small>
-						</div>
-
-						<!-- Warehouse (Products only, Admin only) -->
-						<div class="field col-12" style="position: relative;" *ngIf="isAdmin && isProduct()">
-							<div class="flex align-items-center justify-content-between mb-2">
-								<label for="warehouse" class="font-bold">
-									{{'product_warehouse' | translate}} <span class="required-asterisk">*</span>
-								</label>
-								<a *ngIf="canAddWarehouse && !isAggregatedEditMode()" (click)="openWarehouseDialog()"
-									class="text-sm text-primary cursor-pointer">
-									<i class="pi pi-plus"></i> {{ 'add_new_warehouse' | translate }}
-								</a>
-							</div>
-							<p-dropdown appendTo="body" [(ngModel)]="localProduct.warehouse"
-								[ngModelOptions]="{standalone: true}" name="warehouse" optionLabel="name"
-								[options]="warehouses" [filter]="true" filterBy="name" [showClear]="true"
-								placeholder="{{'select_warehouse_option' | translate}}" required
-								[disabled]="isAggregatedEditMode()">
-								<ng-template pTemplate="selectedItem">
-									<span *ngIf="localProduct && localProduct.warehouse"
-										class="flex align-items-center gap-2">
-										<i class="pi pi-home"></i>
-										{{localProduct.warehouse.name}}
-									</span>
-								</ng-template>
-								<ng-template let-option pTemplate="item">
-									<span class="flex align-items-center gap-2">
-										<i class="pi pi-home"></i>
-										{{option.name}}
-									</span>
-								</ng-template>
-							</p-dropdown>
-							<small class="p-error" *ngIf="submitted && !localProduct.warehouse">
-								{{'product_warehouse' | translate}} {{'is_required_label' | translate}}
-							</small>
-							<small class="text-color-secondary" *ngIf="isAggregatedEditMode()">
-								{{ 'warehouse_locked_in_aggregated_mode' | translate }}
-							</small>
-						</div>
-
-						<!-- Service-specific fields -->
-						<!-- <div *ngIf="isService()" class="field col-12" style="position: relative;">
-							<div class="flex align-items-center justify-content-between mb-2">
-								<label for="serviceProvider" class="font-bold">
-									{{'service_provider' | translate}}
-								</label>
-							</div>
-							<div class="p-inputgroup">
-								<input type="text" pInputText name="serviceProvider"
-									[(ngModel)]="localProduct.serviceProvider" [ngModelOptions]="{standalone: true}"
-									placeholder="{{'enter_service_provider' | translate}}"
-									[readonly]="!isAdmin && localProduct?.productId" />
-								<span class="p-inputgroup-addon">
-									<i class="pi pi-user"></i>
-								</span>
-							</div>
-							<small class="text-color-secondary">
-								{{'service_provider_help' | translate}}
-							</small>
-						</div> -->
-
-						<div *ngIf="isService()" class="field col-12" style="position: relative;">
-							<div class="flex align-items-center justify-content-between mb-2">
-								<label for="estimatedDurationMinutes" class="font-bold">
-									{{'estimated_duration_minutes' | translate}}
-								</label>
-							</div>
-							<p-inputNumber name="estimatedDurationMinutes"
+							<p-inputNumber inputId="estimatedDurationMinutes" name="estimatedDurationMinutes"
 								[(ngModel)]="localProduct.estimatedDurationMinutes"
 								[ngModelOptions]="{standalone: true}" mode="decimal" [showButtons]="true" [min]="0"
-								placeholder="{{'enter_duration_minutes' | translate}}"
+								placeholder="{{'enter_duration_minutes' | translate}}" styleClass="w-full"
 								[readonly]="!isAdmin && localProduct?.productId">
 								<ng-template pTemplate="prefix">
 									<i class="pi pi-clock"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="text-color-secondary">
+							<small class="ims-form-hint">
 								{{'estimated_duration_help' | translate}}
 							</small>
 						</div>
-
-						<!-- <div *ngIf="isService()" class="field col-12" style="position: relative;">
-							<div class="flex align-items-center justify-content-between mb-2">
-								<label for="serviceCategory" class="font-bold">
-									{{'service_category' | translate}}
-								</label>
 							</div>
-							<div class="p-inputgroup">
-								<input type="text" pInputText name="serviceCategory"
-									[(ngModel)]="localProduct.serviceCategory" [ngModelOptions]="{standalone: true}"
-									placeholder="{{'enter_service_category' | translate}}"
-									[readonly]="!isAdmin && localProduct?.productId" />
-								<span class="p-inputgroup-addon">
-									<i class="pi pi-tag"></i>
-								</span>
-							</div>
-							<small class="text-color-secondary">
-								{{'service_category_help' | translate}}
-							</small>
-						</div> -->
+						</section>
 
-						<!-- Dynamic Attributes Section -->
+						<!-- Custom attributes -->
+						<section class="ims-form-section">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
+									<i class="pi pi-sliders-h"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'product_section_attributes' | translate }}</h3>
+							</header>
+							<div class="ims-form-section__body ims-form-section__body--stack">
 						<div class="field col-12">
-							<label class="font-bold">{{ 'product_custom_attributes' | translate }}</label>
 							<small class="p-error block mb-2" *ngIf="backendFieldErrors['attributes']">
 								{{ backendFieldErrors['attributes'] }}
 							</small>
-							<div *ngFor="let attr of localProduct.attributes; let i = index" class="p-fluid grid mb-2">
+							<div *ngFor="let attr of localProduct.attributes; let i = index" class="ims-form-attribute-row grid mb-2">
 								<!-- Attribute Name -->
 								<div class="field col-4">
 									<input type="text" pInputText [(ngModel)]="attr.attributeName"
@@ -843,13 +981,15 @@
 
 							<!-- Add Attribute Button -->
 							<button pButton type="button" label="{{'add_attribute_button' | translate}}"
-								icon="pi pi-plus" (click)="addAttribute()" class="p-button-sm mt-2"></button>
+								icon="pi pi-plus" (click)="addAttribute()" class="p-button-sm p-button-outlined mt-2"></button>
 						</div>
+							</div>
+						</section>
 					</div>
 				</div>
 			</div>
 
-			<div class="required-note mt-4">
+			<div class="ims-form-required-note">
 				<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
 					translate}}</small>
 			</div>
@@ -859,8 +999,8 @@
 	<ng-template pTemplate="footer">
 		<div class="flex justify-content-between align-items-center w-full">
 			<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-				class="p-button-text p-button-danger" (click)="cancelForm()"></button>
-			<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-raised"
+				class="p-button-text" (click)="cancelForm()"></button>
+			<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-primary"
 				(click)="saveProduct()" [disabled]="isSaving">
 				<span *ngIf="isSaving" class="mr-2">
 					<i class="pi pi-spin pi-spinner"></i>

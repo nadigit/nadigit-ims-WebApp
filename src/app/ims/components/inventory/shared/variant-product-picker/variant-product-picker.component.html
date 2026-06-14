@@ -1,0 +1,73 @@
+﻿<div class="variant-picker surface-card border-1 surface-border border-round p-3"
+  [class.variant-picker--compact]="compact"
+  [class.opacity-60]="disabled">
+  <div class="flex align-items-center gap-2 mb-3">
+    <i class="pi pi-th-large text-primary"></i>
+    <span class="font-semibold text-900">{{ 'variant_picker_title' | translate }}</span>
+  </div>
+  <p class="text-600 text-sm m-0 mb-3">{{ 'variant_picker_subtitle' | translate }}</p>
+
+  <p-message *ngIf="warehouseRequired" severity="warn" styleClass="w-full mb-3"
+    [text]="'variant_picker_warehouse_required' | translate"></p-message>
+
+  <div class="flex flex-column gap-3" [class.pointer-events-none]="disabled || warehouseRequired">
+    <div class="field m-0">
+      <label class="font-medium block mb-2">{{ 'variant_picker_select_style' | translate }}</label>
+      <span class="p-input-icon-right w-full block">
+        <p-autoComplete [(ngModel)]="selectedFamilyModel" [suggestions]="familySuggestions"
+          (completeMethod)="filterFamilies($event)" [minLength]="0" [dropdown]="true" [forceSelection]="true"
+          [disabled]="disabled || warehouseRequired || familiesLoading" styleClass="w-full" appendTo="body"
+          [placeholder]="'variant_picker_family_placeholder' | translate"
+          (onSelect)="onFamilySelect($event)"
+          (onClear)="clearFamilySelection()">
+        <ng-template let-family pTemplate="selectedItem">
+          <span>{{ familyDisplayLabel(family) }}</span>
+        </ng-template>
+        <ng-template let-family pTemplate="item">
+          <div class="flex flex-column">
+            <span class="font-medium">{{ family.styleReference }} — {{ family.name }}</span>
+            <small class="text-600">{{ family.categoryName }} · {{ family.variantSkuCount || 0 }} {{ 'variants' | translate }}</small>
+          </div>
+        </ng-template>
+        </p-autoComplete>
+        <i *ngIf="familiesLoading" class="pi pi-spin pi-spinner text-500"></i>
+      </span>
+    </div>
+
+    <div *ngIf="overviewLoading" class="flex justify-content-center py-3">
+      <p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"></p-progressSpinner>
+    </div>
+
+    <ng-container *ngIf="selectedFamily && !overviewLoading">
+      <div class="grid" *ngIf="axes.length > 0">
+        <div class="col-12 md:col-6" *ngFor="let axis of axes">
+          <label class="font-medium block mb-2">{{ axis }}</label>
+          <p-dropdown [options]="optionsForAxis(axis)" [(ngModel)]="selectedOptions[axis]" optionLabel="label"
+            optionValue="value" [placeholder]="'variant_picker_select_option' | translate" styleClass="w-full"
+            appendTo="body" [showClear]="true"></p-dropdown>
+        </div>
+      </div>
+
+      <div *ngIf="variants.length === 0" class="text-600 text-sm p-2 surface-100 border-round">
+        {{ 'product_family_no_variants' | translate }}
+      </div>
+
+      <div *ngIf="allAxesSelected && resolvedVariant" class="variant-picker-preview p-3 surface-100 border-round">
+        <div class="font-medium text-900">{{ resolvedVariant.reference }}</div>
+        <div class="text-600 text-sm mt-1">{{ variantSummary(resolvedVariant) }}</div>
+        <div class="flex flex-wrap gap-3 mt-2 text-sm">
+          <span>{{ 'stock' | translate }}: <strong>{{ resolvedVariant.netAvailableQuantity ?? resolvedVariant.quantityAvailable ?? 0 }}</strong></span>
+          <span>{{ 'selling_price' | translate }}: <strong>{{ currency }} {{ resolvedVariant.sellingPrice }}</strong></span>
+        </div>
+      </div>
+
+      <div *ngIf="allAxesSelected && !resolvedVariant && variants.length > 0" class="text-orange-600 text-sm">
+        <i class="pi pi-exclamation-triangle mr-1"></i>{{ 'variant_picker_no_matching_sku' | translate }}
+      </div>
+
+      <button pButton pRipple type="button" icon="pi pi-plus" class="w-full"
+        [label]="'variant_picker_add_line' | translate" (click)="addSelectedVariant()"
+        [disabled]="!resolvedVariant || addInProgress" [loading]="addInProgress"></button>
+    </ng-container>
+  </div>
+</div>

@@ -18,11 +18,14 @@
         color: var(--surface-900);
         font-size: 1.5rem;
         font-weight: 500;
-        width: 300px;
+        width: auto;
         border-radius: 12px;
 
-        img {
-            height: 2.5rem;
+        img,
+        app-brand-logo img {
+            height: 3.5rem;
+            width: auto;
+            max-width: none;
             margin-right: .5rem;
         }
 

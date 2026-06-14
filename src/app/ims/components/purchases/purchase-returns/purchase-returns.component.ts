@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, Pipe, PipeTransform, ViewChild } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MessageService, LazyLoadEvent, SelectItem } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -21,6 +21,25 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { DatePipe } from '@angular/common';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
+import {
+  buildPurchaseReturnItemPayload,
+  computePurchaseReturnCreditAmount,
+  defaultLineQuantity,
+  formatLineQuantity,
+  formatLineQuantity as formatLineQty,
+  getLineMeasureUnit,
+  getPurchaseItemDisplayQuantity,
+  getPurchaseReturnItemDisplayQuantity as purchaseReturnItemDisplayQty,
+  getPurchaseReturnMaxDisplayQuantity,
+  lineQuantityDecimals,
+  lineQuantityMin,
+  lineQuantityStep,
+} from 'src/app/shared/product-utils';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -41,9 +60,7 @@ export class FilterProductsPipe implements PipeTransform {
   styleUrls: ['./purchase-returns.component.css', '../purchases.component.css'],
   providers: [MessageService, DatePipe]
 })
-export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
-
-  @ViewChild('pickList') pickList: ElementRef | undefined;
+export class PurchaseReturnsComponent implements OnInit, OnDestroy {
 
   Ressource: string = 'PURCHASE_RETURNS';
 
@@ -75,6 +92,7 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
 
   // Pagination & lazy loading
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
   totalRecords: number = 0;
   globalFilter: string = '';
   lastLazyLoadEvent: LazyLoadEventExt = {
@@ -88,7 +106,7 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
   expandedRows: { [key: string]: boolean } = {};
   sourceProducts: Product[] = [];
   targetProducts: Product[] = [];
-  returnItems: PurchaseReturnItem[] = [];
+  selectedReturnProduct: Product | null = null;
   userRoles: any;
   isAdmin: boolean = false;
   returnReasons: any[] = [];
@@ -128,6 +146,10 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.purchaseReturns, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -199,10 +221,10 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
       this.return = {};
       this.return.purchase = purchase;
       this.targetProducts = [];
-      this.returnItems = [];
+      this.selectedReturnProduct = null;
       this.return.returnDate = new Date();
       this.submitted = false;
-      this.initializePickList();
+      this.refreshAvailablePurchaseProducts();
       this.returnDialog = true;
     }
   }
@@ -243,14 +265,124 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     ];
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if ('return' in changes) {
-      this.initializePickList();
-    }
+  hideDialog() {
+    this.returnDialog = false;
+    this.submitted = false;
+    this.selectedReturnProduct = null;
   }
 
-  ngAfterViewInit() {
-    // Implementation if needed
+  refreshAvailablePurchaseProducts(): void {
+    this.sourceProducts = this.getAvailablePurchaseProducts();
+  }
+
+  onReturnPurchaseChange(): void {
+    this.targetProducts = [];
+    this.selectedReturnProduct = null;
+    this.refreshAvailablePurchaseProducts();
+  }
+
+  getAvailablePurchaseProducts(): Product[] {
+    if (!this.return?.purchase?.purchaseItems?.length) {
+      return [];
+    }
+
+    const selectedIds = new Set(this.targetProducts.map(product => product.productId));
+    return this.return.purchase.purchaseItems
+      .filter(purchaseItem => purchaseItem.product?.productId && !selectedIds.has(purchaseItem.product.productId))
+      .map(purchaseItem => this.mapPurchaseItemToReturnProduct(purchaseItem));
+  }
+
+  mapPurchaseItemToReturnProduct(purchaseItem: PurchaseItem): Product {
+    const product = { ...purchaseItem.product } as Product;
+    product['purchaseItem'] = purchaseItem;
+    product.returnItemPricePerUnit = purchaseItem.buyingPrice;
+    return product;
+  }
+
+  onReturnProductSelect(event: { value?: Product | null }): void {
+    const product = event?.value;
+    if (!product?.productId) {
+      return;
+    }
+    this.addProductToReturn(product);
+    this.selectedReturnProduct = null;
+  }
+
+  addProductToReturn(product: Product): void {
+    if (this.getReturnMaxQuantity(product) <= 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('insufficient_quantity'),
+        detail: this.translate.instant('product_quantity_not_sufficient_to_move'),
+        life: 3000,
+      });
+      return;
+    }
+
+    const existingProduct = this.targetProducts.find(item => item.productId === product.productId);
+    if (existingProduct) {
+      existingProduct.returnItemQuantity = (existingProduct.returnItemQuantity || 0) + lineQuantityStep(existingProduct);
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const purchaseItem = product['purchaseItem'] || this.findPurchaseItemForProduct(product);
+    if (!purchaseItem) {
+      console.error('Original purchase item not found for product:', product);
+      return;
+    }
+
+    const unitPrice = purchaseItem.buyingPrice ?? product.returnItemPricePerUnit ?? 0;
+    this.targetProducts.push({
+      ...product,
+      purchaseItem,
+      returnItemPricePerUnit: unitPrice,
+      returnItemQuantity: defaultLineQuantity(product),
+      returnItemCondition: 'NEW',
+      returnItemReason: 'INCORRECT_ITEM',
+    });
+    this.refreshAvailablePurchaseProducts();
+    this.cdr.detectChanges();
+  }
+
+  removeProductFromReturn(product: Product): void {
+    this.targetProducts = this.targetProducts.filter(item => item.productId !== product.productId);
+    this.refreshAvailablePurchaseProducts();
+    this.cdr.detectChanges();
+  }
+
+  getReturnLineSubtotal(product: Product): number {
+    return computePurchaseReturnCreditAmount(
+      product,
+      product.returnItemQuantity || 0,
+      product.returnItemPricePerUnit || 0
+    );
+  }
+
+  getReturnMaxQuantity(product: Product): number {
+    const purchaseItem = product['purchaseItem'] as PurchaseItem | undefined;
+    return purchaseItem ? getPurchaseReturnMaxDisplayQuantity(purchaseItem) : 0;
+  }
+
+  getReturnOrderedQuantity(product: Product): number {
+    const purchaseItem = product['purchaseItem'] || this.findPurchaseItemForProduct(product);
+    if (!purchaseItem) {
+      return 0;
+    }
+    return getPurchaseItemDisplayQuantity(purchaseItem);
+  }
+
+  formatReturnOrderedQuantity(product: Product): string {
+    return this.formatLineQuantity(product, this.getReturnOrderedQuantity(product));
+  }
+
+  getReturnRemainingQuantity(product: Product): number {
+    const max = this.getReturnMaxQuantity(product);
+    return Math.max(0, max - (product.returnItemQuantity || 0));
+  }
+
+  formatLineQuantity(product: Product, quantity: number | null | undefined): string {
+    return formatLineQty(product, quantity);
   }
 
   ngOnDestroy(): void {
@@ -282,16 +414,6 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     return this.expandedRows[returnID] === true;
   }
 
-  hideDialog() {
-    this.returnDialog = false;
-    this.submitted = false;
-  }
-
-  initializePickList(): void {
-    this.sourceProducts = this.getSourceProducts();
-    this.targetProducts = this.getTargetProducts();
-  }
-
   getPurchaseDisplayLabel = (purchase: any): string => {
     if (!purchase) return '';
     const reference = purchase.reference || 'N/A';
@@ -312,37 +434,6 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     }
   }
 
-  getSourceProducts(): Product[] {
-    if (this.return && this.return.purchase && this.return.purchase.purchaseItems?.length > 0) {
-      return this.return.purchase.purchaseItems
-        .filter(purchaseItem =>
-          !this.return.returnItems?.some(
-            returnItem => returnItem.product.productId === purchaseItem.product?.productId
-          )
-        )
-        .map(purchaseItem => {
-          const product = { ...purchaseItem.product };
-          product['purchaseItem'] = purchaseItem;
-          product.returnItemPricePerUnit = purchaseItem.buyingPrice;
-          return product;
-        });
-    } else {
-      return [];
-    }
-  }
-
-  getTargetProducts(): Product[] {
-    let targetProducts: Product[] = [];
-    if (this.return && this.return.returnItems && this.return.returnItems.length > 0) {
-      this.return.returnItems.forEach(element => {
-        targetProducts.push(element.product);
-      });
-      return targetProducts;
-    } else {
-      return [];
-    }
-  }
-
   deleteSelectedReturns() {
     if (!this.canDeleteReturn) return;
     this.deleteReturnsDialog = true;
@@ -350,100 +441,45 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
 
   async editReturn(purchaseReturn: PurchaseReturn) {
     if (!this.canEditReturn) return;
-    
-    // Load purchases if not already loaded
+
     if (!this.purchases || this.purchases.length === 0) {
       await this.onGetAllPurchases();
     }
-    
-    // Clone the purchaseReturn to prevent side-effects
+
     this.return = { ...purchaseReturn };
-    
-    // Ensure returnDate is a Date object for the calendar component
+
     if (this.return.returnDate) {
-      this.return.returnDate = typeof this.return.returnDate === 'string' 
-        ? new Date(this.return.returnDate) 
+      this.return.returnDate = typeof this.return.returnDate === 'string'
+        ? new Date(this.return.returnDate)
         : this.return.returnDate;
     }
-    
-    // Ensure the purchase is in the purchases array
+
     if (this.return.purchase && !this.purchases.find(p => p.purchaseId === this.return.purchase?.purchaseId)) {
       this.purchases.push(this.return.purchase);
     }
-    
-    // Initialize returnItems by mapping the return data to the required structure
-    this.returnItems = this.return.returnItems?.map(item => {
-      // Use creditAmount if available, otherwise refundAmount
+
+    this.targetProducts = (this.return.returnItems || []).map(item => {
+      const purchaseItem = item.purchaseItem || this.findPurchaseItemForProduct(item.product);
+      const displayQty = purchaseReturnItemDisplayQty(item);
       const totalAmount = item.creditAmount ?? item.refundAmount ?? 0;
-      
-      // Calculate price per unit from total amount
-      let pricePerUnit = 0;
-      if (item.returnedQuantity && item.returnedQuantity > 0) {
-        pricePerUnit = totalAmount / item.returnedQuantity;
-      } else if (item.purchaseItem?.buyingPrice) {
-        pricePerUnit = item.purchaseItem.buyingPrice;
-      }
-      
-      // Preserve purchaseItem reference if available
-      const product = { ...item.product };
-      if (item.purchaseItem) {
-        product['purchaseItem'] = item.purchaseItem;
-      } else if (this.return.purchase?.purchaseItems) {
-        // Try to find the purchaseItem from the purchase
-        const purchaseItem = this.return.purchase.purchaseItems.find(
-          pi => pi.product?.productId === item.product?.productId
-        );
-        if (purchaseItem) {
-          product['purchaseItem'] = purchaseItem;
-          // If price per unit is 0, use the buying price from purchase item
-          if (!pricePerUnit || pricePerUnit === 0) {
-            product.returnItemPricePerUnit = purchaseItem.buyingPrice || 0;
-          }
-        }
-      }
-      
+      const pricePerUnit = displayQty > 0
+        ? totalAmount / displayQty
+        : (purchaseItem?.buyingPrice ?? 0);
+
       return {
-        returnItemId: item.returnItemId,
-        product: {
-          ...product,
-          returnItemQuantity: item.returnedQuantity || 0,
-          returnItemPricePerUnit: pricePerUnit || product['purchaseItem']?.buyingPrice || 0,
-          returnItemCondition: item.condition || 'NEW',
-          returnItemReason: item.reason || 'INCORRECT_ITEM',
-        },
-        returnedQuantity: item.returnedQuantity || 0,
-        refundAmount: totalAmount,
-        creditAmount: totalAmount,
-        condition: item.condition || 'NEW',
-        reason: item.reason || 'INCORRECT_ITEM',
-        purchaseItem: item.purchaseItem,
-      };
-    }) || [];
-    
-    // Set the return dialog to true
-    this.returnDialog = true;
-    
-    // Initialize pick list
-    this.initializePickList();
-    
-    // Ensure targetProducts are updated with the current return items
-    this.targetProducts = [...this.returnItems.map(item => item.product)];
-    
-    // Ensure all product properties are set correctly
-    this.targetProducts.forEach(product => {
-      if (!product.returnItemQuantity) {
-        product.returnItemQuantity = 1;
-      }
-      if (!product.returnItemPricePerUnit && product['purchaseItem']) {
-        product.returnItemPricePerUnit = product['purchaseItem'].buyingPrice || 0;
-      }
-      if (!product.returnItemCondition) {
-        product.returnItemCondition = 'NEW';
-      }
-      if (!product.returnItemReason) {
-        product.returnItemReason = 'INCORRECT_ITEM';
-      }
+        ...item.product,
+        purchaseItem,
+        returnItemPricePerUnit: pricePerUnit || purchaseItem?.buyingPrice || 0,
+        returnItemQuantity: displayQty || lineQuantityMin(item.product),
+        returnItemCondition: item.condition || 'NEW',
+        returnItemReason: item.reason || 'INCORRECT_ITEM',
+      } as Product;
     });
+
+    this.returnDialog = true;
+    this.selectedReturnProduct = null;
+    this.submitted = false;
+    this.refreshAvailablePurchaseProducts();
   }
 
   deleteReturn(purchaseReturn: PurchaseReturn) {
@@ -484,11 +520,11 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     if (!this.canAddReturn) return;
     this.return = {};
     this.targetProducts = [];
-    this.returnItems = [];
+    this.selectedReturnProduct = null;
     this.return.returnDate = new Date();
     this.submitted = false;
     this.onGetAllPurchases();
-    this.initializePickList();
+    this.refreshAvailablePurchaseProducts();
     this.returnDialog = true;
   }
 
@@ -527,16 +563,17 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
       this.return.returnDate = `${year}-${month}-${day}`;
     }
     const returnItems: PurchaseReturnItem[] = this.targetProducts.map((product) => {
-      const creditAmount = (product.returnItemPricePerUnit || 0) * (product.returnItemQuantity || 0);
-      return {
-        product: product,
-        returnedQuantity: product.returnItemQuantity || 0,
-        refundAmount: creditAmount,
-        creditAmount: creditAmount,
-        condition: product.returnItemCondition || 'NEW',
-        purchaseItem: product['purchaseItem'],
-        reason: product.returnItemReason || 'INCORRECT_ITEM',
-      } as PurchaseReturnItem;
+      const purchaseItem = product['purchaseItem'] as PurchaseItem;
+      return buildPurchaseReturnItemPayload(
+        product,
+        purchaseItem,
+        product.returnItemQuantity || lineQuantityMin(product),
+        product.returnItemPricePerUnit || purchaseItem?.buyingPrice || 0,
+        {
+          condition: product.returnItemCondition || 'NEW',
+          reason: product.returnItemReason || 'INCORRECT_ITEM',
+        }
+      );
     });
     const newPurchaseReturn: PurchaseReturn = {
       ...this.return,
@@ -650,9 +687,13 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.purchaseReturns, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    const rows = event.rows || this.lastLazyLoadEvent.rows || this.pageSize;
     this.lastLazyLoadEvent = {
       first: event.first || 0,
-      rows: event.rows || 20,
+      rows,
       sortField: event.sortField || 'returnDate',
       sortOrder: event.sortOrder || -1,
       globalFilter: event.globalFilter || this.globalFilter,
@@ -867,31 +908,49 @@ export class PurchaseReturnsComponent implements OnInit, OnChanges, AfterViewIni
     }
   }
 
-  onMoveToTarget(event: any): void {
-    this.targetProducts.forEach((product: any) => {
-      event.items.forEach((item: any) => {
-        const purchaseItem = this.findPurchaseItemForProduct(product);
-        if (!purchaseItem) {
-          return;
-        }
-        if (product.productId === item.productId) {
-          product.returnItemPricePerUnit = item.purchaseItemPricePerUnit || item.buyingPrice;
-          product.returnItemQuantity = 1;
-          product.returnItemCondition = 'NEW';
-          product.returnItemReason = 'INCORRECT_ITEM';
-          product.purchaseItem = purchaseItem;
-        }
-      });
-    });
-    this.cdr.detectChanges();
-  }
-
   calculateTotalAmount(): number {
     let total = 0;
     for (const product of this.targetProducts) {
-      total += product.returnItemQuantity * product.returnItemPricePerUnit;
+      total += computePurchaseReturnCreditAmount(
+        product,
+        product.returnItemQuantity || 0,
+        product.returnItemPricePerUnit || 0
+      );
     }
     return total < 0 ? 0 : total;
+  }
+
+  quantityInputStep(product: Product): number {
+    return lineQuantityStep(product);
+  }
+
+  quantityInputDecimals(product: Product): number {
+    return lineQuantityDecimals(product);
+  }
+
+  returnQuantityMin(product: Product): number {
+    return lineQuantityMin(product);
+  }
+
+  getMaxReturnDisplayQuantity(product: Product): number {
+    const purchaseItem = product['purchaseItem'] as PurchaseItem | undefined;
+    return purchaseItem ? getPurchaseReturnMaxDisplayQuantity(purchaseItem) : 0;
+  }
+
+  formatReturnQuantity(product: Product, quantity: number | null | undefined): string {
+    return formatLineQuantity(product, quantity);
+  }
+
+  getMeasureUnit(product: Product, quantity?: number): string {
+    return getLineMeasureUnit(product, quantity);
+  }
+
+  formatReturnItemDisplayQuantity(item: PurchaseReturnItem): string {
+    return formatLineQuantity(item?.product, purchaseReturnItemDisplayQty(item));
+  }
+
+  getPurchaseReturnItemDisplayQuantity(item: PurchaseReturnItem): number {
+    return purchaseReturnItemDisplayQty(item);
   }
 
   openReturnDetailsDialog(returnData: PurchaseReturn | any): void {

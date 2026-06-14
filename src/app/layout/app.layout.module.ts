@@ -31,8 +31,10 @@ import { CashRegisterSessionModule } from '../ims/components/cash-register/cash-
 import { ToastModule } from 'primeng/toast';
 import { DropdownModule } from 'primeng/dropdown';
 import { TagModule } from 'primeng/tag';
+import { TooltipModule } from 'primeng/tooltip';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { BrandLogoComponent } from '../shared/brand-logo';
 
 
 @NgModule({
@@ -70,9 +72,11 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
         ToastModule,
         DropdownModule,
         TagModule,
+        TooltipModule,
         ProgressBarModule,
         ProgressSpinnerModule,
-        CashRegisterSessionModule
+        CashRegisterSessionModule,
+        BrandLogoComponent
     ],
     exports: [AppLayoutComponent]
 })

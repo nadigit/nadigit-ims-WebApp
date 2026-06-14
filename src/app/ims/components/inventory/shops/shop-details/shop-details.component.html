@@ -1,10 +1,10 @@
-<div class="shop-details-container">
+﻿<div class="shop-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="shop-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
                             <i class="pi pi-building"></i>
                         </div>
                         <div>
@@ -55,25 +55,16 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" 
-                            [label]="'refresh' | translate"
-                            class="p-button-outlined"
-                            (click)="refreshData()"
-                            [disabled]="loadingShopDetails"></button>
                         <button pButton pRipple icon="pi pi-wallet" 
                             [label]="'cash_register' | translate" 
                             *ngIf="canReadCash"
                             class="p-button-success"
-                            (click)="openCashRegisterDialog()"></button>
+                            (click)="goToCashRegister()"></button>
                         <button pButton pRipple icon="pi pi-pencil" 
                             [label]="'edit_shop' | translate"
                             *ngIf="canEditShop"
                             class="p-button-primary"
                             (click)="editShop()"></button>
-                        <button pButton pRipple icon="pi pi-print"
-                            class="p-button-outlined"
-                            [pTooltip]="'print' | translate"
-                            (click)="printShopDetails()"></button>
                     </div>
                 </div>
             </div>
@@ -82,7 +73,8 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon cash" [ngClass]="{'positive': shopStats?.cashBalance >= 0, 'negative': shopStats?.cashBalance < 0}">
+                <div class="ims-icon-tile ims-icon-tile--md"
+                     [ngClass]="shopStats?.cashBalance >= 0 ? 'ims-icon-tile--success' : 'ims-icon-tile--danger'">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -94,7 +86,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon purchases">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                     <i class="pi pi-shopping-cart"></i>
                 </div>
                 <div class="stat-content">
@@ -105,7 +97,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon expenses">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                     <i class="pi pi-chart-line"></i>
                 </div>
                 <div class="stat-content">
@@ -116,7 +108,8 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon netflow" [ngClass]="{'positive': shopStats?.netCashFlow >= 0, 'negative': shopStats?.netCashFlow < 0}">
+                <div class="ims-icon-tile ims-icon-tile--md"
+                     [ngClass]="shopStats?.netCashFlow >= 0 ? 'ims-icon-tile--success' : 'ims-icon-tile--danger'">
                     <i class="pi pi-arrows-h"></i>
                 </div>
                 <div class="stat-content">
@@ -130,7 +123,7 @@
 
         <!-- Loading Content State -->
         <div *ngIf="loadingShopDetails" class="flex justify-content-center align-items-center py-8">
-            <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
         </div>
 
         <!-- Tabs Section -->
@@ -155,7 +148,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="shop.shopName">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-building"></i>
                                         </div>
                                         <div class="info-content">
@@ -165,7 +158,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="shop.creationDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -191,7 +184,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="shop.country">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                                             <i class="pi pi-globe"></i>
                                         </div>
                                         <div class="info-content">
@@ -200,7 +193,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="shop.city">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-map-marker"></i>
                                         </div>
                                         <div class="info-content">
@@ -209,7 +202,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="shop.address">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                                             <i class="pi pi-compass"></i>
                                         </div>
                                         <div class="info-content">
@@ -230,7 +223,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon org">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-building"></i>
                                         </div>
                                         <div class="info-content">
@@ -239,7 +232,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="organizationData.taxID">
-                                        <div class="info-icon org">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-file"></i>
                                         </div>
                                         <div class="info-content">
@@ -263,7 +256,7 @@
                             <div class="card-body">
                                 <div class="financial-grid">
                                     <div class="financial-item">
-                                        <div class="financial-icon purchases">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                                             <i class="pi pi-shopping-cart"></i>
                                         </div>
                                         <div class="financial-content">
@@ -274,7 +267,7 @@
                                     </div>
                                     
                                     <div class="financial-item">
-                                        <div class="financial-icon expenses">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                                             <i class="pi pi-chart-line"></i>
                                         </div>
                                         <div class="financial-content">
@@ -285,7 +278,7 @@
                                     </div>
                                     
                                     <div class="financial-item">
-                                        <div class="financial-icon average">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                                             <i class="pi pi-calculator"></i>
                                         </div>
                                         <div class="financial-content">
@@ -295,7 +288,8 @@
                                     </div>
                                     
                                     <div class="financial-item">
-                                        <div class="financial-icon balance" [ngClass]="{'positive': shopStats?.cashBalance >= 0, 'negative': shopStats?.cashBalance < 0}">
+                                        <div class="ims-icon-tile ims-icon-tile--md"
+                                             [ngClass]="shopStats?.cashBalance >= 0 ? 'ims-icon-tile--success' : 'ims-icon-tile--danger'">
                                             <i class="pi pi-wallet"></i>
                                         </div>
                                         <div class="financial-content">
@@ -382,11 +376,12 @@
                         </div>
                         <div class="card-body p-0">
                             <div *ngIf="!loadingPurchases; else purchasesLoading">
-                                <p-table [value]="recentPurchases || []" [rows]="10" [paginator]="true"
+                                <p-table [value]="recentPurchases || []" [rows]="pageSizeService.get(TablePageSizeKeys.shopDetailsProducts, [10,25,50])" [paginator]="true"
                                     [showCurrentPageReport]="true"
                                     styleClass="p-datatable-sm p-datatable-striped"
                                     currentPageReportTemplate="{first} - {last} / {totalRecords}"
-                                    [rowsPerPageOptions]="[10,25,50]">
+                                    [rowsPerPageOptions]="[10,25,50]"
+                                    (onPage)="pageSizeService.onPage(TablePageSizeKeys.shopDetailsProducts, [10,25,50], $event)">
                                     <ng-template pTemplate="header">
                                         <tr>
                                             <th pSortableColumn="dateOfPurchase">
@@ -435,7 +430,7 @@
                             </div>
                             <ng-template #purchasesLoading>
                                 <div class="flex justify-content-center align-items-center py-8">
-                                    <p-progressSpinner [style]="{width: '40px', height: '40px'}" strokeWidth="4"></p-progressSpinner>
+                                    <p-progressSpinner styleClass="ims-spinner--base" ariaLabel="loading"></p-progressSpinner>
                                 </div>
                             </ng-template>
                         </div>
@@ -459,11 +454,12 @@
                         </div>
                         <div class="card-body p-0">
                             <div *ngIf="!loadingExpenses; else expensesLoading">
-                                <p-table [value]="recentExpenses || []" [rows]="10" [paginator]="true"
+                                <p-table [value]="recentExpenses || []" [rows]="pageSizeService.get(TablePageSizeKeys.shopDetailsRecentExpenses, [10,25,50])" [paginator]="true"
                                     [showCurrentPageReport]="true"
                                     styleClass="p-datatable-sm p-datatable-striped"
                                     currentPageReportTemplate="{first} - {last} / {totalRecords}"
-                                    [rowsPerPageOptions]="[10,25,50]">
+                                    [rowsPerPageOptions]="[10,25,50]"
+                                    (onPage)="pageSizeService.onPage(TablePageSizeKeys.shopDetailsRecentExpenses, [10,25,50], $event)">
                                     <ng-template pTemplate="header">
                                         <tr>
                                             <th pSortableColumn="dateOfExpense">
@@ -518,7 +514,7 @@
                             </div>
                             <ng-template #expensesLoading>
                                 <div class="flex justify-content-center align-items-center py-8">
-                                    <p-progressSpinner [style]="{width: '40px', height: '40px'}" strokeWidth="4"></p-progressSpinner>
+                                    <p-progressSpinner styleClass="ims-spinner--base" ariaLabel="loading"></p-progressSpinner>
                                 </div>
                             </ng-template>
                         </div>
@@ -543,7 +539,7 @@
                         </div>
                         <div class="card-body p-0">
                             <div *ngIf="posSessionsLoading" class="flex justify-content-center py-6">
-                                <p-progressSpinner [style]="{width: '40px', height: '40px'}" strokeWidth="4"></p-progressSpinner>
+                                <p-progressSpinner styleClass="ims-spinner--base" ariaLabel="loading"></p-progressSpinner>
                             </div>
                             <ng-container *ngIf="!posSessionsLoading">
                                 <p-table [value]="posSessions" styleClass="p-datatable-sm p-datatable-striped" responsiveLayout="scroll">
@@ -625,7 +621,7 @@
     </div>
 
     <!-- Empty State -->
-    <div class="shop-content" *ngIf="!isLoading && !loadingShopDetails && !shop">
+    <div class="shop-content" *ngIf="!isLoading && !shop">
         <div class="empty-state-container">
             <div class="empty-state">
                 <div class="empty-icon">
@@ -651,556 +647,3 @@
     (save)="onShopSave($event)"
     (cancel)="onShopCancel()">
 </app-shop-form-dialog>
-
-<!-- Cash Register Dialog -->
-<p-dialog [(visible)]="cashRegisterDialog" [header]="'cash_register' | translate" [modal]="true"
-    [style]="{width: '95%', height: '95vh'}" [draggable]="false" [resizable]="true" [closeOnEscape]="true"
-    [breakpoints]="{'960px': '95vw', '640px': '98vw'}" [contentStyle]="{'max-height': '85vh', 'overflow-y': 'auto'}"
-    styleClass="p-fluid cash-register-dialog">
-
-    <ng-template pTemplate="header">
-        <div class="flex align-items-center justify-content-between w-full">
-            <div class="flex align-items-center gap-2">
-                <i class="pi pi-wallet text-2xl text-primary"></i>
-                <span class="text-xl font-bold">{{ 'cash_register' | translate }}</span>
-                <span class="text-600">- {{ shop?.shopName }}</span>
-            </div>
-            <div class="flex gap-2">
-                <button pButton pRipple icon="pi pi-power-off" class="p-button-rounded p-button-text p-button-plain"
-                    [pTooltip]="'open_close_session' | translate" tooltipPosition="bottom"
-                    (click)="openCashRegisterSessionDialog()"></button>
-                <button pButton pRipple icon="pi pi-cog" class="p-button-rounded p-button-text p-button-plain"
-                    [pTooltip]="'settings' | translate" tooltipPosition="bottom"
-                    (click)="openSettingsDialog()"></button>
-                <button pButton pRipple icon="pi pi-refresh" class="p-button-rounded p-button-text p-button-plain"
-                    [pTooltip]="'refresh' | translate" tooltipPosition="bottom" (click)="refreshData()"
-                    [disabled]="loadingCashRegister"></button>
-                <button pButton pRipple icon="pi pi-file-excel" class="p-button-rounded p-button-text p-button-plain"
-                    [pTooltip]="'export_to_excel' | translate" tooltipPosition="bottom"
-                    (click)="exportCashRegisterData()"></button>
-            </div>
-        </div>
-    </ng-template>
-
-    <ng-template pTemplate="content">
-        <div *ngIf="loadingCashRegister" class="flex justify-content-center align-items-center py-8">
-            <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
-        </div>
-
-        <div *ngIf="!loadingCashRegister" class="grid p-fluid">
-            <div class="col-12 lg:col-4 pr-3">
-                <p-card styleClass="shadow-2 border-round-lg mb-3">
-                    <div class="flex flex-column align-items-center text-center p-4">
-                        <i class="pi pi-wallet text-5xl text-primary mb-3"></i>
-                        <div class="text-600 font-medium mb-2">{{ 'current_balance' | translate }}</div>
-                        <div class="text-3xl font-bold text-900 mb-2">
-                            {{ (cashRegisterData?.totalBalance || cashRegister?.totalBalance || 0) | currency:currency:'symbol':'1.2-2' }}
-                        </div>
-                        <div class="flex align-items-center gap-2 mt-2" *ngIf="dailyDifferenceTrend !== 0">
-                            <i class="pi" [ngClass]="{'pi-arrow-up text-green-500': dailyDifferenceTrend > 0, 'pi-arrow-down text-red-500': dailyDifferenceTrend < 0}"></i>
-                            <span [ngClass]="{'text-green-500': dailyDifferenceTrend > 0, 'text-red-500': dailyDifferenceTrend < 0}" class="font-semibold">
-                                {{ dailyDifferenceTrend | number:'1.2-2' }} {{ currency }}
-                            </span>
-                        </div>
-                    </div>
-                </p-card>
-
-                <p-card styleClass="shadow-2 border-round-lg mb-3">
-                    <ng-template pTemplate="header">
-                        <div class="flex align-items-center gap-2 p-3">
-                            <i class="pi pi-calendar text-primary text-xl"></i>
-                            <span class="font-bold text-lg">{{ 'session_statistics' | translate }}</span>
-                        </div>
-                    </ng-template>
-                    <div class="flex flex-column gap-3">
-                        <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-list text-primary"></i>
-                                <span class="font-medium">{{ 'total_sessions' | translate }}</span>
-                            </div>
-                            <span class="font-bold text-xl">{{ cashRegisterStats?.totalSessions || 0 }}</span>
-                        </div>
-                        <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-unlock text-green-500"></i>
-                                <span class="font-medium">{{ 'open_sessions' | translate }}</span>
-                            </div>
-                            <p-tag [value]="(cashRegisterStats?.openSessions || 0).toString()" severity="warning"></p-tag>
-                        </div>
-                        <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-lock text-blue-500"></i>
-                                <span class="font-medium">{{ 'closed_sessions' | translate }}</span>
-                            </div>
-                            <p-tag [value]="(cashRegisterStats?.closedSessions || 0).toString()" severity="success"></p-tag>
-                        </div>
-                    </div>
-                </p-card>
-
-                <p-card styleClass="shadow-2 border-round-lg">
-                    <ng-template pTemplate="header">
-                        <div class="flex align-items-center gap-2 p-3">
-                            <i class="pi pi-chart-bar text-primary text-xl"></i>
-                            <span class="font-bold text-lg">{{ 'financial_summary' | translate }}</span>
-                        </div>
-                    </ng-template>
-                    <div class="flex flex-column gap-3">
-                        <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-arrow-down text-green-500"></i>
-                                <span class="font-medium">{{ 'total_deposits' | translate }}</span>
-                            </div>
-                            <span class="font-bold text-green-500">
-                                {{ (cashRegisterStats?.totalDeposits || 0) | currency:currency:'symbol':'1.2-2' }}
-                            </span>
-                        </div>
-                        <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-arrow-up text-red-500"></i>
-                                <span class="font-medium">{{ 'total_withdrawals' | translate }}</span>
-                            </div>
-                            <span class="font-bold text-red-500">
-                                {{ (cashRegisterStats?.totalWithdrawals || 0) | currency:currency:'symbol':'1.2-2' }}
-                            </span>
-                        </div>
-                        <div class="flex justify-content-between align-items-center p-3 surface-50 border-round">
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-calculator text-primary"></i>
-                                <span class="font-medium">{{ 'net_cash_flow' | translate }}</span>
-                            </div>
-                            <span class="font-bold text-xl" [ngClass]="{'text-green-500': (cashRegisterStats?.cashFlow || 0) >= 0, 'text-red-500': (cashRegisterStats?.cashFlow || 0) < 0}">
-                                {{ (cashRegisterStats?.cashFlow || 0) | currency:currency:'symbol':'1.2-2' }}
-                            </span>
-                        </div>
-                    </div>
-                </p-card>
-            </div>
-
-            <div class="col-12 lg:col-8 pl-3">
-                <p-card styleClass="shadow-2 border-round-lg mb-3">
-                    <div class="flex flex-column gap-3 p-3">
-                        <div class="flex align-items-center gap-2">
-                            <i class="pi pi-calendar text-primary text-xl"></i>
-                            <span class="font-bold text-lg">{{ 'date_range' | translate }}</span>
-                        </div>
-                        <div class="grid">
-                            <div class="col-12 md:col-5">
-                                <span class="text-600 text-sm mb-1 block">{{ 'start_date' | translate }}</span>
-                                <p-calendar [(ngModel)]="startDate" inputId="start_date" [showIcon]="true"
-                                    iconDisplay="input" (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy"
-                                    [showOnFocus]="false" [maxDate]="endDate || today" styleClass="w-full">
-                                </p-calendar>
-                            </div>
-                            <div class="col-12 md:col-5">
-                                <span class="text-600 text-sm mb-1 block">{{ 'end_date' | translate }}</span>
-                                <p-calendar [(ngModel)]="endDate" inputId="end_date" [showIcon]="true"
-                                    iconDisplay="input" (onSelect)="filterByDateRange()" dateFormat="dd/mm/yy"
-                                    [showOnFocus]="false" [minDate]="startDate" [maxDate]="today" styleClass="w-full">
-                                </p-calendar>
-                            </div>
-                            <div class="col-12 md:col-2 flex align-items-end">
-                                <button pButton type="button" icon="pi pi-times"
-                                    class="p-button-outlined p-button-sm w-full" [pTooltip]="'clear_filter' | translate"
-                                    (click)="clearDateFilter()" [disabled]="!startDate && !endDate">
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </p-card>
-
-                <p-tabView>
-                    <p-tabPanel [header]="'sessions' | translate">
-                        <p-card styleClass="shadow-2 border-round-lg">
-                            <p-table *ngIf="filteredSessions?.length; else noSessions" [value]="filteredSessions"
-                                [rows]="10" [paginator]="true" responsiveLayout="scroll"
-                                [rowsPerPageOptions]="[5,10,25,50]" styleClass="p-datatable-sm p-datatable-striped">
-                                <ng-template pTemplate="header">
-                                    <tr>
-                                        <th>{{ 'cashier' | translate }}</th>
-                                        <th>{{ 'opened_at' | translate }}</th>
-                                        <th>{{ 'closed_at' | translate }}</th>
-                                        <th class="text-right">{{ 'opening_amount' | translate }}</th>
-                                        <th class="text-right">{{ 'closing_amount' | translate }}</th>
-                                        <th>{{ 'status' | translate }}</th>
-                                        <th class="text-center">{{ 'actions' | translate }}</th>
-                                    </tr>
-                                </ng-template>
-                                <ng-template pTemplate="body" let-session>
-                                    <tr>
-                                        <td>
-                                            <div class="flex align-items-center gap-2">
-                                                <i class="pi pi-user text-primary"></i>
-                                                <span class="font-medium">{{ session.username || session.fullName || '—' }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex flex-column">
-                                                <span class="font-medium">{{ session.openedAt | date:'dd/MM/yyyy' }}</span>
-                                                <small class="text-600">{{ session.openedAt | date:'HH:mm' }}</small>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex flex-column" *ngIf="session.closedAt; else stillOpen">
-                                                <span class="font-medium">{{ session.closedAt | date:'dd/MM/yyyy' }}</span>
-                                                <small class="text-600">{{ session.closedAt | date:'HH:mm' }}</small>
-                                            </div>
-                                            <ng-template #stillOpen>
-                                                <p-tag [value]="'still_open' | translate" severity="warning"></p-tag>
-                                            </ng-template>
-                                        </td>
-                                        <td class="text-right font-medium">
-                                            {{ (session.openingAmount || 0) | currency:currency:'symbol':'1.2-2' }}
-                                        </td>
-                                        <td class="text-right font-medium">
-                                            {{ (session.closingAmount || 0) | currency:currency:'symbol':'1.2-2' }}
-                                        </td>
-                                        <td>
-                                            <p-tag [value]="session.closed ? ('closed' | translate) : ('open' | translate)"
-                                                [severity]="session.closed ? 'success' : 'warning'"></p-tag>
-                                        </td>
-                                        <td class="text-center">
-                                            <button pButton icon="pi pi-eye" class="p-button-sm p-button-rounded p-button-text"
-                                                [pTooltip]="'view_movements' | translate"
-                                                (click)="viewSessionMovements(session)">
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </ng-template>
-                            </p-table>
-                            <ng-template #noSessions>
-                                <div class="text-center py-8">
-                                    <i class="pi pi-calendar text-4xl text-400 block mb-3"></i>
-                                    <p class="text-600 font-medium">{{ 'no_sessions_found' | translate }}</p>
-                                </div>
-                            </ng-template>
-                        </p-card>
-                    </p-tabPanel>
-
-                    <p-tabPanel [header]="'movements' | translate" (onOpen)="onMovementsTabOpen()">
-                        <p-card styleClass="shadow-2 border-round-lg">
-                            <ng-template pTemplate="header">
-                                <div class="flex justify-content-between align-items-center p-3">
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-exchange text-primary text-xl"></i>
-                                        <span class="font-bold text-lg">{{ 'movements' | translate }}</span>
-                                        <p-tag [value]="filteredMovements.length.toString()" severity="info"></p-tag>
-                                    </div>
-                                    <div class="flex align-items-center gap-2" *ngIf="isAdmin">
-                                        <button pButton type="button" icon="pi pi-plus"
-                                            [label]="'new_withdraw' | translate" class="p-button-sm p-button-success"
-                                            (click)="openNewWithdrawDialog()">
-                                        </button>
-                                        <button pButton type="button" icon="pi pi-plus"
-                                            [label]="'new_deposit' | translate" class="p-button-sm p-button-success"
-                                            (click)="openNewDepositDialog()">
-                                        </button>
-                                    </div>
-                                </div>
-                            </ng-template>
-                            <div class="flex gap-3 mb-3 p-3 border-bottom-1 surface-border">
-                                <span class="p-input-icon-left flex-1">
-                                    <i class="pi pi-search"></i>
-                                    <input pInputText type="text" [(ngModel)]="movementSearchTerm"
-                                        (ngModelChange)="filterMovements()"
-                                        [placeholder]="'search_movements' | translate" class="w-full" />
-                                </span>
-                                <p-dropdown [(ngModel)]="selectedMovementTypeFilter" [options]="movementTypeOptions"
-                                    optionLabel="label" optionValue="value"
-                                    [showClear]="true" [placeholder]="'filter_by_type' | translate"
-                                    (onChange)="filterMovements()" (onClear)="filterMovements()" appendTo="body">
-                                </p-dropdown>
-                                <button pButton icon="pi pi-filter-slash" class="p-button-outlined p-button-sm"
-                                    (click)="clearMovementFilters()" [pTooltip]="'clear_filters' | translate"></button>
-                            </div>
-                            <p-table [value]="filteredMovements" [rows]="10" [paginator]="true"
-                                responsiveLayout="scroll" [rowsPerPageOptions]="[5,10,25,50]"
-                                styleClass="p-datatable-sm p-datatable-striped">
-                                <ng-template pTemplate="header">
-                                    <tr>
-                                        <th>{{ 'type' | translate }}</th>
-                                        <th class="text-right">{{ 'amount' | translate }}</th>
-                                        <th>{{ 'reference' | translate }}</th>
-                                        <th>{{ 'performed_by' | translate }}</th>
-                                        <th>{{ 'timestamp' | translate }}</th>
-                                    </tr>
-                                </ng-template>
-                                <ng-template pTemplate="body" let-m>
-                                    <tr>
-                                        <td>
-                                            <div class="flex align-items-center gap-2">
-                                                <i [class]="m.type === 'DEPOSIT' ? 'pi pi-arrow-down text-green-500' : 
-                                                    (m.type === 'WITHDRAWAL' ? 'pi pi-arrow-up text-red-500' : 
-                                                    (m.type === 'EXPENSE' ? 'pi pi-minus-circle text-orange-500' : 
-                                                    'pi pi-adjust text-blue-500'))"></i>
-                                                <p-tag [value]="('movement_' + (m.type || '').toLowerCase()) | translate"
-                                                    [severity]="m.type === 'DEPOSIT' ? 'success' : 
-                                                        (m.type === 'WITHDRAWAL' ? 'danger' : 
-                                                        (m.type === 'EXPENSE' ? 'warning' : 'info'))">
-                                                </p-tag>
-                                            </div>
-                                        </td>
-                                        <td class="text-right font-bold" [ngClass]="{
-                                            'text-green-500': m.type === 'DEPOSIT',
-                                            'text-red-500': m.type === 'WITHDRAWAL' || m.type === 'EXPENSE',
-                                            'text-blue-500': m.type === 'ADJUSTMENT'
-                                        }">
-                                            {{ (m.amount || 0) | currency:currency:'symbol':'1.2-2' }}
-                                        </td>
-                                        <td>
-                                            <p-tag *ngIf="m.reference" [value]="m.reference" severity="secondary"></p-tag>
-                                            <span *ngIf="!m.reference" class="text-600">N/A</span>
-                                        </td>
-                                        <td>
-                                            <div class="flex align-items-center gap-2">
-                                                <i class="pi pi-user text-600"></i>
-                                                <span>{{ m.performedByName || 'N/A' }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex flex-column">
-                                                <span class="font-medium">{{ m.timestamp | date:'dd/MM/yyyy' }}</span>
-                                                <small class="text-600">{{ m.timestamp | date:'HH:mm' }}</small>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </ng-template>
-                                <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="5" class="text-center py-8">
-                                            <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
-                                            <p class="text-600 font-medium">{{ 'no_movements_found' | translate }}</p>
-                                        </td>
-                                    </tr>
-                                </ng-template>
-                            </p-table>
-                        </p-card>
-                    </p-tabPanel>
-
-                    <p-tabPanel [header]="'collections' | translate">
-                        <p-card styleClass="shadow-2 border-round-lg">
-                            <ng-template pTemplate="header">
-                                <div class="flex justify-content-between align-items-center p-3">
-                                    <div class="flex align-items-center gap-2">
-                                        <i class="pi pi-exchange text-primary text-xl"></i>
-                                        <span class="font-bold text-lg">{{ 'collections' | translate }}</span>
-                                        <p-tag [value]="filteredCollections.length.toString()" severity="info"></p-tag>
-                                    </div>
-                                    <div class="flex align-items-center gap-2" *ngIf="isAdmin">
-                                        <button pButton type="button" icon="pi pi-plus"
-                                            [label]="'new_collection' | translate" class="p-button-sm p-button-success"
-                                            (click)="openNewCollectionDialog()">
-                                        </button>
-                                    </div>
-                                </div>
-                            </ng-template>
-                            <div class="flex gap-3 mb-3 p-3 border-bottom-1 surface-border">
-                                <span class="p-input-icon-left flex-1">
-                                    <i class="pi pi-search"></i>
-                                    <input pInputText type="text" [(ngModel)]="collectionSearchTerm"
-                                        (ngModelChange)="filterCollections()"
-                                        [placeholder]="'search_collections' | translate" class="w-full" />
-                                </span>
-                                <button pButton icon="pi pi-filter-slash" class="p-button-outlined p-button-sm"
-                                    (click)="clearCollectionFilters()" [pTooltip]="'clear_filters' | translate"></button>
-                            </div>
-                            <p-table [value]="filteredCollections" [rows]="10" [paginator]="true"
-                                responsiveLayout="scroll" [rowsPerPageOptions]="[5,10,25,50]"
-                                styleClass="p-datatable-sm p-datatable-striped">
-                                <ng-template pTemplate="header">
-                                    <tr>
-                                        <th>{{ 'receipt_number' | translate }}</th>
-                                        <th>{{ 'collected_at' | translate }}</th>
-                                        <th class="text-right">{{ 'amount_collected' | translate }}</th>
-                                        <th>{{ 'collected_by' | translate }}</th>
-                                        <th>{{ 'notes' | translate }}</th>
-                                    </tr>
-                                </ng-template>
-                                <ng-template pTemplate="body" let-c>
-                                    <tr>
-                                        <td>
-                                            <div class="flex align-items-center gap-2">
-                                                <i class="pi pi-file text-primary"></i>
-                                                <span class="font-medium">{{ c.receiptNumber || 'N/A' }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex flex-column">
-                                                <span class="font-medium">{{ c.collectedAt | date:'dd/MM/yyyy' }}</span>
-                                                <small class="text-600">{{ c.collectedAt | date:'HH:mm' }}</small>
-                                            </div>
-                                        </td>
-                                        <td class="text-right font-bold text-blue-500">
-                                            {{ (c.amountCollected || 0) | currency:currency:'symbol':'1.2-2' }}
-                                        </td>
-                                        <td>
-                                            <div class="flex align-items-center gap-2">
-                                                <i class="pi pi-user text-600"></i>
-                                                <span>{{ c.collectedByName || 'N/A' }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span *ngIf="c.notes" class="text-600">{{ c.notes }}</span>
-                                            <span *ngIf="!c.notes" class="text-400">—</span>
-                                        </td>
-                                    </tr>
-                                </ng-template>
-                                <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="5" class="text-center py-8">
-                                            <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
-                                            <p class="text-600 font-medium">{{ 'no_collections_found' | translate }}</p>
-                                        </td>
-                                    </tr>
-                                </ng-template>
-                            </p-table>
-                        </p-card>
-                    </p-tabPanel>
-                </p-tabView>
-            </div>
-        </div>
-    </ng-template>
-
-    <ng-template pTemplate="footer">
-        <button pButton pRipple [label]="'close' | translate" icon="pi pi-times" class="p-button-outlined"
-            (click)="closeCashRegisterDialog()"></button>
-    </ng-template>
-</p-dialog>
-
-<!-- Cash Register Settings Dialog -->
-<p-dialog [(visible)]="cashRegisterSettingsDialog" [style]="{width: '450px'}"
-    [header]="'cash_register_details' | translate" [modal]="true" styleClass="p-fluid">
-    <ng-template pTemplate="content">
-        <div class="field">
-            <label for="openingTime">{{ 'cash_register_opening_time' | translate }} <span class="required-asterisk">*</span></label>
-            <p-calendar name="openingTime" inputId="calendar-timeonly" [readonlyInput]="true"
-                [(ngModel)]="cashRegister.openingTime" ngDefaultControl [timeOnly]="true" required autofocus
-                [ngClass]="{'ng-invalid ng-dirty' : submitted && !cashRegister.openingTime}" />
-            <small class="p-error" *ngIf="submitted && !cashRegister.openingTime">
-                {{ 'cash_register_opening_time' | translate }} {{ 'is_required_label' | translate }}
-            </small>
-        </div>
-
-        <div class="field">
-            <label for="closingTime">{{ 'cash_register_closing_time' | translate }} <span class="required-asterisk">*</span></label>
-            <p-calendar name="closingTime" inputId="calendar-timeonly" [readonlyInput]="true"
-                [(ngModel)]="cashRegister.closingTime" ngDefaultControl [timeOnly]="true" required
-                [ngClass]="{'ng-invalid ng-dirty' : submitted && !cashRegister.closingTime}" />
-            <small class="p-error" *ngIf="submitted && !cashRegister.closingTime">
-                {{ 'cash_register_closing_time' | translate }} {{ 'is_required_label' | translate }}
-            </small>
-        </div>
-
-        <div class="required-note mt-3">
-            <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
-        </div>
-    </ng-template>
-
-    <ng-template pTemplate="footer">
-        <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times" class="p-button-text"
-            (click)="hideSettingsDialog()"></button>
-        <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
-            (click)="updateCashRegister()"></button>
-    </ng-template>
-</p-dialog>
-
-<!-- Session Movements Dialog -->
-<p-dialog [(visible)]="movementsDialogVisible" [header]="'session_movements' | translate" [modal]="true"
-    [style]="{width: '70vw', maxWidth: '1000px'}" [closable]="true">
-    <p-table [value]="selectedSessionMovements" responsiveLayout="scroll"
-        styleClass="p-datatable-striped p-datatable-gridlines">
-        <ng-template pTemplate="header">
-            <tr>
-                <th>{{ 'type' | translate }}</th>
-                <th>{{ 'amount' | translate }}</th>
-                <th>{{ 'reference' | translate }}</th>
-                <th>{{ 'performed_by' | translate }}</th>
-                <th>{{ 'timestamp' | translate }}</th>
-            </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-m>
-            <tr>
-                <td>{{ ("movement_" + m.type.toLowerCase()) | translate }}</td>
-                <td>{{ m.amount | number:'1.2-2' }} {{ currency }}</td>
-                <td>{{ m.reference }}</td>
-                <td>{{ m.performedByName }}</td>
-                <td>{{ m.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
-            </tr>
-        </ng-template>
-        <ng-template pTemplate="emptymessage">
-            <tr>
-                <td colspan="5" class="text-center">
-                    {{ 'no_movements_found' | translate }}
-                </td>
-            </tr>
-        </ng-template>
-    </p-table>
-</p-dialog>
-
-<!-- New Deposit Dialog -->
-<p-dialog [header]="'new_deposit' | translate" [(visible)]="newDepositDialogVisible" [modal]="true"
-    [style]="{width: '450px'}" [closable]="true" [draggable]="false">
-    <div class="p-fluid">
-        <div class="field">
-            <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
-            <input pInputText type="number" [(ngModel)]="newDeposit.amount" placeholder="0.00" />
-        </div>
-        <div class="field">
-            <label for="notes">{{ 'notes' | translate }}</label>
-            <textarea pInputTextarea [(ngModel)]="newDeposit.notes" rows="2"></textarea>
-        </div>
-    </div>
-    <ng-template pTemplate="footer">
-        <button pButton [label]="'cancel' | translate" icon="pi pi-times" class="p-button-text"
-            (click)="newDepositDialogVisible = false"></button>
-        <button pButton [label]="'confirm_deposit' | translate" icon="pi pi-check" class="p-button-primary"
-            (click)="saveNewDeposit()"></button>
-    </ng-template>
-</p-dialog>
-
-<!-- New Withdraw Dialog -->
-<p-dialog [header]="'new_withdraw' | translate" [(visible)]="newWithdrawDialogVisible" [modal]="true"
-    [style]="{width: '450px'}" [closable]="true" [draggable]="false">
-    <div class="p-fluid">
-        <div class="field">
-            <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
-            <input pInputText type="number" [(ngModel)]="newWithdraw.amount" placeholder="0.00" />
-        </div>
-        <div class="field">
-            <label for="notes">{{ 'notes' | translate }}</label>
-            <textarea pInputTextarea [(ngModel)]="newWithdraw.notes" rows="2"></textarea>
-        </div>
-    </div>
-    <ng-template pTemplate="footer">
-        <button pButton [label]="'cancel' | translate" icon="pi pi-times" class="p-button-text"
-            (click)="newWithdrawDialogVisible = false"></button>
-        <button pButton [label]="'confirm_withdraw' | translate" icon="pi pi-check" class="p-button-primary"
-            (click)="saveNewWithdraw()"></button>
-    </ng-template>
-</p-dialog>
-
-<!-- New Collection Dialog -->
-<p-dialog [header]="'new_collection' | translate" [(visible)]="newCollectionDialogVisible" [modal]="true"
-    [style]="{width: '450px'}" [closable]="true" [draggable]="false">
-    <div class="p-fluid">
-        <div class="field">
-            <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
-            <input pInputText type="number" [(ngModel)]="newCollection.amount" placeholder="0.00" />
-        </div>
-        <div class="field">
-            <label for="notes">{{ 'notes' | translate }}</label>
-            <textarea pInputTextarea [(ngModel)]="newCollection.notes" rows="2"></textarea>
-        </div>
-    </div>
-    <ng-template pTemplate="footer">
-        <button pButton [label]="'cancel' | translate" icon="pi pi-times" class="p-button-text"
-            (click)="newCollectionDialogVisible = false"></button>
-        <button pButton [label]="'confirm_collection' | translate" icon="pi pi-check" class="p-button-primary"
-            (click)="saveNewCollection()"></button>
-    </ng-template>
-</p-dialog>
-
-<!-- Cash Register Session Component -->
-<app-cash-register-session [(visible)]="showCashRegisterSessionDialog" [shopId]="shop?.shopId"
-    (sessionOpened)="onSessionOpened($event)" (sessionClosed)="onSessionClosed($event)"
-    (dialogClosed)="onCashRegisterSessionDialogClosed()">
-</app-cash-register-session>

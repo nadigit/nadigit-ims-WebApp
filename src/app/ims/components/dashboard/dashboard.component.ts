@@ -20,6 +20,12 @@ import { WarehouseTransferService } from 'src/app/services/warehouse-transfer.se
 import { PaymentService } from 'src/app/services/payment.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import {
+  BRAND_COLORS,
+  getBrandCssColors,
+  getBrandCssHoverColors,
+  getChartThemeColors,
+} from 'src/app/utils/brand-colors';
 
 
 // Utility function for memoization
@@ -852,18 +858,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         )
       );
 
-      const documentStyle = getComputedStyle(document.documentElement);
-      const textColor = documentStyle.getPropertyValue('--text-color');
-      const textColorSecondary = documentStyle.getPropertyValue('--text-color-secondary');
-      const surfaceBorder = documentStyle.getPropertyValue('--surface-border');
+      const { textColor, textColorSecondary, surfaceBorder } = getChartThemeColors();
 
-      const colors = [
-        documentStyle.getPropertyValue('--indigo-500'),
-        documentStyle.getPropertyValue('--purple-500'),
-        documentStyle.getPropertyValue('--teal-500'),
-        documentStyle.getPropertyValue('--orange-500'),
-        documentStyle.getPropertyValue('--pink-500'),
-      ];
+      const colors = getBrandCssColors();
 
       // Generate labels for the last 12 months
       const now = new Date();
@@ -926,8 +923,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         const color = colors[index % colors.length]; // Rotate through predefined colors
 
+        const fullName = product.name || `Product ${index + 1}`;
         return {
-          label: product.name || `Product ${index + 1}`,
+          label: fullName,
+          _fullLabel: fullName,
           data: salesData,
           fill: false,
           backgroundColor: color,
@@ -958,8 +957,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
             salesData.push(sales);
           }
           const color = colors[index % colors.length];
+          const fullName = product.name || `Product ${index + 1}`;
           datasets.push({
-            label: product.name || `Product ${index + 1}`,
+            label: fullName,
+            _fullLabel: fullName,
             data: salesData,
             fill: false,
             backgroundColor: color,
@@ -979,8 +980,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
           validProducts.forEach((product: any, index: number) => {
             const salesData = new Array(12).fill(0);
             const color = colors[index % colors.length];
+            const fullName = product.name || `Product ${index + 1}`;
             datasets.push({
-              label: product.name || `Product ${index + 1}`,
+              label: fullName,
+              _fullLabel: fullName,
               data: salesData,
               fill: false,
               backgroundColor: color,
@@ -1006,20 +1009,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.chartOptions = {
           responsive: true,
           maintainAspectRatio: false,
+          layout: {
+            padding: { top: 4, right: 8, bottom: 4, left: 4 },
+          },
           plugins: {
             legend: {
-              position: 'top',
-              labels: {
-                color: textColor,
-                padding: 15,
-                font: {
-                  size: 12
-                }
-              }
+              display: false,
             },
             tooltip: {
-              enabled: true
-            }
+              enabled: true,
+              callbacks: {
+                label: (context: { dataset: { _fullLabel?: string; label?: string }; parsed: { y: number } }) => {
+                  const fullName = context.dataset._fullLabel || context.dataset.label || '';
+                  const value = context.parsed?.y ?? 0;
+                  return `${fullName}: ${value}`;
+                },
+              },
+            },
           },
           scales: {
             x: {
@@ -1069,20 +1075,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           datasets: [
             {
               data: warehouseData,
-              backgroundColor: [
-                documentStyle.getPropertyValue('--indigo-500'),
-                documentStyle.getPropertyValue('--purple-500'),
-                documentStyle.getPropertyValue('--teal-500'),
-                documentStyle.getPropertyValue('--orange-500'),
-                documentStyle.getPropertyValue('--pink-500')
-              ],
-              hoverBackgroundColor: [
-                documentStyle.getPropertyValue('--indigo-400'),
-                documentStyle.getPropertyValue('--purple-400'),
-                documentStyle.getPropertyValue('--teal-400'),
-                documentStyle.getPropertyValue('--orange-400'),
-                documentStyle.getPropertyValue('--pink-400')
-              ]
+              backgroundColor: getBrandCssColors(),
+              hoverBackgroundColor: getBrandCssHoverColors()
             }]
         };
         
@@ -1150,48 +1144,51 @@ export class DashboardComponent implements OnInit, OnDestroy {
         datasets: [
           {
             label: translations['purchases_menu_title'],
-            backgroundColor: '#42A5F5',
-            borderColor: '#1E88E5',
+            backgroundColor: BRAND_COLORS.saas,
+            borderColor: BRAND_COLORS.saasHover,
             data: purchasesData,
           },
           {
             label: translations['expenses_menu_title'],
-            backgroundColor: '#9CCC65',
-            borderColor: '#7CB342',
+            backgroundColor: BRAND_COLORS.success,
+            borderColor: BRAND_COLORS.successHover,
             data: expensesData,
           },
           {
             label: translations['orders_menu_title'],
-            backgroundColor: '#FFA726',
-            borderColor: '#FB8C00',
+            backgroundColor: BRAND_COLORS.premium,
+            borderColor: BRAND_COLORS.premiumHover,
             data: ordersData,
           }
         ]
       };
 
+      const barTheme = getChartThemeColors();
       this.barOptions = {
         plugins: {
           legend: {
             labels: {
-              color: '#495057'
+              color: barTheme.textColor,
             }
           }
         },
         scales: {
           x: {
             ticks: {
-              color: '#495057'
+              color: barTheme.textColorSecondary,
             },
             grid: {
-              color: '#ebedef'
+              color: barTheme.surfaceBorder,
+              drawBorder: false,
             }
           },
           y: {
             ticks: {
-              color: '#495057'
+              color: barTheme.textColorSecondary,
             },
             grid: {
-              color: '#ebedef'
+              color: barTheme.surfaceBorder,
+              drawBorder: false,
             }
           }
         }
@@ -1827,7 +1824,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const actions = [
       { label: getLabel('users_menu_title', 'Users'), icon: 'pi pi-user-plus', route: ['/administration/users'], tooltip: 'Manage system users' },
-      { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'Manage products' },
+      { label: getLabel('products_menu_title', 'Items'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'Manage items' },
       { label: getLabel('orders_menu_title', 'Orders'), icon: 'pi pi-shopping-cart', route: ['/sales/orders'], tooltip: 'View all orders' },
       { label: getLabel('warehouses_menu_title', 'Warehouses'), icon: 'pi pi-database', route: ['/inventory/warehouses'], tooltip: 'Manage warehouses' },
       { label: getLabel('settings_menu_title', 'Settings'), icon: 'pi pi-cog', route: ['/administration/settings'], tooltip: 'System settings' },
@@ -1854,7 +1851,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       { label: getLabel('add_new_order', 'New Order'), icon: 'pi pi-plus-circle', route: ['/sales/orders'], tooltip: 'Create new order' },
       { label: getLabel('orders_menu_title', 'Orders'), icon: 'pi pi-shopping-cart', route: ['/sales/orders'], tooltip: 'View all orders' },
       { label: getLabel('customers_menu_title', 'Customers'), icon: 'pi pi-users', route: ['/sales/customers'], tooltip: 'Manage customers' },
-      { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View products' },
+      { label: getLabel('products_menu_title', 'Items'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View items' },
       { label: getLabel('payments_menu_title', 'Payments'), icon: 'pi pi-credit-card', route: ['/finance/sales-payments'], tooltip: 'View payments' },
       { label: getLabel('returns_menu_title', 'Returns'), icon: 'pi pi-undo', route: ['/sales/returns'], tooltip: 'Manage returns' }
     ];
@@ -1873,7 +1870,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const actions = [
       { label: getLabel('warehouse_transfers_menu_title', 'Transfers'), icon: 'pi pi-arrow-right-arrow-left', route: ['/inventory/warehouse-transfers'], tooltip: 'Manage transfers' },
       { label: getLabel('new_transfer', 'New Transfer'), icon: 'pi pi-plus-circle', route: ['/inventory/warehouse-transfers'], tooltip: 'Create new transfer' },
-      { label: getLabel('products_menu_title', 'Products'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View products' },
+      { label: getLabel('products_menu_title', 'Items'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View items' },
       { label: getLabel('stock_movements_menu_title', 'Stock Movements'), icon: 'pi pi-chart-line', route: ['/inventory/stock-movements'], tooltip: 'View stock movements' },
       { label: getLabel('warehouses_menu_title', 'Warehouses'), icon: 'pi pi-database', route: ['/inventory/warehouses'], tooltip: 'View warehouses' },
       { label: getLabel('purchases_menu_title', 'Purchases'), icon: 'pi pi-shopping-bag', route: ['/finance/purchases'], tooltip: 'View purchases' }

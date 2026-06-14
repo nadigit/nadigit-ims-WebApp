@@ -1,24 +1,9 @@
-/* Bank Accounts Component Styles */
+/* Bank account form uses shared ims-form-sections styles */
 
-.required-asterisk {
-  color: var(--red-500);
+:host ::ng-deep {
+  .bank-account-form-dialog-shell {
+    .p-dialog-header {
+      padding-bottom: 0.25rem;
+    }
+  }
 }
-
-.p-dialog .p-dialog-content {
-  background: var(--surface-ground);
-  color: var(--text-color);
-}
-
-.p-dialog .p-dialog-header {
-  background: var(--surface-section);
-  color: var(--text-color);
-  border-bottom: 1px solid var(--surface-border);
-}
-
-/* Form validation */
-.ng-invalid.ng-dirty + small {
-  color: var(--red-500);
-  display: block;
-  margin-top: 0.25rem;
-}
-

@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
   <div class="col-12">
     <div class="forecast-shell">
       <div class="forecast-hero mb-4">
@@ -6,16 +6,15 @@
           <h2 class="m-0 text-900">{{ 'reports_forecasting_title' | translate }}</h2>
           <p class="text-600 mt-2 mb-0">{{ 'reports_forecasting_subtitle' | translate }}</p>
         </div>
-        <div class="forecast-hero-actions">
+        <div class="forecast-hero-actions ims-export-actions">
           <button pButton type="button" icon="pi pi-sync" [label]="'ai_forecast_run_button' | translate" (click)="loadForecast()" [loading]="loading"
             [disabled]="loading || !isAiForecastingFeatureEnabled"
             [pTooltip]="!isAiForecastingFeatureEnabled ? ('ai_forecast_upgrade_tooltip' | translate) : ''"></button>
-          <button
-            pButton
-            type="button"
-            icon="pi pi-download"
-            class="p-button-outlined"
-            [label]="'ai_forecast_export_filtered' | translate"
+          <button pButton pRipple type="button"
+            [icon]="'pi pi-file'"
+            class="p-button-secondary"
+            [pTooltip]="'ai_forecast_export_filtered' | translate"
+            tooltipPosition="bottom"
             (click)="exportForecastCsv()"
             [disabled]="rows.length === 0 || loading"></button>
         </div>
@@ -52,14 +51,17 @@
         </div>
       </div>
 
-      <div *ngIf="loading" class="flex flex-column align-items-center justify-content-center py-6 reports-loading-panel surface-card border-1 surface-border border-round">
-        <p-progressSpinner [style]="{ width: '3rem', height: '3rem' }" strokeWidth="3"></p-progressSpinner>
-        <span class="text-600 mt-3">{{ 'loading' | translate }}</span>
+      <div class="ims-loading-panel ims-loading-panel--section reports-loading-panel"
+        *ngIf="(loading || isInitialLoad) && !forecast && !rows.length">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+          <p class="ims-loading-label">{{ 'loading' | translate }}</p>
+        </div>
       </div>
 
-      <p-message *ngIf="error && !loading" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
+      <p-message *ngIf="error && !loading && !isInitialLoad" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
 
-      <div *ngIf="forecast && !loading" class="mb-4">
+      <div *ngIf="forecast && (!isInitialLoad || forecast) && (!loading || forecast)" class="mb-4">
         <div class="grid">
           <div class="col-12 md:col-4">
             <div class="reports-stat-tile reports-stat-tile--accent-blue">
@@ -94,7 +96,7 @@
         </div>
       </div>
 
-      <div class="grid mb-4" *ngIf="!loading">
+      <div class="grid mb-4" *ngIf="(!isInitialLoad || chartData) && (!loading || chartData)">
         <div class="col-12 lg:col-8" *ngIf="chartData">
           <div class="forecast-chart surface-card border-1 surface-border border-round p-3">
             <p-chart type="bar" [data]="chartData" [options]="chartOptions"></p-chart>
@@ -107,7 +109,7 @@
         </div>
       </div>
 
-      <div class="filter-bar flex gap-3 mb-3 flex-wrap align-items-center p-3 surface-ground border-round" *ngIf="rows.length > 0 && !loading">
+      <div class="filter-bar flex gap-3 mb-3 flex-wrap align-items-center p-3 surface-ground border-round" *ngIf="rows.length > 0 && (!loading || rows.length)">
         <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
           <i class="pi pi-search"></i>
           <input
@@ -153,7 +155,7 @@
         </ng-template>
       </p-table>
 
-      <div *ngIf="forecast?.narrative && !loading" class="ai-narrative-panel surface-ground border-round p-3 mt-3">
+      <div *ngIf="forecast?.narrative && (!loading || forecast?.narrative)" class="ai-narrative-panel surface-ground border-round p-3 mt-3">
         <div class="flex align-items-center gap-2 mb-3">
           <i class="pi pi-sparkles text-primary text-xl" aria-hidden="true"></i>
           <h3 class="text-900 m-0">{{ 'ai_forecast_narrative_title' | translate }}</h3>
@@ -172,7 +174,7 @@
         [text]="'ai_forecast_narrative_unavailable_hint' | translate">
       </p-message>
 
-      <p class="text-600 text-sm m-0" *ngIf="!loading && rows.length === 0">
+      <p class="text-600 text-sm m-0" *ngIf="!loading && !isInitialLoad && rows.length === 0">
         {{ 'ai_forecast_empty_hint' | translate }}
       </p>
     </div>

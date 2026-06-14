@@ -23,6 +23,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { DialogService } from 'primeng/dynamicdialog';
 import { MeasureUnit } from 'src/app/enums/measure-condition.enum';
 import { UploadEvent } from 'src/app/models/uploadEvent';
+import { BRAND_COLORS } from 'src/app/utils/brand-colors';
 import { calculateProfit, getAvailableQuantity, getMeasureUnit, getProfitClass, getQuantitySeverity, getWriteOffQuantity, hasWriteOffs } from 'src/app/shared/product-utils';
 import { getExpirationStatus, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
 import { ProductImportComponent } from './product-import/product-import.component';
@@ -33,6 +34,13 @@ import { LocationService } from 'src/app/services/location.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { getPreferredProductImageUrl } from 'src/app/shared/product-image.utils';
+import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -46,6 +54,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
 })
 
 export class ProductsComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
 
   Ressource: string = 'PRODUCTS';
 
@@ -150,7 +159,7 @@ export class ProductsComponent implements OnInit {
 
   statuses: any[] = [];
 
-  rowsPerPageOptions = [20, 50, 100];
+  rowsPerPageOptions = [10, 20, 50, 100];
 
   valSwitch: boolean = false;
 
@@ -282,7 +291,9 @@ export class ProductsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private router: Router,
-    private organizationService: OrganizationService) {
+    private organizationService: OrganizationService,
+    public activityProfileService: ActivityProfileService,
+    public pageSizeService: TablePageSizeService) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -308,6 +319,7 @@ export class ProductsComponent implements OnInit {
   }
 
   async ngOnInit() {
+    await this.activityProfileService.ensureLoaded();
     // Don't set isLoading here - let loadProducts() handle it
     // Load view mode from localStorage (only for admin users)
     await this.checkPermissions();
@@ -321,6 +333,11 @@ export class ProductsComponent implements OnInit {
     if (savedTableViewMode === 'list' || savedTableViewMode === 'grid') {
       this.tableViewMode = savedTableViewMode as 'list' | 'grid';
     }
+    initTablePageSizeState(TablePageSizeKeys.products, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      rows: this.rows,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     this.ensureSortFieldValidForViewMode();
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -515,8 +532,8 @@ export class ProductsComponent implements OnInit {
         {
           data: [this.selectedProduct.buyingPrice,
           this.selectedProduct.sellingPrice - this.selectedProduct.buyingPrice],
-          backgroundColor: ['#6366F1', '#10B981'],
-          hoverBackgroundColor: ['#8183f4', '#34d399']
+          backgroundColor: [BRAND_COLORS.saas, BRAND_COLORS.success],
+          hoverBackgroundColor: ['#5188FF', '#1DD99A']
         }
       ]
     };
@@ -1112,16 +1129,15 @@ export class ProductsComponent implements OnInit {
     this.scanning = false;
   }
 
-  deleteProduct(product: Product) {
-    if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
+  async deleteProduct(product: Product) {
+    if (!this.canDeleteProduct || !product.productId) return;
     this.product = { ...product };
+    this.deleteProductDialog = true;
   }
 
-  async confirmDelete() {
+  async onProductDeleteConfirmed(productId: number) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.product.productId);
+    await this.onDeleteProduct(productId);
     this.product = {};
   }
 
@@ -2406,8 +2422,8 @@ export class ProductsComponent implements OnInit {
     }
   }
 
-  getMeasureUnit(product: Product): string {
-    return getMeasureUnit(product.measureUnit, product.quantityAvailable);
+  getMeasureUnit(unit: string, quantity: number): string {
+    return getMeasureUnit(unit, quantity);
   }
 
   getQuantitySeverity(quantity: number): string {
@@ -2457,14 +2473,14 @@ export class ProductsComponent implements OnInit {
   }
 
   archiveProduct(product: Product) {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = true;
     this.product = { ...product };
     this.productDialog = false;
   }
 
   async confirmArchive() {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = false;
     await this.onArchiveProduct(this.product.productId);
     this.product = {};
@@ -2473,14 +2489,13 @@ export class ProductsComponent implements OnInit {
 
 
   unarchiveProduct(product: Product) {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.unArchiveProductDialog = true;
     this.archivedProduct = { ...product };
   }
 
   async confirmUnarchive() {
-    if (!this.canDeleteProduct) return;
-    this.archiveProductDialog = false;
+    if (!this.canArchiveProduct) return;
     this.reactivateProduct(this.archivedProduct);
     this.archivedProduct = {};
     this.unArchiveProductDialog = false;
@@ -2814,10 +2829,16 @@ export class ProductsComponent implements OnInit {
         sortOrder = this.lastLazyLoadEvent.sortOrder ?? defaultSortOrder;
       }
     }
-    
+
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.products, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+      rows: this.rows,
+    });
+    const rows = event.rows ?? this.lastLazyLoadEvent.rows ?? this.pageSize;
+
     this.lastLazyLoadEvent = {
       first: event.first ?? this.lastLazyLoadEvent.first,
-      rows: event.rows ?? this.lastLazyLoadEvent.rows,
+      rows,
       sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
       sortOrder: sortOrder,
       globalFilter: event.globalFilter ?? this.globalFilter,

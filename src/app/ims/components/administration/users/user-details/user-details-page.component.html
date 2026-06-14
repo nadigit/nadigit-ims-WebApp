@@ -1,11 +1,11 @@
-<div class="user-details-container">
+﻿<div class="user-details-container">
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -28,7 +28,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="user-hero-avatar">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
                             <i class="pi pi-user"></i>
                         </div>
                         <div>
@@ -71,7 +71,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern status-card">
-                <div class="stat-icon status">
+                <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="user.enabled ? 'ims-icon-tile--green' : 'ims-icon-tile--danger'">
                     <i class="pi pi-check-circle"></i>
                 </div>
                 <div class="stat-content">
@@ -85,7 +85,7 @@
             </div>
             
             <div class="stat-card-modern roles-card" *ngIf="userRealmRoles.length > 0">
-                <div class="stat-icon roles">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-shield"></i>
                 </div>
                 <div class="stat-content">
@@ -95,7 +95,7 @@
             </div>
             
             <div class="stat-card-modern email-card" *ngIf="user.emailVerified !== undefined">
-                <div class="stat-icon email">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal">
                     <i class="pi pi-envelope"></i>
                 </div>
                 <div class="stat-content">
@@ -129,8 +129,10 @@
                                 <span>{{ 'user_profile' | translate }}</span>
                             </div>
                             <div class="card-body text-center">
-                                <div class="user-avatar-large">
-                                    <i class="pi pi-user"></i>
+                                <div class="flex justify-content-center">
+                                    <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
+                                        <i class="pi pi-user"></i>
+                                    </div>
                                 </div>
                                 <h3 class="mt-3 mb-1">{{ getFullName() }}</h3>
                                 <p class="text-500 m-0">{{ user.username }}</p>
@@ -146,7 +148,7 @@
                             <div class="card-body">
                                 <div class="info-grid">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm" [ngClass]="user.enabled ? 'ims-icon-tile--green' : 'ims-icon-tile--danger'">
                                             <i class="pi pi-check-circle"></i>
                                         </div>
                                         <div class="info-content">
@@ -158,7 +160,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="user.emailVerified !== undefined">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                                             <i class="pi pi-envelope"></i>
                                         </div>
                                         <div class="info-content">
@@ -184,7 +186,7 @@
                             <div class="card-body">
                                 <div class="info-grid">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -194,7 +196,7 @@
                                     </div>
                                     
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                                             <i class="pi pi-envelope"></i>
                                         </div>
                                         <div class="info-content">
@@ -204,7 +206,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="user.firstName">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                                             <i class="pi pi-user-edit"></i>
                                         </div>
                                         <div class="info-content">
@@ -214,7 +216,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="user.lastName">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                                             <i class="pi pi-user-edit"></i>
                                         </div>
                                         <div class="info-content">
@@ -224,7 +226,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="selectedShop?.shopId">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-building"></i>
                                         </div>
                                         <div class="info-content">
@@ -234,7 +236,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="selectedWarehouse?.warehouseId">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
                                             <i class="pi pi-warehouse"></i>
                                         </div>
                                         <div class="info-content">
@@ -244,7 +246,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="posPin">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
                                             <i class="pi pi-key"></i>
                                         </div>
                                         <div class="info-content">
@@ -254,7 +256,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="user.creationDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -263,7 +265,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-sign-in"></i>
                                         </div>
                                         <div class="info-content">

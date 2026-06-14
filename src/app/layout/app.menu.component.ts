@@ -6,6 +6,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ProcessModeService } from 'src/app/services/process-mode.service';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { SessionAuditService } from 'src/app/services/session-audit.service';
 
 @Component({
   selector: 'app-menu',
@@ -25,6 +26,7 @@ export class AppMenuComponent implements OnInit, OnDestroy {
     private translateService: TranslationService,
     private processModeService: ProcessModeService,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
+    private sessionAuditService: SessionAuditService,
   ) { }
 
   async ngOnInit() {
@@ -87,11 +89,30 @@ export class AppMenuComponent implements OnInit, OnDestroy {
     }
 
     // --- Menu Items ---
+    const organizationItems = [
+      { label: translations['my_company'] || 'My Company', icon: 'pi pi-fw pi-building', routerLink: ['/administration/my-company'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+      {
+        label: translations['menu_sites_group'],
+        icon: 'pi pi-fw pi-map-marker',
+        items: [
+          { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/inventory/warehouses'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+          { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/shops'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
+        ],
+        roles: ['ADMIN'],
+      },
+    ];
+
     const inventoryItems = [
-      { label: translations['warehouses_menu_title'], icon: 'pi pi-fw pi-database', routerLink: ['/inventory/warehouses'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
-      { label: translations['shops_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/shops'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
-      { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
-      { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+      {
+        label: translations['menu_items_catalog_group'],
+        icon: 'pi pi-fw pi-box',
+        items: [
+          { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+          { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+          { label: translations['product_families_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/product-families'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+        ],
+        roles: ['WAREHOUSEMAN', 'ADMIN'],
+      },
       {
         label: translations['pricing_menu_title'] || translations['pricing'] || 'Pricing',
         icon: 'pi pi-fw pi-tags',
@@ -285,7 +306,7 @@ export class AppMenuComponent implements OnInit, OnDestroy {
       });
     }
 
-    const reportsItems = [
+    const reportsOperationalLeaves = [
       {
         label: translations['reports_sales_summary'],
         icon: 'pi pi-fw pi-chart-bar',
@@ -303,6 +324,14 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         licenseFeature: 'REPORTS_AND_ANALYTICS',
       },
       {
+        label: translations['reports_top_products'],
+        icon: 'pi pi-fw pi-sort-amount-down',
+        routerLink: ['/reports/top-products'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN'],
+        licenseFeature: 'REPORTS_AND_ANALYTICS',
+      },
+      {
         label: translations['reports_inventory_snapshot'],
         icon: 'pi pi-fw pi-box',
         routerLink: ['/reports/inventory'],
@@ -310,6 +339,9 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         roles: ['ADMIN'],
         licenseFeature: 'REPORTS_AND_ANALYTICS',
       },
+    ];
+
+    const reportsFinancialLeaves = [
       {
         label: translations['reports_profit_analysis'],
         icon: 'pi pi-fw pi-chart-line',
@@ -326,6 +358,9 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         roles: ['ADMIN'],
         licenseFeature: 'AI_FORECASTING',
       },
+    ];
+
+    const reportsCreditLeaves = [
       {
         label: translations['credit_reports'],
         icon: 'pi pi-fw pi-wallet',
@@ -336,25 +371,49 @@ export class AppMenuComponent implements OnInit, OnDestroy {
       },
     ];
 
-    const financeItems = [
-      { label: translations['sales_payments'], icon: 'pi pi-fw pi-arrow-down', routerLink: ['/finance/payments/sales'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['purchase_payments'], icon: 'pi pi-fw pi-arrow-up', routerLink: ['/finance/payments/purchase'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
-      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/finance/expenses'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+    const reportsItems = [
       {
-        label: translations['refunds_menu_title'],
-        icon: 'pi pi-fw pi-wallet',
-        routerLink: ['/finance/refunds'],
-        routerLinkActiveOptions: { exact: false },
-        roles: ['VENDOR', 'ADMIN'],
-        licenseFeature: 'REFUNDS',
+        label: translations['menu_reports_operational_group'],
+        icon: 'pi pi-fw pi-chart-bar',
+        items: reportsOperationalLeaves,
+        roles: ['ADMIN'],
       },
       {
-        label: translations['purchase_credits_menu_title'],
+        label: translations['menu_reports_financial_group'],
+        icon: 'pi pi-fw pi-chart-line',
+        items: reportsFinancialLeaves,
+        roles: ['ADMIN'],
+      },
+      {
+        label: translations['menu_reports_credit_group'],
+        icon: 'pi pi-fw pi-shield',
+        items: reportsCreditLeaves,
+        roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'],
+      },
+    ];
+
+    const treasuryItems = [
+      {
+        label: translations['treasury_overview_menu_title'],
+        icon: 'pi pi-fw pi-chart-bar',
+        routerLink: ['/finance/treasury'],
+        routerLinkActiveOptions: { exact: true },
+        roles: ['ADMIN', 'VENDOR', 'ACCOUNTANT', 'AUDITOR'],
+      },
+      {
+        label: translations['cash_registers_menu_title'],
         icon: 'pi pi-fw pi-wallet',
-        routerLink: ['/finance/purchase-credits'],
+        routerLink: ['/finance/treasury/cash-registers'],
         routerLinkActiveOptions: { exact: false },
-        roles: ['VENDOR', 'ADMIN'],
-        licenseFeature: 'PURCHASE_CREDITS',
+        roles: ['ADMIN', 'VENDOR', 'ACCOUNTANT', 'AUDITOR'],
+      },
+      {
+        label: translations['bank_accounts_menu_title'],
+        icon: 'pi pi-fw pi-credit-card',
+        routerLink: ['/finance/banking/accounts'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'],
+        licenseFeature: 'BANK_ACCOUNTS',
       },
       {
         label: translations['customer_credits_dashboard'],
@@ -364,13 +423,47 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         roles: ['ADMIN'],
         licenseFeature: 'CUSTOMER_CREDITS',
       },
+    ];
+
+    const financeItems = [
       {
-        label: translations['bank_accounts_menu_title'],
-        icon: 'pi pi-fw pi-credit-card',
-        routerLink: ['/finance/banking/accounts'],
-        routerLinkActiveOptions: { exact: false },
-        roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'],
-        licenseFeature: 'BANK_ACCOUNTS',
+        label: translations['menu_payments_group'],
+        icon: 'pi pi-fw pi-wallet',
+        items: [
+          { label: translations['sales_payments'], icon: 'pi pi-fw pi-arrow-down', routerLink: ['/finance/payments/sales'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+          { label: translations['purchase_payments'], icon: 'pi pi-fw pi-arrow-up', routerLink: ['/finance/payments/purchase'], routerLinkActiveOptions: { exact: false }, roles: ['VENDOR', 'ADMIN'] },
+        ],
+        roles: ['VENDOR', 'ADMIN'],
+      },
+      { label: translations['expenses_menu_title'], icon: 'pi pi-fw pi-money-bill', routerLink: ['/finance/expenses'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] },
+      {
+        label: translations['menu_treasury_group'],
+        icon: 'pi pi-fw pi-chart-line',
+        items: treasuryItems,
+        roles: ['ADMIN', 'VENDOR', 'ACCOUNTANT', 'AUDITOR'],
+      },
+      {
+        label: translations['menu_credits_refunds_group'],
+        icon: 'pi pi-fw pi-replay',
+        items: [
+          {
+            label: translations['refunds_menu_title'],
+            icon: 'pi pi-fw pi-arrow-down-left',
+            routerLink: ['/finance/refunds'],
+            routerLinkActiveOptions: { exact: false },
+            roles: ['VENDOR', 'ADMIN'],
+            licenseFeature: 'REFUNDS',
+          },
+          {
+            label: translations['purchase_credits_menu_title'],
+            icon: 'pi pi-fw pi-arrow-up-left',
+            routerLink: ['/finance/purchase-credits'],
+            routerLinkActiveOptions: { exact: false },
+            roles: ['VENDOR', 'ADMIN'],
+            licenseFeature: 'PURCHASE_CREDITS',
+          },
+        ],
+        roles: ['VENDOR', 'ADMIN'],
       },
       {
         label: translations['financial_docs_menu_title'],
@@ -384,7 +477,6 @@ export class AppMenuComponent implements OnInit, OnDestroy {
 
     const administrationItems = [
       { label: translations['users_menu_title'], icon: 'pi pi-fw pi-user', routerLink: ['/administration/users'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
-      { label: translations['my_company'] || 'My Company', icon: 'pi pi-fw pi-sitemap', routerLink: ['/administration/my-company'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
       { label: translations['settings_menu_title'], icon: 'pi pi-fw pi-wrench', routerLink: ['/administration/settings'], routerLinkActiveOptions: { exact: false }, roles: ['ADMIN'] },
       {
         label: translations['backups_menu_title'] || 'Backups',
@@ -409,6 +501,11 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         items: [
           { label: translations['dashboard'], icon: 'pi pi-fw pi-home', routerLink: ['/'], roles: ['WAREHOUSEMAN', 'VENDOR', 'ADMIN'] }
         ]
+      },
+      {
+        label: translations['organization'],
+        icon: 'pi pi-fw pi-building',
+        items: organizationItems,
       },
       {
         label: translations['inventory'],
@@ -488,6 +585,6 @@ export class AppMenuComponent implements OnInit, OnDestroy {
   }
 
   logOut() {
-    this.keycloakService.logout(window.location.origin);
+    void this.sessionAuditService.logout(window.location.origin);
   }
 }

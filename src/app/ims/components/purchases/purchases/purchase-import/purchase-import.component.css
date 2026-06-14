@@ -1,4 +1,16 @@
-/* Purchase Import Component Styles */
+/* Purchase Import — wizard styles: ims-import-wizard.scss */
+
+:host ::ng-deep .import-file-upload-btn .p-button {
+  width: auto;
+}
+
+.invoice-upload-preview {
+  max-height: 280px;
+  object-fit: contain;
+  background: var(--surface-ground);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--brand-radius-field, 8px);
+}
 
 :host ::ng-deep .p-fileupload-basic {
   width: 100%;
@@ -92,5 +104,21 @@
 
 .purchase-import-warning-item-technical .purchase-import-warning-icon {
   color: #64748b;
+}
+
+:host-context(.layout-theme-dark) .purchase-import-warning-next-step {
+  background: rgba(244, 183, 64, 0.12);
+  border-color: rgba(244, 183, 64, 0.35);
+  color: var(--brand-badge-warning-text);
+}
+
+:host-context(.layout-theme-dark) .purchase-import-warning-item {
+  background: rgba(244, 183, 64, 0.1);
+  color: var(--brand-badge-warning-text);
+}
+
+:host-context(.layout-theme-dark) .purchase-import-warning-item-technical {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-color-secondary);
 }
 

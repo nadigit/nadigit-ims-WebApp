@@ -1,0 +1,53 @@
+@import 'brand-tokens';
+
+// ---------------------------------------------------------------------------
+// Detail / profile page hero shells — rounded card style (backups reference)
+// Stats rows and content spacing stay in each page component.
+// ---------------------------------------------------------------------------
+
+:root {
+  --detail-hero-radius: 16px;
+}
+
+.detail-page-hero-shell,
+.account-hero,
+.category-hero,
+.company-hero,
+.customer-hero,
+.expense-hero,
+.financial-doc-hero,
+.order-hero,
+.payment-hero,
+.product-hero,
+.purchase-hero,
+.refund-hero,
+.return-hero,
+.role-hero,
+.shop-hero,
+.supplier-hero,
+.transfer-hero,
+.user-hero,
+.warehouse-hero,
+.write-off-hero,
+.profile-hero,
+.backups-hero {
+  position: relative;
+  border-radius: var(--detail-hero-radius) !important;
+  border: 1px solid var(--surface-border) !important;
+  overflow: hidden;
+  background: var(--surface-card) !important;
+  box-shadow: none;
+  // Cancel horizontal bleed so rounded corners stay visible
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.backups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.backups-container .backups-hero {
+  margin-bottom: 0 !important;
+}

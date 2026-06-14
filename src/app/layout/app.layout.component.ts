@@ -20,8 +20,10 @@ import { MaintenanceStatus } from '../models/maintenance';
 import { MaintenanceService } from '../services/maintenance.service';
 import { LicenseCapabilitiesService, LicenseDowngradeImpactResponse } from '../services/license-capabilities.service';
 import { buildKeycloakRedirectUri } from '../utils/keycloak-redirect.util';
+import { SessionAuditService } from '../services/session-audit.service';
 import { NadiPilotActionDTO, NadiPilotResponseDTO, AiIntegrationService } from '../services/ai-integration.service';
 import { Supplier } from '../models/supplier';
+import { BRAND_ASSETS } from '../utils/brand-assets';
 
 @Component({
     selector: 'app-layout',
@@ -31,6 +33,7 @@ import { Supplier } from '../models/supplier';
 export class AppLayoutComponent implements OnDestroy, OnInit {
 
     overlayMenuOpenSubscription: Subscription;
+    copilotToggleSubscription?: Subscription;
     maintenancePollingSub?: Subscription;
 
     menuOutsideClickListener: any;
@@ -42,6 +45,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     public profile?: KeycloakProfile;
 
     currentYear = new Date().getFullYear();
+    readonly brandAssets = BRAND_ASSETS;
     daysUntilExpiration: number | null = null;
     showCashRegisterDialog = false;
     isAdmin: boolean = false;
@@ -90,7 +94,6 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     @ViewChild(AppTopBarComponent) appTopbar!: AppTopBarComponent;
     @ViewChild('copilotInputField') copilotInputField?: ElementRef<HTMLTextAreaElement>;
-    @ViewChild('copilotLauncherBtn') copilotLauncherBtn?: ElementRef<HTMLButtonElement>;
 
     isPosRoute: boolean = false;
     maintenanceStatus: MaintenanceStatus | null = null;
@@ -116,9 +119,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     copilotSelectedWarehouseId: number | null = null;
     copilotSelectedSupplierId: number | null = null;
     isCopilotOpen = false;
-    isCopilotMinimized = false;
     copilotUnreadCount = 0;
-    isCopilotLauncherCompact = false;
     isCopilotHistoryExpanded = false;
     selectedCopilotHistoryKey: string | null = null;
     showCopilotScopeDialog = false;
@@ -140,6 +141,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         private maintenanceService: MaintenanceService,
         private licenseCapabilitiesService: LicenseCapabilitiesService,
         private aiIntegrationService: AiIntegrationService,
+        private sessionAuditService: SessionAuditService,
     ) {
 
         // Detect POS routes to hide sidebar/topbar
@@ -183,9 +185,14 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             .subscribe(() => {
                 this.hideMenu();
                 this.hideProfileMenu();
+                this.layoutService.collapseMenuHover();
                 this.closeCopilotPanel(false);
                 this.loadMaintenanceStatus();
             });
+
+        this.copilotToggleSubscription = this.layoutService.copilotToggle$.subscribe(() => {
+            this.toggleCopilotPanel();
+        });
     }
     async ngOnInit(): Promise<void> {
         if (this.keycloakService.isTokenExpired()) {
@@ -204,7 +211,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         await this.onGetAllSuppliers();
         this.loadCopilotHistory();
         this.loadCopilotMode();
-        this.updateCopilotLauncherCompactState();
+        this.syncCopilotUiState();
         await this.loadMaintenanceStatus();
         this.startMaintenancePolling();
         try {
@@ -358,6 +365,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (tierUpper === 'PRO') {
             return 'license_plan_upgrade_pro';
         }
+        if (tierUpper === 'BUSINESS') {
+            return 'license_plan_upgrade_business';
+        }
         return 'license_plan_upgrade_enterprise';
     }
 
@@ -505,6 +515,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             'layout-overlay': this.layoutService.config().menuMode === 'overlay',
             'layout-static': this.layoutService.config().menuMode === 'static',
             'layout-static-inactive': this.layoutService.state.staticMenuDesktopInactive && this.layoutService.config().menuMode === 'static',
+            'layout-menu-compact': this.layoutService.config().menuDisplayMode === 'compact',
+            'layout-menu-hover': this.layoutService.config().menuDisplayMode === 'hover',
+            'layout-menu-expanded': this.layoutService.config().menuDisplayMode === 'expanded',
             'layout-overlay-active': this.layoutService.state.overlayMenuActive,
             'layout-mobile-active': this.layoutService.state.staticMenuMobileActive,
             'p-input-filled': this.layoutService.config().inputStyle === 'filled',
@@ -524,6 +537,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             this.maintenancePollingSub.unsubscribe();
             this.maintenancePollingSub = undefined;
         }
+        if (this.copilotToggleSubscription) {
+            this.copilotToggleSubscription.unsubscribe();
+        }
     }
 
     async login() {
@@ -533,7 +549,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     }
 
     logOut() {
-        this.keycloakService.logout(window.location.origin + '/webconsole')
+        void this.sessionAuditService.logout(window.location.origin + '/webconsole');
     }
 
     onSessionOpened(session: any): void {
@@ -621,6 +637,34 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (days > 30) return 'success';
         if (days > 0) return 'warning';
         return 'danger';
+    }
+
+    getLicenseTileClass(days: number | null): string {
+        if (days === null) return 'ims-icon-tile--neutral';
+        if (days > 30) return 'ims-icon-tile--green';
+        if (days > 0) return 'ims-icon-tile--amber';
+        return 'ims-icon-tile--danger';
+    }
+
+    hasLicenseStatus(): boolean {
+        return this.daysUntilExpiration !== null || !!this.layoutService.systemInfo?.licenseExpiresAt;
+    }
+
+    getLicenseStatusSeverity(): string {
+        if (this.daysUntilExpiration !== null) {
+            return this.getLicenseSeverity(this.daysUntilExpiration);
+        }
+        return this.layoutService.systemInfo?.licenseExpiresAt ? 'success' : 'warning';
+    }
+
+    getLicenseStatusLabel(): string {
+        if (this.daysUntilExpiration !== null) {
+            return this.getLicenseStatusText(this.daysUntilExpiration);
+        }
+        if (this.layoutService.systemInfo?.licenseExpiresAt) {
+            return this.translate.instant('active');
+        }
+        return '—';
     }
 
     getLicenseStatusText(days: number): string {
@@ -1024,6 +1068,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             this.persistCopilotHistory();
             if (!this.isCopilotOpen) {
                 this.copilotUnreadCount = Math.min(this.copilotUnreadCount + 1, 99);
+                this.syncCopilotUiState();
             }
         } catch (error: any) {
             this.messageService.add({
@@ -1461,25 +1506,22 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     openCopilotPanel(): void {
         this.isCopilotOpen = true;
-        this.isCopilotMinimized = false;
         this.copilotUnreadCount = 0;
+        this.syncCopilotUiState();
         setTimeout(() => this.copilotInputField?.nativeElement?.focus(), 0);
     }
 
     closeCopilotPanel(restoreFocus = true): void {
         this.isCopilotOpen = false;
+        this.syncCopilotUiState();
         if (restoreFocus) {
-            setTimeout(() => this.copilotLauncherBtn?.nativeElement?.focus(), 0);
+            setTimeout(() => this.appTopbar?.copilotTopbarBtn?.nativeElement?.focus(), 0);
         }
     }
 
-    minimizeCopilotPanel(): void {
-        this.isCopilotOpen = false;
-        this.isCopilotMinimized = true;
-    }
-
-    restoreCopilotFromMinimized(): void {
-        this.openCopilotPanel();
+    private syncCopilotUiState(): void {
+        this.layoutService.setCopilotPanelOpen(this.isCopilotOpen);
+        this.layoutService.setCopilotUnreadCount(this.copilotUnreadCount);
     }
 
     @HostListener('document:keydown.escape')
@@ -1487,22 +1529,6 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (this.isCopilotOpen) {
             this.closeCopilotPanel();
         }
-    }
-
-    @HostListener('window:scroll')
-    onWindowScroll(): void {
-        this.updateCopilotLauncherCompactState();
-    }
-
-    @HostListener('window:resize')
-    onWindowResize(): void {
-        this.updateCopilotLauncherCompactState();
-    }
-
-    private updateCopilotLauncherCompactState(): void {
-        const narrowViewport = window.innerWidth < 1200;
-        const isScrolled = window.scrollY > 120;
-        this.isCopilotLauncherCompact = narrowViewport || isScrolled;
     }
 
 

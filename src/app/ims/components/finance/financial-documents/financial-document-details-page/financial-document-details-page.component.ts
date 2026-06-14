@@ -13,6 +13,8 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { firstValueFrom } from 'rxjs';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-financial-document-details-page',
@@ -20,6 +22,7 @@ import { Organization } from 'src/app/models/organization';
   styleUrls: ['./financial-document-details-page.component.css', '../financial-documents.component.css', '../../finance.component.css']
 })
 export class FinancialDocumentDetailsPageComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
   financialDocId!: number;
   financialDoc: FinancialDocument | null = null;
   isLoading: boolean = true;
@@ -48,7 +51,8 @@ export class FinancialDocumentDetailsPageComponent implements OnInit {
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private translateService: TranslationService,
-    private organizationService: OrganizationService
+    private organizationService: OrganizationService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
@@ -80,6 +84,7 @@ export class FinancialDocumentDetailsPageComponent implements OnInit {
           { label: translations['Purchase Order'], value: 'PURCHASE_ORDER' },
           { label: translations['Delivery Note'], value: 'DELIVERY_NOTE' },
           { label: translations['Return Note'], value: 'RETURN_NOTE' },
+          { label: translations['Proforma Invoice'] || 'Proforma Invoice', value: 'PROFORMA_INVOICE' },
           { label: translations['Invoice'], value: 'INVOICE' },
           { label: translations['Credit Note'], value: 'CREDIT_NOTE' }
         ];
@@ -180,13 +185,23 @@ export class FinancialDocumentDetailsPageComponent implements OnInit {
 
   getDocTypeLabel(docType: string | undefined): string {
     if (!docType) return 'N/A';
-    const docTypeObj = this.docTypes?.find((dt: any) => dt.value === docType);
+    const key = docType.toUpperCase();
+    const translated = this.translate.instant(key);
+    if (translated && translated !== key) {
+      return translated;
+    }
+    const docTypeObj = this.docTypes?.find((dt: any) => dt.value === key);
     return docTypeObj?.label || docType;
   }
 
   getDocStatusLabel(docStatus: string | undefined): string {
     if (!docStatus) return 'N/A';
-    const docStatusObj = this.docStatuses?.find((ds: any) => ds.value === docStatus);
+    const key = docStatus.toUpperCase();
+    const translated = this.translate.instant(key);
+    if (translated && translated !== key) {
+      return translated;
+    }
+    const docStatusObj = this.docStatuses?.find((ds: any) => ds.value === key);
     return docStatusObj?.label || docStatus;
   }
 

@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Pipe, PipeTransform, SimpleChanges, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -27,6 +27,22 @@ import { Organization } from 'src/app/models/organization';
 import { DatePipe } from '@angular/common';
 import { ShopService } from 'src/app/services/shop.service';
 import { Shop } from 'src/app/models/shop';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
+import { QuantityScale } from 'src/app/utils/quantity-scale.util';
+import {
+  defaultLineQuantity,
+  formatLineQuantity as formatLineQty,
+  getLineMeasureUnit,
+  getOrderItemDisplayQuantity,
+  getOrderItemDisplayRemainingQuantity,
+  lineQuantityDecimals,
+  lineQuantityMin as lineQtyMin,
+  lineQuantityStep,
+} from 'src/app/shared/product-utils';
 
 
 @Pipe({
@@ -49,9 +65,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   styleUrls: ['./returns.component.css', '../sales.component.css'],
   providers: [MessageService, DatePipe]
 })
-export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
-
-  @ViewChild('pickList') pickList: ElementRef | undefined;
+export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
 
   Ressource: string = 'RETURNS';
 
@@ -115,6 +129,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   shops: Shop[] = [];
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   valSwitch: boolean = false;
 
@@ -136,7 +151,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   targetProducts: Product[] = [];
 
-  returnItems: ReturnItem[] = [];
+  selectedReturnProduct: Product | null = null;
 
   expandedRows: { [key: string]: boolean } = {}; // Keep track of expanded rows
 
@@ -237,6 +252,10 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.returns, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     
     this.configService.currency$.subscribe(currency => {
       if (currency) {
@@ -278,9 +297,6 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     await Promise.all([
       this.onGetAllCustomers(),
       this.onGetAllShops(),
-      this.getSourceProducts(),
-      this.getTargetProducts(),
-      this.initializePickList(),
       this.setUserRoles(),
       this.checkPermissions(),
     ]);
@@ -356,17 +372,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
   ngOnChanges(changes: SimpleChanges): void {
     if ('return' in changes) {
-      this.initializePickList();
-    }
-  }
-
-
-  ngAfterViewInit() {
-    if (this.pickList) {
-      // Get all list items in the source and target containers
-      const sourceItems = this.pickList.nativeElement.querySelectorAll('.p-picklist-source .p-picklist-item');
-      const targetItems = this.pickList.nativeElement.querySelectorAll('.p-picklist-target .p-picklist-item');
-
+      this.refreshAvailableReturnProducts();
     }
   }
 
@@ -407,8 +413,103 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   initializePickList(): void {
-    this.sourceProducts = this.getSourceProducts();
-    this.targetProducts = this.getTargetProducts();
+    this.refreshAvailableReturnProducts();
+  }
+
+  refreshAvailableReturnProducts(): void {
+    this.sourceProducts = this.getAvailableOrderProducts();
+  }
+
+  onReturnOrderChange(): void {
+    this.targetProducts = [];
+    this.selectedReturnProduct = null;
+    this.refreshAvailableReturnProducts();
+  }
+
+  getAvailableOrderProducts(): Product[] {
+    if (!this.return?.order?.orderItems?.length) {
+      return [];
+    }
+
+    const selectedIds = new Set(this.targetProducts.map(product => product.productId));
+    return this.return.order.orderItems
+      .filter(orderItem => orderItem.product?.productId && !selectedIds.has(orderItem.product.productId))
+      .map(orderItem => this.mapOrderItemToReturnProduct(orderItem));
+  }
+
+  mapOrderItemToReturnProduct(orderItem: OrderItem): Product {
+    const product = { ...orderItem.product } as Product;
+    product.orderItem = orderItem;
+    product.orderItemPricePerUnit = orderItem.pricePerUnit;
+    return product;
+  }
+
+  onReturnProductSelect(event: { value?: Product | null }): void {
+    const product = event?.value;
+    if (!product?.productId) {
+      return;
+    }
+    this.addProductToReturn(product);
+    this.selectedReturnProduct = null;
+  }
+
+  addProductToReturn(product: Product): void {
+    if (this.getReturnMaxQuantity(product) <= 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('insufficient_quantity'),
+        detail: this.translate.instant('product_quantity_not_sufficient_to_move'),
+        life: 3000,
+      });
+      return;
+    }
+
+    const existingProduct = this.targetProducts.find(item => item.productId === product.productId);
+    if (existingProduct) {
+      existingProduct.returnItemQuantity = (existingProduct.returnItemQuantity || 0) + lineQuantityStep(existingProduct);
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const orderItem = product.orderItem || this.findOrderItemForProduct(product);
+    if (!orderItem) {
+      console.error('Original order item not found for product:', product);
+      return;
+    }
+
+    const unitPrice = orderItem.pricePerUnit ?? product.orderItemPricePerUnit ?? product.sellingPrice;
+    this.targetProducts.push({
+      ...product,
+      orderItem,
+      orderItemPricePerUnit: unitPrice,
+      returnItemPricePerUnit: unitPrice,
+      returnItemQuantity: defaultLineQuantity(product),
+      returnItemCondition: 'NEW',
+      returnItemReason: 'INCORRECT_ITEM',
+    });
+    this.refreshAvailableReturnProducts();
+    this.cdr.detectChanges();
+  }
+
+  removeProductFromReturn(product: Product): void {
+    this.targetProducts = this.targetProducts.filter(item => item.productId !== product.productId);
+    this.refreshAvailableReturnProducts();
+    this.cdr.detectChanges();
+  }
+
+  getReturnLineSubtotal(product: Product): number {
+    return (product.returnItemQuantity || 0) * (product.returnItemPricePerUnit || 0);
+  }
+
+  getSourceProducts(): Product[] {
+    return this.getAvailableOrderProducts();
+  }
+
+  getTargetProducts(): Product[] {
+    if (this.return && this.return.returnItems && this.return.returnItems.length > 0) {
+      return this.return.returnItems.map(element => element.product);
+    }
+    return [];
   }
 
   getOrderDisplayLabel = (order: any): string => {
@@ -416,7 +517,6 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
 
     const reference = order.reference || 'N/A';
     const totalAmount = order.totalAmount;
-    //const itemCount = order.orderItems.length || 0;
     const itemCount = order.itemCount !== undefined ? order.itemCount : this.getSafeItemsCount(order);
     const customerName = this.getCustomerDisplayName(order.customer);
 
@@ -453,42 +553,6 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
 
-  getSourceProducts(): Product[] {
-    console.log("in get source products");
-
-    if (this.return && this.return.order && this.return.order.orderItems?.length > 0) {
-      return this.return.order.orderItems
-        .filter(orderItem =>
-          !this.return.returnItems?.some(
-            returnItem => returnItem.product.productId === orderItem.product?.productId
-          )
-        )
-        .map(orderItem => {
-          const product = { ...orderItem.product }; // Clone to avoid mutating original object
-
-          // Attach useful data from orderItem
-          product.orderItem = orderItem;
-          product.orderItemPricePerUnit = orderItem.pricePerUnit; // ✅ Set the price here
-
-          return product;
-        });
-    } else {
-      return [];
-    }
-  }
-
-  getTargetProducts(): Product[] {
-    let targetProducts: Product[] = [];
-    if (this.return && this.return.returnItems && this.return.returnItems.length > 0) {
-      this.return.returnItems.forEach(element => {
-        targetProducts.push(element.product);
-      });
-      return targetProducts;
-    } else {
-      return [];
-    }
-  }
-
   deleteSelectedReturns() {
     if (!this.canDeleteReturn) return;
     this.deleteReturnsDialog = true;
@@ -497,45 +561,25 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   editReturn(orderReturn: OrderReturn) {
     if (!this.canEditReturn) return;
 
-    // Clone the orderReturn to this.return to prevent side-effects
     this.return = { ...orderReturn };
-
-    // Initialize returnItems by mapping the return data to the required structure
-    this.returnItems = this.return.returnItems.map(item => {
+    this.targetProducts = (this.return.returnItems || []).map(item => {
+      const orderItem = item.orderItem || this.findOrderItemForProduct(item.product);
+      const displayQty = QuantityScale.toDisplayQuantity(item.product, item.returnedQuantity ?? 0);
+      const unitPrice = item.refundAmount ?? orderItem?.pricePerUnit ?? item.product.sellingPrice;
       return {
-        returnItemId: item.returnItemId,
-        product: {
-          ...item.product,
-          returnItemQuantity: item.returnedQuantity,
-          returnItemPricePerUnit: item.refundAmount,
-          returnItemCondition: item.condition || 'NEW',
-          returnItemReason: item.reason || 'INCORRECT_ITEM',
-        },
-        returnedQuantity: item.returnedQuantity,
-        refundAmount: item.refundAmount,
-        condition: item.condition || 'NEW',
-        reason: item.reason || 'INCORRECT_ITEM',
-      };
+        ...item.product,
+        orderItem,
+        orderItemPricePerUnit: orderItem?.pricePerUnit,
+        returnItemQuantity: displayQty,
+        returnItemPricePerUnit: unitPrice,
+        returnItemCondition: item.condition || 'NEW',
+        returnItemReason: item.reason || 'INCORRECT_ITEM',
+      } as Product;
     });
-    console.log(this.returnItems);
 
-    // Set the return dialog to true
     this.returnDialog = true;
-
-    // Initialize pick list
-    this.initializePickList();
-
-    // Add the new fields directly to the order object for consistency
-    this.return.returnItems.forEach(item => {
-      item.product.returnItemQuantity = item.returnedQuantity;
-      item.product.returnItemPricePerUnit = item.refundAmount;
-    });
-
-    // Ensure targetProducts are updated with the current return items
-    this.targetProducts = [...this.returnItems.map(item => item.product)];
-
-    // Log the return to verify
-    console.log(this.return);
+    this.selectedReturnProduct = null;
+    this.refreshAvailableReturnProducts();
   }
 
 
@@ -596,13 +640,12 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     if (!this.canAddReturn) return;
     this.return = {};
     this.targetProducts = [];
-    this.returnItems = [];
+    this.selectedReturnProduct = null;
     this.return.returnDate = new Date();
     this.submitted = false;
-    this.onGetAllOrders(),
-      this.initializePickList();
+    this.onGetAllOrders();
+    this.refreshAvailableReturnProducts();
     this.returnDialog = true;
-
   }
 
   private findOrderItemForProduct(product: Product): OrderItem | undefined {
@@ -664,9 +707,13 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
       const refundPercentage = this.getRefundPercentage(condition);
       const refundAmount = baseRefund * refundPercentage;
       
+      const displayQty = product.returnItemQuantity ?? 0;
+      const storageQty = QuantityScale.isFractional(product)
+        ? QuantityScale.toStorageQuantity(product, displayQty)
+        : Math.max(1, Math.round(displayQty));
       return {
         product: product,
-        returnedQuantity: product.returnItemQuantity,
+        returnedQuantity: storageQty,
         refundAmount: refundAmount,
         condition: condition,
         orderItem: product.orderItem,
@@ -970,9 +1017,13 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   private updateLastLazyLoadEvent(event: LazyLoadEvent) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.returns, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    const rows = event.rows ?? this.lastLazyLoadEvent.rows ?? this.pageSize;
     this.lastLazyLoadEvent = {
       first: event.first ?? this.lastLazyLoadEvent.first,
-      rows: event.rows ?? this.lastLazyLoadEvent.rows,
+      rows,
       sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
       sortOrder: event.sortOrder ?? this.lastLazyLoadEvent.sortOrder,
       globalFilter: event.globalFilter ?? this.globalFilter,
@@ -1521,68 +1572,8 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
-  onMoveToTarget(event: any): void {
-    console.log(event);
-    console.log(this.targetProducts);
-    // Move the selected product from the source to the target
-    this.targetProducts.forEach((product: any) => {
-      console.log(product);
-
-      // Iterate over each item in the event
-      event.items.forEach((item: any) => {
-        const orderItem = this.findOrderItemForProduct(product);
-        console.log(orderItem);
-
-        if (!orderItem) {
-          console.error('Original order item not found for product:', product);
-          return;
-        }
-        // Check if the productId matches
-        if (product.productId === item.productId) {
-          console.log(item);
-          product.returnItemPricePerUnit = item.orderItemPricePerUnit || item.sellingPrice;
-          product.returnItemQuantity = 1;
-          product.returnItemCondition = 'NEW'; // Default condition
-          product.returnItemReason = 'INCORRECT_ITEM'; // Default to global reason
-          product.orderItem = orderItem; // Add the orderItem field
-        }
-        console.log(product);
-      });
-    });
-    // Force change detection
-    this.cdr.detectChanges();
-    console.log(this.targetProducts);
-  }
-
-  //function to move scanned products to target
-  moveProductToTarget(product: any): void {
-    if (product.quantityAvailable <= 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('insufficient_quantity'),
-        detail: this.translate.instant('product_quantity_not_sufficient_to_move'),
-        life: 3000,
-      });
-      console.log('Product quantity is not sufficient to move to target.');
-      return;
-    }
-
-    const existingProduct = this.targetProducts.find(targetProduct => targetProduct.productId === product.productId);
-    if (!existingProduct) {
-      const newProduct = { ...product, returnItemPricePerUnit: product.sellingPrice, returnItemQuantity: 1, returnItemCondition: 'NEW', returnItemReason: 'INCORRECT_ITEM' };
-      newProduct.orderItem = this.findOrderItemForProduct(product);
-      if (!newProduct.orderItem) {
-        console.error('Original order item not found for product:', product);
-        return;
-      }
-      this.targetProducts.push(newProduct);
-      this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
-      this.returnItems.push(newProduct); // Update orderItems for ngModel binding
-      this.cdr.detectChanges(); // Trigger change detection
-    } else {
-      existingProduct.returnItemQuantity += 1;
-      this.cdr.detectChanges();
-    }
+  moveProductToTarget(product: Product): void {
+    this.addProductToReturn(product);
   }
 
 
@@ -1850,19 +1841,7 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
     return this.getRemainingRefundableAmount() <= 0;
   }
 
-    getMeasureUnit(product: Product): string {
-      if (!product.measureUnit) return 'UNIT'; // fallback
-  
-      const pluralizable = ['UNIT', 'PIECE', 'BOX', 'METER'];
-  
-      if (product.quantityAvailable > 1 && pluralizable.includes(product.measureUnit)) {
-        return `${product.measureUnit}_plural`;
-      }
-  
-      return product.measureUnit;
-    }
-  
-    getQuantitySeverity(quantity: number): string {
+  getQuantitySeverity(quantity: number): string {
       if (quantity === undefined || quantity === null) return 'info';
       if (quantity <= 0) return 'danger';
       if (quantity < this.lowStockThreshold) return 'warning';
@@ -1884,5 +1863,58 @@ export class ReturnsComponent implements OnInit, OnChanges, AfterViewInit {
           return threshold;
         }
       }
+
+  quantityInputStep(product: Product): number {
+    return lineQuantityStep(product);
+  }
+
+  quantityInputDecimals(product: Product): number {
+    return lineQuantityDecimals(product);
+  }
+
+  lineQuantityMin(product: Product): number {
+    return lineQtyMin(product);
+  }
+
+  formatLineQuantity(product: Product, quantity: number | null | undefined): string {
+    return formatLineQty(product, quantity);
+  }
+
+  getMeasureUnit(product: Product, quantity?: number): string {
+    return getLineMeasureUnit(product, quantity);
+  }
+
+  getReturnMaxQuantity(product: Product): number {
+    const orderItem = product.orderItem;
+    if (!orderItem) {
+      return 0;
+    }
+    return getOrderItemDisplayRemainingQuantity(orderItem);
+  }
+
+  getReturnOrderedQuantity(product: Product): number {
+    const orderItem = product.orderItem || this.findOrderItemForProduct(product);
+    if (!orderItem) {
+      return 0;
+    }
+    return getOrderItemDisplayQuantity(orderItem);
+  }
+
+  formatReturnOrderedQuantity(product: Product): string {
+    return this.formatLineQuantity(product, this.getReturnOrderedQuantity(product));
+  }
+
+  getReturnRemainingQuantity(product: Product): number {
+    const max = this.getReturnMaxQuantity(product);
+    return Math.max(0, max - (product.returnItemQuantity || 0));
+  }
+
+  formatReturnItemQty(item: ReturnItem): string {
+    return formatLineQty(item?.product, QuantityScale.toDisplayQuantity(item?.product, item?.returnedQuantity ?? 0));
+  }
+
+  getReturnItemMeasureUnit(item: ReturnItem): string {
+    return getLineMeasureUnit(item?.product, QuantityScale.toDisplayQuantity(item?.product, item?.returnedQuantity ?? 0));
+  }
 
 }

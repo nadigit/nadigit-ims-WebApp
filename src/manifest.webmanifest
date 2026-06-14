@@ -1,26 +1,49 @@
 {
+  "id": "/webconsole/pos",
   "name": "Nadigit IMS POS",
   "short_name": "IMS POS",
   "start_url": "/webconsole/pos",
   "scope": "/webconsole/",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#2563eb",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0B1F4A",
   "description": "In-store Point of Sale for Nadigit IMS.",
   "icons": [
     {
-      "src": "assets/app-logo/nadigitims-logo.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/app-logo/nadigitims-logo.png",
+      "src": "/webconsole/assets/app-logo/appicon/nadigitims-App-Icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/webconsole/assets/app-logo/appicon/nadigitims-App-Icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/webconsole/assets/app-logo/appicon/nadigitims-App-Icon-Dark.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/webconsole/assets/app-logo/appicon/nadigitims-App-Icon-Dark.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/webconsole/assets/app-logo/appicon/nadigitims-App-Icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/webconsole/assets/app-logo/appicon/nadigitims-App-Icon-Dark.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
-
-

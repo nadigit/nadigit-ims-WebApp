@@ -1,0 +1,175 @@
+﻿<div class="grid">
+  <div class="col-12">
+    <div class="card px-6 py-6">
+      <div class="mb-4">
+        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+          <div>
+            <h2 class="m-0 text-900">{{ 'reports_top_products' | translate }}</h2>
+            <p class="text-600 mt-2 mb-0">{{ 'reports_top_products_subtitle' | translate }}</p>
+          </div>
+          <div class="ims-export-actions flex align-items-center gap-2 flex-wrap" *ngIf="report && !loading">
+            <button pButton pRipple type="button"
+              [icon]="exporting ? 'pi pi-spin pi-spinner' : 'pi pi-file'"
+              class="p-button-secondary"
+              [pTooltip]="'reports_top_products_download_csv' | translate"
+              tooltipPosition="bottom"
+              [disabled]="exporting"
+              (click)="exportReport('csv')"></button>
+            <button pButton pRipple type="button"
+              [icon]="exporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
+              class="p-button-success"
+              [pTooltip]="'reports_top_products_download_excel' | translate"
+              tooltipPosition="bottom"
+              [disabled]="exporting"
+              (click)="exportReport('excel')"></button>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-600 text-sm mb-4">{{ 'reports_top_products_note' | translate }}</p>
+
+      <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">
+        <div class="flex flex-column" style="min-width: 10rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-sliders-h mr-2 text-primary"></i>
+            {{ 'reports_top_products_limit' | translate }}
+          </label>
+          <p-inputNumber [(ngModel)]="productLimit" [min]="1" [max]="100" [showButtons]="true"
+            (onInput)="onFilterChange()" styleClass="w-full"></p-inputNumber>
+        </div>
+
+        <div class="flex flex-column align-items-start" style="min-width: 12rem">
+          <label class="reports-filter-label mb-2">
+            <i class="pi pi-calendar-plus mr-2 text-primary"></i>
+            {{ 'reports_top_products_custom_range' | translate }}
+          </label>
+          <p-inputSwitch [(ngModel)]="useCustomRange" (onChange)="onCustomRangeToggle()"></p-inputSwitch>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="!useCustomRange" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-calendar mr-2 text-primary"></i>
+            {{ 'period' | translate }}
+          </label>
+          <p-dropdown [options]="periods" [(ngModel)]="selectedPeriod" (onChange)="onFilterChange()"
+            optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="useCustomRange" style="min-width: 12rem; max-width: 18rem">
+          <label class="reports-filter-label">{{ 'reports_inventory_situation_delta_from' | translate }}</label>
+          <p-calendar [(ngModel)]="fromDate" dateFormat="yy-mm-dd" [showIcon]="true" appendTo="body"
+            (onSelect)="onFilterChange()" styleClass="w-full"></p-calendar>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="useCustomRange" style="min-width: 12rem; max-width: 18rem">
+          <label class="reports-filter-label">{{ 'reports_inventory_situation_delta_to' | translate }}</label>
+          <p-calendar [(ngModel)]="toDate" dateFormat="yy-mm-dd" [showIcon]="true" appendTo="body"
+            (onSelect)="onFilterChange()" styleClass="w-full"></p-calendar>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="isAdmin" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-building mr-2 text-primary"></i>
+            {{ 'shop' | translate }}
+          </label>
+          <p-dropdown [options]="shopOptions" [(ngModel)]="selectedShop" (onChange)="onFilterChange()"
+            optionLabel="label" optionValue="value" [showClear]="true" appendTo="body" styleClass="w-full"></p-dropdown>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="isAdmin && warehouseOptions.length" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-box mr-2 text-primary"></i>
+            {{ 'warehouse' | translate }}
+          </label>
+          <p-dropdown [options]="warehouseOptions" [(ngModel)]="selectedWarehouseId" (onChange)="onFilterChange()"
+            optionLabel="label" optionValue="value" [showClear]="true" appendTo="body" styleClass="w-full"></p-dropdown>
+        </div>
+      </div>
+
+      <div class="ims-loading-panel ims-loading-panel--section reports-loading-panel"
+        *ngIf="(loading || isInitialLoad) && !report">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+          <p class="ims-loading-label">{{ 'loading' | translate }}</p>
+        </div>
+      </div>
+
+      <p-message *ngIf="error && !loading && !isInitialLoad" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
+
+      <div *ngIf="report && (!isInitialLoad || report) && (!loading || report)">
+        <div class="grid mb-4">
+          <div class="col-12 md:col-3">
+            <div class="reports-stat-tile reports-stat-tile--accent-blue">
+              <span class="reports-stat-label">{{ 'reports_top_products_total_units' | translate }}</span>
+              <span class="reports-stat-value text-blue-600">{{ report.totalQuantitySold }}</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="reports-stat-tile reports-stat-tile--accent-green">
+              <span class="reports-stat-label">{{ 'reports_top_products_total_revenue' | translate }}</span>
+              <span class="reports-stat-value text-green-600">
+                {{ report.totalRevenue | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+              </span>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="reports-stat-tile">
+              <span class="reports-stat-label">{{ 'shop' | translate }}</span>
+              <span class="reports-stat-value">{{ report.shopName }}</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="reports-stat-tile">
+              <span class="reports-stat-label">{{ 'warehouse' | translate }}</span>
+              <span class="reports-stat-value">{{ report.warehouseLabel || ('reports_all_warehouses' | translate) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4" *ngIf="chartData && report.lines.length > 0">
+          <h3 class="text-900 text-lg font-semibold mt-0 mb-3">{{ 'reports_top_products_chart_title' | translate }}</h3>
+          <div class="top-products-chart surface-ground border-round p-3">
+            <p-chart type="bar" [data]="chartData" [options]="chartOptions"></p-chart>
+          </div>
+        </div>
+
+        <p-table [value]="report.lines" [paginator]="report.lines.length > 15" [rows]="15"
+          [loading]="loading && report.lines.length > 0"
+          styleClass="p-datatable-sm" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>#</th>
+              <th>{{ 'reference' | translate }}</th>
+              <th>{{ 'product' | translate }}</th>
+              <th>{{ 'category' | translate }}</th>
+              <th>{{ 'warehouse' | translate }}</th>
+              <th class="text-right">{{ 'reports_top_products_quantity_sold' | translate }}</th>
+              <th class="text-right">{{ 'total_revenue' | translate }}</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-line>
+            <tr>
+              <td><p-tag [value]="line.rank.toString()" severity="info"></p-tag></td>
+              <td>{{ line.reference || '—' }}</td>
+              <td class="font-medium">{{ line.name }}</td>
+              <td>{{ line.categoryName || '—' }}</td>
+              <td>{{ line.warehouseName || '—' }}</td>
+              <td class="text-right">
+                {{ line.quantitySold }}
+                <span class="text-500 text-sm" *ngIf="line.measureUnitLabel"> {{ line.measureUnitLabel }}</span>
+              </td>
+              <td class="text-right font-medium">
+                {{ line.revenue | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr *ngIf="!loading && !isInitialLoad">
+              <td colspan="7" class="text-center text-500 py-5">{{ 'reports_top_products_empty' | translate }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+  </div>
+</div>

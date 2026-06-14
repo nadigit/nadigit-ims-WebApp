@@ -16,6 +16,7 @@ import {
   parseForecastNarrativeBlocks,
 } from 'src/app/utils/forecast-narrative-blocks';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { BRAND_COLORS } from 'src/app/utils/brand-colors';
 
 @Component({
   selector: 'app-forecasting-report',
@@ -23,7 +24,8 @@ import { LicenseCapabilitiesService } from 'src/app/services/license-capabilitie
   styleUrls: ['../reports-common.css', './forecasting-report.component.css'],
 })
 export class ForecastingReportComponent implements OnInit, OnDestroy {
-  loading = false;
+  loading = true;
+  isInitialLoad = true;
   error: string | null = null;
   isAdmin = false;
   selectedShop: Shop | null = null;
@@ -81,9 +83,9 @@ export class ForecastingReportComponent implements OnInit, OnDestroy {
   async loadForecast(): Promise<void> {
     if (!this.isAiForecastingFeatureEnabled) {
       this.error = this.translate.instant('feature_not_licensed') || 'This feature is not available on your current plan.';
-      return;
-    }
-    if (this.loading) {
+      this.loading = false;
+      this.isInitialLoad = false;
+      this.cdr.markForCheck();
       return;
     }
     this.loading = true;
@@ -120,6 +122,7 @@ export class ForecastingReportComponent implements OnInit, OnDestroy {
       this.highRiskCount = 0;
     } finally {
       this.loading = false;
+      this.isInitialLoad = false;
       this.cdr.markForCheck();
     }
   }
@@ -179,12 +182,12 @@ export class ForecastingReportComponent implements OnInit, OnDestroy {
         {
           label: this.translate.instant('ai_forecast_predicted_demand'),
           data: predicted,
-          backgroundColor: '#4f46e5',
+          backgroundColor: BRAND_COLORS.saas,
         },
         {
           label: this.translate.instant('ai_forecast_stock'),
           data: stock,
-          backgroundColor: '#16a34a',
+          backgroundColor: BRAND_COLORS.success,
         },
       ],
     };

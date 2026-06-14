@@ -1,12 +1,15 @@
-<div class="layout-wrapper" [ngClass]="containerClass">
+﻿<div class="layout-wrapper" [ngClass]="containerClass">
   <!-- Hide topbar and sidebar for POS routes -->
   <app-topbar *ngIf="!isPosRoute"></app-topbar>
-  <div class="layout-sidebar" *ngIf="!isPosRoute">
+  <div class="layout-sidebar" *ngIf="!isPosRoute"
+    [class.layout-sidebar--hover-expanded]="layoutService.menuHoverExpanded() && layoutService.isMenuHoverMode()"
+    (mouseenter)="layoutService.onSidebarMouseEnter()"
+    (mouseleave)="layoutService.onSidebarMouseLeave()">
     <app-sidebar></app-sidebar>
   </div>
   <div class="layout-main-container" [ngClass]="{'pos-fullscreen': isPosRoute}">
     <div class="layout-main" [ngClass]="{'pos-main': isPosRoute}">
-      <p-toast></p-toast>
+      <p-toast position="top-right" styleClass="brand-toast-host"></p-toast>
 
       <div *ngIf="maintenanceStatus?.enabled" class="maintenance-banner">
         <i class="pi pi-exclamation-triangle"></i>
@@ -71,38 +74,6 @@
   <div class="layout-mask"></div>
 </div>
 
-<button
-  *ngIf="isAdmin && !isPosRoute && !isCopilotMinimized"
-  #copilotLauncherBtn
-  pButton
-  pRipple
-  type="button"
-  class="copilot-launcher"
-  [class.open]="isCopilotOpen"
-  [class.compact]="isCopilotLauncherCompact && !isCopilotOpen"
-  [attr.aria-label]="'ai_copilot_title' | translate"
-  [pTooltip]="'ai_copilot_title' | translate"
-  tooltipPosition="left"
-  (click)="toggleCopilotPanel()">
-  <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-launcher-icon" />
-  <span class="copilot-launcher-text">NadiPilot</span>
-  <span
-    *ngIf="copilotUnreadCount > 0"
-    class="copilot-unread-badge">{{ copilotUnreadCount > 9 ? '9+' : copilotUnreadCount }}</span>
-</button>
-
-<button
-  *ngIf="isAdmin && !isPosRoute && isCopilotMinimized"
-  pButton
-  pRipple
-  type="button"
-  class="copilot-minimized-pill"
-  [label]="'ai_copilot_title' | translate"
-  [attr.aria-label]="'ai_copilot_title' | translate"
-  (click)="restoreCopilotFromMinimized()">
-  <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-pill-icon" />
-</button>
-
 <div
   *ngIf="isAdmin && !isPosRoute"
   class="copilot-panel-backdrop"
@@ -120,7 +91,7 @@
   <div class="copilot-panel-header">
     <div class="copilot-header-left flex align-items-center gap-2">
       <div class="copilot-header-icon-wrap">
-        <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-header-icon" />
+        <i class="pi copilot-header-icon" [ngClass]="brandAssets.nadiPilotPrimeIcon" aria-hidden="true"></i>
       </div>
       <div class="copilot-header-meta">
         <p class="copilot-title m-0">{{ 'ai_copilot_title' | translate }}</p>
@@ -142,10 +113,6 @@
           [label]="'ai_copilot_mode_advanced' | translate"
           (click)="setCopilotMode('advanced')"></button>
       </div>
-      <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
-        icon="pi pi-minus"
-        [attr.aria-label]="'collapse' | translate"
-        (click)="minimizeCopilotPanel()"></button>
       <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
         icon="pi pi-times"
         [attr.aria-label]="'close' | translate"
@@ -188,7 +155,7 @@
     </div>
 
     <div class="copilot-empty-state" *ngIf="!copilotLoading && !copilotResponse">
-      <img src="assets/app-logo/nadipilot_nadigit_pilot_ai_icon.png" alt="" class="copilot-empty-icon" />
+      <i class="pi copilot-empty-icon" [ngClass]="brandAssets.nadiPilotPrimeIcon" aria-hidden="true"></i>
       <p class="copilot-empty-title m-0">{{ 'ai_copilot_title' | translate }}</p>
       <p class="copilot-empty-text m-0">{{ 'ai_copilot_help_text' | translate }}</p>
     </div>
@@ -373,280 +340,263 @@
   </div>
 </p-dialog>
 
-<p-dialog header="{{ 'about_nadigit_ims' | translate }}" [(visible)]="layoutService.showSystemInfoDialog" [modal]="true"
-  [style]="{width: '800px'}" [closable]="true" [dismissableMask]="true"
-  [breakpoints]="{'960px': '90vw', '640px': '95vw'}" [draggable]="false" [styleClass]="'system-info-dialog'">
+<p-dialog [(visible)]="layoutService.showSystemInfoDialog" [modal]="true"
+  [style]="{width: '1040px', maxWidth: '96vw'}" [closable]="true" [dismissableMask]="true"
+  [breakpoints]="{'1200px': '94vw', '768px': '96vw'}" [draggable]="false" [showHeader]="false"
+  styleClass="system-info-dialog">
 
   <div class="system-info-container">
-    <!-- Hero Header with gradient -->
-    <div class="system-hero text-center p-6 border-round-xl surface-gradient">
-      <div class="logo-container mb-4">
-        <img src="assets/app-logo/nadigitims-logo.png" alt="Nadigit IMS Logo" class="logo-img animate-pulse"
-          style="height: 80px;">
-      </div>
-      <h1 class="text-white m-0 font-bold text-3xl">{{layoutService.systemInfo?.appName || 'Nadigit IMS'}}</h1>
-      <p class="text-white-alpha-90 text-lg m-0 mt-2">{{ 'inventory_management_system' | translate }}</p>
-
-      <!-- Version Badge -->
-      <div class="version-badge inline-flex align-items-center px-4 py-2 mt-3 border-round-xl bg-white-alpha-20">
-        <i class="pi pi-tag mr-2 text-white"></i>
-        <span class="text-white font-semibold">
-          {{ 'version' | translate }} {{layoutService.systemInfo?.appVersion || 'Loading...'}}
-        </span>
+    <div class="system-info-hero">
+      <div class="system-info-hero__pattern" aria-hidden="true"></div>
+      <button type="button" pButton pRipple icon="pi pi-times"
+        class="system-info-hero__close p-button-rounded p-button-text"
+        (click)="layoutService.showSystemInfoDialog = false"
+        [attr.aria-label]="'close' | translate"></button>
+      <div class="system-info-hero__content">
+        <app-brand-logo variant="dark" mark="primary" imgClass="system-info-hero__logo" [height]="64"></app-brand-logo>
+        <p class="system-info-hero__kicker">{{ 'about_nadigit_ims' | translate }}</p>
+        <p class="system-info-hero__lead">{{ 'inventory_management_system' | translate }}</p>
+        <div class="system-info-version-badge">
+          <div class="ims-icon-tile ims-icon-tile--sm system-info-version-badge__icon">
+            <i class="pi pi-tag"></i>
+          </div>
+          <span>{{ 'version' | translate }} {{ layoutService.systemInfo?.appVersion || ('loading' | translate) }}</span>
+        </div>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="p-5">
-      <!-- Quick Stats Row -->
-      <div class="grid mb-5">
-        <div class="col-12 md:col-4">
-          <div
-            class="stat-card text-center p-3 border-round-lg surface-card shadow-1 hover:shadow-2 transition-all transition-duration-300">
-            <i class="pi pi-shield text-blue-500 text-2xl mb-2"></i>
-            <p class="font-bold text-lg m-0 text-900">{{ 'license_status' | translate }}</p>
-            <p-tag *ngIf="daysUntilExpiration !== null" [severity]="getLicenseSeverity(daysUntilExpiration)"
-              [value]="getLicenseStatusText(daysUntilExpiration)" class="mt-2">
-            </p-tag>
-          </div>
-        </div>
-
-        <div class="col-12 md:col-4">
-          <div
-            class="stat-card text-center p-3 border-round-lg surface-card shadow-1 hover:shadow-2 transition-all transition-duration-300">
-            <i class="pi pi-calendar text-green-500 text-2xl mb-2"></i>
-            <p class="font-bold text-lg m-0 text-900">{{ 'expires_in' | translate }}</p>
-            <p class="text-700 font-semibold text-xl m-0 mt-1">
-              {{daysUntilExpiration > 0 ? daysUntilExpiration + ' ' + ('days' | translate) : ('expired' | translate)}}
-            </p>
-          </div>
-        </div>
-
-        <div class="col-12 md:col-4">
-          <div
-            class="stat-card text-center p-3 border-round-lg surface-card shadow-1 hover:shadow-2 transition-all transition-duration-300">
-            <i class="pi pi-clock text-orange-500 text-2xl mb-2"></i>
-            <p class="font-bold text-lg m-0 text-900">{{ 'last_updated' | translate }}</p>
-            <p class="text-700 font-semibold text-sm m-0 mt-1">
-              {{layoutService.systemInfo?.lastUpdateDate || 'N/A'}}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div *ngIf="showLicensePlanBanner" class="license-plan-dialog-card p-4 mb-5 border-round-xl surface-card shadow-1">
-        <div class="flex align-items-start justify-content-between gap-3 flex-wrap">
-          <div class="flex align-items-start gap-3 flex-1">
-            <div class="license-plan-icon bg-primary-100 p-3 border-round-lg">
-              <i class="pi pi-bolt text-primary text-xl"></i>
-            </div>
-            <div class="flex-1">
-              <h3 class="m-0 text-900">{{ licensePlanBannerTitle }}</h3>
-              <p class="text-700 mt-2 mb-3 line-height-3">{{ licensePlanBannerMessage }}</p>
-              <div class="flex gap-2 flex-wrap" *ngIf="licensePlanUsersText || licensePlanWarehousesText || licensePlanShopsText">
-                <p-tag *ngIf="licensePlanUsersText" [value]="licensePlanUsersText" severity="info"></p-tag>
-                <p-tag *ngIf="licensePlanWarehousesText" [value]="licensePlanWarehousesText" severity="info"></p-tag>
-                <p-tag *ngIf="licensePlanShopsText" [value]="licensePlanShopsText" severity="info"></p-tag>
-              </div>
-            </div>
-          </div>
-          <div class="text-600 text-sm flex align-items-center gap-2">
+    <div class="system-info-body">
+      <div class="system-info-stats">
+        <div class="system-info-stat">
+          <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="getLicenseTileClass(daysUntilExpiration)">
             <i class="pi pi-shield"></i>
-            <span>{{ 'license_status' | translate }}</span>
+          </div>
+          <div class="system-info-stat__content">
+            <span class="system-info-stat__label">{{ 'license_status' | translate }}</span>
+            <p-tag *ngIf="hasLicenseStatus()" [severity]="getLicenseStatusSeverity()"
+              [value]="getLicenseStatusLabel()"></p-tag>
+            <span *ngIf="!hasLicenseStatus()" class="system-info-stat__value">—</span>
           </div>
         </div>
 
-        <div class="license-tier-grid mt-4">
-          <div class="tier-card" [ngClass]="{ 'active-tier': isCurrentTier('STARTER') }">
-            <div class="tier-name">STARTER</div>
-            <div class="tier-caption">{{ 'license_tier_starter_caption' | translate }}</div>
+        <div class="system-info-stat">
+          <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
+            <i class="pi pi-calendar"></i>
           </div>
-          <div class="tier-card" [ngClass]="{ 'active-tier': isCurrentTier('PRO') }">
-            <div class="tier-name">PRO</div>
-            <div class="tier-caption">{{ 'license_tier_pro_caption' | translate }}</div>
-          </div>
-          <div class="tier-card" [ngClass]="{ 'active-tier': isCurrentTier('ENTERPRISE') }">
-            <div class="tier-name">ENTERPRISE</div>
-            <div class="tier-caption">{{ 'license_tier_enterprise_caption' | translate }}</div>
+          <div class="system-info-stat__content">
+            <span class="system-info-stat__label">{{ 'expires_in' | translate }}</span>
+            <span class="system-info-stat__value">
+              {{ daysUntilExpiration !== null && daysUntilExpiration > 0 ? daysUntilExpiration + ' ' + ('days' | translate) : ('expired' | translate) }}
+            </span>
           </div>
         </div>
 
-        <div class="license-actions mt-3 flex gap-2 flex-wrap">
-          <a pButton pRipple href="https://ims.nadigit.com" target="_blank" class="p-button-sm p-button-outlined"
-            icon="pi pi-book" [label]="'documentation' | translate"></a>
-          <a pButton pRipple href="https://nadigit.com/contact-us" target="_blank" class="p-button-sm license-comments-btn"
-            icon="pi pi-send" [label]="'feedback' | translate"></a>
+        <div class="system-info-stat">
+          <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--neutral">
+            <i class="pi pi-clock"></i>
+          </div>
+          <div class="system-info-stat__content">
+            <span class="system-info-stat__label">{{ 'last_updated' | translate }}</span>
+            <span class="system-info-stat__value system-info-stat__value--sm">
+              {{ layoutService.systemInfo?.lastUpdateDate || 'N/A' }}
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- Support & License Section -->
-      <div class="grid">
-        <!-- Support Information -->
-        <div class="col-12 md:col-6 pr-0 md:pr-3">
-          <div class="support-card p-4 border-round-xl surface-card shadow-1 h-full">
-            <div class="card-header flex align-items-center mb-4">
-              <div class="icon-container bg-blue-100 p-3 border-round-lg mr-3">
-                <i class="pi pi-microphone text-blue-600 text-xl"></i>
-              </div>
-              <div>
-                <h3 class="m-0 text-900">{{ 'support_contact' | translate }}</h3>
-                <p class="text-600 m-0 mt-1 text-sm">{{ 'we_are_here_to_help' | translate }}</p>
+      <div *ngIf="showLicensePlanBanner" class="system-info-plan-card">
+        <div class="system-info-plan-card__intro">
+          <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary flex-shrink-0">
+            <i class="pi pi-bolt"></i>
+          </div>
+          <div class="system-info-plan-card__intro-body">
+            <h3 class="system-info-panel__title m-0">{{ licensePlanBannerTitle }}</h3>
+            <p class="system-info-panel__subtitle m-0 mt-2">{{ licensePlanBannerMessage }}</p>
+            <div class="flex gap-2 flex-wrap mt-3"
+              *ngIf="licensePlanUsersText || licensePlanWarehousesText || licensePlanShopsText">
+              <p-tag *ngIf="licensePlanUsersText" [value]="licensePlanUsersText" severity="info"></p-tag>
+              <p-tag *ngIf="licensePlanWarehousesText" [value]="licensePlanWarehousesText" severity="info"></p-tag>
+              <p-tag *ngIf="licensePlanShopsText" [value]="licensePlanShopsText" severity="info"></p-tag>
+            </div>
+          </div>
+        </div>
+
+        <div class="system-info-plan-card__status">
+          <div class="ims-icon-tile ims-icon-tile--sm" [ngClass]="getLicenseTileClass(daysUntilExpiration)">
+            <i class="pi pi-shield"></i>
+          </div>
+          <div class="system-info-plan-card__status-meta">
+            <span class="system-info-plan-card__badge-label">{{ 'license_status' | translate }}</span>
+            <p-tag *ngIf="hasLicenseStatus()" [severity]="getLicenseStatusSeverity()"
+              [value]="getLicenseStatusLabel()"></p-tag>
+            <span *ngIf="!hasLicenseStatus()" class="system-info-plan-card__badge-value">—</span>
+          </div>
+        </div>
+
+        <div class="system-info-tier-grid">
+          <div class="system-info-tier" [class.system-info-tier--active]="isCurrentTier('STARTER')">
+            <span class="system-info-tier__current" *ngIf="isCurrentTier('STARTER')" aria-hidden="true">
+              <i class="pi pi-check"></i>
+            </span>
+            <span class="system-info-tier__name">STARTER</span>
+            <span class="system-info-tier__caption">{{ 'license_tier_starter_caption' | translate }}</span>
+          </div>
+          <div class="system-info-tier" [class.system-info-tier--active]="isCurrentTier('PRO')">
+            <span class="system-info-tier__current" *ngIf="isCurrentTier('PRO')" aria-hidden="true">
+              <i class="pi pi-check"></i>
+            </span>
+            <span class="system-info-tier__name">PRO</span>
+            <span class="system-info-tier__caption">{{ 'license_tier_pro_caption' | translate }}</span>
+          </div>
+          <div class="system-info-tier" [class.system-info-tier--active]="isCurrentTier('BUSINESS')">
+            <span class="system-info-tier__current" *ngIf="isCurrentTier('BUSINESS')" aria-hidden="true">
+              <i class="pi pi-check"></i>
+            </span>
+            <span class="system-info-tier__name">BUSINESS</span>
+            <span class="system-info-tier__caption">{{ 'license_tier_business_caption' | translate }}</span>
+          </div>
+          <div class="system-info-tier" [class.system-info-tier--active]="isCurrentTier('ENTERPRISE')">
+            <span class="system-info-tier__current" *ngIf="isCurrentTier('ENTERPRISE')" aria-hidden="true">
+              <i class="pi pi-check"></i>
+            </span>
+            <span class="system-info-tier__name">ENTERPRISE</span>
+            <span class="system-info-tier__caption">{{ 'license_tier_enterprise_caption' | translate }}</span>
+          </div>
+        </div>
+
+        <div class="system-info-plan-card__actions">
+          <a pButton pRipple [href]="brandAssets.siteUrl" target="_blank" rel="noopener" class="p-button-sm p-button-outlined"
+            icon="pi pi-book" [label]="'documentation' | translate"></a>
+          <a pButton pRipple [href]="brandAssets.corporateUrl + '/contact-us'" target="_blank" rel="noopener"
+            class="p-button-sm system-info-feedback-btn" icon="pi pi-send" [label]="'feedback' | translate"></a>
+        </div>
+      </div>
+
+      <div class="grid system-info-panels">
+        <div class="col-12 lg:col-6">
+          <div class="system-info-panel h-full">
+            <div class="system-info-panel__head">
+              <div class="flex align-items-center gap-3">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal">
+                  <i class="pi pi-comment"></i>
+                </div>
+                <div>
+                  <h3 class="system-info-panel__title m-0">{{ 'support_contact' | translate }}</h3>
+                  <p class="system-info-panel__subtitle m-0 mt-1">{{ 'we_are_here_to_help' | translate }}</p>
+                </div>
               </div>
             </div>
 
-            <div class="space-y-4">
-              <!-- Website -->
-              <div
-                class="contact-item flex align-items-center p-3 border-round-lg hover:surface-hover transition-colors mt-2">
-                <i class="pi pi-globe text-blue-500 text-lg mr-3"></i>
-                <div class="flex-1">
-                  <p class="font-semibold text-sm mb-1 text-700">{{ 'website' | translate }}</p>
+            <div class="system-info-panel__body">
+              <div class="system-info-contact">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                  <i class="pi pi-globe"></i>
+                </div>
+                <div class="system-info-contact__content">
+                  <span class="system-info-contact__label">{{ 'website' | translate }}</span>
                   <a *ngIf="layoutService.systemInfo?.supportWebsite; else loadingTxt"
-                    [href]="layoutService.systemInfo.supportWebsite" target="_blank"
-                    class="text-primary no-underline hover:underline font-medium">
+                    [href]="layoutService.systemInfo.supportWebsite" target="_blank" rel="noopener"
+                    class="system-info-contact__value">
                     {{ getDomainName(layoutService.systemInfo.supportWebsite) }}
                   </a>
                 </div>
-                <i class="pi pi-external-link text-400"></i>
+                <i class="pi pi-external-link system-info-contact__action"></i>
               </div>
 
-              <!-- Email -->
-              <div
-                class="contact-item flex align-items-center p-3 border-round-lg hover:surface-hover transition-colors mt-2">
-                <i class="pi pi-envelope text-red-500 text-lg mr-3"></i>
-                <div class="flex-1">
-                  <p class="font-semibold text-sm mb-1 text-700">{{ 'email' | translate }}</p>
+              <div class="system-info-contact">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+                  <i class="pi pi-envelope"></i>
+                </div>
+                <div class="system-info-contact__content">
+                  <span class="system-info-contact__label">{{ 'email' | translate }}</span>
                   <a *ngIf="layoutService.systemInfo?.supportEmail; else loadingTxt"
                     [href]="'mailto:' + layoutService.systemInfo.supportEmail"
-                    class="text-primary no-underline hover:underline font-medium">
+                    class="system-info-contact__value">
                     {{ layoutService.systemInfo.supportEmail }}
                   </a>
                 </div>
-                <i class="pi pi-copy text-400 cursor-pointer" pTooltip="{{ 'copy_email' | translate }}"
-                  (click)="copyToClipboard(layoutService.systemInfo.supportEmail)"></i>
+                <button type="button" class="system-info-contact__action system-info-contact__action-btn"
+                  pTooltip="{{ 'copy_email' | translate }}"
+                  (click)="copyToClipboard(layoutService.systemInfo.supportEmail)">
+                  <i class="pi pi-copy"></i>
+                </button>
               </div>
 
-              <!-- Phone -->
-              <div
-                class="contact-item flex align-items-center p-3 border-round-lg hover:surface-hover transition-colors mt-2">
-                <i class="pi pi-phone text-green-500 text-lg mr-3"></i>
-                <div class="flex-1">
-                  <p class="font-semibold text-sm mb-1 text-700">{{ 'phone' | translate }}</p>
-                  <p *ngIf="layoutService.systemInfo?.supportPhone; else loadingTxt" class="text-700 font-medium m-0">
-                    {{ layoutService.systemInfo.supportPhone }}
-                  </p>
+              <div class="system-info-contact">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                  <i class="pi pi-phone"></i>
                 </div>
-                <i class="pi pi-copy text-400 cursor-pointer" pTooltip="{{ 'copy_phone' | translate }}"
-                  (click)="copyToClipboard(layoutService.systemInfo.supportPhone)"></i>
+                <div class="system-info-contact__content">
+                  <span class="system-info-contact__label">{{ 'phone' | translate }}</span>
+                  <span *ngIf="layoutService.systemInfo?.supportPhone; else loadingTxt" class="system-info-contact__value system-info-contact__value--plain">
+                    {{ layoutService.systemInfo.supportPhone }}
+                  </span>
+                </div>
+                <button type="button" class="system-info-contact__action system-info-contact__action-btn"
+                  pTooltip="{{ 'copy_phone' | translate }}"
+                  (click)="copyToClipboard(layoutService.systemInfo.supportPhone)">
+                  <i class="pi pi-copy"></i>
+                </button>
               </div>
 
-              <!-- License Info -->
-              <div class="license-info mt-4 pt-4 border-top-1 surface-border">
-                <div class="flex align-items-center justify-content-between mb-2">
-                  <div class="flex flex-column">
-                    <span class="text-sm text-600 mb-2">
-                      {{ 'license_expires' | translate }}:
-                    </span>
-                    <span class="text-lg font-semibold text-900" style="letter-spacing: 0.5px;">
-                      {{ formatLicenseExpirationDate() }}
-                    </span>
+              <div class="system-info-license-block">
+                <div class="system-info-license-block__head">
+                  <div>
+                    <span class="system-info-contact__label">{{ 'license_expires' | translate }}</span>
+                    <span class="system-info-license-block__date">{{ formatLicenseExpirationDate() }}</span>
                   </div>
-                  <p-button *ngIf="daysUntilExpiration <= 30 && daysUntilExpiration > 0" icon="pi pi-refresh"
-                    [label]="'renew_license' | translate" styleClass="p-button-sm p-button-warning">
+                  <p-button *ngIf="daysUntilExpiration !== null && daysUntilExpiration <= 30 && daysUntilExpiration > 0"
+                    icon="pi pi-refresh" [label]="'renew_license' | translate" styleClass="p-button-sm p-button-warning">
                   </p-button>
                 </div>
 
-                <!-- 🔥 Smart progress bar -->
                 <p-progressBar *ngIf="licenseProgress !== null" [value]="licenseProgress" [showValue]="false"
-                  [style]="{ height: '10px' }" [styleClass]="licenseProgressColor">
+                  [style]="{ height: '8px' }" [styleClass]="licenseProgressColor + ' system-info-license-progress'">
                 </p-progressBar>
 
-                <!-- Status text -->
-                <div class="text-sm mt-2 text-center" [ngClass]="{
-         'text-green-600': daysUntilExpiration > 30,
-         'text-orange-500': daysUntilExpiration <= 30 && daysUntilExpiration > 7,
-         'text-red-600': daysUntilExpiration <= 7
-       }">
-                  {{ daysUntilExpiration > 0
-                  ? ('days_remaining' | translate: { days: daysUntilExpiration })
-                  : ('license_expired' | translate) }}
+                <div class="system-info-license-block__status" [ngClass]="{
+                  'is-healthy': daysUntilExpiration !== null && daysUntilExpiration > 30,
+                  'is-warning': daysUntilExpiration !== null && daysUntilExpiration <= 30 && daysUntilExpiration > 7,
+                  'is-critical': daysUntilExpiration !== null && daysUntilExpiration <= 7
+                }">
+                  {{ daysUntilExpiration !== null && daysUntilExpiration > 0
+                    ? ('days_remaining' | translate: { days: daysUntilExpiration })
+                    : ('license_expired' | translate) }}
                 </div>
 
-                <div *ngIf="isAdmin" class="mt-4 p-3 border-round-lg surface-50">
-                  <p class="text-sm font-semibold text-800 mb-2">{{ 'license_update_section_title' | translate }}</p>
-
-                  <label class="text-xs text-600 block mb-2">{{ 'license_update_registration_label' | translate }}</label>
-                  <div class="flex gap-2 flex-wrap mb-3">
-                    <input pInputText type="text" [(ngModel)]="licenseRegistrationKey"
-                      [placeholder]="'license_update_registration_placeholder' | translate" class="flex-1 min-w-15rem" />
-                    <button pButton type="button" icon="pi pi-key" [label]="'license_update_apply_key' | translate"
-                      class="p-button-sm" [loading]="updatingLicense"
-                      (click)="updateRegistrationKeyLicense()"></button>
-                  </div>
-
-                  <label class="text-xs text-600 block mb-2">{{ 'license_update_offline_label' | translate }}</label>
-                  <div class="offline-upload-card">
-                    <input #offlineLicenseInput class="offline-file-input" type="file" accept=".json,application/json"
-                      (change)="onOfflineLicenseSelected($event)" />
-                    <div class="offline-upload-header">
-                      <i class="pi pi-cloud-upload offline-upload-icon"></i>
-                      <div class="offline-upload-text">
-                        <p class="m-0 text-sm font-semibold text-800">{{ 'license_update_offline_label' | translate }}</p>
-                        <p class="m-0 text-xs text-600">{{ 'choose_file' | translate }} (.json)</p>
-                      </div>
-                    </div>
-
-                    <div class="offline-upload-actions">
-                      <button pButton type="button" icon="pi pi-folder-open" [label]="'choose_file' | translate"
-                        class="p-button-sm p-button-secondary" (click)="offlineLicenseInput.click()"></button>
-                      <button pButton type="button" icon="pi pi-upload" [label]="'license_update_upload_offline' | translate"
-                        class="p-button-sm p-button-outlined" [loading]="updatingLicense"
-                        [disabled]="!offlineLicenseFile"
-                        (click)="uploadOfflineLicenseFile()"></button>
-                      <button *ngIf="offlineLicenseFile" pButton type="button" icon="pi pi-times"
-                        class="p-button-sm p-button-text" [label]="'clear' | translate"
-                        (click)="offlineLicenseFile = null; offlineLicenseInput.value = ''"></button>
-                    </div>
-
-                    <span class="offline-file-name text-sm" *ngIf="offlineLicenseFile">
-                      <i class="pi pi-file mr-1"></i>{{ offlineLicenseFile.name }}
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </div>
 
-
-        <!-- Features & License -->
-        <div class="col-12 md:col-6 pl-0 md:pl-3">
-          <div class="features-card p-4 border-round-xl surface-card shadow-1 h-full">
-            <div class="card-header flex align-items-center mb-4">
-              <div class="icon-container bg-green-100 p-3 border-round-lg mr-3">
-                <i class="pi pi-star text-green-600 text-xl"></i>
-              </div>
-              <div>
-                <h3 class="m-0 text-900">{{ 'key_features' | translate }}</h3>
-                <p class="text-600 m-0 mt-1 text-sm">{{ 'powerful_inventory_tools' | translate }}</p>
+        <div class="col-12 lg:col-6">
+          <div class="system-info-panel h-full">
+            <div class="system-info-panel__head">
+              <div class="flex align-items-center gap-3">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
+                  <i class="pi pi-star"></i>
+                </div>
+                <div>
+                  <h3 class="system-info-panel__title m-0">{{ 'key_features' | translate }}</h3>
+                  <p class="system-info-panel__subtitle m-0 mt-1">{{ 'powerful_inventory_tools' | translate }}</p>
+                </div>
               </div>
             </div>
 
-            <div class="mb-3" *ngIf="lockedPlanFeatures.length > 0">
-              <p-tag severity="info" [value]="enabledPlanFeatures.length + ' enabled'"></p-tag>
-              <p-tag severity="warning" styleClass="ml-2" [value]="lockedPlanFeatures.length + ' locked by plan'"></p-tag>
-            </div>
+            <div class="system-info-panel__body">
+              <div class="system-info-feature-summary mb-3" *ngIf="lockedPlanFeatures.length > 0">
+                <p-tag severity="success" [value]="enabledPlanFeatures.length + ' enabled'"></p-tag>
+                <p-tag severity="warning" [value]="lockedPlanFeatures.length + ' locked by plan'"></p-tag>
+              </div>
 
-            <div class="grid">
-              <div *ngFor="let feature of planFeatures" class="col-12 md:col-6 mb-3">
-                <div class="feature-item flex align-items-center p-2">
-                  <div class="feature-icon p-2 border-round-lg mr-3"
-                    [ngClass]="feature.enabled ? 'bg-primary-100' : 'surface-200'">
-                    <i class="text-sm" [ngClass]="feature.enabled ? 'pi pi-check text-primary-600' : 'pi pi-lock text-500'"></i>
+              <div class="system-info-features">
+                <div *ngFor="let feature of planFeatures" class="system-info-feature"
+                  [class.system-info-feature--locked]="!feature.enabled">
+                  <div class="ims-icon-tile ims-icon-tile--sm"
+                    [ngClass]="feature.enabled ? 'ims-icon-tile--green' : 'ims-icon-tile--neutral'">
+                    <i [class]="feature.enabled ? 'pi pi-check' : 'pi pi-lock'"></i>
                   </div>
-                  <span class="text-sm font-medium" [ngClass]="feature.enabled ? 'text-900' : 'text-600'">
-                    {{ feature.label }}
-                  </span>
+                  <span class="system-info-feature__label">{{ feature.label }}</span>
                 </div>
               </div>
             </div>
@@ -654,39 +604,91 @@
         </div>
       </div>
 
-      <!-- System Status -->
-      <div class="system-status mt-4 p-4 border-round-xl surface-card shadow-1">
-        <div class="flex align-items-center justify-content-between">
-          <div class="flex align-items-center">
-            <i class="pi pi-server text-2xl mr-3 text-primary"></i>
+      <div *ngIf="isAdmin" class="system-info-license-update">
+        <div class="system-info-license-update__head">
+          <div class="flex align-items-center gap-3">
+            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
+              <i class="pi pi-key"></i>
+            </div>
             <div>
-              <p class="font-semibold text-lg m-0 text-900">{{ 'system_status' | translate }}</p>
-              <p class="text-600 m-0 text-sm">{{ 'all_systems_operational' | translate }}</p>
+              <h3 class="system-info-panel__title m-0">{{ 'license_update_section_title' | translate }}</h3>
+              <p class="system-info-panel__subtitle m-0 mt-1">{{ 'license_update_registration_label' | translate }} / {{ 'license_update_offline_label' | translate }}</p>
             </div>
           </div>
-          <p-tag [value]="'OPERATIONAL' | translate" severity="success" class="font-bold"></p-tag>
         </div>
+
+        <div class="system-info-license-update__grid">
+          <div class="system-info-license-update__block">
+            <label class="system-info-license-update__label" for="licenseRegistrationKeyInput">
+              {{ 'license_update_registration_label' | translate }}
+            </label>
+            <input id="licenseRegistrationKeyInput" pInputText type="text" [(ngModel)]="licenseRegistrationKey"
+              class="system-info-license-update__input"
+              [placeholder]="'license_update_registration_placeholder' | translate" />
+            <div class="system-info-license-update__toolbar">
+              <button pButton type="button" icon="pi pi-key" class="p-button-sm"
+                [label]="'license_update_apply_key' | translate" [loading]="updatingLicense"
+                (click)="updateRegistrationKeyLicense()"></button>
+            </div>
+          </div>
+
+          <div class="system-info-license-update__block">
+            <label class="system-info-license-update__label">{{ 'license_update_offline_label' | translate }}</label>
+            <input #offlineLicenseInput class="system-info-license-update__file-input" type="file"
+              accept=".json,application/json" (change)="onOfflineLicenseSelected($event)" />
+            <button type="button" class="system-info-license-update__file-zone"
+              (click)="offlineLicenseInput.click()">
+              <i class="pi" [ngClass]="offlineLicenseFile ? 'pi-file' : 'pi-cloud-upload'"></i>
+              <span class="system-info-license-update__file-zone-text">
+                {{ offlineLicenseFile?.name || (('choose_file' | translate) + ' (.json)') }}
+              </span>
+            </button>
+            <div class="system-info-license-update__toolbar">
+              <button pButton type="button" icon="pi pi-folder-open" class="p-button-sm p-button-outlined"
+                [label]="'choose_file' | translate" (click)="offlineLicenseInput.click()"></button>
+              <button pButton type="button" icon="pi pi-upload" class="p-button-sm"
+                [label]="'license_update_upload_offline' | translate" [loading]="updatingLicense"
+                [disabled]="!offlineLicenseFile" (click)="uploadOfflineLicenseFile()"
+                [pTooltip]="'license_update_upload_offline' | translate" tooltipPosition="top"></button>
+              <button *ngIf="offlineLicenseFile" pButton type="button" icon="pi pi-times"
+                class="p-button-sm p-button-text p-button-rounded"
+                [pTooltip]="'clear' | translate" tooltipPosition="top"
+                (click)="offlineLicenseFile = null; offlineLicenseInput.value = ''"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="system-info-status">
+        <div class="flex align-items-center gap-3">
+          <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
+            <i class="pi pi-server"></i>
+          </div>
+          <div>
+            <p class="system-info-status__title m-0">{{ 'system_status' | translate }}</p>
+            <p class="system-info-status__subtitle m-0">{{ 'all_systems_operational' | translate }}</p>
+          </div>
+        </div>
+        <p-tag [value]="'OPERATIONAL' | translate" severity="success"></p-tag>
       </div>
     </div>
 
-    <!-- Footer -->
-    <div class="system-footer text-center p-4 border-round-bottom-xl surface-ground">
-      <div class="flex align-items-center justify-content-center gap-4 mb-2">
-        <a href="https://ims.nadigit.com" target="_blank"
-          class="text-600 hover:text-primary transition-colors">
-          <i class="pi pi-book text-lg"></i>
-          <span class="ml-1 text-sm">{{ 'documentation' | translate }}</span>
+    <div class="system-info-footer">
+      <div class="system-info-footer__links">
+        <a [href]="brandAssets.siteUrl" target="_blank" rel="noopener" class="system-info-footer__link">
+          <i class="pi pi-book"></i>
+          <span>{{ 'documentation' | translate }}</span>
         </a>
-        <a href="https://ims.nadigit.com" target="_blank" class="text-600 hover:text-primary transition-colors">
-          <i class="pi pi-question-circle text-lg"></i>
-          <span class="ml-1 text-sm">{{ 'help_center' | translate }}</span>
+        <a [href]="brandAssets.siteUrl" target="_blank" rel="noopener" class="system-info-footer__link">
+          <i class="pi pi-question-circle"></i>
+          <span>{{ 'help_center' | translate }}</span>
         </a>
-        <a href="https://nadigit.com/contact-us" target="_blank" class="text-600 hover:text-primary transition-colors">
-          <i class="pi pi-comments text-lg"></i>
-          <span class="ml-1 text-sm">{{ 'feedback' | translate }}</span>
+        <a [href]="brandAssets.corporateUrl + '/contact-us'" target="_blank" rel="noopener" class="system-info-footer__link">
+          <i class="pi pi-comments"></i>
+          <span>{{ 'feedback' | translate }}</span>
         </a>
       </div>
-      <p class="text-600 text-sm m-0">
+      <p class="system-info-footer__legal m-0">
         <i class="pi pi-copyright"></i>
         {{ 'nadigit_rights_reserved' | translate:{ year: currentYear } }}
       </p>
@@ -771,7 +773,7 @@
   [showHeader]="false"
   [style]="{ width: '360px', maxWidth: '90vw' }">
   <div class="flex flex-column align-items-center justify-content-center py-4">
-    <p-progressSpinner [style]="{ width: '54px', height: '54px' }" strokeWidth="4"></p-progressSpinner>
+    <p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
     <p class="mt-3 mb-1 text-900 font-semibold">{{ 'license_update_processing_title' | translate }}</p>
     <small class="text-600 text-center">{{ 'license_update_processing_subtitle' | translate }}</small>
   </div>

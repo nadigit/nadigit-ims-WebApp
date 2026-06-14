@@ -8,6 +8,8 @@ import { TaxRuleService } from 'src/app/services/tax-rule.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { Category } from 'src/app/models/category';
 import { TranslationService } from 'src/app/services/translation.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-tax-rules',
@@ -16,6 +18,7 @@ import { TranslationService } from 'src/app/services/translation.service';
   providers: [MessageService, ConfirmationService]
 })
 export class TaxRulesComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
   /** When true, hides page chrome for use inside Settings (tab panel). */
   @Input() embedded = false;
 
@@ -43,7 +46,8 @@ export class TaxRulesComponent implements OnInit, OnDestroy {
     private confirmationService: ConfirmationService,
     private translate: TranslateService,
     private translationService: TranslationService,
-    private keycloak: KeycloakService
+    private keycloak: KeycloakService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit(): Promise<void> {

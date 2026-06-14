@@ -4,7 +4,7 @@
 	<!-- Loading State -->
 	<div class="loading-wrapper" *ngIf="isLoading">
 		<div class="loading-content">
-			<p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+			<p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
 		</div>
 	</div>
 
@@ -29,7 +29,7 @@
 					<div class="flex align-items-center gap-4">
 						<div class="company-hero-logo">
 							<div class="logo-loading" *ngIf="imageLoading">
-								<p-progressSpinner strokeWidth="4" animationDuration=".5s" styleClass="w-2rem h-2rem"></p-progressSpinner>
+								<p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"></p-progressSpinner>
 							</div>
 							<img *ngIf="!imageLoading && logoImageUrl; else placeholderLogo"
 								[src]="logoImageUrl" [alt]="organization.organizationName" />
@@ -74,7 +74,7 @@
 		<!-- Quick Stats Row -->
 		<div class="stats-row">
 			<div class="stat-card-modern shops-card">
-				<div class="stat-icon shops">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
 					<i class="pi pi-shopping-bag"></i>
 				</div>
 				<div class="stat-content">
@@ -86,7 +86,7 @@
 			</div>
 
 			<div class="stat-card-modern warehouses-card">
-				<div class="stat-icon warehouses">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
 					<i class="pi pi-building"></i>
 				</div>
 				<div class="stat-content">
@@ -98,7 +98,7 @@
 			</div>
 
 			<div class="stat-card-modern country-card">
-				<div class="stat-icon country">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
 					<i class="pi pi-map-marker"></i>
 				</div>
 				<div class="stat-content">
@@ -110,7 +110,7 @@
 			</div>
 
 			<div class="stat-card-modern locale-card">
-				<div class="stat-icon locale">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
 					<i class="pi pi-globe"></i>
 				</div>
 				<div class="stat-content">
@@ -122,7 +122,7 @@
 			</div>
 
 			<div class="stat-card-modern activity-profile-card">
-				<div class="stat-icon activity-profile">
+				<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal">
 					<i class="pi pi-briefcase"></i>
 				</div>
 				<div class="stat-content">
@@ -160,7 +160,7 @@
 							<div class="card-body">
 								<div class="info-grid">
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
 											<i class="pi pi-building"></i>
 										</div>
 										<div class="info-content">
@@ -170,7 +170,7 @@
 									</div>
 
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
 											<i class="pi pi-envelope"></i>
 										</div>
 										<div class="info-content">
@@ -180,7 +180,7 @@
 									</div>
 
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
 											<i class="pi pi-phone"></i>
 										</div>
 										<div class="info-content">
@@ -190,7 +190,7 @@
 									</div>
 
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
 											<i class="pi pi-map-marker"></i>
 										</div>
 										<div class="info-content">
@@ -200,7 +200,7 @@
 									</div>
 
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
 											<i class="pi pi-globe"></i>
 										</div>
 										<div class="info-content">
@@ -208,23 +208,42 @@
 											<span class="info-value">{{ organization.website ? 'https://' + organization.website : 'N/A' }}</span>
 										</div>
 									</div>
+
+									<div class="info-item">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+											<i class="pi pi-language"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'default_locale' | translate }}</span>
+											<span class="info-value">{{ getLocaleName(organization.defaultLocale) }}</span>
+										</div>
+									</div>
+
+									<div class="info-item">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+											<i class="pi pi-calculator"></i>
+										</div>
+										<div class="info-content">
+											<span class="info-label">{{ 'costing_method' | translate }}</span>
+											<span class="info-value">{{ organization.costingMethod | translate }}</span>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 
-					<!-- Right Column - Business Details -->
+					<!-- Right Column - Legal & Financial -->
 					<div class="col-12 lg:col-6">
-						<!-- Business Information -->
 						<div class="detail-card">
 							<div class="card-header">
 								<i class="pi pi-briefcase"></i>
-								<span>{{ 'business_information' | translate }}</span>
+								<span>{{ 'legal_financial_information' | translate }}</span>
 							</div>
 							<div class="card-body">
 								<div class="info-grid">
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
 											<i class="pi pi-hashtag"></i>
 										</div>
 										<div class="info-content">
@@ -234,7 +253,7 @@
 									</div>
 
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
 											<i class="pi pi-file"></i>
 										</div>
 										<div class="info-content">
@@ -244,7 +263,7 @@
 									</div>
 
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
 											<i class="pi pi-qrcode"></i>
 										</div>
 										<div class="info-content">
@@ -254,22 +273,12 @@
 									</div>
 
 									<div class="info-item">
-										<div class="info-icon">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
 											<i class="pi pi-credit-card"></i>
 										</div>
 										<div class="info-content">
 											<span class="info-label">{{ 'bank_account' | translate }}</span>
 											<span class="info-value">{{ organization.bankAccountId || 'N/A' }}</span>
-										</div>
-									</div>
-
-									<div class="info-item">
-										<div class="info-icon">
-											<i class="pi pi-language"></i>
-										</div>
-										<div class="info-content">
-											<span class="info-label">{{ 'default_locale' | translate }}</span>
-											<span class="info-value">{{ getLocaleName(organization.defaultLocale) }}</span>
 										</div>
 									</div>
 								</div>
@@ -299,7 +308,7 @@
 									<ng-template let-node pTemplate="organization">
 										<div class="organization-node">
 											<div class="node-loading" *ngIf="imageLoading">
-												<p-progressSpinner strokeWidth="4" animationDuration=".5s" styleClass="w-2rem h-2rem"></p-progressSpinner>
+												<p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"></p-progressSpinner>
 											</div>
 											<div class="node-logo" *ngIf="!imageLoading">
 												<p-image *ngIf="logoImageUrl; else nodePlaceholder" [src]="logoImageUrl"
@@ -316,12 +325,12 @@
 									</ng-template>
 									<ng-template let-node pTemplate="shops">
 										<div class="shop-node">
-											<div class="node-icon">
+											<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary mb-3">
 												<i class="pi pi-shopping-bag"></i>
 											</div>
 											<div class="node-content">
 												<h4 class="node-title">
-													<a routerLink="/pages/shops" class="shop-link">{{ node.data.name }}</a>
+													<a routerLink="/inventory/shops" class="shop-link">{{ node.data.name }}</a>
 												</h4>
 												<p class="node-subtitle">{{ organization.shops?.length || 0 }} {{ 'shops' | translate }}</p>
 											</div>
@@ -329,16 +338,26 @@
 									</ng-template>
 									<ng-template let-node pTemplate="warehouses">
 										<div class="warehouse-node">
-											<div class="node-icon">
+											<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber mb-3">
 												<i class="pi pi-building"></i>
 											</div>
 											<div class="node-content">
 												<h4 class="node-title">
-													<a routerLink="/pages/warehouses" class="warehouse-link">{{ node.data.name }}</a>
+													<a routerLink="/inventory/warehouses" class="warehouse-link">{{ node.data.name }}</a>
 												</h4>
 												<p class="node-subtitle">{{ organization.warehouses?.length || 0 }} {{ 'warehouses' | translate }}</p>
 											</div>
 										</div>
+									</ng-template>
+									<ng-template let-node pTemplate="shop">
+										<a [routerLink]="['/inventory/shops', node.data.shopId]" class="shop-link node-leaf-link">
+											{{ node.data.name }}
+										</a>
+									</ng-template>
+									<ng-template let-node pTemplate="warehouse">
+										<a [routerLink]="['/inventory/warehouses', node.data.warehouseId]" class="warehouse-link node-leaf-link">
+											{{ node.data.name }}
+										</a>
 									</ng-template>
 								</p-organizationChart>
 							</div>
@@ -364,14 +383,18 @@
                   <!-- Image with preview and loading state -->
                   <div class="image-wrapper border-round overflow-hidden surface-ground"
                     [ngClass]="{'loading': isImageLoading}">
-                    <p-image [src]="logoImageUrl || imagePreviewUrl" [alt]="organization.organizationName" width="100%"
-                      [preview]="true" class="block shadow-2 border-round" imageClass="w-full"
-                      (onLoad)="isImageLoading = false" (onError)="onImageError()">
-                    </p-image>
+                    <p-image
+                      [src]="logoImageUrl || imagePreviewUrl"
+                      [alt]="organization.organizationName"
+                      [preview]="true"
+                      class="block"
+                      (onLoad)="isImageLoading = false"
+                      (onError)="onImageError()">
+                  </p-image>
 
                     <!-- Loading overlay -->
                     <div class="loading-overlay flex align-items-center justify-content-center" *ngIf="isImageLoading">
-                      <p-progressSpinner strokeWidth="4" animationDuration=".5s" styleClass="w-2rem h-2rem"
+                      <p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"
                         ariaLabel="image-loading">
                       </p-progressSpinner>
                     </div>
@@ -430,225 +453,286 @@
 
             <!-- Form Fields -->
             <div class="form-grid">
-              <!-- Left Column -->
+              <!-- Left Column — General information -->
               <div class="form-column">
-                <div class="field">
-                  <label for="organizationName" class="block mb-2 font-semibold">
-                    {{ 'organization_name' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="organizationName" ngDefaultControl
-                    [(ngModel)]="organization.organizationName" required autofocus
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.organizationName }"
-                    placeholder="{{ 'enter_organization_name' | translate }}" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.organizationName">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'organization_name' | translate }} {{
-                    'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="email" class="block mb-2 font-semibold">{{ 'customer_email' | translate }}</label>
-                  <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="organization.email"
-                    placeholder="{{ 'enter_email_address' | translate }}" />
-                </div>
-
-                <div class="field">
-                  <label for="phoneNumber" class="block mb-2 font-semibold">{{ 'customer_phone_number' | translate
-                    }}</label>
-                  <input type="tel" pInputText name="phoneNumber" ngDefaultControl
-                    [(ngModel)]="organization.phoneNumber" placeholder="{{ 'enter_phone_number' | translate }}" />
-                </div>
-
-                <div class="field">
-                  <label for="address" class="block mb-2 font-semibold">{{ 'address' | translate }}</label>
-                  <textarea rows="3" cols="20" [(ngModel)]="organization.address" name="address"
-                    placeholder="{{ 'enter_address' | translate }}" ngDefaultControl pInputTextarea></textarea>
-                </div>
-
-                <div class="field">
-                  <label for="country" class="block mb-2 font-semibold">{{ 'shop_country' | translate }}</label>
-                  <p-dropdown [(ngModel)]="organization.country" (onChange)="onSelectedCountry(organization.country)"
-                    name="country" inputId="country" ngDefaultControl [options]="countries"
-                    placeholder="{{ 'select_country_option' | translate }}" [filter]="true"
-                    [filterFields]="['name', 'translatedName']" optionValue="name"
-                    optionLabel="translatedName" [showClear]="true" appendTo="body"
-                    [autoDisplayFirst]="false" [resetFilterOnHide]="false">
-                    <ng-template pTemplate="selectedItem">
-                      <span *ngIf="organization && organization.country" class="product-badge">{{ organization.country |
-                        countryTranslate }}</span>
-                    </ng-template>
-                    <ng-template let-option pTemplate="item">
-                      <span class="product-badge">{{ option.translatedName }}</span>
-                    </ng-template>
-                  </p-dropdown>
-                </div>
-
-                <div class="field" *ngIf="organization.country">
-                  <label for="city" class="block mb-2 font-semibold">{{ 'shop_city' | translate }}</label>
-                  <p-dropdown [(ngModel)]="organization.city" name="city" inputId="city" ngDefaultControl
-                    optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="states"
-                    placeholder="{{ 'select_city_option' | translate }}" [showClear]="true"
-                    appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false">
-                    <ng-template pTemplate="selectedItem">
-                      <span *ngIf="organization && organization.city" class="product-badge">{{ organization.city
-                        }}</span>
-                    </ng-template>
-                    <ng-template let-option pTemplate="item">
-                      <span class="product-badge">{{ option.name }}</span>
-                    </ng-template>
-                  </p-dropdown>
-                </div>
-
-                <div class="field">
-                  <label for="zip" class="block mb-2 font-semibold">
-                    {{ 'zip_code' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="zip" ngDefaultControl [(ngModel)]="organization.zip" required
-                    placeholder="{{ 'enter_zip_code' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.zip }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.zip">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'zip_code' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="website" class="block mb-2 font-semibold">
-                    {{ 'website' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <div class="p-inputgroup">
-                    <span class="p-inputgroup-addon">https://</span>
-                    <input type="text" pInputText name="website" ngDefaultControl [(ngModel)]="organization.website"
-                      required placeholder="{{ 'enter_website' | translate }}"
-                      [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.website }" />
+                <div class="form-section">
+                  <div class="form-section-header">
+                    <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+                      <i class="pi pi-building"></i>
+                    </div>
+                    <div>
+                      <h3 class="form-section-title">{{ 'company_information' | translate }}</h3>
+                      <p class="form-section-hint">{{ 'company_general_info_hint' | translate }}</p>
+                    </div>
                   </div>
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.website">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'website' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-              </div>
 
-              <!-- Right Column -->
-              <div class="form-column">
+                  <div class="field">
+                    <label for="organizationName" class="block mb-2 font-bold">
+                      {{ 'organization_name' | translate }} <span class="required-asterisk">*</span>
+                    </label>
+                    <div class="p-inputgroup">
+                      <span class="p-inputgroup-addon"><i class="pi pi-building"></i></span>
+                      <input type="text" pInputText id="organizationName" name="organizationName" ngDefaultControl
+                        [(ngModel)]="organization.organizationName" autofocus
+                        [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.organizationName?.trim() }"
+                        placeholder="{{ 'enter_organization_name' | translate }}" />
+                    </div>
+                    <small class="p-error" *ngIf="submitted && !organization.organizationName?.trim()">
+                      {{ 'organization_name' | translate }} {{ 'is_required_label' | translate }}
+                    </small>
+                  </div>
 
-                <div class="field">
-                  <label for="taxId" class="block mb-2 font-semibold">
-                    {{ 'tax_id' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="taxId" ngDefaultControl [(ngModel)]="organization.taxId" required
-                    placeholder="{{ 'enter_tax_id' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.taxId }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.taxId">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'tax_id' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
+                  <div class="field">
+                    <label for="defaultLocale" class="block mb-2 font-bold">
+                      {{ 'default_locale' | translate }} <span class="required-asterisk">*</span>
+                    </label>
+                    <p-dropdown [(ngModel)]="organization.defaultLocale" name="defaultLocale" inputId="defaultLocale"
+                      [options]="availableLocales" optionLabel="label" optionValue="value" appendTo="body"
+                      placeholder="{{ 'select_locale_option' | translate }}" [showClear]="false"
+                      [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.defaultLocale }">
+                      <ng-template let-locale pTemplate="selectedItem">
+                        <div class="flex align-items-center" *ngIf="organization.defaultLocale">
+                          <span>{{ locale.label }}</span>
+                        </div>
+                      </ng-template>
+                      <ng-template let-locale pTemplate="item">
+                        <div class="flex align-items-center">
+                          <span>{{ locale.label }}</span>
+                        </div>
+                      </ng-template>
+                    </p-dropdown>
+                    <small class="p-error" *ngIf="submitted && !organization.defaultLocale">
+                      {{ 'default_locale' | translate }} {{ 'is_required_label' | translate }}
+                    </small>
+                  </div>
 
-                <div class="field">
-                  <label for="commercialRegister" class="block mb-2 font-semibold">
-                    {{ 'commercial_register' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="commercialRegister" ngDefaultControl
-                    [(ngModel)]="organization.commercialRegister" required
-                    placeholder="{{ 'enter_commercial_register' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.commercialRegister }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.commercialRegister">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'commercial_register' | translate }} {{
-                    'is_required_label' | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="ice" class="block mb-2 font-semibold">
-                    {{ 'ice' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="ice" ngDefaultControl [(ngModel)]="organization.ice" required
-                    placeholder="{{ 'enter_ice_number' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.ice }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.ice">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'ice' | translate }} {{ 'is_required_label' |
-                    translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="bankAccountId" class="block mb-2 font-semibold">
-                    {{ 'bank_name' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="bankName" ngDefaultControl [(ngModel)]="organization.bankName"
-                    required placeholder="{{ 'enter_bank_name' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankName }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.bankName">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'bank_name' | translate }} {{ 'is_required_label'
-                    | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="bankAccountId" class="block mb-2 font-semibold">
-                    {{ 'bank_account_number' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="bankAccountId" ngDefaultControl
-                    [(ngModel)]="organization.bankAccountId" required
-                    placeholder="{{ 'enter_bank_account_number' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankAccountId }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.bankAccountId">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'bank_account_number' | translate }} {{
-                    'is_required_label'
-                    | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="bankSwift" class="block mb-2 font-semibold">
-                    {{ 'bank_swiftbic' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <input type="text" pInputText name="bankSwift" ngDefaultControl [(ngModel)]="organization.bankSwift"
-                    required placeholder="{{ 'enter_bank_swiftbic' | translate }}"
-                    [ngClass]="{ 'ng-invalid ng-dirty': submitted && !organization.bankSwift }" />
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.bankSwift">
-                    <i class="pi pi-exclamation-circle mr-1"></i>{{ 'bank_swiftbic' | translate }} {{
-                    'is_required_label'
-                    | translate }}
-                  </small>
-                </div>
-
-                <div class="field">
-                  <label for="defaultLocale" class="block mb-2 font-semibold">
-                    {{ 'default_locale' | translate }} <span class="text-red-500">*</span>
-                  </label>
-                  <p-dropdown [(ngModel)]="organization.defaultLocale" name="defaultLocale" inputId="defaultLocale"
-                    [options]="availableLocales" optionLabel="label" optionValue="value"
-                    placeholder="{{ 'select_locale_option' | translate }}" [showClear]="false">
-                    <ng-template let-locale pTemplate="item">
-                      <div class="flex align-items-center">
-                        <img [src]="'assets/flags/' + locale.value + '.svg'" [alt]="locale.label" class="mr-2 flag-icon"
-                          style="width: 20px">
-                        <span>{{ locale.label }}</span>
+                  <div class="grid">
+                    <div class="field col-12 md:col-6">
+                      <label for="email" class="block mb-2 font-bold">
+                        {{ 'customer_email' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <div class="p-inputgroup">
+                        <span class="p-inputgroup-addon"><i class="pi pi-envelope"></i></span>
+                        <input type="email" pInputText id="email" name="email" ngDefaultControl
+                          [(ngModel)]="organization.email" placeholder="{{ 'enter_email_address' | translate }}" />
                       </div>
-                    </ng-template>
-                  </p-dropdown>
-                  <small class="p-error block mt-1" *ngIf="submitted && !organization.defaultLocale">
-                    <i class="pi pi-exclamation-circle mr-1"></i>
-                    {{ 'default_locale' | translate }} {{ 'is_required_label' | translate }}
-                  </small>
-                </div>
+                    </div>
 
-                <div class="field">
-                  <label for="costingMethod" class="block mb-2 font-semibold">
-                    {{ 'costing_method' | translate }}
-                  </label>
-                  <p-dropdown [(ngModel)]="organization.costingMethod" name="costingMethod" inputId="costingMethod"
-                    [options]="costingMethods" optionLabel="label" optionValue="value"
-                    placeholder="{{ 'select_costing_method' | translate }}">
-                    <ng-template let-method pTemplate="item">
-                      <span>{{ method.label }}</span>
-                    </ng-template>
-                  </p-dropdown>
+                    <div class="field col-12 md:col-6">
+                      <label for="phoneNumber" class="block mb-2 font-bold">
+                        {{ 'customer_phone_number' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <div class="p-inputgroup">
+                        <span class="p-inputgroup-addon"><i class="pi pi-phone"></i></span>
+                        <input type="tel" pInputText id="phoneNumber" name="phoneNumber" ngDefaultControl
+                          [(ngModel)]="organization.phoneNumber" placeholder="{{ 'enter_phone_number' | translate }}" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="address" class="block mb-2 font-bold">
+                      {{ 'address' | translate }}
+                      <span class="field-optional">({{ 'optional' | translate }})</span>
+                    </label>
+                    <div class="p-inputgroup">
+                      <span class="p-inputgroup-addon"><i class="pi pi-map-marker"></i></span>
+                      <textarea id="address" rows="3" [(ngModel)]="organization.address" name="address"
+                        placeholder="{{ 'enter_address' | translate }}" ngDefaultControl pInputTextarea
+                        [autoResize]="true"></textarea>
+                    </div>
+                  </div>
+
+                  <div class="grid">
+                    <div class="field col-12 md:col-6">
+                      <label for="country" class="block mb-2 font-bold">
+                        {{ 'shop_country' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <p-dropdown [(ngModel)]="organization.country"
+                      (onChange)="onSelectedCountry($event)" name="country" inputId="country"
+                        ngDefaultControl [options]="countries" placeholder="{{ 'select_country_option' | translate }}"
+                        [filter]="true" [filterFields]="['name', 'translatedName']" optionValue="name"
+                        optionLabel="translatedName" [showClear]="true" appendTo="body" [autoDisplayFirst]="false"
+                        [resetFilterOnHide]="false">
+                        <ng-template pTemplate="selectedItem">
+                          <span *ngIf="organization && organization.country" class="flex align-items-center gap-2">
+                            <i class="pi pi-globe"></i>{{ organization.country | countryTranslate }}
+                          </span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                          <span class="flex align-items-center gap-2">
+                            <i class="pi pi-globe"></i>{{ option.translatedName }}
+                          </span>
+                        </ng-template>
+                      </p-dropdown>
+                    </div>
+
+                    <div class="field col-12 md:col-6" *ngIf="organization.country">
+                      <label for="city" class="block mb-2 font-bold">
+                        {{ 'shop_city' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <p-dropdown [(ngModel)]="organization.city" name="city" inputId="city" ngDefaultControl
+                        optionValue="name" optionLabel="name" [filter]="true" filterBy="name" [options]="states"
+                        placeholder="{{ 'select_city_option' | translate }}" [showClear]="true" appendTo="body"
+                        [autoDisplayFirst]="false" [resetFilterOnHide]="false">
+                        <ng-template pTemplate="selectedItem">
+                          <span *ngIf="organization && organization.city" class="flex align-items-center gap-2">
+                            <i class="pi pi-map-marker"></i>{{ organization.city }}
+                          </span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                          <span class="flex align-items-center gap-2">
+                            <i class="pi pi-map-marker"></i>{{ option.name }}
+                          </span>
+                        </ng-template>
+                      </p-dropdown>
+                    </div>
+                  </div>
+
+                  <div class="grid">
+                    <div class="field col-12 md:col-6">
+                      <label for="zip" class="block mb-2 font-bold">
+                        {{ 'zip_code' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <div class="p-inputgroup">
+                        <span class="p-inputgroup-addon"><i class="pi pi-inbox"></i></span>
+                        <input type="text" pInputText id="zip" name="zip" ngDefaultControl
+                          [(ngModel)]="organization.zip" placeholder="{{ 'enter_zip_code' | translate }}" />
+                      </div>
+                    </div>
+
+                    <div class="field col-12 md:col-6">
+                      <label for="website" class="block mb-2 font-bold">
+                        {{ 'website' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <div class="p-inputgroup">
+                        <span class="p-inputgroup-addon">https://</span>
+                        <input type="text" pInputText id="website" name="website" ngDefaultControl
+                          [(ngModel)]="organization.website" placeholder="{{ 'enter_website' | translate }}" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              <!-- Right Column — Legal & financial -->
+              <div class="form-column">
+                <div class="form-section form-section--secondary">
+                  <div class="form-section-header">
+                    <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+                      <i class="pi pi-briefcase"></i>
+                    </div>
+                    <div>
+                      <h3 class="form-section-title">{{ 'legal_financial_information' | translate }}</h3>
+                      <p class="form-section-hint">{{ 'company_legal_financial_hint' | translate }}</p>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="taxId" class="block mb-2 font-bold">
+                      {{ 'tax_id' | translate }}
+                      <span class="field-optional">({{ 'optional' | translate }})</span>
+                    </label>
+                    <div class="p-inputgroup">
+                      <span class="p-inputgroup-addon"><i class="pi pi-hashtag"></i></span>
+                      <input type="text" pInputText id="taxId" name="taxId" ngDefaultControl
+                        [(ngModel)]="organization.taxId" placeholder="{{ 'enter_tax_id' | translate }}" />
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="commercialRegister" class="block mb-2 font-bold">
+                      {{ 'commercial_register' | translate }}
+                      <span class="field-optional">({{ 'optional' | translate }})</span>
+                    </label>
+                    <div class="p-inputgroup">
+                      <span class="p-inputgroup-addon"><i class="pi pi-file"></i></span>
+                      <input type="text" pInputText id="commercialRegister" name="commercialRegister" ngDefaultControl
+                        [(ngModel)]="organization.commercialRegister"
+                        placeholder="{{ 'enter_commercial_register' | translate }}" />
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="ice" class="block mb-2 font-bold">
+                      {{ 'ice' | translate }}
+                      <span class="field-optional">({{ 'optional' | translate }})</span>
+                    </label>
+                    <div class="p-inputgroup">
+                      <span class="p-inputgroup-addon"><i class="pi pi-qrcode"></i></span>
+                      <input type="text" pInputText id="ice" name="ice" ngDefaultControl [(ngModel)]="organization.ice"
+                        placeholder="{{ 'enter_ice_number' | translate }}" />
+                    </div>
+                  </div>
+
+                  <div class="form-subsection">
+                    <h4 class="form-subsection-title">
+                      <i class="pi pi-credit-card mr-2"></i>{{ 'bank_details' | translate }}
+                    </h4>
+
+                    <div class="field">
+                      <label for="bankName" class="block mb-2 font-bold">
+                        {{ 'bank_name' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <div class="p-inputgroup">
+                        <span class="p-inputgroup-addon"><i class="pi pi-building"></i></span>
+                        <input type="text" pInputText id="bankName" name="bankName" ngDefaultControl
+                          [(ngModel)]="organization.bankName" placeholder="{{ 'enter_bank_name' | translate }}" />
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <label for="bankAccountId" class="block mb-2 font-bold">
+                        {{ 'bank_account_number' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <div class="p-inputgroup">
+                        <span class="p-inputgroup-addon"><i class="pi pi-credit-card"></i></span>
+                        <input type="text" pInputText id="bankAccountId" name="bankAccountId" ngDefaultControl
+                          [(ngModel)]="organization.bankAccountId"
+                          placeholder="{{ 'enter_bank_account_number' | translate }}" />
+                      </div>
+                    </div>
+
+                    <div class="field mb-0">
+                      <label for="bankSwift" class="block mb-2 font-bold">
+                        {{ 'bank_swiftbic' | translate }}
+                        <span class="field-optional">({{ 'optional' | translate }})</span>
+                      </label>
+                      <div class="p-inputgroup">
+                        <span class="p-inputgroup-addon"><i class="pi pi-key"></i></span>
+                        <input type="text" pInputText id="bankSwift" name="bankSwift" ngDefaultControl
+                          [(ngModel)]="organization.bankSwift" placeholder="{{ 'enter_bank_swiftbic' | translate }}" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="field mt-3 mb-0">
+                    <label for="costingMethod" class="block mb-2 font-bold">
+                      {{ 'costing_method' | translate }}
+                      <span class="field-optional">({{ 'optional' | translate }})</span>
+                    </label>
+                    <p-dropdown [(ngModel)]="organization.costingMethod" name="costingMethod" inputId="costingMethod"
+                      [options]="costingMethods" optionLabel="label" optionValue="value" appendTo="body"
+                      placeholder="{{ 'select_costing_method' | translate }}">
+                      <ng-template let-method pTemplate="item">
+                        <span>{{ method.label }}</span>
+                      </ng-template>
+                    </p-dropdown>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="required-note mt-3">
+              <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
             </div>
           </div>
         </ng-template>
@@ -656,8 +740,8 @@
         <ng-template pTemplate="footer">
           <div class="flex justify-content-between align-items-center w-full">
             <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-              class="p-button-text p-button-danger" (click)="hideDialog()"></button>
-            <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-raised"
+              class="p-button-text" (click)="hideDialog()"></button>
+            <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-primary"
               (click)="saveOrganization()"></button>
           </div>
         </ng-template>

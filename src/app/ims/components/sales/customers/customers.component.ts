@@ -23,7 +23,10 @@ import { PriceListDTO } from 'src/app/models/pricing';
 import { CustomerFormDialogComponent, CustomerFormDialogConfig, CustomerFormDialogData } from './customer-form-dialog/customer-form-dialog.component';
 import { DatePipe } from '@angular/common';
 import { OrganizationService } from 'src/app/services/organization.service';
+import { BRAND_COLORS, BRAND_ORDER_STATUS_CHART } from 'src/app/utils/brand-colors';
 import { Organization } from 'src/app/models/organization';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Pipe({ name: 'absolute' })
 export class AbsolutePipe implements PipeTransform {
@@ -63,6 +66,7 @@ export class CustomersComponent implements OnInit {
   statuses: any[] = [];
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   countries: any;
 
@@ -129,10 +133,14 @@ export class CustomersComponent implements OnInit {
     private customerCreditService: CustomerCreditService,
     private pricingService: PricingService,
     private organizationService: OrganizationService,
-    private datePipe: DatePipe) { }
+    private datePipe: DatePipe,
+    public pageSizeService: TablePageSizeService) { }
 
   async ngOnInit() {
     this.isLoading = true;
+    this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.customers, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+    });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -167,6 +175,10 @@ export class CustomersComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+  }
+
+  onTablePage(event: any): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.customers, this.rowsPerPageOptions, event, this);
   }
 
   private initializeStatuses() {
@@ -240,18 +252,8 @@ export class CustomersComponent implements OnInit {
       ),
       datasets: [{
         data: Object.values(statusCounts),
-        backgroundColor: [
-          '#FFA726', // PENDING
-          '#42A5F5', // PROCESSING
-          '#66BB6A', // COMPLETED
-          '#EF5350'  // CANCELLED
-        ],
-        hoverBackgroundColor: [
-          '#FFB74D',
-          '#64B5F6',
-          '#81C784',
-          '#E57373'
-        ]
+        backgroundColor: [...BRAND_ORDER_STATUS_CHART.background],
+        hoverBackgroundColor: [...BRAND_ORDER_STATUS_CHART.hover]
       }]
     };
 
@@ -262,7 +264,7 @@ export class CustomersComponent implements OnInit {
       datasets: [{
         label: this.translate.instant('monthly_spending'),
         data: Object.values(monthlyData),
-        backgroundColor: '#9C27B0'
+        backgroundColor: BRAND_COLORS.cyan
       }]
     };
   }

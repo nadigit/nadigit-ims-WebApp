@@ -18,6 +18,10 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { Category } from 'src/app/models/category';
 import { SupplierFormDialogComponent, SupplierFormDialogConfig, SupplierFormDialogData } from '../supplier-form-dialog/supplier-form-dialog.component';
 import { Location } from '@angular/common';
+import { BRAND_CHART_PALETTE_EXTENDED, BRAND_COLORS } from 'src/app/utils/brand-colors';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { ProductService } from 'src/app/services/product.service';
 
 @Component({
   templateUrl: './supplier-details.component.html',
@@ -29,6 +33,7 @@ import { Location } from '@angular/common';
   providers: [MessageService]
 })
 export class SupplierDetailsComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
 
   supplierId!: number;
   supplier: Supplier | null = null;
@@ -61,8 +66,11 @@ export class SupplierDetailsComponent implements OnInit {
   suppliers: Supplier[] = [];
   selectedProduct: Product | null = null;
   productDialog: boolean = false;
+  deleteProductDialog: boolean = false;
+  archiveProductDialog: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
+  canArchiveProduct: boolean = false;
   canReadProduct: boolean = false;
   filteredSupplierProducts: Product[] = [];
   canAddCategory: boolean = false;
@@ -86,7 +94,9 @@ export class SupplierDetailsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private locationService: LocationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    public pageSizeService: TablePageSizeService,
+    private productService: ProductService
   ) { }
 
   async ngOnInit() {
@@ -125,6 +135,7 @@ export class SupplierDetailsComponent implements OnInit {
     this.canEditSupplier = this.permissionService.canUpdate(this.Ressource);
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
+    this.canArchiveProduct = this.permissionService.canArchive('PRODUCTS');
     this.canReadProduct = this.permissionService.canRead('PRODUCTS');
     this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
     this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
@@ -215,7 +226,7 @@ export class SupplierDetailsComponent implements OnInit {
       datasets: [{
         label: this.currency,
         data: Object.values(monthlyData),
-        backgroundColor: '#6366F1'
+        backgroundColor: BRAND_COLORS.saas
       }]
     };
   }
@@ -227,8 +238,8 @@ export class SupplierDetailsComponent implements OnInit {
       datasets: [{
         data: Object.values(categoryCounts),
         backgroundColor: [
-          '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6',
-          '#F97316', '#8B5CF6', '#EF4444', '#14B8A6', '#84CC16'
+          ...BRAND_CHART_PALETTE_EXTENDED,
+          '#F97316', '#EF4444', '#84CC16'
         ]
       }]
     };
@@ -241,7 +252,7 @@ export class SupplierDetailsComponent implements OnInit {
   }
 
   getSupplierColor(supplier: any): string {
-    const colors = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'];
+    const colors = [...BRAND_CHART_PALETTE_EXTENDED];
     return colors[Math.abs(supplier.supplierId) % colors.length];
   }
 
@@ -408,15 +419,6 @@ export class SupplierDetailsComponent implements OnInit {
 
   printSupplierDetails(): void {
     window.print();
-  }
-
-  refreshData(): void {
-    this.loadSupplierData();
-    this.messageService.add({
-      severity: 'success',
-      summary: this.translate.instant('data_refreshed'),
-      detail: this.translate.instant('supplier_data_has_been_refreshed')
-    });
   }
 
   async loadSupplierData(): Promise<void> {
@@ -602,6 +604,80 @@ export class SupplierDetailsComponent implements OnInit {
       });
       throw error; // Re-throw to let caller handle
     }
+  }
+
+  deleteProduct(product: Product) {
+    if (!this.canDeleteProduct) return;
+    this.selectedProduct = { ...product };
+    this.deleteProductDialog = true;
+  }
+
+  async onProductDeleteConfirmed(productId: number) {
+    if (!this.canDeleteProduct) return;
+    await this.onDeleteProduct(productId);
+    this.selectedProduct = null;
+  }
+
+  async onDeleteProduct(id: any) {
+    await this.productService.deleteProduct(id)
+      .subscribe({
+        next: async () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_deleted'),
+            life: 3000
+          });
+          await this.loadSupplierDetails();
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_deleting_product'),
+            life: 3000
+          });
+          console.log(err);
+        },
+      });
+  }
+
+  archiveProduct(product: Product) {
+    if (!this.canArchiveProduct) return;
+    this.archiveProductDialog = true;
+    this.selectedProduct = { ...product };
+    this.productDialog = false;
+  }
+
+  async confirmArchive() {
+    if (!this.canArchiveProduct) return;
+    this.archiveProductDialog = false;
+    await this.onArchiveProduct(this.selectedProduct!.productId);
+    this.selectedProduct = null;
+  }
+
+  async onArchiveProduct(id: any) {
+    await this.productService.deactivateProduct(id)
+      .subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_archived'),
+            life: 3000
+          });
+          void this.loadSupplierDetails();
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_archiving_product'),
+            life: 3000
+          });
+          console.log(err);
+        },
+      });
   }
 
   hideProductDialog(): void {

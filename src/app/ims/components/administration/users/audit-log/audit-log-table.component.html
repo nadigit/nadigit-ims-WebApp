@@ -133,7 +133,7 @@
                 <p-table [value]="auditLogs" 
                     [lazy]="true"
                     [paginator]="true"
-                    [rows]="20"
+                    [rows]="pageSizeService.get(TablePageSizeKeys.auditLog, [10, 20, 50, 100])"
                     [totalRecords]="totalRecords"
                     [rowsPerPageOptions]="[10, 20, 50, 100]"
                     (onLazyLoad)="onLazyLoad($event)"
@@ -204,7 +204,7 @@
                             <td>
                                 <button pButton pRipple 
                                     icon="pi pi-eye"
-                                    class="p-button-text p-button-sm"
+                                    class="p-button-text p-button-sm p-button-rounded p-button-primary"
                                     [pTooltip]="'view_details' | translate"
                                     (click)="viewDetails(log)">
                                 </button>
@@ -238,7 +238,7 @@
 
         <!-- Header -->
         <div class="audit-detail-header mb-4 flex align-items-center gap-3">
-            <div class="audit-icon-large" [ngClass]="{'bg-green-100 text-green-600': selectedLog.success, 'bg-red-100 text-red-600': !selectedLog.success}">
+            <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="selectedLog.success ? 'ims-icon-tile--green' : 'ims-icon-tile--danger'">
                 <i [class]="selectedLog.success ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
             </div>
             <div class="flex-1">

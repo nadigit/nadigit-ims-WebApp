@@ -1,112 +1,65 @@
-<div class="card flex justify-content-center" *ngIf="isLoading">
-  <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-</div>
-
-<div class="grid" *ngIf="!isLoading && isAdmin">
-  <div class="col-12 lg:col-6 xl:col-3">
-    <div class="card mb-0">
-      <div class="flex justify-content-between mb-3">
-        <div>
-          <span class="block text-500 font-medium mb-3">{{'total_orders' |
-            translate}}</span>
-          <div class="text-900 font-medium text-xl">{{ totalRecords ?? 0 }}</div>
-        </div>
-        <div class="flex align-items-center justify-content-center bg-blue-100 border-round"
-          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
-          <i class="pi pi-shopping-cart text-blue-500 text-xl"></i>
-        </div>
-      </div>
+﻿<div class="orders-summary-row" *ngIf="isAdmin && (!isInitialLoad || orders.length)">
+  <div class="orders-stat-card">
+    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
+      <i class="pi pi-shopping-cart"></i>
+    </div>
+    <div class="orders-stat-card__content">
+      <span class="orders-stat-card__label">{{ 'total_orders' | translate }}</span>
+      <span class="orders-stat-card__value">{{ totalRecords ?? 0 }}</span>
     </div>
   </div>
-  <div class="col-12 lg:col-6 xl:col-3">
-    <div class="card mb-0">
-      <div class="flex justify-content-between mb-3">
-        <div>
-          <span class="block text-500 font-medium mb-3">{{'order_total_amount' |
-            translate}}
-          </span>
-          <div class="text-900 font-medium text-xl"> {{totalAmount |
-            currency:currency:'symbol':'1.2-2'}}</div>
-        </div>
-        <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
-          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
-          <i class="pi pi-money-bill text-orange-500 text-xl"></i>
-        </div>
-      </div>
+  <div class="orders-stat-card">
+    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
+      <i class="pi pi-money-bill"></i>
+    </div>
+    <div class="orders-stat-card__content">
+      <span class="orders-stat-card__label">{{ 'order_total_amount' | translate }}</span>
+      <span class="orders-stat-card__value">{{ totalAmount | currency:currency:'symbol':'1.2-2' }}</span>
     </div>
   </div>
-  <div class="col-12 lg:col-6 xl:col-3">
-    <div class="card mb-0">
-      <div class="flex justify-content-between mb-3">
-        <div>
-          <span class="block text-500 font-medium mb-3">{{'order_total_paid' |
-            translate}}
-          </span>
-          <div class="text-900 font-medium text-xl">{{ totalPaid |
-            currency:currency:'symbol':'1.2-2' }}</div>
-        </div>
-        <div class="flex align-items-center justify-content-center bg-cyan-100 border-round"
-          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
-          <i class="pi pi-check-circle text-cyan-500 text-xl"></i>
-        </div>
-      </div>
+  <div class="orders-stat-card">
+    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
+      <i class="pi pi-check-circle"></i>
+    </div>
+    <div class="orders-stat-card__content">
+      <span class="orders-stat-card__label">{{ 'order_total_paid' | translate }}</span>
+      <span class="orders-stat-card__value">{{ totalPaid | currency:currency:'symbol':'1.2-2' }}</span>
     </div>
   </div>
-  <div class="col-12 lg:col-6 xl:col-3">
-    <div class="card mb-0">
-      <div class="flex justify-content-between mb-3">
-        <div>
-          <span class="block text-500 font-medium mb-3">{{'order_remaining_balance' |
-            translate}}</span>
-          <div class="text-900 font-medium text-xl">{{ remainingBalance |
-            currency:currency:'symbol':'1.2-2' }}</div>
-        </div>
-        <div class="flex align-items-center justify-content-center bg-purple-100 border-round"
-          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
-          <i class="pi pi-clock text-purple-500 text-xl"></i>
-        </div>
-      </div>
+  <div class="orders-stat-card">
+    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
+      <i class="pi pi-clock"></i>
+    </div>
+    <div class="orders-stat-card__content">
+      <span class="orders-stat-card__label">{{ 'order_remaining_balance' | translate }}</span>
+      <span class="orders-stat-card__value">{{ remainingBalance | currency:currency:'symbol':'1.2-2' }}</span>
     </div>
   </div>
-  <div class="col-12 lg:col-6 xl:col-3" *ngIf="totalCost > 0 && isAdmin">
-    <div class="card mb-0">
-      <div class="flex justify-content-between mb-3">
-        <div>
-          <span class="block text-500 font-medium mb-3">{{'order_total_cost' |
-            translate}}</span>
-          <div class="text-900 font-medium text-xl cost-value">{{ totalCost |
-            currency:currency:'symbol':'1.2-2' }}</div>
-        </div>
-        <div class="flex align-items-center justify-content-center bg-gray-100 border-round"
-          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
-          <i class="pi pi-dollar text-gray-600 text-xl"></i>
-        </div>
-      </div>
+  <div class="orders-stat-card" *ngIf="totalCost > 0">
+    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--neutral">
+      <i class="pi pi-dollar"></i>
+    </div>
+    <div class="orders-stat-card__content">
+      <span class="orders-stat-card__label">{{ 'order_total_cost' | translate }}</span>
+      <span class="orders-stat-card__value cost-value">{{ totalCost | currency:currency:'symbol':'1.2-2' }}</span>
     </div>
   </div>
-  <div class="col-12 lg:col-6 xl:col-3" *ngIf="totalCost > 0 && isAdmin">
-    <div class="card mb-0">
-      <div class="flex justify-content-between mb-3">
-        <div>
-          <span class="block text-500 font-medium mb-3">{{'order_total_profit' |
-            translate}}</span>
-          <div class="text-900 font-medium text-xl profit-value" [ngClass]="{'profit-negative': totalProfit < 0}">
-            {{ totalProfit | currency:currency:'symbol':'1.2-2' }}
-          </div>
-        </div>
-        <div class="flex align-items-center justify-content-center border-round"
-          [ngClass]="{'bg-green-100': totalProfit >= 0, 'bg-red-100': totalProfit < 0}"
-          [ngStyle]="{width: '2.5rem', height: '2.5rem'}">
-          <i class="pi text-xl"
-            [ngClass]="{'pi-arrow-up text-green-500': totalProfit >= 0, 'pi-arrow-down text-red-500': totalProfit < 0}"></i>
-        </div>
-      </div>
+  <div class="orders-stat-card" *ngIf="totalCost > 0">
+    <div class="ims-icon-tile ims-icon-tile--md"
+      [ngClass]="totalProfit >= 0 ? 'ims-icon-tile--green' : 'ims-icon-tile--danger'">
+      <i class="pi" [ngClass]="totalProfit >= 0 ? 'pi-arrow-up' : 'pi-arrow-down'"></i>
+    </div>
+    <div class="orders-stat-card__content">
+      <span class="orders-stat-card__label">{{ 'order_total_profit' | translate }}</span>
+      <span class="orders-stat-card__value profit-value" [ngClass]="{'profit-negative': totalProfit < 0}">
+        {{ totalProfit | currency:currency:'symbol':'1.2-2' }}
+      </span>
     </div>
   </div>
 </div>
 
 <!-- Action Buttons -->
-<div class="flex justify-content-end align-items-center mb-4">
+<div class="ims-page-actions flex justify-content-end align-items-center mb-4">
   <div class="flex align-items-center gap-2">
     <button pButton pRipple *ngIf="canAddOrder" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
       class="p-button-success" (click)="addOrderEvent.emit()" pTooltip="{{'add_new_order'|translate}}"></button>
@@ -163,8 +116,8 @@
     <div class="flex align-items-center gap-2 ml-auto">
       <button pButton pRipple 
         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
-        class="p-button-warning" 
-        pTooltip="PDF" 
+        class="p-button-primary" 
+        [pTooltip]="'export_pdf' | translate" 
         tooltipPosition="bottom"
         (click)="exportPdfEvent.emit()"
         [disabled]="isExporting"></button>
@@ -172,7 +125,7 @@
         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
         (click)="exportExcelEvent.emit()" 
         class="p-button-success"
-        pTooltip="XLS" 
+        [pTooltip]="'export_to_excel' | translate" 
         tooltipPosition="bottom"
         [disabled]="isExporting"></button>
       <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary"
@@ -227,11 +180,18 @@
   </div>
 </div>
 
+<div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+  *ngIf="(isLoading || isInitialLoad) && !orders.length">
+  <div class="ims-loading-panel__inner">
+    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+  </div>
+</div>
 
-
-<p-table #dt [value]="orders" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
-  [rowsPerPageOptions]="[10,20,50]" [paginatorDropdownAppendTo]="'body'" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords"
-  [loading]="isLoading" [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"
+<p-table
+  *ngIf="(!isInitialLoad || orders.length) && (!isLoading || orders.length)"
+  #dt [value]="orders" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
+  [rowsPerPageOptions]="rowsPerPageOptions" [paginatorDropdownAppendTo]="'body'" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords"
+  [loading]="isLoading && orders.length > 0" [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"
   currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
   [(selection)]="selectedOrders" selectionMode="multiple" [rowHover]="true" dataKey="orderId"
   [expandedRowKeys]="expandedRows" [filterDelay]="0"
@@ -382,7 +342,7 @@
       <td>
         <div class="flex gap-1">
           <button pButton pRipple *ngIf="canProcessOrder" icon="pi pi-eye"
-            class="p-button-rounded p-button-text p-button-info"
+            class="p-button-rounded p-button-text p-button-primary"
             (click)="viewOrderEvent.emit(order); $event.stopPropagation()"
             pTooltip="{{'view_details'|translate}}"></button>
           <button pButton pRipple *ngIf="order.orderStatus ==='Ordered' && canProcessOrder" icon="pi pi-cog"
@@ -403,7 +363,7 @@
             [pTooltip]="tooltipCompleteOrder()"></button>
           <button pButton pRipple
             *ngIf="(order.orderStatus !== 'Completed' && order.orderStatus !== 'Canceled') && canEditOrder"
-            icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
+            icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
             (click)="editOrderEvent.emit(order); $event.stopPropagation()"
             pTooltip="{{'update_order'|translate}}"></button>
           <button pButton pRipple *ngIf="canDeleteOrder" icon="pi pi-trash"
@@ -437,32 +397,33 @@
         <div class="flex align-items-center gap-2">
           <span>{{orderItem.product.name ? orderItem.product.name : 'N/A'}}</span>
           <p-tag
-            *ngIf="orderItem.product.productType === 'SERVICE' || !orderItem.product.productType || orderItem.product.productType === 'PRODUCT'"
-            [value]="orderItem.product.productType === 'SERVICE' ? ('product_type_service' | translate) : ('product_type_product' | translate)"
-            [severity]="orderItem.product.productType === 'SERVICE' ? 'purple' : 'info'"
-            [icon]="orderItem.product.productType === 'SERVICE' ? 'pi pi-cog' : 'pi pi-box'" styleClass="text-xs">
+            *ngIf="orderItem.product"
+            [value]="getProductBadgeKey(orderItem.product) | translate"
+            [severity]="getProductBadgeSeverity(orderItem.product)"
+            [icon]="getProductBadgeIcon(orderItem.product)" styleClass="text-xs">
           </p-tag>
         </div>
       </td>
       <td>
-        <div *ngIf="orderItem.returnedQuantity && orderItem.returnedQuantity > 0; else simpleQuantity"
+        <div *ngIf="hasReturnedQuantity(orderItem); else simpleQuantity"
           class="flex flex-column gap-1">
           <div class="flex align-items-center gap-2">
             <i class="pi pi-undo text-orange-500 text-xs"></i>
             <span class="text-xs text-500">{{ 'order_items_quantity' | translate }}:</span>
-            <span class="font-medium">{{orderItem.quantity || 0}}</span>
+            <span class="font-medium">{{ formatOrderItemQty(orderItem) }}<ng-container *ngIf="showOrderItemMeasureUnit(orderItem)"> {{ getOrderItemMeasureUnit(orderItem) | translate }}</ng-container></span>
           </div>
           <div class="flex align-items-center gap-2">
             <span class="text-xs text-500 text-orange-500">{{ 'quantity_returned' | translate }}:</span>
-            <span class="text-xs text-orange-500 font-medium">-{{orderItem.returnedQuantity}}</span>
+            <span class="text-xs text-orange-500 font-medium">-{{ formatOrderItemReturnedQty(orderItem) }}<ng-container *ngIf="showOrderItemMeasureUnit(orderItem)"> {{ getOrderItemMeasureUnit(orderItem) | translate }}</ng-container></span>
           </div>
           <div class="flex align-items-center gap-2">
             <span class="text-xs text-500">{{ 'remaining_quantity' | translate }}:</span>
-            <span class="font-bold">{{(orderItem.quantity || 0) - (orderItem.returnedQuantity || 0)}}</span>
+            <span class="font-bold">{{ formatOrderItemRemainingQty(orderItem) }}<ng-container *ngIf="showOrderItemMeasureUnit(orderItem)"> {{ getOrderItemMeasureUnit(orderItem) | translate }}</ng-container></span>
           </div>
         </div>
         <ng-template #simpleQuantity>
-          <span>{{orderItem.quantity ? orderItem.quantity : 'N/A'}}</span>
+          <span *ngIf="orderItem.quantity != null; else qtyNa">{{ formatOrderItemQty(orderItem) }}<ng-container *ngIf="showOrderItemMeasureUnit(orderItem)"> {{ getOrderItemMeasureUnit(orderItem) | translate }}</ng-container></span>
+          <ng-template #qtyNa>N/A</ng-template>
         </ng-template>
       </td>
       <td>
@@ -472,7 +433,8 @@
         <ng-template #notAvailable>N/A</ng-template>
       </td>
       <td>
-        <p-button type="button" icon="pi pi-eye" (click)="viewProductDetailsEvent.emit(orderItem.product)">
+        <p-button type="button" icon="pi pi-eye" styleClass="p-button-rounded p-button-text p-button-primary"
+          (click)="viewProductDetailsEvent.emit(orderItem.product)">
         </p-button>
       </td>
     </tr>
@@ -496,7 +458,7 @@
   </div>
 </ng-template>
 <ng-template pTemplate="emptymessage">
-  <tr>
+  <tr *ngIf="!isLoading && !isInitialLoad">
     <td [attr.colspan]="hasCostInfo() ? 11 : 8">
       <div class="flex flex-column align-items-center justify-content-center py-5">
         <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">

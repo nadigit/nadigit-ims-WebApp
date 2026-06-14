@@ -1,4 +1,4 @@
-<div class="ai-integration-page">
+﻿<div class="ai-integration-page">
   <p-toast></p-toast>
 
   <div class="mb-4">
@@ -18,12 +18,12 @@
       <i class="pi pi-angle-right text-400 text-sm"></i>
       <span class="text-700 text-sm font-medium">{{ 'ai_integration_configuration' | translate }}</span>
     </div>
-    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-start gap-3">
-      <div class="flex-1 min-w-0">
-        <h2 class="m-0 text-900 flex align-items-center gap-2">
-          <i class="pi pi-sparkles text-primary"></i>
-          {{ 'ai_integration_configuration' | translate }}
-        </h2>
+    <div class="integration-hero">
+      <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--purple" aria-hidden="true">
+        <i class="pi pi-bolt"></i>
+      </div>
+      <div class="integration-hero__body flex-1 min-w-0">
+        <h2 class="m-0 text-900">{{ 'ai_integration_configuration' | translate }}</h2>
         <p class="text-600 mt-2 mb-0 line-height-3">{{ 'ai_integration_page_lead' | translate }}</p>
       </div>
       <div class="flex flex-column align-items-stretch md:align-items-end gap-2 flex-shrink-0">
@@ -43,7 +43,7 @@
   </div>
 
   <div class="flex justify-content-center py-6" *ngIf="isLoading">
-    <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
   </div>
 
   <div class="flex flex-column gap-3" *ngIf="!isLoading">
@@ -52,7 +52,9 @@
       <div class="ai-health-row border-round p-3 mb-3" [ngClass]="isAiReadinessOk() ? 'ai-health-row--ok' : 'ai-health-row--warn'">
         <div class="flex align-items-start justify-content-between gap-3 flex-wrap">
           <div class="flex align-items-start gap-2">
-            <i class="pi" [ngClass]="isAiReadinessOk() ? 'pi-check-circle text-green-600' : 'pi-exclamation-triangle text-orange-500'"></i>
+            <div class="ims-icon-tile ims-icon-tile--sm" [ngClass]="isAiReadinessOk() ? 'ims-icon-tile--green' : 'ims-icon-tile--amber'">
+              <i class="pi" [ngClass]="isAiReadinessOk() ? 'pi-check-circle' : 'pi-exclamation-triangle'"></i>
+            </div>
             <div>
               <p class="m-0 font-semibold ai-health-title">
                 {{ (isAiReadinessOk() ? 'ai_readiness_ready_title' : 'ai_readiness_not_ready_title') | translate }}

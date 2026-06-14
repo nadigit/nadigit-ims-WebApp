@@ -1,1 +1,7 @@
-/* Category Form Dialog Styles */
+:host ::ng-deep {
+  .category-form-dialog-shell {
+    .p-dialog-header {
+      padding-bottom: 0.25rem;
+    }
+  }
+}

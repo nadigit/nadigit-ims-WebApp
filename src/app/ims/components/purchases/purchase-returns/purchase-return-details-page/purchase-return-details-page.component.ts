@@ -16,7 +16,15 @@ import { PurchaseCredit } from 'src/app/models/purchaseCredit';
 import { ReturnStatus } from 'src/app/enums/return-status.enum';
 import { firstValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { getQuantitySeverity, getMeasureUnit } from 'src/app/shared/product-utils';
+import {
+  formatLineQuantity,
+  getLineMeasureUnit,
+  getPurchaseReturnItemDisplayQuantity as purchaseReturnItemDisplayQty,
+  getQuantitySeverity,
+} from 'src/app/shared/product-utils';
+import { PurchaseReturnItem } from 'src/app/models/purchaseReturnItem';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-purchase-return-details-page',
@@ -24,6 +32,7 @@ import { getQuantitySeverity, getMeasureUnit } from 'src/app/shared/product-util
   styleUrls: ['./purchase-return-details-page.component.css', '../purchase-returns.component.css']
 })
 export class PurchaseReturnDetailsPageComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
   returnId!: number;
   return: PurchaseReturn | null = null;
   isLoading: boolean = true;
@@ -55,7 +64,8 @@ export class PurchaseReturnDetailsPageComponent implements OnInit, OnDestroy {
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private translateService: TranslationService,
-    public financialDocService: FinancialDocumentsService
+    public financialDocService: FinancialDocumentsService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
@@ -340,16 +350,21 @@ export class PurchaseReturnDetailsPageComponent implements OnInit, OnDestroy {
   }
 
   getMeasureUnit(product: Product, quantity?: number): string {
-    if (!product || !product.measureUnit) return 'UNIT';
-    
-    const pluralizable = ['UNIT', 'PIECE', 'BOX', 'METER'];
-    const qty = quantity !== undefined ? quantity : (product.quantityAvailable || 0);
-    
-    if (qty > 1 && pluralizable.includes(product.measureUnit)) {
-      return `${product.measureUnit}_plural`;
-    }
-    
-    return product.measureUnit;
+    return getLineMeasureUnit(product, quantity);
+  }
+
+  formatReturnItemQty(item: PurchaseReturnItem): string {
+    return formatLineQuantity(item?.product, purchaseReturnItemDisplayQty(item));
+  }
+
+  getReturnItemDisplayQuantity(item: PurchaseReturnItem): number {
+    return purchaseReturnItemDisplayQty(item);
+  }
+
+  getReturnItemCreditPerUnit(item: PurchaseReturnItem): number {
+    const displayQty = purchaseReturnItemDisplayQty(item);
+    const total = item.creditAmount ?? item.refundAmount ?? 0;
+    return displayQty > 0 ? total / displayQty : 0;
   }
 
   viewPurchase(purchase: Purchase): void {
@@ -359,12 +374,6 @@ export class PurchaseReturnDetailsPageComponent implements OnInit, OnDestroy {
 
   printReturn(): void {
     window.print();
-  }
-
-  refreshReturnDetails(): void {
-    if (this.return?.returnId) {
-      this.loadReturn();
-    }
   }
 
   generateReturnNote(): void {

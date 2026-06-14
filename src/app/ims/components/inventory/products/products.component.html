@@ -1,5 +1,13 @@
-<div class="grid p-fluid">
+﻿<div class="grid p-fluid">
 	<div class="col-12">
+		<div *ngIf="activityProfileService.emphasizeProductVariants" class="mb-3">
+			<div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2 p-3 surface-100 border-round">
+				<span class="text-700"><i class="pi pi-sitemap mr-2"></i>{{ 'products_fashion_variants_banner' | translate }}</span>
+				<button pButton pRipple type="button" [label]="'product_families_menu_title' | translate"
+					icon="pi pi-external-link" class="p-button-outlined p-button-sm"
+					routerLink="/inventory/product-families"></button>
+			</div>
+		</div>
 		<!-- View Toggle (Admin only) -->
 		<div class="flex justify-content-end mb-3" *ngIf="isAdmin">
 			<div class="flex align-items-center gap-2 p-3 surface-ground border-round">
@@ -17,6 +25,8 @@
 		
 		<!-- List of Products (table and grid view) -->
 		<app-products-table [products]="products" [cols]="cols" (lazyLoadEvent)="onLazyLoad($event)"
+				[isLoading]="isLoading"
+				[pageSize]="pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
 				[totalRecords]="totalRecords"
 				[currency]="currency" [canArchiveProduct]="canArchiveProduct"
 				(archivedProductsEvent)="openArchivedProductsDialog()" (archiveProductEvent)="archiveProduct($event)" 
@@ -76,181 +86,155 @@
 	<!-- Old form code removed - using app-product-form component instead -->
 
 		<p-dialog [(visible)]="archivedProductsDialog" [modal]="true"
-			[style]="{width: '90vw', maxWidth: '1400px', height: '90vh'}"
-			[breakpoints]="{'960px': '95vw', '640px': '98vw'}" [draggable]="false" [resizable]="false"
-			header="{{ 'archived_products' | translate }}">
+			[style]="{ width: '92vw', maxWidth: '1280px' }"
+			[contentStyle]="{ overflow: 'auto', maxHeight: 'calc(90vh - 8rem)' }"
+			[breakpoints]="{ '960px': '95vw', '640px': '98vw' }" [draggable]="false" [resizable]="false"
+			[header]="'archived_products' | translate" class="p-fluid archived-products-dialog">
+
 			<ng-template pTemplate="content">
-				<div class="card">
-					<div class="page-description mb-4 p-4 surface-card border-round shadow-1">
-						<div class="flex align-items-center mb-3">
-							<i class="pi pi-archive text-primary mr-2" style="font-size: 1.25rem"></i>
-							<h3 class="m-0 text-900">{{ 'archived_products_title' | translate }}</h3>
-						</div>
-						<p class="m-0 text-600">
-							{{ 'archived_products_description' | translate }}
-						</p>
-					</div>
-
-					<div class="card flex justify-content-center" *ngIf="isLoadingArchived">
-						<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-					</div>
-
-					<p-dataView #archivedDv [value]="filteredArchivedProducts" *ngIf="!isLoadingArchived" [rows]="15"
-						[sortField]="sortField" [sortOrder]="sortOrder" layout="list" emptyMessage=" ">
-						<ng-template pTemplate="header">
-							<div class="flex flex-column md:flex-row md:justify-content-between gap-2">
-								<span class="p-input-icon-left">
-									<i class="pi pi-search"></i>
-									<input type="search" pInputText placeholder="{{ 'search_label' | translate }}"
-										[(ngModel)]="archivedSearchInput" (input)="applyArchivedFilters()">
-								</span>
+				<div class="import-guide-banner mb-4">
+					<div class="import-guide-banner__glow" aria-hidden="true"></div>
+					<div class="import-guide-banner__inner">
+						<div class="import-guide-banner__header">
+							<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber import-guide-banner__icon">
+								<i class="pi pi-folder"></i>
 							</div>
+							<div class="import-guide-banner__copy min-w-0">
+								<h3 class="import-guide-banner__title m-0">{{ 'archived_products_title' | translate }}</h3>
+								<p class="import-guide-banner__description m-0">{{ 'archived_products_description' | translate }}</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="import-stats-row mb-4" *ngIf="!isLoadingArchived">
+					<div class="import-stat-card">
+						<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
+							<i class="pi pi-folder"></i>
+						</div>
+						<div>
+							<div class="import-stat-value">{{ archivedProducts.length }}</div>
+							<div class="import-stat-label">{{ 'total_archived_products' | translate }}</div>
+						</div>
+					</div>
+					<div class="import-stat-card" *ngIf="archivedSearchInput">
+						<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
+							<i class="pi pi-search"></i>
+						</div>
+						<div>
+							<div class="import-stat-value">{{ filteredArchivedProducts.length }}</div>
+							<div class="import-stat-label">{{ 'search_label' | translate }}</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="import-section mb-4" *ngIf="!isLoadingArchived">
+					<div class="archived-products-toolbar">
+						<div class="p-inputgroup archived-products-search">
+							<span class="p-inputgroup-addon"><i class="pi pi-search"></i></span>
+							<input type="search" pInputText [placeholder]="'search_label' | translate"
+								[(ngModel)]="archivedSearchInput" (input)="applyArchivedFilters()">
+						</div>
+					</div>
+				</div>
+
+				<div *ngIf="isLoadingArchived" class="import-progress-panel">
+					<p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+					<p class="mt-4 mb-0 text-color-secondary font-medium">{{ 'loading' | translate }}…</p>
+				</div>
+
+				<div class="import-section archived-products-table-section" *ngIf="!isLoadingArchived">
+					<p-table #archivedDt [value]="filteredArchivedProducts" [columns]="cols"
+						responsiveLayout="scroll"
+						[rows]="pageSizeService.get(TablePageSizeKeys.productsArchived, rowsPerPageOptions)"
+						[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+						(onPage)="pageSizeService.onPage(TablePageSizeKeys.productsArchived, rowsPerPageOptions, $event)"
+						dataKey="productId" styleClass="p-datatable-gridlines"
+						currentPageReportTemplate="{first} / {last} ({totalRecords} {{ 'table_records' | translate }})"
+						[rowHover]="true">
+						<ng-template pTemplate="header">
+							<tr>
+								<th>{{ 'product_image' | translate }}</th>
+								<th pSortableColumn="name">{{ 'product_name' | translate }} <p-sortIcon field="name"></p-sortIcon></th>
+								<th pSortableColumn="category">{{ 'product_category' | translate }} <p-sortIcon field="category"></p-sortIcon></th>
+								<th pSortableColumn="quantityAvailable">{{ 'product_quantity' | translate }} <p-sortIcon field="quantityAvailable"></p-sortIcon></th>
+								<th pSortableColumn="inventoryStatus">{{ 'product_inventory_status' | translate }} <p-sortIcon field="inventoryStatus"></p-sortIcon></th>
+								<th pSortableColumn="buyingPrice" *ngIf="isAdmin">{{ 'product_buying_price' | translate }} <p-sortIcon field="buyingPrice"></p-sortIcon></th>
+								<th pSortableColumn="sellingPrice">{{ 'product_selling_price' | translate }} <p-sortIcon field="sellingPrice"></p-sortIcon></th>
+								<th pSortableColumn="supplier">{{ 'product_supplier' | translate }} <p-sortIcon field="supplier"></p-sortIcon></th>
+								<th pSortableColumn="warehouse">{{ 'product_warehouse' | translate }} <p-sortIcon field="warehouse"></p-sortIcon></th>
+								<th pSortableColumn="archivedDate">{{ 'archived_date' | translate }}
+									<p-columnFilter type="date" field="archivedDate" display="menu" />
+									<p-sortIcon field="archivedDate"></p-sortIcon>
+								</th>
+								<th>{{ 'actions' | translate }}</th>
+							</tr>
 						</ng-template>
-
-						<ng-template let-products pTemplate="listItem">
-							<p-table #archivedDt [value]="products" *ngIf="!isLoadingArchived" [columns]="cols"
-								responsiveLayout="scroll" [rows]="20" [paginator]="true"
-								[rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
-								dataKey="productId"
-								currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-								[rowHover]="true">
-								<ng-template pTemplate="header">
-									<tr>
-										<th>{{ 'product_image' | translate }}</th>
-										<th pSortableColumn="name">{{'product_name' | translate}} <p-sortIcon
-												field="name"></p-sortIcon></th>
-										<th pSortableColumn="category">{{'product_category' | translate}} <p-sortIcon
-												field="category"></p-sortIcon>
-										</th>
-										<th pSortableColumn="quantityAvailable">{{'product_quantity' | translate}}
-											<p-sortIcon field="quantityAvailable"></p-sortIcon>
-										</th>
-										<th pSortableColumn="inventoryStatus">{{'product_inventory_status' | translate}}
-											<p-sortIcon field="inventoryStatus"></p-sortIcon>
-										</th>
-										<th pSortableColumn="buyingPrice" *ngIf="isAdmin">{{'product_buying_price' |
-											translate}}
-											<p-sortIcon field="buyingPrice"></p-sortIcon>
-										</th>
-										<th pSortableColumn="sellingPrice">{{'product_selling_price' | translate}}
-											<p-sortIcon field="sellingPrice"></p-sortIcon>
-										</th>
-										<th pSortableColumn="supplier">{{'product_supplier' | translate}} <p-sortIcon
-												field="supplier"></p-sortIcon>
-										</th>
-										<th pSortableColumn="warehouse">{{'product_warehouse' | translate}} <p-sortIcon
-												field="warehouse"></p-sortIcon>
-										</th>
-										<th pSortableColumn="archivedDate">{{ 'archived_date' | translate }}
-											<p-columnFilter type="date" field="archivedDate" display="menu" />
-											<p-sortIcon field="archivedDate"></p-sortIcon>
-										</th>
-										<th>{{ 'actions' | translate }}</th>
-									</tr>
-								</ng-template>
-								<ng-template pTemplate="body" let-product>
-									<tr>
-										<td style="min-width:10rem;">
-											<img [src]="getProductImage(product)"
-												[alt]="product.name" class="my-4 md:my-0 w-6 md:w-6rem shadow-2 mr-5" />
-										</td>
-
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{'product_name' | translate}}</span>
-											{{product.name ? product.name : 'N/A'}}
-										</td>
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{'product_category' | translate}}</span>
-											{{product.category ? product.category.categoryName : 'N/A'}}
-										</td>
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{ 'product_quantity' | translate }}</span>
-											<div class="flex align-items-center gap-2">
-												<p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
-													[value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit, getAvailableQuantity(product)) | translate)"
-													[icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
-													[ngClass]="{'has-writeoff': hasWriteOffs(product)}">
-												</p-tag>
-												<span *ngIf="hasWriteOffs(product)" 
-													  class="writeoff-indicator" 
-													  [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
-													  tooltipPosition="top">
-													<i class="pi pi-exclamation-triangle text-orange-500"></i>
-												</span>
-											</div>
-											<div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
-												<small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
-											</div>
-										</td>
-
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{'product_inventory_status' |
-												translate}}</span>
-											<span
-												[class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">{{'product_'+product.inventoryStatus.toLowerCase()
-												| translate}}
-											</span>
-										</td>
-
-										<td style="min-width:10rem;" *ngIf="isAdmin">
-											<span class="p-column-title">{{'product_quantity' | translate}}</span>
-											{{ product.buyingPrice }} {{currency}}
-										</td>
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{'product_selling_price' | translate}}</span>
-											{{ product.sellingPrice }} {{currency}}
-										</td>
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{'product_supplier' | translate}}</span>
-											{{product.supplier ? product.supplier.name : 'N/A'}}
-										</td>
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{'product_warehouse' | translate}}</span>
-											{{product.warehouse ? product.warehouse.name : 'N/A'}}
-										</td>
-										<td style="min-width:10rem;">
-											<span class="p-column-title">{{ 'archived_date' | translate }}</span>
-											{{ product.archivedDate ? (product.archivedDate | date:'dd/MM/yyyy') : 'N/A'
-											}}
-										</td>
-										<td>
-											<div class="flex">
-												<button pButton pRipple icon="pi pi-refresh"
-													class="p-button-rounded p-button-success mr-2"
-													pTooltip="{{'reactivate_product'|translate}}"
-													(click)="unarchiveProduct(product); $event.stopPropagation()"></button>
-											</div>
-										</td>
-									</tr>
-								</ng-template>
-								<ng-template pTemplate="summary">
-									<div class="flex align-items-center justify-content-between">
-										{{'total_archived_products' | translate}} {{products ? products.length : 0 }}.
+						<ng-template pTemplate="body" let-product>
+							<tr>
+								<td>
+									<img [src]="getProductImage(product)" [alt]="product.name"
+										class="archived-product-thumb" />
+								</td>
+								<td>{{ product.name || 'N/A' }}</td>
+								<td>{{ product.category?.categoryName || 'N/A' }}</td>
+								<td>
+									<div class="flex align-items-center gap-2">
+										<p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
+											[value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit, getAvailableQuantity(product)) | translate)"
+											[icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
+											[ngClass]="{ 'has-writeoff': hasWriteOffs(product) }">
+										</p-tag>
+										<span *ngIf="hasWriteOffs(product)" class="writeoff-indicator"
+											[pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
+											tooltipPosition="top">
+											<i class="pi pi-exclamation-triangle text-orange-500"></i>
+										</span>
 									</div>
-								</ng-template>
-								<ng-template pTemplate="emptymessage">
-									<tr>
-										<td colspan="20" class="text-center">
-											<div
-												class="flex flex-column align-items-center justify-content-center py-5">
-												<img src="assets/core-images/no_data_found.png" alt="No Data Found"
-													style="max-width: 250px; opacity: 0.6;">
-												<p class="mt-3 text-gray-600 font-medium text-lg">
-													{{ 'no_archived_products_found' | translate }}
-												</p>
-											</div>
-										</td>
-									</tr>
-								</ng-template>
-							</p-table>
+									<div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
+										<small>{{ 'base_quantity' | translate }}: {{ product.quantityAvailable || 0 }} ({{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }})</small>
+									</div>
+								</td>
+								<td>
+									<span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
+										{{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
+									</span>
+								</td>
+								<td *ngIf="isAdmin">{{ product.buyingPrice }} {{ currency }}</td>
+								<td>{{ product.sellingPrice }} {{ currency }}</td>
+								<td>{{ product.supplier?.name || 'N/A' }}</td>
+								<td>{{ product.warehouse?.name || 'N/A' }}</td>
+								<td>{{ product.archivedDate ? (product.archivedDate | date:'dd/MM/yyyy') : 'N/A' }}</td>
+								<td>
+									<button pButton pRipple type="button" icon="pi pi-refresh"
+										class="p-button-rounded p-button-text p-button-success"
+										[pTooltip]="'reactivate_product' | translate"
+										(click)="unarchiveProduct(product); $event.stopPropagation()">
+									</button>
+								</td>
+							</tr>
 						</ng-template>
-					</p-dataView>
+						<ng-template pTemplate="emptymessage">
+							<tr>
+								<td [attr.colspan]="isAdmin ? 11 : 10" class="archived-products-empty">
+									<div class="flex flex-column align-items-center justify-content-center py-5">
+										<img src="assets/core-images/no_data_found.png" alt=""
+											class="archived-products-empty__img">
+										<p class="mt-3 mb-0 text-color-secondary font-medium">
+											{{ 'no_archived_products_found' | translate }}
+										</p>
+									</div>
+								</td>
+							</tr>
+						</ng-template>
+					</p-table>
 				</div>
 			</ng-template>
+
 			<ng-template pTemplate="footer">
-				<div class="flex justify-content-end gap-2">
-					<p-button icon="pi pi-times" [label]="'close' | translate" styleClass="p-button-outlined"
-						(click)="archivedProductsDialog = false"></p-button>
+				<div class="flex justify-content-end w-full">
+					<button pButton pRipple type="button" [label]="'close' | translate" icon="pi pi-check"
+						class="p-button-primary" (click)="archivedProductsDialog = false"></button>
 				</div>
 			</ng-template>
 		</p-dialog>
@@ -280,50 +264,24 @@
 			(cancel)="onSupplierCancel()">
 		</app-supplier-form-dialog>
 
-		<p-dialog [(visible)]="deleteProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
-			[style]="{width:'450px'}">
-			<div class="flex align-items-center justify-content-center">
-				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-				<span *ngIf="product">{{'delete_confirmation_msg_with_param' | translate}}
-					<b>{{product.name}}</b>?</span>
-			</div>
-			<ng-template pTemplate="footer">
-				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
-					(click)="deleteProductDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
-					(click)="confirmDelete()"></button>
-			</ng-template>
-		</p-dialog>
+		<app-product-delete-dialog
+			[(visible)]="deleteProductDialog"
+			[productId]="product?.productId"
+			(confirmed)="onProductDeleteConfirmed($event)">
+		</app-product-delete-dialog>
 
-		<p-dialog [(visible)]="archiveProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
-			[style]="{width:'450px'}">
-			<div class="flex align-items-center justify-content-center">
-				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-				<span *ngIf="product">{{'archive_confirmation_msg_with_param' | translate}}
-					<b>{{product.name}}</b>?</span>
-			</div>
-			<ng-template pTemplate="footer">
-				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
-					(click)="archiveProductDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
-					(click)="confirmArchive()"></button>
-			</ng-template>
-		</p-dialog>
+		<app-product-archive-dialog
+			[(visible)]="archiveProductDialog"
+			[productName]="product?.name || ''"
+			(confirmed)="confirmArchive()">
+		</app-product-archive-dialog>
 
-		<p-dialog [(visible)]="unArchiveProductDialog" header="{{'confirm_label' | translate}}" [modal]="true"
-			[style]="{width:'450px'}">
-			<div class="flex align-items-center justify-content-center">
-				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-				<span *ngIf="product">{{'unarchive_confirmation_msg_with_param' | translate}}
-					<b>{{product.name}}</b>?</span>
-			</div>
-			<ng-template pTemplate="footer">
-				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
-					(click)="unArchiveProductDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
-					(click)="confirmUnarchive()"></button>
-			</ng-template>
-		</p-dialog>
+		<app-product-archive-dialog
+			[(visible)]="unArchiveProductDialog"
+			mode="unarchive"
+			[productName]="archivedProduct?.name || ''"
+			(confirmed)="confirmUnarchive()">
+		</app-product-archive-dialog>
 
 		<p-dialog [(visible)]="notFoundProductDialog" header="{{'product_not_found_warning' | translate}}"
 			[modal]="true" [style]="{width:'450px'}">
@@ -334,7 +292,7 @@
 			<ng-template pTemplate="footer">
 				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'cancel_button' | translate}}"
 					(click)="notFoundProductDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'new_button' | translate}}"
+				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'new_button' | translate}}"
 					(click)="openNew()"></button>
 			</ng-template>
 		</p-dialog>
@@ -348,10 +306,9 @@
 			[resizable]="false"
 			[style]="{width: '450px'}"
 			[header]="'exporting' | translate">
-			<div class="flex flex-column align-items-center gap-3 p-4">
-				<p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+			<div class="import-progress-panel"><p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
 				<div class="text-center">
-					<p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+					<p class="ims-loading-label m-0">{{ exportProgress || ('exporting' | translate) }}</p>
 				</div>
 			</div>
 		</p-dialog>

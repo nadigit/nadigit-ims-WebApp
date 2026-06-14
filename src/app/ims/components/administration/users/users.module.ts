@@ -20,8 +20,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { SplitButtonModule } from 'primeng/splitbutton';
 import { TabMenuModule } from 'primeng/tabmenu';
-import { StepsModule } from 'primeng/steps';
-import { PickListModule } from 'primeng/picklist';
 import { ChipModule } from 'primeng/chip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -30,6 +28,9 @@ import { TabViewModule } from 'primeng/tabview';
 import { BadgeModule } from 'primeng/badge';
 import { TagModule } from 'primeng/tag';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { CheckboxModule } from 'primeng/checkbox';
+import { InputGroupModule } from 'primeng/inputgroup';
+import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { UserDetailsPageComponent } from './user-details/user-details-page.component';
 import { RoleDetailsPageComponent } from './role-details/role-details-page.component';
 import { AuditLogTableComponent } from './audit-log/audit-log-table.component';
@@ -57,8 +58,6 @@ import { CalendarModule } from 'primeng/calendar';
         TranslateModule,
         SplitButtonModule,
         TabMenuModule,
-        StepsModule,
-        PickListModule,
         ChipModule,
         ProgressSpinnerModule,
         MultiSelectModule,
@@ -67,6 +66,9 @@ import { CalendarModule } from 'primeng/calendar';
         BadgeModule,
         TagModule,
         ConfirmDialogModule,
+        CheckboxModule,
+        InputGroupModule,
+        InputGroupAddonModule,
         CalendarModule
     ],
     declarations: [UsersComponent, UserDetailsPageComponent, RoleDetailsPageComponent, AuditLogTableComponent],

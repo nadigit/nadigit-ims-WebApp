@@ -31,6 +31,11 @@ import { DatePipe } from '@angular/common';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './sales-payments.component.html',
@@ -99,7 +104,9 @@ export class SalesPaymentsComponent implements OnInit {
   canDeletePayment: boolean = false;
   canReadPayment: boolean = false;
   canConfirmPayment: boolean = false;
-  isLoading: boolean = false;
+  isLoading: boolean = true;
+  isInitialLoad: boolean = true;
+  private lazyLoadCallCount = 0;
   canBeDeleted: boolean;
   cols: any[];
 
@@ -138,6 +145,10 @@ export class SalesPaymentsComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.salesPayments, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     this.maxPaymentDate = new Date(); // Today's date
     this.maxPaymentDate.setHours(23, 59, 59, 999); // Include entire current day
     this.pageSize = 20;
@@ -177,7 +188,8 @@ export class SalesPaymentsComponent implements OnInit {
       sortField: 'paymentDate',
       sortOrder: -1
     };
-    this.onLazyLoad(initialEvent);
+    this.lastLazyLoadEvent = initialEvent;
+    this.loadPayments({ ...initialEvent, sortBy: 'paymentDate', direction: 'DESC' });
   }
 
   async loadBankAccounts() {
@@ -1008,7 +1020,23 @@ export class SalesPaymentsComponent implements OnInit {
   }
 
   onLazyLoad(event: any) {
+    if (this.isLoading) {
+      return;
+    }
+    this.lazyLoadCallCount++;
+    if (this.lazyLoadCallCount === 1 && this.payments.length > 0) {
+      this.isInitialLoad = false;
+      return;
+    }
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.salesPayments, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    event = {
+      ...event,
+      rows: event?.rows ?? this.lastLazyLoadEvent?.rows ?? this.pageSize,
+    };
     this.lastLazyLoadEvent = event;
+    this.isInitialLoad = false;
     this.isLoading = true;
 
     // Add sort info to event
@@ -1019,6 +1047,7 @@ export class SalesPaymentsComponent implements OnInit {
   }
 
   loadPayments(event?: any) {
+    this.isLoading = true;
     const page = event?.first ? event.first / event.rows! : 0;
     const size = event?.rows || this.pageSize;
     const sortBy = event?.sortBy || 'paymentDate';
@@ -1048,12 +1077,14 @@ export class SalesPaymentsComponent implements OnInit {
           
           this.totalRecords = totalElements;
           this.isLoading = false;
+          this.isInitialLoad = false;
         },
         error: (err) => {
           console.error('Error loading payments:', err);
           this.payments = [];
           this.totalRecords = 0;
           this.isLoading = false;
+          this.isInitialLoad = false;
           this.messageService.add({
             severity: 'error',
             summary: this.translate.instant('error'),

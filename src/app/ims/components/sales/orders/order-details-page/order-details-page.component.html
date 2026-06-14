@@ -1,10 +1,10 @@
-<div class="order-details-container">
+﻿<div class="order-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="order-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
                             <i class="pi pi-shopping-bag"></i>
                         </div>
                         <div>
@@ -131,7 +131,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon total">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -142,7 +142,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon items">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
@@ -153,7 +153,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="order.discount">
-                <div class="stat-icon discount">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--danger">
                     <i class="pi pi-percentage"></i>
                 </div>
                 <div class="stat-content">
@@ -164,8 +164,8 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="order.taxEnabled">
-                <div class="stat-icon tax">
-                    <i class="pi pi-receipt"></i>
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
+                    <i class="pi pi-percentage"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'tax' | translate }}</span>
@@ -176,7 +176,7 @@
             
             <!-- Cost and Profit Stats (if available) -->
             <div class="stat-card-modern" *ngIf="hasCostInfo()">
-                <div class="stat-icon cost">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--neutral">
                     <i class="pi pi-dollar"></i>
                 </div>
                 <div class="stat-content">
@@ -187,7 +187,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="hasCostInfo()">
-                <div class="stat-icon profit" [ngClass]="{'profit-negative': order.totalProfit < 0}">
+                <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="order.totalProfit >= 0 ? 'ims-icon-tile--green' : 'ims-icon-tile--danger'">
                     <i class="pi" [ngClass]="order.totalProfit >= 0 ? 'pi-arrow-up' : 'pi-arrow-down'"></i>
                 </div>
                 <div class="stat-content">
@@ -200,7 +200,11 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="hasCostInfo() && order.profitMargin != null">
-                <div class="stat-icon margin" [ngClass]="getProfitMarginClass(order.profitMargin)">
+                <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="{
+                    'ims-icon-tile--green': getProfitMarginClass(order.profitMargin) === 'high-margin',
+                    'ims-icon-tile--amber': getProfitMarginClass(order.profitMargin) === 'medium-margin',
+                    'ims-icon-tile--danger': getProfitMarginClass(order.profitMargin) === 'low-margin'
+                }">
                     <i class="pi pi-percentage"></i>
                 </div>
                 <div class="stat-content">
@@ -274,6 +278,10 @@
                                         <span class="summary-label">{{ 'transport_amount' | translate }}</span>
                                         <span class="summary-value">+{{ order.transportAmount | number:'1.2-2' }} {{ currency }}</span>
                                     </div>
+                                    <div class="summary-row" *ngIf="order.additionalChargesAmount">
+                                        <span class="summary-label">{{ 'additional_charges_amount' | translate }}</span>
+                                        <span class="summary-value">+{{ order.additionalChargesAmount | number:'1.2-2' }} {{ currency }}</span>
+                                    </div>
                                     
                                     <div class="summary-total" *ngIf="order.totalAmount">
                                         <span class="summary-label font-bold">{{ 'total' | translate }}</span>
@@ -334,7 +342,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="order.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -343,7 +351,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="order.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -570,11 +578,12 @@
                             </div>
                             
                             <ng-template #showProductsTable>
-                                <p-table [value]="order?.orderItems || []" [rows]="10" [paginator]="true"
+                                <p-table [value]="order?.orderItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.orderDetailsPayments, [10,25,50])" [paginator]="true"
                                     [showCurrentPageReport]="true"
                                     styleClass="p-datatable-sm p-datatable-striped"
                                     currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                     [rowsPerPageOptions]="[10,25,50]"
+                                    (onPage)="pageSizeService.onPage(TablePageSizeKeys.orderDetailsPayments, [10,25,50], $event)"
                                     *ngIf="order?.orderItems?.length > 0; else noItems">
                                     <ng-template pTemplate="header">
                                         <tr>
@@ -611,13 +620,18 @@
                                             </td>
                                             <td class="font-medium">{{ orderItem?.product?.reference || 'N/A' }}</td>
                                             <td class="text-center">
-                                                <p-tag [value]="orderItem?.quantity?.toString() || '0'" severity="info"></p-tag>
+                                                <p-tag severity="info">
+                                                    <span class="px-1">{{ formatOrderItemQty(orderItem) }}<ng-container *ngIf="showOrderItemMeasureUnit(orderItem)"> {{ getOrderItemMeasureUnit(orderItem) | translate }}</ng-container></span>
+                                                </p-tag>
                                             </td>
-                                            <td class="font-semibold">{{ orderItem?.pricePerUnit | number:'1.2-2' }} {{ currency }}</td>
+                                            <td class="font-semibold">
+                                                {{ orderItem?.pricePerUnit | number:'1.2-2' }} {{ currency }}
+                                                <small *ngIf="orderItem?.product?.measureUnit" class="text-500 block">/ {{ getUnitPriceLabel(orderItem) | translate }}</small>
+                                            </td>
                                             <td>{{ (orderItem?.lineNetAmount ?? ((orderItem?.quantity || 0) * (orderItem?.pricePerUnit || 0))) | number:'1.2-2' }} {{ currency }}</td>
                                             <td>{{ (orderItem?.lineTaxAmount || 0) | number:'1.2-2' }} {{ currency }}</td>
                                             <td>{{ formatTaxRate(orderItem?.taxRateUsed) }}</td>
-                                            <td class="font-bold text-primary">{{ (orderItem?.lineGrossAmount ?? ((orderItem?.lineNetAmount ?? ((orderItem?.quantity || 0) * (orderItem?.pricePerUnit || 0))) + (orderItem?.lineTaxAmount || 0))) | number:'1.2-2' }} {{ currency }}</td>
+                                            <td class="font-bold text-primary">{{ getLineGrossAmount(orderItem) | number:'1.2-2' }} {{ currency }}</td>
                                             <!-- Cost and Profit Data (if available) -->
                                             <td class="cost-cell" *ngIf="hasCostInfo()">
                                                 {{ orderItem?.costPerUnit != null ? (orderItem.costPerUnit | number:'1.2-2') + ' ' + currency : 'N/A' }}
@@ -752,7 +766,7 @@
                                                                         [alt]="item.product?.name" class="product-thumb" />
                                                                     <div class="product-preview-info">
                                                                         <span class="product-preview-name">{{ item.product?.name }}</span>
-                                                                        <span class="product-preview-qty">x{{ item.quantity }}</span>
+                                                                        <span class="product-preview-qty">x{{ formatOrderItemQty(item) }}<ng-container *ngIf="showOrderItemMeasureUnit(item)"> {{ getOrderItemMeasureUnit(item) | translate }}</ng-container></span>
                                                                     </div>
                                                                 </div>
                                                                 <p *ngIf="order?.orderItems?.length > 3" class="text-500 text-sm mt-2 m-0">
@@ -863,7 +877,9 @@
                                     <tr>
                                         <td>{{ returnItem.product?.name || 'N/A' }}</td>
                                         <td class="text-center">
-                                            <p-tag [value]="returnItem.returnedQuantity" severity="warning"></p-tag>
+                                            <p-tag severity="warning">
+                                                <span class="px-1">{{ formatReturnItemQty(returnItem) }} {{ getReturnItemMeasureUnit(returnItem) | translate }}</span>
+                                            </p-tag>
                                         </td>
                                         <td class="text-right font-semibold">{{ returnItem.refundAmount | number:'1.2-2' }} {{ currency }}</td>
                                     </tr>

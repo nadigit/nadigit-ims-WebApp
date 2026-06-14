@@ -1,10 +1,10 @@
-<div class="credit-dashboard-container">
+﻿<div class="credit-dashboard-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -115,7 +115,7 @@
                                 <button pButton 
                                         type="button" 
                                         icon="pi pi-eye" 
-                                        class="p-button-text p-button-sm"
+                                        class="p-button-text p-button-sm p-button-rounded p-button-primary"
                                         [pTooltip]="'view_details' | translate"
                                         (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
                             </td>
@@ -175,7 +175,7 @@
                                 <button pButton 
                                         type="button" 
                                         icon="pi pi-eye" 
-                                        class="p-button-text p-button-sm"
+                                        class="p-button-text p-button-sm p-button-rounded p-button-primary"
                                         [pTooltip]="'view_details' | translate"
                                         (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
                             </td>

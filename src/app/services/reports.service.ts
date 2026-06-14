@@ -44,6 +44,101 @@ export interface PurchaseSummary {
   totalOutstandingPurchaseAmount: number;
 }
 
+export interface InventorySituationLine {
+  productId: number;
+  reference: string;
+  name: string;
+  categoryName: string;
+  warehouseName: string;
+  quantityOnHand: number;
+  measureUnit: string;
+  measureUnitLabel?: string;
+  unitCost: number;
+  lineValue: number;
+  inventoryStatus: string;
+  inventoryStatusLabel?: string;
+}
+
+export interface InventorySituationDeltaLine {
+  productId: number;
+  reference: string;
+  name: string;
+  categoryName: string;
+  warehouseName: string;
+  quantityFrom: number;
+  quantityTo: number;
+  quantityDelta: number;
+  measureUnit: string;
+  measureUnitLabel?: string;
+  unitCost: number;
+  valueFrom: number;
+  valueTo: number;
+  valueDelta: number;
+}
+
+export interface InventorySituationDelta {
+  fromDate: string;
+  toDate: string;
+  generatedAt: string;
+  warehouseLabel: string;
+  snapshotBackedFrom: boolean;
+  snapshotBackedTo: boolean;
+  disclaimer: string;
+  changedSkuCount: number;
+  totalQuantityDelta: number;
+  totalValueDelta: number;
+  includeZeroQuantity: boolean;
+  onlyChanges: boolean;
+  lines: InventorySituationDeltaLine[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface InventorySituation {
+  asOfDate: string;
+  generatedAt: string;
+  warehouseLabel: string;
+  totalSkuCount: number;
+  totalUnitsOnHand: number;
+  estimatedStockValue: number;
+  includeZeroQuantity: boolean;
+  snapshotBacked: boolean;
+  ledgerDisclaimer: string;
+  lines: InventorySituationLine[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface TopSellingProductLine {
+  rank: number;
+  productId: number;
+  reference: string;
+  name: string;
+  categoryName: string;
+  warehouseName: string;
+  measureUnit: string;
+  measureUnitLabel?: string;
+  quantitySold: number;
+  revenue: number;
+}
+
+export interface TopSellingProducts {
+  period?: string;
+  startDate: string;
+  endDate: string;
+  generatedAt: string;
+  shopName: string;
+  warehouseLabel?: string;
+  limit: number;
+  totalQuantitySold: number;
+  totalRevenue: number;
+  lines: TopSellingProductLine[];
+}
+
 export interface InventorySnapshot {
   generatedAt: string;
   activeSkuCount: number;
@@ -118,6 +213,77 @@ export class ReportsService {
     );
   }
 
+  async getTopSellingProducts(
+    options: {
+      period?: ProfitPeriod;
+      fromDate?: string;
+      toDate?: string;
+      shopId?: number;
+      warehouseId?: number;
+      limit?: number;
+    }
+  ): Promise<Observable<TopSellingProducts>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams().set('limit', String(options.limit ?? 20));
+    if (options.period) {
+      params = params.set('period', options.period);
+    }
+    if (options.fromDate) {
+      params = params.set('fromDate', options.fromDate);
+    }
+    if (options.toDate) {
+      params = params.set('toDate', options.toDate);
+    }
+    if (options.shopId != null) {
+      params = params.set('shopId', options.shopId.toString());
+    }
+    if (options.warehouseId != null) {
+      params = params.set('warehouseId', options.warehouseId.toString());
+    }
+    return this.http.get<TopSellingProducts>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/sales/top-products`,
+      { headers, params }
+    );
+  }
+
+  async downloadTopSellingProducts(
+    options: {
+      period?: ProfitPeriod;
+      fromDate?: string;
+      toDate?: string;
+      shopId?: number;
+      warehouseId?: number;
+      limit?: number;
+      format: 'csv' | 'excel';
+    }
+  ): Promise<Observable<any>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams()
+      .set('limit', String(options.limit ?? 20))
+      .set('format', options.format === 'excel' ? 'xlsx' : 'csv');
+    if (options.period) {
+      params = params.set('period', options.period);
+    }
+    if (options.fromDate) {
+      params = params.set('fromDate', options.fromDate);
+    }
+    if (options.toDate) {
+      params = params.set('toDate', options.toDate);
+    }
+    if (options.shopId != null) {
+      params = params.set('shopId', options.shopId.toString());
+    }
+    if (options.warehouseId != null) {
+      params = params.set('warehouseId', options.warehouseId.toString());
+    }
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/sales/top-products/export`,
+      { headers, params, responseType: 'blob' as 'blob', observe: 'response' }
+    );
+  }
+
   async getPurchaseSummary(period: ProfitPeriod, shopId?: number): Promise<Observable<PurchaseSummary>> {
     await this.ensureTokenLoaded();
     const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
@@ -147,6 +313,102 @@ export class ReportsService {
     return this.http.get<InventorySnapshot>(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/inventory/snapshot`,
       { headers, params }
+    );
+  }
+
+  async getInventorySituation(
+    asOf: string,
+    warehouseId?: number,
+    includeZeroQuantity = false,
+    page = 0,
+    size = 50
+  ): Promise<Observable<InventorySituation>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams()
+      .set('asOf', asOf)
+      .set('includeZeroQuantity', String(includeZeroQuantity))
+      .set('page', String(page))
+      .set('size', String(size));
+    if (warehouseId != null) {
+      params = params.set('warehouseId', warehouseId.toString());
+    }
+    return this.http.get<InventorySituation>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/inventory/situation`,
+      { headers, params }
+    );
+  }
+
+  async downloadInventorySituation(
+    asOf: string,
+    format: 'csv' | 'excel' | 'pdf',
+    warehouseId?: number,
+    includeZeroQuantity = false
+  ): Promise<Observable<any>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams()
+      .set('asOf', asOf)
+      .set('includeZeroQuantity', String(includeZeroQuantity))
+      .set('format', format === 'excel' ? 'xlsx' : format);
+    if (warehouseId != null) {
+      params = params.set('warehouseId', warehouseId.toString());
+    }
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/inventory/situation/export`,
+      { headers, params, responseType: 'blob' as 'blob', observe: 'response' }
+    );
+  }
+
+  async getInventorySituationDelta(
+    fromDate: string,
+    toDate: string,
+    warehouseId?: number,
+    includeZeroQuantity = false,
+    onlyChanges = true,
+    page = 0,
+    size = 50
+  ): Promise<Observable<InventorySituationDelta>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams()
+      .set('fromDate', fromDate)
+      .set('toDate', toDate)
+      .set('includeZeroQuantity', String(includeZeroQuantity))
+      .set('onlyChanges', String(onlyChanges))
+      .set('page', String(page))
+      .set('size', String(size));
+    if (warehouseId != null) {
+      params = params.set('warehouseId', warehouseId.toString());
+    }
+    return this.http.get<InventorySituationDelta>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/inventory/situation/delta`,
+      { headers, params }
+    );
+  }
+
+  async downloadInventorySituationDelta(
+    fromDate: string,
+    toDate: string,
+    format: 'csv' | 'excel' | 'pdf',
+    warehouseId?: number,
+    includeZeroQuantity = false,
+    onlyChanges = true
+  ): Promise<Observable<any>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams()
+      .set('fromDate', fromDate)
+      .set('toDate', toDate)
+      .set('includeZeroQuantity', String(includeZeroQuantity))
+      .set('onlyChanges', String(onlyChanges))
+      .set('format', format === 'excel' ? 'xlsx' : format);
+    if (warehouseId != null) {
+      params = params.set('warehouseId', warehouseId.toString());
+    }
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/inventory/situation/delta/export`,
+      { headers, params, responseType: 'blob' as 'blob', observe: 'response' }
     );
   }
 }

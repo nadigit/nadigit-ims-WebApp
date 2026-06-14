@@ -20,6 +20,9 @@ import { getMeasureUnit } from 'src/app/shared/product-utils';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { CategoryFormDialogComponent, CategoryFormDialogConfig, CategoryFormDialogData } from '../category-form-dialog/category-form-dialog.component';
 import { Location } from '@angular/common';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { costingMethodTranslationKey } from 'src/app/utils/costing-method.util';
 
 @Component({
   templateUrl: './category-details.component.html',
@@ -27,6 +30,8 @@ import { Location } from '@angular/common';
   providers: [MessageService]
 })
 export class CategoryDetailsComponent implements OnInit, OnDestroy {
+  readonly costingMethodTranslationKey = costingMethodTranslationKey;
+  TablePageSizeKeys = TablePageSizeKeys;
   categoryId!: number;
   category: Category | null = null;
   isLoading: boolean = true;
@@ -47,6 +52,7 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
+  canArchiveProduct: boolean = false;
   canReadProduct: boolean = false;
   isAdmin: boolean = false;
   userRoles: any;
@@ -92,6 +98,7 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     private translate: TranslateService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
+    public pageSizeService: TablePageSizeService,
   ) { }
 
   async ngOnInit() {
@@ -388,27 +395,6 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     this.uniqueWarehouses = Array.from(warehouseMap.values());
   }
 
-  refreshCategoryDetails(): void {
-    if (this.category?.categoryId) {
-      this.loadingCategoryDetails = true;
-      this.onGetCategoryProducts().then(() => {
-        this.filteredCategoryProducts = [...this.products];
-        this.updateUniqueWarehouses();
-        this.calculateCategoryStats();
-        this.loadingCategoryDetails = false;
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('success'),
-          detail: this.translate.instant('data_refreshed'),
-          life: 2000
-        });
-      }).catch(error => {
-        console.error('Error refreshing category details:', error);
-        this.loadingCategoryDetails = false;
-      });
-    }
-  }
-
   exportCategoryProducts(): void {
     const exportData = this.filteredCategoryProducts.map(p => ({
       name: p.name,
@@ -435,6 +421,7 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     this.canAddProduct = this.permissionService.canCreate('PRODUCTS');
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
+    this.canArchiveProduct = this.permissionService.canArchive('PRODUCTS');
     this.canReadProduct = this.permissionService.canRead('PRODUCTS');
     this.canEditCategory = this.permissionService.canUpdate(this.Ressource);
     this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
@@ -548,14 +535,13 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
     this.selectedProduct = { ...product };
+    this.deleteProductDialog = true;
   }
 
-  async confirmProductDelete() {
+  async onProductDeleteConfirmed(productId: number) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.selectedProduct.productId);
+    await this.onDeleteProduct(productId);
     this.selectedProduct = {};
   }
 
@@ -634,14 +620,14 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
 
 
   archiveProduct(product: Product) {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = true;
     this.selectedProduct = { ...product };
     this.productDialog = false;
   }
 
   async confirmArchive() {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = false;
     await this.onArchiveProduct(this.selectedProduct.productId);
     this.selectedProduct = {};
@@ -658,7 +644,7 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
             detail: this.translate.instant('product_archived'),
             life: 3000
           });
-          this.onGetAllWarehouses();
+          void this.loadCategoryDetails();
         },
         error: (err: any) => {
           this.messageService.add({

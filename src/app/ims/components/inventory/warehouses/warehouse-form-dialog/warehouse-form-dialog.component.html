@@ -1,125 +1,138 @@
-<p-dialog [(visible)]="config.visible" [style]="{width: '500px'}"
-	[breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ config.mode === 'edit' ? ('warehouse_details' | translate) : ('new_warehouse' | translate) }}"
-	[modal]="true" [draggable]="false" [resizable]="false" class="p-fluid warehouse-dialog">
+<p-dialog [(visible)]="config.visible" [style]="{width: 'min(92vw, 560px)'}"
+	[breakpoints]="{'960px': '90vw', '640px': '95vw'}"
+	header="{{ config.mode === 'edit' ? ('warehouse_details' | translate) : ('new_warehouse' | translate) }}"
+	[modal]="true" [draggable]="false" [resizable]="false"
+	styleClass="ims-form-dialog-shell warehouse-form-dialog-shell"
+	class="p-fluid warehouse-dialog">
 	<ng-template pTemplate="content">
-		<div class="grid p-fluid">
-			<div class="col-12">
-				<!-- Warehouse Name -->
-				<div class="field">
-					<label for="name" class="block mb-2 font-bold">
-						{{ 'warehouse_name' | translate }} <span class="required-asterisk">*</span>
-					</label>
-					<div class="p-inputgroup">
-						<span class="p-inputgroup-addon">
+		<div class="ims-form-layout">
+			<div class="ims-form-fields">
+				<section class="ims-form-section">
+					<header class="ims-form-section__header">
+						<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
 							<i class="pi pi-home"></i>
-						</span>
-						<input type="text" pInputText name="name" [(ngModel)]="config.warehouse.name" required
-							placeholder="{{ 'enter_warehouse_name' | translate }}" autofocus
-							[ngClass]="{'ng-invalid ng-dirty': config.submitted && !config.warehouse.name}" />
-					</div>
-					<small class="p-error" *ngIf="config.submitted && !config.warehouse.name">
-						{{ 'warehouse_name' | translate }} {{ 'is_required_label' | translate }}
-					</small>
-				</div>
-
-				<!-- Warehouse Description -->
-				<div class="field">
-					<label for="description" class="block mb-2 font-bold">
-						{{ 'warehouse_description' | translate }}
-					</label>
-					<div class="p-inputgroup">
-						<span class="p-inputgroup-addon">
-							<i class="pi pi-align-left"></i>
-						</span>
-						<textarea pInputTextarea [(ngModel)]="config.warehouse.description" rows="3"
-							[autoResize]="true"
-							placeholder="{{ 'enter_warehouse_description' | translate }}"></textarea>
-					</div>
-				</div>
-
-				<!-- Location Fields -->
-				<div class="grid location-fields">
-					<!-- Country Field -->
-					<div class="field col-12 md:col-6">
-						<label for="country" class="block mb-2 font-bold">
-							{{ 'warehouse_country' | translate }}
-						</label>
-					<p-dropdown [(ngModel)]="config.warehouse.country"
-						(onChange)="onSelectedCountry(config.warehouse.country)" name="country"
-						[options]="countries" optionValue="name" optionLabel="translatedName"
-						[filter]="true" [filterFields]="['name', 'translatedName']"
-						[showClear]="true" appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
-						placeholder="{{ 'select_country_option' | translate }}">
-						<ng-template pTemplate="selectedItem">
-							<span *ngIf="config.warehouse?.country" class="flex align-items-center gap-2">
-								<i class="pi pi-globe"></i>
-								{{ getSelectedCountryName() }}
-							</span>
-						</ng-template>
-
-						<ng-template let-option pTemplate="item">
-							<span class="flex align-items-center gap-2">
-								<i class="pi pi-globe"></i>
-								{{ option.translatedName }}
-							</span>
-						</ng-template>
-					</p-dropdown>
-					</div>
-
-					<!-- City Field (shown when country is selected) -->
-					<div class="field col-12 md:col-6" *ngIf="config.warehouse.country">
-						<label for="city" class="block mb-2 font-bold">
-							{{ 'warehouse_city' | translate }}
-						</label>
-						<p-dropdown [(ngModel)]="config.warehouse.city" name="city" [options]="states"
-							optionLabel="name" optionValue="name" [filter]="true" filterBy="name" [showClear]="true"
-							appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
-							placeholder="{{ 'select_city_option' | translate }}">
-							<ng-template pTemplate="selectedItem">
-								<span *ngIf="config.warehouse && config.warehouse.city" class="flex align-items-center gap-2">
-									<i class="pi pi-map-marker"></i>
-									{{ config.warehouse.city }}
+						</div>
+						<h3 class="ims-form-section__title">{{ 'warehouse_information' | translate }}</h3>
+					</header>
+					<div class="grid ims-form-section__body">
+						<div class="field col-12">
+							<label for="name" class="ims-form-label">
+								{{ 'warehouse_name' | translate }} <span class="required-asterisk">*</span>
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-home"></i>
 								</span>
-							</ng-template>
-							<ng-template let-option pTemplate="item">
-								<span class="flex align-items-center gap-2">
-									<i class="pi pi-map-marker"></i>
-									{{ option.name }}
-								</span>
-							</ng-template>
-						</p-dropdown>
-					</div>
-				</div>
+								<input type="text" pInputText id="name" name="name" [(ngModel)]="config.warehouse.name"
+									required placeholder="{{ 'enter_warehouse_name' | translate }}" autofocus
+									[ngClass]="{'ng-invalid ng-dirty': config.submitted && !config.warehouse.name}" />
+							</div>
+							<small class="p-error" *ngIf="config.submitted && !config.warehouse.name">
+								{{ 'warehouse_name' | translate }} {{ 'is_required_label' | translate }}
+							</small>
+						</div>
 
-				<!-- Warehouse Address -->
-				<div class="field">
-					<label for="address" class="block mb-2 font-bold">
-						{{ 'warehouse_address' | translate }}
-					</label>
-					<div class="p-inputgroup">
-						<span class="p-inputgroup-addon">
-							<i class="pi pi-map"></i>
-						</span>
-						<textarea pInputTextarea [(ngModel)]="config.warehouse.address" name="address" rows="3"
-							[autoResize]="true"
-							placeholder="{{ 'enter_warehouse_address' | translate }}"></textarea>
+						<div class="field col-12">
+							<label for="description" class="ims-form-label">
+								{{ 'warehouse_description' | translate }}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-align-left"></i>
+								</span>
+								<textarea pInputTextarea id="description" [(ngModel)]="config.warehouse.description"
+									name="description" rows="3" [autoResize]="true"
+									placeholder="{{ 'enter_warehouse_description' | translate }}"></textarea>
+							</div>
+						</div>
 					</div>
-				</div>
+				</section>
+
+				<section class="ims-form-section">
+					<header class="ims-form-section__header">
+						<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+							<i class="pi pi-map-marker"></i>
+						</div>
+						<h3 class="ims-form-section__title">{{ 'location' | translate }}</h3>
+					</header>
+					<div class="grid ims-form-section__body">
+						<div class="field col-12 md:col-6">
+							<label for="country" class="ims-form-label">
+								{{ 'warehouse_country' | translate }}
+							</label>
+							<p-dropdown inputId="country" [(ngModel)]="config.warehouse.country"
+								(onChange)="onSelectedCountry(config.warehouse.country)" name="country"
+								[options]="countries" optionValue="name" optionLabel="translatedName"
+								[filter]="true" [filterFields]="['name', 'translatedName']"
+								[showClear]="true" appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+								placeholder="{{ 'select_country_option' | translate }}" styleClass="w-full">
+								<ng-template pTemplate="selectedItem">
+									<span *ngIf="config.warehouse?.country" class="flex align-items-center gap-2">
+										<i class="pi pi-globe"></i>
+										{{ getSelectedCountryName() }}
+									</span>
+								</ng-template>
+								<ng-template let-option pTemplate="item">
+									<span class="flex align-items-center gap-2">
+										<i class="pi pi-globe"></i>
+										{{ option.translatedName }}
+									</span>
+								</ng-template>
+							</p-dropdown>
+						</div>
+
+						<div class="field col-12 md:col-6" *ngIf="config.warehouse.country">
+							<label for="city" class="ims-form-label">
+								{{ 'warehouse_city' | translate }}
+							</label>
+							<p-dropdown inputId="city" [(ngModel)]="config.warehouse.city" name="city" [options]="states"
+								optionLabel="name" optionValue="name" [filter]="true" filterBy="name" [showClear]="true"
+								appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+								placeholder="{{ 'select_city_option' | translate }}" styleClass="w-full">
+								<ng-template pTemplate="selectedItem">
+									<span *ngIf="config.warehouse && config.warehouse.city" class="flex align-items-center gap-2">
+										<i class="pi pi-map-marker"></i>
+										{{ config.warehouse.city }}
+									</span>
+								</ng-template>
+								<ng-template let-option pTemplate="item">
+									<span class="flex align-items-center gap-2">
+										<i class="pi pi-map-marker"></i>
+										{{ option.name }}
+									</span>
+								</ng-template>
+							</p-dropdown>
+						</div>
+
+						<div class="field col-12">
+							<label for="address" class="ims-form-label">
+								{{ 'warehouse_address' | translate }}
+							</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon">
+									<i class="pi pi-map"></i>
+								</span>
+								<textarea pInputTextarea id="address" [(ngModel)]="config.warehouse.address" name="address"
+									rows="3" [autoResize]="true"
+									placeholder="{{ 'enter_warehouse_address' | translate }}"></textarea>
+							</div>
+						</div>
+					</div>
+				</section>
 			</div>
-		</div>
 
-		<div class="required-note mt-3">
-			<small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
-				translate}}</small>
+			<div class="ims-form-required-note">
+				<small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+			</div>
 		</div>
 	</ng-template>
 
 	<ng-template pTemplate="footer">
 		<div class="flex justify-content-between align-items-center w-full">
 			<button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
-				class="p-button-text p-button-danger" (click)="onCancel()"></button>
+				class="p-button-text" (click)="onCancel()"></button>
 			<button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
-				class="p-button-raised" (click)="onSave()"></button>
+				class="p-button-primary" (click)="onSave()"></button>
 		</div>
 	</ng-template>
 </p-dialog>

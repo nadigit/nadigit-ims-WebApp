@@ -4,14 +4,6 @@
 
 export const environment = {
   production: false,
-  firebaseConfig: {
-    apiKey: 'AIzaSyAlnytRGPqpMa6ORCbyUdvretgwje-w3zU',
-    authDomain: 'nadigitims.firebaseapp.com',
-    projectId: 'nadigitims',
-    storageBucket: 'nadigitims.appspot.com',
-    messagingSenderId: '49137857621',
-    appId: '1:49137857621:web:75695ee24281f4dda050dc',
-  },
   keycloak: {
     authority: `${window.__env.apiProtocol}://${window.__env.kcHost}:${window.__env.kcPort}`,
     redirectUri: `${window.__env.apiProtocol}://${window.__env.apiHost}:${window.__env.apiPort}/realms/${window.__env.kcRealm}/protocol/openid-connect/callback`,

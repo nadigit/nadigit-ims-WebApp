@@ -1,10 +1,10 @@
-<div class="role-details-container">
+﻿<div class="role-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -26,7 +26,7 @@
 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="role-hero-avatar">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--purple">
                             <i class="pi pi-shield"></i>
                         </div>
                         <div>
@@ -53,7 +53,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern type-card">
-                <div class="stat-icon type">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                     <i class="pi pi-shield"></i>
                 </div>
                 <div class="stat-content">
@@ -63,7 +63,7 @@
             </div>
 
             <div class="stat-card-modern scope-card">
-                <div class="stat-icon scope">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-sitemap"></i>
                 </div>
                 <div class="stat-content">
@@ -91,7 +91,7 @@
                             <div class="card-body">
                                 <div class="info-grid">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="info-content">
@@ -100,7 +100,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-id-card"></i>
                                         </div>
                                         <div class="info-content">
@@ -109,7 +109,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-align-left"></i>
                                         </div>
                                         <div class="info-content">
@@ -131,7 +131,7 @@
                             <div class="card-body">
                                 <div class="info-grid">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-shield"></i>
                                         </div>
                                         <div class="info-content">
@@ -140,7 +140,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
                                             <i class="pi pi-sitemap"></i>
                                         </div>
                                         <div class="info-content">
@@ -149,7 +149,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="role.containerId">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
                                             <i class="pi pi-box"></i>
                                         </div>
                                         <div class="info-content">

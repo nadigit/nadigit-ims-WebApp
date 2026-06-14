@@ -1,0 +1,9 @@
+.top-products-chart {
+  min-height: 320px;
+  max-height: 520px;
+}
+
+:host ::ng-deep .top-products-chart .p-chart {
+  height: 100%;
+  min-height: 300px;
+}

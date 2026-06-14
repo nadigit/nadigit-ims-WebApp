@@ -1,6 +1,9 @@
 import { Injectable, effect, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { brandAppIconForScheme, brandFaviconForScheme } from 'src/app/utils/brand-assets';
+
+export type MenuDisplayMode = 'expanded' | 'compact' | 'hover';
 
 export interface AppConfig {
     inputStyle: string;
@@ -8,6 +11,7 @@ export interface AppConfig {
     theme: string;
     ripple: boolean;
     menuMode: string;
+    menuDisplayMode: MenuDisplayMode;
     scale: number;
 }
 
@@ -24,12 +28,33 @@ interface LayoutState {
     providedIn: 'root',
 })
 export class LayoutService {
+    private static initialColorScheme(): 'light' | 'dark' {
+        if (typeof localStorage === 'undefined') {
+            return 'light';
+        }
+        return localStorage.getItem('darkMode') === 'dark' ? 'dark' : 'light';
+    }
+
+    private static initialMenuDisplayMode(): MenuDisplayMode {
+        if (typeof localStorage === 'undefined') {
+            return 'expanded';
+        }
+        const saved = localStorage.getItem('menuDisplayMode');
+        if (saved === 'compact' || saved === 'hover') {
+            return saved;
+        }
+        return 'expanded';
+    }
+
+    private static readonly bootColorScheme = LayoutService.initialColorScheme();
+
     _config: AppConfig = {
         ripple: false,
         inputStyle: 'outlined',
         menuMode: 'static',
-        colorScheme: 'light',
-        theme: 'lara-light-indigo',
+        menuDisplayMode: LayoutService.initialMenuDisplayMode(),
+        colorScheme: LayoutService.bootColorScheme,
+        theme: LayoutService.bootColorScheme === 'dark' ? 'lara-dark-indigo' : 'lara-light-indigo',
         scale: 14,
     };
 
@@ -51,6 +76,13 @@ export class LayoutService {
         menuHoverActive: false,
     };
 
+    /** Prevents re-expanding until the pointer leaves the sidebar after a navigation click. */
+    private menuHoverExpandSuppressed = false;
+
+    private readonly _menuHoverExpanded = signal(false);
+
+    readonly menuHoverExpanded = this._menuHoverExpanded.asReadonly();
+
     private configUpdate = new Subject<AppConfig>();
 
     private overlayOpen = new Subject<any>();
@@ -59,12 +91,36 @@ export class LayoutService {
 
     overlayOpen$ = this.overlayOpen.asObservable();
 
+    private copilotToggleRequest = new Subject<void>();
+    copilotToggle$ = this.copilotToggleRequest.asObservable();
+
+    private readonly _copilotPanelOpen = signal(false);
+    readonly copilotPanelOpen = this._copilotPanelOpen.asReadonly();
+
+    private readonly _copilotUnreadCount = signal(0);
+    readonly copilotUnreadCount = this._copilotUnreadCount.asReadonly();
+
+    requestCopilotToggle(): void {
+        this.copilotToggleRequest.next();
+    }
+
+    setCopilotPanelOpen(open: boolean): void {
+        this._copilotPanelOpen.set(open);
+    }
+
+    setCopilotUnreadCount(count: number): void {
+        this._copilotUnreadCount.set(Math.min(Math.max(0, count), 99));
+    }
+
     constructor(private appConfigService: AppConfigurationService) {
         effect(() => {
             const config = this.config();
             if (this.updateStyle(config)) {
                 this.changeTheme();
+            } else {
+                this.ensureThemeStylesheet(config);
             }
+            this.applyDocumentColorScheme(config.colorScheme);
             this.changeScale(config.scale);
             this.onConfigUpdate();
         });
@@ -170,28 +226,74 @@ export class LayoutService {
         return !this.isDesktop();
     }
 
+    isMenuCompact(): boolean {
+        return this.isDesktop() && this.config().menuDisplayMode === 'compact';
+    }
+
+    isMenuHoverMode(): boolean {
+        return this.isDesktop() && this.config().menuDisplayMode === 'hover';
+    }
+
+    isMenuHoverExpanded(): boolean {
+        return this.isMenuHoverMode() && this._menuHoverExpanded();
+    }
+
+    onSidebarMouseEnter(): void {
+        if (!this.isMenuHoverMode() || this.menuHoverExpandSuppressed) {
+            return;
+        }
+        this._menuHoverExpanded.set(true);
+        this.state.menuHoverActive = true;
+    }
+
+    onSidebarMouseLeave(): void {
+        if (!this.isMenuHoverMode()) {
+            return;
+        }
+        this._menuHoverExpanded.set(false);
+        this.state.menuHoverActive = false;
+        this.menuHoverExpandSuppressed = false;
+    }
+
+    collapseMenuHover(): void {
+        if (!this.isMenuHoverMode()) {
+            return;
+        }
+        this._menuHoverExpanded.set(false);
+        this.state.menuHoverActive = false;
+        this.menuHoverExpandSuppressed = true;
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && active.closest('.layout-sidebar')) {
+            active.blur();
+        }
+    }
+
     onConfigUpdate() {
         this._config = { ...this.config() };
         this.configUpdate.next(this.config());
     }
 
     changeTheme() {
-        const config = this.config();
-        const themeLink = <HTMLLinkElement>document.getElementById('theme-css');
-        const themeLinkHref = themeLink.getAttribute('href')!;
-        const newHref = themeLinkHref
-            .split('/')
-            .map((el) =>
-                el == this._config.theme
-                    ? (el = config.theme)
-                    : el == `theme-${this._config.colorScheme}`
-                        ? (el = `theme-${config.colorScheme}`)
-                        : el
-            )
-            .join('/');
-
-        this.replaceThemeLink(newHref);
+        this.replaceThemeLink(this.themeStylesheetHref(this.config().theme));
     }
+
+    private themeStylesheetHref(theme: string): string {
+        return `assets/layout/styles/theme/${theme}/theme.css`;
+    }
+
+    private ensureThemeStylesheet(config: AppConfig) {
+        const themeLink = document.getElementById('theme-css') as HTMLLinkElement | null;
+        if (!themeLink) {
+            return;
+        }
+        const expected = this.themeStylesheetHref(config.theme);
+        const current = themeLink.getAttribute('href') ?? '';
+        if (current.includes(`/${config.theme}/`)) {
+            return;
+        }
+        this.replaceThemeLink(expected);
+    }
+
     replaceThemeLink(href: string) {
         const id = 'theme-css';
         let themeLink = <HTMLLinkElement>document.getElementById(id);
@@ -212,5 +314,33 @@ export class LayoutService {
 
     changeScale(value: number) {
         document.documentElement.style.fontSize = `${value}px`;
+    }
+
+    private applyDocumentColorScheme(colorScheme: string) {
+        const root = document.documentElement;
+        const isDark = colorScheme === 'dark';
+        root.setAttribute('color-scheme', colorScheme);
+        root.classList.toggle('layout-theme-dark', isDark);
+        root.classList.toggle('layout-theme-light', !isDark);
+        this.applyFavicon(colorScheme);
+        this.applyAppTouchIcon(colorScheme);
+    }
+
+    private applyFavicon(colorScheme: string) {
+        const link =
+            document.getElementById('app-favicon') as HTMLLinkElement | null
+            ?? document.querySelector('link[rel="icon"]');
+        if (link) {
+            link.href = brandFaviconForScheme(colorScheme);
+        }
+    }
+
+    private applyAppTouchIcon(colorScheme: string) {
+        const link =
+            document.getElementById('app-touch-icon') as HTMLLinkElement | null
+            ?? document.querySelector('link[rel="apple-touch-icon"]');
+        if (link) {
+            link.href = brandAppIconForScheme(colorScheme);
+        }
     }
 }

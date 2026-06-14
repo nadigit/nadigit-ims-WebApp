@@ -79,22 +79,6 @@
     background: var(--surface-hover) !important;
 }
 
-.transfer-hero-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px color-mix(in srgb, var(--primary-color) 30%, transparent);
-}
-
-.transfer-hero-icon i {
-    font-size: 2.5rem;
-    color: white;
-}
-
 .transfer-title {
     font-size: 2rem;
     font-weight: 700;
@@ -141,37 +125,6 @@
 .stat-card-modern:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-icon.items {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.stat-icon.quantity {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.stat-icon.source {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.destination {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
 .stat-content {
@@ -323,26 +276,6 @@
     background: var(--surface-100);
 }
 
-.info-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.info-icon i {
-    color: white;
-    font-size: 1rem;
-}
-
-.info-icon.audit {
-    background: linear-gradient(135deg, #64748b, #475569);
-}
-
 .info-content {
     flex: 1;
     min-width: 0;
@@ -389,28 +322,6 @@
     background: var(--surface-50);
 }
 
-.warehouse-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.warehouse-icon i {
-    font-size: 1.25rem;
-    color: white;
-}
-
-.warehouse-icon.source {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.warehouse-icon.destination {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
 .warehouse-info {
     flex: 1;
     display: flex;
@@ -452,62 +363,8 @@
     gap: 1.25rem;
 }
 
-.summary-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.25rem;
-    background: var(--surface-50);
-    border-radius: 12px;
-    transition: all 0.2s ease;
-}
-
-.summary-item:hover {
-    background: var(--surface-100);
-    transform: translateY(-2px);
-}
-
-.summary-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.summary-icon i {
-    color: white;
-    font-size: 1.25rem;
-}
-
-.summary-icon.items {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.summary-icon.quantity {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.summary-content {
-    flex: 1;
-}
-
-.summary-label {
-    display: block;
-    font-size: 0.75rem;
-    color: var(--text-color-secondary);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.25rem;
-}
-
-.summary-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-color);
+.summary-stat-card {
+    margin: 0;
 }
 
 /* ==========================================================================
@@ -602,8 +459,8 @@
 }
 
 .timeline-marker.info {
-    background: #3b82f6;
-    border-color: #3b82f6;
+    background: var(--primary-500);
+    border-color: var(--primary-500);
 }
 
 .timeline-marker.info i {
@@ -643,7 +500,7 @@
 }
 
 .timeline-card.info {
-    border-left: 3px solid #3b82f6;
+    border-left: 3px solid var(--primary-500);
 }
 
 .timeline-card.success {
@@ -742,16 +599,6 @@
         padding: 1.5rem;
     }
     
-    .transfer-hero-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 14px;
-    }
-    
-    .transfer-hero-icon i {
-        font-size: 1.75rem;
-    }
-    
     .transfer-title {
         font-size: 1.5rem;
     }
@@ -769,11 +616,6 @@
     
     .stat-card-modern {
         padding: 1rem;
-    }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
     }
     
     .stat-value {
@@ -903,14 +745,6 @@
     }
     
     .info-item:hover {
-        background: var(--surface-hover);
-    }
-    
-    .summary-item {
-        background: var(--surface-ground);
-    }
-    
-    .summary-item:hover {
         background: var(--surface-hover);
     }
     

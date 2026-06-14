@@ -1,8 +1,8 @@
 <!-- Loading Indicator -->
-<div class="card flex justify-content-center align-items-center" style="min-height: 60vh" *ngIf="isLoading">
-    <div class="flex flex-column align-items-center gap-3">
-        <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
-        <span class="text-600">{{ 'loading_dashboard' | translate }}</span>
+<div class="ims-loading-panel ims-loading-panel--page" *ngIf="isLoading">
+    <div class="ims-loading-panel__inner">
+        <p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
+        <p class="ims-loading-label">{{ 'loading_dashboard' | translate }}</p>
     </div>
 </div>
 
@@ -25,53 +25,69 @@
         </div>
     </div>
 
-    <!-- Getting Started Onboarding Card -->
+    <!-- Getting Started Onboarding -->
     <div class="col-12 mb-4" *ngIf="shouldShowGettingStartedCard()">
-        <p-card styleClass="getting-started-card shadow-2 border-round-lg">
-            <div class="flex flex-column md:flex-row align-items-start md:align-items-center gap-4">
-                <div class="getting-started-icon-wrap flex align-items-center justify-content-center border-round p-3" 
-                     [ngStyle]="{width: '4rem', height: '4rem', minWidth: '4rem'}">
-                    <i class="pi pi-star text-primary text-3xl"></i>
-                </div>
-                <div class="flex-1">
-                    <div class="flex align-items-center justify-content-between mb-2">
-                        <h3 class="m-0 text-color">{{ 'getting_started_title' | translate }}</h3>
-                        <button pButton pRipple 
-                            icon="pi pi-times" 
-                            class="getting-started-dismiss p-button-text p-button-rounded p-button-sm"
-                            [pTooltip]="'hide_this_guide' | translate"
-                            (click)="hideGettingStartedCard()">
-                        </button>
+        <div class="getting-started-banner border-round-lg">
+            <div class="getting-started-banner__glow" aria-hidden="true"></div>
+            <div class="getting-started-banner__inner">
+                <div class="getting-started-banner__header">
+                    <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary getting-started-hero-icon" aria-hidden="true">
+                        <i class="pi pi-flag"></i>
                     </div>
-                    <p class="text-color-secondary mb-3 m-0">{{ 'getting_started_description' | translate }}</p>
-                    <div class="flex flex-wrap gap-2">
-                        <button pButton pRipple 
-                            icon="pi pi-box" 
-                            [label]="'create_first_product' | translate"
-                            class="p-button-success"
+                    <div class="getting-started-banner__copy flex-1 min-w-0">
+                        <div class="flex align-items-start justify-content-between gap-2">
+                            <h3 class="getting-started-banner__title m-0">{{ 'getting_started_title' | translate }}</h3>
+                            <button pButton pRipple
+                                icon="pi pi-times"
+                                class="getting-started-dismiss p-button-text p-button-rounded p-button-sm"
+                                [pTooltip]="'hide_this_guide' | translate"
+                                (click)="hideGettingStartedCard()">
+                            </button>
+                        </div>
+                        <p class="getting-started-banner__description m-0">{{ 'getting_started_description' | translate }}</p>
+                    </div>
+                </div>
+
+                <div class="grid getting-started-steps">
+                    <div class="col-12 md:col-4">
+                        <a class="getting-started-step"
                             routerLink="/inventory/products"
                             [pTooltip]="'getting_started_add_product_tooltip' | translate">
-                        </button>
-                        <button pButton pRipple 
-                            icon="pi pi-user-plus" 
-                            [label]="'add_customer' | translate"
-                            class="p-button-info"
+                            <span class="getting-started-step__badge">1</span>
+                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green getting-started-step__icon">
+                                <i class="pi pi-box"></i>
+                            </div>
+                            <span class="getting-started-step__label">{{ 'create_first_product' | translate }}</span>
+                            <i class="pi pi-arrow-right getting-started-step__arrow"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 md:col-4" *ngIf="isAdmin || isVendor">
+                        <a class="getting-started-step"
                             routerLink="/sales/customers"
-                            [pTooltip]="'getting_started_add_customer_tooltip' | translate"
-                            *ngIf="isAdmin || isVendor">
-                        </button>
-                        <button pButton pRipple 
-                            icon="pi pi-shopping-cart" 
-                            [label]="'create_first_order' | translate"
-                            class="p-button-primary"
+                            [pTooltip]="'getting_started_add_customer_tooltip' | translate">
+                            <span class="getting-started-step__badge">2</span>
+                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary getting-started-step__icon">
+                                <i class="pi pi-user-plus"></i>
+                            </div>
+                            <span class="getting-started-step__label">{{ 'add_customer' | translate }}</span>
+                            <i class="pi pi-arrow-right getting-started-step__arrow"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 md:col-4" *ngIf="isAdmin || isVendor">
+                        <a class="getting-started-step"
                             routerLink="/sales/orders"
-                            [pTooltip]="'getting_started_create_order_tooltip' | translate"
-                            *ngIf="isAdmin || isVendor">
-                        </button>
+                            [pTooltip]="'getting_started_create_order_tooltip' | translate">
+                            <span class="getting-started-step__badge">3</span>
+                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue getting-started-step__icon">
+                                <i class="pi pi-shopping-cart"></i>
+                            </div>
+                            <span class="getting-started-step__label">{{ 'create_first_order' | translate }}</span>
+                            <i class="pi pi-arrow-right getting-started-step__arrow"></i>
+                        </a>
                     </div>
                 </div>
             </div>
-        </p-card>
+        </div>
     </div>
 
     <!-- Show Getting Started Button (if hidden) -->
@@ -97,8 +113,8 @@
                      (click)="navigateToNewOrder()"
                      [pTooltip]="'create_new_order_tooltip' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon bg-blue-100 border-round p-3">
-                            <i class="pi pi-shopping-cart text-blue-500 text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue quick-action-icon">
+                            <i class="pi pi-shopping-cart"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'new_order' | translate }}</span>
                     </div>
@@ -111,8 +127,8 @@
                      (click)="navigateToNewProduct()"
                      [pTooltip]="'create_new_product_tooltip' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon bg-green-100 border-round p-3">
-                            <i class="pi pi-box text-green-500 text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green quick-action-icon">
+                            <i class="pi pi-box"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'new_product' | translate }}</span>
                     </div>
@@ -125,8 +141,8 @@
                      (click)="navigateToNewCustomer()"
                      [pTooltip]="'create_new_customer_tooltip' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon bg-purple-100 border-round p-3">
-                            <i class="pi pi-user-plus text-purple-500 text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary quick-action-icon">
+                            <i class="pi pi-user-plus"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'new_customer' | translate }}</span>
                     </div>
@@ -139,8 +155,8 @@
                      (click)="navigateToNewSupplier()"
                      [pTooltip]="'create_new_supplier_tooltip' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon bg-orange-100 border-round p-3">
-                            <i class="pi pi-truck text-orange-500 text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange quick-action-icon">
+                            <i class="pi pi-truck"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'new_supplier' | translate }}</span>
                     </div>
@@ -153,8 +169,8 @@
                      (click)="navigateToNewPurchase()"
                      [pTooltip]="'create_new_purchase_tooltip' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon bg-cyan-100 border-round p-3">
-                            <i class="pi pi-shopping-bag text-cyan-500 text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan quick-action-icon">
+                            <i class="pi pi-shopping-bag"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'new_purchase' | translate }}</span>
                     </div>
@@ -167,8 +183,8 @@
                      (click)="navigateToCustomerPayment()"
                      [pTooltip]="'add_customer_payment_tooltip' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon bg-teal-100 border-round p-3">
-                            <i class="pi pi-money-bill text-teal-500 text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal quick-action-icon">
+                            <i class="pi pi-money-bill"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'customer_payment' | translate }}</span>
                     </div>
@@ -181,8 +197,8 @@
                      (click)="navigateToSupplierPayment()"
                      [pTooltip]="'add_supplier_payment_tooltip' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon bg-indigo-100 border-round p-3">
-                            <i class="pi pi-credit-card text-indigo-500 text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple quick-action-icon">
+                            <i class="pi pi-credit-card"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'supplier_payment' | translate }}</span>
                     </div>
@@ -195,8 +211,8 @@
                      (click)="navigateToReports()"
                      [pTooltip]="'dashboard_reports_teaser' | translate">
                     <div class="flex flex-column align-items-center gap-2">
-                        <div class="quick-action-icon surface-100 border-round p-3">
-                            <i class="pi pi-chart-bar text-primary text-2xl"></i>
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary quick-action-icon">
+                            <i class="pi pi-chart-bar"></i>
                         </div>
                         <span class="text-sm font-medium text-center">{{ 'reports_menu_title' | translate }}</span>
                     </div>
@@ -285,9 +301,8 @@
                             {{ formatNumber(totalOrders || orders?.length || 0) }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-blue-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-shopping-cart text-blue-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
+                        <i class="pi pi-shopping-cart"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -309,9 +324,8 @@
                             {{ todayRevenue | currency:currency:'symbol':'1.0-0' }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-dollar text-orange-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
+                        <i class="pi pi-dollar"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -335,9 +349,8 @@
                             {{ formatNumber(customers?.length || 0) }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-cyan-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-users text-cyan-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
+                        <i class="pi pi-users"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -359,9 +372,8 @@
                             {{ formatNumber(totalProducts || 0) }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-purple-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-box text-purple-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
+                        <i class="pi pi-box"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -384,9 +396,8 @@
                             {{ totalStockValue | currency:currency:'symbol':'1.0-0' }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-indigo-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-building text-indigo-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
+                        <i class="pi pi-building"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -407,9 +418,8 @@
                             {{ unpaidReceivables | currency:currency:'symbol':'1.0-0' }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-green-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-arrow-down text-green-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
+                        <i class="pi pi-wallet"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -430,9 +440,8 @@
                             {{ grossMarginPercentage | number:'1.1-1' }}%
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-teal-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-percentage text-teal-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal">
+                        <i class="pi pi-percentage"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -454,9 +463,8 @@
                             {{ formatNumber(warehousePendingTransfers || 0) }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-amber-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-arrow-right-arrow-left text-amber-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
+                        <i class="pi pi-arrow-right-arrow-left"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -477,9 +485,8 @@
                             {{ formatNumber(pendingTransfers || 0) }}
                         </div>
                     </div>
-                    <div class="flex align-items-center justify-content-center bg-amber-100 border-round"
-                        [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                        <i class="pi pi-arrow-right-arrow-left text-amber-500 text-2xl"></i>
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
+                        <i class="pi pi-arrow-right-arrow-left"></i>
                     </div>
                 </div>
                 <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
@@ -501,9 +508,8 @@
                         {{ formatNumber(isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0)) }}
                     </div>
                 </div>
-                <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
-                    [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                    <i class="pi pi-exclamation-triangle text-orange-500 text-2xl"></i>
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
+                    <i class="pi pi-exclamation-triangle"></i>
                 </div>
             </div>
         </p-card>
@@ -518,9 +524,8 @@
                         {{ formatNumber(isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0)) }}
                     </div>
                 </div>
-                <div class="flex align-items-center justify-content-center bg-red-100 border-round"
-                    [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                    <i class="pi pi-times-circle text-red-500 text-2xl"></i>
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--danger">
+                    <i class="pi pi-times-circle"></i>
                 </div>
             </div>
         </p-card>
@@ -535,9 +540,8 @@
                         {{ formatNumber(deliveredOrders?.length || 0) }}
                     </div>
                 </div>
-                <div class="flex align-items-center justify-content-center bg-green-100 border-round"
-                    [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                    <i class="pi pi-check-circle text-green-500 text-2xl"></i>
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
+                    <i class="pi pi-check-circle"></i>
                 </div>
             </div>
         </p-card>
@@ -552,9 +556,8 @@
                         {{ formatNumber(canceledOrders?.length || 0) }}
                     </div>
                 </div>
-                <div class="flex align-items-center justify-content-center bg-pink-100 border-round"
-                    [ngStyle]="{width: '3.5rem', height: '3.5rem'}">
-                    <i class="pi pi-ban text-pink-500 text-2xl"></i>
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--pink">
+                    <i class="pi pi-ban"></i>
                 </div>
             </div>
         </p-card>
@@ -749,10 +752,10 @@
                 <div class="col-12 md:col-6 lg:col-12 xl:col-6" *ngIf="isAdmin">
                     <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
                         <div class="flex align-items-center gap-2">
-                            <i class="pi pi-shopping-bag text-purple-500"></i>
+                            <i class="pi pi-shopping-bag text-primary"></i>
                             <span class="font-medium">{{'purchases_mtd' | translate}}</span>
                         </div>
-                        <span class="font-bold text-purple-500">
+                        <span class="font-bold text-primary">
                             {{ totalPurchasesMTD | currency:currency:'symbol':'1.2-2' }}
                         </span>
                     </div>
@@ -858,7 +861,8 @@
         </p-card>
     </div>
 
-    <div class="col-12 lg:col-6 dashboard-col-align-start" *ngIf="isAdmin && topCustomersByRevenue.length > 0">
+    <!-- Admin paired columns: left = top customers + sales chart, right = products + pie (no row-height gap) -->
+    <div class="col-12 lg:col-6 dashboard-column-stack" *ngIf="isAdmin && topCustomersByRevenue.length > 0">
         <p-card styleClass="shadow-2 border-round-lg dashboard-card-fit-content">
             <ng-template pTemplate="header">
                 <div class="flex justify-content-between align-items-center p-3">
@@ -894,10 +898,75 @@
                 </div>
             </div>
         </p-card>
+
+        <p-card styleClass="shadow-2 border-round-lg chart-container dashboard-card-fit-content w-full">
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center justify-content-between p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-chart-line text-primary text-xl"></i>
+                        <h5 class="m-0">{{'dashboard_sales_overview_header' | translate}}</h5>
+                    </div>
+                    <button *ngIf="!chartDataReady" 
+                            pButton pRipple 
+                            label="{{ 'load_chart' | translate }}" 
+                            icon="pi pi-refresh"
+                            class="p-button-text p-button-sm"
+                            (click)="loadChartOnDemand()"
+                            [disabled]="chartsInitialized"></button>
+                </div>
+            </ng-template>
+            <div class="p-3 dashboard-chart-body dashboard-chart-body--line" [ngClass]="{'dashboard-chart-body--active': salesChartActive}" [ngStyle]="{'position': 'relative'}">
+                <ng-container *ngIf="chartDataReady && chartRenderReady && chartData && chartOptions && 
+                                      chartData.labels && chartData.labels.length > 0 && 
+                                      chartData.datasets && chartData.datasets.length > 0">
+                    <div class="dashboard-line-chart-stack">
+                        <div class="dashboard-line-chart-canvas">
+                            <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
+                        </div>
+                        <ul class="dashboard-sales-legend" *ngIf="chartData.datasets?.length">
+                            <li class="dashboard-sales-legend-item" *ngFor="let ds of chartData.datasets">
+                                <span class="dashboard-sales-legend-swatch"
+                                    [style.background-color]="ds.borderColor || ds.backgroundColor"></span>
+                                <span class="dashboard-sales-legend-label"
+                                    [title]="ds._fullLabel || ds.label">{{ ds._fullLabel || ds.label }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </ng-container>
+                <div *ngIf="chartDataReady && chartData && chartOptions && 
+                            chartData.labels && chartData.labels.length > 0 && 
+                            (!chartData.datasets || chartData.datasets.length === 0) &&
+                            (!top5Products || top5Products.length === 0)" 
+                     class="flex flex-column align-items-center justify-content-center h-full">
+                    <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
+                    <span class="text-600 text-center">{{ 'no_products_for_chart' | translate }}</span>
+                </div>
+                <div *ngIf="!chartDataReady || !chartRenderReady || !chartData || !chartOptions || 
+                            !chartData?.labels || chartData.labels.length === 0 || 
+                            !chartData?.datasets || chartData.datasets.length === 0" 
+                     class="flex flex-column align-items-center justify-content-center h-full">
+                    <p-progressSpinner *ngIf="chartsInitialized && (!chartDataReady || !chartRenderReady)" styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
+                    <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
+                        <i class="pi pi-chart-line text-4xl text-400"></i>
+                        <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>
+                        <button pButton pRipple 
+                                label="{{ 'load_chart' | translate }}" 
+                                icon="pi pi-play"
+                                class="p-button-sm"
+                                (click)="loadChartOnDemand()"
+                                [disabled]="chartsInitialized"></button>
+                    </div>
+                    <div *ngIf="chartsInitialized && chartDataReady && (!chartData?.datasets || chartData.datasets.length === 0)" 
+                         class="flex flex-column align-items-center gap-2">
+                        <i class="pi pi-info-circle text-3xl text-400"></i>
+                        <span class="text-600 text-center">{{ 'no_chart_data_available' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+        </p-card>
     </div>
 
-    <!-- Recent products & best sellers (pairs with top customers when that card is visible) -->
-    <div class="col-12 dashboard-col-align-start"
+    <div class="col-12 dashboard-column-stack"
          [ngClass]="(isAdmin && topCustomersByRevenue.length > 0) ? 'lg:col-6' : 'lg:col-12'">
         <!-- Recent Products Card -->
         <p-card styleClass="shadow-2 border-round-lg mb-3 dashboard-card-fit-content">
@@ -935,7 +1004,7 @@
                         </td>
                         <td>
                             <button pButton pRipple icon="pi pi-eye"
-                                class="p-button-text p-button-sm p-button-rounded"
+                                class="p-button-text p-button-sm p-button-rounded p-button-primary"
                                 routerLink="/inventory/products/{{product.productId}}"
                                 [pTooltip]="'view' | translate"></button>
                         </td>
@@ -976,7 +1045,7 @@
                         <div class="h-full transition-all transition-duration-300" 
                             [style.width.%]="productPercentage.percentage"
                             [ngClass]="{
-                                'bg-purple-500': productPercentage.percentage >= 70,
+                                'bg-primary': productPercentage.percentage >= 70,
                                 'bg-pink-500': productPercentage.percentage < 70 && productPercentage.percentage > 50,
                                 'bg-green-500': productPercentage.percentage <= 50 && productPercentage.percentage > 30,
                                 'bg-cyan-500': productPercentage.percentage <= 30
@@ -990,10 +1059,59 @@
                 <span class="text-600">{{ 'no_data_found' | translate }}</span>
             </div>
         </p-card>
+
+        <p-card *ngIf="isAdmin && topCustomersByRevenue.length > 0"
+            styleClass="shadow-2 border-round-lg chart-container dashboard-card-fit-content w-full">
+            <ng-template pTemplate="header">
+                <div class="flex align-items-center justify-content-between p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-chart-pie text-primary text-xl"></i>
+                        <h5 class="m-0">{{'dashboard_inventory_overview_header' | translate}}</h5>
+                    </div>
+                    <button *ngIf="!pieDataReady" 
+                            pButton pRipple 
+                            label="{{ 'load_chart' | translate }}" 
+                            icon="pi pi-refresh"
+                            class="p-button-text p-button-sm"
+                            (click)="loadChartOnDemand()"
+                            [disabled]="chartsInitialized"></button>
+                </div>
+            </ng-template>
+            <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': pieChartActive}" [ngStyle]="{'position': 'relative'}">
+                <ng-container *ngIf="pieDataReady && pieChartRenderReady && pieData && pieOptions && 
+                                      pieData.labels && pieData.labels.length > 0 && 
+                                      pieData.datasets && pieData.datasets.length > 0">
+                    <div [style]="{'height': '100%', 'width': '100%', 'position': 'relative'}">
+                        <p-chart type="pie" [data]="pieData" [options]="pieOptions"></p-chart>
+                    </div>
+                </ng-container>
+                <div *ngIf="!pieDataReady || !pieChartRenderReady || !pieData || !pieOptions || 
+                            !pieData?.labels || pieData.labels.length === 0 || 
+                            !pieData?.datasets || pieData.datasets.length === 0" 
+                     class="flex flex-column align-items-center justify-content-center h-full">
+                    <p-progressSpinner *ngIf="chartsInitialized && (!pieDataReady || !pieChartRenderReady)" styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
+                    <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
+                        <i class="pi pi-chart-pie text-4xl text-400"></i>
+                        <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>
+                        <button pButton pRipple 
+                                label="{{ 'load_chart' | translate }}" 
+                                icon="pi pi-play"
+                                class="p-button-sm"
+                                (click)="loadChartOnDemand()"
+                                [disabled]="chartsInitialized"></button>
+                    </div>
+                    <div *ngIf="chartsInitialized && pieDataReady && (!pieData?.labels || pieData.labels.length === 0)" 
+                         class="flex flex-column align-items-center gap-2">
+                        <i class="pi pi-info-circle text-3xl text-400"></i>
+                        <span class="text-600 text-center">{{ 'no_warehouse_data_available' | translate }}</span>
+                    </div>
+                </div>
+            </div>
+        </p-card>
     </div>
 
-    <!-- Charts: full-width row; sales + inventory side by side on large screens -->
-    <div class="col-12 dashboard-charts-row">
+    <!-- Charts row when not in paired admin columns (e.g. no top customers) -->
+    <div class="col-12 dashboard-charts-row" *ngIf="!(isAdmin && topCustomersByRevenue.length > 0)">
         <div class="grid m-0">
         <!-- Sales Overview Chart - Lazy Loaded -->
         <div class="col-12 dashboard-col-align-start p-0 pr-0" [ngClass]="{'lg:col-6 lg:pr-2': isAdmin}">
@@ -1013,14 +1131,24 @@
                             [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
-            <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': salesChartActive}" [ngStyle]="{'position': 'relative', 'overflow': 'hidden'}">
+            <div class="p-3 dashboard-chart-body dashboard-chart-body--line" [ngClass]="{'dashboard-chart-body--active': salesChartActive}" [ngStyle]="{'position': 'relative'}">
                 <!-- Only render chart when data is completely ready AND render flag is set -->
                 <!-- Defer chart DOM rendering to prevent blocking -->
                 <ng-container *ngIf="chartDataReady && chartRenderReady && chartData && chartOptions && 
                                       chartData.labels && chartData.labels.length > 0 && 
                                       chartData.datasets && chartData.datasets.length > 0">
-                    <div [style]="{'height': '100%', 'width': '100%', 'position': 'relative'}">
-                        <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
+                    <div class="dashboard-line-chart-stack">
+                        <div class="dashboard-line-chart-canvas">
+                            <p-chart type="line" [data]="chartData" [options]="chartOptions"></p-chart>
+                        </div>
+                        <ul class="dashboard-sales-legend" *ngIf="chartData.datasets?.length">
+                            <li class="dashboard-sales-legend-item" *ngFor="let ds of chartData.datasets">
+                                <span class="dashboard-sales-legend-swatch"
+                                    [style.background-color]="ds.borderColor || ds.backgroundColor"></span>
+                                <span class="dashboard-sales-legend-label"
+                                    [title]="ds._fullLabel || ds.label">{{ ds._fullLabel || ds.label }}</span>
+                            </li>
+                        </ul>
                     </div>
                 </ng-container>
                 <!-- Show message if chart is ready but no datasets AND no products exist -->
@@ -1037,7 +1165,7 @@
                             !chartData?.labels || chartData.labels.length === 0 || 
                             !chartData?.datasets || chartData.datasets.length === 0" 
                      class="flex flex-column align-items-center justify-content-center h-full">
-                    <p-progressSpinner *ngIf="chartsInitialized && (!chartDataReady || !chartRenderReady)" [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+                    <p-progressSpinner *ngIf="chartsInitialized && (!chartDataReady || !chartRenderReady)" styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
                     <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
                         <i class="pi pi-chart-line text-4xl text-400"></i>
                         <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>
@@ -1076,7 +1204,7 @@
                             [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
-            <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': pieChartActive}" [ngStyle]="{'position': 'relative', 'overflow': 'hidden'}">
+            <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': pieChartActive}" [ngStyle]="{'position': 'relative'}">
                 <!-- Only render chart when data is completely ready AND render flag is set -->
                 <!-- Defer chart DOM rendering to prevent blocking -->
                 <ng-container *ngIf="pieDataReady && pieChartRenderReady && pieData && pieOptions && 
@@ -1091,7 +1219,7 @@
                             !pieData?.labels || pieData.labels.length === 0 || 
                             !pieData?.datasets || pieData.datasets.length === 0" 
                      class="flex flex-column align-items-center justify-content-center h-full">
-                    <p-progressSpinner *ngIf="chartsInitialized && (!pieDataReady || !pieChartRenderReady)" [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+                    <p-progressSpinner *ngIf="chartsInitialized && (!pieDataReady || !pieChartRenderReady)" styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
                     <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
                         <i class="pi pi-chart-pie text-4xl text-400"></i>
                         <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>

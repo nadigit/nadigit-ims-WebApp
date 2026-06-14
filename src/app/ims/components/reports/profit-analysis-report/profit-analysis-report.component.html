@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
   <div class="col-12">
     <div class="card px-6 py-6 profit-report-card">
       <div class="mb-4">
@@ -48,14 +48,17 @@
         </div>
       </div>
 
-      <div *ngIf="profitLoading" class="flex flex-column align-items-center justify-content-center py-6 reports-loading-panel">
-        <p-progressSpinner [style]="{ width: '3rem', height: '3rem' }" strokeWidth="3"></p-progressSpinner>
-        <p class="text-600 mt-3 mb-0">{{ 'loading' | translate }}</p>
+      <div class="ims-loading-panel ims-loading-panel--section reports-loading-panel"
+        *ngIf="(profitLoading || isInitialLoad) && !profitData">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+          <p class="ims-loading-label">{{ 'loading' | translate }}</p>
+        </div>
       </div>
 
-      <p-message *ngIf="error && !profitLoading" severity="error" [text]="error" styleClass="w-full mb-4"></p-message>
+      <p-message *ngIf="error && !profitLoading && !isInitialLoad" severity="error" [text]="error" styleClass="w-full mb-4"></p-message>
 
-  <div *ngIf="profitData && !profitLoading" class="profit-content">
+  <div *ngIf="profitData && (!isInitialLoad || profitData) && (!profitLoading || profitData)" class="profit-content">
     <div class="grid mb-4 profit-hero-metrics">
       <div class="col-12 md:col-4">
         <div class="profit-metric-card revenue-card">
@@ -138,7 +141,7 @@
               <p-chart type="bar" [data]="profitChartData" [options]="profitChartOptions"></p-chart>
             </div>
             <div *ngIf="!profitChartData || !profitChartOptions" class="flex flex-column align-items-center justify-content-center" style="height: 300px;">
-              <p-progressSpinner [style]="{width: '50px', height: '50px'}"></p-progressSpinner>
+              <p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
               <span class="text-600 mt-3">{{ 'loading_chart' | translate }}</span>
             </div>
           </div>

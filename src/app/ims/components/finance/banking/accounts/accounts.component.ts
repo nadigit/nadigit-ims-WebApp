@@ -3,6 +3,7 @@ import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Bank } from 'src/app/models/bank';
 import { BankAccount, AccountType } from 'src/app/models/bank-account';
+import { BankTransaction } from 'src/app/models/bank-transaction';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -11,6 +12,12 @@ import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import {
+  TransactionFormDialogConfig,
+  TransactionFormDialogData
+} from '../transactions/transaction-form-dialog/transaction-form-dialog.component';
 
 @Component({
   templateUrl: './accounts.component.html',
@@ -39,9 +46,11 @@ export class AccountsComponent implements OnInit {
 
   submitted: boolean = false;
   isLoading: boolean = true;
+  isInitialLoad: boolean = true;
 
   cols: any[] = [];
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
   globalFilter: string = '';
 
   canAddAccount: boolean = false;
@@ -56,6 +65,18 @@ export class AccountsComponent implements OnInit {
   bankFilter: number | undefined = undefined;
   accountTypeFilter: AccountType | undefined = undefined;
 
+  transactionDialogConfig: TransactionFormDialogConfig = {
+    visible: false,
+    transaction: {
+      account: {} as BankAccount,
+      type: 'DEPOSIT',
+      amount: 0,
+      transactionDate: new Date().toISOString().split('T')[0]
+    },
+    submitted: false
+  };
+  transactionAccount: BankAccount | null = null;
+
   constructor(
     private messageService: MessageService,
     private bankAccountService: BankAccountService,
@@ -64,11 +85,15 @@ export class AccountsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
-    private router: Router
+    private router: Router,
+    public pageSizeService: TablePageSizeService
   ) { }
 
   async ngOnInit() {
     this.isLoading = true;
+    this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.bankingAccounts, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+    });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -82,7 +107,10 @@ export class AccountsComponent implements OnInit {
     this.setupAccountTypes();
     await this.loadBanks();
     await this.loadAccounts();
-    this.isLoading = false;
+  }
+
+  onTablePage(event: any): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.bankingAccounts, this.rowsPerPageOptions, event, this);
   }
 
   setupColumns() {
@@ -128,6 +156,7 @@ export class AccountsComponent implements OnInit {
   }
 
   async loadAccounts() {
+    this.isLoading = true;
     try {
       const response = await firstValueFrom(await this.bankAccountService.getBankAccounts());
       this.accounts = (response || []).filter(acc => {
@@ -138,12 +167,16 @@ export class AccountsComponent implements OnInit {
       });
     } catch (error) {
       console.error('Error loading accounts:', error);
+      this.accounts = [];
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('error_loading_accounts'),
         life: 3000
       });
+    } finally {
+      this.isLoading = false;
+      this.isInitialLoad = false;
     }
   }
 
@@ -341,33 +374,91 @@ export class AccountsComponent implements OnInit {
     this.router.navigate(['/finance/banking/accounts', account.accountId]);
   }
 
-  viewTransactions(account: BankAccount) {
-    this.router.navigate(['/finance/banking/accounts', account.accountId]);
+  recordTransaction(account: BankAccount) {
+    if (!this.canAddAccount) return;
+    this.transactionAccount = account;
+    this.transactionDialogConfig = {
+      visible: true,
+      transaction: this.createEmptyTransaction(account),
+      submitted: false
+    };
   }
 
-  async recalculateBalance(account: BankAccount) {
-    try {
-      await firstValueFrom(await this.bankAccountService.recalculateBalance(account.accountId!));
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('balance_recalculated'),
-        life: 3000
-      });
-      await this.loadAccounts();
-    } catch (error) {
-      console.error('Error recalculating balance:', error);
+  createEmptyTransaction(account: BankAccount): BankTransaction {
+    return {
+      account,
+      type: 'DEPOSIT',
+      amount: 0,
+      transactionDate: new Date().toISOString().split('T')[0]
+    };
+  }
+
+  onTransactionDialogConfigChange(config: TransactionFormDialogConfig) {
+    this.transactionDialogConfig = config;
+  }
+
+  onTransactionCancel() {
+    this.transactionDialogConfig.visible = false;
+    this.transactionDialogConfig.submitted = false;
+    this.transactionAccount = null;
+  }
+
+  async onTransactionSave(data: TransactionFormDialogData) {
+    this.transactionDialogConfig.submitted = true;
+    const transaction = data.transaction;
+
+    if (!transaction.type) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_recalculating_balance'),
+        detail: this.translate.instant('transaction_type_required'),
+        life: 3000
+      });
+      return;
+    }
+
+    if (!transaction.amount || transaction.amount <= 0) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('transaction_amount_required'),
+        life: 3000
+      });
+      return;
+    }
+
+    if (!this.transactionAccount?.accountId) {
+      return;
+    }
+
+    if (!transaction.transactionDate) {
+      transaction.transactionDate = new Date().toISOString().split('T')[0];
+    }
+
+    try {
+      await firstValueFrom(
+        await this.bankAccountService.recordTransaction(this.transactionAccount.accountId, transaction)
+      );
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('transaction_recorded'),
+        life: 3000
+      });
+      this.transactionDialogConfig.visible = false;
+      this.transactionDialogConfig.submitted = false;
+      this.transactionAccount = null;
+      await this.loadAccounts();
+    } catch (error: any) {
+      console.error('Error recording transaction:', error);
+      const errorMsg = error?.error?.message || this.translate.instant('error_recording_transaction');
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: errorMsg,
         life: 3000
       });
     }
-  }
-
-  recordTransaction(account: BankAccount) {
-    this.router.navigate(['/finance/banking/accounts', account.accountId, 'transactions', 'new']);
   }
 
   getMaskedAccountNumber(accountNumber?: string): string {
@@ -393,6 +484,9 @@ export class AccountsComponent implements OnInit {
   }
 
   async onFilterChange() {
+    if (this.isInitialLoad) {
+      return;
+    }
     await this.loadAccounts();
   }
 
@@ -402,7 +496,7 @@ export class AccountsComponent implements OnInit {
     this.activeFilter = undefined;
     this.bankFilter = undefined;
     this.accountTypeFilter = undefined;
-    this.loadAccounts();
+    void this.loadAccounts();
   }
 }
 

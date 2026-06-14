@@ -11,6 +11,11 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { firstValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import {
+  formatLineQuantity,
+  getLineMeasureUnit,
+  getWriteOffDisplayQuantity,
+} from 'src/app/shared/product-utils';
 
 @Component({
   selector: 'app-write-off-details-page',
@@ -312,6 +317,23 @@ export class WriteOffDetailsPageComponent implements OnInit, OnDestroy {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);
+  }
+
+  formatWriteOffQuantity(writeOff: InventoryWriteOff | null): string {
+    if (!writeOff) {
+      return '0';
+    }
+    if (writeOff.quantityLabel) {
+      return writeOff.quantityLabel;
+    }
+    return formatLineQuantity(writeOff.product, getWriteOffDisplayQuantity(writeOff));
+  }
+
+  getWriteOffQuantityUnit(writeOff: InventoryWriteOff | null): string {
+    if (!writeOff || writeOff.quantityLabel) {
+      return '';
+    }
+    return getLineMeasureUnit(writeOff.product, getWriteOffDisplayQuantity(writeOff));
   }
 
   // Action Methods

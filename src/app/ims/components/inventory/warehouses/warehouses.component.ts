@@ -24,6 +24,8 @@ import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormD
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 
 
@@ -61,6 +63,7 @@ export class WarehousesComponent implements OnInit, OnDestroy {
   statuses: any[] = [];
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   valSwitch: boolean = false;
 
@@ -118,11 +121,15 @@ export class WarehousesComponent implements OnInit, OnDestroy {
     public keycloakService: KeycloakService,
     private router: Router,
     private organizationService: OrganizationService,
-    private licenseCapabilitiesService: LicenseCapabilitiesService) {
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
+    public pageSizeService: TablePageSizeService) {
     this.setUserRoles();
   }
 
   async ngOnInit() {
+    this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.warehouses, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+    });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -166,6 +173,10 @@ export class WarehousesComponent implements OnInit, OnDestroy {
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
+  }
+
+  onTablePage(event: any): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.warehouses, this.rowsPerPageOptions, event, this);
   }
 
   get isAtWarehousesCapacity(): boolean {
@@ -695,14 +706,13 @@ export class WarehousesComponent implements OnInit, OnDestroy {
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
     this.selectedProduct = { ...product };
+    this.deleteProductDialog = true;
   }
 
-  async confirmProductDelete() {
+  async onProductDeleteConfirmed(productId: number) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.selectedProduct.productId);
+    await this.onDeleteProduct(productId);
     this.selectedProduct = {};
   }
 

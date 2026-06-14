@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
     <div class="col-12">
         <!-- Write-Offs Management Section -->
         <div class="mb-4">
@@ -18,7 +18,7 @@
             <p-toast></p-toast>
 
             <!-- Action Buttons -->
-            <div class="flex justify-content-end align-items-center mb-4">
+            <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
                 <div class="flex align-items-center gap-2">
                     <button pButton pRipple *ngIf="canCreateWriteOff" label="{{ 'new_write_off' | translate }}"
                         icon="pi pi-plus" class="p-button-success" (click)="navigateToCreate()"
@@ -154,8 +154,8 @@
                 <div class="flex align-items-center gap-2 ml-auto">
                     <button pButton pRipple 
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
-                        class="p-button-warning" 
-                        pTooltip="PDF"
+                        class="p-button-primary" 
+                        [pTooltip]="'export_pdf' | translate"
                         tooltipPosition="bottom" 
                         (click)="exportPdf()"
                         [disabled]="isExporting"></button>
@@ -163,7 +163,7 @@
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
                         (click)="exportExcel()" 
                         class="p-button-success"
-                        pTooltip="XLS" 
+                        [pTooltip]="'export_to_excel' | translate" 
                         tooltipPosition="bottom"
                         [disabled]="isExporting"></button>
                     <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
@@ -172,7 +172,14 @@
             </div>
 
             <!-- Write-Offs Table -->
-            <p-table 
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="(isLoading || isInitialLoad) && !writeOffs.length">
+                <div class="ims-loading-panel__inner">
+                    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                </div>
+            </div>
+
+            <p-table
+                *ngIf="(!isInitialLoad || writeOffs.length) && (!isLoading || writeOffs.length)"
                 #dt 
                 [value]="writeOffs" 
                 [lazy]="true"
@@ -254,7 +261,7 @@
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'quantity' | translate }}</span>
-                            <strong>{{ writeOff.quantity || 0 }}</strong>
+                            <strong>{{ formatWriteOffQuantity(writeOff) }}<ng-container *ngIf="getWriteOffQuantityUnit(writeOff)"> {{ getWriteOffQuantityUnit(writeOff) | translate }}</ng-container></strong>
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'condition' | translate }}</span>
@@ -289,7 +296,7 @@
                                     pRipple
                                     *ngIf="canReadWriteOff"
                                     icon="pi pi-eye" 
-                                    class="p-button-rounded p-button-text p-button-info"
+                                    class="p-button-rounded p-button-text p-button-primary"
                                     (click)="viewWriteOffDetails(writeOff)"
                                     pTooltip="{{ 'view_details' | translate }}">
                                 </button>
@@ -317,7 +324,7 @@
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
-                    <tr>
+                    <tr *ngIf="!isLoading && !isInitialLoad">
                         <td colspan="10" class="text-center p-4">
                             <div class="flex flex-column align-items-center justify-content-center">
                                 <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
@@ -328,15 +335,6 @@
                     </tr>
                 </ng-template>
 
-                <ng-template pTemplate="loadingbody">
-                    <tr>
-                        <td colspan="10">
-                            <div class="flex justify-content-center align-items-center p-4">
-                                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-                            </div>
-                        </td>
-                    </tr>
-                </ng-template>
             </p-table>
         </div>
     </div>
@@ -413,10 +411,9 @@
     [resizable]="false"
     [style]="{width: '450px'}"
     [header]="'exporting' | translate">
-    <div class="flex flex-column align-items-center gap-3 p-4">
-        <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+    <div class="import-progress-panel"><p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
         <div class="text-center">
-            <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+            <p class="ims-loading-label m-0">{{ exportProgress || ('exporting' | translate) }}</p>
         </div>
     </div>
 </p-dialog>

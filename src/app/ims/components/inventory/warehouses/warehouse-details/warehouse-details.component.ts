@@ -22,6 +22,8 @@ import { InventoryWriteOff } from 'src/app/models/write-off';
 import { WriteOffService } from 'src/app/services/write-off.service';
 import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormDialogData } from '../warehouse-form-dialog/warehouse-form-dialog.component';
 import { Location } from '@angular/common';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './warehouse-details.component.html',
@@ -29,6 +31,7 @@ import { Location } from '@angular/common';
   providers: [MessageService]
 })
 export class WarehouseDetailsComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
 
   warehouseId!: number;
   warehouse: Warehouse | null = null;
@@ -45,6 +48,7 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
   canAddProduct: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
+  canArchiveProduct: boolean = false;
   canReadProduct: boolean = false;
   canEditWarehouse: boolean = false;
   canDeleteWarehouse: boolean = false;
@@ -102,7 +106,8 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
     private categoryService: CategoryService,
     private supplierService: SupplierService,
     private reportingService: ReportingService,
-    private writeOffService: WriteOffService
+    private writeOffService: WriteOffService,
+    public pageSizeService: TablePageSizeService
   ) {
     this.costingMethods = [
       { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
@@ -189,6 +194,7 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
       await firstValueFrom(this.permissionService.init(userId));
       this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
       this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
+      this.canArchiveProduct = this.permissionService.canArchive('PRODUCTS');
       this.canReadProduct = this.permissionService.canRead('PRODUCTS');
       this.canEditWarehouse = this.permissionService.canUpdate('WAREHOUSES');
       this.canDeleteWarehouse = this.permissionService.canDelete('WAREHOUSES');
@@ -202,6 +208,7 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
       // Set default permissions if check fails
       this.canEditProduct = false;
       this.canDeleteProduct = false;
+      this.canArchiveProduct = false;
       this.canReadProduct = false;
       this.canEditWarehouse = false;
       this.canDeleteWarehouse = false;
@@ -587,14 +594,13 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
     this.selectedProduct = { ...product };
+    this.deleteProductDialog = true;
   }
 
-  async confirmProductDelete() {
-    if (!this.canDeleteProduct || !this.selectedProduct?.productId) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.selectedProduct.productId);
+  async onProductDeleteConfirmed(productId: number) {
+    if (!this.canDeleteProduct) return;
+    await this.onDeleteProduct(productId);
     this.selectedProduct = null;
   }
 
@@ -623,16 +629,40 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
   }
 
   archiveProduct(product: Product) {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = true;
     this.selectedProduct = { ...product };
   }
 
   async confirmArchive() {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct || !this.selectedProduct?.productId) return;
     this.archiveProductDialog = false;
-    // Archive logic here
+    await this.onArchiveProduct(this.selectedProduct.productId);
     this.selectedProduct = null;
+  }
+
+  async onArchiveProduct(id: number) {
+    await this.productService.deactivateProduct(id)
+      .subscribe({
+        next: async () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('successful'),
+            detail: this.translate.instant('product_archived'),
+            life: 3000
+          });
+          await this.loadWarehouseDetails();
+        },
+        error: (err: any) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: this.translate.instant('error_while_archiving_product'),
+            life: 3000
+          });
+          console.log(err);
+        },
+      });
   }
 
   async onGetAllCategories() {
@@ -852,5 +882,6 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
     // For custom reasons, return as-is
     return reason;
   }
+
 }
 

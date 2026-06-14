@@ -1,0 +1,121 @@
+/* Nadigit IMS — Keycloak login brand overrides (March 2026) */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap');
+
+:root {
+  --nadigit-navy: #0b1f4a;
+  --nadigit-saas: #1e5eff;
+  --nadigit-saas-hover: #1850e0;
+  --nadigit-text: #1a1f36;
+  --nadigit-text-secondary: #667085;
+  --nadigit-border: #dce3f0;
+  --nadigit-card-radius: 16px;
+}
+
+.login-pf,
+.login-pf body,
+html.login-pf {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+.login-pf body {
+  background: linear-gradient(135deg, var(--nadigit-navy) 0%, var(--nadigit-saas) 100%) no-repeat center center fixed !important;
+  background-size: cover !important;
+}
+
+.pf-v5-c-login__main {
+  position: relative;
+  border-radius: var(--nadigit-card-radius);
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(11, 31, 74, 0.22);
+}
+
+.pf-v5-c-login__main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--nadigit-saas);
+  z-index: 1;
+}
+
+.pf-v5-c-login__main-header .pf-v5-c-title,
+.pf-v5-c-login__main-header {
+  font-family: Poppins, Inter, sans-serif;
+  font-weight: 600;
+  color: var(--nadigit-text);
+}
+
+.pf-v5-c-form__label-text,
+.pf-v5-c-form__label {
+  color: var(--nadigit-text);
+  font-weight: 500;
+}
+
+.pf-v5-c-form-control {
+  border-radius: 10px;
+  border-color: var(--nadigit-border);
+  color: var(--nadigit-text);
+  background-color: #fff;
+}
+
+.pf-v5-c-form-control:focus {
+  border-color: var(--nadigit-saas);
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.18);
+}
+
+.pf-v5-c-button.pf-m-primary {
+  background-color: var(--nadigit-saas);
+  border-color: var(--nadigit-saas);
+  border-radius: 10px;
+  font-family: Poppins, Inter, sans-serif;
+  font-weight: 600;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus {
+  background-color: var(--nadigit-saas-hover);
+  border-color: var(--nadigit-saas-hover);
+}
+
+.pf-v5-c-button.pf-m-link,
+.pf-v5-c-login__main-footer a,
+.pf-v5-c-login__main-body a {
+  color: var(--nadigit-saas);
+}
+
+.pf-v5-c-login__main-footer-helper-text,
+.pf-v5-c-login__main-footer-band-item {
+  color: var(--nadigit-text-secondary);
+}
+
+.pf-v5-c-alert {
+  border-radius: 10px;
+}
+
+.pf-v5-c-login__main-header {
+  border-top: none;
+}
+
+#kc-locale,
+#kc-locale-dropdown,
+.pf-v5-c-login__main-header-utilities {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.pf-v5-c-login__main-header-utilities a {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+@media (max-width: 767px) {
+  .pf-v5-c-login__container {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 1rem;
+  }
+
+  #kc-header-wrapper {
+    max-width: 100%;
+  }
+}

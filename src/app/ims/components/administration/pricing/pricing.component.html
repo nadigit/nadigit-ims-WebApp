@@ -21,14 +21,15 @@
             <span>{{ 'price_lists' | translate }}</span>
           </ng-template>
 
-          <div class="flex justify-content-end align-items-center mb-4">
+          <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
             <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
               class="p-button-success" (click)="openNewPriceList()"></button>
           </div>
 
-          <div *ngIf="isLoading" class="pricing-skeleton flex flex-column gap-3 py-2">
-            <p-skeleton height="2.25rem" styleClass="w-full md:w-6"></p-skeleton>
-            <p-skeleton *ngFor="let _ of [1,2,3,4,5,6]" height="2.5rem" styleClass="w-full"></p-skeleton>
+          <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading">
+            <div class="ims-loading-panel__inner">
+              <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+            </div>
           </div>
 
           <div *ngIf="!isLoading && priceLists.length === 0"
@@ -46,7 +47,7 @@
             [rowHover]="true">
             <ng-template pTemplate="header">
               <tr>
-                <th pSortableColumn="name">{{ 'name' | translate }} <p-sortIcon field="name"></p-sortIcon></th>
+                <th pSortableColumn="name">{{ 'price_list_name' | translate }} <p-sortIcon field="name"></p-sortIcon></th>
                 <th pSortableColumn="description">{{ 'description' | translate }} <p-sortIcon field="description"></p-sortIcon></th>
                 <th pSortableColumn="active">{{ 'active' | translate }} <p-sortIcon field="active"></p-sortIcon></th>
                 <th pSortableColumn="priority">{{ 'priority' | translate }} <p-sortIcon field="priority"></p-sortIcon></th>
@@ -71,7 +72,7 @@
                       [attr.aria-label]="'pricing_open_tier_rules' | translate"
                       pTooltip="{{ 'pricing_open_tier_rules' | translate }}"
                       tooltipPosition="left"></button>
-                    <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
+                    <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
                       type="button"
                       (click)="editPriceList(list)"
                       [attr.aria-label]="'update' | translate"
@@ -122,7 +123,13 @@
             </div>
             <p class="text-600 text-sm mb-3 mt-0">{{ 'pricing_tier_rule_overlap_hint' | translate }}</p>
 
-            <p-table [value]="priceListItems" dataKey="id" styleClass="p-datatable-gridlines"
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoadingItems && !priceListItems.length">
+              <div class="ims-loading-panel__inner">
+                <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+              </div>
+            </div>
+
+            <p-table *ngIf="!isLoadingItems || priceListItems.length" [value]="priceListItems" dataKey="id" styleClass="p-datatable-gridlines"
               [loading]="isLoadingItems" [sortMode]="'single'" [sortField]="'minQty'" [sortOrder]="1"
               [paginator]="priceListItems.length > 15" [rows]="15" [showCurrentPageReport]="true"
               [rowHover]="true">
@@ -151,7 +158,7 @@
                   </td>
                   <td>
                     <div class="flex gap-1">
-                      <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
+                      <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
                         type="button" (click)="editItem(item)"
                         [attr.aria-label]="'update' | translate"
                         pTooltip="{{ 'update' | translate }}"
@@ -180,98 +187,238 @@
   </div>
 </div>
 
-<p-dialog [(visible)]="priceListDialog" [style]="{ width: '520px', maxWidth: '95vw' }"
-  [breakpoints]="{ '768px': '95vw' }"
+<p-dialog [(visible)]="priceListDialog" [style]="{ width: 'min(92vw, 560px)' }"
+  [breakpoints]="{ '960px': '90vw', '640px': '95vw' }"
   [header]="isEditingPriceList ? ('edit_price_list' | translate) : ('new_price_list' | translate)"
-  [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid">
+  [modal]="true" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell pricing-dialog-shell"
+  class="p-fluid pricing-dialog">
   <ng-template pTemplate="content">
-    <div class="field">
-      <label for="pl-name">{{ 'name' | translate }} <span class="required-asterisk">*</span></label>
-      <input pInputText id="pl-name" name="name" [(ngModel)]="priceListForm.name" required />
-    </div>
-    <div class="field">
-      <label for="pl-description">{{ 'description' | translate }}</label>
-      <textarea pInputTextarea id="pl-description" name="description" rows="3" [(ngModel)]="priceListForm.description"></textarea>
-    </div>
-    <div class="field">
-      <label for="pl-priority">{{ 'priority' | translate }}</label>
-      <p-inputNumber inputId="pl-priority" [(ngModel)]="priceListForm.priority" [min]="0"></p-inputNumber>
-      <small class="text-500 block mt-1">{{ 'pricing_priority_hint' | translate }}</small>
-    </div>
-    <div class="field">
-      <p-checkbox inputId="pl-active" [(ngModel)]="priceListForm.active" [binary]="true"></p-checkbox>
-      <label for="pl-active" class="ml-2">{{ 'active' | translate }}</label>
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+              <i class="pi pi-list"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'price_list' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="pl-name" class="ims-form-label">
+                {{ 'price_list_name' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-tag"></i></span>
+                <input pInputText id="pl-name" name="name" [(ngModel)]="priceListForm.name" required autofocus
+                  [ngClass]="{ 'ng-invalid ng-dirty': priceListSubmitted && !priceListForm.name?.trim() }" />
+              </div>
+              <small class="p-error" *ngIf="priceListSubmitted && !priceListForm.name?.trim()">
+                {{ 'price_list_name' | translate }} {{ 'is_required_label' | translate }}
+              </small>
+            </div>
+
+            <div class="field col-12">
+              <label for="pl-description" class="ims-form-label">{{ 'description' | translate }}</label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-align-left"></i></span>
+                <textarea pInputTextarea id="pl-description" name="description" rows="3"
+                  [(ngModel)]="priceListForm.description" [autoResize]="true"></textarea>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+              <i class="pi pi-sliders-h"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'priority' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="pl-priority" class="ims-form-label">{{ 'priority' | translate }}</label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-sort-numeric-up"></i></span>
+                <p-inputNumber inputId="pl-priority" [(ngModel)]="priceListForm.priority" [min]="0"
+                  styleClass="w-full"></p-inputNumber>
+              </div>
+              <small class="ims-form-hint">{{ 'pricing_priority_hint' | translate }}</small>
+            </div>
+
+            <div class="field col-12">
+              <div class="ims-form-checkbox-row">
+                <p-checkbox inputId="pl-active" [(ngModel)]="priceListForm.active" [binary]="true"></p-checkbox>
+                <label for="pl-active" class="ims-form-label ims-form-label--inline cursor-pointer">
+                  {{ 'active' | translate }}
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
     </div>
   </ng-template>
   <ng-template pTemplate="footer">
-    <button pButton pRipple class="p-button-text" icon="pi pi-times" type="button"
-      label="{{ 'cancel_button' | translate }}" (click)="priceListDialog = false"></button>
-    <button pButton pRipple icon="pi pi-check" label="{{ 'save_button' | translate }}" type="button"
-      [disabled]="savingPriceList" [loading]="savingPriceList" (click)="savePriceList()"></button>
+    <div class="flex justify-content-between align-items-center w-full">
+      <button pButton pRipple class="p-button-text" icon="pi pi-times" type="button"
+        [label]="'cancel_button' | translate" (click)="closePriceListDialog()" [disabled]="savingPriceList"></button>
+      <button pButton pRipple class="p-button-primary" icon="pi pi-check" [label]="'save_button' | translate"
+        type="button" [disabled]="savingPriceList" [loading]="savingPriceList" (click)="savePriceList()"></button>
+    </div>
   </ng-template>
 </p-dialog>
 
-<p-dialog [(visible)]="itemDialog" [style]="{ width: '560px', maxWidth: '95vw' }"
-  [breakpoints]="{ '768px': '95vw' }"
+<p-dialog [(visible)]="itemDialog" [style]="{ width: 'min(92vw, 560px)' }"
+  [breakpoints]="{ '960px': '90vw', '640px': '95vw' }"
   [header]="isEditingItem ? ('edit_tier_rule' | translate) : ('new_tier_rule' | translate)"
-  [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid">
+  [modal]="true" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell pricing-dialog-shell"
+  class="p-fluid pricing-dialog">
   <ng-template pTemplate="content">
-    <p class="text-600 text-sm mb-3 mt-0">{{ 'pricing_tier_rule_overlap_hint' | translate }}</p>
-    <div class="field">
-      <label for="tier-product-ac">{{ 'product' | translate }} <span class="required-asterisk">*</span></label>
-      <p-autoComplete inputId="tier-product-ac"
-        [(ngModel)]="selectedProduct"
-        [suggestions]="productSuggestions"
-        [loading]="productsLoading"
-        (completeMethod)="searchProducts($event)"
-        (onSelect)="onProductSelect($event)"
-        (ngModelChange)="onProductChange($event)"
-        optionLabel="name"
-        dataKey="productId"
-        [forceSelection]="true"
-        [dropdown]="true"
-        appendTo="body"
-        styleClass="w-full"
-        placeholder="{{ 'search_products' | translate }}">
-        <ng-template pTemplate="selectedItem" let-product>
-          <span *ngIf="product">{{ autocompleteProductLabel(product) }}</span>
-        </ng-template>
-        <ng-template let-product pTemplate="item">
-          <div class="flex flex-column">
-            <span class="font-medium">{{ product.name }}</span>
-            <small class="text-500">
-              {{ product.reference }}
-              <ng-container *ngIf="product.sellingPrice !== undefined && product.sellingPrice !== null">
-                &nbsp;|&nbsp;{{ 'selling_price' | translate }}: {{ formatUnitPrice(product.sellingPrice) }}
-              </ng-container>
-            </small>
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <div class="ims-form-callout">
+          <i class="pi pi-info-circle"></i>
+          <span>{{ 'pricing_tier_rule_overlap_hint' | translate }}</span>
+        </div>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+              <i class="pi pi-box"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="tier-product-ac" class="ims-form-label">
+                {{ 'product' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-autoComplete inputId="tier-product-ac"
+                [(ngModel)]="selectedProduct"
+                [suggestions]="productSuggestions"
+                [loading]="productsLoading"
+                (completeMethod)="searchProducts($event)"
+                (onSelect)="onProductSelect($event)"
+                (ngModelChange)="onProductChange($event)"
+                optionLabel="name"
+                dataKey="productId"
+                [forceSelection]="true"
+                [dropdown]="true"
+                appendTo="body"
+                styleClass="w-full"
+                [ngClass]="{ 'ng-invalid ng-dirty': itemSubmitted && !itemForm.productId }"
+                placeholder="{{ 'search_products' | translate }}">
+                <ng-template pTemplate="selectedItem" let-product>
+                  <span *ngIf="product">{{ autocompleteProductLabel(product) }}</span>
+                </ng-template>
+                <ng-template let-product pTemplate="item">
+                  <div class="flex flex-column">
+                    <span class="font-medium">{{ product.name }}</span>
+                    <small class="text-500">
+                      {{ product.reference }}
+                      <ng-container *ngIf="product.sellingPrice !== undefined && product.sellingPrice !== null">
+                        &nbsp;|&nbsp;{{ 'selling_price' | translate }}: {{ formatUnitPrice(product.sellingPrice) }}
+                      </ng-container>
+                    </small>
+                  </div>
+                </ng-template>
+              </p-autoComplete>
+              <small class="p-error" *ngIf="itemSubmitted && !itemForm.productId">
+                {{ 'product' | translate }} {{ 'is_required_label' | translate }}
+              </small>
+            </div>
           </div>
-        </ng-template>
-      </p-autoComplete>
-    </div>
-    <div class="field">
-      <label for="tier-min-qty">{{ 'min_qty' | translate }} <span class="required-asterisk">*</span></label>
-      <p-inputNumber inputId="tier-min-qty" [(ngModel)]="itemForm.minQty" [min]="1"></p-inputNumber>
-    </div>
-    <div class="field">
-      <label for="tier-max-qty">{{ 'max_qty' | translate }}</label>
-      <p-inputNumber inputId="tier-max-qty" [(ngModel)]="itemForm.maxQty" [min]="1"></p-inputNumber>
-      <small class="text-500 block mt-1">{{ 'max_qty_optional' | translate }}</small>
-    </div>
-    <div class="field">
-      <label for="tier-unit-price">{{ 'unit_price' | translate }} <span class="required-asterisk">*</span></label>
-      <p-inputNumber inputId="tier-unit-price" [(ngModel)]="itemForm.unitPrice" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber>
-      <small class="text-500 block mt-1">{{ 'pricing_unit_price_hint' | translate: { currency: currency } }}</small>
-    </div>
-    <div class="field">
-      <p-checkbox inputId="tier-item-active" [(ngModel)]="itemForm.active" [binary]="true"></p-checkbox>
-      <label for="tier-item-active" class="ml-2">{{ 'active' | translate }}</label>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+              <i class="pi pi-sort-amount-down"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'tier_rules' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12 md:col-6">
+              <label for="tier-min-qty" class="ims-form-label">
+                {{ 'min_qty' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-sort-amount-down"></i></span>
+                <p-inputNumber inputId="tier-min-qty" [(ngModel)]="itemForm.minQty" [min]="1"
+                  styleClass="w-full"
+                  [ngClass]="{ 'ng-invalid ng-dirty': itemSubmitted && (itemForm.minQty == null || itemForm.minQty < 1) }"></p-inputNumber>
+              </div>
+              <small class="p-error" *ngIf="itemSubmitted && (itemForm.minQty == null || itemForm.minQty < 1)">
+                {{ 'min_qty' | translate }} {{ 'is_required_label' | translate }}
+              </small>
+            </div>
+
+            <div class="field col-12 md:col-6">
+              <label for="tier-max-qty" class="ims-form-label">{{ 'max_qty' | translate }}</label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-sort-amount-up"></i></span>
+                <p-inputNumber inputId="tier-max-qty" [(ngModel)]="itemForm.maxQty" [min]="1"
+                  styleClass="w-full"></p-inputNumber>
+              </div>
+              <small class="ims-form-hint">{{ 'max_qty_optional' | translate }}</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+              <i class="pi pi-dollar"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_section_pricing' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="tier-unit-price" class="ims-form-label">
+                {{ 'unit_price' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-dollar"></i></span>
+                <p-inputNumber inputId="tier-unit-price" [(ngModel)]="itemForm.unitPrice" [min]="0"
+                  [minFractionDigits]="2" [maxFractionDigits]="2" styleClass="w-full"
+                  [ngClass]="{ 'ng-invalid ng-dirty': itemSubmitted && (itemForm.unitPrice == null || itemForm.unitPrice < 0) }"></p-inputNumber>
+              </div>
+              <small class="ims-form-hint">{{ 'pricing_unit_price_hint' | translate: { currency: currency } }}</small>
+              <small class="p-error block" *ngIf="itemSubmitted && (itemForm.unitPrice == null || itemForm.unitPrice < 0)">
+                {{ 'unit_price' | translate }} {{ 'is_required_label' | translate }}
+              </small>
+            </div>
+
+            <div class="field col-12">
+              <div class="ims-form-checkbox-row">
+                <p-checkbox inputId="tier-item-active" [(ngModel)]="itemForm.active" [binary]="true"></p-checkbox>
+                <label for="tier-item-active" class="ims-form-label ims-form-label--inline cursor-pointer">
+                  {{ 'active' | translate }}
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
     </div>
   </ng-template>
   <ng-template pTemplate="footer">
-    <button pButton pRipple class="p-button-text" icon="pi pi-times" type="button"
-      label="{{ 'cancel_button' | translate }}" (click)="itemDialog = false"></button>
-    <button pButton pRipple icon="pi pi-check" label="{{ 'save_button' | translate }}" type="button"
-      [disabled]="savingItem" [loading]="savingItem" (click)="saveItem()"></button>
+    <div class="flex justify-content-between align-items-center w-full">
+      <button pButton pRipple class="p-button-text" icon="pi pi-times" type="button"
+        [label]="'cancel_button' | translate" (click)="closeItemDialog()" [disabled]="savingItem"></button>
+      <button pButton pRipple class="p-button-primary" icon="pi pi-check" [label]="'save_button' | translate"
+        type="button" [disabled]="savingItem" [loading]="savingItem" (click)="saveItem()"></button>
+    </div>
   </ng-template>
 </p-dialog>

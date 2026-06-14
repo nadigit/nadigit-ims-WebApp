@@ -79,22 +79,6 @@
     background: var(--surface-hover) !important;
 }
 
-.shop-hero-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px color-mix(in srgb, var(--primary-color) 30%, transparent);
-}
-
-.shop-hero-icon i {
-    font-size: 2.5rem;
-    color: white;
-}
-
 .shop-title {
     font-size: 2rem;
     font-weight: 700;
@@ -141,49 +125,6 @@
 .stat-card-modern:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-icon.cash {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.cash.negative {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.stat-icon.purchases {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.stat-icon.expenses {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.netflow {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.stat-icon.netflow.positive {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.netflow.negative {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .stat-content {
@@ -328,26 +269,6 @@
     background: var(--surface-100);
 }
 
-.info-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.info-icon i {
-    color: white;
-    font-size: 1rem;
-}
-
-.info-icon.org {
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-}
-
 .info-content {
     flex: 1;
     min-width: 0;
@@ -398,45 +319,6 @@
 .financial-item:hover {
     background: var(--surface-100);
     transform: translateY(-2px);
-}
-
-.financial-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.financial-icon i {
-    color: white;
-    font-size: 1.25rem;
-}
-
-.financial-icon.purchases {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.financial-icon.expenses {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.financial-icon.average {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.financial-icon.balance {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.financial-icon.balance.positive {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.financial-icon.balance.negative {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .financial-content {
@@ -609,16 +491,6 @@
         padding: 1.5rem;
     }
     
-    .shop-hero-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 14px;
-    }
-    
-    .shop-hero-icon i {
-        font-size: 1.75rem;
-    }
-    
     .shop-title {
         font-size: 1.5rem;
     }
@@ -636,11 +508,6 @@
     
     .stat-card-modern {
         padding: 1rem;
-    }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
     }
     
     .stat-value {

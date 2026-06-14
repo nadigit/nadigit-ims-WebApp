@@ -5,7 +5,7 @@
     height: 3rem;
     line-height: 3rem;
     background: var(--primary-color);
-    color: var(--primary-color-text);
+    color: #ffffff;
     text-align: center;
     top: 50%;
     right: 0;
@@ -20,23 +20,29 @@
     z-index: 999;
     box-shadow: -.25rem 0 1rem rgba(0,0,0,.15);
 
-    i {
+    i,
+    .pi {
         font-size: 2rem;
         line-height: inherit;
+        color: #ffffff;
         transform: rotate(0deg);
         transition: transform 1s;
     }
     
     &:hover {
-        background: var(--primary-400);
+        background: var(--primary-600, var(--brand-saas-hover));
+
+        i,
+        .pi {
+            color: #ffffff;
+        }
     }
 }
 
 .layout-config-sidebar {
     &.p-sidebar {
         .p-sidebar-content {
-            padding-left: 2rem;
-            padding-right: 2rem;
+            padding: 0;
         }
     }
 }

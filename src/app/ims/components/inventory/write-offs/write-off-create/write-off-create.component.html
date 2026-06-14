@@ -1,262 +1,293 @@
 <p-toast></p-toast>
 
 <p-dialog [(visible)]="visible" [header]="'new_write_off' | translate" [modal]="true" [draggable]="false"
-    [resizable]="false" [style]="{width: '90%', maxWidth: '1200px'}" [breakpoints]="{'960px': '95%', '640px': '98%'}"
-    styleClass="p-fluid write-off-dialog" (onHide)="onCancel()">
+    [resizable]="false" [style]="{ width: 'min(92vw, 960px)' }"
+    [breakpoints]="{'960px': '94vw', '640px': '98vw'}"
+    styleClass="ims-form-dialog-shell write-off-dialog-shell"
+    class="p-fluid write-off-dialog" (onHide)="onCancel()">
 
-    <p-message *ngIf="manualApprovalWorkflowHint" severity="info" styleClass="mb-3 w-full" [closable]="false"
-        [text]="'writeoff_approval_workflow_hint' | translate"></p-message>
+    <ng-template pTemplate="content">
+        <form [formGroup]="writeOffForm" (ngSubmit)="onSubmit()" id="writeOffCreateForm">
+            <div class="grid ims-form-layout">
+                <div class="col-12 lg:col-8">
+                    <div class="ims-form-fields">
+                        <div class="ims-form-callout" *ngIf="manualApprovalWorkflowHint">
+                            <i class="pi pi-info-circle"></i>
+                            <span>{{ 'writeoff_approval_workflow_hint' | translate }}</span>
+                        </div>
 
-    <form [formGroup]="writeOffForm" (ngSubmit)="onSubmit()">
-        <div class="grid">
-            <!-- Left Column -->
-            <div class="col-12 lg:col-8">
-
-                <!-- Warehouse Selection -->
-                <div class="field mb-4">
-                    <label for="warehouseId" class="block mb-2">
-                        {{ 'warehouse' | translate }} <span class="text-red-500">*</span>
-                    </label>
-                    <p-dropdown id="warehouseId" formControlName="warehouseId" [options]="warehousesForDropdown" optionLabel="name"
-                        optionValue="warehouseId" [filter]="true" filterBy="name" [showClear]="!isWarehouseSelectionLocked"
-                        [placeholder]="'select_warehouse' | translate" appendTo="body" styleClass="w-full"
-                        [class.ng-invalid]="isFieldInvalid('warehouseId')" (onChange)="onWarehouseChange()">
-                    </p-dropdown>
-                    <small class="p-error" *ngIf="isFieldInvalid('warehouseId')">
-                        {{ 'warehouse_is_required' | translate }}
-                    </small>
-                </div>
-
-                <!-- Product Selection -->
-                <div class="field mb-4">
-                    <label for="productId" class="block mb-2">
-                        {{ 'product' | translate }} <span class="text-red-500">*</span>
-                    </label>
-                    <div class="product-autocomplete-wrapper">
-                        <p-autoComplete 
-                            id="productId" 
-                            formControlName="productId"
-                            [suggestions]="productSuggestions"
-                            (completeMethod)="filterProducts($event)"
-                            [minLength]="0"
-                            [placeholder]="'select_product' | translate"
-                            [dropdown]="true"
-                            [forceSelection]="true"
-                            appendTo="body"
-                            styleClass="w-full"
-                            [class.ng-invalid]="isFieldInvalid('productId')"
-                            (onSelect)="onProductChange($event)"
-                            (onClear)="onProductChange()"
-                            (onFocus)="onProductInputFocus()"
-                            (onBlur)="onProductInputBlur()">
-                            
-                            <!-- Selected Item Template -->
-                            <ng-template pTemplate="selectedItem" let-product>
-                                <span *ngIf="product && product.name">
-                                    {{ product.name }}
-                                    <span class="text-500 text-sm" *ngIf="product.reference"> ({{ product.reference }})</span>
-                                </span>
-                            </ng-template>
-                            
-                            <!-- Dropdown Items -->
-                            <ng-template let-product pTemplate="item">
-                                <div class="flex align-items-center gap-2">
-                                    <span>{{ product.name }}</span>
-                                    <span class="text-500 text-sm" *ngIf="product.reference">({{ product.reference }})</span>
+                        <section class="ims-form-section">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                                    <i class="pi pi-box"></i>
                                 </div>
-                            </ng-template>
-                        </p-autoComplete>
-                        <!-- Display selected product name overlay (only when product is selected) -->
-                        <div *ngIf="getSelectedProductForDisplay()" 
-                            class="product-display-overlay">
-                            <span>{{ getSelectedProductForDisplay()?.name }}</span>
-                            <span class="text-500 text-sm" *ngIf="getSelectedProductForDisplay()?.reference"> ({{ getSelectedProductForDisplay()?.reference }})</span>
-                        </div>
-                    </div>
-                    <small class="p-error" *ngIf="isFieldInvalid('productId')">
-                        {{ 'product_is_required' | translate }}
-                    </small>
-                    <small class="text-500" *ngIf="!writeOffForm.get('warehouseId')?.value">
-                        {{ 'please_select_warehouse_first' | translate }}
-                    </small>
-                    <small class="text-500" *ngIf="productSuggestionsLoading">
-                        {{ 'loading' | translate }}...
-                    </small>
-                </div>
+                                <h3 class="ims-form-section__title">{{ 'write_off_information' | translate }}</h3>
+                            </header>
+                            <div class="grid ims-form-section__body">
+                                <div class="field col-12 md:col-6">
+                                    <label for="warehouseId" class="ims-form-label">
+                                        {{ 'warehouse' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <p-dropdown id="warehouseId" formControlName="warehouseId"
+                                        [options]="warehousesForDropdown" optionLabel="name" optionValue="warehouseId"
+                                        [filter]="true" filterBy="name" [showClear]="!isWarehouseSelectionLocked"
+                                        [placeholder]="'select_warehouse' | translate" appendTo="body" styleClass="w-full"
+                                        [class.ng-invalid]="isFieldInvalid('warehouseId')" (onChange)="onWarehouseChange()">
+                                        <ng-template pTemplate="selectedItem">
+                                            <span *ngIf="selectedWarehouse" class="flex align-items-center gap-2">
+                                                <i class="pi pi-home"></i>
+                                                {{ selectedWarehouse.name }}
+                                            </span>
+                                        </ng-template>
+                                        <ng-template let-warehouse pTemplate="item">
+                                            <span class="flex align-items-center gap-2">
+                                                <i class="pi pi-home"></i>
+                                                {{ warehouse.name }}
+                                            </span>
+                                        </ng-template>
+                                    </p-dropdown>
+                                    <small class="p-error" *ngIf="isFieldInvalid('warehouseId')">
+                                        {{ 'warehouse_is_required' | translate }}
+                                    </small>
+                                </div>
 
-                <!-- Batch Selection (Optional) -->
-                <div class="field mb-4" *ngIf="selectedProduct && batches.length > 0">
-                    <label for="batchId" class="block mb-2">
-                        {{ 'batch' | translate }} ({{ 'optional' | translate }})
-                    </label>
-                    <p-dropdown id="batchId" formControlName="batchId" [options]="batches" optionLabel="batchNumber"
-                        [filter]="true" filterBy="batchNumber" [showClear]="true"
-                        [placeholder]="'select_batch' | translate" appendTo="body" styleClass="w-full"
-                        [loading]="loadingBatches" (onChange)="onBatchChange()">
-                        <ng-template let-batch pTemplate="item">
-                            <div class="flex align-items-center justify-content-between">
-                                <span>{{ batch.batchNumber || ('batch_number' | translate) + ' #' + batch.batchId
-                                    }}</span>
-                                <span class="text-500 text-sm">{{ batch.quantityAvailable }} {{ 'units' | translate
-                                    }}</span>
+                                <div class="field col-12 md:col-6">
+                                    <label for="productId" class="ims-form-label">
+                                        {{ 'product' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="ims-form-callout write-off-product-callout mb-2"
+                                        *ngIf="!writeOffForm.get('warehouseId')?.value">
+                                        <i class="pi pi-info-circle"></i>
+                                        <span>{{ 'please_select_warehouse_first' | translate }}</span>
+                                    </div>
+                                    <p-autoComplete
+                                        id="productId"
+                                        formControlName="productId"
+                                        [suggestions]="productSuggestions"
+                                        (completeMethod)="filterProducts($event)"
+                                        [minLength]="0"
+                                        [placeholder]="'search_products_placeholder' | translate"
+                                        [dropdown]="true"
+                                        [forceSelection]="true"
+                                        field="name"
+                                        optionLabel="name"
+                                        dataKey="productId"
+                                        appendTo="body"
+                                        styleClass="w-full write-off-product-autocomplete"
+                                        panelStyleClass="write-off-product-panel"
+                                        [panelStyle]="{ 'min-width': '22rem', 'max-width': '36rem' }"
+                                        [class.ng-invalid]="isFieldInvalid('productId')"
+                                        (onSelect)="onProductChange($event)"
+                                        (onClear)="onProductChange()"
+                                        (onFocus)="onProductInputFocus()">
+                                        <ng-template pTemplate="selectedItem" let-product>
+                                            <span *ngIf="product?.name" class="write-off-product-selected">
+                                                <span class="write-off-product-selected__name">{{ product.name }}</span>
+                                                <span class="write-off-product-selected__ref" *ngIf="product.reference">{{ product.reference }}</span>
+                                            </span>
+                                        </ng-template>
+                                        <ng-template let-product pTemplate="item">
+                                            <div class="write-off-product-option">
+                                                <img [src]="product | productImage" [alt]="product.name" class="write-off-product-option__image" />
+                                                <div class="write-off-product-option__body">
+                                                    <span class="write-off-product-option__name">{{ product.name }}</span>
+                                                    <span class="write-off-product-option__ref" *ngIf="product.reference">{{ product.reference }}</span>
+                                                </div>
+                                            </div>
+                                        </ng-template>
+                                    </p-autoComplete>
+                                    <small class="p-error" *ngIf="isFieldInvalid('productId')">
+                                        {{ 'product_is_required' | translate }}
+                                    </small>
+                                    <small class="ims-form-hint" *ngIf="productSuggestionsLoading">
+                                        {{ 'loading' | translate }}...
+                                    </small>
+                                </div>
+
+                                <div class="field col-12 md:col-6" *ngIf="selectedProduct && batches.length > 0">
+                                    <label for="batchId" class="ims-form-label">
+                                        {{ 'batch' | translate }}
+                                        <span class="ims-form-hint ims-form-hint--inline">({{ 'optional' | translate }})</span>
+                                    </label>
+                                    <p-dropdown id="batchId" formControlName="batchId" [options]="batches"
+                                        optionLabel="batchNumber" [filter]="true" filterBy="batchNumber"
+                                        [showClear]="true" [placeholder]="'select_batch' | translate" appendTo="body"
+                                        styleClass="w-full" [loading]="loadingBatches" (onChange)="onBatchChange()">
+                                        <ng-template let-batch pTemplate="item">
+                                            <div class="flex align-items-center justify-content-between gap-2">
+                                                <span>{{ batch.batchNumber || ('batch_number' | translate) + ' #' + batch.batchId }}</span>
+                                                <span class="ims-form-hint ims-form-hint--inline" *ngIf="selectedProduct">
+                                                    {{ formatDisplayQuantity(displayWarehouseStockQuantity(selectedProduct, batch.quantityAvailable)) }}
+                                                    {{ getQuantityMeasureUnit(displayWarehouseStockQuantity(selectedProduct, batch.quantityAvailable)) | translate }}
+                                                </span>
+                                            </div>
+                                        </ng-template>
+                                    </p-dropdown>
+                                    <small class="ims-form-hint">{{ 'select_batch_optional_hint' | translate }}</small>
+                                </div>
+
+                                <div class="field col-12 md:col-4">
+                                    <label for="quantity" class="ims-form-label">
+                                        {{ 'quantity' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <p-inputNumber id="quantity" formControlName="quantity"
+                                        mode="decimal"
+                                        [min]="quantityInputMin()"
+                                        [max]="getMaxQuantity()"
+                                        [step]="quantityInputStep()"
+                                        [minFractionDigits]="0"
+                                        [maxFractionDigits]="quantityInputDecimals()"
+                                        [showButtons]="true"
+                                        buttonLayout="horizontal"
+                                        styleClass="w-full"
+                                        [class.ng-invalid]="isFieldInvalid('quantity')"
+                                        [placeholder]="'enter_quantity' | translate"
+                                        [disabled]="!selectedProduct">
+                                    </p-inputNumber>
+                                    <small class="p-error" *ngIf="isFieldInvalid('quantity')">
+                                        {{ 'quantity_is_required' | translate }}
+                                    </small>
+                                    <small class="ims-form-hint" *ngIf="!isFieldInvalid('quantity') && selectedProduct">
+                                        {{ 'available_quantity' | translate }}:
+                                        <strong>{{ formatDisplayQuantity(getMaxQuantity()) }}</strong>
+                                        {{ getQuantityMeasureUnit(getMaxQuantity()) | translate }}
+                                    </small>
+                                </div>
+
+                                <div class="field col-12 md:col-4">
+                                    <label for="condition" class="ims-form-label">
+                                        {{ 'condition' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <p-dropdown id="condition" formControlName="condition" [options]="conditionOptions"
+                                        optionLabel="label" optionValue="value" [placeholder]="'select_condition' | translate"
+                                        appendTo="body" styleClass="w-full" [class.ng-invalid]="isFieldInvalid('condition')">
+                                    </p-dropdown>
+                                    <small class="p-error" *ngIf="isFieldInvalid('condition')">
+                                        {{ 'condition_is_required' | translate }}
+                                    </small>
+                                </div>
+
+                                <div class="field col-12 md:col-4">
+                                    <label for="sourceType" class="ims-form-label">
+                                        {{ 'source_type' | translate }}
+                                        <span class="ims-form-hint ims-form-hint--inline">({{ 'optional' | translate }})</span>
+                                    </label>
+                                    <p-dropdown id="sourceType" formControlName="sourceType" [options]="sourceTypeOptions"
+                                        optionLabel="label" optionValue="value" [filter]="false" [showClear]="true"
+                                        [placeholder]="'select_source_type' | translate" appendTo="body" styleClass="w-full">
+                                    </p-dropdown>
+                                    <small class="ims-form-hint">{{ 'defaults_to_manual_adjustment' | translate }}</small>
+                                </div>
                             </div>
-                        </ng-template>
-                    </p-dropdown>
-                    <small class="text-500">
-                        {{ 'select_batch_optional_hint' | translate }}
-                    </small>
+                        </section>
+
+                        <section class="ims-form-section">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+                                    <i class="pi pi-file-edit"></i>
+                                </div>
+                                <h3 class="ims-form-section__title">{{ 'additional_information' | translate }}</h3>
+                            </header>
+                            <div class="grid ims-form-section__body">
+                                <div class="field col-12">
+                                    <label for="reason" class="ims-form-label">
+                                        {{ 'reason' | translate }}
+                                        <span class="ims-form-hint ims-form-hint--inline">({{ 'optional' | translate }})</span>
+                                    </label>
+                                    <textarea id="reason" formControlName="reason" pInputTextarea [rows]="3"
+                                        [autoResize]="true"
+                                        [placeholder]="'enter_reason_optional' | translate" class="w-full"
+                                        [maxlength]="500">
+                                    </textarea>
+                                    <small class="ims-form-hint">{{ 'max_500_characters' | translate }}</small>
+                                </div>
+
+                                <div class="field col-12">
+                                    <label for="notes" class="ims-form-label">
+                                        {{ 'notes' | translate }}
+                                        <span class="ims-form-hint ims-form-hint--inline">({{ 'optional' | translate }})</span>
+                                    </label>
+                                    <textarea id="notes" formControlName="notes" pInputTextarea [rows]="3"
+                                        [autoResize]="true"
+                                        [placeholder]="'enter_notes_optional' | translate" class="w-full">
+                                    </textarea>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
                 </div>
 
-                <!-- Quantity -->
-                <div class="field mb-4">
-                    <label for="quantity" class="block mb-2">
-                        {{ 'quantity' | translate }} <span class="text-red-500">*</span>
-                    </label>
-                    <p-inputNumber id="quantity" formControlName="quantity" [min]="0.01" [max]="getMaxQuantity()"
-                        [showButtons]="true" styleClass="w-full" [class.ng-invalid]="isFieldInvalid('quantity')"
-                        [placeholder]="'enter_quantity' | translate">
-                    </p-inputNumber>
-                    <small class="p-error" *ngIf="isFieldInvalid('quantity')">
-                        {{ 'quantity_is_required' | translate }}
-                    </small>
-                    <small class="text-500" *ngIf="!isFieldInvalid('quantity')">
-                        {{ 'available_quantity' | translate }}: <strong>{{ getMaxQuantity() }}</strong>
-                    </small>
+                <div class="col-12 lg:col-4">
+                    <section class="ims-form-section ims-form-section--accent write-off-summary-section">
+                        <header class="ims-form-section__header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
+                                <i class="pi pi-chart-bar"></i>
+                            </div>
+                            <h3 class="ims-form-section__title">{{ 'write_off_summary' | translate }}</h3>
+                        </header>
+                        <div class="ims-form-section__body ims-form-section__body--stack write-off-summary">
+                            <div class="write-off-summary__empty" *ngIf="!selectedProduct && !selectedWarehouse">
+                                <i class="pi pi-inbox"></i>
+                                <span>{{ 'select_product' | translate }}</span>
+                            </div>
+
+                            <div class="write-off-summary__row" *ngIf="selectedProduct">
+                                <span class="write-off-summary__label">{{ 'product' | translate }}</span>
+                                <span class="write-off-summary__value">{{ selectedProduct.name }}</span>
+                                <span class="write-off-summary__meta" *ngIf="selectedProduct.reference">
+                                    {{ 'reference' | translate }}: {{ selectedProduct.reference }}
+                                </span>
+                            </div>
+
+                            <div class="write-off-summary__row" *ngIf="selectedWarehouse">
+                                <span class="write-off-summary__label">{{ 'warehouse' | translate }}</span>
+                                <span class="write-off-summary__value">{{ selectedWarehouse.name }}</span>
+                            </div>
+
+                            <div class="write-off-summary__row" *ngIf="selectedBatch">
+                                <span class="write-off-summary__label">{{ 'batch' | translate }}</span>
+                                <span class="write-off-summary__value">
+                                    {{ selectedBatch.batchNumber || ('batch_number' | translate) + ' #' + selectedBatch.batchId }}
+                                </span>
+                            </div>
+
+                            <div class="write-off-summary__divider" *ngIf="selectedProduct || selectedWarehouse"></div>
+
+                            <div class="write-off-summary__row write-off-summary__row--highlight" *ngIf="selectedProduct">
+                                <span class="write-off-summary__label">{{ 'quantity' | translate }}</span>
+                                <span class="write-off-summary__value write-off-summary__value--lg">
+                                    {{ formatDisplayQuantity(writeOffForm.get('quantity')?.value) }}
+                                    {{ getQuantityMeasureUnit(writeOffForm.get('quantity')?.value) | translate }}
+                                </span>
+                            </div>
+
+                            <div class="write-off-summary__row write-off-summary__row--cost" *ngIf="getEstimatedCost() > 0">
+                                <span class="write-off-summary__label">{{ 'estimated_cost' | translate }}</span>
+                                <span class="write-off-summary__value write-off-summary__value--cost">
+                                    {{ getEstimatedCost() | currency:currency:'symbol':'1.2-2' }}
+                                </span>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
-                <!-- Condition -->
-                <div class="field mb-4">
-                    <label for="condition" class="block mb-2">
-                        {{ 'condition' | translate }} <span class="text-red-500">*</span>
-                    </label>
-                    <p-dropdown id="condition" formControlName="condition" [options]="conditionOptions"
-                        optionLabel="label" optionValue="value" [placeholder]="'select_condition' | translate"
-                        appendTo="body" styleClass="w-full" [class.ng-invalid]="isFieldInvalid('condition')">
-                    </p-dropdown>
-                    <small class="p-error" *ngIf="isFieldInvalid('condition')">
-                        {{ 'condition_is_required' | translate }}
-                    </small>
-                </div>
-
-                <!-- Source Type -->
-                <div class="field mb-4">
-                    <label for="sourceType" class="block mb-2">
-                        {{ 'source_type' | translate }} ({{ 'optional' | translate }})
-                    </label>
-                    <p-dropdown id="sourceType" formControlName="sourceType" [options]="sourceTypeOptions"
-                        optionLabel="label" optionValue="value" [filter]="false" [showClear]="true"
-                        [placeholder]="'select_source_type' | translate"
-                        appendTo="body" styleClass="w-full">
-                    </p-dropdown>
-                    <small class="text-500">
-                        {{ 'defaults_to_manual_adjustment' | translate }}
-                    </small>
-                </div>
-
-                <!-- Reason -->
-                <div class="field mb-4">
-                    <label for="reason" class="block mb-2">
-                        {{ 'reason' | translate }} ({{ 'optional' | translate }})
-                    </label>
-                    <textarea id="reason" formControlName="reason" pInputTextarea [rows]="4"
-                        [placeholder]="'enter_reason_optional' | translate" styleClass="w-full"
-                        [maxlength]="500">
-                    </textarea>
-                    <small class="text-500">
-                        {{ 'max_500_characters' | translate }}
-                    </small>
-                </div>
-
-                <!-- Notes -->
-                <div class="field mb-4">
-                    <label for="notes" class="block mb-2">
-                        {{ 'notes' | translate }} ({{ 'optional' | translate }})
-                    </label>
-                    <textarea id="notes" formControlName="notes" pInputTextarea [rows]="3"
-                        [placeholder]="'enter_notes_optional' | translate" styleClass="w-full">
-                    </textarea>
+                <div class="col-12">
+                    <div class="ims-form-required-note">
+                        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+                    </div>
                 </div>
             </div>
-
-            <!-- Right Column - Summary -->
-            <div class="col-12 lg:col-4">
-                <div class="card">
-                    <h3 class="mt-0 mb-3">{{ 'write_off_summary' | translate }}</h3>
-
-                    <div class="flex flex-column gap-3">
-                        <div *ngIf="selectedProduct">
-                            <div class="text-500 text-sm mb-1">{{ 'product' | translate }}</div>
-                            <div class="font-medium">{{ selectedProduct.name }}</div>
-                            <div class="text-500 text-sm" *ngIf="selectedProduct.reference">
-                                {{ 'reference' | translate }}: {{ selectedProduct.reference }}
-                            </div>
-                        </div>
-
-                        <div *ngIf="selectedWarehouse">
-                            <div class="text-500 text-sm mb-1">{{ 'warehouse' | translate }}</div>
-                            <div class="font-medium">{{ selectedWarehouse.name }}</div>
-                        </div>
-
-                        <div *ngIf="selectedBatch">
-                            <div class="text-500 text-sm mb-1">{{ 'batch' | translate }}</div>
-                            <div class="font-medium">{{ selectedBatch.batchNumber || ('batch_number' | translate) + ' #'
-                                + selectedBatch.batchId }}</div>
-                        </div>
-
-                        <p-divider></p-divider>
-
-                        <div>
-                            <div class="text-500 text-sm mb-1">{{ 'quantity' | translate }}</div>
-                            <div class="font-medium text-xl">
-                                {{ writeOffForm.get('quantity')?.value || 0 }}
-                            </div>
-                        </div>
-
-                        <div *ngIf="getEstimatedCost() > 0">
-                            <div class="text-500 text-sm mb-1">{{ 'estimated_cost' | translate }}</div>
-                            <div class="font-medium text-xl text-orange-500">
-                                {{ getEstimatedCost() | currency:currency:'symbol':'1.2-2' }}
-                            </div>
-                        </div>
-
-                        <!-- <p-divider></p-divider> -->
-
-                        <!-- <div class="flex justify-content-end gap-2 mt-3">
-                            <button
-                                pButton
-                                pRipple
-                                type="button"
-                                label="{{ 'cancel' | translate }}"
-                                icon="pi pi-times"
-                                class="p-button-outlined"
-                                (click)="onCancel()"
-                                [disabled]="isSubmitting">
-                            </button>
-                            <button
-                                pButton
-                                pRipple
-                                type="submit"
-                                label="{{ 'create_write_off' | translate }}"
-                                icon="pi pi-check"
-                                class="p-button-success"
-                                [disabled]="writeOffForm.invalid || isSubmitting"
-                                [loading]="isSubmitting">
-                            </button>
-                        </div> -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </form>
+        </form>
+    </ng-template>
 
     <ng-template pTemplate="footer">
-        <div class="flex justify-content-end gap-2">
-            <button pButton pRipple type="button" label="{{ 'cancel' | translate }}" icon="pi pi-times"
-                class="p-button-text p-button-danger" (click)="onCancel()" [disabled]="isSubmitting">
+        <div class="flex justify-content-between align-items-center w-full">
+            <button pButton pRipple type="button" label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                class="p-button-text" (click)="onCancel()" [disabled]="isSubmitting">
             </button>
-            <button pButton pRipple type="submit" label="{{ 'create_write_off' | translate }}" icon="pi pi-check"
-                class="p-button-success" [disabled]="writeOffForm.invalid || isSubmitting" [loading]="isSubmitting"
-                (click)="onSubmit()">
+            <button pButton pRipple type="submit" form="writeOffCreateForm"
+                label="{{ 'create_write_off' | translate }}" icon="pi pi-check"
+                class="p-button-primary" [disabled]="writeOffForm.invalid || isSubmitting" [loading]="isSubmitting">
             </button>
         </div>
     </ng-template>

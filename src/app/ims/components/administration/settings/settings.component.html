@@ -1,11 +1,11 @@
-<div class="settings-container">
+﻿<div class="settings-container">
 	<p-toast></p-toast>
 	<p-confirmDialog [style]="{ width: '32rem' }"></p-confirmDialog>
 
 	<!-- Loading State -->
 	<div class="loading-wrapper" *ngIf="isLoading && isLoadingBanks">
 		<div class="loading-content">
-			<p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+			<p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
 		</div>
 	</div>
 
@@ -28,7 +28,7 @@
 
 				<div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
 					<div class="flex align-items-center gap-4">
-						<div class="settings-hero-icon">
+						<div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
 							<i class="pi pi-sliders-h"></i>
 						</div>
 						<div>
@@ -70,7 +70,7 @@
 							[class.settings-profile-card--selected]="!!selectedBusinessProfile"
 							[class.settings-profile-card--dirty]="businessProfileDirty">
 							<div class="settings-profile-hero flex align-items-start gap-3" *ngIf="selectedBusinessProfile">
-								<div class="settings-profile-hero-icon" aria-hidden="true">
+								<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal" aria-hidden="true">
 									<i class="pi pi-compass"></i>
 								</div>
 								<div class="settings-profile-hero-main flex-1 min-w-0">
@@ -667,7 +667,13 @@
 						<button *ngFor="let ch of channelTiles" type="button" class="settings-channel-tile"
 							pRipple role="listitem"
 							(click)="navigateChannel(ch.id)">
-							<span class="settings-channel-icon" aria-hidden="true"><i [class]="ch.icon"></i></span>
+							<span class="ims-icon-tile ims-icon-tile--sm" aria-hidden="true" [ngClass]="{
+								'ims-icon-tile--teal': ch.id === 'email',
+								'ims-icon-tile--cyan': ch.id === 'telegram',
+								'ims-icon-tile--green': ch.id === 'whatsapp',
+								'ims-icon-tile--purple': ch.id === 'ai',
+								'ims-icon-tile--amber': ch.id === 'notifications'
+							}"><i [class]="ch.icon"></i></span>
 							<span class="settings-channel-body">
 								<span class="settings-channel-name">{{ ch.titleKey | translate }}</span>
 								<span class="settings-channel-hint">{{ ch.descKey | translate }}</span>
@@ -711,7 +717,8 @@
 					<div class="detail-card">
 						<div class="card-body p-0">
 							<p-table [value]="banks" [(selection)]="selectedBanks"
-								[paginator]="true" [rows]="20" [rowsPerPageOptions]="[20, 50, 100]"
+								[paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.settings, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
+								(onPage)="pageSizeService.onPage(TablePageSizeKeys.settings, [20, 50, 100], $event)"
 								[globalFilterFields]="['name','code','country','city']"
 								[loading]="isLoadingBanks" dataKey="bankId"
 								[responsive]="true" styleClass="p-datatable-gridlines"
@@ -759,11 +766,10 @@
 										<td>
 											<div class="flex gap-2">
 												<button *ngIf="canReadBank" pButton pRipple icon="pi pi-eye"
-													class="p-button-rounded p-button-text p-button-info"
+													class="p-button-rounded p-button-text p-button-primary"
 													(click)="viewBankDetails(bank)"
 													[pTooltip]="'view_details' | translate"></button>
-												<button *ngIf="canEditBank" pButton pRipple icon="pi pi-pencil"
-													class="p-button-rounded p-button-text p-button-warning"
+												<button *ngIf="canEditBank" pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
 													(click)="editBank(bank)"
 													[pTooltip]="'edit' | translate"></button>
 												<button *ngIf="canDeleteBank" pButton pRipple icon="pi pi-trash"
@@ -848,7 +854,7 @@
 
       <!-- Bank Header Section -->
       <div class="bank-form-header" *ngIf="bank.bankId">
-        <div class="bank-avatar">
+        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
           <i class="pi pi-building"></i>
         </div>
         <div class="bank-info">
@@ -1017,7 +1023,7 @@
 
       <!-- Bank Header Section -->
       <div class="bank-header">
-        <div class="bank-avatar">
+        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
           <i class="pi pi-building"></i>
         </div>
         <div class="bank-info">
@@ -1042,7 +1048,7 @@
           <div class="card-body">
             <div class="info-grid">
               <div class="info-item">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                   <i class="pi pi-building"></i>
                 </div>
                 <div class="info-content">
@@ -1052,7 +1058,7 @@
               </div>
 
               <div class="info-item" *ngIf="bank.code">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                   <i class="pi pi-hashtag"></i>
                 </div>
                 <div class="info-content">
@@ -1062,7 +1068,7 @@
               </div>
 
               <div class="info-item" *ngIf="bank.active !== undefined">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm" [ngClass]="bank.active ? 'ims-icon-tile--green' : 'ims-icon-tile--danger'">
                   <i class="pi pi-check-circle"></i>
                 </div>
                 <div class="info-content">
@@ -1084,7 +1090,7 @@
           <div class="card-body">
             <div class="info-grid">
               <div class="info-item" *ngIf="bank.country">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                   <i class="pi pi-globe"></i>
                 </div>
                 <div class="info-content">
@@ -1094,7 +1100,7 @@
               </div>
 
               <div class="info-item" *ngIf="bank.city">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                   <i class="pi pi-map-marker"></i>
                 </div>
                 <div class="info-content">
@@ -1104,7 +1110,7 @@
               </div>
 
               <div class="info-item" *ngIf="bank.address">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                   <i class="pi pi-home"></i>
                 </div>
                 <div class="info-content">
@@ -1125,7 +1131,7 @@
           <div class="card-body">
             <div class="info-grid">
               <div class="info-item" *ngIf="bank.phoneNumber">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                   <i class="pi pi-phone"></i>
                 </div>
                 <div class="info-content">
@@ -1135,7 +1141,7 @@
               </div>
 
               <div class="info-item" *ngIf="bank.email">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                   <i class="pi pi-envelope"></i>
                 </div>
                 <div class="info-content">
@@ -1145,7 +1151,7 @@
               </div>
 
               <div class="info-item" *ngIf="bank.website">
-                <div class="info-icon">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
                   <i class="pi pi-link"></i>
                 </div>
                 <div class="info-content">

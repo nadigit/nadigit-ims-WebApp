@@ -1,5 +1,5 @@
 <!-- Action Buttons -->
-<div class="flex justify-content-end align-items-center mb-4">
+<div class="ims-page-actions flex justify-content-end align-items-center mb-4">
   <div class="flex align-items-center gap-2">
     <button pButton pRipple *ngIf="canAddPayment" label="{{ 'new_button' | translate }}" icon="pi pi-plus"
       class="p-button-success" (click)="addPaymentEvent.emit()"
@@ -151,8 +151,8 @@
   <div class="flex align-items-center gap-2 ml-auto">
     <button pButton pRipple 
       [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
-      class="p-button-warning" 
-      pTooltip="PDF" 
+      class="p-button-primary" 
+      [pTooltip]="'export_pdf' | translate" 
       tooltipPosition="bottom"
       (click)="exportPdfEvent.emit()"
       [disabled]="isExporting"
@@ -161,7 +161,7 @@
       [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
       (click)="exportExcelEvent.emit()" 
       class="p-button-success"
-      pTooltip="XLS" 
+      [pTooltip]="'export_to_excel' | translate" 
       tooltipPosition="bottom"
       [disabled]="isExporting"
       [loading]="isExporting"></button>
@@ -171,11 +171,21 @@
   </div>
 </div>
 
-<p-table #dt [value]="payments" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
-  [totalRecords]="totalRecords" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [rowsPerPageOptions]="[10,20,50]"
+<div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+  *ngIf="(isLoading || isInitialLoad) && !payments.length">
+  <div class="ims-loading-panel__inner">
+    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+  </div>
+</div>
+
+<p-table
+  *ngIf="(!isInitialLoad || payments.length) && (!isLoading || payments.length)"
+  #dt [value]="payments" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
+  [totalRecords]="totalRecords" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [rowsPerPageOptions]="rowsPerPageOptions"
   [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"
   currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
-  [(selection)]="selectedPayments" selectionMode="multiple" [rowHover]="true" dataKey="paymentId" [loading]="isLoading"
+  [(selection)]="selectedPayments" selectionMode="multiple" [rowHover]="true" dataKey="paymentId"
+  [loading]="isLoading && payments.length > 0"
   [globalFilterFields]="['transactionId','orderReference','customerFirstName','customerLastName','customerCompany','amount','paymentMethod','paymentDate']"
   styleClass="p-datatable-gridlines">
 
@@ -317,7 +327,7 @@
         <div class="flex gap-1">
           <!-- Edit -->
           <button pButton pRipple *ngIf="canEditPayment && isPaymentNotSettled(payment)" icon="pi pi-pencil"
-            class="p-button-rounded p-button-text p-button-warning p-button-sm" pTooltip="{{ 'update_payment' | translate }}"
+            class="p-button-rounded p-button-text p-button-primary p-button-sm" pTooltip="{{ 'update_payment' | translate }}"
             (click)="editPaymentEvent.emit(payment); $event.stopPropagation()"></button>
 
           <!-- Delete -->
@@ -358,7 +368,7 @@
   </ng-template>
 
   <ng-template pTemplate="emptymessage">
-    <tr>
+    <tr *ngIf="!isLoading && !isInitialLoad">
       <td colspan="10">
         <div class="flex flex-column align-items-center justify-content-center py-5">
           <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">

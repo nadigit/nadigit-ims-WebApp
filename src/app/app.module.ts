@@ -4,8 +4,6 @@ import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
 import { AppLayoutModule } from './layout/app.layout.module';
 import { NotfoundComponent } from './ims/components/notfound/notfound.component';
-import { AngularFireModule } from '@angular/fire/compat';
-import { AngularFireStorageModule } from '@angular/fire/compat/storage';
 import { environment } from '../environments/environment';
 import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
@@ -18,6 +16,7 @@ import { MessageService } from 'primeng/api';
 import { MaintenanceInterceptor } from './interceptors/maintenance.interceptor';
 import { BackendUnavailableInterceptor } from './interceptors/backend-unavailable.interceptor';
 import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
+import { BrandLogoComponent } from './shared/brand-logo';
 
 
 
@@ -61,8 +60,6 @@ function initializeKeycloak(keycloak: KeycloakService) {
         AppRoutingModule,
         AppLayoutModule,
         BrowserModule,
-        AngularFireModule.initializeApp(environment.firebaseConfig),
-        AngularFireStorageModule,
         HttpClientModule,
         OrganizationChartModule,
         ZXingScannerModule,
@@ -76,6 +73,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
             // Other desired configurations...
         }),
         KeycloakAngularModule,
+        BrandLogoComponent,
     ],
     providers: [
         MessageService,

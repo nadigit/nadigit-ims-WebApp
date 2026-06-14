@@ -4,6 +4,7 @@ import { Warehouse } from "./warehouse";
 import { OrderItem } from "./orderItem";
 import { ProductAttribute } from "./productAttribute";
 import { MeasureUnit } from "../enums/measure-condition.enum";
+import { StockTrackingMode } from "../enums/stock-tracking-mode.enum";
 import { ProductBatch } from "./productBatch";
 
 export type BarcodeType = 'EAN13' | 'EAN8' | 'CODE128' | 'CODE39' | 'UPC' | 'QR' | 'CUSTOM';
@@ -61,10 +62,25 @@ export class Product {
 
   attributes?: ProductAttribute[];
   measureUnit?: MeasureUnit;
+  /** How stock is tracked: discrete count, fractional weight/volume, or prepaid value pool. */
+  stockTrackingMode?: StockTrackingMode;
+  /** Decimal places for display (e.g. 3 for kg, 2 for currency). */
+  quantityPrecision?: number;
+  /** Human-readable on-hand stock (API). */
+  displayQuantityAvailable?: number;
+  /** Human-readable sellable stock excluding write-offs (API). */
+  displayNetAvailableQuantity?: number;
   deletable?: boolean;
   expirationDate?: Date | string | null; // Expiration date for products that expire (synced from earliest batch)
   expirationStatus?: ExpirationStatus; // Calculated expiration status from batches
   batches?: ProductBatch[]; // Optional, batches for this product (loaded separately)
+
+  /** Style-level grouping (variant SKU). */
+  productFamilyId?: number;
+  variantOptions?: Record<string, string>;
+  /** API read-only summary, e.g. "Size: M, Color: Blue". */
+  variantSummary?: string;
+  variantSignature?: string;
 }
 
 /**
@@ -131,4 +147,19 @@ export interface ProductsAggregatedResponse {
   totalLowStockProducts: number;
   totalOutStockProducts: number;
   totalInStockProducts: number;
+}
+
+export interface ProductDeleteImpactItem {
+  type: string;
+  count: number;
+  blocking: boolean;
+}
+
+export interface ProductDeleteImpact {
+  productId: number;
+  productName: string;
+  canDelete: boolean;
+  blockingReasonKey?: string;
+  impacts: ProductDeleteImpactItem[];
+  totalCascadeRecords: number;
 }

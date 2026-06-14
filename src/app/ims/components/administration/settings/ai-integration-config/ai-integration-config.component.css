@@ -2,6 +2,17 @@
   max-width: 960px;
 }
 
+.integration-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.09), rgba(99, 102, 241, 0.05));
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  flex-wrap: wrap;
+}
+
 .ai-param-card h3 {
   word-break: break-word;
 }

@@ -21,10 +21,25 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
-import { calculateProfit, displayAttributeValue, getLowStockThreshold, getMeasureUnit, getQuantitySeverity } from 'src/app/shared/product-utils';
+import {
+  calculateProfit,
+  displayAttributeValue,
+  getLowStockThreshold,
+  getMeasureUnit,
+  getQuantitySeverity,
+  buildPurchaseItemPayload,
+  lineQuantityStep,
+  lineQuantityDecimals,
+  lineQuantityMin as lineQtyMin,
+  defaultLineQuantity,
+  formatLineQuantity as formatLineQty,
+  getLineMeasureUnit,
+  displayProductStockQuantity,
+} from 'src/app/shared/product-utils';
+import { QuantityScale } from 'src/app/utils/quantity-scale.util';
+import { getProductVariantSummary as buildProductVariantSummary, isFashionVariantMissing as isFashionVariantMissingUtil } from 'src/app/shared/variant-summary.utils';
 import { firstValueFrom, lastValueFrom, Subscription } from 'rxjs';
 import { skip } from 'rxjs/operators';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
@@ -35,6 +50,11 @@ import { Organization } from 'src/app/models/organization';
 import { ProcessModeService } from 'src/app/services/process-mode.service';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 import { DatePipe } from '@angular/common';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -102,6 +122,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   endDate: Date | null = null;
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   expandedRows: { [key: string]: boolean } = {}; // Keep track of expanded rows
 
@@ -249,7 +270,6 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     private supplierService: SupplierService,
     private cdr: ChangeDetectorRef,
     private configService: AppConfigurationService,
-    private storage: AngularFireStorage,
     private productService: ProductService,
     private router: Router,
     private route: ActivatedRoute,
@@ -267,6 +287,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.purchases, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     await this.processModeService.ensureLoaded();
     await this.activityProfileService.ensureLoaded();
     this.activityProfileSub = this.activityProfileService.contextChanged$.subscribe(() => this.cdr.markForCheck());
@@ -377,25 +401,11 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   }
 
   getProductVariantSummary(product: any): string {
-    const size = this.readProductAttributeText(product, ['size']);
-    const color = this.readProductAttributeText(product, ['color', 'colour']);
-    if (!size && !color) {
-      return '';
-    }
-    if (size && color) {
-      return `${size} / ${color}`;
-    }
-    return size || color;
+    return buildProductVariantSummary(product);
   }
 
   isFashionVariantMissing(product: any): boolean {
-    if (!this.activityProfileService.isFashionProfile) {
-      return false;
-    }
-    if (product?.productType === 'SERVICE') {
-      return false;
-    }
-    return !this.getProductVariantSummary(product);
+    return isFashionVariantMissingUtil(product, this.activityProfileService.isFashionProfile);
   }
 
   openProfileSettings(): void {
@@ -560,7 +570,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
         if (product.productId === item.productId) {
           // Add the orderItemPricePerUnit field and assign the value of sellingPrice from the item
           product.purchaseItemPricePerUnit = item.buyingPrice;
-          product.purchaseItemQuantity = 1;
+          product.purchaseItemQuantity = defaultLineQuantity(product);
         }
       });
     });
@@ -577,6 +587,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     return !product.productType || product.productType === 'PRODUCT';
   }
 
+  onVariantProductPicked(product: Product): void {
+    this.moveProductToTarget(product);
+  }
+
   moveProductToTarget(product: any): void {
     const existingProduct = this.targetProducts.find(targetProduct => targetProduct.productId === product.productId);
     if (!existingProduct) {
@@ -584,7 +598,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
         product.buyingPrice != null && product.buyingPrice !== '' && !Number.isNaN(Number(product.buyingPrice))
           ? Number(product.buyingPrice)
           : undefined;
-      const newProduct = { ...product, purchaseItemPricePerUnit: unit, purchaseItemQuantity: 1 };
+      const newProduct = { ...product, purchaseItemPricePerUnit: unit, purchaseItemQuantity: defaultLineQuantity(product) };
       this.targetProducts.push(newProduct);
       this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
       this.purchasePickerFilteredProducts = this.purchasePickerFilteredProducts.filter(
@@ -593,7 +607,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       this.purchaseItems.push(newProduct); // Update orderItems for ngModel binding
       this.cdr.detectChanges(); // Trigger change detection
     } else {
-      existingProduct.purchaseItemQuantity += 1;
+      existingProduct.purchaseItemQuantity += lineQuantityStep(existingProduct);
       this.cdr.detectChanges();
     }
   }
@@ -920,16 +934,19 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
         }
       }
 
+      const displayQty = item.displayQuantity ?? QuantityScale.toDisplayQuantity(item.product, item.quantityPurchased ?? 0);
+
       return {
         purchaseItemId: item.purchaseItemId,
         product: {
           ...item.product,
-          purchaseItemQuantity: item.quantityPurchased,
+          purchaseItemQuantity: displayQty,
           purchaseItemPricePerUnit: item.buyingPrice,
           purchaseItemExpirationDate: expirationDate,
           purchaseItemBatchNumber: item.batchNumber || null,
         },
-        quantity: item.quantityPurchased,
+        quantityPurchased: item.quantityPurchased,
+        displayQuantity: displayQty,
         pricePerUnit: item.buyingPrice,
       };
     });
@@ -946,7 +963,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
     // Add the new fields directly to the purchase items
     this.purchase.purchaseItems.forEach(item => {
-      item.product.purchaseItemQuantity = item.quantityPurchased;
+      const displayQty = item.displayQuantity ?? QuantityScale.toDisplayQuantity(item.product, item.quantityPurchased ?? 0);
+      item.product.purchaseItemQuantity = displayQty;
       item.product.purchaseItemPricePerUnit = item.buyingPrice;
       item.product['purchaseItemExpirationDate'] = item.expirationDate || null;
       item.product['purchaseItemBatchNumber'] = item.batchNumber || null;
@@ -1154,13 +1172,15 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           }
         }
 
-        return {
+        return buildPurchaseItemPayload(
           product,
-          quantityPurchased: product['purchaseItemQuantity'],
-          buyingPrice: product['purchaseItemPricePerUnit'],
-          expirationDate: expirationDate,
-          batchNumber: product['purchaseItemBatchNumber'] ? String(product['purchaseItemBatchNumber']).trim() : null
-        };
+          product['purchaseItemQuantity'],
+          product['purchaseItemPricePerUnit'],
+          {
+            expirationDate,
+            batchNumber: product['purchaseItemBatchNumber'] ? String(product['purchaseItemBatchNumber']).trim() : null,
+          }
+        );
       });
 
       // Create a new order object to avoid modifying the existing one directly
@@ -1411,9 +1431,13 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   }
 
   private updateLastLazyLoadEvent(event: LazyLoadEvent) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.purchases, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    const rows = event.rows ?? this.lastLazyLoadEvent.rows ?? this.pageSize;
     this.lastLazyLoadEvent = {
       first: event.first ?? this.lastLazyLoadEvent.first,
-      rows: event.rows ?? this.lastLazyLoadEvent.rows,
+      rows,
       sortField: event.sortField ?? this.lastLazyLoadEvent.sortField,
       sortOrder: event.sortOrder ?? this.lastLazyLoadEvent.sortOrder,
       globalFilter: event.globalFilter ?? this.globalFilter,
@@ -2276,8 +2300,29 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     this.router.navigate(['/inventory/products', product.productId]);
   }
 
-  getMeasureUnit(product: Product): string {
-    return getMeasureUnit(product.measureUnit, product.quantityAvailable);
+  quantityInputStep(product: Product): number {
+    return lineQuantityStep(product);
+  }
+
+  quantityInputDecimals(product: Product): number {
+    return lineQuantityDecimals(product);
+  }
+
+  lineQuantityMin(product: Product): number {
+    return lineQtyMin(product);
+  }
+
+  formatLineQuantity(product: Product, quantity: number | null | undefined): string {
+    return formatLineQty(product, quantity);
+  }
+
+  displayProductStock(product: Product): number {
+    return displayProductStockQuantity(product);
+  }
+
+  getMeasureUnit(product: Product, quantity?: number): string {
+    const qty = quantity ?? product.purchaseItemQuantity ?? displayProductStockQuantity(product);
+    return getLineMeasureUnit(product, qty);
   }
 
   getQuantitySeverity(quantity: number): string {
@@ -2323,29 +2368,28 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
     this.product = { ...product };
+    this.deleteProductDialog = true;
   }
 
   archiveProduct(product: Product) {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = true;
     this.product = { ...product };
     this.productDialog = false;
   }
 
   async confirmArchive() {
-    if (!this.canDeleteProduct) return;
+    if (!this.canArchiveProduct) return;
     this.archiveProductDialog = false;
     await this.onArchiveProduct(this.product.productId);
     this.product = {};
     this.selectedProduct = {};
   }
 
-  async confirmProductDelete() {
+  async onProductDeleteConfirmed(productId: number) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.product.productId);
+    await this.onDeleteProduct(productId);
     this.product = {};
   }
 

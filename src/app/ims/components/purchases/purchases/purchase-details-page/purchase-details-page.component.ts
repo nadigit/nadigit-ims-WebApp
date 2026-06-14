@@ -14,6 +14,16 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { TranslationService } from 'src/app/services/translation.service';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ProcessModeService } from 'src/app/services/process-mode.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import {
+  formatLineQuantity,
+  getLineMeasureUnit,
+  getPurchaseItemDisplayQuantity,
+  getPurchaseItemLineGrossAmount as purchaseItemLineGrossAmount,
+  getPurchaseItemLineNetAmount as purchaseItemLineNetAmount,
+} from 'src/app/shared/product-utils';
+import { PurchaseItem } from 'src/app/models/purchaseItem';
 
 @Component({
   selector: 'app-purchase-details-page',
@@ -21,6 +31,7 @@ import { ProcessModeService } from 'src/app/services/process-mode.service';
   styleUrls: ['./purchase-details-page.component.css', '../purchases.component.css']
 })
 export class PurchaseDetailsPageComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
   purchaseId!: number;
   purchase: Purchase | null = null;
   isLoading: boolean = true;
@@ -74,7 +85,8 @@ export class PurchaseDetailsPageComponent implements OnInit {
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private translateService: TranslationService,
-    private processModeService: ProcessModeService
+    private processModeService: ProcessModeService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
@@ -406,8 +418,8 @@ export class PurchaseDetailsPageComponent implements OnInit {
   }
 
   getPurchaseSubtotal(): number {
-    return this.purchase?.purchaseItems?.reduce((sum: number, item: any) =>
-      sum + (item.lineNetAmount ?? item.totalCost ?? ((item.quantityPurchased || 0) * (item.buyingPrice || 0))), 0) || 0;
+    return this.purchase?.purchaseItems?.reduce((sum: number, item: PurchaseItem) =>
+      sum + purchaseItemLineNetAmount(item), 0) || 0;
   }
 
   getPurchaseLineTaxTotal(): number {
@@ -416,8 +428,8 @@ export class PurchaseDetailsPageComponent implements OnInit {
   }
 
   getPurchaseLineGrossTotal(): number {
-    return this.purchase?.purchaseItems?.reduce((sum: number, item: any) =>
-      sum + (item.lineGrossAmount ?? (item.lineNetAmount ?? item.totalCost ?? ((item.quantityPurchased || 0) * (item.buyingPrice || 0))) + (item.lineTaxAmount || 0)), 0) || 0;
+    return this.purchase?.purchaseItems?.reduce((sum: number, item: PurchaseItem) =>
+      sum + purchaseItemLineGrossAmount(item), 0) || 0;
   }
 
   formatTaxRate(rate?: number | null): string {
@@ -443,16 +455,6 @@ export class PurchaseDetailsPageComponent implements OnInit {
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
-  }
-
-  refreshPurchaseDetails() {
-    this.loadPurchase();
-    this.messageService.add({
-      severity: 'success',
-      summary: this.translate.instant('success'),
-      detail: this.translate.instant('purchase_refreshed'),
-      life: 3000
-    });
   }
 
   editPurchase() {
@@ -759,6 +761,26 @@ export class PurchaseDetailsPageComponent implements OnInit {
       return null;
     }
     return [...matches].sort((a, b) => String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')))[0];
+  }
+
+  formatPurchaseItemQty(item: PurchaseItem): string {
+    return formatLineQuantity(item?.product, getPurchaseItemDisplayQuantity(item));
+  }
+
+  getPurchaseItemMeasureUnit(item: PurchaseItem): string {
+    return getLineMeasureUnit(item?.product, getPurchaseItemDisplayQuantity(item));
+  }
+
+  getPurchaseUnitPriceLabel(item: PurchaseItem): string {
+    return getLineMeasureUnit(item?.product, 1);
+  }
+
+  getPurchaseItemLineNetAmount(item: PurchaseItem): number {
+    return purchaseItemLineNetAmount(item);
+  }
+
+  getPurchaseItemLineGrossAmount(item: PurchaseItem): number {
+    return purchaseItemLineGrossAmount(item);
   }
 
 }

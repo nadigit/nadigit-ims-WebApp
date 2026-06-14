@@ -15,6 +15,8 @@ import { firstValueFrom } from 'rxjs';
 import { CreditStatus } from 'src/app/models/customer-credit-account';
 import { CreditInfo } from 'src/app/models/credit-info';
 import { Location } from '@angular/common';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-credit-account-management',
@@ -23,6 +25,7 @@ import { Location } from '@angular/common';
   providers: [MessageService]
 })
 export class CreditAccountManagementComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
   customerId!: number;
   customer: Customer | null = null;
   creditAccount: CustomerCreditAccount | null = null;
@@ -66,7 +69,8 @@ export class CreditAccountManagementComponent implements OnInit {
     private translateService: TranslationService,
     private configService: AppConfigurationService,
     private permissionService: PermissionService,
-    public keycloakService: KeycloakService
+    public keycloakService: KeycloakService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
@@ -81,6 +85,7 @@ export class CreditAccountManagementComponent implements OnInit {
       this.initStatusOptions();
     });
 
+    this.pageSize = this.pageSizeService.get(TablePageSizeKeys.creditAccounts, [10, 20, 50], this.pageSize);
     this.route.params.subscribe(async params => {
       this.customerId = +params['customerId'];
       if (!this.customerId || isNaN(this.customerId)) {
@@ -252,6 +257,7 @@ export class CreditAccountManagementComponent implements OnInit {
   }
 
   onPageChange(event: any) {
+    this.pageSizeService.onPage(TablePageSizeKeys.creditAccounts, [10, 20, 50], event);
     this.currentPage = event.page;
     this.pageSize = event.rows;
     this.loadTransactions();

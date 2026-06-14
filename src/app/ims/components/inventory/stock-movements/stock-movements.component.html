@@ -94,8 +94,8 @@
                 <div class="flex align-items-center gap-2 ml-auto">
                     <button pButton pRipple 
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
-                        class="p-button-warning" 
-                        pTooltip="PDF"
+                        class="p-button-primary" 
+                        [pTooltip]="'export_pdf' | translate"
                         tooltipPosition="bottom" 
                         (click)="exportPdf()"
                         [disabled]="isExporting"></button>
@@ -103,7 +103,7 @@
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
                         (click)="exportExcel()" 
                         class="p-button-success"
-                        pTooltip="XLS" 
+                        [pTooltip]="'export_to_excel' | translate" 
                         tooltipPosition="bottom"
                         [disabled]="isExporting"></button>
                     <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
@@ -112,7 +112,14 @@
             </div>
 
             <!-- Movements Table -->
-            <p-table 
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="(isLoading || isInitialLoad) && !movements.length">
+                <div class="ims-loading-panel__inner">
+                    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                </div>
+            </div>
+
+            <p-table
+                *ngIf="(!isInitialLoad || movements.length) && (!isLoading || movements.length)"
                 #dt 
                 [value]="movements" 
                 [lazy]="true"
@@ -232,7 +239,7 @@
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
-                    <tr>
+                    <tr *ngIf="!isLoading && !isInitialLoad">
                         <td colspan="10" class="text-center p-4">
                             <div class="flex flex-column align-items-center justify-content-center">
                                 <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
@@ -255,10 +262,9 @@
     [resizable]="false"
     [style]="{width: '450px'}"
     [header]="'exporting' | translate">
-    <div class="flex flex-column align-items-center gap-3 p-4">
-        <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+    <div class="import-progress-panel"><p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
         <div class="text-center">
-            <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+            <p class="ims-loading-label m-0">{{ exportProgress || ('exporting' | translate) }}</p>
         </div>
     </div>
 </p-dialog>

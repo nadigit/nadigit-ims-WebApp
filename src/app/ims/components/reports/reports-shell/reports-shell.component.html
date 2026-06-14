@@ -8,35 +8,5 @@
     </div>
   </div>
 
-  <div class="reports-nav surface-card border-round p-3 mb-4">
-    <div class="flex flex-wrap gap-2 align-items-center">
-      <ng-container *ngIf="showAnalyticsReports">
-        <a routerLink="/reports/sales" routerLinkActive="reports-nav-link-active" class="reports-nav-link">
-          <i class="pi pi-chart-bar mr-2"></i>
-          {{ 'reports_sales_summary' | translate }}
-        </a>
-        <a routerLink="/reports/purchases" routerLinkActive="reports-nav-link-active" class="reports-nav-link">
-          <i class="pi pi-shopping-bag mr-2"></i>
-          {{ 'reports_purchase_summary' | translate }}
-        </a>
-        <a routerLink="/reports/inventory" routerLinkActive="reports-nav-link-active" class="reports-nav-link">
-          <i class="pi pi-box mr-2"></i>
-          {{ 'reports_inventory_snapshot' | translate }}
-        </a>
-        <a routerLink="/reports/profit" routerLinkActive="reports-nav-link-active" class="reports-nav-link">
-          <i class="pi pi-chart-line mr-2"></i>
-          {{ 'reports_profit_analysis' | translate }}
-        </a>
-        <a routerLink="/reports/forecasting" routerLinkActive="reports-nav-link-active" class="reports-nav-link">
-          <i class="pi pi-bolt mr-2"></i>
-          {{ 'reports_forecasting_title' | translate }}
-        </a>
-      </ng-container>
-      <a *ngIf="showCreditReportsLink" routerLink="/reports/credit" routerLinkActive="reports-nav-link-active" class="reports-nav-link">
-        <i class="pi pi-wallet mr-2"></i>
-        {{ 'credit_reports' | translate }}
-      </a>
-    </div>
-  </div>
   <router-outlet></router-outlet>
 </div>

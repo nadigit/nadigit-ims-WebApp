@@ -1,0 +1,124 @@
+<p-dialog [(visible)]="visible" (visibleChange)="visibleChange.emit($event)" [modal]="true"
+  [style]="{ width: 'min(92vw, 560px)' }" [breakpoints]="{ '960px': '90vw', '640px': '95vw' }"
+  [header]="dialogHeader" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell product-family-form-dialog-shell"
+  class="p-fluid product-family-dialog" (onHide)="hide()">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <div *ngIf="activityProfileService.emphasizeProductVariants" class="ims-form-callout">
+          <i class="pi pi-info-circle"></i>
+          <span>{{ 'product_family_form_hint' | translate }}</span>
+        </div>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+              <i class="pi pi-id-card"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_section_general' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12" *ngIf="mode === 'create'">
+              <label for="pfStyleRef" class="ims-form-label">
+                {{ 'product_family_style_reference' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-hashtag"></i></span>
+                <input id="pfStyleRef" type="text" pInputText [(ngModel)]="styleReference"
+                  [placeholder]="'product_family_style_reference_placeholder' | translate"
+                  [ngClass]="{ 'ng-invalid ng-dirty': submitted && !styleReference?.trim() }" />
+              </div>
+              <small class="p-error" *ngIf="submitted && !styleReference?.trim()">{{ 'required_field' | translate }}</small>
+            </div>
+
+            <div class="field col-12">
+              <label for="pfName" class="ims-form-label">
+                {{ 'product_family_name' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-tag"></i></span>
+                <input id="pfName" type="text" pInputText [(ngModel)]="name"
+                  [ngClass]="{ 'ng-invalid ng-dirty': submitted && !name?.trim() }" />
+              </div>
+              <small class="p-error" *ngIf="submitted && !name?.trim()">{{ 'required_field' | translate }}</small>
+            </div>
+
+            <div class="field col-12">
+              <label for="pfDesc" class="ims-form-label">{{ 'description' | translate }}</label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-align-left"></i></span>
+                <textarea id="pfDesc" pInputTextarea rows="3" [(ngModel)]="description" [autoResize]="true"></textarea>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+              <i class="pi pi-sitemap"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_essentials_title' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="pfCat" class="ims-form-label">
+                {{ 'category' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-dropdown id="pfCat" [options]="categories" [(ngModel)]="categoryId" optionLabel="categoryName"
+                optionValue="categoryId" [placeholder]="'select_category' | translate" appendTo="body"
+                styleClass="w-full"
+                [ngClass]="{ 'ng-invalid ng-dirty': submitted && !categoryId }"></p-dropdown>
+              <small class="p-error" *ngIf="submitted && !categoryId">{{ 'required_field' | translate }}</small>
+            </div>
+
+            <div class="field col-12">
+              <label for="pfSup" class="ims-form-label">{{ 'supplier' | translate }}</label>
+              <p-dropdown id="pfSup" [options]="suppliers" [(ngModel)]="supplierId" optionLabel="name"
+                optionValue="supplierId" [showClear]="true" [placeholder]="'select_supplier' | translate"
+                appendTo="body" styleClass="w-full">
+              </p-dropdown>
+              <small class="ims-form-hint">{{ 'product_family_supplier_hint' | translate }}</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+              <i class="pi pi-sliders-h"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'product_family_variant_axes' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="pfAxes" class="ims-form-label">
+                {{ 'product_family_variant_axes' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <span class="p-inputgroup-addon"><i class="pi pi-sliders-h"></i></span>
+                <input id="pfAxes" type="text" pInputText [(ngModel)]="variantAxesText"
+                  [placeholder]="'product_family_variant_axes_placeholder' | translate" />
+              </div>
+              <small class="ims-form-hint">{{ 'product_family_variant_axes_hint' | translate }}</small>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-content-between align-items-center w-full">
+      <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+        class="p-button-text" (click)="hide()" [disabled]="isSaving"></button>
+      <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check" class="p-button-primary"
+        (click)="save()" [loading]="isSaving"></button>
+    </div>
+  </ng-template>
+</p-dialog>

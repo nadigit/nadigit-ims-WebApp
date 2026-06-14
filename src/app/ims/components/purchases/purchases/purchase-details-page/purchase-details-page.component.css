@@ -79,22 +79,6 @@
     background: var(--surface-hover) !important;
 }
 
-.purchase-hero-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px color-mix(in srgb, var(--primary-color) 30%, transparent);
-}
-
-.purchase-hero-icon i {
-    font-size: 2.5rem;
-    color: white;
-}
-
 .purchase-title {
     font-size: 2rem;
     font-weight: 700;
@@ -141,37 +125,6 @@
 .stat-card-modern:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-icon.total {
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-}
-
-.stat-icon.items {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.stat-icon.tax {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.shipping {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 
 .stat-content {
@@ -316,30 +269,6 @@
     background: var(--surface-100);
 }
 
-.info-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.info-icon i {
-    color: white;
-    font-size: 1rem;
-}
-
-.info-icon.supplier {
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-}
-
-.info-icon.audit {
-    background: linear-gradient(135deg, #64748b, #475569);
-}
-
 .info-content {
     flex: 1;
     min-width: 0;
@@ -372,21 +301,6 @@
     padding: 1rem;
     background: var(--surface-50);
     border-radius: 12px;
-}
-
-.supplier-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.supplier-avatar i {
-    font-size: 1.5rem;
-    color: white;
 }
 
 .supplier-info {
@@ -428,37 +342,6 @@
 .financial-item:hover {
     background: var(--surface-100);
     transform: translateY(-2px);
-}
-
-.financial-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.financial-icon i {
-    color: white;
-    font-size: 1.25rem;
-}
-
-.financial-icon.subtotal {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.financial-icon.tax {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.financial-icon.shipping {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.financial-icon.discount {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
 .financial-content {
@@ -763,16 +646,6 @@ input[pInputText] {
         padding: 1.5rem;
     }
     
-    .purchase-hero-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 14px;
-    }
-    
-    .purchase-hero-icon i {
-        font-size: 1.75rem;
-    }
-    
     .purchase-title {
         font-size: 1.5rem;
     }
@@ -790,11 +663,6 @@ input[pInputText] {
     
     .stat-card-modern {
         padding: 1rem;
-    }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
     }
     
     .stat-value {

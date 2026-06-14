@@ -20,6 +20,11 @@ import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { firstValueFrom } from 'rxjs';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './warehouse-transfers.component.html',
@@ -32,12 +37,13 @@ export class WarehouseTransfersComponent implements OnInit {
   // List view
   transfers: WarehouseTransfer[] = [];
   selectedTransfers: WarehouseTransfer[] = [];
-  isLoading: boolean = false;
+  isLoading: boolean = true;
   isExporting: boolean = false;
   exportProgress: string = '';
   totalRecords: number = 0;
   lastLazyLoadEvent?: LazyLoadEvent;
   isInitialLoad: boolean = true;
+  private lazyLoadCallCount = 0;
   
   // Filters
   selectedSourceWarehouse: any = null;
@@ -112,6 +118,10 @@ export class WarehouseTransfersComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
+    initTablePageSizeState(TablePageSizeKeys.warehouseTransfers, this.pageSizeOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     const qpStatus = this.route.snapshot.queryParamMap.get('status');
     if (qpStatus) {
       const upper = qpStatus.trim().toUpperCase();
@@ -198,7 +208,13 @@ export class WarehouseTransfersComponent implements OnInit {
 
   async loadInitialData() {
     await this.loadWarehouses();
-    // Don't call loadTransfers() here - let the table's lazy load event handle the initial load
+    this.lastLazyLoadEvent = {
+      first: 0,
+      rows: this.pageSize,
+      sortField: 'creationDate',
+      sortOrder: -1,
+    };
+    this.loadTransfers();
   }
 
   async loadWarehouses() {
@@ -266,7 +282,13 @@ export class WarehouseTransfersComponent implements OnInit {
     if (this.isLoading) {
       return;
     }
-    this.lastLazyLoadEvent = event;
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.warehouseTransfers, this.pageSizeOptions, event, {
+      pageSize: this.pageSize,
+    });
+    this.lastLazyLoadEvent = {
+      ...event,
+      rows: event.rows ?? this.lastLazyLoadEvent?.rows ?? this.pageSize,
+    };
     this.isInitialLoad = false;
     // Defer loading to next tick to avoid change detection error
     setTimeout(() => {
@@ -355,11 +377,13 @@ export class WarehouseTransfersComponent implements OnInit {
           }));
           this.totalRecords = response.totalElements || 0;
           this.isLoading = false;
+          this.isInitialLoad = false;
           this.cdr.markForCheck();
         },
         error: (err: any) => {
           console.error('Error loading transfers:', err);
           this.isLoading = false;
+          this.isInitialLoad = false;
           this.cdr.markForCheck();
           this.messageService.add({
             severity: 'error',
@@ -394,6 +418,7 @@ export class WarehouseTransfersComponent implements OnInit {
       sortField: 'creationDate',
       sortOrder: -1
     };
+    this.isLoading = true;
     this.loadTransfers();
   }
 

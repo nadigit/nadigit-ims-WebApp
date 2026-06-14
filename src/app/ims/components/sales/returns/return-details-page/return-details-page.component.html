@@ -1,10 +1,10 @@
-<div class="return-details-container">
+﻿<div class="return-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="return-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--amber">
                             <i class="pi pi-undo"></i>
                         </div>
                         <div>
@@ -70,11 +70,23 @@
                             *ngIf="isAdmin && return.returnStatus !== 'CANCELLED' && returnNoteDocNumber"
                             [pTooltip]="'print_return_note' | translate"
                             (click)="viewReturnNote()"></button>
+
+                        <!-- Generate Credit Note (avoir) when refund has been processed -->
+                        <button pButton pRipple icon="pi pi-file-export"
+                            [label]="'generate_credit_note' | translate"
+                            class="p-button-warning"
+                            *ngIf="canGenerateCreditNote()"
+                            [pTooltip]="'generate_credit_note' | translate"
+                            (click)="generateCreditNote()"></button>
+
+                        <!-- Print Credit Note (avoir) -->
+                        <button pButton pRipple icon="pi pi-file-export"
+                            [label]="'print_credit_note' | translate"
+                            class="p-button-warning"
+                            *ngIf="isAdmin && creditNoteDocNumber"
+                            [pTooltip]="'print_credit_note' | translate"
+                            (click)="viewCreditNote()"></button>
                         
-                        <button pButton pRipple icon="pi pi-refresh" 
-                            [label]="'refresh' | translate"
-                            class="p-button-outlined"
-                            (click)="refreshReturnDetails()"></button>
                     </div>
                 </div>
             </div>
@@ -83,7 +95,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon refund">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -94,7 +106,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon items">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
@@ -105,7 +117,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="return.refunds?.length > 0">
-                <div class="stat-icon refunds">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-money-bill"></i>
                 </div>
                 <div class="stat-content">
@@ -116,7 +128,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="return.order">
-                <div class="stat-icon order">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                     <i class="pi pi-shopping-bag"></i>
                 </div>
                 <div class="stat-content">
@@ -231,7 +243,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="return.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -240,7 +252,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="return.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -278,16 +290,28 @@
                                         *ngIf="isAdmin && return.returnStatus !== 'CANCELLED' && returnNoteDocNumber"
                                         [pTooltip]="'print_return_note' | translate"
                                         (click)="viewReturnNote()"></button>
+
+                                    <!-- Generate Credit Note (avoir) when refund has been processed -->
+                                    <button pButton pRipple icon="pi pi-file-export"
+                                        [label]="'generate_credit_note' | translate"
+                                        class="p-button-outlined p-button-warning"
+                                        *ngIf="canGenerateCreditNote()"
+                                        [pTooltip]="'generate_credit_note' | translate"
+                                        (click)="generateCreditNote()"></button>
+
+                                    <!-- Print Credit Note (avoir) -->
+                                    <button pButton pRipple icon="pi pi-file-export"
+                                        [label]="'print_credit_note' | translate"
+                                        class="p-button-outlined p-button-warning"
+                                        *ngIf="isAdmin && creditNoteDocNumber"
+                                        [pTooltip]="'print_credit_note' | translate"
+                                        (click)="viewCreditNote()"></button>
                                     
                                     <button pButton pRipple icon="pi pi-eye" 
                                         [label]="'view_order' | translate"
-                                        class="p-button-outlined p-button-info"
+                                        class="p-button-outlined p-button-primary"
                                         (click)="viewOrder(return.order)"></button>
                                     
-                                    <button pButton pRipple icon="pi pi-refresh" 
-                                        [label]="'refresh' | translate"
-                                        class="p-button-outlined p-button-secondary"
-                                        (click)="refreshReturnDetails()"></button>
                                 </div>
                             </div>
                         </div>
@@ -335,11 +359,12 @@
                             <span>{{ 'returned_items' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="return.returnItems || []" [rows]="10" [paginator]="true"
+                            <p-table [value]="return.returnItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.returnDetailsItems, [10,25,50])" [paginator]="true"
                                 [showCurrentPageReport]="true"
                                 styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,25,50]"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.returnDetailsItems, [10,25,50], $event)"
                                 *ngIf="return.returnItems?.length > 0; else noItems">
                                 <ng-template pTemplate="header">
                                     <tr>

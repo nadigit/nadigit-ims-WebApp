@@ -1,0 +1,81 @@
+// Nadigit IMS — official brand tokens (March 2026 guidelines)
+// Reference only; consumed by nadigit-brand.scss overrides.
+
+:root {
+  /* Primary palette */
+  --brand-navy: #0B1F4A;
+  --brand-corporate: #102B63;
+  --brand-saas: #1E5EFF;
+  --brand-saas-hover: #1850E0;
+  --brand-cyan: #18C5D8;
+  --brand-success: #16C784;
+  --brand-success-hover: #12A86E;
+  --brand-premium: #F4B740;
+  --brand-premium-hover: #DFA830;
+  --brand-premium-text: #1A1F36;
+  /* Destructive — not a core brand color, but tuned to sit with the navy/blue palette */
+  --brand-danger: #E5484D;
+  --brand-danger-hover: #C93B40;
+  --brand-info: #18C5D8;
+  --brand-info-hover: #14A8B8;
+
+  /* Neutrals */
+  --brand-white: #FFFFFF;
+  --brand-bg-secondary: #F5F7FB;
+  --brand-border: #DCE3F0;
+  --brand-text-primary: #1A1F36;
+  --brand-text-secondary: #667085;
+
+  /* Official gradients */
+  --brand-gradient-primary: linear-gradient(135deg, #0B1F4A 0%, #1E5EFF 100%);
+  --brand-gradient-ai: linear-gradient(135deg, #1E5EFF 0%, #18C5D8 100%);
+  --brand-gradient-analytics: linear-gradient(135deg, #16C784 0%, #18C5D8 100%);
+
+  /* Typography */
+  --brand-font-display: 'Poppins', var(--font-family, 'Inter var', sans-serif);
+
+  /* Status badges — soft fill + readable label (March 2026) */
+  --brand-badge-success-bg: rgba(22, 199, 132, 0.14);
+  --brand-badge-success-text: #0F7A50;
+  --brand-badge-danger-bg: rgba(229, 72, 77, 0.12);
+  --brand-badge-danger-text: #C93B40;
+  --brand-badge-warning-bg: rgba(244, 183, 64, 0.22);
+  --brand-badge-warning-text: #8A6500;
+  --brand-badge-info-bg: rgba(24, 197, 216, 0.14);
+  --brand-badge-info-text: #0E8A96;
+  --brand-badge-primary-bg: rgba(30, 94, 255, 0.1);
+  --brand-badge-primary-text: #1850E0;
+  --brand-badge-corporate-bg: rgba(16, 43, 99, 0.1);
+  --brand-badge-corporate-text: #102B63;
+  --brand-badge-neutral-bg: #F5F7FB;
+  --brand-badge-neutral-text: #667085;
+
+  /* V1.2 official dark mode (app reference) */
+  --brand-dark-bg: #0B1F4A;
+  --brand-dark-bg-secondary: #08183A;
+  --brand-dark-surface: #102B63;
+  --brand-dark-text: #FFFFFF;
+  --brand-dark-text-secondary: #C9D4E5;
+
+  /* Scrollbars — thin pill thumb, transparent track (sidebar uses light-on-navy) */
+  --brand-scrollbar-size: 6px;
+  --brand-scrollbar-track: transparent;
+  --brand-scrollbar-thumb: rgba(11, 31, 74, 0.28);
+  --brand-scrollbar-thumb-hover: rgba(11, 31, 74, 0.42);
+  --brand-scrollbar-firefox: rgba(11, 31, 74, 0.32);
+  --brand-scrollbar-sidebar-thumb: rgba(255, 255, 255, 0.28);
+  --brand-scrollbar-sidebar-thumb-hover: rgba(255, 255, 255, 0.42);
+  --brand-scrollbar-sidebar-firefox: rgba(255, 255, 255, 0.32);
+
+  /* Corner radius — two tiers for system-wide consistency */
+  --brand-radius-field: 8px; /* inputs, dropdowns, buttons, chips, segments */
+  --brand-radius-surface: 12px; /* cards, dialogs, panels, filter bars */
+  --brand-field-radius: var(--brand-radius-field);
+  --border-radius: var(--brand-radius-surface); /* layout shell (sidebar config, etc.) */
+}
+
+:root[color-scheme='dark'] {
+  --brand-scrollbar-thumb: rgba(255, 255, 255, 0.28);
+  --brand-scrollbar-thumb-hover: rgba(255, 255, 255, 0.42);
+  --brand-scrollbar-firefox: rgba(255, 255, 255, 0.32);
+}

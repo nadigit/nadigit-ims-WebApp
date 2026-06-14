@@ -1,4 +1,4 @@
-<div class="expense-details-container">
+﻿<div class="expense-details-container">
     <p-toast></p-toast>
 
     <p-message *ngIf="expenseConfigLoaded && requireApproval && expense" severity="info" styleClass="mb-3 w-full" [closable]="false"
@@ -7,7 +7,7 @@
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -30,7 +30,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="expense-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--orange">
                             <i class="pi pi-money-bill"></i>
                         </div>
                         <div>
@@ -96,7 +96,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon amount">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -107,7 +107,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon method">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i [class]="getPaymentMethodIcon(expense?.paymentMethod)"></i>
                 </div>
                 <div class="stat-content">
@@ -117,7 +117,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon date">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
                     <i class="pi pi-calendar"></i>
                 </div>
                 <div class="stat-content">
@@ -127,7 +127,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="expense.shop">
-                <div class="stat-icon shop">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                     <i class="pi pi-shopping-bag"></i>
                 </div>
                 <div class="stat-content">
@@ -159,7 +159,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon purpose">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="info-content">
@@ -169,7 +169,7 @@
                                     </div>
                                     
                                     <div class="info-item">
-                                        <div class="info-icon date">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -179,7 +179,7 @@
                                     </div>
                                     
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-bookmark"></i>
                                         </div>
                                         <div class="info-content">
@@ -198,7 +198,7 @@
                                     </div> -->
                                     
                                     <div class="info-item">
-                                        <div class="info-icon amount">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-wallet"></i>
                                         </div>
                                         <div class="info-content">
@@ -336,7 +336,7 @@
                                             </div>
                                             <ng-container *ngIf="isImageAttachment(att)">
                                                 <div *ngIf="showAttachmentImageThumbLoading(att)" class="attachment-thumb-loading">
-                                                    <p-progressSpinner strokeWidth="4" styleClass="attachment-thumb-spinner"></p-progressSpinner>
+                                                    <p-progressSpinner styleClass="ims-spinner--sm attachment-thumb-spinner" ariaLabel="loading"></p-progressSpinner>
                                                 </div>
                                                 <button *ngIf="showAttachmentImageThumbImage(att)" type="button" class="attachment-thumb-btn"
                                                     (click)="openAttachmentImagePreview(att)"
@@ -489,7 +489,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="expense.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -498,7 +498,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="expense.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -507,7 +507,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="expense?.lastUpdated">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-refresh"></i>
                                         </div>
                                         <div class="info-content">

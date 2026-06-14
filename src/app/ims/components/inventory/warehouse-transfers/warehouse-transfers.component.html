@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
     <div class="col-12">
         <!-- Warehouse Transfers Management Section - Above Card (matching dashboard style) -->
         <div class="mb-4">
@@ -28,7 +28,7 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex justify-content-end align-items-center mb-4">
+            <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
                 <div class="flex align-items-center gap-2">
                     <span *ngIf="canAddTransfer"
                           [pTooltip]="hasSingleWarehouse ? ('warehouse_transfer_single_warehouse_warning' | translate) : ('create_new_transfer' | translate)"
@@ -134,8 +134,8 @@
                 <div class="flex align-items-center gap-2 ml-auto">
                     <button pButton pRipple 
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" 
-                        class="p-button-warning" 
-                        pTooltip="PDF"
+                        class="p-button-primary" 
+                        [pTooltip]="'export_pdf' | translate"
                         tooltipPosition="bottom" 
                         (click)="exportPdf()"
                         [disabled]="isExporting"></button>
@@ -143,7 +143,7 @@
                         [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'" 
                         (click)="exportExcel()" 
                         class="p-button-success"
-                        pTooltip="XLS" 
+                        [pTooltip]="'export_to_excel' | translate" 
                         tooltipPosition="bottom"
                         [disabled]="isExporting"></button>
                     <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary" 
@@ -152,7 +152,14 @@
             </div>
 
             <!-- Transfers Table -->
-            <p-table 
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="(isLoading || isInitialLoad) && !transfers.length">
+                <div class="ims-loading-panel__inner">
+                    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                </div>
+            </div>
+
+            <p-table
+                *ngIf="(!isInitialLoad || transfers.length) && (!isLoading || transfers.length)"
                 #dt 
                 [value]="transfers" 
                 [lazy]="true"
@@ -249,7 +256,7 @@
                                     pRipple
                                     *ngIf="canReadTransfer"
                                     icon="pi pi-eye" 
-                                    class="p-button-rounded p-button-text p-button-info"
+                                    class="p-button-rounded p-button-text p-button-primary"
                                     (click)="viewTransferDetails(transfer)"
                                     pTooltip="{{ 'view_details' | translate }}">
                                 </button>
@@ -286,7 +293,7 @@
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
-                    <tr>
+                    <tr *ngIf="!isLoading && !isInitialLoad">
                         <td colspan="10" class="text-center p-4">
                             <div class="flex flex-column align-items-center justify-content-center">
                                 <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
@@ -303,264 +310,324 @@
 <!-- Create/Edit Transfer Dialog -->
 <p-dialog 
     [(visible)]="transferDialog" 
-    [style]="{width: '90vw', maxWidth: '1200px'}"
+    [style]="{ width: 'min(92vw, 960px)' }"
+    [breakpoints]="{ '960px': '94vw', '640px': '98vw' }"
     [header]="'create_transfer' | translate" 
     [modal]="true" 
+    styleClass="ims-form-dialog-shell transfer-dialog-shell"
     class="p-fluid transfer-dialog"
     [draggable]="false" 
     [resizable]="false">
 
     <ng-template pTemplate="content">
-        <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="mb-3 w-full"
-            [closable]="false" [text]="'warehouse_transfer_manual_workflow_hint' | translate"></p-message>
-        <div *ngIf="transferAutoApply && isAdmin" class="mb-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm">
-            {{ 'warehouse_transfer_auto_apply_hint' | translate }}
-        </div>
-        <div *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="mb-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
-            <i class="pi pi-box mt-1 flex-shrink-0"></i>
-            <span>{{ 'activity_profile_hint_warehouse_transfer' | translate }}</span>
-        </div>
-        <div class="grid">
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="sourceWarehouse" class="font-bold">
-                        {{ 'source_warehouse' | translate }} <span class="required-asterisk">*</span>
-                    </label>
-                    <p-dropdown 
-                        [(ngModel)]="transfer.sourceWarehouse" 
-                        [options]="availableSourceWarehouses" 
-                        optionLabel="label"
-                        optionValue="warehouse"
-                        [filter]="true" 
-                        filterBy="label"
-                        [disabled]="isSourceWarehouseLockedForCreate"
-                        placeholder="{{ 'select_source_warehouse' | translate }}"
-                        appendTo="body"
-                        (onChange)="onSourceWarehouseChange()"
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && (!transfer.sourceWarehouse || isSameWarehouseSelected())}"
-                        required>
-                        <ng-template pTemplate="selectedItem">
-                            <span *ngIf="transfer.sourceWarehouse" class="flex align-items-center gap-2">
-                                <i class="pi pi-home"></i>
-                                {{ transfer.sourceWarehouse.name }}
-                            </span>
-                        </ng-template>
-                        <ng-template let-option pTemplate="item">
-                            <span class="flex align-items-center gap-2">
-                                <i class="pi pi-home"></i>
-                                {{ option.label }}
-                            </span>
-                        </ng-template>
-                    </p-dropdown>
-                    <small class="p-error" *ngIf="submitted && !transfer.sourceWarehouse">
-                        {{ 'source_warehouse_required' | translate }}
-                    </small>
-                    <small class="p-error" *ngIf="submitted && isSameWarehouseSelected()">
-                        {{ 'source_destination_must_differ' | translate }}
-                    </small>
-                </div>
-            </div>
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+                <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="w-full"
+                    [closable]="false" [text]="'warehouse_transfer_manual_workflow_hint' | translate"></p-message>
 
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="destinationWarehouse" class="font-bold">
-                        {{ 'destination_warehouse' | translate }} <span class="required-asterisk">*</span>
-                    </label>
-                    <p-dropdown 
-                        [(ngModel)]="transfer.destinationWarehouse" 
-                        [options]="availableDestinationWarehouses" 
-                        optionLabel="label"
-                        optionValue="warehouse"
-                        [filter]="true" 
-                        filterBy="label"
-                        placeholder="{{ 'select_destination_warehouse' | translate }}"
-                        appendTo="body"
-                        (onChange)="onDestinationWarehouseChange()"
-                        [ngClass]="{'ng-invalid ng-dirty' : submitted && (!transfer.destinationWarehouse || isSameWarehouseSelected())}"
-                        required>
-                        <ng-template pTemplate="selectedItem">
-                            <span *ngIf="transfer.destinationWarehouse" class="flex align-items-center gap-2">
-                                <i class="pi pi-home"></i>
-                                {{ transfer.destinationWarehouse.name }}
-                            </span>
-                        </ng-template>
-                        <ng-template let-option pTemplate="item">
-                            <span class="flex align-items-center gap-2">
-                                <i class="pi pi-home"></i>
-                                {{ option.label }}
-                            </span>
-                        </ng-template>
-                    </p-dropdown>
-                    <small class="p-error" *ngIf="submitted && !transfer.destinationWarehouse">
-                        {{ 'destination_warehouse_required' | translate }}
-                    </small>
-                    <small class="p-error" *ngIf="submitted && isSameWarehouseSelected()">
-                        {{ 'source_destination_must_differ' | translate }}
-                    </small>
+                <div *ngIf="transferAutoApply && isAdmin" class="ims-form-callout">
+                    <i class="pi pi-info-circle"></i>
+                    <span>{{ 'warehouse_transfer_auto_apply_hint' | translate }}</span>
                 </div>
-            </div>
 
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="transferDate" class="font-bold">
-                        {{ 'transfer_date' | translate }}
-                    </label>
-                    <p-calendar 
-                        [(ngModel)]="transfer.transferDate" 
-                        [showIcon]="true"
-                        dateFormat="dd/mm/yy"
-                        [showOnFocus]="false"
-                        placeholder="{{ 'transfer_date' | translate }}"
-                        appendTo="body"
-                        styleClass="w-full">
-                    </p-calendar>
+                <div *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="ims-form-callout">
+                    <i class="pi pi-box"></i>
+                    <span>{{ 'activity_profile_hint_warehouse_transfer' | translate }}</span>
                 </div>
-            </div>
 
-            <div class="col-12">
-                <div class="field">
-                    <label for="notes" class="font-bold">{{ 'notes' | translate }}</label>
-                    <textarea 
-                        rows="3" 
-                        pInputTextarea 
-                        [(ngModel)]="transfer.notes" 
-                        name="notes"
-                        placeholder="{{ 'enter_notes' | translate }}">
-                    </textarea>
-                </div>
-            </div>
-
-            <!-- Transfer Items Section -->
-            <div class="col-12">
-                <div class="field">
-                    <div class="flex justify-content-between align-items-center mb-3">
-                        <div class="flex-1">
-                            <label class="font-bold">
-                                {{ 'transfer_items' | translate }} <span class="required-asterisk">*</span>
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                            <i class="pi pi-map-marker"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'transfer_information' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12 md:col-6">
+                            <label for="sourceWarehouse" class="ims-form-label">
+                                {{ 'source_warehouse' | translate }} <span class="required-asterisk">*</span>
                             </label>
-                            <small class="p-error block mt-1" *ngIf="hasNoProductsInWarehouse || (transfer.sourceWarehouse && cachedWarehouseProducts.length === 0)">
-                                <i class="pi pi-exclamation-triangle mr-1"></i>
-                                {{ 'source_warehouse_has_no_available_products' | translate }}
+                            <p-dropdown 
+                                inputId="sourceWarehouse"
+                                [(ngModel)]="transfer.sourceWarehouse" 
+                                [options]="availableSourceWarehouses" 
+                                optionLabel="label"
+                                optionValue="warehouse"
+                                [filter]="true" 
+                                filterBy="label"
+                                [disabled]="isSourceWarehouseLockedForCreate"
+                                placeholder="{{ 'select_source_warehouse' | translate }}"
+                                appendTo="body"
+                                styleClass="w-full"
+                                (onChange)="onSourceWarehouseChange()"
+                                [ngClass]="{'ng-invalid ng-dirty' : submitted && (!transfer.sourceWarehouse || isSameWarehouseSelected())}"
+                                required>
+                                <ng-template pTemplate="selectedItem">
+                                    <span *ngIf="transfer.sourceWarehouse" class="flex align-items-center gap-2">
+                                        <i class="pi pi-home"></i>
+                                        {{ transfer.sourceWarehouse.name }}
+                                    </span>
+                                </ng-template>
+                                <ng-template let-option pTemplate="item">
+                                    <span class="flex align-items-center gap-2">
+                                        <i class="pi pi-home"></i>
+                                        {{ option.label }}
+                                    </span>
+                                </ng-template>
+                            </p-dropdown>
+                            <small class="p-error" *ngIf="submitted && !transfer.sourceWarehouse">
+                                {{ 'source_warehouse_required' | translate }}
+                            </small>
+                            <small class="p-error" *ngIf="submitted && isSameWarehouseSelected()">
+                                {{ 'source_destination_must_differ' | translate }}
                             </small>
                         </div>
-                        <button 
-                            pButton 
-                            type="button" 
-                            icon="pi pi-plus" 
-                            label="{{ 'add_item' | translate }}"
-                            (click)="addTransferItem()"
-                            [disabled]="hasNoProductsInWarehouse || (transfer.sourceWarehouse && cachedWarehouseProducts.length === 0)"
-                            class="p-button-sm p-button-success">
-                        </button>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="destinationWarehouse" class="ims-form-label">
+                                {{ 'destination_warehouse' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <p-dropdown 
+                                inputId="destinationWarehouse"
+                                [(ngModel)]="transfer.destinationWarehouse" 
+                                [options]="availableDestinationWarehouses" 
+                                optionLabel="label"
+                                optionValue="warehouse"
+                                [filter]="true" 
+                                filterBy="label"
+                                placeholder="{{ 'select_destination_warehouse' | translate }}"
+                                appendTo="body"
+                                styleClass="w-full"
+                                (onChange)="onDestinationWarehouseChange()"
+                                [ngClass]="{'ng-invalid ng-dirty' : submitted && (!transfer.destinationWarehouse || isSameWarehouseSelected())}"
+                                required>
+                                <ng-template pTemplate="selectedItem">
+                                    <span *ngIf="transfer.destinationWarehouse" class="flex align-items-center gap-2">
+                                        <i class="pi pi-home"></i>
+                                        {{ transfer.destinationWarehouse.name }}
+                                    </span>
+                                </ng-template>
+                                <ng-template let-option pTemplate="item">
+                                    <span class="flex align-items-center gap-2">
+                                        <i class="pi pi-home"></i>
+                                        {{ option.label }}
+                                    </span>
+                                </ng-template>
+                            </p-dropdown>
+                            <small class="p-error" *ngIf="submitted && !transfer.destinationWarehouse">
+                                {{ 'destination_warehouse_required' | translate }}
+                            </small>
+                            <small class="p-error" *ngIf="submitted && isSameWarehouseSelected()">
+                                {{ 'source_destination_must_differ' | translate }}
+                            </small>
+                        </div>
+
+                        <div class="field col-12 md:col-4">
+                            <label for="transferDate" class="ims-form-label">
+                                {{ 'transfer_date' | translate }}
+                            </label>
+                            <p-calendar 
+                                inputId="transferDate"
+                                [(ngModel)]="transfer.transferDate" 
+                                [showIcon]="true"
+                                dateFormat="dd/mm/yy"
+                                [showOnFocus]="false"
+                                placeholder="{{ 'transfer_date' | translate }}"
+                                appendTo="body"
+                                styleClass="w-full">
+                            </p-calendar>
+                        </div>
+
+                        <div class="field col-12 md:col-8">
+                            <label for="notes" class="ims-form-label">{{ 'notes' | translate }}</label>
+                            <textarea 
+                                id="notes"
+                                rows="3" 
+                                pInputTextarea 
+                                [(ngModel)]="transfer.notes" 
+                                name="notes"
+                                [autoResize]="true"
+                                placeholder="{{ 'enter_notes' | translate }}">
+                            </textarea>
+                        </div>
                     </div>
+                </section>
 
-                    <div class="transfer-items-container">
-                        <div *ngFor="let item of transferItems; let i = index" class="transfer-item-row p-3 mb-3 surface-50 border-round">
-                            <div class="grid">
-                                <div class="col-12 md:col-5">
-                                    <label class="block mb-2 font-bold">
-                                        {{ 'product' | translate }} <span class="required-asterisk">*</span>
-                                    </label>
-                                    <p-autoComplete 
-                                        [(ngModel)]="item.product"
-                                        [suggestions]="getProductSuggestions(i)"
-                                        [loading]="isProductSuggestionsLoading(i)"
-                                        (completeMethod)="filterProductsForWarehouse($event, i)"
-                                        [minLength]="0"
-                                        placeholder="{{ 'select_product' | translate }}"
-                                        [dropdown]="true"
-                                        optionLabel="name"
-                                        dataKey="productId"
-                                        (onSelect)="onProductSelected(item, $event, i)"
-                                        (onFocus)="filterProductsForWarehouse({query: ''}, i)"
-                                        [forceSelection]="false"
-                                        appendTo="body"
-                                        [ngClass]="{'ng-invalid ng-dirty' : submitted && !item.product}"
-                                        styleClass="w-full">
-                                        <!-- Selected Item Template -->
-                                        <ng-template let-product pTemplate="selectedItem">
-                                            <span *ngIf="product">{{ transferProductDisplayLabel(product) }}</span>
-                                        </ng-template>
-                                        <!-- Dropdown Items Template -->
-                                        <ng-template let-product pTemplate="item">
-                                            <div class="flex align-items-center gap-2 p-2">
-                                                <div class="flex-1">
-                                                    <div class="font-medium">{{ product.name }}</div>
-                                                    <small class="text-600">{{ product.reference }}</small>
-                                                    <div class="text-sm text-600 mt-1">
-                                                        {{ 'available_stock' | translate }}: <strong>{{ product.quantityAvailable || 0 }}</strong>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </ng-template>
-                                    </p-autoComplete>
-                                    <small class="p-error" *ngIf="submitted && !item.product">
-                                        {{ 'product_required' | translate }}
-                                    </small>
-                                    <small *ngIf="item.product?.productId" class="text-600">
-                                        {{ 'available_stock' | translate }}: <strong>{{ getAvailableStock(item.product) }}</strong>
-                                    </small>
-                                </div>
-
-                                <div class="col-12 md:col-3">
-                                    <label class="block mb-2 font-bold">
-                                        {{ 'quantity' | translate }} <span class="required-asterisk">*</span>
-                                    </label>
-                                    <p-inputNumber 
-                                        [(ngModel)]="item.quantity" 
-                                        [min]="1"
-                                        [max]="getAvailableStock(item.product)"
-                                        [showButtons]="true"
-                                        mode="decimal"
-                                        placeholder="{{ 'enter_quantity' | translate }}"
-                                        [ngClass]="{'ng-invalid ng-dirty' : submitted && (!item.quantity || !validateQuantity(item))}"
-                                        styleClass="w-full">
-                                    </p-inputNumber>
-                                    <small class="p-error" *ngIf="submitted && item.quantity && !validateQuantity(item)">
-                                        {{ getQuantityError(item) }}
-                                    </small>
-                                    <small class="p-error" *ngIf="submitted && !item.quantity">
-                                        {{ 'quantity_required' | translate }}
-                                    </small>
-                                </div>
-
-                                <div class="col-12 md:col-3">
-                                    <label class="block mb-2 font-bold">{{ 'notes' | translate }}</label>
-                                    <input 
-                                        type="text" 
-                                        pInputText 
-                                        [(ngModel)]="item.notes"
-                                        placeholder="{{ 'item_notes' | translate }}"
-                                        styleClass="w-full">
-                                </div>
-
-                                <div class="col-12 md:col-1 flex align-items-end">
-                                    <button 
-                                        pButton 
-                                        icon="pi pi-times" 
-                                        class="p-button-rounded p-button-danger"
-                                        type="button" 
-                                        (click)="removeTransferItem(i)"
-                                        [disabled]="transferItems.length === 1">
-                                    </button>
-                                </div>
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+                            <i class="pi pi-box"></i>
+                        </div>
+                        <div class="ims-form-section__header-text">
+                            <h3 class="ims-form-section__title">{{ 'transfer_items' | translate }}</h3>
+                            <p class="ims-form-section__subtitle" *ngIf="transferItems.length">
+                                {{ transferItems.length }} {{ 'items' | translate }} · {{ 'total_quantity' | translate }}: {{ calculateTotalQuantity() }}
+                            </p>
+                        </div>
+                    </header>
+                    <div class="ims-form-section__body ims-form-section__body--stack">
+                        <div class="transfer-items-toolbar">
+                            <div class="ims-form-callout transfer-items-callout" *ngIf="!transfer.sourceWarehouse">
+                                <i class="pi pi-info-circle"></i>
+                                <span>{{ 'please_select_warehouse_first' | translate }}</span>
+                            </div>
+                            <div class="ims-form-callout transfer-items-callout transfer-items-callout--warn"
+                                *ngIf="transfer.sourceWarehouse && (hasNoProductsInWarehouse || cachedWarehouseProducts.length === 0)">
+                                <i class="pi pi-exclamation-triangle"></i>
+                                <span>{{ 'source_warehouse_has_no_available_products' | translate }}</span>
+                            </div>
+                            <div class="transfer-items-toolbar__actions">
+                                <button
+                                    pButton 
+                                    type="button" 
+                                    icon="pi pi-plus" 
+                                    label="{{ 'add_item' | translate }}"
+                                    (click)="addTransferItem()"
+                                    [disabled]="!transfer.sourceWarehouse || hasNoProductsInWarehouse || cachedWarehouseProducts.length === 0"
+                                    class="p-button-sm p-button-success">
+                                </button>
                             </div>
                         </div>
 
-                        <div *ngIf="transferItems.length === 0" class="text-center p-4 text-600">
-                            {{ 'no_items_added' | translate }}
+                        <div class="transfer-items-table" *ngIf="transferItems.length > 0">
+                            <div class="transfer-items-table__head">
+                                <span class="transfer-items-table__col transfer-items-table__col--index"></span>
+                                <span class="transfer-items-table__col transfer-items-table__col--product">
+                                    {{ 'product' | translate }} <span class="required-asterisk">*</span>
+                                </span>
+                                <span class="transfer-items-table__col transfer-items-table__col--qty">
+                                    {{ 'quantity' | translate }} <span class="required-asterisk">*</span>
+                                </span>
+                                <span class="transfer-items-table__col transfer-items-table__col--notes">
+                                    {{ 'notes' | translate }}
+                                </span>
+                                <span class="transfer-items-table__col transfer-items-table__col--actions"></span>
+                            </div>
+
+                            <article *ngFor="let item of transferItems; let i = index" class="transfer-item-card">
+                                <div class="transfer-item-card__line">
+                                    <div class="transfer-item-card__index">
+                                        <span class="transfer-item-card__badge">{{ i + 1 }}</span>
+                                    </div>
+
+                                    <div class="transfer-item-card__product field">
+                                        <label class="ims-form-label transfer-item-card__mobile-label">
+                                            {{ 'product' | translate }} <span class="required-asterisk">*</span>
+                                        </label>
+                                        <p-autoComplete 
+                                            [(ngModel)]="item.product"
+                                            [suggestions]="getProductSuggestions(i)"
+                                            [loading]="isProductSuggestionsLoading(i)"
+                                            (completeMethod)="filterProductsForWarehouse($event, i)"
+                                            [minLength]="0"
+                                            placeholder="{{ 'search_products_placeholder' | translate }}"
+                                            [dropdown]="true"
+                                            optionLabel="name"
+                                            dataKey="productId"
+                                            (onSelect)="onProductSelected(item, $event, i)"
+                                            (onFocus)="filterProductsForWarehouse({query: ''}, i)"
+                                            [forceSelection]="true"
+                                            appendTo="body"
+                                            styleClass="w-full transfer-product-autocomplete"
+                                            panelStyleClass="transfer-product-panel"
+                                            [panelStyle]="{ 'min-width': '22rem', 'max-width': '36rem' }"
+                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !item.product}">
+                                            <ng-template let-product pTemplate="selectedItem">
+                                                <span *ngIf="product" class="transfer-product-selected">
+                                                    <span class="transfer-product-selected__name">{{ product.name }}</span>
+                                                    <span class="transfer-product-selected__ref" *ngIf="product.reference">{{ product.reference }}</span>
+                                                </span>
+                                            </ng-template>
+                                            <ng-template let-product pTemplate="item">
+                                                <div class="transfer-product-option">
+                                                    <img [src]="product | productImage" [alt]="product.name" class="transfer-product-option__image" />
+                                                    <div class="transfer-product-option__body">
+                                                        <span class="transfer-product-option__name">{{ product.name }}</span>
+                                                        <span class="transfer-product-option__ref" *ngIf="product.reference">{{ product.reference }}</span>
+                                                    </div>
+                                                    <span class="transfer-product-option__stock">
+                                                        {{ product.quantityAvailable || 0 }}
+                                                    </span>
+                                                </div>
+                                            </ng-template>
+                                        </p-autoComplete>
+                                        <small class="p-error" *ngIf="submitted && !item.product">
+                                            {{ 'product_required' | translate }}
+                                        </small>
+                                        <div *ngIf="item.product?.productId" class="transfer-item-stock-chip">
+                                            <i class="pi pi-box"></i>
+                                            <span>{{ 'available_stock' | translate }}: <strong>{{ getAvailableStock(item.product) }}</strong></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="transfer-item-card__qty field">
+                                        <label class="ims-form-label transfer-item-card__mobile-label">
+                                            {{ 'quantity' | translate }} <span class="required-asterisk">*</span>
+                                        </label>
+                                        <p-inputNumber 
+                                            [(ngModel)]="item.quantity" 
+                                            [min]="1"
+                                            [max]="getAvailableStock(item.product)"
+                                            [showButtons]="true"
+                                            buttonLayout="horizontal"
+                                            incrementButtonIcon="pi pi-plus"
+                                            decrementButtonIcon="pi pi-minus"
+                                            mode="decimal"
+                                            placeholder="{{ 'enter_quantity' | translate }}"
+                                            [disabled]="!item.product"
+                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && (!item.quantity || !validateQuantity(item))}"
+                                            styleClass="w-full transfer-qty-input">
+                                        </p-inputNumber>
+                                        <small class="p-error" *ngIf="submitted && item.quantity && !validateQuantity(item)">
+                                            {{ getQuantityError(item) }}
+                                        </small>
+                                        <small class="p-error" *ngIf="submitted && !item.quantity">
+                                            {{ 'quantity_required' | translate }}
+                                        </small>
+                                    </div>
+
+                                    <div class="transfer-item-card__notes field">
+                                        <label class="ims-form-label transfer-item-card__mobile-label">{{ 'notes' | translate }}</label>
+                                        <input 
+                                            type="text" 
+                                            pInputText 
+                                            [(ngModel)]="item.notes"
+                                            placeholder="{{ 'item_notes' | translate }}"
+                                            class="w-full">
+                                    </div>
+
+                                    <div class="transfer-item-card__actions">
+                                        <button 
+                                            pButton 
+                                            icon="pi pi-trash" 
+                                            class="p-button-rounded p-button-text p-button-danger p-button-sm"
+                                            type="button" 
+                                            (click)="removeTransferItem(i)"
+                                            [disabled]="transferItems.length === 1"
+                                            pTooltip="{{ 'remove' | translate }}"
+                                            tooltipPosition="left">
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+
+                        <div *ngIf="transferItems.length === 0" class="transfer-items-empty">
+                            <i class="pi pi-inbox"></i>
+                            <span>{{ 'no_items_added' | translate }}</span>
+                        </div>
+
+                        <div class="transfer-items-total" *ngIf="transferItems.length > 0">
+                            <span class="transfer-items-total__label">{{ 'total_quantity' | translate }}</span>
+                            <strong class="transfer-items-total__value">{{ calculateTotalQuantity() }}</strong>
                         </div>
                     </div>
-
-                    <div class="flex justify-content-end mt-3">
-                        <strong>{{ 'total_quantity' | translate }}: {{ calculateTotalQuantity() }}</strong>
-                    </div>
-                </div>
+                </section>
             </div>
-        </div>
 
-        <div class="required-note mt-4">
-            <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' | translate}}</small>
+            <div class="ims-form-required-note">
+                <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+            </div>
         </div>
     </ng-template>
 
@@ -571,7 +638,7 @@
                 pRipple 
                 label="{{'cancel_button' | translate}}" 
                 icon="pi pi-times"
-                class="p-button-text p-button-danger" 
+                class="p-button-text" 
                 (click)="transferDialog = false"
                 [disabled]="isSaving">
             </button>
@@ -580,10 +647,10 @@
                 pRipple 
                 label="{{'save_button' | translate}}" 
                 icon="pi pi-check" 
-                class="p-button-raised"
+                class="p-button-primary"
                 (click)="saveTransfer()"
                 [disabled]="isSaving">
-                <p-progressSpinner *ngIf="isSaving" styleClass="ml-2" [style]="{width: '20px', height: '20px'}"></p-progressSpinner>
+                <p-progressSpinner *ngIf="isSaving" styleClass="ims-spinner--xs ml-2" ariaLabel="loading"></p-progressSpinner>
             </button>
         </div>
     </ng-template>
@@ -599,7 +666,7 @@
     <ng-template pTemplate="footer">
         <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
             (click)="initiateConfirmDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+        <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
             (click)="confirmInitiate()"></button>
     </ng-template>
 </p-dialog>
@@ -612,7 +679,7 @@
     <ng-template pTemplate="footer">
         <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
             (click)="completeConfirmDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+        <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
             (click)="confirmComplete()"></button>
     </ng-template>
 </p-dialog>
@@ -625,7 +692,7 @@
     <ng-template pTemplate="footer">
         <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
             (click)="cancelConfirmDialog = false"></button>
-        <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+        <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
             (click)="confirmCancel()"></button>
     </ng-template>
 </p-dialog>
@@ -639,10 +706,9 @@
     [resizable]="false"
     [style]="{width: '450px'}"
     [header]="'exporting' | translate">
-    <div class="flex flex-column align-items-center gap-3 p-4">
-        <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+    <div class="import-progress-panel"><p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
         <div class="text-center">
-            <p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+            <p class="ims-loading-label m-0">{{ exportProgress || ('exporting' | translate) }}</p>
         </div>
     </div>
 </p-dialog>

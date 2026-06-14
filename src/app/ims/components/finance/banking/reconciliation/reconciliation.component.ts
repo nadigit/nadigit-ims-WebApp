@@ -9,6 +9,8 @@ import { Payment } from 'src/app/models/payment';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { firstValueFrom } from 'rxjs';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './reconciliation.component.html',
@@ -16,6 +18,8 @@ import { firstValueFrom } from 'rxjs';
   providers: [MessageService]
 })
 export class ReconciliationComponent implements OnInit {
+  readonly TablePageSizeKeys = TablePageSizeKeys;
+  readonly reconciliationPageOptions = [10, 20, 50] as const;
 
   accountId!: number;
   account: BankAccount | null = null;
@@ -33,7 +37,8 @@ export class ReconciliationComponent implements OnInit {
     private bankAccountService: BankAccountService,
     private paymentService: PaymentService,
     private translate: TranslateService,
-    private translateService: TranslationService
+    private translateService: TranslationService,
+    public pageSizeService: TablePageSizeService
   ) { }
 
   async ngOnInit() {

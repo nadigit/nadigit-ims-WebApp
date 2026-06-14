@@ -15,7 +15,6 @@ import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { LocationService } from 'src/app/services/location.service';
 import { Product } from 'src/app/models/product';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { ProductService } from 'src/app/services/product.service';
 import { Category } from 'src/app/models/category';
 import { Warehouse } from 'src/app/models/warehouse';
@@ -23,10 +22,13 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { UploadEvent } from 'src/app/models/uploadEvent';
 import { getPaymentMethodLabel, getPaymentMethodSeverity } from 'src/app/shared/payment-utils';
+import { BRAND_CHART_PALETTE_EXTENDED, BRAND_COLORS } from 'src/app/utils/brand-colors';
 import { Purchase } from 'src/app/models/purchase';
 import { SupplierFormDialogComponent, SupplierFormDialogConfig, SupplierFormDialogData } from './supplier-form-dialog/supplier-form-dialog.component';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './suppliers.component.html',
@@ -67,6 +69,7 @@ export class SuppliersComponent implements OnInit {
   currency: any = '';
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   valSwitch: boolean = false;
 
@@ -126,17 +129,20 @@ export class SuppliersComponent implements OnInit {
     private locationService: LocationService,
     private translateService: TranslationService,
     private permissionService: PermissionService,
-    private storage: AngularFireStorage,
     private configService: AppConfigurationService,
     public keycloakService: KeycloakService,
     private router: Router,
-    private organizationService: OrganizationService) {
+    private organizationService: OrganizationService,
+    public pageSizeService: TablePageSizeService) {
     this.setUserRoles();
     // measureUnits and attributeTypes initialization removed - now handled by ProductFormComponent
   }
 
   async ngOnInit() {
     this.isLoading = true;
+    this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.suppliers, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+    });
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
       this.countries = this.locationService.getAllCountriesWithTranslation();
@@ -163,6 +169,10 @@ export class SuppliersComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+  }
+
+  onTablePage(event: any): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.suppliers, this.rowsPerPageOptions, event, this);
   }
 
   ngOnDestroy(): void {
@@ -330,7 +340,7 @@ export class SuppliersComponent implements OnInit {
       datasets: [{
         label: this.currency,
         data: Object.values(monthlyData),
-        backgroundColor: '#6366F1'
+        backgroundColor: BRAND_COLORS.saas
       }]
     };
   }
@@ -342,8 +352,8 @@ export class SuppliersComponent implements OnInit {
       datasets: [{
         data: Object.values(categoryCounts),
         backgroundColor: [
-          '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6',
-          '#F97316', '#8B5CF6', '#EF4444', '#14B8A6', '#84CC16'
+          ...BRAND_CHART_PALETTE_EXTENDED,
+          '#F97316', '#EF4444', '#84CC16'
         ]
       }]
     };
@@ -392,7 +402,7 @@ export class SuppliersComponent implements OnInit {
 
   getSupplierColor(supplier: any): string {
     // Generate a consistent color based on supplier ID
-    const colors = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'];
+    const colors = [...BRAND_CHART_PALETTE_EXTENDED];
     return colors[Math.abs(supplier.supplierId) % colors.length];
   }
 
@@ -877,14 +887,13 @@ export class SuppliersComponent implements OnInit {
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
     this.selectedProduct = { ...product };
+    this.deleteProductDialog = true;
   }
 
-  async confirmProductDelete() {
+  async onProductDeleteConfirmed(productId: number) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.selectedProduct.productId);
+    await this.onDeleteProduct(productId);
     this.selectedProduct = {};
   }
 

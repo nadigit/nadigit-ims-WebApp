@@ -1,0 +1,954 @@
+@import 'brand-tokens';
+
+// ---------------------------------------------------------------------------
+// Nadigit IMS — unified button conventions
+// ---------------------------------------------------------------------------
+
+// PrimeNG icon-only buttons inject a hidden ::after flex item (content:'p') that shifts icons off-center.
+@mixin ims-icon-only-button-center {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+
+  &::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .p-button-label {
+    flex: 0 0 auto !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .p-button-icon,
+  .p-button-icon-left,
+  .p-button-icon-right {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+
+  .pi,
+  .p-icon,
+  svg {
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+}
+
+// Base polish (all buttons)
+.p-button {
+  border-radius: var(--brand-field-radius, 8px) !important;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.15s ease;
+
+  &:not(.p-button-icon-only) {
+    gap: 0.5rem;
+  }
+}
+
+.p-button .p-button-label {
+  font-weight: 500;
+}
+
+// Global icon-only centering — applies everywhere (tables, dialogs, topbar, toolbars…)
+.p-button.p-button-icon-only {
+  @include ims-icon-only-button-center;
+}
+
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) {
+  @include ims-icon-only-button-center;
+}
+
+.p-button.p-button-sm {
+  padding: 0.4rem 0.75rem !important;
+  font-size: 0.875rem;
+
+  &.p-button-icon-only {
+    padding: 0 !important;
+  }
+}
+
+// Secondary / neutral outlined — brand border
+.p-button.p-button-outlined.p-button-secondary {
+  color: var(--brand-text-secondary) !important;
+  border-color: var(--brand-border) !important;
+  background: var(--surface-card) !important;
+}
+
+.p-button.p-button-outlined.p-button-secondary:enabled:hover {
+  background: var(--surface-hover) !important;
+  border-color: color-mix(in srgb, var(--brand-saas) 35%, var(--brand-border)) !important;
+  color: var(--brand-saas) !important;
+}
+
+// ---------------------------------------------------------------------------
+// Global button roles — functional styling app-wide (by PrimeNG severity + context)
+// ---------------------------------------------------------------------------
+
+// Flatten legacy PrimeNG raised elevation — brand uses flat solid CTAs
+.p-button.p-button-raised {
+  box-shadow: none !important;
+}
+
+// Standard labeled solid buttons (outside icon-only / text variants)
+.p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-icon-only) {
+  min-height: 2.5rem;
+  padding-inline: 1rem !important;
+  font-weight: 500;
+}
+
+.p-button.p-button-sm:not(.p-button-text):not(.p-button-outlined):not(.p-button-icon-only) {
+  min-height: 2rem;
+  padding-inline: 0.75rem !important;
+}
+
+// Row action ghost buttons — tables, cards, inline lists (not only p-datatable)
+.p-button.p-button-rounded.p-button-primary,
+.p-button.p-button-rounded.p-button-warning,
+.p-button.p-button-rounded.p-button-danger,
+.p-button.p-button-rounded.p-button-success,
+.p-button.p-button-rounded.p-button-info,
+.p-button.p-button-rounded.p-button-secondary {
+  @include ims-icon-only-button-center;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  min-width: 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 !important;
+}
+
+.p-button.p-button-rounded.p-button-primary {
+  color: var(--brand-saas) !important;
+}
+
+.p-button.p-button-rounded.p-button-warning {
+  color: var(--brand-premium-hover) !important;
+}
+
+.p-button.p-button-rounded.p-button-danger {
+  color: var(--brand-danger) !important;
+}
+
+.p-button.p-button-rounded.p-button-success {
+  color: var(--brand-success) !important;
+}
+
+.p-button.p-button-rounded.p-button-info {
+  color: var(--brand-info) !important;
+}
+
+.p-button.p-button-rounded.p-button-secondary {
+  color: var(--brand-text-secondary) !important;
+}
+
+.p-button.p-button-rounded.p-button-primary:enabled:hover {
+  background: rgba(30, 94, 255, 0.1) !important;
+  color: var(--brand-saas-hover) !important;
+}
+
+.p-button.p-button-rounded.p-button-warning:enabled:hover {
+  background: rgba(244, 183, 64, 0.14) !important;
+  color: var(--brand-premium-hover) !important;
+}
+
+.p-button.p-button-rounded.p-button-danger:enabled:hover {
+  background: rgba(229, 72, 77, 0.1) !important;
+  color: var(--brand-danger-hover) !important;
+}
+
+.p-button.p-button-rounded.p-button-success:enabled:hover {
+  background: rgba(22, 199, 132, 0.1) !important;
+  color: var(--brand-success-hover) !important;
+}
+
+.p-button.p-button-rounded.p-button-info:enabled:hover {
+  background: rgba(24, 197, 216, 0.1) !important;
+  color: var(--brand-info-hover) !important;
+}
+
+.p-button.p-button-rounded.p-button-secondary:enabled:hover {
+  background: var(--surface-hover) !important;
+  color: var(--brand-text-primary) !important;
+}
+
+// View / details actions (pi-eye) — always brand primary across tables & action clusters
+.p-button.p-button-rounded.p-button-text:has(.pi-eye),
+.p-button.p-button-text:has(.pi-eye):not(.p-button-outlined):not(.p-button-link) {
+  color: var(--brand-saas) !important;
+
+  .p-button-icon,
+  .pi {
+    color: var(--brand-saas) !important;
+  }
+
+  &:enabled:hover {
+    background: rgba(30, 94, 255, 0.1) !important;
+    color: var(--brand-saas-hover) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-saas-hover) !important;
+    }
+  }
+}
+
+// Edit / update actions (pi-pencil) — always brand primary (never green success)
+.p-button.p-button-rounded.p-button-text:has(.pi-pencil),
+.p-button.p-button-text:has(.pi-pencil):not(.p-button-outlined):not(.p-button-link) {
+  color: var(--brand-saas) !important;
+
+  .p-button-icon,
+  .pi {
+    color: var(--brand-saas) !important;
+  }
+
+  &:enabled:hover {
+    background: rgba(30, 94, 255, 0.1) !important;
+    color: var(--brand-saas-hover) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-saas-hover) !important;
+    }
+  }
+}
+
+// Override mistaken success severity on row edit icons
+.p-button.p-button-rounded.p-button-text.p-button-success:has(.pi-pencil),
+.p-button.p-button-text.p-button-success:has(.pi-pencil):not(.p-button-outlined) {
+  color: var(--brand-saas) !important;
+
+  .p-button-icon,
+  .pi {
+    color: var(--brand-saas) !important;
+  }
+
+  &:enabled:hover {
+    background: rgba(30, 94, 255, 0.1) !important;
+    color: var(--brand-saas-hover) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-saas-hover) !important;
+    }
+  }
+}
+
+// Tables: normalize text-only row actions missing rounded
+.p-datatable,
+.p-treetable,
+.table-actions,
+.actions {
+  .p-button.p-button-text.p-button-primary:not(.p-button-rounded),
+  .p-button.p-button-text.p-button-warning:not(.p-button-rounded),
+  .p-button.p-button-text.p-button-danger:not(.p-button-rounded),
+  .p-button.p-button-text.p-button-success:not(.p-button-rounded),
+  .p-button.p-button-text.p-button-info:not(.p-button-rounded),
+  .p-button.p-button-text:has(.pi-eye):not(.p-button-rounded):not(.p-button-outlined),
+  .p-button.p-button-text:has(.pi-pencil):not(.p-button-rounded):not(.p-button-outlined) {
+    @include ims-icon-only-button-center;
+    border-radius: 50% !important;
+    min-width: 2.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 !important;
+  }
+}
+
+// Dialog & confirm footers — cancel neutral, confirm solid, save primary
+.p-dialog .p-dialog-footer,
+.p-dialog-footer,
+.p-confirmdialog .p-dialog-footer,
+.p-confirmdialog .p-confirmdialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  .p-button.p-button-text:not(.p-button-rounded) {
+    color: var(--brand-text-secondary) !important;
+    font-weight: 500;
+    min-height: 2.5rem;
+    padding-inline: 0.75rem !important;
+
+    .p-button-label,
+    .p-button-icon {
+      color: inherit !important;
+    }
+  }
+
+  // Legacy cancel styled as danger → neutral
+  .p-button.p-button-text.p-button-danger:not(.p-button-rounded) {
+    color: var(--brand-text-secondary) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+
+    .p-button-label,
+    .p-button-icon,
+    .pi {
+      color: inherit !important;
+    }
+
+    &:enabled:hover {
+      background: var(--surface-hover) !important;
+      color: var(--text-color) !important;
+    }
+  }
+
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-info:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-raised {
+    min-height: 2.5rem;
+    padding-inline: 1.1rem !important;
+    box-shadow: none !important;
+  }
+
+  .p-button.p-button-raised:not(.p-button-text) {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #ffffff !important;
+
+    .p-button-label,
+    .p-button-icon {
+      color: #ffffff !important;
+    }
+  }
+}
+
+// PrimeNG ConfirmDialog accept / reject
+.p-confirmdialog {
+  .p-confirmdialog-reject.p-button,
+  .p-button.p-confirmdialog-reject {
+    color: var(--brand-text-secondary) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    font-weight: 500;
+
+    &:enabled:hover {
+      background: var(--surface-hover) !important;
+      color: var(--text-color) !important;
+    }
+  }
+
+  .p-confirmdialog-accept.p-button,
+  .p-button.p-confirmdialog-accept {
+    min-height: 2.5rem;
+    padding-inline: 1.1rem !important;
+    box-shadow: none !important;
+  }
+}
+
+// Explicit utility aliases — prefer these in new templates
+.ims-btn-cancel.p-button.p-button-text {
+  color: var(--brand-text-secondary) !important;
+  font-weight: 500;
+}
+
+.ims-btn-save.p-button,
+.ims-btn-confirm.p-button {
+  min-height: 2.5rem;
+  padding-inline: 1.1rem !important;
+}
+
+.ims-btn-create.p-button-success:not(.p-button-text):not(.p-button-outlined),
+.ims-btn-import.p-button-info:not(.p-button-text):not(.p-button-outlined),
+.ims-btn-delete.p-button-danger:not(.p-button-text):not(.p-button-outlined) {
+  min-height: 2.5rem;
+  padding-inline: 1rem !important;
+}
+
+// Page toolbars using PrimeNG p-toolbar
+.p-toolbar {
+  .p-button:not(.p-button-icon-only):not(.p-button-text) {
+    min-height: 2.5rem;
+    padding-inline: 1rem !important;
+  }
+}
+
+// Inline action clusters (tables, cards)
+.actions,
+.row-actions,
+.table-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+// List / card page primary action row (New, Import, Delete selected…)
+.ims-page-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  > .flex {
+    gap: 0.5rem;
+  }
+
+  .p-button:not(.p-button-icon-only):not(.p-button-text) {
+    min-height: 2.5rem;
+    padding-inline: 1rem !important;
+  }
+
+  // Labeled solid CTAs — always white label/icon on semantic fills
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-info:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) {
+    color: #ffffff !important;
+  }
+
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+  .p-button.p-button-info:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+  .p-button.p-button-info:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) .p-button-icon {
+    color: #ffffff !important;
+  }
+
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) {
+    color: var(--brand-premium-text) !important;
+  }
+
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .p-button-icon {
+    color: var(--brand-premium-text) !important;
+  }
+
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    color: #ffffff !important;
+  }
+
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-label,
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-icon,
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-label,
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-icon,
+  .p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-label,
+  .p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-icon,
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-label,
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined):enabled:hover .p-button-icon {
+    color: #ffffff !important;
+  }
+
+  // Create / New — solid green with clear hover contrast
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):not(.p-button-icon-only) {
+    background: var(--brand-success) !important;
+    border-color: var(--brand-success) !important;
+    color: #ffffff !important;
+
+    .p-button-label,
+    .p-button-icon,
+    .pi {
+      color: #ffffff !important;
+    }
+
+    &:enabled:hover {
+      background: var(--brand-success-hover) !important;
+      border-color: var(--brand-success-hover) !important;
+      color: #ffffff !important;
+
+      .p-button-label,
+      .p-button-icon,
+      .pi {
+        color: #ffffff !important;
+      }
+    }
+  }
+}
+
+// Detail page & hero action strips
+.detail-page-actions,
+.action-buttons,
+.transfer-content .action-buttons {
+  .p-button:not(.p-button-icon-only):not(.p-button-text) {
+    border-radius: var(--brand-field-radius, 8px) !important;
+    font-weight: 500;
+    min-height: 2.5rem;
+  }
+
+  .p-button.p-button-outlined {
+    background: var(--surface-card) !important;
+  }
+}
+
+.detail-page-action-btn.p-button {
+  border-radius: var(--brand-field-radius, 8px) !important;
+  font-weight: 500;
+}
+
+// Toolbar icon tiles — export, clear filters, compact tools
+@mixin ims-toolbar-icon-tile {
+  @include ims-icon-only-button-center;
+
+  background: var(--brand-white) !important;
+  border: 1px solid var(--brand-border) !important;
+  min-width: 2.5rem !important;
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  padding: 0 !important;
+  border-radius: var(--brand-field-radius, 8px) !important;
+  box-shadow: 0 1px 2px rgba(11, 31, 74, 0.06);
+}
+
+@mixin ims-export-icon-tile-buttons {
+  .p-button.p-button-primary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-success.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-secondary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-warning.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  > .flex .p-button.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  .flex .ml-auto > .p-button.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  .flex.align-items-center.gap-2 > .p-button.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  > .p-button.p-button-icon-only:not(.p-button-text):not(.p-button-outlined) {
+    @include ims-toolbar-icon-tile;
+  }
+
+  .p-button.p-button-primary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-warning.p-button-icon-only:not(.p-button-text):not(.p-button-outlined) {
+    color: var(--brand-saas) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-saas) !important;
+    }
+  }
+
+  .p-button.p-button-success.p-button-icon-only:not(.p-button-text):not(.p-button-outlined) {
+    color: var(--brand-success) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-success) !important;
+    }
+  }
+
+  .p-button.p-button-secondary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined) {
+    color: var(--brand-text-secondary) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-text-secondary) !important;
+    }
+  }
+
+  .p-button.p-button-primary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-warning.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: #eef3ff !important;
+    border-color: var(--brand-saas) !important;
+    color: var(--brand-saas) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-saas) !important;
+    }
+  }
+
+  .p-button.p-button-success.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: rgba(22, 199, 132, 0.08) !important;
+    border-color: var(--brand-success) !important;
+    color: var(--brand-success) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-success) !important;
+    }
+  }
+
+  .p-button.p-button-secondary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: #eef3ff !important;
+    border-color: var(--brand-saas) !important;
+    color: var(--brand-saas) !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-saas) !important;
+    }
+  }
+
+  .p-button.p-button-outlined.p-button-secondary.p-button-icon-only {
+    @include ims-toolbar-icon-tile;
+    color: var(--brand-text-secondary) !important;
+  }
+
+  .p-button.p-button-outlined.p-button-secondary.p-button-icon-only:enabled:hover {
+    border-color: var(--brand-saas) !important;
+    color: var(--brand-saas) !important;
+    background: #eef3ff !important;
+  }
+}
+
+.filter-bar,
+.reports-filter-bar,
+.products-filters,
+.ims-toolbar,
+.p-toolbar,
+.ims-export-actions,
+.detail-page-actions,
+.action-buttons {
+  @include ims-export-icon-tile-buttons;
+}
+
+.filter-bar,
+.reports-filter-bar,
+.products-filters,
+.ims-toolbar,
+.p-toolbar {
+  .p-selectbutton.p-buttonset {
+    display: inline-flex !important;
+    flex-wrap: nowrap;
+    gap: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 1px solid var(--brand-border) !important;
+    border-radius: var(--brand-field-radius, 8px) !important;
+    overflow: visible;
+    background: var(--brand-white) !important;
+    box-shadow: 0 1px 2px rgba(11, 31, 74, 0.06);
+  }
+
+  .p-selectbutton.p-buttonset > .p-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-weight: 500;
+    background: transparent !important;
+    color: var(--brand-text-secondary) !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    &::after {
+      content: none !important;
+      display: none !important;
+    }
+
+    &:not(:last-child) {
+      border-right: 1px solid var(--brand-border) !important;
+    }
+
+    > i.pi {
+      margin: 0 !important;
+      line-height: 1 !important;
+      font-size: 1rem;
+      color: inherit !important;
+    }
+  }
+
+  // Text segments (e.g. Tous / En stock / Rupture de stock)
+  .p-selectbutton.p-buttonset > .p-button:has(.p-button-label) {
+    flex: 0 0 auto !important;
+    min-width: auto !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0.5rem 1.125rem !important;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: visible !important;
+
+    .p-button-label {
+      flex: 0 0 auto !important;
+      overflow: visible !important;
+      text-overflow: clip;
+      line-height: 1.25;
+      padding-inline: 0.125rem;
+    }
+  }
+
+  .p-selectbutton.p-buttonset > .p-button:first-child {
+    border-top-left-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
+    border-bottom-left-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
+  }
+
+  .p-selectbutton.p-buttonset > .p-button:last-child {
+    border-top-right-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
+    border-bottom-right-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
+  }
+
+  // Icon-only view toggle (list/grid)
+  .p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) {
+    min-width: 2.5rem !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    padding: 0 !important;
+  }
+
+  .p-selectbutton.p-buttonset > .p-button.p-highlight {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    position: relative;
+    z-index: 1;
+
+    &:not(:last-child) {
+      border-right-color: var(--primary-color) !important;
+    }
+
+    > i.pi,
+    .p-button-icon,
+    .p-button-label {
+      position: relative;
+      z-index: 1;
+      color: #ffffff !important;
+    }
+  }
+
+  .p-selectbutton.p-buttonset > .p-button:not(.p-highlight):not(:disabled):hover {
+    background: var(--brand-bg-secondary, #f5f7fb) !important;
+    color: var(--brand-text-primary) !important;
+
+    > i.pi,
+    .p-button-label {
+      color: var(--brand-text-primary) !important;
+    }
+  }
+
+  // Stock status labels can be long in FR (e.g. "Rupture de stock")
+  .ims-stock-status-filter.p-selectbutton.p-buttonset > .p-button:has(.p-button-label) {
+    padding: 0.5rem 1.25rem !important;
+  }
+
+  // Advanced filter fields — unified dropdown / multiselect shell
+  .p-dropdown,
+  .p-multiselect {
+    min-height: 2.75rem;
+    align-items: center;
+  }
+
+  .p-dropdown .p-dropdown-label,
+  .p-multiselect .p-multiselect-label {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+:root[color-scheme='dark'] .filter-bar,
+:root[color-scheme='dark'] .reports-filter-bar,
+:root[color-scheme='dark'] .products-filters,
+:root[color-scheme='dark'] .ims-export-actions,
+:root[color-scheme='dark'] .detail-page-actions,
+:root[color-scheme='dark'] .action-buttons,
+.layout-theme-dark .filter-bar,
+.layout-theme-dark .reports-filter-bar,
+.layout-theme-dark .products-filters,
+.layout-theme-dark .ims-export-actions,
+.layout-theme-dark .detail-page-actions,
+.layout-theme-dark .action-buttons {
+  .p-button.p-button-icon-only:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-outlined.p-button-secondary.p-button-icon-only {
+    background: var(--surface-card) !important;
+    border-color: var(--surface-border) !important;
+    box-shadow: none;
+  }
+
+  .p-button.p-button-primary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-warning.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-outlined.p-button-secondary.p-button-icon-only:enabled:hover {
+    background: rgba(30, 94, 255, 0.12) !important;
+    border-color: var(--primary-color) !important;
+  }
+
+  .p-button.p-button-success.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: rgba(22, 199, 132, 0.12) !important;
+    border-color: var(--brand-success) !important;
+  }
+
+  .p-button.p-button-secondary.p-button-icon-only:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: rgba(30, 94, 255, 0.12) !important;
+    border-color: var(--primary-color) !important;
+  }
+
+  .p-selectbutton.p-buttonset {
+    background: var(--surface-card) !important;
+    border-color: var(--surface-border) !important;
+    box-shadow: none;
+  }
+
+  .p-selectbutton.p-buttonset > .p-button {
+    color: var(--text-color-secondary) !important;
+
+    &:not(:last-child) {
+      border-right-color: var(--surface-border) !important;
+    }
+  }
+
+  .p-selectbutton.p-buttonset > .p-button:not(.p-highlight):not(:disabled):hover {
+    background: var(--surface-hover) !important;
+    color: var(--text-color) !important;
+
+    > i.pi,
+    .p-button-label {
+      color: var(--text-color) !important;
+    }
+  }
+}
+
+
+// Data table row actions — icon-only ghost (with or without p-button-text)
+.p-datatable,
+.p-treetable {
+  .p-button.p-button-rounded.p-button-primary,
+  .p-button.p-button-rounded.p-button-warning,
+  .p-button.p-button-rounded.p-button-danger,
+  .p-button.p-button-rounded.p-button-success,
+  .p-button.p-button-rounded.p-button-info {
+    @include ims-icon-only-button-center;
+
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    min-width: 2.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 !important;
+  }
+
+  .p-button.p-button-rounded.p-button-primary {
+    color: var(--brand-saas) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-warning {
+    color: var(--brand-premium-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-danger {
+    color: var(--brand-danger) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-success {
+    color: var(--brand-success) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-info {
+    color: var(--brand-info) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-primary:enabled:hover {
+    background: rgba(30, 94, 255, 0.1) !important;
+    color: var(--brand-saas-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-warning:enabled:hover {
+    background: rgba(244, 183, 64, 0.14) !important;
+    color: var(--brand-premium-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-danger:enabled:hover {
+    background: rgba(229, 72, 77, 0.1) !important;
+    color: var(--brand-danger-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-success:enabled:hover {
+    background: rgba(22, 199, 132, 0.1) !important;
+    color: var(--brand-success-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-info:enabled:hover {
+    background: rgba(24, 197, 216, 0.1) !important;
+    color: var(--brand-info-hover) !important;
+  }
+}
+
+// Dialog footers — cancel text, confirm solid
+.p-dialog .p-dialog-footer {
+  gap: 0.5rem;
+
+  .p-button.p-button-text {
+    color: var(--brand-text-secondary) !important;
+    font-weight: 500;
+  }
+
+  .p-button.p-button-text:enabled:hover {
+    background: var(--surface-hover) !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined) {
+    min-height: 2.5rem;
+    padding-inline: 1.1rem !important;
+    color: #ffffff !important;
+
+    .p-button-label,
+    .p-button-icon {
+      color: #ffffff !important;
+    }
+  }
+}
+
+// Back / plain navigation chips on detail heroes
+.p-button.p-button-plain,
+.p-button.back-button {
+  color: var(--brand-text-secondary) !important;
+}
+
+.p-button.p-button-plain:enabled:hover,
+.p-button.back-button:enabled:hover {
+  background: var(--surface-hover) !important;
+  color: var(--brand-saas) !important;
+}
+
+// Detail-page back arrow — centered icon tile (PrimeNG ::after shifts icon-only buttons)
+.p-button.back-button.p-button-rounded {
+  @include ims-toolbar-icon-tile;
+  border: none !important;
+  background: var(--surface-card) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: var(--brand-text-secondary) !important;
+
+  &:enabled:hover {
+    background: var(--surface-hover) !important;
+    color: var(--brand-saas) !important;
+    border-color: transparent !important;
+  }
+}
+
+// Clear-filters icon — fallback tile styling when not inside a standard filter bar
+.p-button.p-button-icon-only:has(.pi-filter-slash),
+.p-button.p-button-outlined:has(.pi-filter-slash):not(:has(.p-button-label:not(:empty))) {
+  @include ims-toolbar-icon-tile;
+  color: var(--brand-text-secondary) !important;
+
+  .p-button-icon,
+  .pi {
+    color: var(--brand-text-secondary) !important;
+  }
+
+  &:enabled:hover {
+    border-color: var(--brand-saas) !important;
+    color: var(--brand-saas) !important;
+    background: #eef3ff !important;
+
+    .p-button-icon,
+    .pi {
+      color: var(--brand-saas) !important;
+    }
+  }
+}

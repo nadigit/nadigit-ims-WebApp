@@ -1,0 +1,63 @@
+.expense-dialog .required-asterisk {
+  color: var(--red-500);
+}
+
+.payment-method-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.payment-method-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.payment-method-option__label {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.expense-bank-account-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.expense-bank-account-option__name {
+  font-weight: 600;
+}
+
+.expense-bank-account-option__bank {
+  font-size: 0.8125rem;
+  color: var(--text-color-secondary);
+}
+
+.expense-bank-account-option__balance {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.expense-bank-account-option__amount {
+  font-weight: 600;
+}
+
+.expense-bank-account-option__type {
+  font-size: 0.6875rem;
+  color: var(--text-color-secondary);
+}
+
+.expense-bank-account-selected__name {
+  font-weight: 600;
+}
+
+.expense-bank-account-selected__bank {
+  margin-left: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-color-secondary);
+}

@@ -1,0 +1,108 @@
+.treasury-overview-container {
+    padding: 0;
+}
+
+.loading-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.status-banner {
+    background: var(--surface-card);
+    border: 1px solid var(--orange-200, #fed7aa);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.alert-card {
+    border-left: 4px solid var(--orange-500, #f97316);
+}
+
+.summary-card {
+    background: var(--surface-card);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--surface-border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.summary-card.clickable {
+    cursor: pointer;
+}
+
+.summary-card.clickable:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+}
+
+.card-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.card-icon.cash {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.card-icon.bank {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.card-icon.credit {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.card-icon.liquidity {
+    background: var(--brand-gradient-primary, linear-gradient(135deg, #43e97b 0%, #38f9d7 100%));
+}
+
+.card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 0.35rem;
+}
+
+.card-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.2;
+}
+
+.card-meta {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--text-color-secondary);
+    font-size: 0.8rem;
+}
+
+.empty-panel {
+    border: 1px dashed var(--surface-border);
+    border-radius: 8px;
+}
+
+.cash-flow-summary {
+    text-align: right;
+    min-width: 160px;
+}

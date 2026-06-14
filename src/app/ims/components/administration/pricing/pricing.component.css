@@ -11,6 +11,23 @@
   max-width: 30rem;
 }
 
-.pricing-skeleton {
-  min-height: 12rem;
+:host ::ng-deep .pricing-dialog .p-inputgroup p-inputnumber,
+:host ::ng-deep .pricing-dialog .p-inputgroup .p-inputnumber {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+:host ::ng-deep .pricing-dialog .p-inputgroup .p-inputnumber .p-inputnumber-input {
+  width: 100%;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+:host ::ng-deep .pricing-dialog .p-autocomplete {
+  width: 100%;
+}
+
+:host ::ng-deep .pricing-dialog .p-autocomplete .p-autocomplete-input {
+  width: 100%;
 }

@@ -55,6 +55,19 @@
   align-self: flex-start;
 }
 
+/* Stacked left/right dashboard columns (top customers + sales | products + pie) */
+.dashboard-column-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-self: flex-start;
+  width: 100%;
+}
+
+:host ::ng-deep .dashboard-column-stack .p-card {
+  width: 100%;
+}
+
 /* p-card body should not grow to fill stretched flex layout */
 :host ::ng-deep .dashboard-card-fit-content.p-card,
 :host ::ng-deep .dashboard-card-fit-content .p-card {
@@ -82,12 +95,75 @@
 .dashboard-chart-body--active {
   min-height: 18rem;
   height: 300px;
+  overflow: visible;
+}
+
+/* Sales line chart: plot area + HTML legend (one product per row) */
+.dashboard-chart-body--line.dashboard-chart-body--active {
+  min-height: auto;
+  height: auto;
+}
+
+.dashboard-line-chart-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.dashboard-line-chart-canvas {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  min-height: 200px;
+}
+
+.dashboard-sales-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard-sales-legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.dashboard-sales-legend-swatch {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-top: 0.2rem;
+  border-radius: 2px;
+}
+
+.dashboard-sales-legend-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-color);
+  word-break: break-word;
 }
 
 @media (min-width: 992px) {
   .dashboard-chart-body--active {
     min-height: 20rem;
     height: 320px;
+  }
+
+  .dashboard-chart-body--line.dashboard-chart-body--active {
+    min-height: auto;
+    height: auto;
+  }
+
+  .dashboard-line-chart-canvas {
+    height: 260px;
   }
 }
 
@@ -102,11 +178,16 @@
 .quick-action-card {
   background: var(--surface-card);
   border: 1px solid var(--surface-border);
+  color: var(--text-color);
   transition: all 0.2s ease;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.quick-action-card span {
+  color: var(--text-color);
 }
 
 .quick-action-card:hover {
@@ -115,46 +196,174 @@
 }
 
 .quick-action-icon {
-  width: 3.5rem;
-  height: 3.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-action-card:hover .quick-action-icon {
+  transform: translateY(-2px);
+}
+
+/* Getting Started onboarding — brand banner + icon-tile steps */
+.getting-started-banner {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 4px 20px rgba(11, 31, 74, 0.08);
+}
+
+.getting-started-banner__glow {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 4px;
+  background: var(--brand-gradient-primary);
+}
+
+.getting-started-banner__inner {
+  position: relative;
+  padding: 1.5rem 1.5rem 1.35rem;
+}
+
+.getting-started-banner__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.getting-started-hero-icon {
+  flex-shrink: 0;
+}
+
+.getting-started-banner__title {
+  font-family: var(--brand-font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-color);
+  line-height: 1.3;
+}
+
+.getting-started-banner__description {
+  margin-top: 0.5rem;
+  color: var(--text-color-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  max-width: 52rem;
+}
+
+.getting-started-steps {
+  margin: 1.25rem 0 0;
+}
+
+.getting-started-step {
   display: flex;
   align-items: center;
+  gap: 0.85rem;
+  height: 100%;
+  min-height: 4.5rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-ground);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  color: var(--text-color);
+  text-decoration: none;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.getting-started-step:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(30, 94, 255, 0.12);
+}
+
+.getting-started-step__badge {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 14%, var(--surface-card));
+  color: var(--primary-color);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
-/* Getting Started card — theme-aware gradient (light primary-50 reads as “white” in dark mode) */
-:host ::ng-deep .getting-started-card.p-card {
-  background: linear-gradient(135deg, var(--primary-50) 0%, var(--surface-0) 100%);
-  border: 1px solid var(--primary-200);
+.getting-started-step__icon {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
 }
 
-:host-context(.layout-theme-dark) ::ng-deep .getting-started-card.p-card {
+.getting-started-step:hover .getting-started-step__icon {
+  transform: translateY(-2px);
+}
+
+.getting-started-step__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.getting-started-step__arrow {
+  flex-shrink: 0;
+  color: var(--text-color-secondary);
+  font-size: 0.85rem;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.getting-started-step:hover .getting-started-step__arrow {
+  color: var(--primary-color);
+  transform: translateX(3px);
+}
+
+[dir='rtl'] .getting-started-step:hover .getting-started-step__arrow {
+  transform: translateX(-3px);
+}
+
+:host ::ng-deep .getting-started-dismiss.p-button.p-button-text {
+  color: var(--text-color-secondary) !important;
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .getting-started-dismiss.p-button.p-button-text:hover {
+  color: var(--text-color) !important;
+  background: var(--surface-hover) !important;
+}
+
+:host-context(.layout-theme-dark) .getting-started-banner {
   background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary-color) 26%, var(--surface-card)) 0%,
-    var(--surface-card) 100%
+    145deg,
+    color-mix(in srgb, var(--primary-color) 12%, var(--surface-card)) 0%,
+    var(--surface-card) 42%
   );
   border-color: var(--surface-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--brand-overlay-shadow, 0 8px 28px rgba(0, 0, 0, 0.35));
 }
 
-:host ::ng-deep .getting-started-card .getting-started-icon-wrap {
-  background: var(--primary-100);
-  border: 1px solid transparent;
+:host-context(.layout-theme-dark) .getting-started-step {
+  background: color-mix(in srgb, var(--brand-dark-bg-secondary) 55%, var(--surface-card));
 }
 
-:host-context(.layout-theme-dark) ::ng-deep .getting-started-card .getting-started-icon-wrap {
-  background: color-mix(in srgb, var(--primary-color) 22%, var(--surface-ground));
-  border-color: var(--surface-border);
+:host-context(.layout-theme-dark) .getting-started-step:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
-:host-context(.layout-theme-dark) ::ng-deep .getting-started-card .getting-started-dismiss.p-button.p-button-text {
-  color: var(--text-color-secondary);
-}
+@media (max-width: 767px) {
+  .getting-started-banner__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-:host-context(.layout-theme-dark) ::ng-deep .getting-started-card .getting-started-dismiss.p-button.p-button-text:hover {
-  color: var(--text-color);
-  background: rgba(255, 255, 255, 0.06);
+  .getting-started-hero-icon {
+    align-self: flex-start;
+  }
+
+  .getting-started-steps > [class*='col-'] + [class*='col-'] {
+    margin-top: 0.65rem;
+  }
 }
 
 /* Responsive font sizes for stat numbers */
@@ -232,7 +441,7 @@
   border: 1px solid var(--surface-border);
   
   ::ng-deep .p-card-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-600) 100%);
+    background: var(--brand-gradient-analytics);
     color: white;
     border-radius: 6px 6px 0 0;
     padding: 1.5rem;
@@ -315,8 +524,8 @@
   }
   
   &.revenue-card {
-    border-color: rgba(76, 175, 80, 0.3);
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.02) 100%);
+    border-color: color-mix(in srgb, var(--brand-success) 30%, transparent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--brand-success) 5%, transparent) 0%, color-mix(in srgb, var(--brand-success) 2%, transparent) 100%);
     
     &:hover {
       border-color: rgba(76, 175, 80, 0.5);

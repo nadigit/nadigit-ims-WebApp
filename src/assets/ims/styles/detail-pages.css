@@ -12,7 +12,7 @@
    ============================================ */
 :root {
   --detail-page-spacing: 1.5rem;
-  --detail-page-border-radius: 12px;
+  --detail-page-border-radius: var(--detail-hero-radius, 16px);
   --detail-page-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   --detail-page-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
   --detail-page-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -22,41 +22,77 @@
    CATEGORY-BASED COLOR SCHEMES
    ============================================ */
 
-/* Inventory Category (Blue/Green) */
+/* Inventory Category — brand SaaS + success */
 .detail-page-inventory {
-  --category-primary: #3B82F6;
-  --category-secondary: #10B981;
-  --category-gradient: linear-gradient(135deg, #3B82F6 0%, #10B981 100%);
-  --category-light: #DBEAFE;
-  --category-dark: #1E40AF;
+  --category-primary: var(--brand-saas);
+  --category-secondary: var(--brand-success);
+  --category-gradient: var(--brand-gradient-analytics);
+  --category-light: #E8EFFF;
+  --category-dark: var(--brand-navy);
 }
 
-/* Sales Category (Purple/Blue) */
+/* Sales Category — brand primary gradient */
 .detail-page-sales {
-  --category-primary: #8B5CF6;
-  --category-secondary: #6366F1;
-  --category-gradient: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
-  --category-light: #EDE9FE;
-  --category-dark: #6D28D9;
+  --category-primary: var(--brand-saas);
+  --category-secondary: var(--brand-cyan);
+  --category-gradient: var(--brand-gradient-ai);
+  --category-light: #E8EFFF;
+  --category-dark: var(--brand-corporate);
 }
 
-/* Finance Category (Teal/Purple) */
+/* Finance Category — analytics + corporate */
 .detail-page-finance {
-  --category-primary: #14B8A6;
-  --category-secondary: #A855F7;
-  --category-gradient: linear-gradient(135deg, #14B8A6 0%, #A855F7 100%);
-  --category-light: #CCFBF1;
-  --category-dark: #0D9488;
+  --category-primary: var(--brand-success);
+  --category-secondary: var(--brand-cyan);
+  --category-gradient: var(--brand-gradient-analytics);
+  --category-light: #E6FAF3;
+  --category-dark: #0E9A6A;
 }
 
-/* Default/Neutral */
+/* Default/Neutral — brand primary */
 .detail-page-default {
-  --category-primary: #6366F1;
-  --category-secondary: #8B5CF6;
-  --category-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
-  --category-light: #EEF2FF;
-  --category-dark: #4F46E5;
+  --category-primary: var(--brand-saas);
+  --category-secondary: var(--brand-cyan);
+  --category-gradient: var(--brand-gradient-primary);
+  --category-light: #E8EFFF;
+  --category-dark: var(--brand-corporate);
 }
+
+/* V1.2 dark mode — softer category tints on navy/corporate surfaces */
+:root[color-scheme='dark'] {
+  --detail-page-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  --detail-page-shadow-hover: 0 8px 28px rgba(0, 0, 0, 0.38);
+}
+
+:root[color-scheme='dark'] .detail-page-inventory,
+:root[color-scheme='dark'] .detail-page-sales,
+:root[color-scheme='dark'] .detail-page-default {
+  --category-light: rgba(30, 94, 255, 0.14);
+}
+
+:root[color-scheme='dark'] .detail-page-finance {
+  --category-light: rgba(22, 199, 132, 0.14);
+}
+
+/* Shared stat-icon gradients (detail pages) */
+.stat-gradient-primary {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+}
+
+.stat-gradient-analytics {
+  background: var(--brand-gradient-analytics);
+}
+
+.stat-gradient-success {
+  background: linear-gradient(135deg, var(--green-500), var(--green-600));
+}
+
+/* ============================================
+   LOADING STATES (global rules in ims-loading.scss)
+   Use: .loading-wrapper > .loading-content > p-progressSpinner
+   Or:  .ims-loading-panel > .ims-loading-panel__inner > p-progressSpinner
+   Sizes: ims-spinner--xs | --sm | --md | --lg | --xl
+   ============================================ */
 
 /* ============================================
    PAGE CONTAINER
@@ -179,14 +215,15 @@
 }
 
 .detail-page-action-btn {
-  border-radius: 8px;
+  border-radius: var(--brand-field-radius, 8px);
   transition: var(--detail-page-transition);
   font-weight: 500;
+  min-height: 2.5rem;
 }
 
-.detail-page-action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.detail-page-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 31, 74, 0.12);
 }
 
 /* ============================================

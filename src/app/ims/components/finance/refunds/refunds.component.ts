@@ -28,6 +28,11 @@ import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { DatePipe } from '@angular/common';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -76,6 +81,7 @@ export class RefundsComponent implements OnInit {
   returnStatuses: any[] = [];
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   valSwitch: boolean = false;
 
@@ -158,6 +164,10 @@ export class RefundsComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.refunds, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     this.maxRefundDate = new Date(); // Today's date
     this.maxRefundDate.setHours(23, 59, 59, 999); // Include entire current day
     await this.paymentValidationService.loadConfigurations();
@@ -267,6 +277,18 @@ export class RefundsComponent implements OnInit {
     await this.loadEligibleReturns();
     await this.loadBankAccounts();
     this.refund = { ...refund };
+    if (this.refund.refundDate && typeof this.refund.refundDate === 'string') {
+      this.refund.refundDate = new Date(this.refund.refundDate);
+    }
+    if (this.refund.checkExpirationDate && typeof this.refund.checkExpirationDate === 'string') {
+      this.refund.checkExpirationDate = new Date(this.refund.checkExpirationDate);
+    }
+    if (this.refund.boeExpirationDate && typeof this.refund.boeExpirationDate === 'string') {
+      this.refund.boeExpirationDate = new Date(this.refund.boeExpirationDate);
+    }
+    if (this.refund.orderReturn) {
+      await this.onReturnSelect(this.refund.orderReturn);
+    }
     await this.updateBankAccountFieldVisibility();
     this.refundDialog = true;
   }
@@ -361,6 +383,7 @@ export class RefundsComponent implements OnInit {
   hideDialog() {
     this.refundDialog = false;
     this.submitted = false;
+    this.creditInfo = null;
   }
 
   async openNew() {
@@ -636,9 +659,13 @@ export class RefundsComponent implements OnInit {
   }
 
   updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.refunds, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    const rows = event.rows || this.lastLazyLoadEvent.rows || this.pageSize;
     this.lastLazyLoadEvent = {
       first: event.first || 0,
-      rows: event.rows || 20,
+      rows,
       sortField: event.sortField || 'refundDate',
       sortOrder: event.sortOrder || -1,
       globalFilter: event.globalFilter || this.globalFilter,
@@ -995,6 +1022,7 @@ export class RefundsComponent implements OnInit {
   async onReturnSelect(selectedReturn: OrderReturn) {
     if (!selectedReturn) {
       this.maxRefundAmount = 0;
+      this.creditInfo = null;
       return;
     }
 
@@ -1009,6 +1037,13 @@ export class RefundsComponent implements OnInit {
     // Ensure current refund doesn't exceed max
     if (this.refund.amount > this.maxRefundAmount) {
       this.refund.amount = this.maxRefundAmount;
+    }
+
+    const customerId = selectedReturn.order?.customer?.customerId;
+    if (customerId) {
+      await this.loadCreditInfo(customerId);
+    } else {
+      this.creditInfo = null;
     }
 
     // Update bank account field visibility and pre-populate from shop default if refund method is already selected

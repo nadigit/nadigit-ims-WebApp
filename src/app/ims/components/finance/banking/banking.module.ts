@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BankingRoutingModule } from './banking-routing.module';
 import { AccountsComponent } from './accounts/accounts.component';
 import { AccountDetailsComponent } from './account-details/account-details.component';
-import { TransactionComponent } from './transactions/transaction.component';
+import { TransactionFormDialogComponent } from './transactions/transaction-form-dialog/transaction-form-dialog.component';
 import { ReconciliationComponent } from './reconciliation/reconciliation.component';
 
 // PrimeNG Modules
@@ -26,6 +26,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { TabViewModule } from 'primeng/tabview';
 import { BadgeModule } from 'primeng/badge';
 import { DividerModule } from 'primeng/divider';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 @NgModule({
   imports: [
@@ -49,12 +50,13 @@ import { DividerModule } from 'primeng/divider';
     TranslateModule,
     TabViewModule,
     BadgeModule,
-    DividerModule
+    DividerModule,
+    InputNumberModule
   ],
   declarations: [
     AccountsComponent,
     AccountDetailsComponent,
-    TransactionComponent,
+    TransactionFormDialogComponent,
     ReconciliationComponent
   ]
 })

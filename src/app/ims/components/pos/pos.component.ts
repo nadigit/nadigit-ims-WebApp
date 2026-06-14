@@ -5,6 +5,7 @@ import { Subject, debounceTime, takeUntil, interval } from 'rxjs';
 import { POSCartDTO, POSCheckoutDTO, POSProductDTO, POSReceiptDTO, PaymentInfo, PaymentMethod } from 'src/app/models/pos';
 import { paymentMethodOptions, PaymentMethodOption, getPaymentMethodLabel as getSharedPaymentMethodLabel, getPaymentMethodIcon as getSharedPaymentMethodIcon } from 'src/app/shared/payment-utils';
 import { PosService } from 'src/app/services/pos.service';
+import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { ShopService } from 'src/app/services/shop.service';
 import { CustomerService } from 'src/app/services/customer.service';
 import { CategoryService } from 'src/app/services/category.service';
@@ -20,12 +21,36 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { PosStorageService, PendingSale } from 'src/app/services/pos-storage.service';
 import { PwaService } from 'src/app/services/pwa.service';
 import { KeycloakService } from 'keycloak-angular';
+import { SessionAuditService } from 'src/app/services/session-audit.service';
 import { firstValueFrom } from 'rxjs';
 import { Warehouse } from 'src/app/models/warehouse';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { ProductFamilyService } from 'src/app/services/product-family.service';
+import {
+  ProductFamily,
+  ProductFamilyInventoryOverview,
+  ProductVariantLine,
+} from 'src/app/models/product-family';
+import { Product } from 'src/app/models/product';
+import { getProductVariantSummary } from 'src/app/shared/variant-summary.utils';
+import {
+  cartItemAsProduct,
+  computeCartItemSubtotal,
+  formatLineQuantity,
+  getCartItemDisplayQuantity,
+  getCartItemDisplayStock,
+  lineQuantityDecimals,
+  lineQuantityMin,
+  lineQuantityStep,
+  shouldShowLineMeasureUnit,
+} from 'src/app/shared/product-utils';
+import { QuantityScale } from 'src/app/utils/quantity-scale.util';
+import { POSCartItemDTO } from 'src/app/models/pos';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
+import { CashRegisterService } from 'src/app/services/cash-register.service';
+import { MenuItem } from 'primeng/api';
 
 @Component({
   selector: 'app-pos',
@@ -65,9 +90,21 @@ export class PosComponent implements OnInit, OnDestroy {
   sessionCashRegisterId: number | null = null;
   sessionNotes: string = '';
   closingSessionNotes: string = '';
+  reportDownloading: boolean = false;
+  xReportFormatMenu: MenuItem[] = [];
+  zReportFormatMenu: MenuItem[] = [];
 
   // Search / scan
   barcodeInput: string = '';
+  /** Fashion / variant POS: browse styles then pick SKU variant. */
+  posSellMode: 'styles' | 'sku' = 'styles';
+  posStyleFamilies: ProductFamilyInventoryOverview[] = [];
+  posStyleFamiliesFiltered: ProductFamilyInventoryOverview[] = [];
+  posStyleSearch = '';
+  posStyleCatalogLoading = false;
+  selectedPosFamily: ProductFamily | null = null;
+  posVariantLines: ProductVariantLine[] = [];
+  posVariantLinesLoading = false;
   searchQuery: string = '';
   searchResults: POSProductDTO[] = [];
   quickProducts: POSProductDTO[] = [];
@@ -96,6 +133,7 @@ export class PosComponent implements OnInit, OnDestroy {
   checkoutNotes: string = '';
   printReceipt: boolean = true;
   lastReceipt: POSReceiptDTO | null = null;
+  receiptPrinting = false;
 
   // Hold carts dialog
   holdCartsDialog: boolean = false;
@@ -150,6 +188,17 @@ export class PosComponent implements OnInit, OnDestroy {
   private heartbeatInterval: any = null;
   private sessionRefreshInterval: any = null;
 
+  /** Debounced sync for discount / transport / additional charges (avoids race + reset to 0). */
+  private static readonly SUMMARY_FIELD_DEBOUNCE_MS = 400;
+  private transportDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private additionalChargesDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private discountDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private transportPersistSeq = 0;
+  private additionalChargesPersistSeq = 0;
+  private discountPersistSeq = 0;
+  /** True while user-edited summary values may not match server yet. */
+  private summaryFieldsDirty = false;
+
 
   // Cart & Customer properties
   selectedCustomer: any = { customerId: null, fullName: 'Walk-in Customer' }; // Default to walk-in
@@ -161,6 +210,7 @@ export class PosComponent implements OnInit, OnDestroy {
     { label: 'Percentage', value: 'Percentage' }
   ];
   transportAmount = 0;
+  additionalChargesAmount = 0;
   orderNotes = '';
   paymentAmount = 0;
   
@@ -269,6 +319,7 @@ export class PosComponent implements OnInit, OnDestroy {
     private posStorage: PosStorageService,
     private pwaService: PwaService,
     private keycloakService: KeycloakService,
+    private sessionAuditService: SessionAuditService,
     private route: ActivatedRoute,
     private router: Router,
     private messageService: MessageService,
@@ -277,6 +328,9 @@ export class PosComponent implements OnInit, OnDestroy {
     public activityProfileService: ActivityProfileService,
     private bankAccountService: BankAccountService,
     private paymentValidationService: PaymentValidationService,
+    private productFamilyService: ProductFamilyService,
+    private financialDocService: FinancialDocumentsService,
+    private cashRegisterService: CashRegisterService,
   ) { }
 
   openProfileSettings(): void {
@@ -284,9 +338,12 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
+    await this.activityProfileService.ensureLoaded();
     this.translationService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
+      this.initReportFormatMenus();
     });
+    this.initReportFormatMenus();
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -349,6 +406,11 @@ export class PosComponent implements OnInit, OnDestroy {
     this.canReadBankAccounts = this.isAdmin;
     
     await this.initShopsAndSession();
+
+    if (this.activityProfileService.emphasizeProductVariants) {
+      this.posSellMode = 'styles';
+      await this.loadPosStyleCatalog();
+    }
     
     // Set up periodic session state refresh (every 60 seconds)
     this.sessionRefreshInterval = setInterval(async () => {
@@ -377,6 +439,7 @@ export class PosComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.clearSummaryFieldDebounceTimers();
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
     }
@@ -588,7 +651,187 @@ export class PosComponent implements OnInit, OnDestroy {
     this.searchQuery = '';
     this.searchResults = [];
     this.searchSuggestions = [];
+    this.clearPosStyleSelection();
+    if (this.activityProfileService.emphasizeProductVariants) {
+      await this.loadPosStyleCatalog();
+    }
     await this.loadQuickProducts();
+  }
+
+  get posSellModeOptions(): { label: string; value: 'styles' | 'sku' }[] {
+    return [
+      { label: this.translate.instant('pos_sell_mode_styles'), value: 'styles' },
+      { label: this.translate.instant('pos_sell_mode_sku'), value: 'sku' },
+    ];
+  }
+
+  async loadPosStyleCatalog(): Promise<void> {
+    if (!this.activityProfileService.emphasizeProductVariants || this.selectedWarehouseId == null) {
+      this.posStyleFamilies = [];
+      this.posStyleFamiliesFiltered = [];
+      return;
+    }
+    this.posStyleCatalogLoading = true;
+    try {
+      const page = await firstValueFrom(
+        this.productFamilyService.getInventoryOverviewPage(
+          0, 200, this.posStyleSearch.trim() || undefined, this.selectedWarehouseId, true,
+        ),
+      );
+      this.posStyleFamilies = page.families ?? [];
+      this.applyPosStyleSearchFilter();
+    } catch {
+      this.posStyleFamilies = [];
+      this.posStyleFamiliesFiltered = [];
+    } finally {
+      this.posStyleCatalogLoading = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  onPosStyleSearch(): void {
+    this.applyPosStyleSearchFilter();
+  }
+
+  private applyPosStyleSearchFilter(): void {
+    const q = this.posStyleSearch.trim().toLowerCase();
+    if (!q) {
+      this.posStyleFamiliesFiltered = [...this.posStyleFamilies];
+      return;
+    }
+    this.posStyleFamiliesFiltered = this.posStyleFamilies.filter((row) => {
+      const f = row.family;
+      const ref = (f.styleReference ?? '').toLowerCase();
+      const name = (f.name ?? '').toLowerCase();
+      return ref.includes(q) || name.includes(q);
+    });
+  }
+
+  async selectPosStyleFamily(row: ProductFamilyInventoryOverview): Promise<void> {
+    if (!row.family?.productFamilyId || this.selectedWarehouseId == null) {
+      return;
+    }
+    this.selectedPosFamily = row.family;
+    this.posVariantLines = row.variants ?? [];
+    this.posVariantLinesLoading = true;
+    try {
+      const fresh = await firstValueFrom(
+        this.productFamilyService.getFamilyInventoryOverview(row.family.productFamilyId, this.selectedWarehouseId),
+      );
+      this.posVariantLines = fresh.variants ?? [];
+    } catch {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('variant_picker_load_failed'),
+        life: 4000,
+      });
+    } finally {
+      this.posVariantLinesLoading = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  clearPosStyleSelection(): void {
+    this.selectedPosFamily = null;
+    this.posVariantLines = [];
+  }
+
+  posVariantSummary(line: ProductVariantLine): string {
+    return line.variantSummary || getProductVariantSummary(line);
+  }
+
+  async onPosVariantCardClick(line: ProductVariantLine): Promise<void> {
+    const net = line.netAvailableQuantity ?? line.quantityAvailable ?? 0;
+    if (!line.productId || net <= 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('product_quantity_insufficient'),
+        life: 3000,
+      });
+      return;
+    }
+    try {
+      this.productService.loadToken();
+      const product = (await firstValueFrom(this.productService.getProduct(line.productId))) as Product;
+      const posProduct = this.mapProductToPosDto(product, line);
+      await this.addProductToCart(posProduct, 1);
+    } catch {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('variant_picker_resolve_failed'),
+        life: 4000,
+      });
+    }
+  }
+
+  private mapProductToPosDto(product: Product, line?: ProductVariantLine): POSProductDTO {
+    const storageQty = product.netAvailableQuantity ?? product.quantityAvailable ?? line?.netAvailableQuantity ?? 0;
+    return {
+      productId: product.productId,
+      name: product.name ?? '',
+      reference: product.reference ?? line?.reference ?? '',
+      sellingPrice: product.sellingPrice ?? line?.sellingPrice ?? 0,
+      buyingPrice: product.buyingPrice ?? line?.buyingPrice ?? 0,
+      quantityAvailable: storageQty,
+      displayQuantityAvailable: product.displayNetAvailableQuantity
+        ?? product.displayQuantityAvailable
+        ?? (QuantityScale.isFractional(product)
+          ? QuantityScale.toDisplayQuantity(product, storageQty)
+          : storageQty),
+      inventoryStatus: product.inventoryStatus ?? line?.inventoryStatus ?? 'INSTOCK',
+      categoryName: product.category?.categoryName,
+      warehouseName: product.warehouse?.name ?? line?.warehouseName,
+      imageUrl: product.productImage ?? '',
+      measureUnit: product.measureUnit,
+      stockTrackingMode: product.stockTrackingMode,
+      quantityPrecision: product.quantityPrecision,
+    };
+  }
+
+  private async openPosFamilyForBarcodeScan(styleReference: string): Promise<boolean> {
+    if (!this.activityProfileService.emphasizeProductVariants || this.selectedWarehouseId == null) {
+      return false;
+    }
+    const scan = styleReference.trim();
+    if (!scan) {
+      return false;
+    }
+    try {
+      const families = await firstValueFrom(this.productFamilyService.list(scan, true));
+      const exact = families.find(
+        (f) => (f.styleReference ?? '').trim().toUpperCase() === scan.toUpperCase(),
+      );
+      if (!exact?.productFamilyId) {
+        return false;
+      }
+      const overview = await firstValueFrom(
+        this.productFamilyService.getFamilyInventoryOverview(exact.productFamilyId, this.selectedWarehouseId),
+      );
+      this.posSellMode = 'styles';
+      this.selectedPosFamily = overview.family;
+      this.posVariantLines = overview.variants ?? [];
+      this.cdr.markForCheck();
+
+      const inStock = (overview.variants ?? []).filter(
+        (v) => (v.netAvailableQuantity ?? v.quantityAvailable ?? 0) > 0,
+      );
+      if (inStock.length === 1) {
+        await this.onPosVariantCardClick(inStock[0]);
+        return true;
+      }
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('pos_style_scanned_title'),
+        detail: this.translate.instant('pos_style_scanned_pick_variant', { style: exact.styleReference }),
+        life: 4000,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async ensureSessionAndCart() {
@@ -646,8 +889,7 @@ export class PosComponent implements OnInit, OnDestroy {
           try {
             const activeCart$ = await this.posService.getActiveCart(session.sessionId);
             const freshCart = await firstValueFrom(activeCart$);
-            // Always normalize to ensure calculations are correct
-            this.cart = this.normalizeCartItems(freshCart);
+            this.assignCartFromServer(freshCart);
             if (this.cart) {
               this.taxEnabled = this.cart.taxEnabled || false;
             }
@@ -656,7 +898,7 @@ export class PosComponent implements OnInit, OnDestroy {
             // No active cart, create a new one
             const cart$ = await this.posService.createCart(session.sessionId);
             const newCart = await firstValueFrom(cart$);
-            this.cart = this.normalizeCartItems(newCart);
+            this.assignCartFromServer(newCart);
             if (this.cart) {
               this.taxEnabled = this.cart.taxEnabled || false;
             }
@@ -875,12 +1117,16 @@ export class PosComponent implements OnInit, OnDestroy {
         await this.addProductToCart(product, 1);
         this.barcodeInput = '';
       } else {
-        // Product not found via barcode API, try fallback to legacy search
+        if (await this.openPosFamilyForBarcodeScan(barcode)) {
+          return;
+        }
         await this.fallbackBarcodeSearch(barcode);
       }
     } catch (error: any) {
       console.error('Error with barcode scan API, trying fallback:', error);
-      // Try fallback to legacy barcode search
+      if (await this.openPosFamilyForBarcodeScan(barcode)) {
+        return;
+      }
       await this.fallbackBarcodeSearch(barcode);
     } finally {
       this.productsLoading = false;
@@ -900,6 +1146,9 @@ export class PosComponent implements OnInit, OnDestroy {
       this.barcodeInput = '';
     } catch (error: any) {
       console.error('Error fetching product by barcode (fallback):', error);
+      if (await this.openPosFamilyForBarcodeScan(barcode)) {
+        return;
+      }
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
@@ -1059,6 +1308,107 @@ export class PosComponent implements OnInit, OnDestroy {
     return this.cart?.totalAmount || 0;
   }
 
+  /** Transport + additional charges (non-taxable, not in tax base). */
+  private cartNonTaxableExtras(cart: POSCartDTO | null = this.cart): number {
+    if (!cart) {
+      return 0;
+    }
+    return (cart.transportAmount || 0) + (cart.additionalChargesAmount || 0);
+  }
+
+  private recalculateCartTotalFromParts(cart: POSCartDTO): void {
+    cart.totalAmount =
+      (cart.subtotal || 0) -
+      (cart.discountAmount || 0) +
+      (cart.taxAmount || 0) +
+      this.cartNonTaxableExtras(cart);
+  }
+
+  private clearSummaryFieldDebounceTimers(): void {
+    if (this.transportDebounceTimer) {
+      clearTimeout(this.transportDebounceTimer);
+      this.transportDebounceTimer = null;
+    }
+    if (this.additionalChargesDebounceTimer) {
+      clearTimeout(this.additionalChargesDebounceTimer);
+      this.additionalChargesDebounceTimer = null;
+    }
+    if (this.discountDebounceTimer) {
+      clearTimeout(this.discountDebounceTimer);
+      this.discountDebounceTimer = null;
+    }
+  }
+
+  private hasPendingSummaryFieldSync(): boolean {
+    return !!(
+      this.transportDebounceTimer ||
+      this.additionalChargesDebounceTimer ||
+      this.discountDebounceTimer
+    );
+  }
+
+  private shouldPreserveLocalSummaryFields(): boolean {
+    return this.summaryFieldsDirty || this.hasPendingSummaryFieldSync();
+  }
+
+  /** Apply current UI summary fields onto cart and recalculate totals (optimistic). */
+  private reconcileUiSummaryFieldsToCart(): void {
+    if (!this.cart) {
+      return;
+    }
+    this.cart.transportAmount = this.transportAmount || 0;
+    this.cart.additionalChargesAmount = this.additionalChargesAmount || 0;
+    this.cart.discountType = this.discountType;
+    this.cart.discountAmount = this.computeCartDiscountFromUi();
+    this.cart.taxEnabled = this.taxEnabled;
+    if (this.taxEnabled && this.taxRate > 0) {
+      const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
+      this.cart.taxAmount = taxableAmount * this.taxRate;
+    } else {
+      this.cart.taxAmount = 0;
+    }
+    this.recalculateCartTotalFromParts(this.cart);
+  }
+
+  private computeCartDiscountFromUi(): number {
+    if (!this.cart) {
+      return 0;
+    }
+    const subtotal = this.cart.subtotal || 0;
+    if (subtotal <= 0) {
+      return 0;
+    }
+    if (this.discountType === 'Percentage') {
+      const pct = Math.min(100, Math.max(0, this.discountAmount || 0));
+      return Math.round(subtotal * (pct / 100) * 100) / 100;
+    }
+    return Math.min(subtotal, Math.max(0, this.discountAmount || 0));
+  }
+
+  private assignCartFromServer(cart: POSCartDTO | null): void {
+    const preserveLocal = this.shouldPreserveLocalSummaryFields();
+    this.cart = this.normalizeCartItems(cart, !preserveLocal);
+    if (this.cart && preserveLocal) {
+      this.reconcileUiSummaryFieldsToCart();
+    } else if (this.cart) {
+      this.summaryFieldsDirty = false;
+    }
+  }
+
+  /** Push pending summary edits to the server before checkout. */
+  private async flushSummaryFieldSync(): Promise<void> {
+    const hadPending = this.hasPendingSummaryFieldSync();
+    this.clearSummaryFieldDebounceTimers();
+    if (!this.cart || (!this.summaryFieldsDirty && !hadPending)) {
+      return;
+    }
+    await Promise.all([
+      this.persistTransportAmount(),
+      this.persistAdditionalCharges(),
+      this.persistDiscount()
+    ]);
+  }
+
   /**
    * Normalize cart items coming from backend/local storage so UI bindings always work,
    * even if backend uses nested product objects instead of flat productName/productReference.
@@ -1075,16 +1425,18 @@ export class PosComponent implements OnInit, OnDestroy {
     (cart as any).items = items.map((item: any) => {
       const product = item.product || item.productDto || {};
       const manualOverride = item.priceOverride ?? item.manualPriceOverride;
-      
-      // Always recalculate subtotal from quantity and price
       const quantity = item.quantity || 0;
       const pricePerUnit = item.pricePerUnit || 0;
-      const subtotal = quantity * pricePerUnit;
-      
-      return {
+      const stockTrackingMode = item.stockTrackingMode ?? product.stockTrackingMode;
+      const measureUnit = item.measureUnit ?? product.measureUnit;
+      const displayQuantityAvailable = item.displayQuantityAvailable ?? product.displayQuantityAvailable;
+      const normalized: POSCartItemDTO = {
         ...item,
-        manualPriceOverride: manualOverride != null,
-        priceOverride: manualOverride ?? item.priceOverride,
+        quantity,
+        pricePerUnit,
+        stockTrackingMode,
+        measureUnit,
+        displayQuantityAvailable,
         productName:
           item.productName ||
           product.name ||
@@ -1100,9 +1452,15 @@ export class PosComponent implements OnInit, OnDestroy {
           product.quantityAvailable ??
           product.stock ??
           0,
-        quantity: quantity,
-        pricePerUnit: pricePerUnit,
-        subtotal: subtotal
+      };
+      normalized.displayQuantity = getCartItemDisplayQuantity(normalized);
+      normalized.subtotal = item.subtotal > 0
+        ? item.subtotal
+        : computeCartItemSubtotal(normalized);
+      return {
+        ...normalized,
+        manualPriceOverride: manualOverride != null,
+        priceOverride: manualOverride ?? item.priceOverride,
       };
     });
 
@@ -1142,9 +1500,8 @@ export class PosComponent implements OnInit, OnDestroy {
       cart.taxAmount = 0;
     }
     
-    // Always recalculate total from subtotal, discount, tax, and transport
-    // Formula: subtotal - discount + tax + transport
-    cart.totalAmount = (cart.subtotal || 0) - (cart.discountAmount || 0) + (cart.taxAmount || 0) + (cart.transportAmount || 0);
+    // Always recalculate total from subtotal, discount, tax, and non-taxable extras
+    this.recalculateCartTotalFromParts(cart);
     
     // Sync all UI values from cart after normalization (unless explicitly disabled)
     if (syncDiscountTax) {
@@ -1170,8 +1527,13 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Pre-validate against net available quantity (quantityAvailable already contains net quantity)
-    const netAvailable = product.quantityAvailable || 0;
+    const productMeta = {
+      stockTrackingMode: product.stockTrackingMode,
+      measureUnit: product.measureUnit,
+    } as Product;
+    const netAvailable = QuantityScale.isFractional(productMeta)
+      ? (product.displayQuantityAvailable ?? QuantityScale.toDisplayQuantity(productMeta, product.quantityAvailable || 0))
+      : (product.quantityAvailable || 0);
     if (netAvailable <= 0) {
       this.messageService.add({
         severity: 'warn',
@@ -1273,16 +1635,16 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Pre-validate against net available quantity if available (skip strict cap when server holds reservations)
-    if (item.quantityAvailable !== undefined && item.quantityAvailable !== null) {
-      const netAvailable = item.quantityAvailable;
-      const skipClientMaxQty =
-        this.salesStockSoftReservationEnabled && this.isOnline;
-      if (!skipClientMaxQty && newQuantity > netAvailable) {
+    const displayQty = this.getCartLineDisplayQuantity(item);
+    const skipClientMaxQty =
+      this.salesStockSoftReservationEnabled && this.isOnline;
+    const netAvailable = this.getCartLineDisplayStock(item);
+    if (netAvailable > 0) {
+      if (!skipClientMaxQty && displayQty > netAvailable) {
         this.messageService.add({
           severity: 'warn',
           summary: this.translate.instant('warning'),
-          detail: this.getInsufficientStockDetail(undefined, netAvailable, newQuantity),
+          detail: this.getInsufficientStockDetail(undefined, netAvailable, displayQty),
           life: 3000
         });
         return;
@@ -1292,9 +1654,10 @@ export class PosComponent implements OnInit, OnDestroy {
     this.cartSaving = true;
     try {
       const priceOverride = this.getManualPriceOverride(item);
+      const apiQuantity = this.toApiQuantity(item, displayQty);
       const updated$ = priceOverride != null
-        ? await this.posService.updateCartItem(item.cartItemId, newQuantity, priceOverride)
-        : await this.posService.updateCartItem(item.cartItemId, newQuantity);
+        ? await this.posService.updateCartItem(item.cartItemId, apiQuantity, priceOverride)
+        : await this.posService.updateCartItem(item.cartItemId, apiQuantity);
       const updatedCart = await firstValueFrom(updated$);
       // Normalize cart to recalculate totals
       this.cart = this.normalizeCartItems(updatedCart);
@@ -1359,13 +1722,41 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
-  async applyDiscount(amount: number, type: 'Amount' | 'Percentage') {
-    if (!this.cart) return;
+  onDiscountInput(amount: number | null) {
+    if (!this.cart) {
+      return;
+    }
+    if (amount === null || amount === undefined || amount < 0) {
+      amount = 0;
+    }
+    this.discountAmount = amount;
+    this.summaryFieldsDirty = true;
+    this.reconcileUiSummaryFieldsToCart();
+    this.updateCartTracking();
+    this.saveToLocalStorage();
+    this.scheduleDiscountPersist();
+  }
+
+  private scheduleDiscountPersist(): void {
+    if (this.discountDebounceTimer) {
+      clearTimeout(this.discountDebounceTimer);
+    }
+    this.discountDebounceTimer = setTimeout(() => {
+      this.discountDebounceTimer = null;
+      void this.persistDiscount();
+    }, PosComponent.SUMMARY_FIELD_DEBOUNCE_MS);
+  }
+
+  private async persistDiscount(): Promise<void> {
+    if (!this.cart) {
+      return;
+    }
+    const amount = this.discountAmount;
+    const type = this.discountType;
+
     if (amount < 0) {
       return;
     }
-    
-    // Validate percentage: should be between 0 and 100
     if (type === 'Percentage' && amount > 100) {
       this.messageService.add({
         severity: 'warn',
@@ -1375,8 +1766,6 @@ export class PosComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    
-    // Validate amount: should not exceed subtotal
     if (type === 'Amount' && amount > (this.cart.subtotal || 0)) {
       this.messageService.add({
         severity: 'warn',
@@ -1386,32 +1775,28 @@ export class PosComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    
-    this.cartSaving = true;
+
+    const seq = ++this.discountPersistSeq;
     try {
       const updated$ = await this.posService.updateCartDiscount(this.cart.cartId, amount, type);
       const updatedCart = await firstValueFrom(updated$);
-      // Normalize cart to recalculate totals (but don't sync discount values to preserve user input)
+      if (seq !== this.discountPersistSeq || !this.cart) {
+        return;
+      }
       const previousDiscountAmount = this.discountAmount;
       const previousDiscountType = this.discountType;
-      this.cart = this.normalizeCartItems(updatedCart, false); // Pass false to skip sync
-      // Restore the discount values that the user entered (keep same numeric value)
+      this.cart = this.normalizeCartItems(updatedCart, false);
       this.discountAmount = previousDiscountAmount;
       this.discountType = previousDiscountType;
-      
-      // Recalculate tax after discount change if tax is enabled
+      this.reconcileUiSummaryFieldsToCart();
       if (this.taxEnabled && this.taxRate > 0) {
         this.recalculateTax();
       }
-      
       this.updateCartTracking();
       this.saveToLocalStorage();
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('discount_applied'),
-        life: 2000
-      });
+      if (!this.hasPendingSummaryFieldSync()) {
+        this.summaryFieldsDirty = false;
+      }
     } catch (error) {
       console.error('Error applying discount:', error);
       this.messageService.add({
@@ -1420,83 +1805,77 @@ export class PosComponent implements OnInit, OnDestroy {
         detail: this.translate.instant('error_occurred'),
         life: 3000
       });
-    } finally {
-      this.cartSaving = false;
     }
   }
 
   onDiscountTypeChange() {
     if (!this.cart || !this.cart.subtotal) return;
-    
+
     const subtotal = this.cart.subtotal || 0;
     if (subtotal <= 0) return;
-    
-    // Keep the same numeric value when switching types, just apply it with the new type
-    // If user entered 5 in Amount, when switching to Percentage, it becomes 5%
-    // The applyDiscount method will handle the calculation based on the type
-    this.applyDiscount(this.discountAmount, this.discountType);
+
+    this.summaryFieldsDirty = true;
+    this.reconcileUiSummaryFieldsToCart();
+    this.updateCartTracking();
+    this.saveToLocalStorage();
+    if (this.discountDebounceTimer) {
+      clearTimeout(this.discountDebounceTimer);
+      this.discountDebounceTimer = null;
+    }
+    void this.persistDiscount();
   }
 
   onTransportAmountChange(amount: number | null) {
     if (!this.cart) return;
-    
-    // Handle null/undefined
+
     if (amount === null || amount === undefined) {
       amount = 0;
     }
-    
     if (amount < 0) {
       amount = 0;
       this.transportAmount = 0;
     }
-    
-    // Update local state immediately (UI updates in real-time)
-    const userEnteredAmount = amount;
-    this.cart.transportAmount = userEnteredAmount;
-    
-    // Recalculate total immediately with the new transport amount
-    this.cart.totalAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0) + (this.cart.taxAmount || 0) + userEnteredAmount;
-    
-    // Update cart tracking and save to local storage immediately
+
+    this.transportAmount = amount;
+    this.summaryFieldsDirty = true;
+    this.reconcileUiSummaryFieldsToCart();
     this.updateCartTracking();
     this.saveToLocalStorage();
-    
-    // Use setTimeout to defer the async API call and avoid change detection issues
-    // This prevents the input from losing focus while typing
-    setTimeout(() => {
-      this.updateTransportAmountOnBackend(userEnteredAmount);
-    }, 0);
+    this.scheduleTransportPersist();
   }
 
-  private async updateTransportAmountOnBackend(amount: number) {
-    if (!this.cart) return;
-    
-    // If the value hasn't changed, don't make an API call
-    if (this.cart.transportAmount === amount) {
+  private scheduleTransportPersist(): void {
+    if (this.transportDebounceTimer) {
+      clearTimeout(this.transportDebounceTimer);
+    }
+    this.transportDebounceTimer = setTimeout(() => {
+      this.transportDebounceTimer = null;
+      void this.persistTransportAmount();
+    }, PosComponent.SUMMARY_FIELD_DEBOUNCE_MS);
+  }
+
+  private async persistTransportAmount(): Promise<void> {
+    if (!this.cart) {
       return;
     }
-    
-    this.cartSaving = true;
+    const amount = this.transportAmount || 0;
+    const seq = ++this.transportPersistSeq;
     try {
-      // Update transport amount on backend
       const updated$ = await this.posService.updateCartTransport(this.cart.cartId, amount);
       const updatedCart = await firstValueFrom(updated$);
-      
-      // Ensure the backend response has the transport amount set
+      if (seq !== this.transportPersistSeq || !this.cart) {
+        return;
+      }
       updatedCart.transportAmount = amount;
-      
-      // Normalize cart to recalculate totals (but don't sync transport amount to preserve user input)
-      this.cart = this.normalizeCartItems(updatedCart, false); // Pass false to skip sync
-      
-      // Restore the transport amount that the user entered (preserve user input)
+      this.cart = this.normalizeCartItems(updatedCart, false);
       this.transportAmount = amount;
       this.cart.transportAmount = amount;
-      
-      // Recalculate total to include the transport amount
-      this.cart.totalAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0) + (this.cart.taxAmount || 0) + amount;
-      
+      this.reconcileUiSummaryFieldsToCart();
       this.updateCartTracking();
       this.saveToLocalStorage();
+      if (!this.hasPendingSummaryFieldSync()) {
+        this.summaryFieldsDirty = false;
+      }
     } catch (error) {
       console.error('Error updating transport amount:', error);
       this.messageService.add({
@@ -1505,10 +1884,68 @@ export class PosComponent implements OnInit, OnDestroy {
         detail: this.translate.instant('error_occurred'),
         life: 3000
       });
-      // Revert the transport amount on error
-      this.transportAmount = this.cart.transportAmount || 0;
-    } finally {
-      this.cartSaving = false;
+    }
+  }
+
+  onAdditionalChargesAmountChange(amount: number | null) {
+    if (!this.cart) return;
+
+    if (amount === null || amount === undefined) {
+      amount = 0;
+    }
+    if (amount < 0) {
+      amount = 0;
+      this.additionalChargesAmount = 0;
+    }
+
+    this.additionalChargesAmount = amount;
+    this.summaryFieldsDirty = true;
+    this.reconcileUiSummaryFieldsToCart();
+    this.updateCartTracking();
+    this.saveToLocalStorage();
+    this.scheduleAdditionalChargesPersist();
+  }
+
+  private scheduleAdditionalChargesPersist(): void {
+    if (this.additionalChargesDebounceTimer) {
+      clearTimeout(this.additionalChargesDebounceTimer);
+    }
+    this.additionalChargesDebounceTimer = setTimeout(() => {
+      this.additionalChargesDebounceTimer = null;
+      void this.persistAdditionalCharges();
+    }, PosComponent.SUMMARY_FIELD_DEBOUNCE_MS);
+  }
+
+  private async persistAdditionalCharges(): Promise<void> {
+    if (!this.cart) {
+      return;
+    }
+    const amount = this.additionalChargesAmount || 0;
+    const seq = ++this.additionalChargesPersistSeq;
+    try {
+      const updated$ = await this.posService.updateCartAdditionalCharges(this.cart.cartId, amount);
+      const updatedCart = await firstValueFrom(updated$);
+      if (seq !== this.additionalChargesPersistSeq || !this.cart) {
+        return;
+      }
+      updatedCart.additionalChargesAmount = amount;
+      this.cart = this.normalizeCartItems(updatedCart, false);
+      this.additionalChargesAmount = amount;
+      this.cart.additionalChargesAmount = amount;
+      this.reconcileUiSummaryFieldsToCart();
+      this.updateCartTracking();
+      this.saveToLocalStorage();
+      if (!this.hasPendingSummaryFieldSync()) {
+        this.summaryFieldsDirty = false;
+      }
+    } catch (error) {
+      console.error('Error updating additional charges:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_occurred'),
+        life: 3000
+      });
     }
   }
 
@@ -1553,7 +1990,7 @@ export class PosComponent implements OnInit, OnDestroy {
     if (!this.taxEnabled) {
       this.cart.taxAmount = 0;
       const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
-      this.cart.totalAmount = taxableAmount + (this.cart.transportAmount || 0);
+      this.cart.totalAmount = taxableAmount + this.cartNonTaxableExtras(this.cart);
       return;
     }
     
@@ -1561,7 +1998,7 @@ export class PosComponent implements OnInit, OnDestroy {
     if (this.taxRate <= 0) {
       this.cart.taxAmount = 0;
       const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
-      this.cart.totalAmount = taxableAmount + (this.cart.transportAmount || 0);
+      this.cart.totalAmount = taxableAmount + this.cartNonTaxableExtras(this.cart);
       console.warn('Tax rate not loaded yet, tax amount set to 0 temporarily. Will recalculate when tax rate is available.');
       return;
     }
@@ -1573,19 +2010,16 @@ export class PosComponent implements OnInit, OnDestroy {
     // Same formula as orders component: amount * taxRate
     const calculatedTaxAmount = taxableAmount * this.taxRate;
     
-    // Update cart tax amount
     this.cart.taxAmount = calculatedTaxAmount;
-    // Recalculate total (include transport amount)
-    const transportAmount = this.cart.transportAmount || 0;
-    this.cart.totalAmount = taxableAmount + calculatedTaxAmount + transportAmount;
+    this.recalculateCartTotalFromParts(this.cart);
   }
 
   async toggleTax() {
     if (!this.cart) return;
     this.cartSaving = true;
     
-    // Preserve transport amount before normalizing (backend might not return it)
     const preservedTransportAmount = this.cart.transportAmount || 0;
+    const preservedAdditionalCharges = this.cart.additionalChargesAmount || 0;
     
     try {
       const updated$ = await this.posService.toggleTax(this.cart.cartId, this.taxEnabled);
@@ -1594,9 +2028,11 @@ export class PosComponent implements OnInit, OnDestroy {
       // Normalize cart to recalculate totals (this will also sync discount/tax values)
       this.cart = this.normalizeCartItems(updatedCart);
       
-      // Restore transport amount if it was lost during normalization
       if (this.cart.transportAmount === 0 && preservedTransportAmount > 0) {
         this.cart.transportAmount = preservedTransportAmount;
+      }
+      if (this.cart.additionalChargesAmount === 0 && preservedAdditionalCharges > 0) {
+        this.cart.additionalChargesAmount = preservedAdditionalCharges;
       }
       
       // Recalculate tax using the tax rate from configuration
@@ -1613,13 +2049,12 @@ export class PosComponent implements OnInit, OnDestroy {
         if (this.cart) {
           this.cart.taxAmount = 0;
           const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
-          const transportAmount = this.cart.transportAmount || 0;
-          this.cart.totalAmount = taxableAmount + transportAmount;
+          this.cart.totalAmount = taxableAmount + this.cartNonTaxableExtras(this.cart);
         }
       }
       
-      // Sync transport amount to UI property
       this.transportAmount = this.cart.transportAmount || 0;
+      this.additionalChargesAmount = this.cart.additionalChargesAmount || 0;
       
       this.updateCartTracking();
       this.saveToLocalStorage();
@@ -2026,7 +2461,7 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Sync discount and tax values from cart to ensure fresh values
+    await this.flushSummaryFieldSync();
     this.syncDiscountAndTaxFromCart();
     
     // Reset checkout-specific fields
@@ -2096,8 +2531,8 @@ export class PosComponent implements OnInit, OnDestroy {
       this.discountAmount = this.cart.discountAmount || 0;
     }
     
-    // Sync transport amount from cart
     this.transportAmount = this.cart.transportAmount || 0;
+    this.additionalChargesAmount = this.cart.additionalChargesAmount || 0;
     
     // Sync tax enabled state from cart
     const previousTaxEnabled = this.taxEnabled;
@@ -2499,6 +2934,7 @@ export class PosComponent implements OnInit, OnDestroy {
     // This is critical for resumed carts to avoid payment mismatch errors
     // Preserve transport amount before refreshing (backend might not return it)
     const preservedTransportAmount = this.transportAmount || this.cart?.transportAmount || 0;
+    const preservedAdditionalCharges = this.additionalChargesAmount || this.cart?.additionalChargesAmount || 0;
     
     if (this.cart && this.cart.cartId) {
       try {
@@ -2507,10 +2943,13 @@ export class PosComponent implements OnInit, OnDestroy {
         const refreshedCart = await firstValueFrom(refreshedCart$);
         this.cart = this.normalizeCartItems(refreshedCart);
         
-        // Restore transport amount if it was lost during refresh
         if (preservedTransportAmount > 0 && (!this.cart.transportAmount || this.cart.transportAmount === 0)) {
           this.cart.transportAmount = preservedTransportAmount;
           this.transportAmount = preservedTransportAmount;
+        }
+        if (preservedAdditionalCharges > 0 && (!this.cart.additionalChargesAmount || this.cart.additionalChargesAmount === 0)) {
+          this.cart.additionalChargesAmount = preservedAdditionalCharges;
+          this.additionalChargesAmount = preservedAdditionalCharges;
         }
         
         console.log('Cart refreshed before checkout:', {
@@ -2520,6 +2959,7 @@ export class PosComponent implements OnInit, OnDestroy {
           discountAmount: this.cart?.discountAmount,
           taxAmount: this.cart?.taxAmount,
           transportAmount: this.cart?.transportAmount,
+          additionalChargesAmount: this.cart?.additionalChargesAmount,
           totalAmount: this.cart?.totalAmount
         });
       } catch (refreshError) {
@@ -2538,8 +2978,7 @@ export class PosComponent implements OnInit, OnDestroy {
     // Use preserved transport amount (already declared above)
     if (this.cart && this.cart.items && this.cart.items.length > 0) {
       const recalculatedSubtotal = this.cart.items.reduce((sum, item) => {
-        const itemSubtotal = (item.quantity || 0) * (item.pricePerUnit || 0);
-        return sum + itemSubtotal;
+        return sum + computeCartItemSubtotal(item);
       }, 0);
       
       this.cart.subtotal = recalculatedSubtotal;
@@ -2549,26 +2988,29 @@ export class PosComponent implements OnInit, OnDestroy {
         this.cart.transportAmount = preservedTransportAmount;
         this.transportAmount = preservedTransportAmount;
       }
+      if (!this.cart.additionalChargesAmount && preservedAdditionalCharges > 0) {
+        this.cart.additionalChargesAmount = preservedAdditionalCharges;
+        this.additionalChargesAmount = preservedAdditionalCharges;
+      }
       
-      // Recalculate total: subtotal - discount + tax + transport
-      const transportAmount = this.cart.transportAmount || 0;
-      this.cart.totalAmount = recalculatedSubtotal - (this.cart.discountAmount || 0) + (this.cart.taxAmount || 0) + transportAmount;
+      this.recalculateCartTotalFromParts(this.cart);
       
       console.log('Recalculated cart totals:', {
         subtotal: this.cart.subtotal,
         discountAmount: this.cart.discountAmount,
         taxAmount: this.cart.taxAmount,
-        transportAmount: transportAmount,
+        transportAmount: this.cart.transportAmount,
+        additionalChargesAmount: this.cart.additionalChargesAmount,
         totalAmount: this.cart.totalAmount
       });
     }
 
-    // Calculate total for validation (explicitly including transport amount)
     const finalTransportAmount = this.cart?.transportAmount || this.transportAmount || 0;
+    const finalAdditionalCharges = this.cart?.additionalChargesAmount || this.additionalChargesAmount || 0;
     const subtotal = this.cart?.subtotal || 0;
     const discountAmount = this.cart?.discountAmount || 0;
     const taxAmount = this.cart?.taxAmount || 0;
-    const calculatedTotal = subtotal - discountAmount + taxAmount + finalTransportAmount;
+    const calculatedTotal = subtotal - discountAmount + taxAmount + finalTransportAmount + finalAdditionalCharges;
     
     // Use the calculated total (which includes transport) for validation
     const total = calculatedTotal > 0 ? calculatedTotal : (this.cart?.totalAmount || 0);
@@ -2579,6 +3021,7 @@ export class PosComponent implements OnInit, OnDestroy {
       discountAmount: discountAmount,
       taxAmount: taxAmount,
       transportAmount: finalTransportAmount,
+      additionalChargesAmount: finalAdditionalCharges,
       calculatedTotal: calculatedTotal,
       cartTotal: this.cart?.totalAmount,
       totalUsed: total,
@@ -2727,6 +3170,8 @@ export class PosComponent implements OnInit, OnDestroy {
     const checkoutDto: POSCheckoutDTO = {
       cartId: this.cart.cartId,
       customerId: finalCustomerId,
+      transportAmount: finalTransportAmount,
+      additionalChargesAmount: finalAdditionalCharges,
       payments: cleanedPayments,
       notes: this.checkoutNotes,
       printReceipt: this.printReceipt
@@ -2749,6 +3194,10 @@ export class PosComponent implements OnInit, OnDestroy {
         this.lastReceipt = await firstValueFrom(receipt$);
         this.checkoutDialog = false;
         this.receiptDialog = true;
+
+        if (this.printReceipt && this.lastReceipt?.receiptDocNumber) {
+          void this.printBackendReceiptPdf();
+        }
 
         if (this.session) {
           const newCart$ = await this.posService.createCart(this.session.sessionId);
@@ -2823,8 +3272,50 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   printReceiptDialog() {
-    if (this.lastReceipt) {
-      window.print();
+    void this.printBackendReceiptPdf();
+  }
+
+  private async printBackendReceiptPdf(): Promise<void> {
+    if (!this.lastReceipt || this.receiptPrinting) {
+      return;
+    }
+
+    this.receiptPrinting = true;
+    try {
+      let docNumber = this.lastReceipt.receiptDocNumber;
+
+      if (!docNumber && this.lastReceipt.primaryPaymentId) {
+        const generated: any = await firstValueFrom(
+          this.financialDocService.generateReceiptFromPOS(this.lastReceipt.primaryPaymentId)
+        );
+        docNumber = generated?.number;
+        if (docNumber) {
+          this.lastReceipt.receiptDocNumber = docNumber;
+        }
+      }
+
+      if (!docNumber) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('receipt_pdf_not_available') || 'Receipt PDF is not available yet.',
+          life: 4000
+        });
+        return;
+      }
+
+      const blob = await firstValueFrom(this.financialDocService.fetchFinancialDocPdf(docNumber));
+      this.financialDocService.openPdfBlobInPrintWindow(blob);
+    } catch (error) {
+      console.error('Error printing receipt PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_printing_receipt') || 'Could not print receipt.',
+        life: 4000
+      });
+    } finally {
+      this.receiptPrinting = false;
     }
   }
 
@@ -3059,8 +3550,7 @@ export class PosComponent implements OnInit, OnDestroy {
     try {
       const activeCart$ = await this.posService.getActiveCart(this.session.sessionId);
       const freshCart = await firstValueFrom(activeCart$);
-      // Always normalize to ensure calculations are correct
-      this.cart = this.normalizeCartItems(freshCart);
+      this.assignCartFromServer(freshCart);
       if (this.cart) {
         this.taxEnabled = this.cart.taxEnabled || false;
       }
@@ -3071,7 +3561,7 @@ export class PosComponent implements OnInit, OnDestroy {
       try {
         const cart$ = await this.posService.createCart(this.session.sessionId);
         const newCart = await firstValueFrom(cart$);
-        this.cart = this.normalizeCartItems(newCart);
+        this.assignCartFromServer(newCart);
         if (this.cart) {
           this.taxEnabled = this.cart.taxEnabled || false;
         }
@@ -3339,7 +3829,7 @@ export class PosComponent implements OnInit, OnDestroy {
     // Switch user should logout to Keycloak login page
     this.switchCashierDialog = false;
     this.switchCashierPin = '';
-    this.keycloakService.logout(window.location.origin + '/webconsole');
+    void this.sessionAuditService.logout(window.location.origin + '/webconsole');
     return;
     
     // Old implementation (commented out - was verifying PIN)
@@ -3569,7 +4059,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // ========== Session Management ==========
   
-  showOpenSessionDialog() {
+  async showOpenSessionDialog() {
     if (this.isAdmin && !this.shopId) {
       this.messageService.add({
         severity: 'warn',
@@ -3581,7 +4071,23 @@ export class PosComponent implements OnInit, OnDestroy {
     }
     this.sessionCashRegisterId = null;
     this.sessionNotes = '';
+    await this.prefillCashRegisterSessionId();
     this.openSessionDialog = true;
+  }
+
+  private async prefillCashRegisterSessionId(): Promise<void> {
+    try {
+      const shopId = this.getShopIdForApi();
+      const session$ = shopId
+        ? await this.cashRegisterService.getCurrentSessionByShop(shopId)
+        : await this.cashRegisterService.getCurrentSession();
+      const currentCashRegisterSession = await firstValueFrom(session$);
+      if (currentCashRegisterSession?.sessionId) {
+        this.sessionCashRegisterId = currentCashRegisterSession.sessionId;
+      }
+    } catch (error) {
+      console.warn('Could not prefill cash register session id:', error);
+    }
   }
 
   async openSession() {
@@ -3890,6 +4396,116 @@ export class PosComponent implements OnInit, OnDestroy {
     } finally {
       this.loading = false;
     }
+  }
+
+  getCashRegisterSessionId(): number | null {
+    if (!this.session) {
+      return null;
+    }
+    return this.session.cashRegisterSessionId
+      ?? this.session.cashRegisterSession?.sessionId
+      ?? null;
+  }
+
+  private initReportFormatMenus(): void {
+    this.xReportFormatMenu = [
+      {
+        label: this.translate.instant('pos_report_thermal_pdf'),
+        icon: 'pi pi-print',
+        command: () => this.downloadXReport('thermal'),
+      },
+    ];
+    this.zReportFormatMenu = [
+      {
+        label: this.translate.instant('pos_report_thermal_pdf'),
+        icon: 'pi pi-print',
+        command: () => this.downloadZReport('thermal'),
+      },
+    ];
+  }
+
+  async downloadXReport(format: 'standard' | 'thermal' = 'standard'): Promise<void> {
+    const cashRegisterSessionId = this.getCashRegisterSessionId();
+    if (!cashRegisterSessionId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('pos_report_no_cash_register_session'),
+        life: 4000,
+      });
+      return;
+    }
+
+    this.reportDownloading = true;
+    try {
+      const response$ = await this.cashRegisterService.downloadXReportPdf(cashRegisterSessionId, format);
+      const response: any = await firstValueFrom(response$);
+      this.triggerReportPdfDownload(response?.body, `x_report_session_${cashRegisterSessionId}.pdf`);
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('pos_x_report_download'),
+        life: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to download X report:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('pos_report_download_failed'),
+        life: 4000,
+      });
+    } finally {
+      this.reportDownloading = false;
+    }
+  }
+
+  async downloadZReport(format: 'standard' | 'thermal' = 'standard'): Promise<void> {
+    const cashRegisterSessionId = this.getCashRegisterSessionId();
+    if (!cashRegisterSessionId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('pos_report_no_cash_register_session'),
+        life: 4000,
+      });
+      return;
+    }
+
+    this.reportDownloading = true;
+    try {
+      const response$ = await this.cashRegisterService.downloadZReportPdf(cashRegisterSessionId, format);
+      const response: any = await firstValueFrom(response$);
+      this.triggerReportPdfDownload(response?.body, `z_report_session_${cashRegisterSessionId}.pdf`);
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('pos_z_report_download'),
+        life: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to download Z report:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('pos_report_download_failed'),
+        life: 4000,
+      });
+    } finally {
+      this.reportDownloading = false;
+    }
+  }
+
+  private triggerReportPdfDownload(blob: Blob | null | undefined, filename: string): void {
+    if (!blob) {
+      return;
+    }
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
   }
 
   getSessionDuration(): string {
@@ -4228,29 +4844,75 @@ export class PosComponent implements OnInit, OnDestroy {
            absValue >= Number.MAX_VALUE * 0.9;
   }
 
+  onVariantProductPicked(product: any): void {
+    const posProduct = product?.productId
+      ? this.mapProductToPosDto(product as Product)
+      : product;
+    this.addToCart(posProduct);
+  }
+
   addToCart(product: any) {
     this.addProductToCart(product, 1);
   }
 
-  /** Max quantity shown in cart line editor; soft reservations defer final check to API when online. */
-  getCartLineMaxQuantity(item: any): number {
+  getCartLineDisplayQuantity(item: POSCartItemDTO): number {
+    return getCartItemDisplayQuantity(item);
+  }
+
+  getCartLineDisplayStock(item: POSCartItemDTO): number {
+    return getCartItemDisplayStock(item);
+  }
+
+  getCartLineQuantityStep(item: POSCartItemDTO): number {
+    return lineQuantityStep(cartItemAsProduct(item));
+  }
+
+  getCartLineQuantityMin(item: POSCartItemDTO): number {
+    return lineQuantityMin(cartItemAsProduct(item));
+  }
+
+  formatCartLineQuantity(item: POSCartItemDTO): string {
+    return formatLineQuantity(cartItemAsProduct(item), getCartItemDisplayQuantity(item));
+  }
+
+  showCartUnitPriceSuffix(item: POSCartItemDTO): boolean {
+    return shouldShowLineMeasureUnit(cartItemAsProduct(item));
+  }
+
+  /** Max display quantity in cart line editor; soft reservations defer final check to API when online. */
+  getCartLineMaxQuantity(item: POSCartItemDTO): number {
     if (this.salesStockSoftReservationEnabled && this.isOnline) {
       return 999999;
     }
-    return Math.max(1, item.quantityAvailable || 999);
+    const stock = getCartItemDisplayStock(item);
+    return Math.max(this.getCartLineQuantityMin(item), stock || 999);
   }
 
-  isCartPlusQuantityBlocked(item: any): boolean {
+  isCartPlusQuantityBlocked(item: POSCartItemDTO): boolean {
     if (this.salesStockSoftReservationEnabled && this.isOnline) {
       return false;
     }
-    return item.quantity >= (item.quantityAvailable || 0);
+    const stock = getCartItemDisplayStock(item);
+    return stock > 0 && getCartItemDisplayQuantity(item) >= stock;
   }
 
-  updateQuantity(item: any, newQuantity: number) {
+  private toApiQuantity(item: POSCartItemDTO, displayQuantity: number): number {
+    const product = cartItemAsProduct(item);
+    const min = lineQuantityMin(product);
+    const rounded = Math.max(min, Math.round(displayQuantity / min) * min);
+    return QuantityScale.isFractional(product) ? rounded : Math.max(1, Math.round(displayQuantity));
+  }
+
+  onCartDisplayQuantityChange(item: POSCartItemDTO, displayQuantity: number) {
+    item.displayQuantity = displayQuantity;
+    this.onQuantityChange(item, displayQuantity);
+  }
+
+  updateQuantity(item: POSCartItemDTO, newDisplayQuantity: number) {
     const cap = this.getCartLineMaxQuantity(item);
-    const quantity = Math.max(1, Math.min(newQuantity, cap));
-    this.onQuantityChange(item, quantity);
+    const min = this.getCartLineQuantityMin(item);
+    const quantity = Math.max(min, Math.min(newDisplayQuantity, cap));
+    this.onCartDisplayQuantityChange(item, quantity);
   }
 
   addPayment(amount: number) {

@@ -28,7 +28,9 @@ import { MessageModule } from 'primeng/message';
 import { ScrollerModule } from 'primeng/scroller';
 import { SplitButtonModule } from 'primeng/splitbutton';
 import { DividerModule } from 'primeng/divider';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
+import { InventorySharedModule } from '../inventory/shared/inventory-shared.module';
 
 
 @NgModule({
@@ -65,7 +67,9 @@ import { ZXingScannerModule } from '@zxing/ngx-scanner';
     ScrollerModule,
     SplitButtonModule,
     DividerModule,
-    ZXingScannerModule
+    SelectButtonModule,
+    ZXingScannerModule,
+    InventorySharedModule,
   ]
 })
 export class PosModule { }

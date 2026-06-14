@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
     <div class="col-12">
         <!-- Users & Permissions Management Section - Above Card (matching dashboard style) -->
         <div class="mb-4">
@@ -29,7 +29,7 @@
             <p-toast></p-toast>
 
             <!-- Action Buttons -->
-            <div class="flex justify-content-end align-items-center mb-4">
+            <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
                 <div class="flex align-items-center gap-2">
                     <!-- Conditionally render buttons based on the active tab -->
                     <ng-container *ngIf="activeItem?.icon == 'pi pi-fw pi-user'; else rolesTab">
@@ -65,23 +65,30 @@
 
                 <!-- View Toggle & Export -->
                 <div class="flex align-items-center gap-2 ml-auto">
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-warning" pTooltip="PDF"
+                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-primary" [pTooltip]="'export_pdf' | translate"
                         tooltipPosition="bottom" (click)="exportPdf()"></button>
                     <button pButton pRipple icon="pi pi-file-excel" (click)="exportExcel()" class="p-button-success"
-                        pTooltip="XLS" tooltipPosition="bottom"></button>
+                        [pTooltip]="'export_to_excel' | translate" tooltipPosition="bottom"></button>
                 </div>
             </div>
 
-            <div class="card flex justify-content-center" *ngIf="isLoading">
-                <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+                *ngIf="activeItem?.icon == 'pi pi-fw pi-user' && (isLoading || isInitialLoad) && !users.length">
+                <div class="ims-loading-panel__inner">
+                    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                </div>
             </div>
 
-            <p-table #dt *ngIf="activeItem?.icon == 'pi pi-fw pi-user' && !isLoading" [value]="users"
-                [columns]="usersCols" responsiveLayout="scroll" [rows]="20"
+            <p-table #dt
+                *ngIf="activeItem?.icon == 'pi pi-fw pi-user' && ((!isInitialLoad || users.length) && (!isLoading || users.length))"
+                [value]="users"
+                [columns]="usersCols" responsiveLayout="scroll" [rows]="pageSize"
                 [globalFilterFields]="['username','email','firstName','lastName','enabled','attributes.roles']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                (onPage)="onTablePage($event)"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedUsers" selectionMode="multiple" [rowHover]="true" dataKey="id"
+                [loading]="isLoading && users.length > 0"
                 styleClass="p-datatable-gridlines">
                 <ng-template pTemplate="header">
                     <tr>
@@ -100,9 +107,9 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-user>
-                    <tr class="cursor-pointer">
+                    <tr (click)="showUserDetails(user)" class="cursor-pointer">
                         <td>
-                            <p-tableCheckbox [value]="user"></p-tableCheckbox>
+                            <p-tableCheckbox [value]="user" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
 
                         <td style="min-width:10rem;">
@@ -137,23 +144,38 @@
                         <td>
                             <div class="flex gap-1">
                                 <button pButton pRipple icon="pi pi-eye" pTooltip="{{'view_details'|translate}}"
-                                    class="p-button-rounded p-button-text p-button-info" (click)="showUserDetails(user); $event.stopPropagation()"></button>
+                                    class="p-button-rounded p-button-text p-button-primary" (click)="showUserDetails(user); $event.stopPropagation()"></button>
                                 <button pButton pRipple icon="pi pi-pencil" pTooltip="{{'update_user'|translate}}"
-                                    class="p-button-rounded p-button-text p-button-warning" (click)="editUser(user); $event.stopPropagation()"></button>
+                                    class="p-button-rounded p-button-text p-button-primary" (click)="editUser(user); $event.stopPropagation()"></button>
                                 <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
                                     (click)="deleteUser(user); $event.stopPropagation()" pTooltip="{{'delete_user'|translate}}"></button>
                             </div>
                         </td>
                     </tr>
                 </ng-template>
+                <ng-template pTemplate="emptymessage">
+                    <tr *ngIf="!isLoading && !isInitialLoad">
+                        <td colspan="6" class="text-center">{{ 'no_users_found' | translate }}</td>
+                    </tr>
+                </ng-template>
             </p-table>
 
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+                *ngIf="activeItem?.icon == 'pi pi-fw pi-shield' && (rolesLoading || rolesInitialLoad) && !appRoles.length">
+                <div class="ims-loading-panel__inner">
+                    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                </div>
+            </div>
 
-            <p-table #dtRoles *ngIf="activeItem?.icon == 'pi pi-fw pi-shield'" [value]="appRoles" [columns]="rolesCols"
-                responsiveLayout="scroll" [rows]="20" [globalFilterFields]="['name','description']" [paginator]="true"
+            <p-table #dtRoles
+                *ngIf="activeItem?.icon == 'pi pi-fw pi-shield' && ((!rolesInitialLoad || appRoles.length) && (!rolesLoading || appRoles.length))"
+                [value]="appRoles" [columns]="rolesCols"
+                responsiveLayout="scroll" [rows]="pageSize" [globalFilterFields]="['name','description']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+                (onPage)="onTablePage($event)"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedRoles" selectionMode="multiple" [rowHover]="true" dataKey="id"
+                [loading]="rolesLoading && appRoles.length > 0"
                 styleClass="p-datatable-gridlines">
                 <ng-template pTemplate="header">
                     <tr>
@@ -168,9 +190,9 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-role>
-                    <tr class="cursor-pointer">
+                    <tr (click)="showRoleDetails(role)" class="cursor-pointer">
                         <td>
-                            <p-tableCheckbox [value]="role" [disabled]="isSystemRole(role.name)"></p-tableCheckbox>
+                            <p-tableCheckbox [value]="role" [disabled]="isSystemRole(role.name)" (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
 
                         <td style="min-width:10rem;">
@@ -184,10 +206,10 @@
                         <td>
                             <div class="flex gap-1">
                                 <button pButton pRipple icon="pi pi-eye" pTooltip="{{'view_details'|translate}}"
-                                    class="p-button-rounded p-button-text p-button-info"
+                                    class="p-button-rounded p-button-text p-button-primary"
                                     (click)="showRoleDetails(role); $event.stopPropagation()"></button>
                                 <button pButton pRipple icon="pi pi-pencil" pTooltip="{{'update_role'|translate}}"
-                                    class="p-button-rounded p-button-text p-button-warning" (click)="editRole(role); $event.stopPropagation()"
+                                    class="p-button-rounded p-button-text p-button-primary" (click)="editRole(role); $event.stopPropagation()"
                                     [disabled]="isSystemRole(role.name)"></button>
                                 <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
                                     (click)="deleteRole(role); $event.stopPropagation()" pTooltip="{{'delete_role'|translate}}"
@@ -196,180 +218,304 @@
                         </td>
                     </tr>
                 </ng-template>
+                <ng-template pTemplate="emptymessage">
+                    <tr *ngIf="!rolesLoading && !rolesInitialLoad">
+                        <td colspan="4" class="text-center">{{ 'no_roles_found' | translate }}</td>
+                    </tr>
+                </ng-template>
             </p-table>
         </div>
 
-        <p-dialog [(visible)]="userDialog" [style]="{width: '70%', height: '100%'}"
-            header="{{'user_details' | translate}}" [modal]="true" class="p-fluid">
-            <div *ngIf="!isStarterPlan">
-                <p-steps [model]="userCreationSteps" [readonly]="false" [activeIndex]="activeIndex"
-                    (activeIndexChange)="onActiveIndexChange($event)" />
-                <br>
-            </div>
+        <p-dialog [(visible)]="userDialog"
+            [style]="{ width: 'min(92vw, 960px)', maxWidth: '960px', maxHeight: '95vh' }"
+            [breakpoints]="{'960px': '94vw', '640px': '98vw'}"
+            header="{{ (user.id ? 'edit_user' : 'new_user') | translate }}" [modal]="true"
+            styleClass="ims-form-dialog-shell user-dialog-shell"
+            class="p-fluid user-dialog" [draggable]="false" [resizable]="false">
+
             <ng-template pTemplate="content">
-                <ng-container *ngIf="!isUserInfoValid">
-                    <div class="field">
-                        <label for="firstName">{{'user_first_name' | translate}} <span
-                                class="required-asterisk">*</span></label>
-                        <input type="text" pInputText name="firstName" ngDefaultControl [(ngModel)]="user.firstName"
-                            required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !user.firstName}" />
-                        <small class="ng-dirty ng-invalid" *ngIf="submitted && !user.firstName">{{'user_first_name' |
-                            translate}} {{'is_required_label' | translate}}</small>
-                    </div>
-                    <div class="field">
-                        <label for="lastName">{{'user_last_name' | translate}} <span
-                                class="required-asterisk">*</span></label>
-                        <input type="text" pInputText name="lastName" ngDefaultControl [(ngModel)]="user.lastName"
-                            required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !user.lastName}" />
-                        <small class="ng-dirty ng-invalid" *ngIf="submitted && !user.lastName">{{'user_last_name' |
-                            translate}} {{'is_required_label' | translate}}</small>
-                    </div>
-                    <div class="field">
-                        <label for="username">{{'user_username' | translate}} <span
-                                class="required-asterisk">*</span></label>
-                        <input type="text" pInputText name="userName" ngDefaultControl [(ngModel)]="user.username"
-                            required autofocus [disabled]="user.id"
-                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !user.username}" />
-                        <small class="ng-dirty ng-invalid" *ngIf="submitted && !user.username">{{'user_username' |
-                            translate}} {{'is_required_label' | translate}}</small>
-                    </div>
-                    <div class="field">
-                        <label for="email">{{'user_email' | translate}} <span class="required-asterisk">*</span></label>
-                        <input type="email" pInputText name="email" ngDefaultControl [(ngModel)]="user.email" required
-                            autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !user.email}" />
-                        <small class="ng-dirty ng-invalid" *ngIf="submitted && !user.email">{{'user_email' | translate}}
-                            {{'is_required_label' | translate}}</small>
-                    </div>
-                    <div class="field" *ngIf="!user.id">
-                        <label for="userCredential">{{'user_pwd' | translate}} <span
-                                class="required-asterisk">*</span></label>
-                        <input type="password" pInputText name="userCredential.value" ngDefaultControl
-                            [(ngModel)]="userCredential.value" required autofocus
-                            [ngClass]="{'ng-invalid ng-dirty' : submitted && !userCredential.value}" />
-                        <small class="ng-dirty ng-invalid" *ngIf="submitted && !userCredential.value">Password is
-                            required.</small>
-                    </div>
+                <div class="ims-form-layout">
+                    <div class="ims-form-fields">
+                        <section class="ims-form-section">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                                    <i class="pi pi-user"></i>
+                                </div>
+                                <h3 class="ims-form-section__title">{{ 'user_information' | translate }}</h3>
+                            </header>
+                            <div class="grid ims-form-section__body">
+                                <div class="field col-12 md:col-6 mb-0">
+                                    <label for="firstName" class="ims-form-label">
+                                        {{ 'user_first_name' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon"><i class="pi pi-user"></i></span>
+                                        <input type="text" pInputText id="firstName" name="firstName" ngDefaultControl
+                                            [(ngModel)]="user.firstName" required autofocus
+                                            [ngClass]="{'ng-invalid ng-dirty': submitted && !user.firstName}" />
+                                    </div>
+                                    <small class="p-error" *ngIf="submitted && !user.firstName">
+                                        {{ 'user_first_name' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                    <div class="field">
-                        <label for="shop">{{'user_shops' | translate}} <span class="required-asterisk">*</span></label>
-                        <p-dropdown [options]="shops" appendTo="body" [filter]="true" filterBy="shopName"
-                            [(ngModel)]="selectedShop" optionLabel="shopName"
-                            placeholder="{{'select_user_shops' | translate}}" scrollHeight="250px"
-                            [ngClass]="{'ng-invalid ng-dirty' : submitted && selectedShop!=''}">
-                        </p-dropdown>
-                        <small class="ng-dirty ng-invalid" *ngIf="submitted && selectedShop!=''">{{'user_shops' |
-                            translate}} {{'is_required_label' | translate}}</small>
-                    </div>
+                                <div class="field col-12 md:col-6 mb-0">
+                                    <label for="lastName" class="ims-form-label">
+                                        {{ 'user_last_name' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon"><i class="pi pi-user"></i></span>
+                                        <input type="text" pInputText id="lastName" name="lastName" ngDefaultControl
+                                            [(ngModel)]="user.lastName" required
+                                            [ngClass]="{'ng-invalid ng-dirty': submitted && !user.lastName}" />
+                                    </div>
+                                    <small class="p-error" *ngIf="submitted && !user.lastName">
+                                        {{ 'user_last_name' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                    <div class="field">
-                        <label for="warehouses">{{'user_warehouses' | translate}} <span
-                                class="required-asterisk">*</span></label>
-                        <p-dropdown appendTo="body" [options]="warehouses" [filter]="true" filterBy="name"
-                            [(ngModel)]="selectedWarehouse" optionLabel="name"
-                            placeholder="{{'select_user_warehouses' | translate}}" scrollHeight="250px"
-                            [ngClass]="{'ng-invalid ng-dirty' : submitted && selectedWarehouse!=''}">
-                        </p-dropdown>
-                        <small class="ng-dirty ng-invalid"
-                            *ngIf="submitted && selectedWarehouse!=''">{{'user_warehouses' | translate}}
-                            {{'is_required_label' | translate}}</small>
-                    </div>
+                                <div class="field col-12 md:col-6 mb-0">
+                                    <label for="username" class="ims-form-label">
+                                        {{ 'user_username' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon"><i class="pi pi-at"></i></span>
+                                        <input type="text" pInputText id="username" name="userName" ngDefaultControl
+                                            [(ngModel)]="user.username" required [disabled]="!!user.id"
+                                            [ngClass]="{'ng-invalid ng-dirty': submitted && !user.username}" />
+                                    </div>
+                                    <small class="p-error" *ngIf="submitted && !user.username">
+                                        {{ 'user_username' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                    <div class="field">
-                        <label for="posPin">{{'user_pos_pin' | translate}}</label>
-                        <input type="password" pInputText name="posPin" ngDefaultControl [(ngModel)]="posPin"
-                            [placeholder]="'user_pos_pin_placeholder' | translate" 
-                            maxlength="6" 
-                            (input)="onPosPinInput($event)" />
-                        <small class="text-500">{{'user_pos_pin_hint' | translate}}</small>
-                    </div>
+                                <div class="field col-12 md:col-6 mb-0">
+                                    <label for="email" class="ims-form-label">
+                                        {{ 'user_email' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon"><i class="pi pi-envelope"></i></span>
+                                        <input type="email" pInputText id="email" name="email" ngDefaultControl
+                                            [(ngModel)]="user.email" required
+                                            [ngClass]="{'ng-invalid ng-dirty': submitted && !user.email}" />
+                                    </div>
+                                    <small class="p-error" *ngIf="submitted && !user.email">
+                                        {{ 'user_email' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                </ng-container>
-                <ng-container *ngIf="isUserInfoValid && !isStarterPlan">
+                                <div class="field col-12 md:col-6 mb-0" *ngIf="!user.id">
+                                    <label for="userCredential" class="ims-form-label">
+                                        {{ 'user_pwd' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon"><i class="pi pi-lock"></i></span>
+                                        <input type="password" pInputText id="userCredential" name="userCredential.value"
+                                            ngDefaultControl [(ngModel)]="userCredential.value" required
+                                            [ngClass]="{'ng-invalid ng-dirty': submitted && !userCredential.value}" />
+                                    </div>
+                                    <small class="p-error" *ngIf="submitted && !userCredential.value">
+                                        {{ 'user_pwd' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
+                            </div>
+                        </section>
 
-                    <div class="card">
+                        <section class="ims-form-section">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
+                                    <i class="pi pi-map-marker"></i>
+                                </div>
+                                <h3 class="ims-form-section__title">{{ 'user_shops' | translate }} &amp; {{ 'user_warehouses' | translate }}</h3>
+                            </header>
+                            <div class="grid ims-form-section__body">
+                                <div class="field col-12 md:col-6 mb-0">
+                                    <label for="shop" class="ims-form-label">
+                                        {{ 'user_shops' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <p-dropdown id="shop" [options]="shops" appendTo="body" [filter]="true" filterBy="shopName"
+                                        [(ngModel)]="selectedShop" optionLabel="shopName" name="shop" styleClass="w-full"
+                                        placeholder="{{ 'select_user_shops' | translate }}" scrollHeight="250px"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !selectedShop?.shopId}">
+                                    </p-dropdown>
+                                    <small class="p-error" *ngIf="submitted && !selectedShop?.shopId">
+                                        {{ 'user_shops' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                        <div class="card flex justify-content-center" *ngIf="loading">
-                            <p-progressSpinner ariaLabel="loading" />
-                        </div>
+                                <div class="field col-12 md:col-6 mb-0">
+                                    <label for="warehouses" class="ims-form-label">
+                                        {{ 'user_warehouses' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <p-dropdown id="warehouses" appendTo="body" [options]="warehouses" [filter]="true"
+                                        filterBy="name" [(ngModel)]="selectedWarehouse" optionLabel="name" name="warehouse"
+                                        styleClass="w-full" placeholder="{{ 'select_user_warehouses' | translate }}"
+                                        scrollHeight="250px"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !selectedWarehouse?.warehouseId}">
+                                    </p-dropdown>
+                                    <small class="p-error" *ngIf="submitted && !selectedWarehouse?.warehouseId">
+                                        {{ 'user_warehouses' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
 
-                        <label for="roles">
-                            {{ 'role_mapping' | translate }} <span class="required-asterisk">*</span>
-                        </label>
-                        <div *ngIf="!loading">
-                            <p-pickList [source]="sourceRoles" [target]="targetRoles"
-                                sourceHeader="{{ 'roles' | translate }}" (onMoveToTarget)="onMoveToTarget($event)"
-                                (onMoveToSource)="onMoveToSource($event)"
-                                targetHeader="{{ 'selected_roles' | translate }}" [dragdrop]="true" [responsive]="true"
-                                [sourceStyle]="{ height: '30rem' }" [targetStyle]="{ height: '30rem' }" filterBy="name"
-                                sourceFilterPlaceholder="Search by name" targetFilterPlaceholder="Search by name"
-                                breakpoint="1400px">
-                                <ng-template let-role pTemplate="item">
-                                    <div class="flex flex-wrap p-2 align-items-center gap-3">
-                                        <div class="flex-1 flex flex-column gap-2">
-                                            <span class="font-bold">
-                                                {{ getRoleLabel(role.name) }}
+                                <div class="field col-12 md:col-6 mb-0">
+                                    <label for="posPin" class="ims-form-label">{{ 'user_pos_pin' | translate }}</label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon"><i class="pi pi-key"></i></span>
+                                        <input type="password" pInputText id="posPin" name="posPin" ngDefaultControl
+                                            [(ngModel)]="posPin" [placeholder]="'user_pos_pin_placeholder' | translate"
+                                            maxlength="6" (input)="onPosPinInput($event)" />
+                                    </div>
+                                    <small class="text-500">{{ 'user_pos_pin_hint' | translate }}</small>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="ims-form-section" *ngIf="!isRoleManagementLocked">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+                                    <i class="pi pi-shield"></i>
+                                </div>
+                                <h3 class="ims-form-section__title">{{ 'user_role_mapping_title' | translate }}</h3>
+                            </header>
+                            <div class="ims-form-section__body ims-form-section__body--stack">
+                                <div class="user-role-picker">
+                                    <div class="user-role-picker__toolbar">
+                                        <span class="p-input-icon-left user-role-picker__search">
+                                            <i class="pi pi-search"></i>
+                                            <input type="text" pInputText [(ngModel)]="roleSearchFilter" name="roleSearchFilter"
+                                                [placeholder]="'search_label' | translate" />
+                                        </span>
+                                        <div class="user-role-picker__actions">
+                                            <span class="user-role-picker__count">
+                                                <p-badge [value]="targetRoles.length.toString()"></p-badge>
+                                                {{ 'selected_roles' | translate }}
                                             </span>
-                                            <div class="flex align-products-center gap-2">
-                                                <span>
-                                                    {{ role.description }}
-                                                </span>
-                                            </div>
+                                            <button pButton pRipple type="button" icon="pi pi-check-square"
+                                                class="p-button-outlined p-button-sm" pTooltip="{{ 'roles' | translate }}"
+                                                (click)="selectAllRoles()" [disabled]="!appRoles?.length"></button>
+                                            <button pButton pRipple type="button" icon="pi pi-times"
+                                                class="p-button-outlined p-button-sm p-button-danger"
+                                                pTooltip="{{ 'clear_all' | translate }}" (click)="clearSelectedRoles()"
+                                                [disabled]="!targetRoles?.length"></button>
                                         </div>
                                     </div>
-                                </ng-template>
-                            </p-pickList>
-                        </div>
 
+                                    <div class="user-role-picker__chips" *ngIf="targetRoles?.length">
+                                        <p-chip *ngFor="let role of targetRoles" [label]="getRoleLabel(role.name)" removable
+                                            (onRemove)="toggleRole(role, false)"></p-chip>
+                                    </div>
+
+                                    <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="loading">
+                                        <div class="ims-loading-panel__inner">
+                                            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                                        </div>
+                                    </div>
+
+                                    <div class="user-role-picker__grid" *ngIf="!loading">
+                                        <button type="button" class="user-role-card"
+                                            *ngFor="let role of filteredRoles"
+                                            [class.user-role-card--selected]="isRoleSelected(role)"
+                                            (click)="toggleRole(role, !isRoleSelected(role))">
+                                            <p-checkbox [binary]="true" [ngModel]="isRoleSelected(role)" name="role_{{ role.id }}"
+                                                (onChange)="toggleRole(role, $event.checked)" (click)="$event.stopPropagation()">
+                                            </p-checkbox>
+                                            <div class="user-role-card__content">
+                                                <span class="user-role-card__name">{{ getRoleLabel(role.name) }}</span>
+                                                <span class="user-role-card__desc" *ngIf="role.description">{{ role.description }}</span>
+                                            </div>
+                                            <i class="pi pi-shield user-role-card__icon"></i>
+                                        </button>
+                                        <div class="user-role-picker__empty" *ngIf="!filteredRoles.length">
+                                            {{ 'no_roles_found' | translate }}
+                                        </div>
+                                    </div>
+
+                                    <small class="p-error" *ngIf="submitted && !targetRoles?.length">
+                                        {{ 'role_mapping' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
+                            </div>
+                        </section>
                     </div>
-                </ng-container>
-                <div class="required-note">
-                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
-                        translate}}</small>
+
+                    <div class="ims-form-required-note">
+                        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+                    </div>
                 </div>
             </ng-template>
 
             <ng-template pTemplate="footer">
                 <div class="flex justify-content-between align-items-center w-full">
-                    <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
-                    <button pButton pRipple *ngIf="!isUserInfoValid && !isStarterPlan" label="{{'next_button' | translate}}" icon="pi pi-arrow-right"
-                        class="p-button-raised" (click)="NextRoleDialog()"></button>
-                    <button pButton pRipple *ngIf="isStarterPlan || targetRoles?.length > 0" label="{{'save_button' | translate}}" icon="pi pi-check"
-                        class="p-button-raised" (click)="saveUser()"></button>
+                    <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                        class="p-button-text" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                        class="p-button-primary" (click)="saveUser()"></button>
                 </div>
             </ng-template>
         </p-dialog>
 
 
-        <p-dialog [(visible)]="roleDialog" [style]="{width: '450px', height: '100%'}"
-            header="{{'role_details' | translate}}" [modal]="true" class="p-fluid">
+        <p-dialog [(visible)]="roleDialog"
+            [style]="{ width: 'min(92vw, 640px)', maxWidth: '640px', maxHeight: '95vh' }"
+            [breakpoints]="{'960px': '94vw', '640px': '98vw'}"
+            header="{{ 'role_details' | translate }}" [modal]="true"
+            styleClass="ims-form-dialog-shell role-dialog-shell"
+            class="p-fluid role-dialog" [draggable]="false" [resizable]="false">
+
             <ng-template pTemplate="content">
-                <div class="field">
-                    <label for="name">{{'role_name' | translate}} <span class="required-asterisk">*</span></label>
-                    <input type="text" pInputText name="name" ngDefaultControl [(ngModel)]="appRole.name" required
-                        autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !appRole.name}" />
-                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !appRole.name">{{'role_name' | translate}}
-                        {{'is_required_label' | translate}}</small>
-                </div>
-                <div class="field">
-                    <label for="description">{{'role_description' | translate}}</label>
-                    <input type="text" pInputText name="description" ngDefaultControl [(ngModel)]="appRole.description"
-                        required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !appRole.description}" />
-                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !appRole.description">{{'role_description' |
-                        translate}} {{'is_required_label' | translate}}</small>
-                </div>
-                <div class="required-note">
-                    <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
-                        translate}}</small>
+                <div class="ims-form-layout">
+                    <div class="ims-form-fields">
+                        <section class="ims-form-section">
+                            <header class="ims-form-section__header">
+                                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+                                    <i class="pi pi-shield"></i>
+                                </div>
+                                <h3 class="ims-form-section__title">{{ 'role_details' | translate }}</h3>
+                            </header>
+                            <div class="ims-form-section__body ims-form-section__body--stack">
+                                <div class="field mb-0">
+                                    <label for="roleName" class="ims-form-label">
+                                        {{ 'role_name' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <div class="p-inputgroup">
+                                        <span class="p-inputgroup-addon"><i class="pi pi-shield"></i></span>
+                                        <input type="text" pInputText id="roleName" name="name" ngDefaultControl
+                                            [(ngModel)]="appRole.name" required autofocus
+                                            [ngClass]="{'ng-invalid ng-dirty': submitted && !appRole.name}" />
+                                    </div>
+                                    <small class="p-error" *ngIf="submitted && !appRole.name">
+                                        {{ 'role_name' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
+
+                                <div class="field mb-0">
+                                    <label for="roleDescription" class="ims-form-label">
+                                        {{ 'role_description' | translate }} <span class="required-asterisk">*</span>
+                                    </label>
+                                    <textarea id="roleDescription" rows="3" pInputTextarea class="w-full" name="description"
+                                        ngDefaultControl [(ngModel)]="appRole.description" required
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !appRole.description}"></textarea>
+                                    <small class="p-error" *ngIf="submitted && !appRole.description">
+                                        {{ 'role_description' | translate }} {{ 'is_required_label' | translate }}
+                                    </small>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="ims-form-required-note">
+                        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+                    </div>
                 </div>
             </ng-template>
 
             <ng-template pTemplate="footer">
                 <div class="flex justify-content-between align-items-center w-full">
-                    <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-                        class="p-button-text p-button-danger" (click)="hideDialog()"></button>
-                    <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
-                        class="p-button-raised" (click)="saveRole()"></button>
+                    <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                        class="p-button-text" (click)="hideDialog()"></button>
+                    <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                        class="p-button-primary" (click)="saveRole()"></button>
                 </div>
             </ng-template>
         </p-dialog>
@@ -384,7 +530,7 @@
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
                     (click)="deleteUserDialog = false"></button>
-                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
                     (click)="confirmDelete()"></button>
             </ng-template>
         </p-dialog>
@@ -399,7 +545,7 @@
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
                     (click)="deleteRoleDialog = false"></button>
-                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
                     (click)="confirmDelete()"></button>
             </ng-template>
         </p-dialog>
@@ -413,7 +559,7 @@
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
                     (click)="deleteUsersDialog = false"></button>
-                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
                     (click)="confirmDeleteSelected()"></button>
             </ng-template>
         </p-dialog>
@@ -427,7 +573,7 @@
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
                     (click)="deleteRolesDialog = false"></button>
-                <button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+                <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
                     (click)="confirmDeleteSelected()"></button>
             </ng-template>
         </p-dialog>

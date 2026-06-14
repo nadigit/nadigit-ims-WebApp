@@ -26,13 +26,16 @@ export interface POSProductDTO {
   description?: string;
   buyingPrice?: number;
   sellingPrice: number;
-  quantityAvailable: number; // This now contains NET quantity from backend (excluding approved write-offs)
+  quantityAvailable: number; // Storage units (net, excluding approved write-offs)
+  displayQuantityAvailable?: number;
   inventoryStatus?: string; // Based on net quantity
   categoryName?: string;
   warehouseName?: string;
   barcode?: string;
   imageUrl?: string;
   measureUnit?: string;
+  stockTrackingMode?: string;
+  quantityPrecision?: number;
   active?: boolean;
 }
 
@@ -41,10 +44,16 @@ export interface POSCartItemDTO {
   productId: number;
   productReference: string;
   productName: string;
+  /** Storage quantity (internal). */
   quantity: number;
+  /** Human-readable quantity for fractional/prepaid lines. */
+  displayQuantity?: number;
   pricePerUnit: number;
   subtotal: number;
   quantityAvailable: number;
+  displayQuantityAvailable?: number;
+  measureUnit?: string;
+  stockTrackingMode?: string;
   notes?: string;
 }
 
@@ -57,6 +66,7 @@ export interface POSCartDTO {
   posSessionId: number;
   customerId?: number;
   transportAmount?: number;
+  additionalChargesAmount?: number;
   customerName?: string;
   items: POSCartItemDTO[];
   subtotal: number;
@@ -96,6 +106,8 @@ export interface PaymentInfo {
 export interface POSCheckoutDTO {
   cartId: number;
   customerId?: number;
+  transportAmount?: number;
+  additionalChargesAmount?: number;
   payments: PaymentInfo[];
   notes?: string;
   printReceipt?: boolean;
@@ -104,7 +116,10 @@ export interface POSCheckoutDTO {
 export interface ReceiptItem {
   productName: string;
   quantity: number;
+  quantityDisplay?: number;
+  quantityLabel?: string;
   pricePerUnit: number;
+  unitPriceSuffix?: string;
   subtotal: number;
 }
 
@@ -124,11 +139,16 @@ export interface POSReceiptDTO {
   subtotal: number;
   discountAmount: number;
   taxAmount: number;
+  transportAmount?: number;
+  additionalChargesAmount?: number;
   totalAmount: number;
   payments: PaymentLine[];
   change: number;
   receiptNumber: string;
   footerMessage?: string;
+  primaryPaymentId?: number;
+  receiptDocNumber?: string;
+  receiptFileUrl?: string;
 }
 
 export interface PageResponse<T> {

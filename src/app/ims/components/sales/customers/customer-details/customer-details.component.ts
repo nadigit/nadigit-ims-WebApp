@@ -22,6 +22,9 @@ import { Product } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
 import { CustomerFormDialogComponent, CustomerFormDialogConfig, CustomerFormDialogData } from '../customer-form-dialog/customer-form-dialog.component';
 import { Location } from '@angular/common';
+import { BRAND_COLORS, BRAND_ORDER_STATUS_CHART } from 'src/app/utils/brand-colors';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './customer-details.component.html',
@@ -29,6 +32,7 @@ import { Location } from '@angular/common';
   providers: [MessageService]
 })
 export class CustomerDetailsComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
 
   customerId!: number;
   customer: Customer | null = null;
@@ -36,7 +40,7 @@ export class CustomerDetailsComponent implements OnInit {
   customerReturns: OrderReturn[] = [];
   customerPayments: Payment[] = [];
   creditAccount: CustomerCreditAccount | null = null;
-  creditInfo: CreditInfo | null = null; // ⚠️ NEW: Enhanced credit info with outstanding balance, aging, etc.
+  creditInfo: CreditInfo | null = null;
   priceOverrides: CustomerPriceOverrideDTO[] = [];
   isLoadingOverrides: boolean = false;
   overrideDialog: boolean = false;
@@ -105,7 +109,8 @@ export class CustomerDetailsComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private creditService: CustomerCreditService,
     private pricingService: PricingService,
-    private productService: ProductService
+    private productService: ProductService,
+    public pageSizeService: TablePageSizeService
   ) { }
 
   async ngOnInit() {
@@ -126,7 +131,7 @@ export class CustomerDetailsComponent implements OnInit {
       await this.loadCustomer();
       await this.loadCustomerData();
       await this.loadCreditAccount();
-      await this.loadCreditInfo(); // ⚠️ NEW: Load enhanced credit info
+      await this.loadCreditInfo();
       await this.loadPriceOverrides();
       this.initChartOptions();
       this.isLoading = false;
@@ -460,14 +465,12 @@ export class CustomerDetailsComponent implements OnInit {
     }
   }
 
-  // ⚠️ NEW: Load enhanced credit info with outstanding balance, aging, etc.
   async loadCreditInfo() {
     try {
       this.creditService.loadToken();
       const creditInfo$ = await this.creditService.getCreditInfo(this.customerId);
       this.creditInfo = await firstValueFrom(creditInfo$);
       
-      // ⚠️ Sanitize invalid values (Infinity, NaN, or extremely large numbers)
       if (this.creditInfo) {
         if (this.isInvalidValue(this.creditInfo.netBalance)) {
           this.creditInfo.netBalance = null as any;
@@ -491,7 +494,6 @@ export class CustomerDetailsComponent implements OnInit {
     }
   }
 
-  // Helper method to check if a value is invalid
   private isInvalidValue(value: any): boolean {
     // 0 is a valid value, so check for it explicitly
     if (value === 0) {
@@ -540,12 +542,8 @@ export class CustomerDetailsComponent implements OnInit {
       ),
       datasets: [{
         data: Object.values(statusCounts),
-        backgroundColor: [
-          '#FFA726', '#42A5F5', '#66BB6A', '#EF5350'
-        ],
-        hoverBackgroundColor: [
-          '#FFB74D', '#64B5F6', '#81C784', '#E57373'
-        ]
+        backgroundColor: [...BRAND_ORDER_STATUS_CHART.background],
+        hoverBackgroundColor: [...BRAND_ORDER_STATUS_CHART.hover]
       }]
     };
 
@@ -555,7 +553,7 @@ export class CustomerDetailsComponent implements OnInit {
       datasets: [{
         label: this.translate.instant('monthly_spending'),
         data: Object.values(monthlyData),
-        backgroundColor: '#9C27B0'
+        backgroundColor: BRAND_COLORS.cyan
       }]
     };
   }
@@ -626,7 +624,6 @@ export class CustomerDetailsComponent implements OnInit {
     return [customer.firstName, customer.lastName].filter(Boolean).join(' ') || 'Unnamed Customer';
   }
 
-  // ⚠️ NEW: Safely get net balance value (handles invalid/very large numbers)
   getSafeNetBalance(): number | null {
     if (!this.creditInfo || this.creditInfo.netBalance === undefined || this.creditInfo.netBalance === null) {
       return null;
@@ -934,16 +931,6 @@ export class CustomerDetailsComponent implements OnInit {
 
   printCustomerDetails(): void {
     window.print();
-  }
-
-  refreshData(): void {
-    this.loadCustomerData();
-    this.loadCreditInfo(); // ⚠️ NEW: Refresh credit info
-    this.messageService.add({
-      severity: 'success',
-      summary: this.translate.instant('data_refreshed'),
-      detail: this.translate.instant('customer_data_has_been_refreshed')
-    });
   }
 
   isEmptyCustomer(customer: any): boolean {

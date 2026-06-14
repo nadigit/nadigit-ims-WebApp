@@ -1,0 +1,50 @@
+/* Branded standalone auth / error / 404 pages */
+.brand-auth-page {
+  background: var(--brand-bg-secondary);
+}
+
+:root[color-scheme='dark'] .brand-auth-page {
+  background: var(--surface-ground);
+}
+
+.brand-auth-logo {
+  width: 14rem;
+  max-width: 80vw;
+  height: auto;
+}
+
+.brand-auth-card-wrap {
+  border-radius: 56px;
+  padding: 0.3rem;
+  background: linear-gradient(180deg, rgba(30, 94, 255, 0.22) 10%, rgba(30, 94, 255, 0) 30%);
+}
+
+:root[color-scheme='dark'] .brand-auth-card-wrap {
+  background: linear-gradient(180deg, rgba(30, 94, 255, 0.35) 10%, rgba(30, 94, 255, 0) 30%);
+}
+
+.brand-auth-card {
+  border-radius: 53px;
+  max-width: 36rem;
+}
+
+.brand-auth-icon {
+  width: 3.2rem;
+  height: 3.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.brand-auth-back-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  min-width: 3.5rem;
+}
+
+.brand-auth-back-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.brand-auth-page h1 {
+  font-family: var(--brand-font-display);
+}

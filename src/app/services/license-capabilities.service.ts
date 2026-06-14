@@ -102,8 +102,7 @@ export class LicenseCapabilitiesService {
    */
   private isFeatureEnabledWhenKeyMissing(featureName: string): boolean {
     if (featureName === 'TAX_RULE_ENGINE') {
-      const tier = this.getTier();
-      return tier === 'ENTERPRISE' || tier === 'PRO';
+      return this.getTier() === 'ENTERPRISE';
     }
     return false;
   }

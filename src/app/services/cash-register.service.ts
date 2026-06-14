@@ -217,5 +217,27 @@ export class CashRegisterService {
     );
   }
 
+  async downloadZReportPdf(sessionId: number, format: 'standard' | 'thermal' = 'standard') {
+    const headers = await this.getAuthHeaders();
+    let params = new HttpParams();
+    if (format === 'thermal') {
+      params = params.set('format', 'thermal');
+    }
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}sessions/${sessionId}/z-report/pdf`,
+      { headers, params, responseType: 'blob' as 'blob', observe: 'response' }
+    );
+  }
 
+  async downloadXReportPdf(sessionId: number, format: 'standard' | 'thermal' = 'standard') {
+    const headers = await this.getAuthHeaders();
+    let params = new HttpParams();
+    if (format === 'thermal') {
+      params = params.set('format', 'thermal');
+    }
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}sessions/${sessionId}/x-report/pdf`,
+      { headers, params, responseType: 'blob' as 'blob', observe: 'response' }
+    );
+  }
 }

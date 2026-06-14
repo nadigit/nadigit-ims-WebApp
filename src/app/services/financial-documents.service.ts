@@ -48,6 +48,15 @@ export class FinancialDocumentsService {
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, { headers: headers });
   }
 
+  getFinancialDocsByOrder(orderId: number) {
+    this.loadToken();
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'order/' + orderId,
+      { headers }
+    );
+  }
+
   getFinancialDocsPaginated(
     page: number,
     size: number,
@@ -198,19 +207,32 @@ export class FinancialDocumentsService {
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + docId + '/cancel', { headers: headers })
   }
 
-  printFinancialDoc(docNumber: any) {
+  fetchFinancialDocPdf(docNumber: string) {
+    this.loadToken();
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}/api/files/${docNumber}.pdf`;
-
     const headers = new HttpHeaders({
       Authorization: 'Bearer ' + this.jwt
     });
+    return this.http.get(url, { headers, responseType: 'blob' });
+  }
 
-    this.http.get(url, { headers, responseType: 'blob' }).subscribe(blob => {
-      const blobUrl = window.URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
-    }, error => {
-      console.error('Error downloading file:', error);
+  printFinancialDoc(docNumber: any) {
+    this.fetchFinancialDocPdf(docNumber).subscribe({
+      next: (blob) => this.openPdfBlobInPrintWindow(blob),
+      error: (error) => console.error('Error downloading file:', error)
     });
+  }
+
+  /** Opens PDF in a new tab and triggers the browser print dialog. */
+  openPdfBlobInPrintWindow(blob: Blob): void {
+    const blobUrl = window.URL.createObjectURL(blob);
+    const printWindow = window.open(blobUrl, '_blank');
+    if (printWindow) {
+      printWindow.addEventListener('load', () => {
+        printWindow.focus();
+        printWindow.print();
+      }, { once: true });
+    }
   }
 
   generateReceiptFromPOS(paymentId: any) {
@@ -236,6 +258,16 @@ export class FinancialDocumentsService {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated return note');
     return this.http.post(
       this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'return-note/return/' + returnId + '/create',
+      {},
+      { headers: headers, params: { origin: options?.origin || 'BACK_OFFICE' } }
+    );
+  }
+
+  generateCreditNoteFromReturn(returnId: any, options?: { origin?: string }) {
+    this.loadToken();
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated credit note');
+    return this.http.post(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'credit-note/return/' + returnId + '/create',
       {},
       { headers: headers, params: { origin: options?.origin || 'BACK_OFFICE' } }
     );

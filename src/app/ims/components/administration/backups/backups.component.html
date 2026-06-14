@@ -1,4 +1,4 @@
-<div class="backups-container">
+﻿<div class="backups-container">
   <p-toast></p-toast>
   <p-confirmDialog></p-confirmDialog>
 
@@ -21,7 +21,7 @@
 
       <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
         <div class="flex align-items-center gap-4">
-          <div class="backups-hero-icon">
+          <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--cyan">
             <i class="pi pi-database"></i>
           </div>
           <div>
@@ -38,14 +38,7 @@
           </div>
         </div>
 
-        <div class="flex gap-2">
-          <button
-            pButton
-            icon="pi pi-refresh"
-            class="p-button-outlined"
-            [label]="'refresh' | translate"
-            (click)="refresh()"
-            [disabled]="isLoadingBackups"></button>
+        <div class="detail-page-actions flex gap-2">
           <button
             pButton
             icon="pi pi-plus"
@@ -103,7 +96,7 @@
       </div>
       <ng-template #configLoading>
         <div class="loading-block">
-          <p-progressSpinner [style]="{width: '28px', height: '28px'}"></p-progressSpinner>
+          <p-progressSpinner styleClass="ims-spinner--xs" ariaLabel="loading"></p-progressSpinner>
           <span>{{ 'loading' | translate }}</span>
         </div>
       </ng-template>
@@ -113,12 +106,20 @@
       <div class="card-header">
         <h3 class="m-0">{{ 'backup_list' | translate }}</h3>
       </div>
+      <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+          *ngIf="(isLoadingBackups || isInitialLoadBackups) && !backups.length">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+        </div>
+      </div>
       <p-table
+        *ngIf="(!isInitialLoadBackups || backups.length) && (!isLoadingBackups || backups.length)"
         [value]="backups"
-        [loading]="isLoadingBackups"
+        [loading]="isLoadingBackups && backups.length > 0"
         [paginator]="true"
-        [rows]="10"
+        [rows]="pageSizeService.get(TablePageSizeKeys.backups, [10, 20, 50])"
         [rowsPerPageOptions]="[10, 20, 50]"
+        (onPage)="pageSizeService.onPage(TablePageSizeKeys.backups, [10, 20, 50], $event)"
         responsiveLayout="scroll">
         <ng-template pTemplate="header">
           <tr>
@@ -155,7 +156,7 @@
                 <button
                   pButton
                   icon="pi pi-download"
-                  class="p-button-text"
+                  class="p-button-rounded p-button-text p-button-info"
                   [pTooltip]="'download' | translate"
                   tooltipPosition="top"
                   (click)="download(job)"
@@ -163,14 +164,14 @@
                 <button
                   pButton
                   icon="pi pi-eye"
-                  class="p-button-text"
+                  class="p-button-rounded p-button-text p-button-primary"
                   [pTooltip]="'details' | translate"
                   tooltipPosition="top"
                   (click)="openDetails(job)"></button>
                 <button
                   pButton
                   icon="pi pi-trash"
-                  class="p-button-text p-button-danger"
+                  class="p-button-rounded p-button-text p-button-danger"
                   [pTooltip]="'delete' | translate"
                   tooltipPosition="top"
                   (click)="confirmDelete(job)"
@@ -180,7 +181,7 @@
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr>
+          <tr *ngIf="!isLoadingBackups && !isInitialLoadBackups">
             <td colspan="7" class="text-center text-500 py-4">
               {{ 'no_backups_found' | translate }}
             </td>
@@ -203,7 +204,9 @@
       </div>
 
       <div class="restore-warning">
-        <i class="pi pi-exclamation-triangle"></i>
+        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--danger flex-shrink-0">
+          <i class="pi pi-exclamation-triangle"></i>
+        </div>
         <div class="warning-text">
           <div>{{ 'restore_warning_line_1' | translate }}</div>
           <div>{{ 'restore_warning_line_2' | translate }}</div>
@@ -220,7 +223,9 @@
         <div class="restore-settings-section" *ngIf="!isLoadingRestoreSettings; else restoreSettingsLoading">
           <div class="section-header">
             <div class="flex align-items-center gap-2">
-              <i class="pi pi-sliders-h"></i>
+              <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+                <i class="pi pi-sliders-h"></i>
+              </div>
               <span class="section-title">{{ 'restore_settings' | translate }}</span>
             </div>
             <p-tag
@@ -261,13 +266,15 @@
             </button>
           </div>
           <div *ngIf="!restoreSettings?.serverMasterEnabled" class="restore-disabled">
-            <i class="pi pi-lock"></i>
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber flex-shrink-0">
+              <i class="pi pi-lock"></i>
+            </div>
             <span>{{ 'restore_disabled_server_master' | translate }}</span>
           </div>
         </div>
         <ng-template #restoreSettingsLoading>
           <div class="loading-block">
-            <p-progressSpinner [style]="{width: '28px', height: '28px'}"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--xs" ariaLabel="loading"></p-progressSpinner>
             <span>{{ 'loading' | translate }}</span>
           </div>
         </ng-template>
@@ -275,7 +282,9 @@
         <div class="maintenance-section">
           <div class="section-header">
             <div class="flex align-items-center gap-2">
-              <i class="pi pi-shield"></i>
+              <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+                <i class="pi pi-shield"></i>
+              </div>
               <span class="section-title">{{ 'maintenance_mode' | translate }}</span>
             </div>
             <p-tag
@@ -315,7 +324,9 @@
             </button>
           </div>
           <div *ngIf="maintenanceStatus?.enabled" class="maintenance-note">
-            <i class="pi pi-info-circle"></i>
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan flex-shrink-0">
+              <i class="pi pi-info-circle"></i>
+            </div>
             <span>
               {{ 'maintenance_enabled_note' | translate }}
               <span *ngIf="maintenanceStatus?.message"> - {{ maintenanceStatus?.message }}</span>
@@ -397,7 +408,7 @@
 
       <ng-template #restoreConfigLoading>
         <div class="loading-block">
-          <p-progressSpinner [style]="{width: '28px', height: '28px'}"></p-progressSpinner>
+          <p-progressSpinner styleClass="ims-spinner--xs" ariaLabel="loading"></p-progressSpinner>
           <span>{{ 'loading' | translate }}</span>
         </div>
       </ng-template>
@@ -406,12 +417,20 @@
         <div class="card-header">
           <h3 class="m-0">{{ 'restore_jobs' | translate }}</h3>
         </div>
+        <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+            *ngIf="(isLoadingRestoreJobs || isInitialLoadRestoreJobs) && !restoreJobs.length">
+          <div class="ims-loading-panel__inner">
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+          </div>
+        </div>
         <p-table
+          *ngIf="(!isInitialLoadRestoreJobs || restoreJobs.length) && (!isLoadingRestoreJobs || restoreJobs.length)"
           [value]="restoreJobs"
-          [loading]="isLoadingRestoreJobs"
+          [loading]="isLoadingRestoreJobs && restoreJobs.length > 0"
           [paginator]="true"
-          [rows]="10"
+          [rows]="pageSizeService.get(TablePageSizeKeys.backupsHistory, [10, 20, 50])"
           [rowsPerPageOptions]="[10, 20, 50]"
+          (onPage)="pageSizeService.onPage(TablePageSizeKeys.backupsHistory, [10, 20, 50], $event)"
           responsiveLayout="scroll">
           <ng-template pTemplate="header">
             <tr>
@@ -436,7 +455,7 @@
                 <button
                   pButton
                   icon="pi pi-eye"
-                  class="p-button-text"
+                  class="p-button-rounded p-button-text p-button-primary"
                   [pTooltip]="'details' | translate"
                   tooltipPosition="top"
                   (click)="selectedRestoreJob = job; detailsDialog = true">
@@ -445,7 +464,7 @@
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr>
+            <tr *ngIf="!isLoadingRestoreJobs && !isInitialLoadRestoreJobs">
               <td colspan="6" class="text-center text-500 py-4">
                 {{ 'no_restore_jobs_found' | translate }}
               </td>

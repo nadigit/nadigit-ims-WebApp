@@ -6,6 +6,9 @@ export class PurchaseItem {
   product?: Product; // Reference to the Product object
   purchase?: Purchase;
   quantityPurchased?: number;
+  displayQuantity?: number;
+  returnedQuantity?: number;
+  displayReturnedQuantity?: number;
   buyingPrice?: number;
   totalCost?: number;
   lineNetAmount?: number;

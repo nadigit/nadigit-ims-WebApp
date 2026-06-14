@@ -79,22 +79,6 @@
     background: var(--surface-hover) !important;
 }
 
-.order-hero-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px color-mix(in srgb, var(--primary-color) 30%, transparent);
-}
-
-.order-hero-icon i {
-    font-size: 2.5rem;
-    color: white;
-}
-
 .order-title {
     font-size: 2rem;
     font-weight: 700;
@@ -141,65 +125,6 @@
 .stat-card-modern:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-icon.total {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.items {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.stat-icon.discount {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.stat-icon.tax {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.cost {
-    background: linear-gradient(135deg, #64748b, #475569);
-}
-
-.stat-icon.profit {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.profit.profit-negative {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.stat-icon.margin {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.stat-icon.margin.high-margin {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.margin.medium-margin {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.margin.low-margin {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .stat-content {
@@ -441,26 +366,7 @@
 }
 
 .profit-margin-badge {
-    font-size: 0.75rem;
-    padding: 0.125rem 0.5rem;
-    border-radius: 4px;
     margin-left: 0.5rem;
-    font-weight: 500;
-}
-
-.profit-margin-badge.high-margin {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.profit-margin-badge.medium-margin {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.profit-margin-badge.low-margin {
-    background: #fee2e2;
-    color: #991b1b;
 }
 
 .summary-row.cost-row .summary-value {
@@ -556,26 +462,6 @@
 
 .info-item:hover {
     background: var(--surface-100);
-}
-
-.info-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.info-icon i {
-    color: white;
-    font-size: 1rem;
-}
-
-.info-icon.audit {
-    background: linear-gradient(135deg, #64748b, #475569);
 }
 
 .info-content {
@@ -997,11 +883,6 @@
     
     .stat-card-modern {
         padding: 1rem;
-    }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
     }
     
     .stat-value {

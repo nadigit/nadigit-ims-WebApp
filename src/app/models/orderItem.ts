@@ -6,6 +6,10 @@ export class OrderItem {
   product?: Product; // Reference to the Product object
   order?: Order;
   quantity?: number;
+  /** Human-readable quantity for fractional/prepaid products (API). */
+  displayQuantity?: number;
+  displayReturnedQuantity?: number;
+  displayRemainingQuantity?: number;
   returnedQuantity?: number;
   subTotal?: number;
   pricePerUnit?: number;

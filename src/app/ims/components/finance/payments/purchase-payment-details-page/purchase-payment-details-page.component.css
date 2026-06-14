@@ -79,27 +79,6 @@
     background: var(--surface-hover) !important;
 }
 
-.payment-hero-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3);
-}
-
-.payment-hero-icon.purchase {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.3);
-}
-
-.payment-hero-icon i {
-    font-size: 2.5rem;
-    color: white;
-}
-
 .payment-title {
     font-size: 2rem;
     font-weight: 700;
@@ -146,41 +125,6 @@
 .stat-card-modern:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-icon.amount {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.purchase {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.paid {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.stat-icon.remaining {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.stat-icon.remaining.zero {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
 .stat-content {
@@ -323,34 +267,6 @@
 
 .info-item:hover {
     background: var(--surface-100);
-}
-
-.info-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.info-icon i {
-    color: white;
-    font-size: 1rem;
-}
-
-.info-icon.audit {
-    background: linear-gradient(135deg, #64748b, #475569);
-}
-
-.info-icon.method {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.info-icon.amount {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
 .info-content {
@@ -622,16 +538,6 @@
         padding: 1.5rem;
     }
     
-    .payment-hero-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 14px;
-    }
-    
-    .payment-hero-icon i {
-        font-size: 1.75rem;
-    }
-    
     .payment-title {
         font-size: 1.5rem;
     }
@@ -649,11 +555,6 @@
     
     .stat-card-modern {
         padding: 1rem;
-    }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
     }
     
     .stat-value {

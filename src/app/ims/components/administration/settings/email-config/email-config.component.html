@@ -1,4 +1,4 @@
-<div class="integration-config-page email-config-page">
+﻿<div class="integration-config-page email-config-page">
   <p-toast></p-toast>
 
   <div class="mb-4">
@@ -14,7 +14,7 @@
       <span class="text-700 text-sm font-medium">{{ 'email_configuration' | translate }}</span>
     </div>
     <div class="integration-hero">
-      <div class="integration-hero__icon" aria-hidden="true">
+      <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--teal" aria-hidden="true">
         <i class="pi pi-envelope"></i>
       </div>
       <div class="integration-hero__body">
@@ -33,7 +33,7 @@
   </div>
 
   <div class="integration-loading surface-card border-1 surface-border border-round p-5 flex justify-content-center" *ngIf="isLoading">
-    <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
   </div>
 
   <form [formGroup]="emailConfigForm" class="integration-form p-fluid" *ngIf="!isLoading">

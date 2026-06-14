@@ -1,10 +1,10 @@
-<div class="credit-reports-container grid">
+﻿<div class="credit-reports-container grid">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper col-12" *ngIf="isLoading">
         <div class="loading-content flex flex-column align-items-center gap-3">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3" [style]="{ width: '3rem', height: '3rem' }"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
             <span class="text-600">{{ 'loading' | translate }}</span>
         </div>
     </div>
@@ -34,17 +34,22 @@
                 <div class="card">
                     <div class="card-header flex align-items-center justify-content-between">
                         <h3 class="m-0">{{ 'outstanding_credit_accounts' | translate }}</h3>
-                        <button pButton 
-                                type="button" 
-                                icon="pi pi-file-excel" 
-                                label="{{ 'export_excel' | translate }}"
-                                class="p-button-success p-button-sm"
+                        <div class="ims-export-actions">
+                        <button pButton pRipple
+                                type="button"
+                                icon="pi pi-file-excel"
+                                class="p-button-success"
+                                [pTooltip]="'export_excel' | translate"
+                                tooltipPosition="bottom"
                                 (click)="exportOutstandingCredit()"></button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <p-table [value]="outstandingCreditAccounts" 
                                  [paginator]="true"
-                                 [rows]="20"
+                                 [rows]="pageSizeService.get(TablePageSizeKeys.creditReportsOutstanding, creditReportPageOptions)"
+                                 [rowsPerPageOptions]="creditReportPageOptions"
+                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.creditReportsOutstanding, creditReportPageOptions, $event)"
                                  styleClass="p-datatable-striped p-datatable-gridlines">
                             <ng-template pTemplate="header">
                                 <tr>
@@ -86,7 +91,7 @@
                                         <button pButton 
                                                 type="button" 
                                                 icon="pi pi-eye" 
-                                                class="p-button-text p-button-sm"
+                                                class="p-button-text p-button-sm p-button-rounded p-button-primary"
                                                 [pTooltip]="'view_details' | translate"
                                                 (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
                                     </td>
@@ -117,17 +122,22 @@
                 <div class="card mt-3">
                     <div class="card-header flex align-items-center justify-content-between">
                         <h3 class="m-0">{{ 'customers_over_limit' | translate }}</h3>
-                        <button pButton 
-                                type="button" 
-                                icon="pi pi-file-excel" 
-                                label="{{ 'export_excel' | translate }}"
-                                class="p-button-danger p-button-sm"
+                        <div class="ims-export-actions">
+                        <button pButton pRipple
+                                type="button"
+                                icon="pi pi-file-excel"
+                                class="p-button-success"
+                                [pTooltip]="'export_excel' | translate"
+                                tooltipPosition="bottom"
                                 (click)="exportOverLimit()"></button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <p-table [value]="overLimitAccounts" 
                                  [paginator]="true"
-                                 [rows]="20"
+                                 [rows]="pageSizeService.get(TablePageSizeKeys.creditReportsOverLimit, creditReportPageOptions)"
+                                 [rowsPerPageOptions]="creditReportPageOptions"
+                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.creditReportsOverLimit, creditReportPageOptions, $event)"
                                  styleClass="p-datatable-striped p-datatable-gridlines">
                             <ng-template pTemplate="header">
                                 <tr>
@@ -156,7 +166,7 @@
                                         <button pButton 
                                                 type="button" 
                                                 icon="pi pi-eye" 
-                                                class="p-button-text p-button-sm"
+                                                class="p-button-text p-button-sm p-button-rounded p-button-primary"
                                                 [pTooltip]="'view_details' | translate"
                                                 (click)="navigateToCustomerCredit(account.customer?.customerId); $event.stopPropagation()"></button>
                                     </td>

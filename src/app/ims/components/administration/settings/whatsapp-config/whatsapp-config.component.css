@@ -24,19 +24,6 @@
   padding: 1rem 1.25rem;
 }
 
-.integration-hero__icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--green-600);
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  font-size: 1.15rem;
-}
-
 .integration-toggle-row {
   display: inline-flex;
   align-items: center;

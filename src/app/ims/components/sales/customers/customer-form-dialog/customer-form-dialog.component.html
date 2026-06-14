@@ -1,277 +1,295 @@
-<p-dialog [(visible)]="config.visible" [style]="{width: '500px'}"
-    [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{'customer_details' | translate}}"
-    [modal]="true" [draggable]="false" [resizable]="false" class="p-fluid customer-dialog">
+<p-dialog [(visible)]="config.visible" [style]="{width: 'min(92vw, 600px)'}"
+    [breakpoints]="{'960px': '90vw', '640px': '95vw'}" header="{{ 'customer_details' | translate }}"
+    [modal]="true" [draggable]="false" [resizable]="false"
+    styleClass="ims-form-dialog-shell customer-form-dialog-shell"
+    class="p-fluid customer-dialog">
     <ng-template pTemplate="content">
-        <div class="grid p-fluid">
-            <div class="col-12">
-                <!-- Customer Type Selection -->
-                <div class="field card p-3 mb-3">
-                    <label for="customerType" class="block mb-2 font-bold">
-                        {{'customer_type' | translate}} <span class="required-asterisk">*</span>
-                    </label>
-                    <div class="flex flex-wrap gap-3">
-                        <div class="flex align-items-center">
-                            <p-radioButton name="customerType" value="Particular"
-                                [(ngModel)]="config.customer.customerType" inputId="customerType1" required
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.customerType}">
-                            </p-radioButton>
-                            <label for="customerType1" class="ml-2 cursor-pointer">
-                                <i class="pi pi-user mr-1"></i> {{'customer_type_particular' | translate}}
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                            <i class="pi pi-user"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'customer_information' | translate }}</h3>
+                    </header>
+                    <div class="ims-form-section__body ims-form-section__body--stack">
+                        <div class="field">
+                            <label for="customerType" class="ims-form-label">
+                                {{ 'customer_type' | translate }} <span class="required-asterisk">*</span>
                             </label>
+                            <div class="ims-form-radio-group">
+                                <div class="ims-form-radio-option">
+                                    <p-radioButton name="customerType" value="Particular"
+                                        [(ngModel)]="config.customer.customerType" inputId="customerType1" required
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.customerType}">
+                                    </p-radioButton>
+                                    <label for="customerType1" class="ims-form-label ims-form-label--inline cursor-pointer">
+                                        <i class="pi pi-user mr-1"></i>{{ 'customer_type_particular' | translate }}
+                                    </label>
+                                </div>
+                                <div class="ims-form-radio-option">
+                                    <p-radioButton name="customerType" value="Company"
+                                        [(ngModel)]="config.customer.customerType" inputId="customerType2" required
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.customerType}">
+                                    </p-radioButton>
+                                    <label for="customerType2" class="ims-form-label ims-form-label--inline cursor-pointer">
+                                        <i class="pi pi-building mr-1"></i>{{ 'customer_type_company' | translate }}
+                                    </label>
+                                </div>
+                            </div>
+                            <small class="p-error" *ngIf="submitted && !config.customer.customerType">
+                                {{ 'customer_type' | translate }} {{ 'is_required_label' | translate }}
+                            </small>
                         </div>
-                        <div class="flex align-items-center">
-                            <p-radioButton name="customerType" value="Company"
-                                [(ngModel)]="config.customer.customerType" inputId="customerType2" required
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.customerType}">
-                            </p-radioButton>
-                            <label for="customerType2" class="ml-2 cursor-pointer">
-                                <i class="pi pi-building mr-1"></i> {{'customer_type_company' | translate}}
+
+                        <div *ngIf="config.customer.customerType === 'Particular'" class="grid">
+                            <div class="field col-12 md:col-6">
+                                <label for="firstName" class="ims-form-label">
+                                    {{ 'customer_first_name' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-user"></i></span>
+                                    <input type="text" pInputText id="firstName" name="firstName"
+                                        [(ngModel)]="config.customer.firstName" required
+                                        placeholder="{{ 'enter_first_name' | translate }}"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.firstName}" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && !config.customer.firstName">
+                                    {{ 'customer_first_name' | translate }} {{ 'is_required_label' | translate }}
+                                </small>
+                            </div>
+
+                            <div class="field col-12 md:col-6">
+                                <label for="lastName" class="ims-form-label">
+                                    {{ 'customer_last_name' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-user"></i></span>
+                                    <input type="text" pInputText id="lastName" name="lastName"
+                                        [(ngModel)]="config.customer.lastName" required
+                                        placeholder="{{ 'enter_last_name' | translate }}"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.lastName}" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && !config.customer.lastName">
+                                    {{ 'customer_last_name' | translate }} {{ 'is_required_label' | translate }}
+                                </small>
+                            </div>
+
+                            <div class="field col-12">
+                                <label for="cin" class="ims-form-label">
+                                    {{ 'customer_cin' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-id-card"></i></span>
+                                    <input type="text" pInputText id="cin" name="cin" [(ngModel)]="config.customer.cin"
+                                        required placeholder="{{ 'enter_cin' | translate }}"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.cin}" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && !config.customer.cin">
+                                    {{ 'customer_cin' | translate }} {{ 'is_required_label' | translate }}
+                                </small>
+                            </div>
+                        </div>
+
+                        <div *ngIf="config.customer.customerType === 'Company'" class="grid">
+                            <div class="field col-12">
+                                <label for="companyName" class="ims-form-label">
+                                    {{ 'customer_company_name' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-building"></i></span>
+                                    <input type="text" pInputText id="companyName" name="companyName"
+                                        [(ngModel)]="config.customer.companyName" required
+                                        placeholder="{{ 'enter_company_name' | translate }}"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.companyName}" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && !config.customer.companyName">
+                                    {{ 'customer_company_name' | translate }} {{ 'is_required_label' | translate }}
+                                </small>
+                            </div>
+
+                            <div class="field col-12">
+                                <label for="ice" class="ims-form-label">
+                                    {{ 'customer_ice' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-briefcase"></i></span>
+                                    <input type="text" pInputText id="ice" name="ice" [(ngModel)]="config.customer.ice"
+                                        required placeholder="{{ 'enter_ice' | translate }}"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.ice}" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && !config.customer.ice">
+                                    {{ 'customer_ice' | translate }} {{ 'is_required_label' | translate }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+                            <i class="pi pi-phone"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'contact_information' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="email" class="ims-form-label">
+                                {{ 'customer_email' | translate }}
                             </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon"><i class="pi pi-envelope"></i></span>
+                                <input type="email" pInputText id="email" name="email"
+                                    [(ngModel)]="config.customer.email"
+                                    placeholder="{{ 'enter_email' | translate }}" />
+                            </div>
+                        </div>
+
+                        <div class="field col-12 md:col-6">
+                            <label for="phoneNumber" class="ims-form-label">
+                                {{ 'customer_phone_number' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon"><i class="pi pi-phone"></i></span>
+                                <input type="tel" pInputText id="phoneNumber" name="phoneNumber"
+                                    [(ngModel)]="config.customer.phoneNumber"
+                                    placeholder="{{ 'enter_phone' | translate }}" />
+                            </div>
                         </div>
                     </div>
-                    <small class="p-error block mt-1" *ngIf="submitted && !config.customer.customerType">
-                        {{'customer_type' | translate}} {{'is_required_label' | translate}}
-                    </small>
-                </div>
+                </section>
 
-                <!-- Particular Customer Fields -->
-                <div *ngIf="config.customer.customerType === 'Particular'" class="grid">
-                    <div class="field col-12 md:col-6">
-                        <label for="firstName" class="block mb-2 font-bold">
-                            {{'customer_first_name' | translate}} <span class="required-asterisk">*</span>
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-user"></i>
-                            </span>
-                            <input type="text" pInputText name="firstName" [(ngModel)]="config.customer.firstName"
-                                required placeholder="{{ 'enter_first_name' | translate }}"
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.firstName}" />
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                            <i class="pi pi-map-marker"></i>
                         </div>
-                        <small class="p-error" *ngIf="submitted && !config.customer.firstName">
-                            {{'customer_first_name' | translate}} {{'is_required_label' | translate}}
-                        </small>
-                    </div>
-
-                    <div class="field col-12 md:col-6">
-                        <label for="lastName" class="block mb-2 font-bold">
-                            {{'customer_last_name' | translate}} <span class="required-asterisk">*</span>
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-user"></i>
-                            </span>
-                            <input type="text" pInputText name="lastName" [(ngModel)]="config.customer.lastName"
-                                required placeholder="{{ 'enter_last_name' | translate }}"
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.lastName}" />
+                        <h3 class="ims-form-section__title">{{ 'location' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12 md:col-6">
+                            <label for="country" class="ims-form-label">
+                                {{ 'customer_country' | translate }}
+                            </label>
+                            <p-dropdown inputId="country" [(ngModel)]="config.customer.country"
+                                (onChange)="onSelectedCountry(config.customer.country)" name="country"
+                                [options]="countries" optionValue="name" optionLabel="translatedName"
+                                [filter]="true" [filterFields]="['name', 'translatedName']"
+                                [showClear]="true" appendTo="body" [autoDisplayFirst]="false"
+                                [resetFilterOnHide]="false" placeholder="{{ 'select_country_option' | translate }}"
+                                styleClass="w-full">
+                                <ng-template pTemplate="selectedItem">
+                                    <span *ngIf="config.customer && config.customer.country"
+                                        class="flex align-items-center gap-2">
+                                        <i class="pi pi-globe"></i>
+                                        {{ config.customer.country }}
+                                    </span>
+                                </ng-template>
+                                <ng-template let-option pTemplate="item">
+                                    <span class="flex align-items-center gap-2">
+                                        <i class="pi pi-globe"></i>
+                                        {{ option.translatedName }}
+                                    </span>
+                                </ng-template>
+                            </p-dropdown>
                         </div>
-                        <small class="p-error" *ngIf="submitted && !config.customer.lastName">
-                            {{'customer_last_name' | translate}} {{'is_required_label' | translate}}
-                        </small>
-                    </div>
 
-                    <div class="field col-12">
-                        <label for="cin" class="block mb-2 font-bold">
-                            {{'customer_cin' | translate}} <span class="required-asterisk">*</span>
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-id-card"></i>
-                            </span>
-                            <input type="text" pInputText name="cin" [(ngModel)]="config.customer.cin" required
-                                placeholder="{{ 'enter_cin' | translate }}"
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.cin}" />
+                        <div class="field col-12 md:col-6" *ngIf="config.customer.country">
+                            <label for="city" class="ims-form-label">
+                                {{ 'customer_city' | translate }}
+                            </label>
+                            <p-dropdown inputId="city" [(ngModel)]="config.customer.city" name="city"
+                                optionValue="name" optionLabel="name" [filter]="true" filterBy="name"
+                                [options]="states" [showClear]="true" appendTo="body" [autoDisplayFirst]="false"
+                                [resetFilterOnHide]="false" placeholder="{{ 'select_city_option' | translate }}"
+                                styleClass="w-full">
+                                <ng-template pTemplate="selectedItem">
+                                    <span *ngIf="config.customer && config.customer.city"
+                                        class="flex align-items-center gap-2">
+                                        <i class="pi pi-map-marker"></i>
+                                        {{ config.customer.city }}
+                                    </span>
+                                </ng-template>
+                                <ng-template let-option pTemplate="item">
+                                    <span class="flex align-items-center gap-2">
+                                        <i class="pi pi-map-marker"></i>
+                                        {{ option.name }}
+                                    </span>
+                                </ng-template>
+                            </p-dropdown>
                         </div>
-                        <small class="p-error" *ngIf="submitted && !config.customer.cin">
-                            {{'customer_cin' | translate}} {{'is_required_label' | translate}}
-                        </small>
-                    </div>
-                </div>
 
-                <!-- Company Customer Fields -->
-                <div *ngIf="config.customer.customerType === 'Company'" class="grid">
-                    <div class="field col-12">
-                        <label for="companyName" class="block mb-2 font-bold">
-                            {{'customer_company_name' | translate}} <span class="required-asterisk">*</span>
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-building"></i>
-                            </span>
-                            <input type="text" pInputText name="companyName" [(ngModel)]="config.customer.companyName"
-                                required placeholder="{{ 'enter_company_name' | translate }}"
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.companyName}" />
+                        <div class="field col-12">
+                            <label for="address" class="ims-form-label">
+                                {{ 'customer_address' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon"><i class="pi pi-home"></i></span>
+                                <textarea pInputTextarea id="address" [(ngModel)]="config.customer.address"
+                                    name="address" rows="3" [autoResize]="true"
+                                    placeholder="{{ 'enter_address' | translate }}"></textarea>
+                            </div>
                         </div>
-                        <small class="p-error" *ngIf="submitted && !config.customer.companyName">
-                            {{'customer_company_name' | translate}} {{'is_required_label' | translate}}
-                        </small>
-                    </div>
 
-                    <div class="field col-12">
-                        <label for="ice" class="block mb-2 font-bold">
-                            {{'customer_ice' | translate}} <span class="required-asterisk">*</span>
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-briefcase"></i>
-                            </span>
-                            <input type="text" pInputText name="ice" [(ngModel)]="config.customer.ice" required
-                                placeholder="{{ 'enter_ice' | translate }}"
-                                [ngClass]="{'ng-invalid ng-dirty': submitted && !config.customer.ice}" />
-                        </div>
-                        <small class="p-error" *ngIf="submitted && !config.customer.ice">
-                            {{'customer_ice' | translate}} {{'is_required_label' | translate}}
-                        </small>
-                    </div>
-                </div>
-
-                <!-- Common Fields -->
-                <div class="grid">
-                    <div class="field col-12">
-                        <label for="email" class="block mb-2 font-bold">
-                            {{'customer_email' | translate}}
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-envelope"></i>
-                            </span>
-                            <input type="email" pInputText name="email" [(ngModel)]="config.customer.email"
-                                placeholder="{{ 'enter_email' | translate }}" />
+                        <div class="field col-12 md:col-6">
+                            <label for="zip" class="ims-form-label">
+                                {{ 'customer_zip' | translate }}
+                            </label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon"><i class="pi pi-map"></i></span>
+                                <input type="text" pInputText id="zip" name="zip" [(ngModel)]="config.customer.zip"
+                                    placeholder="{{ 'enter_zip' | translate }}" />
+                            </div>
                         </div>
                     </div>
+                </section>
 
-                    <div class="field col-12 md:col-6">
-                        <label for="country" class="block mb-2 font-bold">
-                            {{ 'customer_country' | translate }}
-                        </label>
-                        <p-dropdown [(ngModel)]="config.customer.country"
-                            (onChange)="onSelectedCountry(config.customer.country)" name="country"
-                            [options]="countries" optionValue="name" optionLabel="translatedName"
-                            [filter]="true" [filterFields]="['name', 'translatedName']"
-                            [showClear]="true" appendTo="body" [autoDisplayFirst]="false"
-                            [resetFilterOnHide]="false" placeholder="{{ 'select_country_option' | translate }}">
-
-                            <ng-template pTemplate="selectedItem">
-                                <span *ngIf="config.customer && config.customer.country"
-                                    class="flex align-items-center gap-2">
-                                    <i class="pi pi-globe"></i>
-                                    {{ config.customer.country }}
-                                </span>
-                            </ng-template>
-
-                            <ng-template let-option pTemplate="item">
-                                <span class="flex align-items-center gap-2">
-                                    <i class="pi pi-globe"></i>
-                                    {{ option.translatedName }}
-                                </span>
-                            </ng-template>
-                        </p-dropdown>
-                    </div>
-
-                    <div class="field col-12 md:col-6" *ngIf="config.customer.country">
-                        <label for="city" class="block mb-2 font-bold">
-                            {{ 'customer_city' | translate }}
-                        </label>
-                        <p-dropdown [(ngModel)]="config.customer.city" name="city" optionValue="name"
-                            optionLabel="name" [filter]="true" filterBy="name" [options]="states"
-                            [showClear]="true" appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
-                            placeholder="{{ 'select_city_option' | translate }}">
-                            <ng-template pTemplate="selectedItem">
-                                <span *ngIf="config.customer && config.customer.city" class="flex align-items-center gap-2">
-                                    <i class="pi pi-map-marker"></i>
-                                    {{config.customer.city}}
-                                </span>
-                            </ng-template>
-                            <ng-template let-option pTemplate="item">
-                                <span class="flex align-items-center gap-2">
-                                    <i class="pi pi-map-marker"></i>
-                                    {{option.name}}
-                                </span>
-                            </ng-template>
-                        </p-dropdown>
-                    </div>
-
-                    <div class="field col-12">
-                        <label for="address" class="block mb-2 font-bold">
-                            {{'customer_address' | translate}}
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-home"></i>
-                            </span>
-                            <textarea pInputTextarea [(ngModel)]="config.customer.address" rows="3" [autoResize]="true"
-                                placeholder="{{ 'enter_address' | translate }}"></textarea>
+                <section class="ims-form-section" *ngIf="config.canManagePricingProfile">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+                            <i class="pi pi-tag"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'pricing_profile' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="pricingProfile" class="ims-form-label">
+                                {{ 'pricing_profile' | translate }}
+                            </label>
+                            <p-dropdown appendTo="body" inputId="pricingProfile" [options]="priceLists"
+                                optionLabel="name" optionValue="id" [(ngModel)]="config.selectedPriceListId"
+                                [placeholder]="'select_pricing_profile' | translate" [showClear]="true"
+                                [disabled]="config.isLoadingPriceLists" [ngModelOptions]="{standalone: true}"
+                                styleClass="w-full">
+                                <ng-template pTemplate="selectedItem">
+                                    <span *ngIf="config.selectedPriceListId">
+                                        {{ getPriceListLabelById(config.selectedPriceListId) }}
+                                    </span>
+                                </ng-template>
+                                <ng-template let-list pTemplate="item">
+                                    <span>{{ getPriceListLabel(list) }}</span>
+                                </ng-template>
+                            </p-dropdown>
+                            <small class="ims-form-hint" *ngIf="config.isLoadingPriceLists">{{ 'loading' | translate }}</small>
                         </div>
                     </div>
-
-                    <div class="field col-12 md:col-6">
-                        <label for="zip" class="block mb-2 font-bold">
-                            {{'customer_zip' | translate}}
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-map"></i>
-                            </span>
-                            <input type="text" pInputText name="zip" [(ngModel)]="config.customer.zip"
-                                placeholder="{{ 'enter_zip' | translate }}" />
-                        </div>
-                    </div>
-
-                    <div class="field col-12 md:col-6">
-                        <label for="phoneNumber" class="block mb-2 font-bold">
-                            {{'customer_phone_number' | translate}}
-                        </label>
-                        <div class="p-inputgroup">
-                            <span class="p-inputgroup-addon">
-                                <i class="pi pi-phone"></i>
-                            </span>
-                            <input type="tel" pInputText name="phoneNumber" [(ngModel)]="config.customer.phoneNumber"
-                                placeholder="{{ 'enter_phone' | translate }}" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pricing Profile -->
-                <div class="field card p-3 mb-3" *ngIf="config.canManagePricingProfile">
-                    <label for="pricingProfile" class="block mb-2 font-bold">
-                        {{ 'pricing_profile' | translate }}
-                    </label>
-                    <p-dropdown
-                        appendTo="body"
-                        [options]="priceLists"
-                        optionLabel="name"
-                        optionValue="id"
-                        [(ngModel)]="config.selectedPriceListId"
-                        [placeholder]="'select_pricing_profile' | translate"
-                        [showClear]="true"
-                        [disabled]="config.isLoadingPriceLists"
-                        [ngModelOptions]="{standalone: true}">
-                        <ng-template pTemplate="selectedItem">
-                            <span *ngIf="config.selectedPriceListId">
-                                {{ getPriceListLabelById(config.selectedPriceListId) }}
-                            </span>
-                        </ng-template>
-                        <ng-template let-list pTemplate="item">
-                            <span>{{ getPriceListLabel(list) }}</span>
-                        </ng-template>
-                    </p-dropdown>
-                    <small class="text-500" *ngIf="config.isLoadingPriceLists">{{ 'loading' | translate }}</small>
-                </div>
+                </section>
             </div>
-        </div>
 
-        <div class="required-note mt-3">
-            <small><span class="required-asterisk">*</span> {{'fields_marked_with_asterisk_required' |
-                translate}}</small>
+            <div class="ims-form-required-note">
+                <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+            </div>
         </div>
     </ng-template>
 
     <ng-template pTemplate="footer">
         <div class="flex justify-content-between align-items-center w-full">
-            <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-                class="p-button-text p-button-danger" (click)="onCancel()"></button>
-            <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
-                class="p-button-raised" (click)="onSave()"></button>
+            <button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+                class="p-button-text" (click)="onCancel()"></button>
+            <button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+                class="p-button-primary" (click)="onSave()"></button>
         </div>
     </ng-template>
 </p-dialog>

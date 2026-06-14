@@ -1,0 +1,376 @@
+/**
+ * Nadigit IMS — post-theme overrides
+ * Loaded after lara-light/dark-indigo theme.css so brand rules always win.
+ * Uses CSS variables from brand-tokens (via nadigit-brand.scss in styles bundle).
+ */
+
+/* Global icon-only button centering — PrimeNG ::after flex hack + label flex growth */
+.p-button.p-button-icon-only,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+
+.p-button.p-button-icon-only::after,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only::after,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label))::after {
+  content: none !important;
+  display: none !important;
+}
+
+.p-button.p-button-icon-only .p-button-label,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-label,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-label {
+  flex: 0 0 auto !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.p-button.p-button-icon-only .p-button-icon,
+.p-button.p-button-icon-only .p-button-icon-left,
+.p-button.p-button-icon-only .p-button-icon-right,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-icon,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-icon-left,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-icon-right,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-icon,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-icon-left,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-icon-right {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.p-button.p-button-icon-only .pi,
+.p-button.p-button-icon-only .p-icon,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .pi,
+.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-icon,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .pi,
+.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-icon {
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.p-button.p-button-sm.p-button-icon-only {
+  padding: 0 !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-primary,
+.p-datatable .p-button.p-button-rounded.p-button-warning,
+.p-datatable .p-button.p-button-rounded.p-button-danger,
+.p-datatable .p-button.p-button-rounded.p-button-success,
+.p-datatable .p-button.p-button-rounded.p-button-info,
+.p-treetable .p-button.p-button-rounded.p-button-primary,
+.p-treetable .p-button.p-button-rounded.p-button-warning,
+.p-treetable .p-button.p-button-rounded.p-button-danger,
+.p-treetable .p-button.p-button-rounded.p-button-success,
+.p-treetable .p-button.p-button-rounded.p-button-info {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-primary::after,
+.p-datatable .p-button.p-button-rounded.p-button-warning::after,
+.p-datatable .p-button.p-button-rounded.p-button-danger::after,
+.p-datatable .p-button.p-button-rounded.p-button-success::after,
+.p-datatable .p-button.p-button-rounded.p-button-info::after,
+.p-treetable .p-button.p-button-rounded.p-button-primary::after,
+.p-treetable .p-button.p-button-rounded.p-button-warning::after,
+.p-treetable .p-button.p-button-rounded.p-button-danger::after,
+.p-treetable .p-button.p-button-rounded.p-button-success::after,
+.p-treetable .p-button.p-button-rounded.p-button-info::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Solid semantic CTAs — never bleed onto text/outlined variants */
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+.p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined),
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined) {
+  border-width: 1px;
+  border-style: solid;
+}
+
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-success) !important;
+  border-color: var(--brand-success) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-premium) !important;
+  border-color: var(--brand-premium) !important;
+  color: var(--brand-premium-text) !important;
+}
+
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-danger) !important;
+  border-color: var(--brand-danger) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-info) !important;
+  border-color: var(--brand-info) !important;
+  color: #ffffff !important;
+}
+
+/* Text / ghost semantic buttons (not filled icon toolbars) */
+.p-button.p-button-text.p-button-primary,
+.p-button.p-button-text.p-button-warning,
+.p-button.p-button-text.p-button-danger,
+.p-button.p-button-text.p-button-success,
+.p-button.p-button-text.p-button-info {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.p-button.p-button-text.p-button-primary {
+  color: var(--brand-saas) !important;
+}
+
+.p-button.p-button-text.p-button-warning {
+  color: var(--brand-premium-hover) !important;
+}
+
+.p-button.p-button-text.p-button-danger {
+  color: var(--brand-danger) !important;
+}
+
+.p-button.p-button-text.p-button-success {
+  color: var(--brand-success) !important;
+}
+
+.p-button.p-button-text.p-button-info {
+  color: var(--brand-info) !important;
+}
+
+/* Data table row actions */
+.p-datatable .p-button.p-button-rounded.p-button-primary,
+.p-datatable .p-button.p-button-rounded.p-button-warning,
+.p-datatable .p-button.p-button-rounded.p-button-danger,
+.p-datatable .p-button.p-button-rounded.p-button-success,
+.p-datatable .p-button.p-button-rounded.p-button-info,
+.p-treetable .p-button.p-button-rounded.p-button-primary,
+.p-treetable .p-button.p-button-rounded.p-button-warning,
+.p-treetable .p-button.p-button-rounded.p-button-danger,
+.p-treetable .p-button.p-button-rounded.p-button-success,
+.p-treetable .p-button.p-button-rounded.p-button-info {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  min-width: 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-primary,
+.p-treetable .p-button.p-button-rounded.p-button-primary {
+  color: var(--brand-saas) !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-warning,
+.p-treetable .p-button.p-button-rounded.p-button-warning {
+  color: var(--brand-premium-hover) !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-danger,
+.p-treetable .p-button.p-button-rounded.p-button-danger {
+  color: var(--brand-danger) !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-success,
+.p-treetable .p-button.p-button-rounded.p-button-success {
+  color: var(--brand-success) !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-info,
+.p-treetable .p-button.p-button-rounded.p-button-info {
+  color: var(--brand-info) !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-primary:enabled:hover,
+.p-treetable .p-button.p-button-rounded.p-button-primary:enabled:hover {
+  background: rgba(30, 94, 255, 0.1) !important;
+  color: var(--brand-saas-hover) !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-warning:enabled:hover,
+.p-treetable .p-button.p-button-rounded.p-button-warning:enabled:hover {
+  background: rgba(244, 183, 64, 0.14) !important;
+  color: var(--brand-premium-hover) !important;
+}
+
+.p-datatable .p-button.p-button-rounded.p-button-danger:enabled:hover,
+.p-treetable .p-button.p-button-rounded.p-button-danger:enabled:hover {
+  background: rgba(229, 72, 77, 0.1) !important;
+  color: var(--brand-danger-hover) !important;
+}
+
+/* Filter toolbar export icons */
+.filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+.filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+.filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined),
+.reports-filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+.reports-filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+.reports-filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-white) !important;
+  border: 1px solid var(--brand-border) !important;
+  min-width: 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px rgba(11, 31, 74, 0.06);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+
+/* PrimeNG icon-only buttons inject a hidden ::after flex item that offsets the icon */
+.filter-bar .p-button.p-button-icon-only:not(.p-button-text):not(.p-button-outlined)::after,
+.reports-filter-bar .p-button.p-button-icon-only:not(.p-button-text):not(.p-button-outlined)::after,
+.filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined)::after,
+.filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined)::after,
+.filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined)::after,
+.reports-filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined)::after,
+.reports-filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined)::after,
+.reports-filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined)::after {
+  content: none !important;
+  display: none !important;
+}
+
+.filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.reports-filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.reports-filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.reports-filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) .p-button-icon {
+  flex: 1 1 auto;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .pi,
+.filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .pi,
+.filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) .pi,
+.reports-filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .pi,
+.reports-filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .pi,
+.reports-filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) .pi {
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.filter-bar .p-button.p-button-icon-only .p-button-label,
+.reports-filter-bar .p-button.p-button-icon-only .p-button-label {
+  display: none !important;
+  width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Solid semantic CTAs — keep white label/icon on hover (outside filter toolbars) */
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover {
+  color: #ffffff !important;
+}
+
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-label,
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-icon,
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-label,
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-icon,
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-label,
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-icon {
+  color: #ffffff !important;
+}
+
+/* Dropdown label carries p-inputtext — strip inner border so it matches multiselect */
+.p-dropdown .p-dropdown-label.p-inputtext {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.p-dropdown .p-dropdown-trigger {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+.filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined),
+.reports-filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+.reports-filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) {
+  color: var(--brand-saas) !important;
+}
+
+.filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+.reports-filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) {
+  color: var(--brand-success) !important;
+}
+
+.filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+.filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+.reports-filter-bar .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+.reports-filter-bar .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+  background: #eef3ff !important;
+  border-color: var(--brand-saas) !important;
+}
+
+.filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+.reports-filter-bar .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+  background: rgba(22, 199, 132, 0.08) !important;
+  border-color: var(--brand-success) !important;
+}
+
+/* Dialog close — not a primary CTA */
+.p-dialog .p-dialog-header-icon,
+.p-dialog .p-dialog-header-close,
+.p-dialog .p-dialog-header .p-button.p-button-icon-only,
+.p-dialog .p-dialog-header .p-button.p-button-rounded {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-color-secondary, #667085) !important;
+  box-shadow: none !important;
+}
+
+.p-dialog .p-dialog-header-icon:enabled:hover,
+.p-dialog .p-dialog-header-close:enabled:hover,
+.p-dialog .p-dialog-header .p-button.p-button-icon-only:enabled:hover,
+.p-dialog .p-dialog-header .p-button.p-button-rounded:enabled:hover {
+  background: var(--surface-hover, #f5f7fb) !important;
+  color: var(--text-color, #1a1f36) !important;
+}
+
+/* Disabled solid CTAs — keep brand hue */
+.p-button.p-button-danger:disabled:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-danger) !important;
+  border-color: var(--brand-danger) !important;
+  color: #ffffff !important;
+  opacity: 0.55 !important;
+}
+
+.p-button.p-button-success:disabled:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-success) !important;
+  border-color: var(--brand-success) !important;
+  color: #ffffff !important;
+  opacity: 0.55 !important;
+}

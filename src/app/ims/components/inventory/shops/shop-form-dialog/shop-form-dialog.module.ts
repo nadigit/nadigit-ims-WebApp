@@ -8,6 +8,7 @@ import { RippleModule } from 'primeng/ripple';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { DropdownModule } from 'primeng/dropdown';
+import { CalendarModule } from 'primeng/calendar';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { ShopFormDialogComponent } from './shop-form-dialog.component';
 
@@ -23,6 +24,7 @@ import { ShopFormDialogComponent } from './shop-form-dialog.component';
     InputTextModule,
     InputTextareaModule,
     DropdownModule,
+    CalendarModule,
     SharedModule,
   ],
   exports: [ShopFormDialogComponent],

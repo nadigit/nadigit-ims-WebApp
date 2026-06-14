@@ -9,6 +9,7 @@ import { ChartModule } from 'primeng/chart';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
 import { ButtonModule } from 'primeng/button';
+import { CalendarModule } from 'primeng/calendar';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { InputTextModule } from 'primeng/inputtext';
@@ -24,6 +25,7 @@ import { PurchaseSummaryReportComponent } from './purchase-summary-report/purcha
 import { InventorySnapshotReportComponent } from './inventory-snapshot-report/inventory-snapshot-report.component';
 import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-analysis-report.component';
 import { ForecastingReportComponent } from './forecasting-report/forecasting-report.component';
+import { TopSellingProductsReportComponent } from './top-selling-products-report/top-selling-products-report.component';
 
 @NgModule({
   declarations: [
@@ -33,7 +35,8 @@ import { ForecastingReportComponent } from './forecasting-report/forecasting-rep
     PurchaseSummaryReportComponent,
     InventorySnapshotReportComponent,
     ProfitAnalysisReportComponent,
-    ForecastingReportComponent
+    ForecastingReportComponent,
+    TopSellingProductsReportComponent
   ],
   imports: [
     CommonModule,
@@ -46,6 +49,7 @@ import { ForecastingReportComponent } from './forecasting-report/forecasting-rep
     ProgressSpinnerModule,
     MessageModule,
     ButtonModule,
+    CalendarModule,
     InputNumberModule,
     InputSwitchModule,
     InputTextModule,

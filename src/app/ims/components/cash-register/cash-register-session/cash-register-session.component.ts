@@ -256,7 +256,7 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
     try {
       const session$ = await this.cashRegisterService.closeSession(this.currentSession.sessionId, this.closingAmount, this.notes);
       session$.subscribe({
-        next: (session) => {
+        next: async (session) => {
           this.currentSession = undefined;
           this.hasActiveSession = false;
           this.isLoading = false;
@@ -269,6 +269,7 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
               time: new Date(session.closedAt!).toLocaleTimeString()
             })
             });
+          await this.downloadZReport(session.sessionId);
           this.onDialogClose();
         },
         error: (err) => {
@@ -283,6 +284,28 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
     }
   }
 
+
+  private async downloadZReport(sessionId?: number): Promise<void> {
+    if (!sessionId) {
+      return;
+    }
+    try {
+      const response$ = await this.cashRegisterService.downloadZReportPdf(sessionId);
+      const response: any = await firstValueFrom(response$);
+      const blob: Blob = response?.body;
+      if (!blob) {
+        return;
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `z_report_session_${sessionId}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download Z report:', error);
+    }
+  }
 
   onDialogClose(): void {
     // Reset transient values

@@ -1,0 +1,71 @@
+.product-badge {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  max-width: 100%;
+  color: var(--text-color);
+}
+
+.amount-helper {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
+.purchase-credit-dialog .required-asterisk {
+  color: var(--red-500);
+}
+
+.purchase-credit-return-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem 0;
+  line-height: 1.4;
+}
+
+.purchase-credit-return-option__head,
+.purchase-credit-return-option__meta,
+.purchase-credit-return-option__amounts {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.purchase-credit-return-option__ref {
+  font-weight: 600;
+}
+
+.purchase-credit-return-option__meta,
+.purchase-credit-return-option__amounts {
+  color: var(--text-color-secondary);
+}
+
+.purchase-credit-return-option__selected {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.purchase-credit-method-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.purchase-credit-method-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.purchase-credit-method-option__label {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-color);
+  cursor: pointer;
+}

@@ -126,13 +126,19 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
               expanded: true,
               type: 'shops',
               data: { name: translations['shops_menu_title'] },
-              children: this.organization.shops.map(shop => ({ label: shop.shopName }))
+              children: (this.organization.shops || []).map(shop => ({
+                type: 'shop',
+                data: { name: shop.shopName, shopId: shop.shopId }
+              }))
             },
             {
               expanded: true,
               type: 'warehouses',
               data: { name: translations['warehouses_menu_title'] },
-              children: this.organization.warehouses.map(warehouse => ({ label: warehouse.name }))
+              children: (this.organization.warehouses || []).map(warehouse => ({
+                type: 'warehouse',
+                data: { name: warehouse.name, warehouseId: warehouse.warehouseId }
+              }))
             }
           ]
         }
@@ -160,8 +166,25 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
 
   async openOrganizationDialog(event: any): Promise<void> {
     if (event.node.data.title === 'Organization') {
+      this.submitted = false;
+  
+      // preload states from existing country
+      if (this.organization.country) {
+        this.loadStatesForCountry(this.organization.country);
+      }
+  
       this.organizationDialog = true;
-      console.log(event);
+  
+      console.log(this.organization);
+    }
+  }
+
+  loadStatesForCountry(countryName: string): void {
+    const country = this.countries.find(c => c.name === countryName);
+  
+    if (country) {
+      this.selectedCountry = country;
+      this.states = this.locationService.getStatesByCountryCode(country.isoCode);
     }
   }
 
@@ -174,10 +197,12 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
   async saveOrganization() {
     this.submitted = true;
 
-    // Check if the organization name is provided
-    if (this.organization.organizationName) {
-      // If the uploadedFile is set, proceed with uploading to the backend
-      if (this.uploadedFile) {
+    if (!this.organization.organizationName?.trim() || !this.organization.defaultLocale) {
+      return;
+    }
+
+    // If the uploadedFile is set, proceed with uploading to the backend
+    if (this.uploadedFile) {
         try {
           const uploadResponseString = await this.organizationService.uploadLogo(this.uploadedFile).toPromise();
 
@@ -205,29 +230,25 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
           });
           return; // Exit if there's an error
         }
-      }
+    }
 
-      // Proceed with saving/updating organization data
-      try {
-        if (this.organization.organizationId) {
-          await this.organizationService.updateOrganization(this.organization.organizationId, this.organization).toPromise();
-        } else {
-          await this.organizationService.saveOrganization(this.organization).toPromise();
-        }
-      } catch (error) {
-        console.error('Error while saving organization:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_saving_organization'),
-          life: 3000
-        });
+    try {
+      if (this.organization.organizationId) {
+        await this.organizationService.updateOrganization(this.organization.organizationId, this.organization).toPromise();
+      } else {
+        await this.organizationService.saveOrganization(this.organization).toPromise();
       }
-
-      // Reset and reload data
-      this.organizationDialog = false; // Close the dialog
-      this.organization = {}; // Reset organization object
-      this.loadOrganization(); // Reload organization data
+      this.submitted = false;
+      this.organizationDialog = false;
+      this.loadOrganization();
+    } catch (error) {
+      console.error('Error while saving organization:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_saving_organization'),
+        life: 3000
+      });
     }
   }
 
@@ -272,16 +293,37 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
     this.organization.city = undefined;
   }
 
-  onSelectedCountry(event: any) {
-    console.log(event.value);
-    if ((this.organization.country != this.selectedCountry) && (this.organization.city == undefined)) this.organization.city = undefined;
-    this.countries.forEach(element => {
-      if (element.name === event) {
-        this.selectedCountry = element;
-      }
-    });
-    console.log(this.selectedCountry.isoCode);
-    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
+  onSelectedCountry(event: any): void {
+
+    // Country cleared
+    if (!event.value) {
+      this.organization.country = undefined;
+      this.organization.city = undefined;
+      this.selectedCountry = undefined;
+      this.states = [];
+      return;
+    }
+  
+    const country = this.countries.find(
+      c => c.name === event.value
+    );
+  
+    if (!country) {
+      this.states = [];
+      this.organization.city = undefined;
+      return;
+    }
+  
+    // Clear city only if country changed
+    if (this.organization.country !== country.name) {
+      this.organization.city = undefined;
+    }
+  
+    this.organization.country = country.name;
+    this.selectedCountry = country;
+  
+    this.states =
+      this.locationService.getStatesByCountryCode(country.isoCode);
   }
 
   async updateOrganization(id: any, organization: any): Promise<any> {

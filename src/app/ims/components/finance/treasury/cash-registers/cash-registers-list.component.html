@@ -1,0 +1,139 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="mb-4">
+            <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+                <div>
+                    <h2 class="m-0 text-900">{{ 'cash_registers_management' | translate }}</h2>
+                    <p class="text-600 mt-2 mb-0">{{ 'cash_registers_page_description' | translate }}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button pButton pRipple icon="pi pi-chart-bar" [label]="'treasury_overview_menu_title' | translate"
+                        class="p-button-outlined" routerLink="/finance/treasury"></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid mb-4" *ngIf="!isLoading && rows.length">
+            <div class="col-12 md:col-4">
+                <div class="surface-card shadow-2 border-round p-4">
+                    <div class="text-600 font-medium mb-2">{{ 'total_cash_balance' | translate }}</div>
+                    <div class="text-3xl font-bold text-900">{{ totalCashBalance | currency:currency:'symbol':'1.2-2' }}</div>
+                </div>
+            </div>
+            <div class="col-12 md:col-4">
+                <div class="surface-card shadow-2 border-round p-4">
+                    <div class="text-600 font-medium mb-2">{{ 'open_registers' | translate }}</div>
+                    <div class="text-3xl font-bold text-orange-500">{{ openRegistersCount }}</div>
+                </div>
+            </div>
+            <div class="col-12 md:col-4">
+                <div class="surface-card shadow-2 border-round p-4">
+                    <div class="text-600 font-medium mb-2">{{ 'closed_registers' | translate }}</div>
+                    <div class="text-3xl font-bold text-600">{{ closedRegistersCount }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+
+            <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+                <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+                    <i class="pi pi-search"></i>
+                    <input type="text" pInputText [(ngModel)]="globalFilter"
+                        [placeholder]="'search' | translate"
+                        (input)="dt.filterGlobal($any($event.target).value, 'contains')" class="w-full" />
+                </span>
+                <p-selectButton [options]="[
+                    {label: ('all' | translate), value: 'all'},
+                    {label: ('opened' | translate), value: 'open'},
+                    {label: ('closed' | translate), value: 'closed'}
+                ]" [(ngModel)]="statusFilter" (onChange)="onStatusFilterChange()"
+                    optionLabel="label" optionValue="value"></p-selectButton>
+            </div>
+
+            <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+                *ngIf="isLoading && !rows.length">
+                <div class="ims-loading-panel__inner">
+                    <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                </div>
+            </div>
+
+            <p-table *ngIf="!isLoading || rows.length" #dt [value]="filteredRows"
+                [paginator]="true" [rows]="pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
+                (onPage)="onTablePage($event)"
+                [globalFilterFields]="['shop.shopName','shop.city','shop.country','openedBy']"
+                [loading]="isLoading && rows.length > 0" dataKey="shop.shopId"
+                styleClass="p-datatable-gridlines" responsiveLayout="scroll">
+
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th pSortableColumn="shop.shopName">
+                            {{ 'shop_name' | translate }} <p-sortIcon field="shop.shopName"></p-sortIcon>
+                        </th>
+                        <th pSortableColumn="shop.city">
+                            {{ 'shop_city' | translate }} <p-sortIcon field="shop.city"></p-sortIcon>
+                        </th>
+                        <th class="text-right" pSortableColumn="balance">
+                            {{ 'cash_register_balance' | translate }} <p-sortIcon field="balance"></p-sortIcon>
+                        </th>
+                        <th>{{ 'status' | translate }}</th>
+                        <th>{{ 'opened_at' | translate }}</th>
+                        <th>{{ 'cashier' | translate }}</th>
+                        <th class="text-center">{{ 'actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="body" let-row>
+                    <tr>
+                        <td>
+                            <div class="flex align-items-center gap-2">
+                                <i class="pi pi-building text-primary"></i>
+                                <span class="font-medium">{{ row.shop.shopName }}</span>
+                            </div>
+                        </td>
+                        <td>{{ row.shop.city || '—' }}</td>
+                        <td class="text-right font-bold">
+                            {{ row.balance | currency:currency:'symbol':'1.2-2' }}
+                        </td>
+                        <td>
+                            <p-tag [value]="row.isOpen ? ('opened' | translate) : ('closed' | translate)"
+                                [severity]="row.isOpen ? 'warning' : 'success'"></p-tag>
+                        </td>
+                        <td>
+                            <span *ngIf="row.openedAt">{{ row.openedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                            <span *ngIf="!row.openedAt" class="text-500">—</span>
+                        </td>
+                        <td>{{ row.openedBy || '—' }}</td>
+                        <td class="text-center">
+                            <button pButton pRipple icon="pi pi-eye" *ngIf="canReadCash"
+                                class="p-button-rounded p-button-text p-button-primary"
+                                [pTooltip]="'view_cash_register' | translate"
+                                (click)="openRegister(row)"></button>
+                        </td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="emptymessage">
+                    <tr>
+                        <td colspan="7">
+                            <div class="flex flex-column align-items-center justify-content-center py-5">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                                    style="max-width: 250px; opacity: 0.6;">
+                                <p class="mt-3 text-gray-600 font-medium text-lg">
+                                    {{ 'no_cash_registers_found' | translate }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+
+                <ng-template pTemplate="summary">
+                    <div class="flex align-items-center justify-content-between">
+                        {{ 'total_registers' | translate }}: {{ filteredRows.length }}
+                    </div>
+                </ng-template>
+            </p-table>
+        </div>
+    </div>
+</div>

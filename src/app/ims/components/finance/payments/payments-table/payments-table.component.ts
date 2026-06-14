@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { LazyLoadEvent } from 'primeng/api';
 import { Payment } from 'src/app/models/payment';
 import { getPaymentMethodLabel, getPaymentMethodSeverity, getPaymentMethodIcon, paymentMethodOptions } from 'src/app/shared/payment-utils';
@@ -9,12 +9,14 @@ import { ReconciliationValidationService } from 'src/app/services/reconciliation
   templateUrl: './payments-table.component.html',
   styleUrls: ['./payments-table.component.css']
 })
-export class PaymentsTableComponent implements OnInit {
+export class PaymentsTableComponent implements OnInit, OnChanges {
   @Input() payments: Payment[] = [];
   @Input() cols: any[] = [];
   @Input() pageSize = 20;
+  @Input() rowsPerPageOptions: number[] = [10, 20, 50];
   @Input() totalRecords = 0;
   @Input() isLoading = false;
+  @Input() isInitialLoad = false;
   @Input() canEditPayment = false;
   @Input() canDeletePayment = false;
   @Input() canAddPayment = false;
@@ -125,6 +127,15 @@ export class PaymentsTableComponent implements OnInit {
 
   ngOnInit() {
     // Filters are initialized in constructor
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['rowsPerPageOptions']) {
+      const options = this.rowsPerPageOptions;
+      if (!Array.isArray(options) || options.length === 0) {
+        this.rowsPerPageOptions = [10, 20, 50];
+      }
+    }
   }
 
   private initializePaymentFilters() {

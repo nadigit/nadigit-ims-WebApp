@@ -7,18 +7,25 @@ import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { firstValueFrom, Subject, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError } from 'rxjs/operators';
-import { FinancialDocument } from 'src/app/models/financialDocument';
+import { DocumentType, FinancialDocument } from 'src/app/models/financialDocument';
 import { Order } from 'src/app/models/order';
+import { OrderReturn } from 'src/app/models/orderReturn';
 import { Organization } from 'src/app/models/organization';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { OrderService } from 'src/app/services/order.service';
+import { ReturnService } from 'src/app/services/return.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { DatePipe } from '@angular/common';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -57,6 +64,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   organization: Organization = {};
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   exportColumns!: ExportColumn[];
 
@@ -65,6 +73,10 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   totalOrders: number = 0; // Total orders for lazy loading
   orderSuggestionsLoading: boolean = false;
   latestOrderSuggestionToken: number = 0;
+
+  orderReturns: OrderReturn[] = [];
+  orderReturnsLoading: boolean = false;
+  selectedOrderReturn: OrderReturn | null = null;
 
   docTypeSequences: { [key: string]: number } = {};
 
@@ -78,6 +90,8 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   isFinancialDocumentsFeatureEnabled: boolean = true;
   isAdmin: boolean = false;
   isLoading = true;
+  isInitialLoad = true;
+  private lazyLoadCallCount = 0;
   currency: string = '';
   userRoles: any;
   docTypes: any;
@@ -94,6 +108,8 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   
   // Lazy loading properties
   totalRecords: number = 0;
+  tableSortField: string = 'createdAt';
+  tableSortOrder: number = -1; // PrimeNG: -1 = DESC, 1 = ASC
   lastLazyLoadEvent: LazyLoadEventExt = {
     first: 0,
     rows: 20,
@@ -131,6 +147,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   constructor(private messageService: MessageService,
     private financialDocService: FinancialDocumentsService,
     private orderService: OrderService,
+    private returnService: ReturnService,
     private reportingService: ReportingService,
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
@@ -149,6 +166,10 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.financialDocuments, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -193,9 +214,6 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
-    
-    // Load first page of financial documents
-    await this.loadFinancialDocs();
 
     // Setup preview update subscription with debounce
     this.previewUpdateSubject
@@ -231,6 +249,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
         }
       });
 
+    this.loadFinancialDocs();
   }
 
   async loadOrganization(): Promise<void> {
@@ -305,6 +324,10 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   editFinancialDoc(financialDoc: FinancialDocument) {
     if (!this.canEditFinancialDocs) return;
     this.financialDoc = { ...financialDoc };
+    this.resetReturnSelectionState();
+    if (this.isReturnLinkedDocumentType(this.financialDoc.docType) && this.financialDoc?.order?.orderId) {
+      void this.loadReturnsForSelectedOrder(this.financialDoc.order.orderId);
+    }
     this.draftFinancialDocDialog = true;
   }
 
@@ -316,25 +339,50 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
   issueFinancialDoc(financialDoc: FinancialDocument) {
     if (!this.canIssueFinancialDocs) return;
-    
+
     // Reset preview state before opening dialog
     this.previewHtml = '';
     this.safePreviewHtml = null;
     this.previewIframeSrc = null;
     this.previewError = null;
     this.previewLoading = false;
-    
+    this.resetReturnSelectionState();
+
     this.issueFinancialDocDialog = true;
     this.financialDoc = { ...financialDoc };
-    
-    // Initialize document date to today if not set
+    this.normalizeFinancialDocDates();
+
+    if (financialDoc.financialDocId) {
+      void this.hydrateFinancialDocForIssue(financialDoc.financialDocId);
+    }
+  }
+
+  private async hydrateFinancialDocForIssue(financialDocId: number): Promise<void> {
+    try {
+      const fullDoc = await firstValueFrom(this.financialDocService.getFinancialDoc(financialDocId));
+      this.financialDoc = { ...this.financialDoc, ...fullDoc };
+      this.normalizeFinancialDocDates();
+      if (this.isReturnLinkedDocumentType(this.financialDoc.docType) && this.financialDoc?.order?.orderId) {
+        await this.loadReturnsForSelectedOrder(this.financialDoc.order.orderId);
+      }
+      if (this.issueFinancialDocDialog) {
+        this.loadDocumentPreview();
+      }
+    } catch (error) {
+      console.error('Error loading financial document details:', error);
+      if (this.issueFinancialDocDialog) {
+        this.loadDocumentPreview();
+      }
+    }
+  }
+
+  private normalizeFinancialDocDates(): void {
     if (!this.financialDoc.documentDate) {
       this.financialDoc.documentDate = new Date();
     } else if (typeof this.financialDoc.documentDate === 'string') {
       this.financialDoc.documentDate = new Date(this.financialDoc.documentDate);
     }
-    
-    // Convert string dates to Date objects if needed
+
     if (this.financialDoc.dueDate && typeof this.financialDoc.dueDate === 'string') {
       this.financialDoc.dueDate = new Date(this.financialDoc.dueDate);
     }
@@ -347,17 +395,16 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     if (this.financialDoc.validityEndDate && typeof this.financialDoc.validityEndDate === 'string') {
       this.financialDoc.validityEndDate = new Date(this.financialDoc.validityEndDate);
     }
-
-    // Preview will be loaded in onIssueDialogShow() when dialog is fully rendered
   }
 
   onIssueDialogShow() {
-    // Load preview when dialog is fully shown
+    // Preview for existing drafts is loaded after hydrateFinancialDocForIssue completes
     setTimeout(() => {
-      // Ensure preview state is clean before loading
       this.previewError = null;
       this.previewLoading = false;
-      this.loadDocumentPreview();
+      if (!this.financialDoc.financialDocId) {
+        this.loadDocumentPreview();
+      }
     }, 100);
   }
 
@@ -368,6 +415,16 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   }
 
   confirmIssueDocument() {
+    if (this.isReturnLinkedDocumentType(this.financialDoc.docType) && !this.financialDoc.returnId) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('order_return_is_required'),
+        life: 3000
+      });
+      return;
+    }
+
     this.issueFinancialDocDialog = false;
 
     this.onIssueFinancialDoc(this.financialDoc.financialDocId);
@@ -449,6 +506,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       return;
     }
     this.financialDoc = {};
+    this.resetReturnSelectionState();
     this.submitted = false;
     this.draftFinancialDocDialog = true;
   }
@@ -458,7 +516,12 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       this.orders = [];
       this.financialDoc.order = null;
       this.financialDoc.docTitle = '';
+      this.clearReturnSelection();
       return;
+    }
+
+    if (!this.isReturnLinkedDocumentType(selectedType)) {
+      this.clearReturnSelection();
     }
 
     // Use org’s default locale
@@ -485,6 +548,16 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
   async saveFinancialDoc() {
     this.submitted = true;
+
+    if (this.isReturnLinkedDocumentType(this.financialDoc.docType) && !this.financialDoc.returnId) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('order_return_is_required'),
+        life: 3000
+      });
+      return;
+    }
 
     if (this.financialDoc.docType) {
       if (this.financialDoc.financialDocId) {
@@ -541,24 +614,56 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   @ViewChild('dt') dt!: Table;
 
   onLazyLoad(event: LazyLoadEvent) {
+    if (this.isLoading) {
+      return;
+    }
+    this.lazyLoadCallCount++;
+    if (this.lazyLoadCallCount === 1 && this.financialDocs.length > 0) {
+      this.isInitialLoad = false;
+      return;
+    }
     const extendedEvent: LazyLoadEventExt = {
       ...event,
       globalFilter: this.globalFilter
     };
 
     this.updateLastLazyLoadEvent(extendedEvent);
+    this.isInitialLoad = false;
+    this.isLoading = true;
+    this.cdr.markForCheck();
     this.loadFinancialDocs();
   }
 
   updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.financialDocuments, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    const rows = event.rows || this.lastLazyLoadEvent.rows || this.pageSize;
+    const sortField = this.resolveSortField(event.sortField);
+    const sortOrder = event.sortOrder === 1 || event.sortOrder === -1 ? event.sortOrder : -1;
+
+    this.tableSortField = sortField;
+    this.tableSortOrder = sortOrder;
     this.lastLazyLoadEvent = {
-      first: event.first || 0,
-      rows: event.rows || 20,
-      sortField: event.sortField || 'createdAt',
-      sortOrder: event.sortOrder || -1,
-      globalFilter: event.globalFilter || this.globalFilter,
+      first: event.first ?? 0,
+      rows,
+      sortField,
+      sortOrder,
+      globalFilter: event.globalFilter ?? this.globalFilter,
       filters: event.filters || this.lastLazyLoadEvent.filters || {}
     };
+  }
+
+  /** PrimeNG lazy table: 1 = ascending, -1 = descending. */
+  private resolveSortDirection(sortOrder?: number | null): 'ASC' | 'DESC' {
+    return sortOrder === 1 ? 'ASC' : 'DESC';
+  }
+
+  private resolveSortField(sortField?: string | string[] | null): string {
+    if (Array.isArray(sortField)) {
+      return sortField[0] || 'createdAt';
+    }
+    return sortField || 'createdAt';
   }
 
   onGlobalFilter(event: Event) {
@@ -569,6 +674,9 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   }
 
   onFilterChange() {
+    if (this.isInitialLoad) {
+      return;
+    }
     this.applyFilters();
   }
 
@@ -634,9 +742,10 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   loadFinancialDocs() {
     const { first, rows, sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
 
-    const page = first! / rows!;
-    const size = rows!;
-    const direction = sortOrder === 1 ? 'ASC' : 'DESC';
+    const page = Math.floor((first ?? 0) / (rows || 20));
+    const size = rows || 20;
+    const direction = this.resolveSortDirection(sortOrder);
+    this.isLoading = true;
     
     // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
     const filterPayload = filters || {};
@@ -664,6 +773,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
         this.totalRecords = res.totalDocuments || res.page?.totalElements || 0;
 
         this.isLoading = false;
+        this.isInitialLoad = false;
         
         // Trigger change detection to ensure table updates
         if (this.cdr) {
@@ -672,7 +782,9 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       },
       error: (err: any) => {
         console.error(err);
+        this.financialDocs = [];
         this.isLoading = false;
+        this.isInitialLoad = false;
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
@@ -864,7 +976,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       const maxPages = 100;
 
       const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const direction = this.resolveSortDirection(sortOrder);
       const filterPayload: any = { ...filters };
 
       this.financialDocService.loadToken();
@@ -994,7 +1106,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       const maxPages = 100;
 
       const { sortField, sortOrder, globalFilter, filters } = this.lastLazyLoadEvent;
-      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      const direction = this.resolveSortDirection(sortOrder);
       const filterPayload: any = { ...filters };
 
       this.financialDocService.loadToken();
@@ -1115,24 +1227,44 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       sum + (item.pricePerUnit * item.quantity), 0) || 0;
   }
 
-  getEligibleOrdersForDocType(docType: DocumentType) {
-    // Reset when doc type changes
+  getEligibleOrdersForDocType(docType: DocumentType | string) {
+    const docTypeValue = docType ? String(docType) : this.financialDoc.docType;
+    if (docTypeValue) {
+      this.financialDoc.docType = docTypeValue;
+    }
+
     this.orderSuggestions = [];
     this.financialDoc.order = null;
-    // Trigger initial load for autocomplete (when minLength is 0)
-    // Defer to avoid change detection error
-    setTimeout(() => {
-      if (this.financialDoc.docType) {
-        this.filterOrders({ query: '' });
-      }
-    }, 100);
+
+    if (!docTypeValue) {
+      return;
+    }
+
+    setTimeout(() => this.filterOrders({ query: '' }, docTypeValue), 0);
+  }
+
+  private normalizeEligibleOrdersResponse(response: any): Order[] {
+    if (!response) {
+      return [];
+    }
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (Array.isArray(response.content)) {
+      return response.content;
+    }
+    if (Array.isArray(response.page?.content)) {
+      return response.page.content;
+    }
+    return [];
   }
 
   /**
    * Filter orders for autocomplete
    */
-  filterOrders(event: any): void {
-    if (!this.financialDoc.docType) {
+  filterOrders(event: any, docTypeOverride?: string): void {
+    const docType = docTypeOverride || this.financialDoc.docType;
+    if (!docType) {
       this.orderSuggestions = [];
       return;
     }
@@ -1140,35 +1272,29 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     const query = (event?.query || '').trim();
     const requestToken = ++this.latestOrderSuggestionToken;
 
-    // Defer loading state change to avoid change detection error
     Promise.resolve().then(() => {
       this.orderSuggestionsLoading = true;
+      this.cdr.markForCheck();
     });
 
-    // Call the paginated endpoint with search
     this.orderService.getEligibleOrdersForDocsByTypePaginated(
-      this.financialDoc.docType!,
-      0, // page
-      20, // size
-      'orderDate', // sortBy
-      'DESC', // direction
-      query || null // search
+      docType,
+      0,
+      20,
+      'orderDate',
+      'DESC',
+      query || null
     ).subscribe({
       next: (response: any) => {
-        // Check if this is still the latest request
         if (requestToken !== this.latestOrderSuggestionToken) {
           return;
         }
 
-        if (response && response.content) {
-          this.orderSuggestions = response.content;
-        } else {
-          this.orderSuggestions = Array.isArray(response) ? response : [];
-        }
-        
-        // Defer loading state change to avoid change detection error
+        this.orderSuggestions = this.normalizeEligibleOrdersResponse(response);
+
         Promise.resolve().then(() => {
           this.orderSuggestionsLoading = false;
+          this.cdr.markForCheck();
         });
       },
       error: (error: any) => {
@@ -1180,9 +1306,9 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
         }
 
         this.orderSuggestions = [];
-        // Defer loading state change to avoid change detection error
         Promise.resolve().then(() => {
           this.orderSuggestionsLoading = false;
+          this.cdr.markForCheck();
         });
         this.messageService.add({
           severity: 'error',
@@ -1198,6 +1324,10 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     const selected = event?.value as Order | undefined;
     if (selected && selected.orderId) {
       this.financialDoc.order = selected;
+      this.clearReturnSelection();
+      if (this.isReturnLinkedDocumentType(this.financialDoc.docType)) {
+        void this.loadReturnsForSelectedOrder(selected.orderId);
+      }
       this.triggerPreviewUpdate();
     }
   }
@@ -1205,6 +1335,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   onOrderCleared(): void {
     this.financialDoc.order = null;
     this.orderSuggestions = [];
+    this.resetReturnSelectionState();
     this.previewHtml = '';
     this.safePreviewHtml = null;
     this.previewIframeSrc = null;
@@ -1412,6 +1543,15 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.isReturnLinkedDocumentType(this.financialDoc.docType) && !this.financialDoc.returnId) {
+      this.previewLoading = false;
+      this.previewError = this.translate.instant('order_return_is_required');
+      this.previewHtml = '';
+      this.safePreviewHtml = null;
+      this.previewIframeSrc = null;
+      return;
+    }
+
     // Trigger preview update through the debounced subject
     this.triggerPreviewUpdate();
   }
@@ -1433,17 +1573,23 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     // Process image URLs in the full HTML
     let processedHtml = html;
     
-    // Handle relative logo paths: /api/organization/uploads/logos/logo.png
+    // Handle relative logo paths: /api/organizations/uploads/logos/logo.png
+    processedHtml = processedHtml.replace(
+      /src="(\/api\/organizations\/uploads\/logos\/[^"]+)"/g,
+      `src="${apiBaseUrl}$1"`
+    );
+
+    // Backward compatibility for older preview HTML
     processedHtml = processedHtml.replace(
       /src="(\/api\/organization\/uploads\/logos\/[^"]+)"/g,
-      `src="${apiBaseUrl}$1"`
+      (match, path) => `src="${apiBaseUrl}${path.replace('/api/organization/', '/api/organizations/')}"`
     );
     
     // Handle file:// URIs (fallback - should not occur with updated backend)
     processedHtml = processedHtml.replace(
       /src="file:\/\/[^"]*\/uploads\/logos\/([^"]+)"/g,
       (match, filename) => {
-        return `src="${apiBaseUrl}/api/organization/uploads/logos/${filename}"`;
+        return `src="${apiBaseUrl}/api/organizations/uploads/logos/${filename}"`;
       }
     );
     
@@ -1454,7 +1600,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
         // Convert to organization uploads endpoint
         const logoMatch = filePath.match(/uploads\/logos\/(.+)/);
         if (logoMatch) {
-          return `src="${apiBaseUrl}/api/organization/uploads/logos/${logoMatch[1]}"`;
+          return `src="${apiBaseUrl}/api/organizations/uploads/logos/${logoMatch[1]}"`;
         }
         return `src="${apiBaseUrl}/api/files/${filePath}"`;
       }
@@ -1528,10 +1674,20 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
    */
   triggerPreviewUpdate(): void {
     if (this.financialDoc?.order?.orderId) {
+      if (this.isReturnLinkedDocumentType(this.financialDoc.docType) && !this.financialDoc.returnId) {
+        this.previewLoading = false;
+        this.previewError = this.translate.instant('order_return_is_required');
+        this.previewHtml = '';
+        this.safePreviewHtml = null;
+        this.previewIframeSrc = null;
+        return;
+      }
+
       // Prepare preview data
       const previewData: any = {
         docType: this.financialDoc.docType,
         orderId: this.financialDoc.order.orderId,
+        returnId: this.financialDoc.returnId,
         documentDate: this.financialDoc.documentDate ? (this.financialDoc.documentDate instanceof Date 
           ? this.formatDateLocal(this.financialDoc.documentDate) 
           : this.financialDoc.documentDate) : undefined,
@@ -1563,6 +1719,79 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
       this.previewUpdateSubject.next(previewData);
     }
+  }
+
+  isReturnLinkedDocumentType(docType?: string | DocumentType): boolean {
+    const type = docType == null ? '' : String(docType);
+    return type === 'RETURN_NOTE' || type === 'CREDIT_NOTE';
+  }
+
+  async loadReturnsForSelectedOrder(orderId?: number): Promise<void> {
+    const id = orderId ?? this.financialDoc?.order?.orderId;
+    if (!id) {
+      this.orderReturns = [];
+      this.selectedOrderReturn = null;
+      return;
+    }
+
+    this.orderReturnsLoading = true;
+    try {
+      const returns = await firstValueFrom(this.returnService.getReturnsForOrder(id));
+      this.orderReturns = Array.isArray(returns) ? returns : [];
+      if (this.financialDoc.returnId) {
+        this.selectedOrderReturn =
+          this.orderReturns.find((r) => r.returnId === this.financialDoc.returnId) ?? null;
+      } else if (this.orderReturns.length === 1) {
+        this.onReturnSelected(this.orderReturns[0]);
+      }
+    } catch (error) {
+      console.error('Error loading returns for order:', error);
+      this.orderReturns = [];
+      this.selectedOrderReturn = null;
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_order_returns'),
+        life: 3000
+      });
+    } finally {
+      this.orderReturnsLoading = false;
+    }
+  }
+
+  onReturnSelected(orderReturn: OrderReturn | null): void {
+    this.selectedOrderReturn = orderReturn;
+    this.financialDoc.returnId = orderReturn?.returnId;
+    this.triggerPreviewUpdate();
+  }
+
+  onReturnCleared(): void {
+    this.clearReturnSelection();
+    this.triggerPreviewUpdate();
+  }
+
+  clearReturnSelection(): void {
+    this.selectedOrderReturn = null;
+    this.financialDoc.returnId = undefined;
+  }
+
+  resetReturnSelectionState(): void {
+    this.orderReturns = [];
+    this.orderReturnsLoading = false;
+    this.selectedOrderReturn = null;
+    this.financialDoc.returnId = undefined;
+  }
+
+  getReturnDisplayName(orderReturn: OrderReturn): string {
+    if (!orderReturn) {
+      return '';
+    }
+    const ref = orderReturn.reference || `#${orderReturn.returnId}`;
+    const amount = orderReturn.totalRefundableAmount;
+    if (amount != null) {
+      return `${ref} — ${this.currency} ${Number(amount).toFixed(2)}`;
+    }
+    return ref;
   }
 
   ngOnDestroy(): void {

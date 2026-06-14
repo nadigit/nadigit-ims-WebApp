@@ -12,6 +12,7 @@ import { LicenseFeatureGuard } from 'src/app/guards/license-feature.guard';
         { path: 'financial-documents', loadChildren: () => import('./financial-documents/financial-documents.module').then(m => m.FinancialDocumentsModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','ACCOUNTANT','AUDITOR'], licenseFeature: 'FINANCIAL_DOCUMENTS'}},
         { path: 'banking', loadChildren: () => import('./banking/banking.module').then(m => m.BankingModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','ACCOUNTANT','AUDITOR'], licenseFeature: 'BANK_ACCOUNTS'}},
         { path: 'credit-management', loadChildren: () => import('./credit-management/credit-management.module').then(m => m.CreditManagementModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','VENDOR'], licenseFeature: 'CUSTOMER_CREDITS'}},
+        { path: 'treasury', loadChildren: () => import('./treasury/treasury.module').then(m => m.TreasuryModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR','ACCOUNTANT','AUDITOR']} },
         { path: 'tax-rules', loadChildren: () => import('./tax-rules/tax-rules.module').then(m => m.TaxRulesModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR'], licenseFeature: 'TAX_RULE_ENGINE'}},
         { path: '**', redirectTo: '/notfound' }
     ])],

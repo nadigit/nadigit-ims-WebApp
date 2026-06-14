@@ -59,6 +59,38 @@ export class ProductImportComponent implements OnInit {
   currentStep: 'upload' | 'validation' | 'preview' | 'import' | 'results' = 'upload';
   showAdvancedOptions: boolean = false;
   showHelpGuide: boolean = false;
+  isDragOver: boolean = false;
+
+  readonly wizardSteps: ReadonlyArray<{ id: string; labelKey: string }> = [
+    { id: 'upload', labelKey: 'upload_file' },
+    { id: 'validation', labelKey: 'validation_results' },
+    { id: 'preview', labelKey: 'import_preview' },
+    { id: 'results', labelKey: 'import_results' }
+  ];
+
+  readonly guideSteps: ReadonlyArray<{
+    n: number;
+    titleKey: string;
+    descKey: string;
+    tile: string;
+  }> = [
+    { n: 1, titleKey: 'step_1_download_template', descKey: 'step_1_description', tile: 'green' },
+    { n: 2, titleKey: 'step_2_fill_template', descKey: 'step_2_description', tile: 'primary' },
+    { n: 3, titleKey: 'step_3_upload_file', descKey: 'step_3_description', tile: 'blue' },
+    { n: 4, titleKey: 'step_4_validate', descKey: 'step_4_description', tile: 'amber' }
+  ];
+
+  readonly requiredColumns: ReadonlyArray<{
+    labelKey: string;
+    helpKey: string;
+    icon: string;
+    tile: string;
+  }> = [
+    { labelKey: 'reference', helpKey: 'reference_help', icon: 'pi pi-hashtag', tile: 'primary' },
+    { labelKey: 'product_name', helpKey: 'name_help', icon: 'pi pi-tag', tile: 'teal' },
+    { labelKey: 'selling_price', helpKey: 'selling_price_help', icon: 'pi pi-dollar', tile: 'green' },
+    { labelKey: 'category', helpKey: 'category_help', icon: 'pi pi-folder', tile: 'amber' }
+  ];
   /** Max rows to ask the preview API to analyze (full file for accurate counts; capped for safety) */
   private static readonly PREVIEW_ROWS_MAX = 50000;
 
@@ -107,6 +139,9 @@ export class ProductImportComponent implements OnInit {
   resetState(): void {
     this.selectedFile = null;
     this.currentStep = 'upload';
+    this.showHelpGuide = false;
+    this.showAdvancedOptions = false;
+    this.isDragOver = false;
     this.validationResult = null;
     this.preview = null;
     this.importResult = null;
@@ -156,6 +191,45 @@ export class ProductImportComponent implements OnInit {
 
   onFileRemove(): void {
     this.selectedFile = null;
+    this.isDragOver = false;
+    if (this.fileUpload) {
+      this.fileUpload.clear();
+    }
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.onFileSelect({ files: [file] });
+    }
+  }
+
+  isWizardStepComplete(stepId: string): boolean {
+    const order = ['upload', 'validation', 'preview', 'results'];
+    const current = this.currentStep === 'import' ? 'results' : this.currentStep;
+    return order.indexOf(stepId) < order.indexOf(current);
+  }
+
+  isWizardStepActive(stepId: string): boolean {
+    if (this.currentStep === 'import') {
+      return stepId === 'preview';
+    }
+    return stepId === this.currentStep;
   }
 
   async downloadTemplate(format: 'csv' | 'excel'): Promise<void> {

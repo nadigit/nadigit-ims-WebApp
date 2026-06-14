@@ -1,10 +1,10 @@
-<div class="refund-details-container">
+﻿<div class="refund-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="refund-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--success">
                             <i class="pi pi-wallet"></i>
                         </div>
                         <div>
@@ -62,7 +62,7 @@
                             (click)="printCredit()"></button>
                         <button pButton pRipple icon="pi pi-file-pdf" 
                             [label]="'export_pdf' | translate"
-                            class="p-button-danger"
+                            class="p-button-primary"
                             (click)="exportCreditToPDF()"></button>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon amount">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -83,7 +83,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon method">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i [class]="getPaymentMethodIcon(credit?.creditMethod)"></i>
                 </div>
                 <div class="stat-content">
@@ -93,7 +93,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon date">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
                     <i class="pi pi-calendar"></i>
                 </div>
                 <div class="stat-content">
@@ -103,7 +103,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="credit.purchaseReturn">
-                <div class="stat-icon order">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                     <i class="pi pi-shopping-cart"></i>
                 </div>
                 <div class="stat-content">
@@ -135,7 +135,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon method">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
                                             <i [class]="getPaymentMethodIcon(credit?.creditMethod)"></i>
                                         </div>
                                         <div class="info-content">
@@ -147,7 +147,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="credit.creditDate">
-                                        <div class="info-icon date">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -157,7 +157,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="credit.transactionId">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
@@ -167,7 +167,7 @@
                                     </div>
                                     
                                     <div class="info-item">
-                                        <div class="info-icon amount">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-wallet"></i>
                                         </div>
                                         <div class="info-content">
@@ -332,7 +332,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="credit.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -341,7 +341,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="credit.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -350,7 +350,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="credit.lastUpdated">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-refresh"></i>
                                         </div>
                                         <div class="info-content">

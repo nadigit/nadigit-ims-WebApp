@@ -4,6 +4,8 @@ import { MessageService, LazyLoadEvent } from 'primeng/api';
 import { AuditLog, AuditLogFilters, AuditLogResponse } from 'src/app/models/audit-log';
 import { AuditLogService } from 'src/app/services/audit-log.service';
 import { Subscription } from 'rxjs';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-audit-log-table',
@@ -11,6 +13,7 @@ import { Subscription } from 'rxjs';
   styleUrls: ['./audit-log-table.component.css']
 })
 export class AuditLogTableComponent implements OnInit, OnChanges, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
   @Input() userId?: string;
   @Input() showFilters: boolean = true;
   @Input() initialFilters?: AuditLogFilters;
@@ -71,10 +74,12 @@ export class AuditLogTableComponent implements OnInit, OnChanges, OnDestroy {
   constructor(
     private auditLogService: AuditLogService,
     private translate: TranslateService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   ngOnInit(): void {
+    this.filters.size = this.pageSizeService.get(TablePageSizeKeys.auditLog, [10, 20, 50, 100], this.filters.size);
     // Initialize filters
     if (this.userId) {
       this.filters.userId = this.userId;
@@ -116,6 +121,7 @@ export class AuditLogTableComponent implements OnInit, OnChanges, OnDestroy {
       'CATEGORY_CREATE', 'CATEGORY_UPDATE', 'CATEGORY_DELETE', 'CATEGORY_VIEW',
       'EXPENSE_CREATE', 'EXPENSE_UPDATE', 'EXPENSE_DELETE', 'EXPENSE_VIEW',
       'REFUND_CREATE', 'REFUND_UPDATE', 'REFUND_DELETE', 'REFUND_VIEW',
+      'USER_LOGIN', 'USER_LOGOUT', 'AUTHENTICATION_FAILURE',
       'AUTHENTICATION', 'AUTHORIZATION', 'RATE_LIMIT',
       'DATA_IMPORT', 'DATA_EXPORT', 'REPORT_GENERATE', 'REPORT_VIEW'
     ];
@@ -149,6 +155,7 @@ export class AuditLogTableComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onLazyLoad(event: LazyLoadEvent): void {
+    this.pageSizeService.onPage(TablePageSizeKeys.auditLog, [10, 20, 50, 100], event);
     // Unsubscribe from previous request if still in flight
     if (this.subscription) {
       this.subscription.unsubscribe();

@@ -27,6 +27,11 @@ import {
   canDeleteExpenseByWorkflowStatus as expenseWorkflowAllowsDelete,
   canEditExpenseByWorkflowStatus as expenseWorkflowAllowsEdit
 } from 'src/app/shared/expense-workflow-utils';
+import {
+  initTablePageSizeState,
+  persistTablePageSizeFromLazyEvent,
+  TablePageSizeKeys,
+} from 'src/app/utils/table-page-size.storage';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -101,6 +106,7 @@ export class ExpensesComponent implements OnInit {
   exportProgress: string = '';
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   valSwitch: boolean = false;
 
@@ -157,6 +163,10 @@ export class ExpensesComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    initTablePageSizeState(TablePageSizeKeys.expenses, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+      lastLazyLoadEvent: this.lastLazyLoadEvent,
+    });
     this.maxExpenseDate = new Date(); // Today's date
     this.maxExpenseDate.setHours(23, 59, 59, 999); // Include entire current day
     await this.paymentValidationService.loadConfigurations();
@@ -768,6 +778,10 @@ export class ExpensesComponent implements OnInit {
   }
 
   updateLastLazyLoadEvent(event: LazyLoadEventExt) {
+    persistTablePageSizeFromLazyEvent(TablePageSizeKeys.expenses, this.rowsPerPageOptions, event, {
+      pageSize: this.pageSize,
+    });
+    const rows = event.rows || this.lastLazyLoadEvent.rows || this.pageSize;
     // Default to DESC (-1) for newest first
     const defaultSortOrder = -1; // DESC - newest first
     let sortOrder = defaultSortOrder;
@@ -790,7 +804,7 @@ export class ExpensesComponent implements OnInit {
     
     this.lastLazyLoadEvent = {
       first: event.first || 0,
-      rows: event.rows || 20,
+      rows,
       sortField: event.sortField || 'dateOfExpense',
       sortOrder: sortOrder,
       globalFilter: event.globalFilter || this.globalFilter,

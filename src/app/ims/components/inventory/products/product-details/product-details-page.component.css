@@ -14,18 +14,6 @@
   padding: 0 1rem 2rem;
 }
 
-/* Loading State */
-.loading-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-}
-
-.loading-content {
-  text-align: center;
-}
-
 /* =====================================================
    Hero Section
    ===================================================== */
@@ -124,53 +112,6 @@
 .stat-card-modern:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-100);
-  color: var(--primary-600);
-  flex-shrink: 0;
-}
-
-.stat-icon i {
-  font-size: 1.25rem;
-}
-
-.stat-icon.buying {
-  background: var(--blue-100);
-  color: var(--blue-600);
-}
-
-.stat-icon.selling {
-  background: var(--green-100);
-  color: var(--green-600);
-}
-
-.stat-icon.profit {
-  background: var(--purple-100);
-  color: var(--purple-600);
-}
-
-:host-context(.layout-theme-dark) .stat-icon {
-  background: rgba(var(--primary-500-rgb), 0.15);
-}
-
-:host-context(.layout-theme-dark) .stat-icon.buying {
-  background: rgba(59, 130, 246, 0.15);
-}
-
-:host-context(.layout-theme-dark) .stat-icon.selling {
-  background: rgba(34, 197, 94, 0.15);
-}
-
-:host-context(.layout-theme-dark) .stat-icon.profit {
-  background: rgba(147, 51, 234, 0.15);
 }
 
 .stat-content {
@@ -327,22 +268,6 @@
   gap: 0.75rem;
 }
 
-.info-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-ground);
-  color: var(--primary-color);
-  flex-shrink: 0;
-}
-
-.info-icon i {
-  font-size: 1rem;
-}
-
 .info-content {
   display: flex;
   flex-direction: column;
@@ -414,7 +339,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem 1rem;
-  background: white;
+  background: var(--surface-card);
   flex: 1;
 }
 
@@ -552,7 +477,7 @@
 }
 
 .profit-value.margin {
-  color: var(--purple-500);
+  color: var(--brand-cyan);
   font-size: 1.25rem;
 }
 
@@ -577,47 +502,6 @@
 
 .stock-value-item:hover {
   transform: translateX(4px);
-}
-
-.stock-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stock-icon.cost {
-  background: var(--blue-100);
-  color: var(--blue-600);
-}
-
-.stock-icon.retail {
-  background: var(--cyan-100);
-  color: var(--cyan-600);
-}
-
-.stock-icon.profit {
-  background: var(--green-100);
-  color: var(--green-600);
-}
-
-:host-context(.layout-theme-dark) .stock-icon.cost {
-  background: rgba(59, 130, 246, 0.15);
-}
-
-:host-context(.layout-theme-dark) .stock-icon.retail {
-  background: rgba(6, 182, 212, 0.15);
-}
-
-:host-context(.layout-theme-dark) .stock-icon.profit {
-  background: rgba(34, 197, 94, 0.15);
-}
-
-.stock-icon i {
-  font-size: 1.25rem;
 }
 
 .stock-details {
@@ -645,47 +529,13 @@
 }
 
 /* =====================================================
-   Product Badge
+   Product Badge — layout only; colors in badges.scss
    ===================================================== */
 .product-badge {
   display: inline-flex;
   align-items: center;
   padding: 0.35rem 0.75rem;
-  border-radius: 6px;
   font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.product-badge.status-instock {
-  background: var(--green-100);
-  color: var(--green-700);
-}
-
-.product-badge.status-outofstock {
-  background: var(--red-100);
-  color: var(--red-700);
-}
-
-.product-badge.status-lowstock {
-  background: var(--orange-100);
-  color: var(--orange-700);
-}
-
-:host-context(.layout-theme-dark) .product-badge.status-instock {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--green-400);
-}
-
-:host-context(.layout-theme-dark) .product-badge.status-outofstock {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--red-400);
-}
-
-:host-context(.layout-theme-dark) .product-badge.status-lowstock {
-  background: rgba(249, 115, 22, 0.15);
-  color: var(--orange-400);
 }
 
 /* =====================================================
@@ -694,7 +544,7 @@
 .print-barcode-preview {
   height: 36px;
   width: auto;
-  background: white;
+  background: var(--surface-card);
   padding: 4px;
   border-radius: 4px;
 }
@@ -761,11 +611,6 @@
   .stats-row {
     grid-template-columns: 1fr 1fr;
     margin-top: -1rem;
-  }
-  
-  .stat-icon {
-    width: 40px;
-    height: 40px;
   }
   
   ::ng-deep .product-tabs .p-tabview-nav-link {

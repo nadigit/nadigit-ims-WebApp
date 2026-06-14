@@ -1,0 +1,61 @@
+/* Branded print output for financial documents & reports */
+@media print {
+  @page {
+    margin: 1.2cm;
+  }
+
+  body {
+    color: var(--brand-text-primary, #1A1F36);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .preview-html-container ::ng-deep,
+  .document-preview,
+  .financial-doc-print-area {
+    h1, h2, h3, .doc-title {
+      color: var(--brand-navy, #0B1F4A) !important;
+      font-family: Poppins, var(--font-family), sans-serif;
+    }
+
+    table thead,
+    .preview-items-table thead {
+      background: var(--brand-navy, #0B1F4A) !important;
+      color: #fff !important;
+    }
+
+    table thead th,
+    .preview-items-table th {
+      color: #fff !important;
+      border-color: var(--brand-corporate, #102B63) !important;
+    }
+
+    .total-amount,
+    .preview-total-row.total-amount-row,
+    .doc-total {
+      color: var(--brand-saas, #1E5EFF) !important;
+    }
+
+    hr,
+    .preview-header-section,
+    .preview-totals-section {
+      border-color: var(--brand-border, #DCE3F0) !important;
+    }
+  }
+
+  .layout-sidebar,
+  .layout-topbar,
+  .layout-footer,
+  .p-toast,
+  .copilot-topbar-button,
+  .copilot-panel,
+  .layout-config-button,
+  .no-print {
+    display: none !important;
+  }
+
+  .layout-main-container {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

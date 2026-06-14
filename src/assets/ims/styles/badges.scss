@@ -1,3 +1,29 @@
+@import 'brand-tokens';
+
+// Dark mode badge tones
+:root[color-scheme='dark'],
+.layout-theme-dark {
+  --brand-badge-success-bg: rgba(22, 199, 132, 0.2);
+  --brand-badge-success-text: #6EE7B7;
+  --brand-badge-danger-bg: rgba(229, 72, 77, 0.2);
+  --brand-badge-danger-text: #F8A8AB;
+  --brand-badge-warning-bg: rgba(244, 183, 64, 0.22);
+  --brand-badge-warning-text: #F4C868;
+  --brand-badge-info-bg: rgba(24, 197, 216, 0.18);
+  --brand-badge-info-text: #7AE7F2;
+  --brand-badge-primary-bg: rgba(30, 94, 255, 0.2);
+  --brand-badge-primary-text: #93B4FF;
+  --brand-badge-corporate-bg: rgba(16, 43, 99, 0.35);
+  --brand-badge-corporate-text: #C5D4F5;
+  --brand-badge-neutral-bg: rgba(255, 255, 255, 0.08);
+  --brand-badge-neutral-text: rgba(255, 255, 255, 0.72);
+}
+
+@mixin badge-tone($tone) {
+  background: var(--brand-badge-#{$tone}-bg);
+  color: var(--brand-badge-#{$tone}-text);
+}
+
 .customer-badge,
 .product-badge,
 .payment-badge,
@@ -7,284 +33,267 @@
 .order-badge,
 .expense-badge,
 .transfer-badge {
-    border-radius: var(--border-radius);
-    padding: .25em .5rem;
-    text-transform: uppercase;
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: .3px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.25em 0.5rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+  white-space: nowrap;
 }
 
+// ---------------------------------------------------------------------------
+// Inventory — product stock status
+// ---------------------------------------------------------------------------
 .product-badge {
-    &.status-instock {
-        background: #C8E6C9;
-        color: #256029;
-    }
+  &:not([class*='status-']) {
+    @include badge-tone('neutral');
+    text-transform: none;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
 
-    &.status-outofstock {
-        background: #FFCDD2;
-        color: #C63737;
-    }
+  &.status-instock {
+    @include badge-tone('success');
+  }
 
-    &.status-lowstock {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.status-outofstock {
+    @include badge-tone('danger');
+  }
+
+  &.status-lowstock {
+    @include badge-tone('warning');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// CRM — customer pipeline
+// ---------------------------------------------------------------------------
 .customer-badge {
-    &.status-qualified {
-        background: #C8E6C9;
-        color: #256029;
-    }
+  &.status-qualified {
+    @include badge-tone('success');
+  }
 
-    &.status-unqualified {
-        background: #FFCDD2;
-        color: #C63737;
-    }
+  &.status-unqualified {
+    @include badge-tone('danger');
+  }
 
-    &.status-negotiation {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.status-negotiation {
+    @include badge-tone('warning');
+  }
 
-    &.status-new {
-        background: #B3E5FC;
-        color: #23547B;
-    }
+  &.status-new {
+    @include badge-tone('info');
+  }
 
-    &.status-renewal {
-        background: #ECCFFF;
-        color: #694382;
-    }
+  &.status-renewal {
+    @include badge-tone('primary');
+  }
 
-    &.status-proposal {
-        background: #FFD8B2;
-        color: #805B36;
-    }
+  &.status-proposal {
+    @include badge-tone('warning');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Sales — orders
+// ---------------------------------------------------------------------------
 .order-badge {
-    &.order-delivered {
-        background: hwb(192 78% 10%);
-        color: #256029;
-    }
+  &.order-delivered,
+  &.order-completed {
+    @include badge-tone('success');
+  }
 
-    &.order-canceled {
-        background: #FFCDD2;
-        color: #C63737;
-    }
+  &.order-canceled {
+    @include badge-tone('danger');
+  }
 
-    &.order-ordered {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.order-ordered,
+  &.order-return_pending {
+    @include badge-tone('warning');
+  }
 
-    &.order-processing {
-        background: #bce8fb;
-        color: #447a8c;
-    }
+  &.order-processing,
+  &.order-partial_return {
+    @include badge-tone('info');
+  }
 
-    &.order-completed {
-        background: #b9faaf;
-        color: #3c774b;
-    }
-
-    &.order-returned {
-        background: #ECCFFF;
-        color: #694382;
-    }
-
-    &.order-partial_return {
-        background: #ebc3dd;
-        color: #82437f;
-    }
-
-    &.order-return_pending {
-        background: #fff0cc;
-        color: #8a6d1e;
-    }
+  &.order-returned {
+    @include badge-tone('corporate');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Purchases
+// ---------------------------------------------------------------------------
 .purchase-badge {
-    &.purchase-canceled {
-        background: #FFCDD2;
-        color: #C63737;
-    }
+  &.purchase-completed,
+  &.purchase-received {
+    @include badge-tone('success');
+  }
 
-    &.purchase-pending {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.purchase-canceled {
+    @include badge-tone('danger');
+  }
 
-    &.purchase-approved {
-        background: #bce8fb;
-        color: #447a8c;
-    }
+  &.purchase-pending {
+    @include badge-tone('warning');
+  }
 
-    &.purchase-received {
-        background: hwb(192 78% 10%);
-        color: #256029;
-    }
-
-    &.purchase-completed {
-        background: #b9faaf;
-        color: #3c774b;
-    }
+  &.purchase-approved {
+    @include badge-tone('info');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Returns
+// ---------------------------------------------------------------------------
 .return-badge {
-    &.return-canceled {
-        background: #FFCDD2;
-        color: #C63737;
-    }
+  &.return-completed {
+    @include badge-tone('success');
+  }
 
-    &.return-pending {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.return-canceled {
+    @include badge-tone('danger');
+  }
 
-    &.return-processing {
-        background: #bce8fb;
-        color: #447a8c;
-    }
+  &.return-pending {
+    @include badge-tone('warning');
+  }
 
-    &.return-completed {
-        background: #b9faaf;
-        color: #3c774b;
-    }
+  &.return-processing {
+    @include badge-tone('info');
+  }
 
-    &.return-partially_refunded {
-        background: #ebc3dd;
-        color: #82437f;
-    }
+  &.return-partially_refunded {
+    @include badge-tone('corporate');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Expenses
+// ---------------------------------------------------------------------------
 .expense-badge {
-    &.expense-pending {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.expense-approved {
+    @include badge-tone('success');
+  }
 
-    &.expense-approved {
-        background: #b9faaf;
-        color: #3c774b;
-    }
+  &.expense-rejected {
+    @include badge-tone('danger');
+  }
 
-    &.expense-rejected {
-        background: #FFCDD2;
-        color: #C63737;
-    }
+  &.expense-pending {
+    @include badge-tone('warning');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
 .payment-badge {
-    &.payment-unpaid {
-        background: #efa7af;
-        color: #C63737;
-    }
+  &.payment-paid,
+  &.payment-settled {
+    @include badge-tone('success');
+  }
 
-    &.payment-pending {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.payment-unpaid,
+  &.payment-failed {
+    @include badge-tone('danger');
+  }
 
-    &.payment-partially_paid {
-        background: #bce8fb;
-        color: #447a8c;
-    }
+  &.payment-pending {
+    @include badge-tone('warning');
+  }
 
-    &.payment-paid {
-        background: #b9faaf;
-        color: #3c774b;
-    }
+  &.payment-partially_paid {
+    @include badge-tone('info');
+  }
 
-    &.payment-settled {
-        background: #b9faaf;
-        color: #3c774b;
-    }
-
-    &.payment-refunded {
-        background: #ECCFFF;
-        color: #694382;
-    }
-
-    &.payment-partial-refund,
-    &.payment-partial_refund {
-        background: #ECCFFF;
-        color: #694382;
-    }
-
-    &.payment-failed {
-        background: #efa7af;
-        color: #C63737;
-    }
+  &.payment-refunded,
+  &.payment-partial-refund,
+  &.payment-partial_refund {
+    @include badge-tone('corporate');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Refunds
+// ---------------------------------------------------------------------------
 .refund-badge {
-    &.refund-unpaid {
-        background: #efa7af;
-        color: #C63737;
-    }
-    &.refund-unrefunded {
-        background: #efa7af;
-        color: #C63737;
-    }
+  &.refund-paid,
+  &.refund-refunded,
+  &.refund-settled {
+    @include badge-tone('success');
+  }
 
-    &.refund-pending {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.refund-unpaid,
+  &.refund-unrefunded,
+  &.refund-failed {
+    @include badge-tone('danger');
+  }
 
-    &.refund-partially_paid {
-        background: #bce8fb;
-        color: #447a8c;
-    }
+  &.refund-pending {
+    @include badge-tone('warning');
+  }
 
-    &.refund-paid {
-        background: #b9faaf;
-        color: #3c774b;
-    }
+  &.refund-partially_paid {
+    @include badge-tone('info');
+  }
 
-    &.refund-refunded {
-        background: #b9faaf;
-        color: #3c774b;
-    }
-
-    &.refund-settled {
-        background: #b9faaf;
-        color: #3c774b;
-    }
-    
-    &.refund-partially_refunded,
-    &.refund-partial_refund {
-        background: #ebc3dd;
-        color: #82437f;
-    }
-
-    &.refund-failed {
-        background: #efa7af;
-        color: #C63737;
-    }
+  &.refund-partially_refunded,
+  &.refund-partial_refund {
+    @include badge-tone('corporate');
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Warehouse transfers
+// ---------------------------------------------------------------------------
 .transfer-badge {
-    &.transfer-pending {
-        background: #FEEDAF;
-        color: #8A5340;
-    }
+  &.transfer-completed {
+    @include badge-tone('success');
+  }
 
-    &.transfer-in_transit {
-        background: #bce8fb;
-        color: #447a8c;
-    }
+  &.transfer-cancelled {
+    @include badge-tone('danger');
+  }
 
-    &.transfer-completed {
-        background: #b9faaf;
-        color: #3c774b;
-    }
+  &.transfer-pending {
+    @include badge-tone('warning');
+  }
 
-    &.transfer-cancelled {
-        background: #FFCDD2;
-        color: #C63737;
-    }
+  &.transfer-in_transit {
+    @include badge-tone('info');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Utility — profit margin (used in order/product details)
+// ---------------------------------------------------------------------------
+.profit-margin-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+  margin-left: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+
+  &.high-margin {
+    @include badge-tone('success');
+  }
+
+  &.medium-margin {
+    @include badge-tone('warning');
+  }
+
+  &.low-margin {
+    @include badge-tone('danger');
+  }
 }

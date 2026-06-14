@@ -4,7 +4,7 @@
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,8 +27,8 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="account-hero-icon">
-                            <i class="pi pi-building-columns"></i>
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--teal">
+                            <i class="pi pi-briefcase"></i>
                         </div>
                         <div>
                             <div class="flex align-items-center gap-3 mb-2 flex-wrap">
@@ -57,7 +57,7 @@
                     <div class="flex flex-wrap gap-2 action-buttons">
                         <button *ngIf="canRecordTransaction" pButton pRipple 
                             [label]="'record_transaction' | translate" icon="pi pi-plus"
-                            class="p-button-raised" (click)="recordTransaction()"></button>
+                            class="p-button-primary" (click)="recordTransaction()"></button>
                         <button *ngIf="canReconcile" pButton pRipple 
                             [label]="'reconcile' | translate" icon="pi pi-check-circle"
                             class="p-button-outlined p-button-success" (click)="openReconcile()"></button>
@@ -72,7 +72,8 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern balance-card">
-                <div class="stat-icon balance" [class.negative]="(account.currentBalance || 0) < 0">
+                <div class="ims-icon-tile ims-icon-tile--md"
+                    [ngClass]="(account.currentBalance || 0) >= 0 ? 'ims-icon-tile--green' : 'ims-icon-tile--danger'">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -84,7 +85,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon deposits">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-arrow-down"></i>
                 </div>
                 <div class="stat-content">
@@ -94,7 +95,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon withdrawals">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--danger">
                     <i class="pi pi-arrow-up"></i>
                 </div>
                 <div class="stat-content">
@@ -104,7 +105,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon unreconciled">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                     <i class="pi pi-exclamation-circle"></i>
                 </div>
                 <div class="stat-content">
@@ -238,7 +239,7 @@
                                         <td>
                                             <div class="flex gap-1">
                                                 <button pButton pRipple icon="pi pi-eye" 
-                                                    class="p-button-rounded p-button-text p-button-info p-button-sm"
+                                                    class="p-button-rounded p-button-text p-button-primary p-button-sm"
                                                     (click)="viewTransactionDetails(transaction)"
                                                     [pTooltip]="'view_details' | translate"></button>
                                                 <button *ngIf="canReconcile && !transaction.reconciled" 
@@ -289,7 +290,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-id-card"></i>
                                         </div>
                                         <div class="info-content">
@@ -299,7 +300,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="account.accountNumber">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
@@ -309,7 +310,7 @@
                                     </div>
                                     
                                     <div class="info-item">
-                                        <div class="info-icon account-type">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-credit-card"></i>
                                         </div>
                                         <div class="info-content">
@@ -320,7 +321,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="account.currency">
-                                        <div class="info-icon currency">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-dollar"></i>
                                         </div>
                                         <div class="info-content">
@@ -330,7 +331,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="account.iban">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-globe"></i>
                                         </div>
                                         <div class="info-content">
@@ -352,7 +353,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="bank-display">
-                                    <div class="bank-avatar">
+                                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
                                         <i class="pi pi-building"></i>
                                     </div>
                                     <div class="bank-info">
@@ -504,3 +505,21 @@
             class="p-button-success" (click)="reconcileTransaction(selectedTransaction); transactionDetailsDialog = false"></button>
     </ng-template>
 </p-dialog>
+
+<app-transaction-form-dialog
+    [config]="transactionDialogConfig"
+    [account]="account"
+    [currency]="currency"
+    (configChange)="onTransactionDialogConfigChange($event)"
+    (save)="onTransactionSave($event)"
+    (cancel)="onTransactionCancel()">
+</app-transaction-form-dialog>
+
+<app-transaction-form-dialog
+    [config]="transactionDialogConfig"
+    [account]="account"
+    [currency]="currency"
+    (configChange)="onTransactionDialogConfigChange($event)"
+    (save)="onTransactionSave($event)"
+    (cancel)="onTransactionCancel()">
+</app-transaction-form-dialog>

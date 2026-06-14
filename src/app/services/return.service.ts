@@ -45,6 +45,15 @@ export class ReturnService {
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema+id,{headers:headers});
   }
 
+  getReturnsForOrder(orderId: number) {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}order/${orderId}`,
+      { headers }
+    );
+  }
+
   getReturnsReadyForRefund() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema + 'eligible-refund' ,{headers:headers});

@@ -1,4 +1,4 @@
-<div class="pos-container" *ngIf="!loading; else loadingTpl">
+﻿<div class="pos-container" *ngIf="!loading; else loadingTpl">
   <p-toast></p-toast>
   <p-dialog
     [(visible)]="warehouseSwitchDialogVisible"
@@ -48,7 +48,7 @@
   <div *ngIf="activityProfileService.isFashionProfile"
        class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
     <i class="pi pi-palette mt-1 flex-shrink-0"></i>
-    <span>{{ 'profile_mode_fashion_pos' | translate }}</span>
+    <span>{{ 'profile_mode_fashion_pos' | translate }} {{ 'pos_fashion_scan_hint' | translate }}</span>
   </div>
   <div *ngIf="activityProfileService.isPharmacyProfile || activityProfileService.isFashionProfile"
        class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm">
@@ -301,6 +301,26 @@
         </button>
         
         <div *ngIf="session" class="flex align-items-center gap-2">
+          <p-splitButton
+            *ngIf="getCashRegisterSessionId()"
+            [label]="'pos_x_report_title' | translate"
+            icon="pi pi-chart-line"
+            (onClick)="downloadXReport('standard')"
+            [model]="xReportFormatMenu"
+            styleClass="p-button-outlined p-button-sm"
+            [disabled]="isLocked || loading || reportDownloading"
+            [pTooltip]="'pos_x_report_download' | translate">
+          </p-splitButton>
+          <p-splitButton
+            *ngIf="getCashRegisterSessionId()"
+            [label]="'pos_z_report_title' | translate"
+            icon="pi pi-file-pdf"
+            (onClick)="downloadZReport('standard')"
+            [model]="zReportFormatMenu"
+            styleClass="p-button-outlined p-button-sm"
+            [disabled]="isLocked || loading || reportDownloading"
+            [pTooltip]="'pos_z_report_download' | translate">
+          </p-splitButton>
           <button
             pButton
             icon="pi pi-refresh"
@@ -421,6 +441,89 @@
         </div>
 
         <div class="pos-product-search-body p-3 md:p-4 pt-3">
+          <!-- Fashion: styles grid → variant grid (or SKU search mode) -->
+          <div class="pos-variant-catalog mb-4" *ngIf="activityProfileService.emphasizeProductVariants">
+            <p-selectButton [(ngModel)]="posSellMode" [options]="posSellModeOptions" optionLabel="label"
+              optionValue="value" styleClass="pos-sell-mode-toggle mb-3"></p-selectButton>
+
+            <p-message *ngIf="isAdmin && !selectedWarehouseId" severity="warn" styleClass="w-full mb-3"
+              [text]="'variant_picker_warehouse_required' | translate"></p-message>
+
+            <ng-container *ngIf="posSellMode === 'styles' && (!isAdmin || selectedWarehouseId)">
+              <div *ngIf="selectedPosFamily" class="mb-3">
+                <button pButton type="button" icon="pi pi-arrow-left" class="p-button-text p-button-sm"
+                  [label]="'pos_back_to_styles' | translate" (click)="clearPosStyleSelection()"></button>
+                <h4 class="m-0 mt-2 text-900">{{ selectedPosFamily.styleReference }} — {{ selectedPosFamily.name }}</h4>
+                <p class="text-600 text-sm m-0 mt-1">{{ 'pos_pick_variant_hint' | translate }}</p>
+              </div>
+
+              <div *ngIf="!selectedPosFamily">
+                <span class="p-input-icon-left w-full mb-3 block">
+                  <i class="pi pi-search"></i>
+                  <input type="text" pInputText class="w-full" [(ngModel)]="posStyleSearch"
+                    [placeholder]="'pos_style_search_placeholder' | translate"
+                    (input)="onPosStyleSearch()" />
+                </span>
+                <div *ngIf="posStyleCatalogLoading" class="flex justify-content-center py-4">
+                  <p-progressSpinner styleClass="ims-spinner--base" ariaLabel="loading"></p-progressSpinner>
+                </div>
+                <div *ngIf="!posStyleCatalogLoading && posStyleFamiliesFiltered.length === 0"
+                  class="text-center text-600 py-4">{{ 'pos_no_styles_found' | translate }}</div>
+                <div *ngIf="!posStyleCatalogLoading && posStyleFamiliesFiltered.length > 0"
+                  class="grid pos-style-grid">
+                  <div class="col-6 md:col-4 lg:col-3" *ngFor="let row of posStyleFamiliesFiltered">
+                    <div class="pos-style-card surface-card border-1 surface-border border-round p-3 h-full cursor-pointer"
+                      (click)="selectPosStyleFamily(row)">
+                      <div class="font-semibold text-900 text-sm line-height-3">{{ row.family.styleReference }}</div>
+                      <div class="text-700 text-sm mt-1 truncate">{{ row.family.name }}</div>
+                      <div class="flex justify-content-between align-items-center mt-2 text-xs">
+                        <p-tag [value]="row.totalNetAvailableQuantity + ''"
+                          [severity]="row.totalNetAvailableQuantity <= 0 ? 'danger' : (row.totalNetAvailableQuantity < 5 ? 'warning' : 'success')">
+                        </p-tag>
+                        <span class="text-500">{{ row.variantCombinationCount }} {{ 'variants' | translate }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="selectedPosFamily">
+                <div *ngIf="posVariantLinesLoading" class="flex justify-content-center py-4">
+                  <p-progressSpinner styleClass="ims-spinner--base" ariaLabel="loading"></p-progressSpinner>
+                </div>
+                <div *ngIf="!posVariantLinesLoading && posVariantLines.length === 0"
+                  class="text-center text-600 py-4">{{ 'product_family_no_variants' | translate }}</div>
+                <div *ngIf="!posVariantLinesLoading && posVariantLines.length > 0" class="grid pos-variant-grid">
+                  <div class="col-6 md:col-4 lg:col-3" *ngFor="let line of posVariantLines">
+                    <div class="pos-variant-card border-1 surface-border border-round p-3 h-full cursor-pointer"
+                      [class.pos-variant-card--disabled]="(line.netAvailableQuantity ?? line.quantityAvailable ?? 0) <= 0"
+                      (click)="onPosVariantCardClick(line)">
+                      <div class="font-medium text-900 text-sm">{{ posVariantSummary(line) }}</div>
+                      <div class="text-600 text-xs font-mono mt-1">{{ line.reference }}</div>
+                      <div class="flex justify-content-between align-items-center mt-2">
+                        <span class="font-bold text-primary text-sm">{{ formatCurrency(line.sellingPrice ?? 0) }}</span>
+                        <p-tag [value]="(line.netAvailableQuantity ?? line.quantityAvailable ?? 0) + ''"
+                          [severity]="(line.netAvailableQuantity ?? line.quantityAvailable ?? 0) <= 0 ? 'danger' : 'success'"
+                          styleClass="text-xs"></p-tag>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+
+            <div *ngIf="posSellMode === 'sku'" class="mb-3">
+              <app-variant-product-picker
+                [warehouseId]="selectedWarehouseId"
+                [currency]="currency"
+                [compact]="true"
+                [disabled]="isAdmin && !selectedWarehouseId"
+                (productSelected)="onVariantProductPicked($event)">
+              </app-variant-product-picker>
+            </div>
+          </div>
+
+          <ng-container *ngIf="!activityProfileService.emphasizeProductVariants || posSellMode === 'sku'">
           <label for="posProductSearchInput" class="sr-only">{{ 'pos_search_section_title' | translate }}</label>
           <div class="pos-search-wrapper pos-search-wrapper--hero mb-0">
             <p-autoComplete
@@ -483,10 +586,11 @@
               </ng-template>
             </p-autoComplete>
           </div>
+          </ng-container>
         </div>
 
         <!-- Search Results -->
-        <div class="pos-search-results" *ngIf="searchResults.length > 0">
+        <div class="pos-search-results" *ngIf="searchResults.length > 0 && (!activityProfileService.emphasizeProductVariants || posSellMode === 'sku')">
           <div *ngIf="productViewMode === 'grid'" class="grid pos-product-grid">
             <div class="col-4 md:col-3" *ngFor="let product of searchResults">
               <div class="pos-product-card" (click)="addToCart(product)">
@@ -559,7 +663,7 @@
           </div>
         </div>
         
-        <div *ngIf="!productsLoading && searchQuery && searchResults.length === 0" 
+        <div *ngIf="!productsLoading && searchQuery && searchResults.length === 0 && (!activityProfileService.emphasizeProductVariants || posSellMode === 'sku')" 
              class="text-center py-6">
           <i class="pi pi-search text-400 text-5xl mb-3"></i>
           <p class="text-600">{{ 'no_products_found' | translate }}</p>
@@ -722,7 +826,7 @@
                   [severity]="item.quantityAvailable <= 0 ? 'danger' : (item.quantityAvailable < 5 ? 'warning' : 'success')"
                   styleClass="text-xs">
                 </p-tag>
-                <span class="text-500 text-sm">{{ item.quantityAvailable }} {{ 'available' | translate }}</span>
+                <span class="text-500 text-sm">{{ formatCartLineQuantity(item) }} / {{ getCartLineDisplayStock(item) }} {{ 'available' | translate }}</span>
               </div>
             </div>
             <div class="pos-cart-item-quantity">
@@ -731,28 +835,30 @@
                   pButton
                   icon="pi pi-minus"
                   class="p-button-rounded p-button-text p-button-sm"
-                  (click)="updateQuantity(item, item.quantity - 1)"
-                  [disabled]="item.quantity <= 1">
+                  (click)="updateQuantity(item, getCartLineDisplayQuantity(item) - getCartLineQuantityStep(item))"
+                  [disabled]="getCartLineDisplayQuantity(item) <= getCartLineQuantityMin(item)">
                 </button>
                 <input
                   type="number"
-                  [(ngModel)]="item.quantity"
-                  (change)="onQuantityChange(item, item.quantity)"
-                  [min]="1"
+                  [ngModel]="getCartLineDisplayQuantity(item)"
+                  (ngModelChange)="onCartDisplayQuantityChange(item, $event)"
+                  [min]="getCartLineQuantityMin(item)"
                   [max]="getCartLineMaxQuantity(item)"
+                  [step]="getCartLineQuantityStep(item)"
                   class="pos-quantity-input" />
                 <button
                   pButton
                   icon="pi pi-plus"
                   class="p-button-rounded p-button-text p-button-sm"
-                  (click)="updateQuantity(item, item.quantity + 1)"
+                  (click)="updateQuantity(item, getCartLineDisplayQuantity(item) + getCartLineQuantityStep(item))"
                   [disabled]="isCartPlusQuantityBlocked(item)">
                 </button>
               </div>
             </div>
             <div class="pos-cart-item-price">
               <div class="font-bold">{{ formatCurrency(item.subtotal) }}</div>
-              <small class="text-600">{{ formatCurrency(item.pricePerUnit) }} {{ 'each' | translate }}</small>
+              <small class="text-600" *ngIf="showCartUnitPriceSuffix(item)">{{ formatCurrency(item.pricePerUnit) }} / {{ item.measureUnit | translate }}</small>
+              <small class="text-600" *ngIf="!showCartUnitPriceSuffix(item)">{{ formatCurrency(item.pricePerUnit) }}</small>
             </div>
             <div class="pos-cart-item-actions">
               <button
@@ -824,7 +930,7 @@
                         [minFractionDigits]="discountType === 'Amount' ? 2 : 2"
                         [maxFractionDigits]="discountType === 'Amount' ? 2 : 2"
                         [suffix]="discountType === 'Percentage' ? '%' : ''"
-                        (onInput)="applyDiscount($event.value, discountType)"
+                        (onInput)="onDiscountInput($event.value)"
                         styleClass="pos-discount-input">
                       </p-inputNumber>
                       <p-dropdown
@@ -884,7 +990,32 @@
                         mode="currency"
                         [currency]="currency"
                         (onInput)="onTransportAmountChange($event.value)"
-                        [disabled]="!cart || cartSaving"
+                        [disabled]="!cart"
+                        styleClass="pos-transport-input">
+                      </p-inputNumber>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Additional charges (non-taxable) -->
+              <div class="pos-summary-section pos-summary-section-interactive">
+                <div class="pos-summary-item">
+                  <div class="pos-summary-item-row">
+                    <div class="pos-summary-item-label">
+                      <div class="flex align-items-center gap-2">
+                        <i class="pi pi-plus-circle text-orange-500 flex-shrink-0"></i>
+                        <span class="pos-summary-label">{{ 'additional_charges_amount' | translate }}</span>
+                      </div>
+                    </div>
+                    <div class="pos-summary-controls">
+                      <p-inputNumber
+                        [(ngModel)]="additionalChargesAmount"
+                        [min]="0"
+                        mode="currency"
+                        [currency]="currency"
+                        (onInput)="onAdditionalChargesAmountChange($event.value)"
+                        [disabled]="!cart"
                         styleClass="pos-transport-input">
                       </p-inputNumber>
                     </div>
@@ -1114,9 +1245,9 @@
               <div class="font-semibold">{{ item.productName }}</div>
               <small class="text-600">{{ item.productReference }}</small>
               <div class="flex align-items-center gap-2 mt-1">
-                <span class="text-600">{{ 'quantity' | translate }}: {{ item.quantity }}</span>
+                <span class="text-600">{{ 'quantity' | translate }}: {{ formatCartLineQuantity(item) }}</span>
                 <span class="text-600">•</span>
-                <span class="text-600">{{ formatCurrency(item.pricePerUnit) }} {{ 'each' | translate }}</span>
+                <span class="text-600">{{ formatCurrency(item.pricePerUnit) }}</span>
               </div>
             </div>
             <div class="text-right">
@@ -1211,7 +1342,7 @@
           <div class="pos-hold-cart-item-row" *ngFor="let item of cart.items">
             <div class="flex align-items-center gap-2">
               <span class="font-semibold">{{ item.productName }}</span>
-              <span class="text-600">x{{ item.quantity }}</span>
+              <span class="text-600">x{{ formatCartLineQuantity(item) }}</span>
             </div>
             <span class="font-bold">{{ formatCurrency(item.subtotal) }}</span>
           </div>
@@ -1319,7 +1450,7 @@
         <!-- Credit Info Loading -->
         <div class="p-3 mb-3 border-round surface-100" *ngIf="isCreditPayment() && creditInfoLoading">
           <div class="flex align-items-center gap-2">
-            <p-progressSpinner [style]="{width: '20px', height: '20px'}"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--xs" ariaLabel="loading"></p-progressSpinner>
             <span>{{ 'loading_credit_info' | translate }}</span>
           </div>
         </div>
@@ -1539,19 +1670,19 @@
       
       <div class="pos-receipt-details mb-4">
         <div class="flex justify-content-between mb-2">
-          <span class="text-600">{{ 'receipt_number' | translate }}</span>
+          <span class="text-600">{{ 'receipt_number' | translate }} :</span>
           <span class="font-semibold">{{ lastReceipt.receiptNumber }}</span>
         </div>
         <div class="flex justify-content-between mb-2">
-          <span class="text-600">{{ 'date' | translate }}</span>
+          <span class="text-600">{{ 'date' | translate }} :</span>
           <span>{{ lastReceipt.transactionDate | date:'short' }}</span>
         </div>
         <div class="flex justify-content-between mb-2">
-          <span class="text-600">{{ 'cashier' | translate }}</span>
+          <span class="text-600">{{ 'cashier' | translate }} :</span>
           <span>{{ lastReceipt.cashierName }}</span>
         </div>
         <div class="flex justify-content-between mb-2">
-          <span class="text-600">{{ 'customer' | translate }}</span>
+          <span class="text-600">{{ 'customer' | translate }} :</span>
           <span>{{ lastReceipt.customerName }}</span>
         </div>
       </div>
@@ -1559,28 +1690,36 @@
       <div class="pos-receipt-items mb-4">
         <div class="pos-receipt-item" *ngFor="let item of lastReceipt.items">
           <div class="flex justify-content-between mb-1">
-            <span>{{ item.productName }} x{{ item.quantity }}</span>
+            <span>{{ item.productName }} x{{ item.quantityLabel || item.quantityDisplay || item.quantity }}</span>
             <span class="font-semibold">{{ formatCurrency(item.subtotal) }}</span>
           </div>
-          <small class="text-600">{{ formatCurrency(item.pricePerUnit) }} {{ 'each' | translate }}</small>
+          <small class="text-600">{{ formatCurrency(item.pricePerUnit) }}<ng-container *ngIf="item.unitPriceSuffix">{{ item.unitPriceSuffix }}</ng-container></small>
         </div>
       </div>
       
       <div class="pos-receipt-summary mb-4">
         <div class="flex justify-content-between mb-2">
-          <span class="text-600">{{ 'subtotal' | translate }}</span>
+          <span class="text-600">{{ 'subtotal' | translate }} :</span>
           <span>{{ formatCurrency(lastReceipt.subtotal) }}</span>
         </div>
         <div class="flex justify-content-between mb-2" *ngIf="lastReceipt.discountAmount > 0">
-          <span class="text-600">{{ 'discount' | translate }}</span>
+          <span class="text-600">{{ 'discount' | translate }} :</span>
           <span>-{{ formatCurrency(lastReceipt.discountAmount) }}</span>
         </div>
         <div class="flex justify-content-between mb-2" *ngIf="lastReceipt.taxAmount > 0">
-          <span class="text-600">{{ 'tax' | translate }}</span>
+          <span class="text-600">{{ 'tax' | translate }} :</span>
           <span>{{ formatCurrency(lastReceipt.taxAmount) }}</span>
         </div>
+        <div class="flex justify-content-between mb-2" *ngIf="lastReceipt.transportAmount > 0">
+          <span class="text-600">{{ 'transport_amount' | translate }} :</span>
+          <span>{{ formatCurrency(lastReceipt.transportAmount) }}</span>
+        </div>
+        <div class="flex justify-content-between mb-2" *ngIf="lastReceipt.additionalChargesAmount > 0">
+          <span class="text-600">{{ 'additional_charges_amount' | translate }} :</span>
+          <span>{{ formatCurrency(lastReceipt.additionalChargesAmount) }}</span>
+        </div>
         <div class="flex justify-content-between font-bold text-lg pt-2 border-top-1">
-          <span>{{ 'total' | translate }}</span>
+          <span>{{ 'total' | translate }} :</span>
           <span>{{ formatCurrency(lastReceipt.totalAmount) }}</span>
         </div>
       </div>
@@ -1588,12 +1727,12 @@
       <div class="pos-receipt-payments mb-4">
         <div class="pos-receipt-payment" *ngFor="let payment of lastReceipt.payments">
           <div class="flex justify-content-between">
-            <span>{{ getPaymentMethodLabel(payment.method) | translate }}</span>
+            <span>{{ getPaymentMethodLabel(payment.method) | translate }} :</span>
             <span class="font-semibold">{{ formatCurrency(payment.amount) }}</span>
           </div>
         </div>
         <div class="flex justify-content-between mt-2" *ngIf="lastReceipt.change > 0">
-          <span class="text-600">{{ 'change' | translate }}</span>
+          <span class="text-600">{{ 'change' | translate }} :</span>
           <span class="font-semibold text-green-500">{{ formatCurrency(lastReceipt.change) }}</span>
         </div>
       </div>
@@ -1616,6 +1755,8 @@
         [label]="'print' | translate"
         icon="pi pi-print"
         class="p-button-success"
+        [loading]="receiptPrinting"
+        [disabled]="receiptPrinting"
         (click)="printReceiptDialog()"
         *ngIf="lastReceipt">
       </button>
@@ -1943,7 +2084,7 @@
 <ng-template #loadingTpl>
   <div class="pos-loading-screen">
     <div class="pos-loading-content">
-      <p-progressSpinner styleClass="w-16rem h-16rem" strokeWidth="4" fill="transparent"></p-progressSpinner>
+      <p-progressSpinner styleClass="ims-spinner--xl ims-spinner--on-dark" fill="transparent" ariaLabel="loading"></p-progressSpinner>
       <h3 class="mt-4">{{ 'loading_pos' | translate }}</h3>
       <p class="text-600">{{ 'please_wait' | translate }}</p>
     </div>

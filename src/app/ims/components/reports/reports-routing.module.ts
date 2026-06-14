@@ -9,6 +9,7 @@ import { PurchaseSummaryReportComponent } from './purchase-summary-report/purcha
 import { InventorySnapshotReportComponent } from './inventory-snapshot-report/inventory-snapshot-report.component';
 import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-analysis-report.component';
 import { ForecastingReportComponent } from './forecasting-report/forecasting-report.component';
+import { TopSellingProductsReportComponent } from './top-selling-products-report/top-selling-products-report.component';
 import { CreditReportsComponent } from '../finance/credit-management/credit-reports/credit-reports.component';
 
 const routes: Routes = [
@@ -28,6 +29,12 @@ const routes: Routes = [
       {
         path: 'purchases',
         component: PurchaseSummaryReportComponent,
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
+      },
+      {
+        path: 'top-products',
+        component: TopSellingProductsReportComponent,
         canActivate: [AuthGuard, LicenseFeatureGuard],
         data: { roles: ['ADMIN'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
       },

@@ -1,0 +1,2757 @@
+@import 'brand-tokens';
+
+@mixin ims-brand-scrollbar(
+  $thumb: var(--brand-scrollbar-thumb),
+  $thumb-hover: var(--brand-scrollbar-thumb-hover),
+  $firefox: var(--brand-scrollbar-firefox)
+) {
+  scrollbar-width: thin;
+  scrollbar-color: #{$firefox} var(--brand-scrollbar-track);
+
+  &::-webkit-scrollbar {
+    width: var(--brand-scrollbar-size);
+    height: var(--brand-scrollbar-size);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--brand-scrollbar-track);
+    margin-block: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #{$thumb};
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: #{$thumb-hover};
+  }
+
+  &::-webkit-scrollbar-button,
+  &::-webkit-scrollbar-corner {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared brand semantic scales (both color schemes)
+// Remap PrimeFlex / legacy indigo-purple utility names to Nadigit tokens.
+// ---------------------------------------------------------------------------
+:root {
+  --green-500: #16C784;
+  --green-600: #12A86E;
+  --green-700: #0F9660;
+  --yellow-500: #F4B740;
+  --yellow-600: #DFA830;
+  --yellow-700: #C49228;
+  --red-500: #E5484D;
+  --red-600: #C93B40;
+  --red-700: #A83236;
+  --cyan-50: #E8FAFC;
+  --cyan-100: #C5F0F5;
+  --cyan-200: #9EE5EE;
+  --cyan-300: #6FD9E6;
+  --cyan-400: #4DD4E8;
+  --cyan-500: #18C5D8;
+  --cyan-600: #14A8B8;
+  --cyan-700: #108A98;
+  --cyan-800: #0C6C78;
+  --cyan-900: #084E58;
+  --blue-50: #EEF3FF;
+  --blue-100: #D6E4FF;
+  --blue-200: #ADC8FF;
+  --blue-300: #84ABFF;
+  --blue-400: #5188FF;
+  --blue-500: #1E5EFF;
+  --blue-600: #1850E0;
+  --blue-700: #1340B8;
+  --blue-800: #0E3190;
+  --blue-900: #092368;
+  --indigo-50: #EEF3FF;
+  --indigo-100: #D6E4FF;
+  --indigo-200: #ADC8FF;
+  --indigo-300: #84ABFF;
+  --indigo-400: #5188FF;
+  --indigo-500: #1E5EFF;
+  --indigo-600: #1850E0;
+  --indigo-700: #1340B8;
+  --indigo-800: #0E3190;
+  --indigo-900: #092368;
+  --purple-50: #E8FAFC;
+  --purple-100: #C5F0F5;
+  --purple-200: #9EE5EE;
+  --purple-300: #6FD9E6;
+  --purple-400: #4DD4E8;
+  --purple-500: #18C5D8;
+  --purple-600: #14A8B8;
+  --purple-700: #108A98;
+  --purple-800: #0C6C78;
+  --purple-900: #084E58;
+}
+
+// ---------------------------------------------------------------------------
+// Light mode — PrimeNG variable overrides (lara-light-indigo base)
+// ---------------------------------------------------------------------------
+:root:not([color-scheme='dark']) {
+  --primary-color: var(--brand-saas);
+  --primary-color-text: var(--brand-white);
+  --text-color: var(--brand-text-primary);
+  --text-color-secondary: var(--brand-text-secondary);
+  --surface-ground: var(--brand-bg-secondary);
+  --surface-card: var(--brand-white);
+  --surface-border: var(--brand-border);
+  --surface-hover: #EEF2FA;
+  --highlight-bg: #E8EFFF;
+  --highlight-text-color: #143DB8;
+  --focus-ring: 0 0 0 0.2rem rgba(30, 94, 255, 0.25);
+  --brand-table-header-bg: var(--brand-bg-secondary);
+  --brand-table-row-bg: var(--brand-white);
+  --brand-table-row-alt-bg: var(--brand-bg-secondary);
+  --brand-table-sort-hover-bg: var(--surface-hover);
+
+  --primary-50: #EEF3FF;
+  --primary-100: #D6E4FF;
+  --primary-200: #ADC8FF;
+  --primary-300: #84ABFF;
+  --primary-400: #5188FF;
+  --primary-500: #1E5EFF;
+  --primary-600: #1850E0;
+  --primary-700: #1340B8;
+  --primary-800: #0E3190;
+  --primary-900: #092368;
+
+  --brand-field-bg: var(--brand-white);
+  --brand-field-border: var(--brand-border);
+  --brand-field-radius: var(--brand-radius-field);
+  --brand-overlay-bg: var(--brand-white);
+  --brand-overlay-shadow: 0 8px 24px rgba(11, 31, 74, 0.1);
+  --brand-field-invalid-border: var(--brand-danger);
+}
+
+// ---------------------------------------------------------------------------
+// Dark mode — navy-based brand palette (lara-dark-indigo base)
+// ---------------------------------------------------------------------------
+:root[color-scheme='dark'] {
+  color-scheme: dark;
+
+  /* V1.2 dark mode — navy shell, corporate surfaces, SaaS blue CTA */
+  --primary-color: var(--brand-saas);
+  --primary-color-text: var(--brand-dark-text);
+  --text-color: var(--brand-dark-text);
+  --text-color-secondary: var(--brand-dark-text-secondary);
+  --surface-ground: var(--brand-dark-bg);
+  --surface-card: var(--brand-dark-surface);
+  --surface-overlay: var(--brand-dark-surface);
+  --surface-border: rgba(255, 255, 255, 0.12);
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --highlight-bg: rgba(30, 94, 255, 0.16);
+  --highlight-text-color: var(--brand-dark-text);
+  --focus-ring: 0 0 0 0.2rem rgba(30, 94, 255, 0.35);
+
+  --surface-0: var(--brand-dark-surface);
+  --surface-50: var(--brand-dark-bg-secondary);
+  --surface-100: #0E2248;
+  --surface-200: #132748;
+  --surface-300: #3D5278;
+  --surface-400: #6B8199;
+  --surface-500: #9AADBE;
+  --surface-600: #C5D0DB;
+  --surface-700: #E2E8EF;
+  --surface-800: #F0F3F7;
+  --surface-900: #FFFFFF;
+
+  --primary-50: rgba(30, 94, 255, 0.12);
+  --primary-100: rgba(30, 94, 255, 0.2);
+  --primary-200: rgba(30, 94, 255, 0.28);
+  --primary-300: rgba(30, 94, 255, 0.45);
+  --primary-400: #5188FF;
+  --primary-500: var(--brand-saas);
+  --primary-600: var(--brand-saas-hover);
+  --primary-700: #1850E0;
+  --primary-800: #1340B8;
+  --primary-900: #0E3190;
+  --brand-table-header-bg: var(--brand-dark-bg-secondary);
+  --brand-table-row-bg: var(--brand-dark-surface);
+  --brand-table-row-alt-bg: #0E2248;
+  --brand-table-sort-hover-bg: var(--surface-hover);
+
+  --brand-field-bg: var(--brand-dark-bg-secondary);
+  --brand-field-border: rgba(255, 255, 255, 0.14);
+  --brand-field-radius: var(--brand-radius-field);
+  --brand-overlay-bg: var(--brand-dark-surface);
+  --brand-overlay-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  --brand-field-invalid-border: var(--brand-danger);
+}
+
+// PrimeNG lara-light hardcodes .p-card to #ffffff — brand surfaces in both modes
+.p-card {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--brand-radius-surface) !important;
+  box-shadow: 0 2px 8px rgba(11, 31, 74, 0.06) !important;
+}
+
+.p-card .p-card-title {
+  color: var(--text-color) !important;
+}
+
+.p-card .p-card-subtitle {
+  color: var(--text-color-secondary) !important;
+}
+
+:root[color-scheme='dark'] .p-card,
+.layout-theme-dark .p-card {
+  box-shadow: var(--brand-overlay-shadow) !important;
+}
+
+:root[color-scheme='dark'] {
+  .p-card .p-card-subtitle {
+    color: var(--text-color-secondary) !important;
+  }
+
+  .text-900,
+  .text-800,
+  .text-700 {
+    color: var(--text-color) !important;
+  }
+
+  .text-600,
+  .text-500 {
+    color: var(--text-color-secondary) !important;
+  }
+}
+
+// Data tables — PrimeNG hardcodes gray (#1f2937) / white; use brand surfaces in both modes
+.p-datatable,
+.p-treetable {
+  .p-datatable-header,
+  .p-datatable-footer,
+  .p-treetable-header,
+  .p-treetable-footer {
+    background: var(--brand-table-header-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--surface-border) !important;
+  }
+
+  .p-datatable-thead > tr > th,
+  .p-treetable-thead > tr > th {
+    background: var(--brand-table-header-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--surface-border) !important;
+  }
+
+  .p-datatable-tfoot > tr > td,
+  .p-treetable-tfoot > tr > td {
+    background: var(--brand-table-header-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--surface-border) !important;
+  }
+
+  .p-datatable-tbody > tr,
+  .p-treetable-tbody > tr {
+    background: var(--brand-table-row-bg) !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-datatable-tbody > tr > td,
+  .p-treetable-tbody > tr > td {
+    border-color: var(--surface-border) !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-sortable-column .p-sortable-column-icon {
+    color: var(--text-color-secondary) !important;
+  }
+
+  .p-sortable-column:not(.p-highlight):hover {
+    background: var(--brand-table-sort-hover-bg) !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-sortable-column:not(.p-highlight):hover .p-sortable-column-icon {
+    color: var(--text-color) !important;
+  }
+
+  .p-sortable-column.p-highlight,
+  .p-sortable-column.p-highlight .p-sortable-column-icon,
+  .p-sortable-column.p-highlight:hover,
+  .p-sortable-column.p-highlight:hover .p-sortable-column-icon {
+    background: var(--highlight-bg) !important;
+    color: var(--highlight-text-color) !important;
+  }
+
+  .p-paginator-top,
+  .p-paginator-bottom {
+    background: var(--brand-table-header-bg) !important;
+    border-color: var(--surface-border) !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-datatable-scrollable-header,
+  .p-datatable-scrollable-footer,
+  .p-treetable-scrollable-header,
+  .p-treetable-scrollable-footer {
+    background: var(--brand-table-header-bg) !important;
+  }
+}
+
+.p-datatable.p-datatable-striped .p-datatable-tbody > tr:nth-child(even),
+.p-treetable.p-treetable-striped .p-treetable-tbody > tr:nth-child(even) {
+  background: var(--brand-table-row-alt-bg) !important;
+}
+
+.p-datatable.p-datatable-hoverable-rows .p-datatable-tbody > tr:not(.p-highlight):hover,
+.p-treetable.p-treetable-hoverable-rows .p-treetable-tbody > tr:not(.p-highlight):hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
+}
+
+.p-datatable.p-datatable-striped .p-datatable-tbody > tr:nth-child(even).p-highlight,
+.p-treetable.p-treetable-striped .p-treetable-tbody > tr:nth-child(even).p-highlight {
+  background: var(--highlight-bg) !important;
+  color: var(--highlight-text-color) !important;
+}
+
+// ---------------------------------------------------------------------------
+// Typography — Poppins for headings & display text
+// ---------------------------------------------------------------------------
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.p-dialog .p-dialog-title {
+  font-family: var(--brand-font-display);
+  font-weight: 600;
+}
+
+// ---------------------------------------------------------------------------
+// Primary button hover (brand guideline: slightly darker on hover)
+// ---------------------------------------------------------------------------
+.p-button:not(.p-button-outlined):not(.p-button-text):not(.p-button-link):not(.p-button-success):not(.p-button-danger):not(.p-button-warning):not(.p-button-info):enabled:hover {
+  background: var(--brand-saas-hover);
+  border-color: var(--brand-saas-hover);
+}
+
+:root[color-scheme='dark'] .p-button:not(.p-button-outlined):not(.p-button-text):not(.p-button-link):not(.p-button-success):not(.p-button-danger):not(.p-button-warning):not(.p-button-info):enabled:hover {
+  background: var(--primary-600);
+  border-color: var(--primary-600);
+}
+
+// Secondary outlined button — white bg, blue border & text
+.p-button.p-button-outlined:not(.p-button-danger):not(.p-button-success):not(.p-button-warning):not(.p-button-help) {
+  color: var(--brand-saas);
+  border-color: var(--brand-saas);
+}
+
+.p-button.p-button-outlined:not(.p-button-danger):not(.p-button-success):not(.p-button-warning):not(.p-button-help):enabled:hover {
+  background: rgba(30, 94, 255, 0.06);
+  color: var(--brand-saas-hover);
+  border-color: var(--brand-saas-hover);
+}
+
+:root[color-scheme='dark'] .p-button.p-button-outlined:not(.p-button-danger):not(.p-button-success):not(.p-button-warning):not(.p-button-help) {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+:root[color-scheme='dark'] .p-button.p-button-outlined:not(.p-button-danger):not(.p-button-success):not(.p-button-warning):not(.p-button-help):enabled:hover {
+  background: rgba(77, 126, 255, 0.12);
+  color: #FFFFFF;
+  border-color: var(--primary-400);
+}
+
+// ---------------------------------------------------------------------------
+// Semantic action buttons — brand-aligned success / warning / danger / info
+// Solid styles ONLY for filled buttons (not text/outlined icon actions).
+// ---------------------------------------------------------------------------
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+.p-buttonset.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined),
+.p-splitbutton.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-success) !important;
+  border-color: var(--brand-success) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-buttonset.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-splitbutton.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover {
+  background: var(--brand-success-hover) !important;
+  border-color: var(--brand-success-hover) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.p-buttonset.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-buttonset.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-label,
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-icon,
+.p-buttonset.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-label,
+.p-buttonset.p-button-success > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-icon {
+  color: #ffffff !important;
+}
+
+.p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+.p-buttonset.p-button-warning > .p-button:not(.p-button-text):not(.p-button-outlined),
+.p-splitbutton.p-button-warning > .p-button:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-premium) !important;
+  border-color: var(--brand-premium) !important;
+  color: var(--brand-premium-text) !important;
+}
+
+.p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-buttonset.p-button-warning > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-splitbutton.p-button-warning > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover {
+  background: var(--brand-premium-hover) !important;
+  border-color: var(--brand-premium-hover) !important;
+}
+
+.p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.p-buttonset.p-button-warning > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-buttonset.p-button-warning > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-icon {
+  color: var(--brand-premium-text) !important;
+}
+
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined),
+.p-buttonset.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined),
+.p-splitbutton.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-danger) !important;
+  border-color: var(--brand-danger) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-buttonset.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-splitbutton.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover {
+  background: var(--brand-danger-hover) !important;
+  border-color: var(--brand-danger-hover) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.p-buttonset.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-buttonset.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-label,
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-icon,
+.p-buttonset.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-label,
+.p-buttonset.p-button-danger > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover .p-button-icon {
+  color: #ffffff !important;
+}
+
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined),
+.p-buttonset.p-button-info > .p-button:not(.p-button-text):not(.p-button-outlined),
+.p-splitbutton.p-button-info > .p-button:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-info) !important;
+  border-color: var(--brand-info) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-buttonset.p-button-info > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover,
+.p-splitbutton.p-button-info > .p-button:not(.p-button-text):not(.p-button-outlined):not(:disabled):hover {
+  background: var(--brand-info-hover) !important;
+  border-color: var(--brand-info-hover) !important;
+}
+
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined) .p-button-icon,
+.p-buttonset.p-button-info > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-label,
+.p-buttonset.p-button-info > .p-button:not(.p-button-text):not(.p-button-outlined) .p-button-icon {
+  color: #ffffff !important;
+}
+
+// Outlined semantic buttons
+.p-button.p-button-outlined.p-button-success {
+  background: transparent !important;
+  color: var(--brand-success) !important;
+  border-color: var(--brand-success) !important;
+}
+
+.p-button.p-button-outlined.p-button-warning {
+  background: transparent !important;
+  color: var(--brand-premium-hover) !important;
+  border-color: var(--brand-premium) !important;
+}
+
+.p-button.p-button-outlined.p-button-danger {
+  background: transparent !important;
+  color: var(--brand-danger) !important;
+  border-color: var(--brand-danger) !important;
+}
+
+.p-button.p-button-outlined.p-button-info {
+  background: transparent !important;
+  color: var(--brand-info) !important;
+  border-color: var(--brand-info) !important;
+}
+
+.p-button.p-button-outlined.p-button-success .p-button-label,
+.p-button.p-button-outlined.p-button-success .p-button-icon,
+.p-button.p-button-outlined.p-button-warning .p-button-label,
+.p-button.p-button-outlined.p-button-warning .p-button-icon,
+.p-button.p-button-outlined.p-button-danger .p-button-label,
+.p-button.p-button-outlined.p-button-danger .p-button-icon,
+.p-button.p-button-outlined.p-button-info .p-button-label,
+.p-button.p-button-outlined.p-button-info .p-button-icon {
+  color: inherit !important;
+}
+
+// Text / icon-only semantic buttons — transparent, colored icons (table row actions)
+.p-button.p-button-text.p-button-primary,
+.p-button.p-button-text.p-button-success,
+.p-button.p-button-text.p-button-warning,
+.p-button.p-button-text.p-button-danger,
+.p-button.p-button-text.p-button-info {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.p-button.p-button-text.p-button-primary,
+.p-button.p-button-text.p-button-primary .p-button-icon,
+.p-button.p-button-text.p-button-primary .pi {
+  color: var(--brand-saas) !important;
+}
+
+.p-button.p-button-text.p-button-warning,
+.p-button.p-button-text.p-button-warning .p-button-icon,
+.p-button.p-button-text.p-button-warning .pi {
+  color: var(--brand-premium-hover) !important;
+}
+
+.p-button.p-button-text.p-button-success,
+.p-button.p-button-text.p-button-success .p-button-icon,
+.p-button.p-button-text.p-button-success .pi {
+  color: var(--brand-success) !important;
+}
+
+.p-button.p-button-text.p-button-danger,
+.p-button.p-button-text.p-button-danger .p-button-icon,
+.p-button.p-button-text.p-button-danger .pi {
+  color: var(--brand-danger) !important;
+}
+
+.p-button.p-button-text.p-button-info,
+.p-button.p-button-text.p-button-info .p-button-icon,
+.p-button.p-button-text.p-button-info .pi {
+  color: var(--brand-info) !important;
+}
+
+.p-button.p-button-text.p-button-rounded {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 !important;
+}
+
+.p-button.p-button-text.p-button-primary:enabled:hover {
+  background: rgba(30, 94, 255, 0.1) !important;
+  border-color: transparent !important;
+}
+
+.p-button.p-button-text.p-button-warning:enabled:hover {
+  background: rgba(244, 183, 64, 0.14) !important;
+  border-color: transparent !important;
+  color: var(--brand-premium-hover) !important;
+}
+
+.p-button.p-button-text.p-button-success:enabled:hover {
+  background: rgba(22, 199, 132, 0.1) !important;
+  border-color: transparent !important;
+}
+
+.p-button.p-button-text.p-button-danger:enabled:hover {
+  background: rgba(229, 72, 77, 0.1) !important;
+  border-color: transparent !important;
+}
+
+.p-button.p-button-text.p-button-info:enabled:hover {
+  background: rgba(24, 197, 216, 0.1) !important;
+  border-color: transparent !important;
+}
+
+// Data table row actions — icon-only rounded buttons (PrimeNG 17 may omit p-button-text)
+.p-datatable,
+.p-treetable {
+  .p-button.p-button-rounded.p-button-primary,
+  .p-button.p-button-rounded.p-button-warning,
+  .p-button.p-button-rounded.p-button-danger,
+  .p-button.p-button-rounded.p-button-success,
+  .p-button.p-button-rounded.p-button-info {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    min-width: 2.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 !important;
+  }
+
+  .p-button.p-button-rounded.p-button-primary {
+    color: var(--brand-saas) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-warning {
+    color: var(--brand-premium-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-danger {
+    color: var(--brand-danger) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-success {
+    color: var(--brand-success) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-info {
+    color: var(--brand-info) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-primary:enabled:hover {
+    background: rgba(30, 94, 255, 0.1) !important;
+    color: var(--brand-saas-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-warning:enabled:hover {
+    background: rgba(244, 183, 64, 0.14) !important;
+    color: var(--brand-premium-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-danger:enabled:hover {
+    background: rgba(229, 72, 77, 0.1) !important;
+    color: var(--brand-danger-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-success:enabled:hover {
+    background: rgba(22, 199, 132, 0.1) !important;
+    color: var(--brand-success-hover) !important;
+  }
+
+  .p-button.p-button-rounded.p-button-info:enabled:hover {
+    background: rgba(24, 197, 216, 0.1) !important;
+    color: var(--brand-info-hover) !important;
+  }
+}
+
+// Tags — match semantic button palette
+.p-tag.p-tag-success {
+  background: var(--brand-success) !important;
+}
+
+.p-tag.p-tag-warning {
+  background: var(--brand-premium) !important;
+  color: var(--brand-premium-text) !important;
+}
+
+.p-tag.p-tag-danger {
+  background: var(--brand-danger) !important;
+}
+
+.p-tag.p-tag-info {
+  background: var(--brand-info) !important;
+}
+
+// ---------------------------------------------------------------------------
+// Polish — toolbar exports, row actions, focus/disabled, utility colors
+// ---------------------------------------------------------------------------
+
+// Filter toolbar export icons — outlined & compact (not solid blocks)
+.filter-bar,
+.reports-filter-bar {
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) {
+    background: var(--brand-white) !important;
+    border: 1px solid var(--brand-border) !important;
+    min-width: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0 !important;
+    border-radius: var(--brand-radius-field) !important;
+    box-shadow: 0 1px 2px rgba(11, 31, 74, 0.06);
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0 !important;
+
+    &::after {
+      content: none !important;
+      display: none !important;
+    }
+
+    .p-button-icon,
+    .p-button-icon-left,
+    .p-button-icon-right {
+      flex: 1 1 auto;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin: 0 !important;
+      line-height: 1 !important;
+    }
+
+    .pi,
+    .p-icon {
+      margin: 0 !important;
+      line-height: 1 !important;
+    }
+
+    &.p-button-icon-only .p-button-label {
+      display: none !important;
+      width: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+  }
+
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) {
+    color: var(--brand-saas) !important;
+  }
+
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: #EEF3FF !important;
+    border-color: var(--brand-saas) !important;
+  }
+
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined) .p-button-icon {
+    color: var(--brand-success) !important;
+  }
+
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: rgba(22, 199, 132, 0.08) !important;
+    border-color: var(--brand-success) !important;
+  }
+}
+
+:root[color-scheme='dark'] .filter-bar,
+:root[color-scheme='dark'] .reports-filter-bar {
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined),
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined) {
+    background: var(--surface-card) !important;
+    border-color: var(--surface-border) !important;
+    box-shadow: none;
+  }
+
+  .p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined):enabled:hover,
+  .p-button.p-button-primary:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: rgba(30, 94, 255, 0.12) !important;
+    border-color: var(--primary-color) !important;
+  }
+
+  .p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+    background: rgba(22, 199, 132, 0.12) !important;
+    border-color: var(--brand-success) !important;
+  }
+}
+
+// Solid semantic CTAs — disabled & focus (filled buttons only)
+.p-button.p-button-success:disabled:not(.p-button-text):not(.p-button-outlined),
+.p-button.p-button-danger:disabled:not(.p-button-text):not(.p-button-outlined),
+.p-button.p-button-warning:disabled:not(.p-button-text):not(.p-button-outlined),
+.p-button.p-button-info:disabled:not(.p-button-text):not(.p-button-outlined) {
+  opacity: 0.55 !important;
+}
+
+.p-button.p-button-danger:disabled:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-danger) !important;
+  border-color: var(--brand-danger) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-success:disabled:not(.p-button-text):not(.p-button-outlined) {
+  background: var(--brand-success) !important;
+  border-color: var(--brand-success) !important;
+  color: #ffffff !important;
+}
+
+.p-button.p-button-text:disabled {
+  opacity: 0.45 !important;
+}
+
+.p-button.p-button-success:not(.p-button-text):not(.p-button-outlined):focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(22, 199, 132, 0.35) !important;
+}
+
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(229, 72, 77, 0.35) !important;
+}
+
+.p-button.p-button-warning:not(.p-button-text):not(.p-button-outlined):focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(244, 183, 64, 0.45) !important;
+}
+
+.p-button.p-button-info:not(.p-button-text):not(.p-button-outlined):focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(24, 197, 216, 0.35) !important;
+}
+
+// Outlined semantic hover fills
+.p-button.p-button-success.p-button-outlined:enabled:hover {
+  background: rgba(22, 199, 132, 0.08) !important;
+}
+
+.p-button.p-button-danger.p-button-outlined:enabled:hover {
+  background: rgba(229, 72, 77, 0.08) !important;
+}
+
+.p-button.p-button-warning.p-button-outlined:enabled:hover {
+  background: rgba(244, 183, 64, 0.12) !important;
+}
+
+.p-button.p-button-info.p-button-outlined:enabled:hover {
+  background: rgba(24, 197, 216, 0.08) !important;
+}
+
+// PrimeFlex / Tailwind-like semantic text utilities
+.text-green-500,
+.text-green-600 {
+  color: var(--brand-success) !important;
+}
+
+.text-orange-500,
+.text-orange-600 {
+  color: var(--brand-premium-hover) !important;
+}
+
+.text-red-500,
+.text-red-600 {
+  color: var(--brand-danger) !important;
+}
+
+.text-blue-500,
+.text-blue-600 {
+  color: var(--brand-saas) !important;
+}
+
+// Toast, inline & block messages — Nadigit alert surfaces (badge tokens + accent rail)
+@mixin brand-alert-tone($tone, $accent) {
+  background: var(--brand-badge-#{$tone}-bg) !important;
+  border-color: color-mix(in srgb, #{$accent} 32%, var(--surface-border)) !important;
+  border-left-color: #{$accent} !important;
+  color: var(--brand-badge-#{$tone}-text) !important;
+
+  .p-toast-message-icon,
+  .p-toast-icon-close,
+  .p-message-icon,
+  .p-inline-message-icon {
+    color: #{$accent} !important;
+  }
+
+  .p-toast-summary,
+  .p-message-summary,
+  .p-inline-message-text {
+    color: var(--brand-badge-#{$tone}-text) !important;
+    font-weight: 600;
+  }
+
+  .p-toast-detail,
+  .p-message-detail {
+    color: var(--text-color-secondary, var(--brand-text-secondary)) !important;
+  }
+}
+
+.p-toast {
+  width: min(24rem, calc(100vw - 2rem)) !important;
+  opacity: 1 !important;
+}
+
+.p-toast .p-toast-message {
+  margin: 0 0 0.75rem !important;
+  border-radius: var(--brand-radius-surface) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-left-width: 4px !important;
+  box-shadow: var(--brand-overlay-shadow) !important;
+  backdrop-filter: blur(8px);
+}
+
+.p-toast .p-toast-message .p-toast-message-content {
+  padding: 0.85rem 1rem !important;
+  align-items: flex-start !important;
+  gap: 0.75rem !important;
+}
+
+.p-toast .p-toast-message .p-toast-message-content .p-toast-message-icon {
+  font-size: 1.15rem !important;
+  margin-top: 0.1rem !important;
+}
+
+.p-toast .p-toast-message .p-toast-icon-close {
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+  border-radius: 999px !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.p-toast .p-toast-message .p-toast-icon-close:enabled:hover {
+  background: color-mix(in srgb, var(--text-color) 8%, transparent) !important;
+}
+
+.p-toast .p-toast-message.p-toast-message-success {
+  @include brand-alert-tone(success, var(--brand-success));
+}
+
+.p-toast .p-toast-message.p-toast-message-warn {
+  @include brand-alert-tone(warning, var(--brand-premium));
+}
+
+.p-toast .p-toast-message.p-toast-message-error {
+  @include brand-alert-tone(danger, var(--brand-danger));
+}
+
+.p-toast .p-toast-message.p-toast-message-info {
+  @include brand-alert-tone(info, var(--brand-info));
+}
+
+// ---------------------------------------------------------------------------
+// Brand utility classes
+// ---------------------------------------------------------------------------
+.surface-gradient,
+.brand-gradient-primary {
+  background: var(--brand-gradient-primary) !important;
+}
+
+.brand-gradient-ai {
+  background: var(--brand-gradient-ai) !important;
+}
+
+.brand-gradient-analytics {
+  background: var(--brand-gradient-analytics) !important;
+}
+
+// ---------------------------------------------------------------------------
+// Global scrollbars — match sidebar (thin pill thumb, transparent track)
+// ---------------------------------------------------------------------------
+html,
+body,
+* {
+  @include ims-brand-scrollbar;
+}
+
+.layout-sidebar > app-sidebar {
+  @include ims-brand-scrollbar(
+    var(--brand-scrollbar-sidebar-thumb),
+    var(--brand-scrollbar-sidebar-thumb-hover),
+    var(--brand-scrollbar-sidebar-firefox)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar — navy corporate branding (light mode)
+// ---------------------------------------------------------------------------
+:root:not([color-scheme='dark']) .layout-sidebar {
+  background-color: var(--brand-navy);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 24px rgba(11, 31, 74, 0.28),
+    0 2px 6px rgba(11, 31, 74, 0.12);
+}
+
+:root:not([color-scheme='dark']) .layout-sidebar .layout-menu {
+  .layout-menuitem-root-text {
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  ul a {
+    color: rgba(255, 255, 255, 0.82);
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    &.active-route {
+      color: #FFFFFF;
+      background-color: rgba(30, 94, 255, 0.32);
+      font-weight: 600;
+    }
+
+    .layout-menuitem-icon {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    &.active-route .layout-menuitem-icon {
+      color: #FFFFFF;
+    }
+  }
+}
+
+// Dark mode sidebar — corporate blue
+:root[color-scheme='dark'] .layout-sidebar {
+  background-color: var(--brand-corporate);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+:root[color-scheme='dark'] .layout-sidebar .layout-menu {
+  .layout-menuitem-root-text {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  ul a {
+    color: rgba(255, 255, 255, 0.78);
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+    }
+
+    &.active-route {
+      color: #FFFFFF;
+      background-color: rgba(30, 94, 255, 0.28);
+      font-weight: 700;
+    }
+
+    .layout-menuitem-icon {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    &.active-route .layout-menuitem-icon {
+      color: #FFFFFF;
+    }
+  }
+}
+
+// Compact sidebar flyouts — match navy / corporate surfaces
+:root:not([color-scheme='dark']) .layout-wrapper.layout-menu-compact .layout-sidebar .layout-menu li:not(.layout-root-menuitem) > ul,
+:root:not([color-scheme='dark']) .layout-wrapper.layout-menu-hover .layout-sidebar:not(.layout-sidebar--hover-expanded) .layout-menu li:not(.layout-root-menuitem) > ul {
+  background-color: var(--brand-navy);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(11, 31, 74, 0.35);
+
+  .layout-submenu-panel-header {
+    color: rgba(255, 255, 255, 0.52);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  a {
+    color: rgba(255, 255, 255, 0.82);
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    &.active-route {
+      color: #FFFFFF;
+      background-color: rgba(30, 94, 255, 0.32);
+    }
+  }
+}
+
+:root[color-scheme='dark'] .layout-wrapper.layout-menu-compact .layout-sidebar .layout-menu li:not(.layout-root-menuitem) > ul,
+:root[color-scheme='dark'] .layout-wrapper.layout-menu-hover .layout-sidebar:not(.layout-sidebar--hover-expanded) .layout-menu li:not(.layout-root-menuitem) > ul,
+.layout-theme-dark .layout-wrapper.layout-menu-compact .layout-sidebar .layout-menu li:not(.layout-root-menuitem) > ul,
+.layout-theme-dark .layout-wrapper.layout-menu-hover .layout-sidebar:not(.layout-sidebar--hover-expanded) .layout-menu li:not(.layout-root-menuitem) > ul {
+  background-color: var(--brand-corporate);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+
+  .layout-submenu-panel-header {
+    color: rgba(255, 255, 255, 0.5);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  a {
+    color: rgba(255, 255, 255, 0.82);
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+    }
+
+    &.active-route {
+      color: #FFFFFF;
+      background-color: rgba(30, 94, 255, 0.28);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Topbar
+// ---------------------------------------------------------------------------
+:root:not([color-scheme='dark']) .layout-topbar {
+  border-bottom: 1px solid var(--brand-border);
+
+  .layout-topbar-logo {
+    color: var(--brand-navy);
+    font-family: var(--brand-font-display);
+    font-weight: 600;
+  }
+}
+
+// Theme-aware marketing logo (single img via app-brand-logo)
+.layout-topbar-logo img,
+.layout-topbar-logo app-brand-logo img,
+.layout-footer app-brand-logo img {
+  height: 3.5rem;
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  margin: 0;
+  background: transparent;
+}
+
+.layout-footer app-brand-logo img {
+  height: 1.25rem;
+  max-width: 8rem;
+}
+
+.layout-topbar-logo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  width: auto;
+  background: transparent;
+}
+
+.system-hero .logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.system-hero .logo-img {
+  display: block;
+  height: 7rem;
+  width: auto;
+  max-width: min(100%, 22rem);
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+:root[color-scheme='dark'] .layout-topbar {
+  background-color: var(--brand-corporate);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+
+  .layout-topbar-logo {
+    color: var(--brand-dark-text);
+  }
+
+  .layout-topbar-button {
+    color: rgba(255, 255, 255, 0.72);
+
+    &:hover {
+      color: #FFFFFF;
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notification sidebar — portaled to body; needs global theme rules
+// ---------------------------------------------------------------------------
+.notification-sidebar.p-sidebar {
+  border-left: 1px solid var(--surface-border);
+}
+
+.notification-sidebar .p-sidebar-content {
+  color: var(--text-color);
+}
+
+.notification-sidebar .notification-title {
+  color: var(--text-color);
+}
+
+.notification-sidebar .notification-message,
+.notification-sidebar .notification-time,
+.notification-sidebar .notification-empty__text {
+  color: var(--text-color-secondary);
+}
+
+.notification-sidebar .notification-empty__title,
+.notification-sidebar .notification-section-head__title {
+  color: var(--text-color);
+}
+
+.notification-sidebar .notification-filter-chip {
+  color: var(--text-color-secondary);
+}
+
+.notification-sidebar .notification-filter-chip:hover {
+  color: var(--text-color);
+}
+
+.notification-sidebar .notification-item {
+  color: var(--text-color);
+}
+
+:root[color-scheme='dark'] .notification-sidebar,
+.layout-theme-dark .notification-sidebar {
+  &.p-sidebar {
+    border-left-color: rgba(255, 255, 255, 0.08);
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .p-sidebar-content {
+    background: var(--brand-dark-bg-secondary);
+    color: var(--brand-dark-text);
+  }
+
+  .notification-title,
+  .notification-empty__title,
+  .notification-section-head__title {
+    color: var(--brand-dark-text) !important;
+  }
+
+  .notification-message,
+  .notification-time,
+  .notification-empty__text {
+    color: var(--brand-dark-text-secondary) !important;
+  }
+
+  .notification-filter-chip {
+    background: var(--brand-dark-bg);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: var(--brand-dark-text-secondary);
+  }
+
+  .notification-filter-chip:hover {
+    color: var(--brand-dark-text);
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+
+  .notification-filter-chip:not(.notification-filter-chip--active) .notification-filter-chip__count {
+    background: rgba(30, 94, 255, 0.22);
+    color: #B8CCFF;
+  }
+
+  .notification-toolbar,
+  .notification-footer,
+  .notification-section-head {
+    background: var(--brand-dark-surface);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .notification-search__input {
+    background: var(--brand-dark-bg) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: var(--brand-dark-text) !important;
+  }
+
+  .notification-item {
+    background: var(--brand-dark-surface);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--brand-dark-text);
+  }
+
+  .notification-item--unread {
+    background: color-mix(in srgb, var(--brand-dark-surface) 82%, var(--brand-saas) 18%);
+    border-color: color-mix(in srgb, var(--brand-saas) 35%, rgba(255, 255, 255, 0.1));
+  }
+
+  .notification-item--priority {
+    background: color-mix(in srgb, var(--brand-dark-surface) 90%, var(--brand-danger) 10%);
+    border-color: color-mix(in srgb, var(--brand-danger) 35%, rgba(255, 255, 255, 0.1));
+  }
+
+  .p-tag {
+    color: var(--brand-dark-text) !important;
+  }
+
+  .p-tag.p-tag-info {
+    background: rgba(30, 94, 255, 0.22) !important;
+    color: #B8CCFF !important;
+  }
+
+  .p-tag.p-tag-danger {
+    background: rgba(229, 72, 77, 0.22) !important;
+    color: #FCA5A5 !important;
+  }
+
+  .p-tag.p-tag-secondary {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: var(--brand-dark-text-secondary) !important;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Layout config sidebar — portaled to body; needs global theme rules
+// ---------------------------------------------------------------------------
+.layout-config-sidebar.p-sidebar {
+  border-left: 1px solid var(--surface-border);
+}
+
+.layout-config-sidebar .p-sidebar-content {
+  color: var(--text-color);
+}
+
+.layout-config-sidebar .config-section-head__title {
+  color: var(--text-color-secondary);
+}
+
+.layout-config-sidebar .config-card {
+  background: var(--surface-card);
+  border-color: var(--surface-border);
+}
+
+.layout-config-sidebar .config-toggle-label {
+  color: var(--text-color);
+}
+
+.layout-config-sidebar .config-toggle-desc,
+.layout-config-sidebar .config-scale-value {
+  color: var(--text-color-secondary);
+}
+
+.layout-config-sidebar .config-option-chip {
+  background: var(--surface-ground);
+  border-color: var(--surface-border);
+  color: var(--text-color-secondary);
+}
+
+.layout-config-sidebar .config-option-chip:hover {
+  color: var(--text-color);
+}
+
+:root[color-scheme='dark'] .layout-config-sidebar,
+.layout-theme-dark .layout-config-sidebar {
+  &.p-sidebar {
+    border-left-color: rgba(255, 255, 255, 0.08);
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .p-sidebar-content {
+    background: var(--brand-dark-bg-secondary);
+    color: var(--brand-dark-text);
+  }
+
+  .config-section-head__title {
+    color: var(--brand-dark-text-secondary) !important;
+  }
+
+  .config-card {
+    background: var(--brand-dark-surface);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .config-toggle-label {
+    color: var(--brand-dark-text) !important;
+  }
+
+  .config-toggle-desc,
+  .config-scale-value {
+    color: var(--brand-dark-text-secondary) !important;
+  }
+
+  .config-option-chip {
+    background: var(--brand-dark-bg);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: var(--brand-dark-text-secondary);
+  }
+
+  .config-option-chip:hover {
+    color: var(--brand-dark-text);
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+
+  .config-option-chip--active {
+    background: var(--brand-gradient-primary) !important;
+    border-color: rgba(120, 168, 255, 0.55) !important;
+    color: #fff !important;
+    box-shadow:
+      0 0 0 1px rgba(30, 94, 255, 0.45),
+      0 8px 22px rgba(30, 94, 255, 0.38) !important;
+  }
+
+  .config-option-chip--active:hover {
+    color: #fff !important;
+    border-color: rgba(160, 192, 255, 0.65) !important;
+  }
+
+  .config-option-chip--active i {
+    color: #fff !important;
+  }
+
+  .config-scale-dot {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .config-scale-dot--active {
+    background: var(--brand-saas);
+    box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.35);
+  }
+}
+
+// Notification details dialog — portaled to body
+.notification-details-dialog.p-dialog .p-dialog-content {
+  color: var(--text-color);
+  background: var(--surface-ground);
+}
+
+.notification-details-dialog .notification-details-panel__title,
+.notification-details-dialog .notification-details-panel__text,
+.notification-details-dialog .notification-details-field__value {
+  color: var(--text-color);
+}
+
+.notification-details-dialog .notification-details-panel__subtitle,
+.notification-details-dialog .notification-details-field__label {
+  color: var(--text-color-secondary);
+}
+
+:root[color-scheme='dark'] .notification-details-dialog,
+.layout-theme-dark .notification-details-dialog {
+  &.p-dialog .p-dialog-content {
+    background: var(--brand-dark-bg-secondary);
+    color: var(--brand-dark-text);
+  }
+
+  .notification-details-body {
+    background: var(--brand-dark-bg-secondary);
+  }
+
+  .notification-details-panel {
+    background: var(--brand-dark-surface);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .notification-details-panel__title,
+  .notification-details-panel__text,
+  .notification-details-field__value {
+    color: var(--brand-dark-text) !important;
+  }
+
+  .notification-details-panel__subtitle,
+  .notification-details-field__label {
+    color: var(--brand-dark-text-secondary) !important;
+  }
+
+  .p-tag {
+    color: var(--brand-dark-text) !important;
+  }
+
+  .p-tag.p-tag-info {
+    background: rgba(30, 94, 255, 0.22) !important;
+    color: #B8CCFF !important;
+  }
+
+  .p-tag.p-tag-danger {
+    background: rgba(229, 72, 77, 0.22) !important;
+    color: #FCA5A5 !important;
+  }
+
+  .p-tag.p-tag-success {
+    background: rgba(22, 199, 132, 0.2) !important;
+    color: #7AE4B8 !important;
+  }
+
+  .p-tag.p-tag-warning {
+    background: rgba(244, 183, 64, 0.22) !important;
+    color: #F4D03F !important;
+  }
+
+  .p-tag.p-tag-secondary {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: var(--brand-dark-text-secondary) !important;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PrimeNG components — enforce brand primary (targeted; avoid breaking toggles/dialogs)
+// ---------------------------------------------------------------------------
+.p-button.p-button-primary:not(.p-button-outlined):not(.p-button-text):not(.p-button-link) {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+// SelectButton — unselected white, selected brand blue (light mode)
+.p-selectbutton .p-button:not(.p-highlight) {
+  background: #ffffff !important;
+  border: 1px solid var(--brand-border, #DCE3F0) !important;
+  color: var(--brand-text-primary, #1A1F36) !important;
+}
+
+.p-selectbutton .p-button:not(.p-highlight):enabled:hover {
+  background: var(--brand-bg-secondary, #F5F7FB) !important;
+  border-color: var(--brand-border, #DCE3F0) !important;
+  color: var(--brand-text-primary, #1A1F36) !important;
+}
+
+.p-selectbutton .p-button.p-highlight {
+  background: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: #ffffff !important;
+}
+
+.p-selectbutton .p-button.p-highlight .p-button-label,
+.p-selectbutton .p-button.p-highlight .p-button-icon {
+  color: #ffffff !important;
+}
+
+:root[color-scheme='dark'] .p-selectbutton .p-button:not(.p-highlight) {
+  background: var(--surface-card, #102B63) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+}
+
+:root[color-scheme='dark'] .p-selectbutton .p-button:not(.p-highlight):enabled:hover {
+  background: var(--surface-hover) !important;
+}
+
+// ---------------------------------------------------------------------------
+// Form fields — inputs, dropdowns, calendars, checkboxes, etc.
+// ---------------------------------------------------------------------------
+@mixin ims-form-field-shell {
+  background: var(--brand-field-bg) !important;
+  border: 1px solid var(--brand-field-border) !important;
+  color: var(--text-color) !important;
+  border-radius: var(--brand-field-radius) !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@mixin ims-form-field-focus {
+  outline: none !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+@mixin ims-overlay-panel {
+  background: var(--brand-overlay-bg) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--brand-field-radius) !important;
+  box-shadow: var(--brand-overlay-shadow) !important;
+}
+
+@mixin ims-overlay-item-highlight {
+  background: var(--highlight-bg) !important;
+  color: var(--highlight-text-color) !important;
+}
+
+.p-inputtext,
+.p-inputtextarea,
+.p-inputtext:enabled,
+.p-inputtextarea:enabled {
+  @include ims-form-field-shell;
+}
+
+.p-inputtext:enabled:hover,
+.p-inputtextarea:enabled:hover {
+  border-color: var(--primary-color) !important;
+}
+
+.p-inputtext:enabled:focus,
+.p-inputtextarea:enabled:focus {
+  @include ims-form-field-focus;
+}
+
+.p-inputtext:disabled,
+.p-inputtextarea:disabled {
+  opacity: 0.65 !important;
+  background: var(--surface-hover) !important;
+  color: var(--text-color-secondary) !important;
+}
+
+.p-inputtext::placeholder,
+.p-inputtextarea::placeholder {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-inputtext.ng-dirty.ng-invalid,
+.p-inputtextarea.ng-dirty.ng-invalid {
+  border-color: var(--brand-field-invalid-border) !important;
+}
+
+.p-input-icon-left > i,
+.p-input-icon-right > i,
+.p-input-icon-left > .p-icon-wrapper,
+.p-input-icon-right > .p-icon-wrapper {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-dropdown,
+.p-multiselect,
+.p-listbox,
+.p-treeselect {
+  @include ims-form-field-shell;
+}
+
+// Autocomplete without dropdown button — input is the shell
+.p-autocomplete:not(.p-autocomplete-dd) .p-autocomplete-input {
+  @include ims-form-field-shell;
+}
+
+.p-dropdown:not(.p-disabled):hover,
+.p-multiselect:not(.p-disabled):hover,
+.p-autocomplete:not(.p-autocomplete-dd):not(.p-disabled):hover .p-autocomplete-input,
+.p-treeselect:not(.p-disabled):hover {
+  border-color: var(--primary-color) !important;
+}
+
+.p-dropdown:not(.p-disabled).p-focus,
+.p-multiselect:not(.p-disabled).p-focus,
+.p-autocomplete:not(.p-autocomplete-dd):not(.p-disabled).p-focus .p-autocomplete-input,
+.p-listbox.p-focus,
+.p-treeselect:not(.p-disabled).p-focus {
+  @include ims-form-field-focus;
+}
+
+.p-dropdown .p-dropdown-label,
+.p-multiselect .p-multiselect-label,
+.p-treeselect .p-treeselect-label {
+  background: transparent !important;
+  color: var(--text-color) !important;
+}
+
+// Dropdown label uses p-inputtext — must not inherit input border (avoids split-box look)
+.p-dropdown .p-dropdown-label.p-inputtext {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.p-dropdown .p-dropdown-trigger {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.p-dropdown .p-dropdown-label.p-placeholder,
+.p-multiselect .p-multiselect-label.p-placeholder,
+.p-treeselect .p-treeselect-label.p-placeholder {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-dropdown .p-dropdown-trigger,
+.p-multiselect .p-multiselect-trigger,
+.p-treeselect .p-treeselect-trigger {
+  background: transparent !important;
+  color: var(--text-color-secondary) !important;
+}
+
+.p-dropdown .p-dropdown-clear-icon,
+.p-multiselect .p-multiselect-clear-icon,
+.p-autocomplete .p-autocomplete-clear-icon,
+.p-calendar .p-calendar-clear-icon {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-dropdown-panel,
+.p-multiselect-panel,
+.p-autocomplete-panel,
+.p-listbox,
+.p-treeselect-panel {
+  @include ims-overlay-panel;
+}
+
+.p-dropdown-panel .p-dropdown-header,
+.p-multiselect-panel .p-multiselect-header,
+.p-listbox .p-listbox-header {
+  background: var(--brand-overlay-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-border) !important;
+}
+
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item,
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item,
+.p-listbox .p-listbox-list .p-listbox-item,
+.p-treeselect-panel .p-treeselect-items .p-treeselect-item {
+  color: var(--text-color) !important;
+  background: transparent !important;
+}
+
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item:not(.p-highlight):not(.p-disabled):hover,
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item:not(.p-highlight):not(.p-disabled):hover,
+.p-listbox .p-listbox-list .p-listbox-item:not(.p-highlight):not(.p-disabled):hover,
+.p-treeselect-panel .p-treeselect-items .p-treeselect-item:not(.p-highlight):not(.p-disabled):hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
+}
+
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item.p-highlight,
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item.p-highlight,
+.p-listbox .p-listbox-list .p-listbox-item.p-highlight,
+.p-treeselect-panel .p-treeselect-items .p-treeselect-item.p-highlight {
+  @include ims-overlay-item-highlight;
+}
+
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item:not(.p-highlight):not(.p-disabled).p-focus,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item:not(.p-highlight):not(.p-disabled).p-focus,
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item:not(.p-highlight):not(.p-disabled).p-focus,
+.p-listbox:not(.p-disabled) .p-listbox-item:not(.p-highlight):not(.p-disabled).p-focus,
+.p-treeselect-panel .p-treeselect-items .p-treeselect-item:not(.p-highlight):not(.p-disabled).p-focus {
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
+}
+
+.p-multiselect.p-multiselect-chip .p-multiselect-token {
+  background: var(--highlight-bg) !important;
+  color: var(--highlight-text-color) !important;
+  border-radius: 999px !important;
+}
+
+.p-calendar:not(.p-calendar-disabled):not(.p-calendar-w-btn).p-focus > .p-inputtext {
+  @include ims-form-field-focus;
+}
+
+.p-calendar .p-datepicker-trigger,
+.p-calendar .p-datepicker-trigger:enabled:hover {
+  background: transparent !important;
+  color: var(--text-color-secondary) !important;
+  border-color: transparent !important;
+}
+
+.p-datepicker {
+  @include ims-overlay-panel;
+  padding: 0.5rem !important;
+}
+
+.p-datepicker .p-datepicker-header {
+  background: var(--brand-overlay-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-border) !important;
+}
+
+.p-datepicker .p-datepicker-header .p-datepicker-prev,
+.p-datepicker .p-datepicker-header .p-datepicker-next {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-datepicker .p-datepicker-header .p-datepicker-prev:enabled:hover,
+.p-datepicker .p-datepicker-header .p-datepicker-next:enabled:hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
+}
+
+.p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-year,
+.p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-month {
+  color: var(--text-color) !important;
+}
+
+.p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-year:enabled:hover,
+.p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-month:enabled:hover {
+  color: var(--primary-color) !important;
+}
+
+.p-datepicker table td > span {
+  color: var(--text-color) !important;
+}
+
+.p-datepicker table td > span:not(.p-highlight):not(.p-disabled):hover {
+  background: var(--surface-hover) !important;
+}
+
+.p-datepicker table td > span.p-highlight {
+  @include ims-overlay-item-highlight;
+}
+
+.p-datepicker table td.p-datepicker-today > span {
+  color: var(--primary-color) !important;
+}
+
+.p-datepicker .p-datepicker-buttonbar,
+.p-datepicker .p-timepicker {
+  border-color: var(--surface-border) !important;
+}
+
+.p-checkbox .p-checkbox-box,
+.p-radiobutton .p-radiobutton-box {
+  background: var(--brand-field-bg) !important;
+  border: 2px solid var(--brand-field-border) !important;
+  border-radius: calc(var(--brand-radius-field) - 2px) !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.p-radiobutton .p-radiobutton-box {
+  border-radius: 50% !important;
+}
+
+.p-checkbox:not(.p-checkbox-disabled) .p-checkbox-box:hover,
+.p-radiobutton:not(.p-radiobutton-disabled) .p-radiobutton-box:hover {
+  border-color: var(--primary-color) !important;
+}
+
+.p-checkbox .p-checkbox-box.p-focus,
+.p-radiobutton .p-radiobutton-box.p-focus {
+  box-shadow: var(--focus-ring) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.p-checkbox .p-checkbox-box.p-highlight,
+.p-radiobutton .p-radiobutton-box.p-highlight {
+  border-color: var(--primary-color) !important;
+  background: var(--primary-color) !important;
+}
+
+.p-checkbox:not(.p-checkbox-disabled) .p-checkbox-box.p-highlight:hover,
+.p-radiobutton:not(.p-radiobutton-disabled) .p-radiobutton-box.p-highlight:hover {
+  border-color: var(--primary-600, var(--brand-saas-hover)) !important;
+  background: var(--primary-600, var(--brand-saas-hover)) !important;
+}
+
+.p-checkbox .p-checkbox-box.p-highlight .p-checkbox-icon,
+.p-radiobutton .p-radiobutton-box.p-highlight .p-radiobutton-icon {
+  color: var(--primary-color-text, #ffffff) !important;
+}
+
+.p-checkbox-label,
+.p-radiobutton-label {
+  color: var(--text-color) !important;
+}
+
+.p-inputswitch .p-inputswitch-slider {
+  background: var(--surface-300, #9AADBE) !important;
+}
+
+.p-inputswitch:not(.p-disabled):hover .p-inputswitch-slider {
+  background: var(--surface-400, #6B8199) !important;
+}
+
+.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider {
+  background: var(--primary-color) !important;
+}
+
+.p-inputswitch.p-inputswitch-checked:not(.p-disabled):hover .p-inputswitch-slider {
+  background: var(--primary-600, var(--brand-saas-hover)) !important;
+}
+
+.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider:before {
+  background: #ffffff !important;
+}
+
+.p-inputswitch.p-focus .p-inputswitch-slider {
+  box-shadow: var(--focus-ring) !important;
+}
+
+.p-inputnumber-buttons-stacked .p-inputnumber-button,
+.p-inputnumber-buttons-horizontal .p-inputnumber-button {
+  background: var(--brand-field-bg) !important;
+  border-color: var(--brand-field-border) !important;
+  color: var(--text-color-secondary) !important;
+}
+
+.p-inputnumber-buttons-stacked .p-inputnumber-button:enabled:hover,
+.p-inputnumber-buttons-horizontal .p-inputnumber-button:enabled:hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+// Unified shell for .p-inputgroup — see ims-radius.scss
+.p-inputgroup {
+  .p-inputtext,
+  .p-inputtextarea,
+  .p-inputtext:enabled,
+  .p-inputtextarea:enabled,
+  input.p-inputtext,
+  textarea.p-inputtextarea {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .p-inputtext:enabled:hover,
+  .p-inputtextarea:enabled:hover,
+  .p-inputtext:enabled:focus,
+  .p-inputtextarea:enabled:focus {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .p-inputgroup-addon {
+    background: var(--surface-hover) !important;
+    color: var(--text-color-secondary) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-inline-end: 1px solid var(--brand-field-border) !important;
+  }
+}
+
+.p-float-label > label {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-float-label > .p-inputwrapper-filled ~ label,
+.p-float-label > .p-inputwrapper-focus ~ label,
+.p-float-label > .p-inputtext:-webkit-autofill ~ label {
+  color: var(--primary-color) !important;
+}
+
+.p-chips .p-chips-multiple-container {
+  @include ims-form-field-shell;
+  gap: 0.35rem;
+}
+
+.p-chips .p-chips-multiple-container:not(.p-disabled):hover {
+  border-color: var(--primary-color) !important;
+}
+
+.p-chips .p-chips-multiple-container:not(.p-disabled).p-focus {
+  @include ims-form-field-focus;
+}
+
+.p-chips .p-chips-token {
+  background: var(--highlight-bg) !important;
+  color: var(--highlight-text-color) !important;
+  border-radius: 999px !important;
+}
+
+.p-input-filled .p-inputtext,
+.p-input-filled .p-dropdown,
+.p-input-filled .p-multiselect {
+  background: var(--brand-field-bg) !important;
+}
+
+.p-input-filled .p-inputtext:enabled:hover,
+.p-input-filled .p-dropdown:not(.p-disabled):hover,
+.p-input-filled .p-multiselect:not(.p-disabled):hover {
+  background: var(--brand-field-bg) !important;
+}
+
+.p-input-filled .p-inputtext:enabled:focus,
+.p-input-filled .p-dropdown:not(.p-disabled).p-focus,
+.p-input-filled .p-multiselect:not(.p-disabled).p-focus {
+  background: var(--brand-field-bg) !important;
+}
+
+.p-input-filled .p-checkbox .p-checkbox-box,
+.p-input-filled .p-radiobutton .p-radiobutton-box {
+  background: var(--brand-field-bg) !important;
+}
+
+.p-password-panel {
+  @include ims-overlay-panel;
+}
+
+.p-password-panel .p-password-meter {
+  background: var(--surface-hover) !important;
+}
+
+.p-password-panel .p-password-meter .p-password-strength.weak {
+  background: var(--brand-danger) !important;
+}
+
+.p-password-panel .p-password-meter .p-password-strength.medium {
+  background: var(--brand-premium) !important;
+}
+
+.p-password-panel .p-password-meter .p-password-strength.strong {
+  background: var(--brand-success) !important;
+}
+
+.layout-theme-dark .p-inputtext,
+.layout-theme-dark .p-dropdown,
+.layout-theme-dark .p-multiselect,
+.layout-theme-dark .p-datepicker,
+.layout-theme-dark .p-checkbox .p-checkbox-box,
+.layout-theme-dark .p-radiobutton .p-radiobutton-box {
+  color-scheme: dark;
+}
+
+// ---------------------------------------------------------------------------
+// Overlays — dialogs, sidebars, popup menus, panels, tooltips
+// ---------------------------------------------------------------------------
+@mixin ims-popup-menu-shell {
+  padding: 0.35rem !important;
+  background: var(--brand-overlay-bg) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--brand-field-radius) !important;
+  box-shadow: var(--brand-overlay-shadow) !important;
+}
+
+@mixin ims-menu-item-states {
+  .p-menuitem > .p-menuitem-content {
+    color: var(--text-color) !important;
+    border-radius: calc(var(--brand-radius-field) - 2px) !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .p-menuitem > .p-menuitem-content .p-menuitem-link {
+    color: var(--text-color) !important;
+    padding: 0.65rem 0.9rem !important;
+  }
+
+  .p-menuitem > .p-menuitem-content .p-menuitem-link .p-menuitem-text {
+    color: inherit !important;
+  }
+
+  .p-menuitem > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+  .p-menuitem > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+    color: var(--text-color-secondary) !important;
+  }
+
+  .p-menuitem.p-highlight > .p-menuitem-content {
+    @include ims-overlay-item-highlight;
+  }
+
+  .p-menuitem.p-highlight.p-focus > .p-menuitem-content,
+  .p-menuitem:not(.p-highlight):not(.p-disabled).p-focus > .p-menuitem-content {
+    background: var(--surface-hover) !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-menuitem:not(.p-highlight):not(.p-disabled) > .p-menuitem-content:hover {
+    background: var(--surface-hover) !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-menuitem:not(.p-highlight):not(.p-disabled) > .p-menuitem-content:hover .p-menuitem-link .p-menuitem-icon,
+  .p-menuitem:not(.p-highlight):not(.p-disabled) > .p-menuitem-content:hover .p-menuitem-link .p-submenu-icon,
+  .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+  .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+    color: var(--text-color) !important;
+  }
+
+  .p-menuitem-separator,
+  .p-tieredmenu .p-menuitem-separator,
+  .p-contextmenu .p-menuitem-separator {
+    border-top-color: var(--surface-border) !important;
+  }
+
+  .p-submenu-header {
+    color: var(--text-color-secondary) !important;
+    background: transparent !important;
+  }
+}
+
+.p-dialog {
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--brand-radius-surface) !important;
+  box-shadow: var(--brand-overlay-shadow) !important;
+  background: var(--surface-card) !important;
+}
+
+.p-dialog .p-dialog-header {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border-bottom: 1px solid var(--surface-border) !important;
+  padding: 1.15rem 1.5rem !important;
+  border-radius: var(--brand-radius-surface) var(--brand-radius-surface) 0 0 !important;
+}
+
+.p-dialog .p-dialog-header .p-dialog-title {
+  font-family: var(--brand-font-display);
+  font-weight: 600 !important;
+  color: var(--text-color) !important;
+}
+
+.p-dialog .p-dialog-content {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+}
+
+.p-dialog .p-dialog-footer {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border-top: 1px solid var(--surface-border) !important;
+  padding: 0.85rem 1.5rem 1.25rem !important;
+  border-radius: 0 0 var(--brand-radius-surface) var(--brand-radius-surface) !important;
+}
+
+.p-dialog.p-confirm-dialog .p-confirm-dialog-message {
+  color: var(--text-color) !important;
+}
+
+.p-confirm-popup {
+  @include ims-overlay-panel;
+}
+
+.p-confirm-popup .p-confirm-popup-content {
+  color: var(--text-color) !important;
+}
+
+.p-sidebar {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-border) !important;
+  box-shadow: var(--brand-overlay-shadow) !important;
+}
+
+.p-sidebar .p-sidebar-header {
+  color: var(--text-color) !important;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.p-sidebar .p-sidebar-header .p-sidebar-close,
+.p-sidebar .p-sidebar-header .p-sidebar-icon {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-sidebar .p-sidebar-header .p-sidebar-close:enabled:hover,
+.p-sidebar .p-sidebar-header .p-sidebar-icon:enabled:hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
+}
+
+.p-sidebar .p-sidebar-content {
+  color: var(--text-color) !important;
+}
+
+.p-overlaypanel {
+  @include ims-overlay-panel;
+}
+
+.p-overlaypanel .p-overlaypanel-close {
+  background: var(--primary-color) !important;
+  color: var(--primary-color-text, #ffffff) !important;
+}
+
+.p-overlaypanel .p-overlaypanel-close:enabled:hover {
+  background: var(--primary-600, var(--brand-saas-hover)) !important;
+}
+
+.p-menu,
+.p-tieredmenu,
+.p-contextmenu,
+.p-menu.p-menu-overlay,
+.p-tieredmenu.p-tieredmenu-overlay {
+  @include ims-popup-menu-shell;
+  @include ims-menu-item-states;
+}
+
+.p-tieredmenu .p-submenu-list,
+.p-contextmenu .p-submenu-list,
+.p-megamenu .p-megamenu-submenu {
+  @include ims-popup-menu-shell;
+  @include ims-menu-item-states;
+}
+
+.p-megamenu {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+  @include ims-menu-item-states;
+}
+
+.p-panelmenu .p-panelmenu-header .p-panelmenu-header-content {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+  border-radius: var(--brand-field-radius) !important;
+}
+
+.p-panelmenu .p-panelmenu-content {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+  @include ims-menu-item-states;
+}
+
+.p-accordion .p-accordion-header .p-accordion-header-link {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+  border-radius: var(--brand-field-radius) !important;
+  font-weight: 600 !important;
+}
+
+.p-accordion .p-accordion-header:not(.p-highlight):not(.p-disabled):hover .p-accordion-header-link,
+.p-accordion .p-accordion-header:not(.p-disabled).p-highlight:hover .p-accordion-header-link {
+  background: var(--surface-hover) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+}
+
+.p-accordion .p-accordion-header:not(.p-disabled).p-highlight .p-accordion-header-link {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--primary-color) !important;
+}
+
+.p-accordion .p-accordion-content {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+}
+
+.p-panel .p-panel-header {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+  border-radius: var(--brand-field-radius) var(--brand-field-radius) 0 0 !important;
+}
+
+.p-panel .p-panel-header .p-panel-title {
+  color: var(--text-color) !important;
+  font-weight: 600 !important;
+}
+
+.p-panel .p-panel-content,
+.p-panel .p-panel-footer {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+}
+
+.p-breadcrumb {
+  background: transparent !important;
+  border: none !important;
+}
+
+.p-breadcrumb .p-breadcrumb-list li .p-menuitem-link {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-breadcrumb .p-breadcrumb-list li .p-menuitem-link:hover .p-menuitem-text {
+  color: var(--primary-color) !important;
+}
+
+.p-breadcrumb .p-breadcrumb-list li:last-child .p-menuitem-text {
+  color: var(--text-color) !important;
+  font-weight: 600;
+}
+
+.p-breadcrumb .p-breadcrumb-list li.p-menuitem-separator {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-tooltip .p-tooltip-text {
+  background: var(--brand-navy) !important;
+  color: var(--brand-white) !important;
+  border-radius: var(--brand-radius-field) !important;
+  box-shadow: var(--brand-overlay-shadow) !important;
+}
+
+.p-tooltip.p-tooltip-right .p-tooltip-arrow {
+  border-right-color: var(--brand-navy) !important;
+}
+
+.p-tooltip.p-tooltip-left .p-tooltip-arrow {
+  border-left-color: var(--brand-navy) !important;
+}
+
+.p-tooltip.p-tooltip-top .p-tooltip-arrow {
+  border-top-color: var(--brand-navy) !important;
+}
+
+.p-tooltip.p-tooltip-bottom .p-tooltip-arrow {
+  border-bottom-color: var(--brand-navy) !important;
+}
+
+.p-column-filter-overlay,
+.p-column-filter-overlay-menu {
+  @include ims-overlay-panel;
+}
+
+.p-column-filter-overlay .p-column-filter-row-items .p-column-filter-row-item:not(.p-highlight):not(.p-disabled):hover,
+.p-column-filter-overlay .p-column-filter-row-items .p-column-filter-row-item:not(.p-highlight):not(.p-disabled).p-focus {
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
+}
+
+.p-toolbar {
+  background: var(--surface-card) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color) !important;
+  border-radius: var(--brand-field-radius) !important;
+}
+
+.p-divider .p-divider-content {
+  background: var(--surface-ground) !important;
+  color: var(--text-color-secondary) !important;
+}
+
+.p-divider.p-divider-horizontal:before,
+.p-divider.p-divider-vertical:before {
+  border-color: var(--surface-border) !important;
+}
+
+.p-chip {
+  background: var(--highlight-bg) !important;
+  color: var(--highlight-text-color) !important;
+  border-radius: 999px !important;
+}
+
+.p-inline-message,
+.p-message {
+  border-radius: var(--brand-field-radius) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-left-width: 4px !important;
+  box-shadow: none !important;
+}
+
+.p-inline-message.p-inline-message-info {
+  @include brand-alert-tone(info, var(--brand-info));
+}
+
+.p-inline-message.p-inline-message-success {
+  @include brand-alert-tone(success, var(--brand-success));
+}
+
+.p-inline-message.p-inline-message-warn {
+  @include brand-alert-tone(warning, var(--brand-premium));
+}
+
+.p-inline-message.p-inline-message-error {
+  @include brand-alert-tone(danger, var(--brand-danger));
+}
+
+.p-message.p-message-info {
+  @include brand-alert-tone(info, var(--brand-info));
+}
+
+.p-message.p-message-success {
+  @include brand-alert-tone(success, var(--brand-success));
+}
+
+.p-message.p-message-warn {
+  @include brand-alert-tone(warning, var(--brand-premium));
+}
+
+.p-message.p-message-error {
+  @include brand-alert-tone(danger, var(--brand-danger));
+}
+
+.p-message .p-message-wrapper {
+  padding: 0.75rem 1rem !important;
+  gap: 0.65rem !important;
+}
+
+.p-blockui.p-component-overlay {
+  background: rgba(11, 31, 74, 0.45) !important;
+}
+
+.layout-theme-dark .p-blockui.p-component-overlay {
+  background: rgba(8, 24, 58, 0.62) !important;
+}
+
+// Dialog close — never treat as primary action button
+.p-dialog .p-dialog-header-icon,
+.p-dialog .p-dialog-header-close {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-color-secondary, #667085) !important;
+  box-shadow: none !important;
+}
+
+.p-dialog .p-dialog-header-icon:enabled:hover,
+.p-dialog .p-dialog-header-close:enabled:hover {
+  background: var(--surface-hover, #F5F7FB) !important;
+  color: var(--text-color, #1A1F36) !important;
+}
+
+.p-dialog .p-dialog-header-icon .p-icon,
+.p-dialog .p-dialog-header-close .p-icon,
+.p-dialog .p-dialog-header-icon .pi,
+.p-dialog .p-dialog-header-close .pi {
+  color: inherit !important;
+}
+
+:root[color-scheme='dark'] .p-dialog .p-dialog-header-icon:enabled:hover,
+:root[color-scheme='dark'] .p-dialog .p-dialog-header-close:enabled:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+.p-dialog .p-dialog-header .p-button.p-button-icon-only,
+.p-dialog .p-dialog-header .p-button.p-button-rounded {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-color-secondary, #667085) !important;
+  min-width: 2rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+
+  &::after {
+    content: none !important;
+    display: none !important;
+  }
+}
+
+.p-dialog .p-dialog-header .p-button.p-button-icon-only:enabled:hover,
+.p-dialog .p-dialog-header .p-button.p-button-rounded:enabled:hover {
+  background: var(--surface-hover, #F5F7FB) !important;
+  color: var(--text-color, #1A1F36) !important;
+}
+
+.p-dialog .p-dialog-header .p-button.p-button-icon-only .p-button-icon,
+.p-dialog .p-dialog-header .p-button.p-button-rounded .p-button-icon {
+  color: inherit !important;
+}
+
+.p-slider .p-slider-range,
+.p-slider:not(.p-disabled) .p-slider-handle {
+  background: var(--primary-color) !important;
+}
+
+.p-togglebutton.p-button.p-highlight {
+  background: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: #ffffff !important;
+}
+
+// ---------------------------------------------------------------------------
+// TabView — brand-aligned underline tabs (replaces PrimeNG default gray boxes)
+// ---------------------------------------------------------------------------
+.p-tabview {
+  .p-tabview-nav-content {
+    background: transparent;
+  }
+
+  .p-tabview-nav {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid var(--surface-border) !important;
+    padding: 0;
+    gap: 0.25rem;
+  }
+
+  .p-tabview-nav li {
+    margin: 0 !important;
+  }
+
+  .p-tabview-nav li .p-tabview-nav-link {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    padding: 0.875rem 1.25rem !important;
+    margin: 0 0 -2px !important;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-color-secondary) !important;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
+    background: var(--surface-hover) !important;
+    border-color: transparent !important;
+    border-bottom-color: transparent !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: transparent !important;
+    border-color: transparent !important;
+    border-bottom-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+  }
+
+  .p-tabview-nav li .p-tabview-nav-link:not(.p-disabled):focus-visible {
+    box-shadow: var(--focus-ring) !important;
+    outline: none;
+  }
+
+  .p-tabview-nav-btn.p-link {
+    background: var(--surface-card) !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--surface-border) !important;
+    box-shadow: none !important;
+    border-radius: var(--brand-radius-field) !important;
+  }
+
+  .p-tabview-nav-btn.p-link:focus-visible {
+    box-shadow: var(--focus-ring) !important;
+  }
+
+  .p-tabview-panels {
+    background: transparent !important;
+    padding: 1.25rem 0 0 !important;
+    border: none !important;
+    color: var(--text-color) !important;
+    border-radius: 0 !important;
+  }
+
+  .p-tabview-panel {
+    padding: 0;
+  }
+}
+
+:root[color-scheme='dark'] .p-tabview,
+.layout-theme-dark .p-tabview {
+  .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: transparent !important;
+  }
+
+  .p-tabview-nav-btn.p-link {
+    background: var(--surface-card) !important;
+    border-color: var(--surface-border) !important;
+  }
+}
+
+// Pill variant — opt-in via styleClass="ims-tabview-pill" (e.g. settings-style pages)
+.p-tabview.ims-tabview-pill {
+  .p-tabview-nav {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--surface-border) !important;
+    padding: 0.65rem 0.85rem;
+    background: var(--surface-ground) !important;
+  }
+
+  .p-tabview-nav li .p-tabview-nav-link {
+    border: 1px solid transparent !important;
+    border-radius: 2rem !important;
+    padding: 0.5rem 1.15rem !important;
+    margin: 0 !important;
+    font-size: 0.875rem;
+    border-bottom-color: transparent !important;
+  }
+
+  .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
+    color: var(--text-color) !important;
+    background: var(--surface-card) !important;
+    border-color: var(--surface-border) !important;
+  }
+
+  .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    color: var(--primary-color) !important;
+    background: color-mix(in srgb, var(--primary-color) 16%, var(--surface-card)) !important;
+    border-color: var(--primary-color) !important;
+    border-bottom-color: var(--primary-color) !important;
+  }
+
+  .p-tabview-ink-bar {
+    display: none;
+  }
+
+  .p-tabview-panels {
+    background: var(--surface-ground) !important;
+    padding: 0 !important;
+  }
+}
+
+:root[color-scheme='dark'] .p-tabview.ims-tabview-pill,
+.layout-theme-dark .p-tabview.ims-tabview-pill {
+  .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: color-mix(in srgb, var(--primary-color) 22%, var(--surface-ground)) !important;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TabMenu — same brand underline tabs (Users & Permissions, etc.)
+// ---------------------------------------------------------------------------
+.p-tabmenu {
+  .p-tabmenu-nav {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid var(--surface-border) !important;
+    padding: 0;
+    gap: 0.25rem;
+  }
+
+  .p-tabmenu-nav .p-tabmenuitem {
+    margin: 0 !important;
+  }
+
+  .p-tabmenu-nav .p-tabmenuitem .p-menuitem-link {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    padding: 0.875rem 1.25rem !important;
+    margin: 0 0 -2px !important;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-color-secondary) !important;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .p-tabmenu-nav .p-tabmenuitem .p-menuitem-link .p-menuitem-icon {
+    color: inherit !important;
+  }
+
+  .p-tabmenu-nav .p-tabmenuitem:not(.p-highlight):not(.p-disabled):hover .p-menuitem-link {
+    background: var(--surface-hover) !important;
+    border-color: transparent !important;
+    border-bottom-color: transparent !important;
+    color: var(--text-color) !important;
+  }
+
+  .p-tabmenu-nav .p-tabmenuitem.p-highlight .p-menuitem-link {
+    background: transparent !important;
+    border-color: transparent !important;
+    border-bottom-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+  }
+
+  .p-tabmenu-nav .p-tabmenuitem .p-menuitem-link:not(.p-disabled):focus-visible {
+    box-shadow: var(--focus-ring) !important;
+    outline: none;
+  }
+
+  .p-tabmenu-nav-btn.p-link {
+    background: var(--surface-card) !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--surface-border) !important;
+    box-shadow: none !important;
+    border-radius: var(--brand-radius-field) !important;
+  }
+
+  .p-tabmenu-nav-btn.p-link:focus-visible {
+    box-shadow: var(--focus-ring) !important;
+  }
+
+  .p-tabmenu-nav .p-menuitem-badge {
+    background: var(--primary-color) !important;
+    color: var(--primary-color-text, #ffffff) !important;
+  }
+}
+
+:root[color-scheme='dark'] .p-tabmenu,
+.layout-theme-dark .p-tabmenu {
+  .p-tabmenu-nav .p-tabmenuitem.p-highlight .p-menuitem-link {
+    background: transparent !important;
+  }
+
+  .p-tabmenu-nav-btn.p-link {
+    background: var(--surface-card) !important;
+    border-color: var(--surface-border) !important;
+  }
+}
+
+.p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: #ffffff !important;
+}
+
+.p-paginator .p-paginator-pages .p-paginator-page:not(.p-highlight) {
+  color: var(--text-color-secondary, #667085) !important;
+}
+
+.p-paginator .p-paginator-first,
+.p-paginator .p-paginator-prev,
+.p-paginator .p-paginator-next,
+.p-paginator .p-paginator-last {
+  color: var(--text-color-secondary, #667085) !important;
+}
+
+.p-paginator .p-paginator-first:not(.p-disabled):hover,
+.p-paginator .p-paginator-prev:not(.p-disabled):hover,
+.p-paginator .p-paginator-next:not(.p-disabled):hover,
+.p-paginator .p-paginator-last:not(.p-disabled):hover {
+  color: var(--primary-color) !important;
+}
+
+.p-datepicker table td > span.p-highlight,
+.p-listbox .p-listbox-list .p-listbox-item.p-highlight,
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item.p-highlight,
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight,
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item.p-highlight,
+.p-column-filter-overlay .p-column-filter-row-item.p-highlight {
+  background: var(--highlight-bg) !important;
+  color: var(--highlight-text-color) !important;
+}
+
+.p-datatable .p-datatable-tbody > tr.p-highlight,
+.p-treetable .p-treetable-tbody > tr.p-highlight {
+  background: var(--highlight-bg) !important;
+  color: var(--highlight-text-color) !important;
+}
+
+.p-progressbar .p-progressbar-value {
+  background: var(--primary-color) !important;
+}
+
+.p-tag:not(.p-tag-success):not(.p-tag-info):not(.p-tag-warning):not(.p-tag-danger) {
+  background: var(--primary-color) !important;
+}
+
+.p-tag.p-tag-purple,
+.p-tag[severity='purple'],
+.p-tag.p-tag-help {
+  background: var(--brand-cyan) !important;
+  color: #FFFFFF !important;
+}
+
+.p-button.p-button-help,
+.p-buttonset.p-button-help > .p-button,
+.p-splitbutton.p-button-help > .p-button {
+  background: var(--brand-cyan) !important;
+  border-color: var(--brand-cyan) !important;
+  color: #FFFFFF !important;
+}
+
+.p-button.p-button-help .p-button-label,
+.p-button.p-button-help .p-button-icon,
+.p-buttonset.p-button-help > .p-button .p-button-label,
+.p-buttonset.p-button-help > .p-button .p-button-icon,
+.p-splitbutton.p-button-help > .p-button .p-button-label,
+.p-splitbutton.p-button-help > .p-button .p-button-icon {
+  color: #FFFFFF !important;
+}
+
+.p-button.p-button-help:not(:disabled):hover,
+.p-buttonset.p-button-help > .p-button:not(:disabled):hover,
+.p-splitbutton.p-button-help > .p-button:not(:disabled):hover {
+  background: var(--cyan-600, #14A8B8) !important;
+  border-color: var(--cyan-600, #14A8B8) !important;
+}
+
+.p-button.p-button-help.p-button-outlined,
+.p-button.p-button-help.p-button-text {
+  background: transparent !important;
+  color: var(--brand-cyan) !important;
+  border-color: var(--brand-cyan) !important;
+}
+
+.p-button.p-button-help.p-button-outlined .p-button-label,
+.p-button.p-button-help.p-button-outlined .p-button-icon,
+.p-button.p-button-help.p-button-text .p-button-label,
+.p-button.p-button-help.p-button-text .p-button-icon {
+  color: var(--brand-cyan) !important;
+}
+
+.p-button.p-button-help.p-button-outlined:enabled:hover {
+  background: rgba(24, 197, 216, 0.08) !important;
+}
+
+.p-link:not(.layout-config-button),
+a.p-link:not(.layout-config-button) {
+  color: var(--primary-color);
+}
+
+.p-link:not(.layout-config-button):hover,
+a.p-link:not(.layout-config-button):hover {
+  color: var(--primary-600, var(--brand-saas-hover));
+}
+
+// Settings / theme panel trigger (fixed right edge)
+.layout-config-button.p-link,
+.layout-config-button.p-link i,
+.layout-config-button.p-link .pi {
+  color: #ffffff !important;
+}
+
+.text-primary {
+  color: var(--primary-color) !important;
+}
+
+.bg-primary {
+  background-color: var(--primary-color) !important;
+}
+
+.border-primary {
+  border-color: var(--primary-color) !important;
+}
+
+// PrimeFlex legacy purple/indigo utility classes → brand tokens
+.text-purple-500,
+.text-purple-600,
+.text-indigo-500,
+.text-indigo-600 {
+  color: var(--brand-cyan) !important;
+}
+
+.bg-purple-50,
+.bg-purple-100 {
+  background-color: var(--purple-100) !important;
+}
+
+.text-purple-700 {
+  color: var(--purple-700) !important;
+}

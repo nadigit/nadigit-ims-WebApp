@@ -57,8 +57,8 @@
     right: 0;
     bottom: 0;
     background: 
-        radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--indigo-500) 5%, transparent) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--indigo-500) 8%, transparent) 0%, transparent 50%);
+        radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--primary-500) 5%, transparent) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--primary-500) 8%, transparent) 0%, transparent 50%);
     pointer-events: none;
 }
 
@@ -77,22 +77,6 @@
 .back-button:hover {
     color: var(--primary-color) !important;
     background: var(--surface-hover) !important;
-}
-
-.account-hero-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
-}
-
-.account-hero-icon i {
-    font-size: 2.5rem;
-    color: white;
 }
 
 .account-title {
@@ -145,41 +129,6 @@
 
 .stat-card-modern.balance-card {
     grid-column: span 1;
-}
-
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-icon.balance {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.balance.negative {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.stat-icon.deposits {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
-.stat-icon.withdrawals {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.stat-icon.unreconciled {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
 .stat-content {
@@ -321,30 +270,6 @@
     background: var(--surface-100);
 }
 
-.info-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.info-icon i {
-    color: white;
-    font-size: 1rem;
-}
-
-.info-icon.account-type {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-
-.info-icon.currency {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-}
-
 .info-content {
     flex: 1;
     min-width: 0;
@@ -377,22 +302,6 @@
     padding: 1rem;
     background: var(--surface-50);
     border-radius: 12px;
-}
-
-.bank-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.bank-avatar i {
-    font-size: 1.5rem;
-    color: white;
 }
 
 .bank-info {
@@ -571,16 +480,6 @@
         padding: 1.5rem;
     }
     
-    .account-hero-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 14px;
-    }
-    
-    .account-hero-icon i {
-        font-size: 1.75rem;
-    }
-    
     .account-title {
         font-size: 1.5rem;
     }
@@ -598,11 +497,6 @@
     
     .stat-card-modern {
         padding: 1rem;
-    }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
     }
     
     .stat-value {
@@ -639,8 +533,8 @@
     
     .hero-background {
         background: 
-            radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--indigo-500) 8%, transparent) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--indigo-500) 10%, transparent) 0%, transparent 50%);
+            radial-gradient(circle at 20% 80%, color-mix(in srgb, var(--primary-500) 8%, transparent) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--primary-500) 10%, transparent) 0%, transparent 50%);
     }
     
     .stat-card-modern {

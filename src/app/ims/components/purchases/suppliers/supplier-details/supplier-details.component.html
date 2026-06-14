@@ -1,10 +1,10 @@
-<div class="supplier-details-container">
+﻿<div class="supplier-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 <div
                     class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="supplier-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--orange">
                             <i class="pi pi-truck"></i>
                         </div>
                         <div>
@@ -60,13 +60,8 @@
                     </div>
 
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" [label]="'refresh' | translate"
-                            class="p-button-outlined" (click)="refreshData()" [disabled]="isLoading"></button>
                         <button pButton pRipple icon="pi pi-pencil" [label]="'update_supplier' | translate"
                             *ngIf="canEditSupplier" class="p-button-primary" (click)="editSupplier()"></button>
-                        <button pButton pRipple icon="pi pi-envelope" *ngIf="supplier?.email || supplier?.phoneNumber"
-                            class="p-button-success" [label]="'contact_supplier' | translate"
-                            (click)="contactSupplier()"></button>
                     </div>
                 </div>
             </div>
@@ -75,7 +70,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon products">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
@@ -85,7 +80,7 @@
             </div>
 
             <div class="stat-card-modern">
-                <div class="stat-icon purchases">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                     <i class="pi pi-shopping-cart"></i>
                 </div>
                 <div class="stat-content">
@@ -95,7 +90,7 @@
             </div>
 
             <div class="stat-card-modern">
-                <div class="stat-icon value">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -105,7 +100,7 @@
             </div>
 
             <div class="stat-card-modern" *ngIf="supplier?.totalPaid && supplier?.totalAmount">
-                <div class="stat-icon balance">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-money-bill"></i>
                 </div>
                 <div class="stat-content">
@@ -138,7 +133,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="supplier.name">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-truck"></i>
                                         </div>
                                         <div class="info-content">
@@ -148,7 +143,7 @@
                                     </div>
 
                                     <!-- <div class="info-item" *ngIf="supplier.supplierId">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-id-card"></i>
                                         </div>
                                         <div class="info-content">
@@ -158,7 +153,7 @@
                                     </div> -->
 
                                     <div class="info-item" *ngIf="supplier.creationDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -181,7 +176,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="supplier.email">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-envelope"></i>
                                         </div>
                                         <div class="info-content">
@@ -191,7 +186,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="supplier.phoneNumber">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                                             <i class="pi pi-phone"></i>
                                         </div>
                                         <div class="info-content">
@@ -201,7 +196,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="supplier.address">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                                             <i class="pi pi-compass"></i>
                                         </div>
                                         <div class="info-content">
@@ -210,7 +205,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="supplier.country">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
                                             <i class="pi pi-globe"></i>
                                         </div>
                                         <div class="info-content">
@@ -219,7 +214,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="supplier.city">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-map-marker"></i>
                                         </div>
                                         <div class="info-content">
@@ -240,7 +235,7 @@
                             <div class="card-body">
                                 <div class="stock-status-grid">
                                     <div class="stock-status-item success" *ngIf="supplier?.isActive !== false">
-                                        <div class="status-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
                                             <i class="pi pi-check-circle"></i>
                                         </div>
                                         <div class="status-content">
@@ -249,7 +244,7 @@
                                     </div>
 
                                     <div class="stock-status-item info" *ngIf="supplier?.isPreferred">
-                                        <div class="status-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-star"></i>
                                         </div>
                                         <div class="status-content">
@@ -268,7 +263,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="info-item">
-                                    <div class="info-icon">
+                                    <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                         <i class="pi pi-calendar"></i>
                                     </div>
                                     <div class="info-content">
@@ -293,7 +288,7 @@
                                 <div class="grid">
                                     <div class="col-12 md:col-6" *ngIf="supplierProducts?.length">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                                                 <i class="pi pi-box"></i>
                                             </div>
                                             <div class="stat-content">
@@ -304,7 +299,7 @@
                                     </div>
                                     <div class="col-12 md:col-6" *ngIf="supplierPurchases?.length">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                                                 <i class="pi pi-shopping-cart"></i>
                                             </div>
                                             <div class="stat-content">
@@ -315,7 +310,7 @@
                                     </div>
                                     <div class="col-12 md:col-6" *ngIf="getTotalSpentWithSupplier()">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                                                 <i class="pi pi-money-bill"></i>
                                             </div>
                                             <div class="stat-content">
@@ -327,7 +322,7 @@
                                     </div>
                                     <div class="col-12 md:col-6" *ngIf="supplier?.totalPaid">
                                         <div class="stat-item">
-                                            <div class="stat-icon">
+                                            <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                                                 <i class="pi pi-wallet"></i>
                                             </div>
                                             <div class="stat-content">
@@ -390,10 +385,11 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="supplierProducts" [paginator]="true" [rows]="15"
+                            <p-table [value]="supplierProducts" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.supplierDetailsProducts, [15,30,50])"
                                 [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.supplierDetailsProducts, [15,30,50], $event)"
                                 [globalFilterFields]="['name', 'reference']">
                                 <ng-template pTemplate="header">
                                     <tr>
@@ -463,13 +459,21 @@
                                         <td class="text-center">
                                             <div class="flex justify-content-center gap-1">
                                                 <button pButton pRipple icon="pi pi-eye" *ngIf="canReadProduct"
-                                                    class="p-button-sm p-button-rounded p-button-text"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-primary"
                                                     (click)="viewProductDetails(product)"
                                                     [pTooltip]="'view_details' | translate"></button>
                                                 <button pButton pRipple icon="pi pi-pencil" *ngIf="canEditProduct"
-                                                    class="p-button-sm p-button-rounded p-button-text p-button-success"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-primary"
                                                     (click)="editProduct(product)"
-                                                    [pTooltip]="'edit' | translate"></button>
+                                                    [pTooltip]="'edit' | translate" tooltipPosition="bottom"></button>
+                                                <button pButton pRipple icon="pi pi-trash" *ngIf="canDeleteProduct"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-danger"
+                                                    (click)="deleteProduct(product)"
+                                                    [pTooltip]="'delete_product' | translate" tooltipPosition="bottom"></button>
+                                                <button pButton pRipple icon="pi pi-folder" *ngIf="canArchiveProduct"
+                                                    class="p-button-sm p-button-rounded p-button-text p-button-warning"
+                                                    (click)="archiveProduct(product)"
+                                                    [pTooltip]="'archive_product' | translate" tooltipPosition="bottom"></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -511,10 +515,11 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="supplierPurchases" [paginator]="true" [rows]="15"
+                            <p-table [value]="supplierPurchases" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.supplierDetailsPurchases, [15,30,50])"
                                 [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.supplierDetailsPurchases, [15,30,50], $event)"
                                 [globalFilterFields]="['reference']">
                                 <ng-template pTemplate="header">
                                     <tr>
@@ -653,3 +658,17 @@
     (warehouseAdd)="openWarehouseDialog()"
     (visibleChange)="productDialog = $event">
 </app-product-form>
+
+<!-- Delete Product Dialog -->
+<app-product-delete-dialog
+    [(visible)]="deleteProductDialog"
+    [productId]="selectedProduct?.productId"
+    (confirmed)="onProductDeleteConfirmed($event)">
+</app-product-delete-dialog>
+
+<!-- Archive Product Dialog -->
+<app-product-archive-dialog
+    [(visible)]="archiveProductDialog"
+    [productName]="selectedProduct?.name || ''"
+    (confirmed)="confirmArchive()">
+</app-product-archive-dialog>

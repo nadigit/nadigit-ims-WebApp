@@ -28,7 +28,7 @@
 
 /* Outstanding Balance Aging Report Styles */
 .critical-row {
-  background-color: #fff5f5 !important;
+  background-color: rgba(229, 72, 77, 0.1) !important;
 }
 
 .critical-row td {
@@ -62,8 +62,8 @@
 }
 
 .aging-card.critical {
-    border: 2px solid #ef4444;
-    background: #fef2f2;
+    border: 2px solid var(--red-500, #E5484D);
+    background: rgba(229, 72, 77, 0.1);
 }
 
 .outstanding-aging-report {

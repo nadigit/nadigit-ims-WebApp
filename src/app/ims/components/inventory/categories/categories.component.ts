@@ -1,6 +1,5 @@
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { AngularFireStorage } from '@angular/fire/compat/storage';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { MessageService } from 'primeng/api';
@@ -23,6 +22,8 @@ import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service'
 import { CategoryFormDialogComponent, CategoryFormDialogConfig, CategoryFormDialogData } from './category-form-dialog/category-form-dialog.component';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './categories.component.html',
@@ -62,11 +63,13 @@ export class CategoriesComponent implements OnInit {
   cols: any[] = [];
 
   rowsPerPageOptions = [20, 50, 100];
+  pageSize = 20;
 
   exportColumns!: ExportColumn[];
 
   // Permissions
   canAddCategory: boolean = false;
+  canReadCategory: boolean = false;
   canEditCategory: boolean = false;
   canDeleteCategory: boolean = false;
   canListProducts: boolean = false;
@@ -96,7 +99,6 @@ export class CategoriesComponent implements OnInit {
     private productService: ProductService,
     private supplierService: SupplierService,
     private warehouseService: WarehouseService,
-    private storage: AngularFireStorage,
     private reportingService: ReportingService,
     public keycloakService: KeycloakService,
     private configService: AppConfigurationService,
@@ -104,7 +106,8 @@ export class CategoriesComponent implements OnInit {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     private router: Router,
-    private organizationService: OrganizationService) {
+    private organizationService: OrganizationService,
+    public pageSizeService: TablePageSizeService) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -124,6 +127,9 @@ export class CategoriesComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
+    this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.categories, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+    });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -148,6 +154,10 @@ export class CategoriesComponent implements OnInit {
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
 
 
+  }
+
+  onTablePage(event: any): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.categories, this.rowsPerPageOptions, event, this);
   }
 
   ngOnDestroy(): void {
@@ -189,15 +199,6 @@ export class CategoriesComponent implements OnInit {
       }
     }
 
-    if (!hasError) {
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('categories_deleted'),
-        life: 3000
-      });
-    }
-
     this.selectedCategories = [];
   }
 
@@ -206,6 +207,7 @@ export class CategoriesComponent implements OnInit {
     const userId = profile.id;
     await this.permissionService.init(userId).toPromise();
     this.canAddCategory = this.permissionService.canCreate(this.Ressource);
+    this.canReadCategory = this.permissionService.canRead(this.Ressource);
     this.canEditCategory = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteCategory = this.permissionService.canDelete(this.Ressource);
     this.canListProducts = this.permissionService.canListProducts(this.Ressource);
@@ -692,14 +694,13 @@ export class CategoriesComponent implements OnInit {
 
   deleteProduct(product: Product) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = true;
     this.selectedProduct = { ...product };
+    this.deleteProductDialog = true;
   }
 
-  async confirmProductDelete() {
+  async onProductDeleteConfirmed(productId: number) {
     if (!this.canDeleteProduct) return;
-    this.deleteProductDialog = false;
-    await this.onDeleteProduct(this.selectedProduct.productId);
+    await this.onDeleteProduct(productId);
     this.selectedProduct = {};
   }
 

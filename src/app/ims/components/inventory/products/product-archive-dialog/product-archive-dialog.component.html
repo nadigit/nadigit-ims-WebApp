@@ -1,0 +1,30 @@
+<p-dialog
+  [visible]="visible"
+  (visibleChange)="onVisibleChange($event)"
+  [header]="'confirm_label' | translate"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '540px', maxWidth: '95vw' }"
+  styleClass="ims-product-action-dialog"
+  appendTo="body">
+
+  <div class="ims-product-action-dialog__body">
+    <div class="ims-product-action-dialog__hero">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber" aria-hidden="true">
+        <i class="pi" [ngClass]="heroIconClass"></i>
+      </div>
+      <div class="ims-product-action-dialog__intro">
+        <p class="ims-product-action-dialog__title">{{ titleKey | translate }}</p>
+        <p *ngIf="productName" class="ims-product-action-dialog__product-name">{{ productName }}</p>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple icon="pi pi-times" class="p-button-text" type="button"
+      [label]="'no_button' | translate" (click)="onCancel()"></button>
+    <button pButton pRipple [icon]="confirmIcon" [class]="confirmSeverityClass" type="button"
+      [label]="'yes_button' | translate" (click)="onConfirm()"></button>
+  </ng-template>
+</p-dialog>

@@ -1,10 +1,10 @@
-<div class="return-details-container">
+﻿<div class="return-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="return-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--amber">
                             <i class="pi pi-undo"></i>
                         </div>
                         <div>
@@ -55,10 +55,6 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" 
-                            [label]="'refresh' | translate"
-                            class="p-button-outlined"
-                            (click)="refreshReturnDetails()"></button>
                         <button pButton pRipple icon="pi pi-print" 
                             [label]="'print_return_note' | translate"
                             *ngIf="return.returnStatus !== 'CANCELLED'"
@@ -72,7 +68,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon refund">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-wallet"></i>
                 </div>
                 <div class="stat-content">
@@ -83,7 +79,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon items">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
@@ -94,7 +90,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="return.credits?.length > 0">
-                <div class="stat-icon refunds">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-money-bill"></i>
                 </div>
                 <div class="stat-content">
@@ -105,7 +101,7 @@
             </div>
             
             <div class="stat-card-modern" *ngIf="return.purchase">
-                <div class="stat-icon order">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                     <i class="pi pi-shopping-cart"></i>
                 </div>
                 <div class="stat-content">
@@ -220,7 +216,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="return.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -229,7 +225,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="return.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -260,13 +256,9 @@
                                     
                                     <button pButton pRipple icon="pi pi-eye" 
                                         [label]="'view_purchase' | translate"
-                                        class="p-button-outlined p-button-info"
+                                        class="p-button-outlined p-button-primary"
                                         (click)="viewPurchase(return.purchase)"></button>
                                     
-                                    <button pButton pRipple icon="pi pi-refresh" 
-                                        [label]="'refresh' | translate"
-                                        class="p-button-outlined p-button-secondary"
-                                        (click)="refreshReturnDetails()"></button>
                                 </div>
                             </div>
                         </div>
@@ -285,7 +277,7 @@
                                             [alt]="item.product?.name" class="item-image" />
                                         <div class="item-info">
                                             <span class="item-name">{{ item.product?.name }}</span>
-                                            <span class="item-qty">x{{ item.returnedQuantity }}</span>
+                                            <span class="item-qty">x{{ formatReturnItemQty(item) }}</span>
                                         </div>
                                         <span class="item-amount">{{ (item.creditAmount || item.refundAmount) | number:'1.2-2' }} {{ currency }}</span>
                                     </div>
@@ -314,11 +306,12 @@
                             <span>{{ 'returned_items' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="return.returnItems || []" [rows]="10" [paginator]="true"
+                            <p-table [value]="return.returnItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.purchaseReturnDetailsItems, [10,25,50])" [paginator]="true"
                                 [showCurrentPageReport]="true"
                                 styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,25,50]"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.purchaseReturnDetailsItems, [10,25,50], $event)"
                                 *ngIf="return.returnItems?.length > 0; else noItems">
                                 <ng-template pTemplate="header">
                                     <tr>
@@ -349,7 +342,7 @@
                                                 [icon]="item.returnedQuantity <= 0 ? 'pi pi-exclamation-triangle' : ''"></p-tag>
                                         </td>
                                         <td class="font-semibold">
-                                            {{ item.returnedQuantity && item.returnedQuantity > 0 ? ((item.creditAmount || item.refundAmount || 0) / item.returnedQuantity | number:'1.2-2') : '0.00' }} {{ currency }}
+                                            {{ getReturnItemCreditPerUnit(item) | number:'1.2-2' }} {{ currency }}
                                         </td>
                                         <td class="font-bold text-primary">{{ (item.creditAmount || item.refundAmount) | number:'1.2-2' }} {{ currency }}</td>
                                         <td>

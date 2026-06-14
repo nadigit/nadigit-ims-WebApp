@@ -76,7 +76,60 @@ export class PurchaseImportComponent implements OnInit {
   currentStep: 'upload' | 'validation' | 'preview' | 'import' | 'results' = 'upload';
   showAdvancedOptions: boolean = false;
   showHelpGuide: boolean = false;
+  isDragOver: boolean = false;
   previewRowCount: number = 10;
+
+  readonly wizardSteps: ReadonlyArray<{ id: string; labelKey: string }> = [
+    { id: 'upload', labelKey: 'upload_file' },
+    { id: 'validation', labelKey: 'validation_results' },
+    { id: 'preview', labelKey: 'import_preview' },
+    { id: 'results', labelKey: 'import_results' }
+  ];
+
+  readonly guideSteps: ReadonlyArray<{
+    n: number;
+    titleKey: string;
+    descKey: string;
+    tile: string;
+  }> = [
+    { n: 1, titleKey: 'step_1_download_template', descKey: 'step_1_description', tile: 'green' },
+    { n: 2, titleKey: 'step_2_fill_template', descKey: 'step_2_description', tile: 'primary' },
+    { n: 3, titleKey: 'step_3_upload_file', descKey: 'step_3_description', tile: 'blue' },
+    { n: 4, titleKey: 'step_4_validate', descKey: 'step_4_description', tile: 'amber' }
+  ];
+
+  readonly requiredColumns: ReadonlyArray<{
+    labelKey: string;
+    helpKey: string;
+    icon: string;
+    tile: string;
+  }> = [
+    { labelKey: 'supplier', helpKey: 'purchase_import_supplier_help', icon: 'pi pi-users', tile: 'primary' },
+    { labelKey: 'product_reference', helpKey: 'reference_help', icon: 'pi pi-hashtag', tile: 'teal' },
+    { labelKey: 'quantity', helpKey: 'purchase_import_quantity_help', icon: 'pi pi-sort-numeric-up', tile: 'green' },
+    { labelKey: 'buying_price', helpKey: 'purchase_import_buying_price_help', icon: 'pi pi-dollar', tile: 'amber' }
+  ];
+
+  showInvoiceHelpGuide: boolean = false;
+  isInvoiceDragOver: boolean = false;
+
+  readonly invoiceWizardSteps: ReadonlyArray<{ id: string; labelKey: string }> = [
+    { id: 'upload', labelKey: 'upload_invoice' },
+    { id: 'match', labelKey: 'product_matching' },
+    { id: 'review', labelKey: 'purchase_invoice_step_review' }
+  ];
+
+  readonly invoiceGuideSteps: ReadonlyArray<{
+    n: number;
+    titleKey: string;
+    descKey: string;
+    tile: string;
+  }> = [
+    { n: 1, titleKey: 'upload_invoice', descKey: 'purchase_invoice_guide_step_upload', tile: 'green' },
+    { n: 2, titleKey: 'parse_invoice', descKey: 'purchase_invoice_guide_step_parse', tile: 'primary' },
+    { n: 3, titleKey: 'product_matching', descKey: 'purchase_invoice_guide_step_match', tile: 'blue' },
+    { n: 4, titleKey: 'purchase_invoice_confirm_import', descKey: 'purchase_invoice_guide_step_review', tile: 'amber' }
+  ];
   expandedPurchases: Set<number> = new Set();
   currency: string = 'USD';
   activeTab: number | undefined = 0; // 0 for file, 1 for invoice
@@ -180,6 +233,11 @@ export class PurchaseImportComponent implements OnInit {
   resetState(): void {
     this.selectedFile = null;
     this.currentStep = 'upload';
+    this.showHelpGuide = false;
+    this.showInvoiceHelpGuide = false;
+    this.showAdvancedOptions = false;
+    this.isDragOver = false;
+    this.isInvoiceDragOver = false;
     this.validationResult = null;
     this.strictBatchPreviewBlocksImport = false;
     this.preview = null;
@@ -257,6 +315,45 @@ export class PurchaseImportComponent implements OnInit {
 
   onFileRemove(): void {
     this.selectedFile = null;
+    this.isDragOver = false;
+    if (this.fileUpload) {
+      this.fileUpload.clear();
+    }
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.onFileSelect({ files: [file] });
+    }
+  }
+
+  isWizardStepComplete(stepId: string): boolean {
+    const order = ['upload', 'validation', 'preview', 'results'];
+    const current = this.currentStep === 'import' ? 'results' : this.currentStep;
+    return order.indexOf(stepId) < order.indexOf(current);
+  }
+
+  isWizardStepActive(stepId: string): boolean {
+    if (this.currentStep === 'import') {
+      return stepId === 'preview';
+    }
+    return stepId === this.currentStep;
   }
 
   async downloadTemplate(format: 'csv' | 'excel'): Promise<void> {
@@ -598,10 +695,67 @@ export class PurchaseImportComponent implements OnInit {
 
   onInvoiceFileRemove(): void {
     this.selectedInvoiceFile = null;
+    this.isInvoiceDragOver = false;
     if (this.invoicePreviewUrl) {
       URL.revokeObjectURL(this.invoicePreviewUrl);
       this.invoicePreviewUrl = null;
     }
+  }
+
+  onInvoiceDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isInvoiceDragOver = true;
+  }
+
+  onInvoiceDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isInvoiceDragOver = false;
+  }
+
+  onInvoiceDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isInvoiceDragOver = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.onInvoiceFileSelect({ files: [file] });
+    }
+  }
+
+  getInvoiceWizardStepId(): 'upload' | 'match' | 'review' {
+    if (!this.parsedInvoiceData) {
+      return 'upload';
+    }
+    if (this.invoiceReviewStep) {
+      return 'review';
+    }
+    return 'match';
+  }
+
+  isInvoiceWizardStepActive(stepId: string): boolean {
+    return this.getInvoiceWizardStepId() === stepId;
+  }
+
+  isInvoiceWizardStepComplete(stepId: string): boolean {
+    const order = ['upload', 'match', 'review'];
+    return order.indexOf(stepId) < order.indexOf(this.getInvoiceWizardStepId());
+  }
+
+  getInvoiceMatchedItemsCount(): number {
+    if (!this.parsedInvoiceData?.items?.length) {
+      return 0;
+    }
+    return this.parsedInvoiceData.items.filter(
+      (item) => item.productReference || this.productMappings[item.productName]
+    ).length;
+  }
+
+  resetInvoiceParse(): void {
+    this.parsedInvoiceData = null;
+    this.productMappings = {};
+    this.invoiceReviewStep = false;
   }
 
   async parseInvoice(): Promise<void> {
@@ -1143,7 +1297,7 @@ export class PurchaseImportComponent implements OnInit {
         const row: InvoiceReviewImportRequest['lines'][number] = {
           productReference: l.productReference.trim(),
           productName: l.productName?.trim() || undefined,
-          quantityPurchased: Math.max(1, Math.floor(Number(l.quantityPurchased))),
+          quantityPurchased: Math.max(1, Math.round(Number(l.quantityPurchased))),
           buyingPrice: buy,
           sellingPrice: sell,
           batchNumber: l.batchNumber?.trim() || undefined,
@@ -1305,6 +1459,14 @@ export class PurchaseImportComponent implements OnInit {
 
     // If no pattern matches, return original message
     return message;
+  }
+
+  /** Invoice quantities are human units; unit price is per display unit. */
+  formatImportLineSubtotal(quantity: number, unitPrice: number): number {
+    if (!quantity || !unitPrice) {
+      return 0;
+    }
+    return quantity * unitPrice;
   }
 }
 

@@ -1,3 +1,13 @@
+.integration-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.09), rgba(251, 191, 36, 0.05));
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
 .recipients-list {
   max-height: 400px;
   overflow-y: auto;

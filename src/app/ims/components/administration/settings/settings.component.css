@@ -95,24 +95,6 @@
   background: var(--surface-hover) !important;
 }
 
-.settings-hero-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--surface-card);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.settings-hero-icon i {
-  font-size: 2rem;
-  color: var(--primary-color);
-}
-
 .settings-title {
   font-size: 1.75rem;
   font-weight: 700;
@@ -195,19 +177,6 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
-.settings-channel-icon {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: var(--surface-ground);
-  color: var(--primary-color);
-  font-size: 1.15rem;
-}
-
 .settings-channel-body {
   flex: 1;
   min-width: 0;
@@ -275,19 +244,6 @@
     color-mix(in srgb, var(--primary-color) 18%, var(--surface-ground)) 0%,
     var(--surface-ground) 50%
   );
-}
-
-.settings-profile-hero-icon {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--primary-color) 18%, var(--surface-card));
-  color: var(--primary-color);
-  font-size: 1.35rem;
-  flex-shrink: 0;
 }
 
 .settings-profile-hero-kicker {
@@ -864,22 +820,6 @@
   margin: -1.5rem -1.5rem 1.5rem -1.5rem;
 }
 
-.bank-avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--primary-color) 30%, transparent);
-}
-
-.bank-avatar i {
-  font-size: 2rem;
-  color: white;
-}
-
 .bank-info {
   flex: 1;
 }
@@ -966,22 +906,6 @@
   gap: 0.75rem;
 }
 
-.info-card .info-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-ground);
-  color: var(--primary-color);
-  flex-shrink: 0;
-}
-
-.info-card .info-icon i {
-  font-size: 1rem;
-}
-
 .info-card .info-content {
   display: flex;
   flex-direction: column;
@@ -1048,21 +972,6 @@
   background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
   border-radius: 16px 16px 0 0;
   margin: -1.5rem -1.5rem 1.5rem -1.5rem;
-}
-
-.bank-form-header .bank-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color), #000 15%));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.bank-form-header .bank-avatar i {
-  font-size: 1.5rem;
-  color: white;
 }
 
 .bank-form-header .bank-info {
@@ -1166,15 +1075,6 @@
 }
 
 @media screen and (max-width: 768px) {
-  .settings-hero-icon {
-    width: 60px;
-    height: 60px;
-  }
-
-  .settings-hero-icon i {
-    font-size: 1.5rem;
-  }
-
   .settings-title {
     font-size: 1.25rem;
   }
@@ -1217,15 +1117,6 @@
     gap: 1rem;
   }
 
-  .bank-avatar {
-    width: 60px;
-    height: 60px;
-  }
-
-  .bank-avatar i {
-    font-size: 1.5rem;
-  }
-
   .bank-name {
     font-size: 1.5rem;
   }
@@ -1244,15 +1135,6 @@
     flex-direction: column;
     text-align: center;
     gap: 1rem;
-  }
-
-  .bank-form-header .bank-avatar {
-    width: 50px;
-    height: 50px;
-  }
-
-  .bank-form-header .bank-avatar i {
-    font-size: 1.25rem;
   }
 
   .bank-form-header .bank-name {

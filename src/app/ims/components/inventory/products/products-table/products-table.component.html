@@ -4,17 +4,17 @@
     <div>
       <h2 class="m-0 text-900">{{ 'products_menu_title' | translate }}</h2>
       <p class="text-600 mt-2 mb-0">{{ 'products_page_description' | translate }}</p>
-      <div *ngIf="strictSellableStockExcludesWriteoffs"
+      <!-- <div *ngIf="strictSellableStockExcludesWriteoffs"
         class="mt-3 p-3 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
         <i class="pi pi-info-circle mt-1 flex-shrink-0"></i>
         <span>{{ 'products_inventory_writeoff_stock_hint' | translate }}</span>
-      </div>
+      </div> -->
     </div>
   </div>
 </div>
 
 <div class="card">
-  <div class="flex justify-content-end align-items-center mb-4">
+  <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
     <div class="flex align-items-center gap-2">
       <button pButton pRipple *ngIf="canAddProduct" icon="pi pi-plus" [label]="'new_button' | translate"
         class="p-button-success" (click)="addProductEvent.emit()" pTooltip="{{'add_new_product'|translate}}">
@@ -44,7 +44,7 @@
 
       <!-- Inventory Status Filter -->
       <p-selectButton [options]="inventoryStatusOptions" [(ngModel)]="inventoryStatusFilter" (onChange)="onFilterChange()"
-        optionLabel="label" optionValue="value">
+        optionLabel="label" optionValue="value" styleClass="ims-stock-status-filter">
       </p-selectButton>
 
       <!-- View Toggle & Export -->
@@ -55,10 +55,10 @@
             <i [class]="item.icon"></i>
           </ng-template>
         </p-selectButton>
-        <button pButton pRipple [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" class="p-button-warning"
-          pTooltip="PDF" tooltipPosition="bottom" (click)="exportPdfEvent.emit()" [disabled]="isExporting"></button>
+        <button pButton pRipple [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" class="p-button-primary"
+          [pTooltip]="'export_pdf' | translate" tooltipPosition="bottom" (click)="exportPdfEvent.emit()" [disabled]="isExporting"></button>
         <button pButton pRipple [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
-          (click)="exportExcelEvent.emit()" class="p-button-success" pTooltip="XLS" tooltipPosition="bottom"
+          (click)="exportExcelEvent.emit()" class="p-button-success" [pTooltip]="'export_to_excel' | translate" tooltipPosition="bottom"
           [disabled]="isExporting"></button>
         <button pButton pRipple icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary"
           pTooltip="{{'clear_filters' | translate}}" tooltipPosition="bottom" (click)="clearFilters()"></button>
@@ -67,16 +67,18 @@
 
     <!-- Advanced Filters Toggle -->
     <div class="flex align-items-center gap-2">
+      <span class="text-500 text-sm" *ngIf="!showAdvancedFilters">
+        <i class="pi pi-info-circle mr-1"></i>
+        {{ 'filter_help_text' | translate }}
+      </span>
+
       <button pButton pRipple 
         [icon]="showAdvancedFilters ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
         [label]="(showAdvancedFilters ? 'hide_advanced_filters' : 'show_advanced_filters') | translate"
         class="p-button-text p-button-sm"
         (click)="showAdvancedFilters = !showAdvancedFilters">
       </button>
-      <span class="text-500 text-sm" *ngIf="!showAdvancedFilters">
-        <i class="pi pi-info-circle mr-1"></i>
-        {{ 'filter_help_text' | translate }}
-      </span>
+
     </div>
 
     <!-- Advanced Filters (Collapsible) -->
@@ -113,15 +115,15 @@
     </div>
   </div>
 
-  <div class="card flex justify-content-center" *ngIf="isLoading">
-    <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-  </div>
+  <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
   <!-- List View -->
-  <ng-container *ngIf="!isLoading && tableViewMode === 'list'">
-    <p-table #dt [value]="(filteredProducts && filteredProducts.length > 0) ? filteredProducts : products" [rows]="20"
+  <ng-container *ngIf="tableViewMode === 'list'">
+    <p-table #dt [value]="(filteredProducts && filteredProducts.length > 0) ? filteredProducts : products" [rows]="pageSize"
       [paginator]="true" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords"
-      [loading]="isLoading" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true" dataKey="productId"
+      [loading]="false"
+      [style.visibility]="isLoading ? 'hidden' : 'visible'"
+      [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true" dataKey="productId"
       currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
       [(selection)]="selectedProducts" selectionMode="multiple" [rowHover]="true"
       [globalFilterFields]="['name','reference','category.categoryName','supplier.name','warehouse.name','inventoryStatus']"
@@ -209,7 +211,7 @@
                       | translate }}</span>
                   </span>
                 </div>
-                <small class="text-muted">{{ 'ref' | translate }}: {{ product.reference || '—' }}</small>
+                <small class="text-muted">{{ 'ref' | translate }}: {{ product.reference || '?' }}</small>
                 <!-- Attributes -->
                 <div *ngIf="product.attributes?.length" class="mt-2 flex flex-wrap gap-1">
                   <p-tag *ngFor="let attr of product.attributes" [value]="attr.attributeName + ': ' + attr.value"
@@ -250,11 +252,13 @@
           <td style="min-width:10rem;" *ngIf="isProduct(product)">
             <div *ngIf="strictSellableStockExcludesWriteoffs" class="text-xs text-500 mb-1">{{ 'sellable_quantity_caption' | translate }}</div>
             <div class="flex align-items-center gap-2">
-              <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
-                [value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate)"
-                [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
-                [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
-              </p-tag>
+              <ng-container *ngIf="formatStockLabel(product) as stockLabel">
+                <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
+                  [value]="stockLabel.quantity + ' ' + (stockLabel.unit | translate)"
+                  [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
+                  [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
+                </p-tag>
+              </ng-container>
               <span *ngIf="hasWriteOffs(product)" class="writeoff-indicator"
                 [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
                 tooltipPosition="top">
@@ -296,16 +300,17 @@
           <td>
             <div class="flex gap-1">
               <button pButton pRipple *ngIf="canReadProduct" icon="pi pi-eye"
-                class="p-button-rounded p-button-text p-button-info" pTooltip="{{'view_product'|translate}}"
+                class="p-button-rounded p-button-text p-button-primary" pTooltip="{{'view_product'|translate}}"
                 (click)="showProductDetailsEvent.emit(product); $event.stopPropagation()"></button>
-              <button pButton pRipple *ngIf="canEditRow(product)" icon="pi pi-pencil"
-                class="p-button-rounded p-button-text p-button-warning" pTooltip="{{'update_product'|translate}}"
+              <button pButton pRipple *ngIf="canEditRow(product)" icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary" pTooltip="{{'update_product'|translate}}"
                 (click)="editProductEvent.emit(product); $event.stopPropagation()"></button>
-              <button pButton pRipple *ngIf="canDeleteProduct && product.deletable" icon="pi pi-trash"
+              <button pButton pRipple *ngIf="canDeleteProduct" icon="pi pi-trash"
                 class="p-button-rounded p-button-text p-button-danger" pTooltip="{{'delete_product'|translate}}"
+                tooltipPosition="bottom"
                 (click)="deleteProductEvent.emit(product); $event.stopPropagation()"></button>
-              <button pButton pRipple *ngIf="canArchiveProduct && !product.deletable" icon="pi pi-folder"
+              <button pButton pRipple *ngIf="canArchiveProduct" icon="pi pi-folder"
                 class="p-button-rounded p-button-text p-button-warning" pTooltip="{{'archive_product'|translate}}"
+                tooltipPosition="bottom"
                 (click)="archiveProductEvent.emit(product); $event.stopPropagation()"></button>
             </div>
           </td>
@@ -351,14 +356,14 @@
             <strong>{{ stock.warehouseName || 'N/A' }}</strong>
           </td>
           <td>
-            <p-tag [severity]="getQuantitySeverity(stock.quantityAvailable)"
-              [value]="stock.quantityAvailable + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', stock.quantityAvailable) | translate)"
+            <p-tag [severity]="getQuantitySeverity(warehouseDisplayQuantity(product, stock.quantityAvailable))"
+              [value]="formatWarehouseStock(product, stock.quantityAvailable) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', warehouseDisplayQuantity(product, stock.quantityAvailable)) | translate)"
               styleClass="text-xs">
             </p-tag>
           </td>
           <td>
-            <p-tag [severity]="getQuantitySeverity(stock.netAvailableQuantity)"
-              [value]="stock.netAvailableQuantity + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', stock.netAvailableQuantity) | translate)"
+            <p-tag [severity]="getQuantitySeverity(warehouseDisplayQuantity(product, stock.netAvailableQuantity))"
+              [value]="formatWarehouseStock(product, stock.netAvailableQuantity) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', warehouseDisplayQuantity(product, stock.netAvailableQuantity)) | translate)"
               styleClass="text-xs">
             </p-tag>
           </td>
@@ -373,7 +378,7 @@
           <td>
             <div class="flex flex-column gap-2 align-items-stretch">
               <button pButton pRipple type="button" icon="pi pi-eye"
-                class="p-button-sm p-button-outlined p-button-info white-space-nowrap"
+                class="p-button-sm p-button-outlined p-button-primary white-space-nowrap"
                 [label]="'view' | translate"
                 [pTooltip]="'view_warehouse_details' | translate" (click)="viewWarehouseDetails(stock.warehouseId)"
                 tooltipPosition="top">
@@ -427,7 +432,7 @@
 </ng-container>
 
 <!-- Grid View -->
-<ng-container *ngIf="!isLoading && tableViewMode === 'grid'">
+<ng-container *ngIf="tableViewMode === 'grid'">
   <div class="grid grid-nogutter">
     <div class="col-12 md:col-6 lg:col-4 xl:col-3"
       *ngFor="let product of ((filteredProducts && filteredProducts.length > 0) ? filteredProducts : products)">
@@ -481,7 +486,7 @@
         <div class="text-center mb-3">
           <h4 class="font-bold mb-1 text-overflow-ellipsis overflow-hidden white-space-nowrap">{{product.name || 'N/A'}}
           </h4>
-          <small class="text-muted">{{product.reference || '—'}}</small>
+          <small class="text-muted">{{product.reference || '?'}}</small>
           <!-- Valid Expiration Info (Products only - shown below reference) -->
           <div *ngIf="isProduct(product) && showValidIndicator(product)" class="mt-1">
             <span class="text-xs text-green-600">
@@ -507,11 +512,13 @@
           <div class="flex flex-column align-items-center gap-2">
             <div *ngIf="strictSellableStockExcludesWriteoffs" class="text-xs text-500">{{ 'sellable_quantity_caption' | translate }}</div>
             <div class="flex align-items-center gap-2">
-              <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
-                [value]="getAvailableQuantity(product) + ' ' + (getMeasureUnit(product.measureUnit || 'UNIT', getAvailableQuantity(product)) | translate)"
-                [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
-                [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
-              </p-tag>
+              <ng-container *ngIf="formatStockLabel(product) as stockLabel">
+                <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
+                  [value]="stockLabel.quantity + ' ' + (stockLabel.unit | translate)"
+                  [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
+                  [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
+                </p-tag>
+              </ng-container>
               <span *ngIf="hasWriteOffs(product)" class="writeoff-indicator"
                 [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
                 tooltipPosition="top">
@@ -534,19 +541,21 @@
             <span class="text-xl font-semibold text-primary">{{currency}} {{ product.sellingPrice || 0 }}</span>
             <div class="flex gap-1">
               <button pButton pRipple *ngIf="canReadProduct" icon="pi pi-eye"
-                class="p-button-rounded p-button-text p-button-sm p-button-info" [pTooltip]="'view_product' | translate"
+                class="p-button-rounded p-button-text p-button-sm p-button-primary" [pTooltip]="'view_product' | translate"
                 (click)="showProductDetailsEvent.emit(product); $event.stopPropagation()"></button>
               <button pButton pRipple *ngIf="canEditRow(product)" icon="pi pi-pencil"
-                class="p-button-rounded p-button-text p-button-sm p-button-warning"
+                class="p-button-rounded p-button-text p-button-sm p-button-primary"
                 [pTooltip]="'update_product' | translate"
                 (click)="editProductEvent.emit(product); $event.stopPropagation()"></button>
-              <button pButton pRipple *ngIf="canDeleteProduct && product.deletable" icon="pi pi-trash"
+              <button pButton pRipple *ngIf="canDeleteProduct" icon="pi pi-trash"
                 class="p-button-rounded p-button-text p-button-sm p-button-danger"
                 [pTooltip]="'delete_product' | translate"
+                tooltipPosition="bottom"
                 (click)="deleteProductEvent.emit(product); $event.stopPropagation()"></button>
-              <button pButton pRipple *ngIf="canArchiveProduct && !product.deletable" icon="pi pi-folder"
+              <button pButton pRipple *ngIf="canArchiveProduct" icon="pi pi-folder"
                 class="p-button-rounded p-button-text p-button-sm p-button-warning"
                 [pTooltip]="'archive_product' | translate"
+                tooltipPosition="bottom"
                 (click)="archiveProductEvent.emit(product); $event.stopPropagation()"></button>
             </div>
           </div>
@@ -564,7 +573,7 @@
   </div>
 
   <!-- Pagination for Grid View -->
-  <p-paginator [rows]="20" [totalRecords]="totalRecords" [rowsPerPageOptions]="rowsPerPageOptions"
+  <p-paginator [rows]="pageSize" [totalRecords]="totalRecords" [rowsPerPageOptions]="rowsPerPageOptions"
     (onPageChange)="onGridPageChange($event)"
     currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
     [showCurrentPageReport]="true">

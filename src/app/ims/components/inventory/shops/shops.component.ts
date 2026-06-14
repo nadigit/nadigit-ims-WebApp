@@ -1,201 +1,108 @@
-import { Component, OnInit, ChangeDetectorRef, NgZone, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
-import { Country, State } from 'country-state-city';
 import { ShopService } from 'src/app/services/shop.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { Shop } from 'src/app/models/shop';
 import { CashRegister } from 'src/app/models/cashRegister';
-import { DailyBalance } from 'src/app/models/dailyBalance';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
-import * as XLSX from 'xlsx';
-import { DatePipe } from '@angular/common';
-import { Purchase } from 'src/app/models/purchase';
-import { Expense } from 'src/app/models/expense';
+import { firstValueFrom } from 'rxjs';
 import { LocationService } from 'src/app/services/location.service';
-import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
-import { CashMovement } from 'src/app/models/cashMovement';
-import { firstValueFrom, timeout, catchError, of } from 'rxjs';
-import { CashRegisterService } from 'src/app/services/cash-register.service';
-import { CashCollection } from 'src/app/models/cashCollection';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
-import { ShopFormDialogComponent, ShopFormDialogConfig, ShopFormDialogData } from './shop-form-dialog/shop-form-dialog.component';
+import { ShopFormDialogConfig, ShopFormDialogData } from './shop-form-dialog/shop-form-dialog.component';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import {
+  buildCashRegisterSchedulePayload,
+  parseCashRegisterSchedule,
+} from 'src/app/utils/cash-register-schedule.util';
 
 @Component({
   templateUrl: './shops.component.html',
   styleUrls: ['./shops.component.css', '../inventory.component.css'],
-  providers: [MessageService, DatePipe]
+  providers: [MessageService],
 })
 export class ShopsComponent implements OnInit {
+  @ViewChild('dt') dt!: Table;
 
-  Ressource: string = 'SHOPS';
+  Ressource = 'SHOPS';
 
-  // Dialog configuration for reusable component
   shopDialogConfig: ShopFormDialogConfig = {
     visible: false,
     mode: 'edit',
     shop: {},
   };
 
-  deleteShopDialog: boolean = false;
-
-  deleteShopsDialog: boolean = false;
-
+  deleteShopDialog = false;
+  deleteShopsDialog = false;
   shops: Shop[] = [];
-
   shop: Shop = {};
-
-  cashRegister: CashRegister = {};
-
   selectedShops: Shop[] = [];
-
-  selectedShop: Shop = {};
-
-  submitted: boolean = false;
-
+  submitted = false;
   cols: any[] = [];
-
-  statuses: any[] = [];
-
   rowsPerPageOptions = [20, 50, 100];
-
-  valSwitch: boolean = false;
-
+  pageSize = 20;
   countries: any;
-
-  selectedCountry: any = null;
-
-  states: any = null;
-
-  today: Date;
-
-  cashRegisterDialog: boolean = false;
-  dailyBalances: DailyBalance[] = [];
-  selectedDate: Date;
-  filteredBalances: DailyBalance[] = [];  // Store the filtered balances
-  totalDailyDifference: number = 0;
-  startDate: Date | null = null; // Initialize start date
-  endDate: Date | null = null;   // Initialize end date
-
   exportColumns!: ExportColumn[];
 
-  canAddShop: boolean = false;
-  canEditShop: boolean = false;
-  canReadShop: boolean = false;
-  canDeleteShop: boolean = false;
-  canReadCash: boolean = false;
-
-  isLoading: boolean = false;
-  isExporting: boolean = false;
-  exportProgress: string = '';
-
-  cashRegisterSettingsDialog: boolean = false;
-  currency: any = '';
-
-  loading: boolean = false;
-  loadingPurchases: boolean = false;
-  loadingExpenses: boolean = false;
-  cashRegisterData: any;
-  organizationData: any;
-  purchaseStats: any;
-  expenseStats: any;
-  recentPurchases: Purchase[] = [];
-  recentExpenses: Expense[] = [];
-  shopStats: any = {};
-
-  dailyDifferenceTrend: number = 0;
-  dailyDifferencePercentage: number = 0;
-
-  sessions: CashRegisterSession[] = [];
-  movements: CashMovement[] = [];
-  collections: CashCollection[] = [];
-  filteredSessions: CashRegisterSession[] = [];
-
-  movementsDialogVisible = false;
-  selectedSessionMovements: CashMovement[] = [];
-
-  // Cash Register Statistics
-  cashRegisterStats: any = {};
-  loadingCashRegister: boolean = false;
-  loadingMovements: boolean = false; // specific loading flag for movements tab
-  filteredMovements: CashMovement[] = [];
-  movementTypeOptions: string[] = []; // for movements filter dropdown
-  filteredCollections: CashCollection[] = [];
-  movementSearchTerm: string = '';
-  collectionSearchTerm: string = '';
-  selectedMovementTypeFilter: string | null = null;
-  newCollectionDialogVisible = false;
-
-  newCollection = {
-    amount: null,
-    notes: ''
-  };
-
-  userRoles: any;
-  isAdmin: boolean = false;
+  canAddShop = false;
+  canEditShop = false;
+  canReadShop = false;
+  canDeleteShop = false;
+  canReadCash = false;
+  isLoading = false;
+  isExporting = false;
+  exportProgress = '';
+  currency = '';
   maxShopsCap: number | null = null;
-
-  newDepositDialogVisible = false;
-  newDeposit = { amount: null, notes: '' };
-
-  newWithdrawDialogVisible = false;
-  newWithdraw = { amount: null, notes: '' };
-
-  showCashRegisterSessionDialog = false;
-
   bankAccounts: BankAccount[] = [];
 
-  constructor(private messageService: MessageService,
+  private pendingCashRegisterSchedule: { openingTime: string; closingTime: string } | null = null;
+
+  constructor(
+    private messageService: MessageService,
     private shopService: ShopService,
-    private datePipe: DatePipe,
     private reportingService: ReportingService,
     private translate: TranslateService,
     private translateService: TranslationService,
     private locationService: LocationService,
     private permissionService: PermissionService,
     private configService: AppConfigurationService,
-    private cashRegisterService: CashRegisterService,
     public keycloakService: KeycloakService,
-    private cdr: ChangeDetectorRef,
-    private ngZone: NgZone,
     private router: Router,
     private bankAccountService: BankAccountService,
     private organizationService: OrganizationService,
-    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
+    public pageSizeService: TablePageSizeService,
+  ) {}
 
-  async ngOnInit() {
-    const defaultStartDate = new Date();
-    defaultStartDate.setDate(defaultStartDate.getDate() - 30);
-    this.startDate = defaultStartDate;
-    this.endDate = new Date();
-    this.today = new Date();
+  async ngOnInit(): Promise<void> {
     this.isLoading = true;
+    this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.shops, this.rowsPerPageOptions, {
+      pageSize: this.pageSize,
+    });
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
-        console.log('Currency:', currency);
       }
     });
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
       this.countries = this.locationService.getAllCountriesWithTranslation();
-
     });
-    await this.setUserRoles();
     await this.checkPermissions();
     await this.licenseCapabilitiesService.ensureLoaded();
     this.refreshPlanLimits();
     this.onGetAllShops();
-    // this.onGetCurrecy();
 
     this.cols = [
       { field: 'shopId', header: this.translateService.instant('ID') },
@@ -205,17 +112,11 @@ export class ShopsComponent implements OnInit {
       { field: 'country', header: this.translateService.instant('shop_country') },
       { field: 'address', header: this.translateService.instant('shop_address') },
     ];
+    this.exportColumns = this.cols.map(col => ({ title: col.header, dataKey: col.field }));
+  }
 
-    this.statuses = [
-      { label: 'INSTOCK', value: 'instock' },
-      { label: 'LOWSTOCK', value: 'lowstock' },
-      { label: 'OUTOFSTOCK', value: 'outofstock' }
-    ];
-
-
-
-    this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
-
+  onTablePage(event: any): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.shops, this.rowsPerPageOptions, event, this);
   }
 
   get isAtShopsCapacity(): boolean {
@@ -228,459 +129,105 @@ export class ShopsComponent implements OnInit {
     this.maxShopsCap = maxShops == null || maxShops < 0 ? null : maxShops;
   }
 
-  getPurchaseStatusSeverity(status: string): string {
-    switch (status?.toLowerCase()) {
-      case 'completed':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'cancelled':
-        return 'danger';
-      default:
-        return 'info';
-    }
-  }
-
-  getPaymentMethodSeverity(method: string): string {
-    switch (method?.toLowerCase()) {
-      case 'cash':
-        return 'success';
-      case 'credit':
-        return 'warning';
-      case 'check':
-        return 'help';
-      case 'transfer':
-        return 'info';
-      default:
-        return 'danger';
-    }
-  }
-
-  async loadCashRegisterData(): Promise<void> {
-    if (!this.shop.shopId) return;
-    try {
-      this.cashRegisterData = await this.shopService.getCashRegister(this.shop.shopId).toPromise();
-    } catch (error) {
-      console.error('Error loading cash register:', error);
-      this.cashRegisterData = null;
-    }
-  }
-
-  async loadSessions(): Promise<void> {
-    try {
-      console.log('📥 Loading sessions for shop:', this.shop.shopId);
-      const sessions$ = this.cashRegisterService.getSessionsByShop(this.shop.shopId);
-      this.sessions = await firstValueFrom(sessions$);
-      this.filteredSessions = [...this.sessions];
-      console.log('✅ Loaded sessions:', this.sessions.length);
-    } catch (error) {
-      console.error('❌ Failed to load sessions:', error);
-      this.sessions = [];
-      this.filteredSessions = [];
-      throw error; // Re-throw to be caught by refreshData
-    }
-  }
-
-  async loadMovements(): Promise<void> {
-    try {
-      console.log('📥 Loading movements for shop:', this.shop.shopId);
-      const movements$ = this.cashRegisterService.getMovementsByShop(this.shop.shopId);
-      this.movements = await firstValueFrom(movements$);
-      this.filteredMovements = [...this.movements];
-
-      // Build unique movement type options once, for the dropdown
-      const types = new Set<string>();
-      this.movements.forEach(m => {
-        if (m.type) types.add(m.type);
-      });
-      this.movementTypeOptions = Array.from(types);
-
-      console.log('✅ Loaded movements:', this.movements.length, 'types:', this.movementTypeOptions);
-    } catch (error) {
-      console.error('❌ Failed to load movements:', error);
-      this.movements = [];
-      this.filteredMovements = [];
-    } finally {
-      this.loadingMovements = false;
-    }
-  }
-
-  async loadCollections(): Promise<void> {
-    try {
-      console.log('📥 Loading collections for shop:', this.shop.shopId);
-      const collections$ = this.cashRegisterService.getCollectionsByShop(this.shop.shopId);
-      this.collections = await firstValueFrom(collections$);
-      this.filteredCollections = [...this.collections];
-      console.log('✅ Loaded collections:', this.collections.length);
-    } catch (error) {
-      console.error('❌ Failed to load collections:', error);
-      this.collections = [];
-      this.filteredCollections = [];
-      throw error; // Re-throw to be caught by refreshData
-    }
-  }
-
-  calculateCashRegisterStats(): void {
-    // Session Statistics
-    const openSessions = this.sessions.filter(s => !s.closed);
-    const closedSessions = this.sessions.filter(s => s.closed);
-    const todaySessions = this.sessions.filter(s => {
-      const sessionDate = new Date(s.openedAt || '');
-      const today = new Date();
-      return sessionDate.toDateString() === today.toDateString();
-    });
-
-    // Movement Statistics
-    const deposits = this.movements.filter(m => m.type === 'DEPOSIT');
-    const withdrawals = this.movements.filter(m => m.type === 'WITHDRAWAL');
-    const adjustments = this.movements.filter(m => m.type === 'ADJUSTMENT');
-    const expenses = this.movements.filter(m => m.type === 'EXPENSE');
-
-    const totalDeposits = deposits.reduce((sum, m) => sum + (m.amount || 0), 0);
-    const totalWithdrawals = withdrawals.reduce((sum, m) => sum + (m.amount || 0), 0);
-    const totalAdjustments = adjustments.reduce((sum, m) => sum + (m.amount || 0), 0);
-    const totalExpenses = expenses.reduce((sum, m) => sum + (m.amount || 0), 0);
-
-    // Collection Statistics
-    const totalCollections = this.collections.reduce((sum, c) => sum + (c.amountCollected || 0), 0);
-    const todayCollections = this.collections.filter(c => {
-      const collectionDate = new Date(c.collectedAt || '');
-      const today = new Date();
-      return collectionDate.toDateString() === today.toDateString();
-    });
-    const totalTodayCollections = todayCollections.reduce((sum, c) => sum + (c.amountCollected || 0), 0);
-
-    // Session Performance
-    const avgSessionDuration = closedSessions.length > 0
-      ? closedSessions.reduce((sum, s) => {
-        if (s.openedAt && s.closedAt) {
-          const opened = new Date(s.openedAt);
-          const closed = new Date(s.closedAt);
-          return sum + (closed.getTime() - opened.getTime());
-        }
-        return sum;
-      }, 0) / closedSessions.length / (1000 * 60 * 60) // Convert to hours
-      : 0;
-
-    const avgOpeningAmount = this.sessions.length > 0
-      ? this.sessions.reduce((sum, s) => sum + (s.openingAmount || 0), 0) / this.sessions.length
-      : 0;
-
-    const avgClosingAmount = closedSessions.length > 0
-      ? closedSessions.reduce((sum, s) => sum + (s.closingAmount || 0), 0) / closedSessions.length
-      : 0;
-
-    // Calculate differences
-    const totalDifferences = closedSessions.reduce((sum, s) => sum + (s.declaredDifference || 0), 0);
-    const avgDifference = closedSessions.length > 0 ? totalDifferences / closedSessions.length : 0;
-
-    // Recent activity (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentMovements = this.movements.filter(m => {
-      const movementDate = new Date(m.timestamp || '');
-      return movementDate >= sevenDaysAgo;
-    });
-    const recentCollections = this.collections.filter(c => {
-      const collectionDate = new Date(c.collectedAt || '');
-      return collectionDate >= sevenDaysAgo;
-    });
-
-    this.cashRegisterStats = {
-      // Sessions
-      totalSessions: this.sessions.length,
-      openSessions: openSessions.length,
-      closedSessions: closedSessions.length,
-      todaySessions: todaySessions.length,
-      avgSessionDuration: avgSessionDuration,
-      avgOpeningAmount: avgOpeningAmount,
-      avgClosingAmount: avgClosingAmount,
-      avgDifference: avgDifference,
-
-      // Movements
-      totalMovements: this.movements.length,
-      totalDeposits: totalDeposits,
-      totalWithdrawals: totalWithdrawals,
-      totalAdjustments: totalAdjustments,
-      totalExpenses: totalExpenses,
-      depositsCount: deposits.length,
-      withdrawalsCount: withdrawals.length,
-      adjustmentsCount: adjustments.length,
-      expensesCount: expenses.length,
-      netMovements: totalDeposits - totalWithdrawals - totalExpenses + totalAdjustments,
-
-      // Collections
-      totalCollections: totalCollections,
-      collectionsCount: this.collections.length,
-      todayCollections: totalTodayCollections,
-      todayCollectionsCount: todayCollections.length,
-      avgCollectionAmount: this.collections.length > 0 ? totalCollections / this.collections.length : 0,
-
-      // Recent Activity
-      recentMovementsCount: recentMovements.length,
-      recentCollectionsCount: recentCollections.length,
-
-      // Performance Metrics
-      cashFlow: (totalDeposits + totalCollections) - (totalWithdrawals + totalExpenses),
-      efficiency: closedSessions.length > 0 ? ((closedSessions.filter(s => (s.declaredDifference || 0) === 0).length / closedSessions.length) * 100) : 0
-    };
-  }
-
-  filterMovements(): void {
-    let filtered = [...this.movements];
-
-    // Filter by search term
-    if (this.movementSearchTerm) {
-      const searchLower = this.movementSearchTerm.toLowerCase();
-      filtered = filtered.filter(m =>
-        m.reference?.toLowerCase().includes(searchLower) ||
-        m.performedByName?.toLowerCase().includes(searchLower) ||
-        m.type?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Filter by type
-    if (this.selectedMovementTypeFilter) {
-      filtered = filtered.filter(m => m.type === this.selectedMovementTypeFilter);
-    }
-
-    this.filteredMovements = filtered;
-  }
-
-  filterCollections(): void {
-    let filtered = [...this.collections];
-
-    // Filter by search term
-    if (this.collectionSearchTerm) {
-      const searchLower = this.collectionSearchTerm.toLowerCase();
-      filtered = filtered.filter(c =>
-        c.receiptNumber?.toLowerCase().includes(searchLower) ||
-        c.collectedByName?.toLowerCase().includes(searchLower) ||
-        c.notes?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    this.filteredCollections = filtered;
-  }
-
-  clearMovementFilters(): void {
-    this.movementSearchTerm = '';
-    this.selectedMovementTypeFilter = null;
-    this.filteredMovements = [...this.movements];
-  }
-
-  clearCollectionFilters(): void {
-    this.collectionSearchTerm = '';
-    this.filteredCollections = [...this.collections];
-  }
-
-  // getMovementTypes(): string[] {
-  //   const types = new Set<string>();
-  //   this.movements.forEach(m => {
-  //     if (m.type) types.add(m.type);
-  //   });
-  //   return Array.from(types);
-  // }
-
-  exportCashRegisterData(): void {
-    const exportData = {
-      sessions: this.filteredSessions.map(s => ({
-        cashier: s.username || 'N/A',
-        openedAt: s.openedAt ? new Date(s.openedAt).toLocaleString() : 'N/A',
-        closedAt: s.closedAt ? new Date(s.closedAt).toLocaleString() : 'Still Open',
-        openingAmount: s.openingAmount || 0,
-        closingAmount: s.closingAmount || 0,
-        declaredDifference: s.declaredDifference || 0,
-        status: s.closed ? 'Closed' : 'Open'
-      })),
-      movements: this.filteredMovements.map(m => ({
-        type: m.type || 'N/A',
-        amount: m.amount || 0,
-        reference: m.reference || 'N/A',
-        performedBy: m.performedByName || 'N/A',
-        timestamp: m.timestamp ? new Date(m.timestamp).toLocaleString() : 'N/A'
-      })),
-      collections: this.filteredCollections.map(c => ({
-        receiptNumber: c.receiptNumber || 'N/A',
-        collectedAt: c.collectedAt ? new Date(c.collectedAt).toLocaleString() : 'N/A',
-        amountCollected: c.amountCollected || 0,
-        collectedBy: c.collectedByName || 'N/A',
-        notes: c.notes || 'N/A'
-      }))
-    };
-
-    this.reportingService.exportExcel(
-      exportData.sessions.concat(exportData.movements as any).concat(exportData.collections as any),
-      `cash_register_${this.shop.shopName}_${new Date().toISOString().slice(0, 10)}`
-    );
-  }
-
-  async viewSessionMovements(session: CashRegisterSession): Promise<void> {
-    try {
-      const movements$ = this.cashRegisterService.getMovementsBySession(session.sessionId);
-      this.selectedSessionMovements = await firstValueFrom(movements$);
-      this.movementsDialogVisible = true;
-    } catch (error) {
-      console.error('❌ Error loading session movements:', error);
-    }
-  }
-
-
-  // refreshData(): void {
-  //   Promise.all([
-  //     this.fetchCashRegisterData(this.shop.shopId),
-  //     this.onGetShopCashRegister()
-  //   ]);
-  // }
-
-  exportToExcel(): void {
-    const dataToExport = this.filteredBalances.map(balance => ({
-      'Date': this.datePipe.transform(balance.balanceDate, 'shortDate'),
-      'Opening Balance': balance.openingBalance,
-      'Closing Balance': balance.closingBalance,
-      'Daily Difference': balance.dailyDifference
-    }));
-
-    const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook: XLSX.WorkBook = { Sheets: { 'data': worksheet }, SheetNames: ['data'] };
-    XLSX.writeFile(workbook, `CashRegister_${this.shop.shopName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
-
-  printReport(): void {
-    window.print();
-  }
-
-
-  isToday(date: Date): boolean {
-    if (!date) return false;
-    const balanceDate = new Date(date);
-    const today = new Date();
-    return (
-      balanceDate.getDate() === today.getDate() &&
-      balanceDate.getMonth() === today.getMonth() &&
-      balanceDate.getFullYear() === today.getFullYear()
-    );
-  }
-
-
-  calculateTotalsAndTrends(): void {
-    // Calculate trend (compare with previous period)
-    if (this.filteredBalances.length > 1) {
-      const currentPeriodSum = this.filteredBalances.slice(-7).reduce(
-        (sum, balance) => sum + (balance.dailyDifference || 0), 0
-      );
-      const previousPeriodSum = this.filteredBalances.slice(-14, -7).reduce(
-        (sum, balance) => sum + (balance.dailyDifference || 0), 0
-      );
-
-      this.dailyDifferenceTrend = currentPeriodSum - previousPeriodSum;
-      this.dailyDifferencePercentage = previousPeriodSum !== 0 ?
-        (this.dailyDifferenceTrend / Math.abs(previousPeriodSum)) * 100 : 0;
-    } else {
-      this.dailyDifferenceTrend = 0;
-      this.dailyDifferencePercentage = 0;
-    }
-  }
-
-  // clearDateFilter(): void {
-  //   this.startDate = null;
-  //   this.endDate = null;
-  //   this.filterByDateRange();
-  // }
-
-  async checkPermissions() {
+  async checkPermissions(): Promise<void> {
     const profile = await this.keycloakService.loadUserProfile();
-    const userId = profile.id; // Fetch user ID
-
-    await this.permissionService.init(userId).toPromise(); // Initialize permissions
+    await this.permissionService.init(profile.id!).toPromise();
     this.canAddShop = this.permissionService.canCreate(this.Ressource);
     this.canEditShop = this.permissionService.canUpdate(this.Ressource);
     this.canReadShop = this.permissionService.canRead(this.Ressource);
     this.canDeleteShop = this.permissionService.canDelete(this.Ressource);
     this.canReadCash = this.permissionService.canCashRead(this.Ressource);
-
   }
 
-  private async setUserRoles() {
-    this.userRoles = await this.keycloakService.getUserRoles();
-    this.isAdmin = this.userRoles.includes('ADMIN');
-  }
-
-  deleteSelectedShops() {
+  deleteSelectedShops(): void {
     this.deleteShopsDialog = true;
   }
 
-  async editShop(shop: Shop) {
+  async editShop(shop: Shop): Promise<void> {
     await this.loadBankAccounts();
-    // Form dropdown uses defaultBankAccountId; normalization runs inside shop-form-dialog
+    let cashRegisterOpeningTime: Date | null = null;
+    let cashRegisterClosingTime: Date | null = null;
+    if (shop.shopId) {
+      try {
+        const register = await firstValueFrom(this.shopService.getCashRegister(shop.shopId)) as CashRegister;
+        const schedule = parseCashRegisterSchedule(register?.openingTime, register?.closingTime);
+        cashRegisterOpeningTime = schedule.openingTime ?? null;
+        cashRegisterClosingTime = schedule.closingTime ?? null;
+      } catch {
+        /* register may not exist yet */
+      }
+    }
     this.shopDialogConfig = {
       visible: true,
       mode: 'edit',
       shop: { ...shop },
+      cashRegisterOpeningTime,
+      cashRegisterClosingTime,
     };
-    console.log(shop.country)
   }
 
   openShopDetails(shop: Shop): void {
     if (shop?.shopId) {
-      this.router.navigate(['/inventory/shops', shop.shopId]);
+      void this.router.navigate(['/inventory/shops', shop.shopId]);
     }
   }
 
-
-  deleteShop(shop: Shop) {
+  deleteShop(shop: Shop): void {
     this.deleteShopDialog = true;
     this.shop = { ...shop };
   }
 
-  async confirmDeleteSelected() {
+  async confirmDeleteSelected(): Promise<void> {
     this.deleteShopsDialog = false;
     await Promise.all(this.selectedShops.map(selectedShop => this.onDeleteShop(selectedShop.shopId)));
     this.selectedShops = [];
   }
 
-  async confirmDelete() {
+  async confirmDelete(): Promise<void> {
     this.deleteShopDialog = false;
     await this.onDeleteShop(this.shop.shopId);
     this.shop = {};
   }
 
-  hideDialog() {
+  hideDialog(): void {
     this.shopDialogConfig.visible = false;
     this.submitted = false;
+    this.pendingCashRegisterSchedule = null;
   }
 
-  // Shop Form Dialog Event Handlers
-  onShopDialogConfigChange(config: ShopFormDialogConfig) {
+  onShopDialogConfigChange(config: ShopFormDialogConfig): void {
     this.shopDialogConfig = config;
   }
 
-  onShopSave(dialogData: ShopFormDialogData) {
+  onShopSave(dialogData: ShopFormDialogData): void {
     this.shop = dialogData.shop;
-    this.saveShop();
+    this.pendingCashRegisterSchedule = buildCashRegisterSchedulePayload(
+      dialogData.cashRegisterOpeningTime,
+      dialogData.cashRegisterClosingTime,
+    );
+    void this.saveShop();
   }
 
-  onShopCancel() {
+  onShopCancel(): void {
     this.hideDialog();
   }
 
-  async loadBankAccounts() {
+  async loadBankAccounts(): Promise<void> {
     try {
       const accounts$ = await this.bankAccountService.getBankAccounts(true);
-      const response = await firstValueFrom(accounts$);
-      this.bankAccounts = response as BankAccount[];
+      this.bankAccounts = await firstValueFrom(accounts$) as BankAccount[];
     } catch (error) {
       console.error('Error loading bank accounts:', error);
     }
   }
 
-  async openNew() {
+  async openNew(): Promise<void> {
     if (this.isAtShopsCapacity) {
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('license_update_toast_title'),
         detail: `Shop limit reached for current plan (${this.maxShopsCap}).`,
-        life: 4000
+        life: 4000,
       });
       return;
     }
@@ -692,21 +239,11 @@ export class ShopsComponent implements OnInit {
     };
     this.shop = {};
     this.submitted = false;
+    this.pendingCashRegisterSchedule = null;
   }
 
-  async openSettingsDialog() {
-    this.cashRegisterSettingsDialog = true;
-  }
-
-  hideSettingsDialog() {
-    this.cashRegisterSettingsDialog = false;
-    this.cashRegister = {};
-  }
-
-  saveShop() {
+  async saveShop(): Promise<void> {
     this.submitted = true;
-    console.log(this.shop);
-    // Dropdown binds defaultBankAccountId (optionValue); API may still send nested defaultBankAccount
     let bankId: number | undefined = this.shop.defaultBankAccountId as number | undefined;
     if (bankId == null && this.shop.defaultBankAccount && typeof this.shop.defaultBankAccount === 'object') {
       bankId = (this.shop.defaultBankAccount as BankAccount).accountId;
@@ -721,840 +258,207 @@ export class ShopsComponent implements OnInit {
       this.shop.defaultBankAccountId = undefined;
       this.shop.defaultBankAccount = undefined;
     }
-    if (this.shop.shopName) {
+
+    if (!this.shop.shopName) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000,
+      });
+      return;
+    }
+
+    try {
       if (this.shop.shopId) {
-        this.updateShop(this.shop.shopId, this.shop)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('shop_updated'),
-            life: 3000
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_updating_shop'),
-            life: 3000
-          });
+        await firstValueFrom(this.shopService.updateShop(this.shop.shopId, this.shop));
+        await this.persistCashRegisterSchedule(this.shop.shopId);
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('shop_updated'),
+          life: 3000,
+        });
       } else {
-        this.addShop(this.shop)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('shop_added'),
-            life: 3000
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_adding_shop'),
-            life: 3000
-          });
+        const created = await firstValueFrom(await this.shopService.saveShop(this.shop)) as Shop;
+        if (created?.shopId && this.pendingCashRegisterSchedule) {
+          await this.persistCashRegisterSchedule(created.shopId);
+        }
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('shop_added'),
+          life: 3000,
+        });
       }
       this.shops = [...this.shops];
       this.shopDialogConfig.visible = false;
       this.shop = {};
-    } else {
+      this.pendingCashRegisterSchedule = null;
+      this.onGetAllShops();
+    } catch {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3000
+        detail: this.translate.instant(this.shop.shopId ? 'error_updating_shop' : 'error_adding_shop'),
+        life: 3000,
       });
-      return;
     }
   }
 
-  updateCashRegister() {
-    this.submitted = true;
+  private async persistCashRegisterSchedule(shopId: number): Promise<void> {
+    if (!this.pendingCashRegisterSchedule) {
+      return;
+    }
+    try {
+      await firstValueFrom(this.shopService.updateCashRegister(shopId, this.pendingCashRegisterSchedule));
+    } catch (error) {
+      console.error('Error saving cash register schedule:', error);
+    }
+  }
 
-    // Check if openingTime and closingTime exist and format them
-    if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
-      // Function to format Date object as a LocalTime string ("HH:mm:ss")
-      const formatDateToLocalTime = (date: Date): string => {
-        return date.toTimeString().split(' ')[0]; // Extracts "HH:mm:ss" portion
-      };
+  onGlobalFilter(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.dt?.filterGlobal(value, 'contains');
+  }
 
-      // Format openingTime and closingTime to LocalTime strings
-      this.cashRegister.openingTime = formatDateToLocalTime(new Date(this.cashRegister.openingTime));
-      this.cashRegister.closingTime = formatDateToLocalTime(new Date(this.cashRegister.closingTime));
-
-      // Call saveCashRegister with formatted cashRegister data
-      const success = this.saveCashRegister(this.shop.shopId, this.cashRegister);
-
-      // Show success or error message based on the result
-      success
-        ? this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('cash_register_updated'),
-          life: 3000
-        })
-        : this.messageService.add({
+  async onGetAllShops(): Promise<void> {
+    await (await this.shopService.getShops()).subscribe({
+      next: (response: any) => {
+        this.shops = response;
+        this.refreshPlanLimits();
+        this.shops.forEach((shop: any) => (shop.creationDate = new Date(shop.creationDate)));
+      },
+      error: () => {
+        this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_updating_cash_register'),
-          life: 3000
+          detail: this.translate.instant('error_while_getting_shops'),
+          life: 3000,
         });
-
-      // Close dialog and reset cashRegister object
-      this.cashRegisterSettingsDialog = false;
-      this.cashRegister = {};
-    } else {
-      // Show error if required fields are missing
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3000
-      });
-      return;
-    }
+      },
+      complete: () => {
+        this.isLoading = false;
+      },
+    });
   }
 
-  closeCashRegisterDialog() {
-    this.cashRegisterDialog = false;
+  async onDeleteShop(id: any): Promise<void> {
+    await (await this.shopService.deleteShop(id)).subscribe({
+      next: () => {
+        this.onGetAllShops();
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('shop_deleted'),
+          life: 3000,
+        });
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_deleting_shop'),
+          life: 3000,
+        });
+      },
+    });
   }
 
-  @ViewChild('dt') dt!: Table;
-
-  onGlobalFilter(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    if (this.dt) {
-      this.dt.filterGlobal(value, 'contains');
-    }
-  }
-
-
-  clear(table: Table) {
-    table.clear();
-  }
-
-  getSeverity(status: any) {
-    switch (status) {
-      case false:
-        return 'danger';
-
-      case true:
-        return 'success';
-
-      case 'new':
-        return 'info';
-
-      case 'negotiation':
-        return 'warning';
-
-      case 'renewal':
-        return null;
-
-      default:
-        return '';
-    }
-  }
-
-  async onGetAllShops() {
-    await (await this.shopService.getShops())
-      .subscribe({
-        next: (response: any) => {
-          this.shops = response;
-          this.refreshPlanLimits();
-          this.shops.forEach((shop: any) => (shop.creationDate = new Date(<Date>shop.creationDate)));
-          console.log(this.shops);
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_shops'),
-            life: 3000,
-          });
-          console.log(err);
-        },
-        complete: () => {
-          this.isLoading = false;
-        },
-      })
-  }
-
-  private convertTimeStringToDate(timeString: string): Date {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date;
-  }
-
-  async onGetShopCashRegister(): Promise<void> {
-    try {
-      const response = await (this.shopService.getCashRegister(this.shop.shopId)).toPromise();
-      this.cashRegister = response || {};
-
-      // Convert time strings to Date objects
-      if (this.cashRegister.openingTime && this.cashRegister.closingTime) {
-        if (typeof this.cashRegister.openingTime === 'string') {
-          this.cashRegister.openingTime = this.convertTimeStringToDate(this.cashRegister.openingTime);
-        }
-        if (typeof this.cashRegister.closingTime === 'string') {
-          this.cashRegister.closingTime = this.convertTimeStringToDate(this.cashRegister.closingTime);
-        }
-      }
-
-      this.filterByDateRange();
-      this.calculateTotalsAndTrends();
-    } catch (err) {
-      console.error('Error loading cash register:', err);
-      // Initialize empty cash register if load fails
-      this.cashRegister = {};
-      // Don't show error message here - let the caller handle it
-      throw err;
-    }
-  }
-
-  async onDeleteShop(id: any) {
-    await (await this.shopService.deleteShop(id))
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllShops();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('shop_deleted'),
-            life: 3000
-          });
-        },
-        error: (err: any) => {
-          console.log(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_deleting_shop'),
-            life: 3000
-          });
-        },
-      });
-  }
-
-  async updateShop(id: any, shop: any): Promise<any> {
-    this.shopService.updateShop(id, shop)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllShops();
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async saveCashRegister(id: any, cashRegister: any): Promise<any> {
-    console.log(cashRegister)
-    await this.shopService.updateCashRegister(id, cashRegister)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetShopCashRegister();
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async addShop(data: any): Promise<any> {
-    await (await this.shopService.saveShop(data))
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllShops();
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  onChangeCountry() {
-    this.shop.city = undefined;
-    console.log("clear city")
-  }
-
-  openCashRegisterDialog(shop: any): void {
+  openCashRegisterDialog(shop: Shop): void {
     if (!shop?.shopId) {
-      console.error('Cannot open cash register dialog: shop ID is missing');
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: 'Shop ID is missing',
-        life: 3000
-      });
       return;
     }
-
-    console.log('🔄 Opening cash register dialog for shop:', shop.shopId);
-
-    // Set shop first
-    this.shop = shop;
-
-    // Reset all data and filters
-    this.cashRegister = {};
-    this.startDate = null;
-    this.endDate = null;
-    this.movementSearchTerm = '';
-    this.collectionSearchTerm = '';
-    this.selectedMovementTypeFilter = null;
-
-    // Initialize empty arrays
-    this.sessions = [];
-    this.filteredSessions = [];
-    this.movements = [];
-    this.filteredMovements = [];
-    this.collections = [];
-    this.filteredCollections = [];
-
-    // Initialize stats with default values
-    this.cashRegisterStats = {
-      totalSessions: 0,
-      openSessions: 0,
-      closedSessions: 0,
-      todaySessions: 0,
-      avgSessionDuration: 0,
-      totalDeposits: 0,
-      totalWithdrawals: 0,
-      totalCollections: 0,
-      cashFlow: 0
-    };
-
-    // Set loading state
-    this.loadingCashRegister = true;
-
-    // Open dialog IMMEDIATELY - no async operations blocking this
-    this.cashRegisterDialog = true;
-
-    // Force change detection to ensure dialog opens
-    this.cdr.detectChanges();
-
-    // Load data asynchronously AFTER dialog is opened
-    this.loadCashRegisterDialogData();
+    void this.router.navigate(['/finance/treasury/cash-registers', shop.shopId]);
   }
 
-  private async loadCashRegisterDialogData(): Promise<void> {
-    if (!this.shop?.shopId) {
-      this.loadingCashRegister = false;
-      this.cdr.detectChanges();
-      return;
-    }
-
-    try {
-      // Load data in parallel
-      await Promise.allSettled([
-        this.refreshData(false),
-        this.onGetShopCashRegister()
-      ]);
-
-      console.log('✅ Cash register data loaded');
-    } catch (error) {
-      console.error('❌ Error loading cash register data:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_loading_cash_register_data'),
-        life: 3000
-      });
-    } finally {
-      // Always clear global loading state (sessions + collections)
-      console.log('🔓 Clearing loading state - before:', this.loadingCashRegister);
-      this.loadingCashRegister = false;
-      console.log('🔓 Clearing loading state - after:', this.loadingCashRegister);
-
-      // Ensure UI updates
-      this.ngZone.run(() => {
-        this.cdr.markForCheck();
-        this.cdr.detectChanges();
-      });
-
-      console.log('🔓 Loading complete');
-    }
-  }
-
-  /**
-   * Called when the Movements tab is opened.
-   * Loads movements lazily and uses its own spinner, without affecting the main dialog loader.
-   */
-  async onMovementsTabOpen(): Promise<void> {
-    console.log('📑 Movements tab opened');
-    if (this.movements && this.movements.length > 0) {
-      return; // already loaded
-    }
-    await this.loadMovements();
-  }
-
-  openCashRegisterSessionDialog(): void {
-    this.showCashRegisterSessionDialog = true;
-  }
-
-  onSessionOpened(session: CashRegisterSession): void {
-    console.log('✅ Cash register session opened:', session);
-    this.messageService.add({
-      severity: 'success',
-      summary: this.translate.instant('success'),
-      detail: this.translate.instant('cash_register_opened'),
-      life: 3000
-    });
-    // Refresh data (which includes sessions) - manage loading state since dialog is already open
-    if (this.cashRegisterDialog) {
-      this.refreshData(true);
-    }
-  }
-
-  onSessionClosed(session: CashRegisterSession): void {
-    console.log('🔴 Cash register session closed:', session);
-    this.messageService.add({
-      severity: 'info',
-      summary: this.translate.instant('info'),
-      detail: this.translate.instant('cash_register_closed'),
-      life: 3000
-    });
-    // Refresh data (which includes sessions) - manage loading state since dialog is already open
-    if (this.cashRegisterDialog) {
-      this.refreshData(true);
-    }
-  }
-
-  onCashRegisterSessionDialogClosed(): void {
-    this.showCashRegisterSessionDialog = false;
-  }
-
-  // async fetchCashRegisterData(shopId: number): Promise<void> {
-  //   try {
-  //     const data = await (await this.shopService.fetchCashRegisterData(shopId)).toPromise();
-  //     console.log('Fetched cash register data:', data);
-  //     const balances: DailyBalance[] = Array.isArray(data) ? data : [];
-  //     this.dailyBalances = balances.map(balance => ({
-  //       ...balance,
-  //       balanceDate: new Date(balance.balanceDate).toISOString() // Convert to string as required by DailyBalance
-  //     }));
-  //     this.filteredBalances = [...this.dailyBalances];
-  //     this.calculateTotalDailyDifference(this.filteredBalances);
-  //   } catch (error) {
-  //     console.error('Error fetching cash register data:', error);
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: 'Error',
-  //       detail: 'Failed to fetch daily balances'
-  //     });
-  //   }
-  // }
-
-  formatDateForFilter(date: any): Date {
-    if (!date) return null;
-    if (date instanceof Date) return date;
-    return new Date(date);
-  }
-
-  // filterByDateRange() {
-  //   // Validate dates
-  //   if (this.startDate && this.endDate && this.startDate > this.endDate) {
-  //     this.messageService.add({
-  //       severity: 'warn',
-  //       summary: this.translate.instant('invalid_date_range'),
-  //       detail: this.translate.instant('start_date_cannot_be_after_end_date')
-  //     });
-  //     return;
-  //   }
-
-  //   // If both dates are selected, filter balances
-  //   if (this.startDate && this.endDate) {
-  //     const start = new Date(this.startDate);
-  //     const end = new Date(this.endDate);
-  //     end.setHours(23, 59, 59, 999); // Include entire end day
-
-  //     this.filteredBalances = this.dailyBalances.filter((balance) => {
-  //       const balanceDate = new Date(balance.balanceDate);
-  //       return balanceDate >= start && balanceDate <= end;
-  //     });
-  //   } else {
-  //     // Show all balances if no filter
-  //     this.filteredBalances = [...this.dailyBalances];
-  //   }
-
-  //   // Calculate totals
-  //   this.calculateTotalDailyDifference(this.filteredBalances);
-  //   this.calculateTotalsAndTrends();
-  // }
-
-  filterByDateRange(): void {
-    if (this.startDate && this.endDate) {
-      this.filteredSessions = this.sessions.filter(s =>
-        new Date(s.openedAt) >= this.startDate && new Date(s.openedAt) <= this.endDate
-      );
-    } else {
-      this.filteredSessions = [...this.sessions];
-    }
-  }
-
-  clearDateFilter(): void {
-    this.startDate = this.endDate = null;
-    this.filteredSessions = [...this.sessions];
-  }
-
-  // async viewSessionMovements(session: CashRegisterSession): Promise<void> {
-  //   try {
-  //     const movements$ = this.cashRegisterService.getMovementsBySession(session.sessionId);
-  //     this.selectedSessionMovements = await firstValueFrom(movements$);
-  //     this.movementsDialogVisible = true;
-  //   } catch (error) {
-  //     console.error('❌ Error loading movements:', error);
-  //   }
-  // }
-
-  async refreshData(manageLoadingState: boolean = false): Promise<void> {
-    if (!this.shop?.shopId) {
-      console.warn('⚠️ Cannot refresh data: shop ID is missing');
-      return;
-    }
-
-    console.log('🔄 Refreshing cash register data for shop:', this.shop.shopId);
-
-    if (manageLoadingState) {
-      this.loadingCashRegister = true;
-    }
-
-    try {
-      // Use allSettled to ensure all calls complete even if some fail
-      const results = await Promise.allSettled([
-        this.loadSessions(),
-        this.loadCollections(),
-        this.loadMovements()
-      ]);
-
-      // Check for any failures
-      const failures = results.filter(r => r.status === 'rejected');
-      if (failures.length > 0) {
-        console.warn('⚠️ Some data loading failed:', failures);
-      }
-
-      // Calculate stats once after all data is loaded (even if some failed)
-      this.calculateCashRegisterStats();
-      console.log('✅ Cash register stats calculated');
-
-      if (manageLoadingState) {
-        this.loadingCashRegister = false;
-      }
-    } catch (error) {
-      console.error('❌ Error refreshing cash register data:', error);
-      if (manageLoadingState) {
-        this.loadingCashRegister = false;
-      }
-      // Initialize empty stats on error
-      this.cashRegisterStats = {};
-      // Don't re-throw - let allSettled handle it
-    }
-  }
-
-  calculateTotalDailyDifference(balances: DailyBalance[]) {
-    this.totalDailyDifference = balances.reduce((total, balance) => {
-      return total + balance.dailyDifference;
-    }, 0);
-  }
-
-
-  async exportPdf() {
+  async exportPdf(): Promise<void> {
     if (this.isExporting) {
-      return; // Prevent multiple simultaneous exports
+      return;
     }
-
     try {
       this.isExporting = true;
       this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
-      
-      // Show initial loading message
-      this.messageService.add({
-        severity: 'info',
-        summary: this.translate.instant('exporting'),
-        detail: this.translate.instant('exporting_pdf_please_wait') || 'Exporting PDF, please wait...',
-        life: 3000
-      });
-
-      // Get filtered shops from table (or all if no filter applied)
-      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
       const filteredShops = this.dt?.filteredValue || this.shops || [];
-      
-      this.exportProgress = this.translate.instant('generating_pdf') || 'Generating PDF...';
-      
-      // Load token and get organization's default locale
       await this.organizationService.loadToken();
       const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
       const defaultLocale = organization?.defaultLocale || 'en';
-      
-      // Temporarily switch to organization's default locale for translations
       const currentLang = this.translate.currentLang;
       this.translate.use(defaultLocale);
-      
-      // Wait for translations to load
       await firstValueFrom(this.translate.getTranslation(defaultLocale));
-      
-      // Build translated export columns based on organization's default locale
-      // Map column field names to translation keys
-      const translationKeyMap: { [key: string]: string } = {
-        'shopId': 'ID',
-        'shopName': 'shop_name',
-        'description': 'shop_description',
-        'city': 'shop_city',
-        'country': 'shop_country',
-        'address': 'shop_address'
+      const translationKeyMap: Record<string, string> = {
+        shopId: 'ID',
+        shopName: 'shop_name',
+        description: 'shop_description',
+        city: 'shop_city',
+        country: 'shop_country',
+        address: 'shop_address',
       };
-      
       const translatedExportColumns: ExportColumn[] = this.cols
-        .filter((col) => col.field !== 'shopId') // Exclude ID column
-        .map((col) => {
-          const translationKey = translationKeyMap[col.field] || col.field;
-          return {
-            title: this.translate.instant(translationKey),
-            dataKey: col.field
-          };
-        });
-      
-      // Get translated title for PDF
-      const pdfTitle = this.translate.instant('shops_menu_title');
-      
-      // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, filteredShops, 'shops', pdfTitle);
-      
-      // Restore original language
+        .filter(col => col.field !== 'shopId')
+        .map(col => ({
+          title: this.translate.instant(translationKeyMap[col.field] || col.field),
+          dataKey: col.field,
+        }));
+      this.reportingService.exportPdf(translatedExportColumns, filteredShops, 'shops', this.translate.instant('shops_menu_title'));
       this.translate.use(currentLang);
-      
-      // Show success message
       this.messageService.add({
         severity: 'success',
         summary: this.translate.instant('success'),
-        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${filteredShops.length} records exported.`,
-        life: 3000
+        detail: this.translate.instant('export_completed_successfully'),
+        life: 3000,
       });
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_exporting') || 'Error exporting PDF',
-        life: 5000
-      });
     } finally {
       this.isExporting = false;
       this.exportProgress = '';
     }
   }
 
-  async exportExcel() {
+  async exportExcel(): Promise<void> {
     if (this.isExporting) {
-      return; // Prevent multiple simultaneous exports
+      return;
     }
-
     try {
       this.isExporting = true;
-      this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
-      
-      // Show initial loading message
-      this.messageService.add({
-        severity: 'info',
-        summary: this.translate.instant('exporting'),
-        detail: this.translate.instant('exporting_excel_please_wait') || 'Exporting Excel, please wait...',
-        life: 3000
-      });
-
-      // Get filtered shops from table (or all if no filter applied)
-      this.exportProgress = this.translate.instant('fetching_data') || 'Fetching data...';
       const filteredShops = this.dt?.filteredValue || this.shops || [];
-      
-      this.exportProgress = this.translate.instant('generating_excel') || 'Generating Excel...';
-      
-      // Load token and get organization's default locale
       await this.organizationService.loadToken();
       const organization = await firstValueFrom(this.organizationService.getOrganization()) as Organization;
       const defaultLocale = organization?.defaultLocale || 'en';
-      
-      // Temporarily switch to organization's default locale for translations
       const currentLang = this.translate.currentLang;
       this.translate.use(defaultLocale);
-      
-      // Wait for translations to load
       await firstValueFrom(this.translate.getTranslation(defaultLocale));
-      
-      // Map column field names to translation keys
-      const translationKeyMap: { [key: string]: string } = {
-        'shopId': 'ID',
-        'shopName': 'shop_name',
-        'description': 'shop_description',
-        'city': 'shop_city',
-        'country': 'shop_country',
-        'address': 'shop_address'
+      const translationKeyMap: Record<string, string> = {
+        shopId: 'ID',
+        shopName: 'shop_name',
+        description: 'shop_description',
+        city: 'shop_city',
+        country: 'shop_country',
+        address: 'shop_address',
       };
-      
-      // Clone the shops array to avoid modifying the original array
-      const modifiedShops = filteredShops.map(shop => {
-        // Create a copy of the shop object to modify
-        const modifiedShop = { ...shop };
-
-        // Remove the column you want to exclude
-        delete modifiedShop.creationDate;
-
-        return modifiedShop;
-      });
-
-      // Create a translated version of the data with translated headers
-      // For Excel, we need to create objects with translated keys
-      const translatedShops = modifiedShops.map(shop => {
-        const translated: any = {};
+      const translatedShops = filteredShops.map(shop => {
+        const translated: Record<string, unknown> = {};
         this.cols.forEach(col => {
-          // Exclude ID and creationDate columns
           if (col.field !== 'creationDate' && col.field !== 'shopId') {
-            const translationKey = translationKeyMap[col.field] || col.field;
-            const translatedHeader = this.translate.instant(translationKey);
-            translated[translatedHeader] = shop[col.field as keyof Shop];
+            translated[this.translate.instant(translationKeyMap[col.field] || col.field)] = shop[col.field as keyof Shop];
           }
         });
         return translated;
       });
-
-      // Now, export the translated array to Excel
       this.reportingService.exportExcel(translatedShops, 'shops');
-      
-      // Restore original language
       this.translate.use(currentLang);
-      
-      // Show success message
       this.messageService.add({
         severity: 'success',
         summary: this.translate.instant('success'),
-        detail: this.translate.instant('export_completed_successfully') || `Export completed successfully. ${translatedShops.length} records exported.`,
-        life: 3000
+        detail: this.translate.instant('export_completed_successfully'),
+        life: 3000,
       });
     } catch (error) {
       console.error('Error exporting Excel:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_exporting') || 'Error exporting Excel',
-        life: 5000
-      });
     } finally {
       this.isExporting = false;
       this.exportProgress = '';
     }
   }
-
-  openNewCollectionDialog(): void {
-    this.newCollectionDialogVisible = true;
-    this.newCollection = {
-      amount: null,
-      notes: ''
-    };
-  }
-
-  async saveNewCollection(): Promise<void> {
-    if (!this.newCollection.amount || this.newCollection.amount <= 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Invalid Amount',
-        detail: 'Please enter a valid amount.',
-        life: 3000
-      });
-      return;
-    }
-
-    try {
-      const shopId = this.shop.shopId;
-      const { amount, notes } = this.newCollection;
-
-      const response = await firstValueFrom(
-        await this.cashRegisterService.addCollection(shopId, amount, notes)
-      );
-
-      // Optionally update local collection list if backend returns it
-      if (response) {
-        this.collections.unshift(response);
-      }
-
-      this.newCollectionDialogVisible = false;
-
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Collection Performed',
-        detail: 'Cash collection has been successfully recorded.',
-        life: 3000
-      });
-
-      // refresh the cash register data to reflect new balance
-      if (this.cashRegisterDialog) {
-        this.refreshData(true);
-      }
-
-    } catch (error) {
-      console.error('❌ Error performing collection:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to perform cash collection.',
-        life: 4000
-      });
-    }
-  }
-
-  openNewDepositDialog() {
-    this.newDepositDialogVisible = true;
-    this.newDeposit = { amount: null, notes: '' };
-  }
-
-  async saveNewDeposit() {
-    if (!this.newDeposit.amount || this.newDeposit.amount <= 0) {
-      this.messageService.add({ severity: 'warn', summary: this.translate.instant('warning'), detail: this.translate.instant('amount_must_be_greater_than_zero') });
-      return;
-    }
-
-    (await this.cashRegisterService.depositMoney(this.cashRegister.cashRegisterId, this.newDeposit)).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: this.translate.instant('success'), detail: this.translate.instant('deposit_added') });
-        this.newDepositDialogVisible = false;
-        if (this.cashRegisterDialog) {
-          this.refreshData(true);
-        }
-      },
-      error: (err) => {
-        this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_adding_deposit') });
-        console.error(err);
-      }
-    });
-  }
-
-  openNewWithdrawDialog() {
-    this.newWithdrawDialogVisible = true;
-    this.newWithdraw = { amount: null, notes: '' };
-  }
-
-  async saveNewWithdraw() {
-    if (!this.newWithdraw.amount || this.newWithdraw.amount <= 0) {
-      this.messageService.add({ severity: 'warn', summary: this.translate.instant('warning'), detail: this.translate.instant('amount_must_be_greater_than_zero') });
-      return;
-    }
-
-    (await this.cashRegisterService.withdrawMoney(this.cashRegister.cashRegisterId, this.newWithdraw)).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: this.translate.instant('success'), detail: this.translate.instant('withdraw_added') });
-        this.newWithdrawDialogVisible = false;
-        if (this.cashRegisterDialog) {
-          this.refreshData(true);
-        }
-      }
-    });
-  } catch(error) {
-    console.error('❌ Error performing withdrawal:', error);
-    this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_adding_withdrawal') });
-  }
 }
-

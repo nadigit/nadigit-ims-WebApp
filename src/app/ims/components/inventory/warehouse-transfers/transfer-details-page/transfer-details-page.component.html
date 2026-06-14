@@ -1,4 +1,4 @@
-<div class="transfer-details-container">
+﻿<div class="transfer-details-container">
     <p-toast></p-toast>
 
     <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="mb-3 w-full"
@@ -17,7 +17,7 @@
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -40,7 +40,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="transfer-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--amber">
                             <i class="pi pi-truck"></i>
                         </div>
                         <div>
@@ -71,10 +71,6 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" 
-                            [label]="'refresh' | translate"
-                            class="p-button-outlined"
-                            (click)="refreshTransferDetails()"></button>
                         <button pButton pRipple icon="pi pi-play" 
                             [label]="'initiate_transfer' | translate"
                             *ngIf="canInitiate(transfer)"
@@ -98,7 +94,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon items">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
@@ -109,7 +105,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon quantity">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-hashtag"></i>
                 </div>
                 <div class="stat-content">
@@ -120,7 +116,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon source">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                     <i class="pi pi-sign-out"></i>
                 </div>
                 <div class="stat-content">
@@ -130,7 +126,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon destination">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-sign-in"></i>
                 </div>
                 <div class="stat-content">
@@ -162,7 +158,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
@@ -172,7 +168,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="transfer.transferDate">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -182,7 +178,7 @@
                                     </div>
                                     
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="info-content">
@@ -209,7 +205,7 @@
                             <div class="card-body">
                                 <div class="warehouse-flow">
                                     <div class="warehouse-item source">
-                                        <div class="warehouse-icon source">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
                                             <i class="pi pi-sign-out"></i>
                                         </div>
                                         <div class="warehouse-info">
@@ -223,7 +219,7 @@
                                     </div>
                                     
                                     <div class="warehouse-item destination">
-                                        <div class="warehouse-icon destination">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                                             <i class="pi pi-sign-in"></i>
                                         </div>
                                         <div class="warehouse-info">
@@ -244,7 +240,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="transfer.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -253,7 +249,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="transfer.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -276,23 +272,23 @@
                             </div>
                             <div class="card-body">
                                 <div class="summary-grid">
-                                    <div class="summary-item">
-                                        <div class="summary-icon items">
+                                    <div class="stat-card-modern summary-stat-card">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                                             <i class="pi pi-box"></i>
                                         </div>
-                                        <div class="summary-content">
-                                            <span class="summary-label">{{ 'total_products' | translate }}</span>
-                                            <span class="summary-value">{{ transfer.transferItems?.length || 0 }}</span>
+                                        <div class="stat-content">
+                                            <span class="stat-label">{{ 'total_products' | translate }}</span>
+                                            <div class="stat-value">{{ transfer.transferItems?.length || 0 }}</div>
                                         </div>
                                     </div>
                                     
-                                    <div class="summary-item">
-                                        <div class="summary-icon quantity">
+                                    <div class="stat-card-modern summary-stat-card">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
-                                        <div class="summary-content">
-                                            <span class="summary-label">{{ 'total_units' | translate }}</span>
-                                            <span class="summary-value">{{ getTotalQuantity(transfer) }}</span>
+                                        <div class="stat-content">
+                                            <span class="stat-label">{{ 'total_units' | translate }}</span>
+                                            <div class="stat-value">{{ getTotalQuantity(transfer) }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -300,7 +296,7 @@
                         </div>
 
                         <!-- Quick Actions Card -->
-                        <div class="detail-card">
+                        <div class="detail-card" *ngIf="canInitiate(transfer) || canComplete(transfer) || canCancel(transfer)">
                             <div class="card-header">
                                 <i class="pi pi-bolt"></i>
                                 <span>{{ 'quick_actions' | translate }}</span>
@@ -325,10 +321,6 @@
                                         *ngIf="canCancel(transfer)"
                                         (click)="openCancelConfirm()"></button>
                                     
-                                    <button pButton pRipple icon="pi pi-refresh" 
-                                        [label]="'refresh' | translate"
-                                        class="p-button-outlined p-button-secondary"
-                                        (click)="refreshTransferDetails()"></button>
                                 </div>
                             </div>
                         </div>
@@ -351,11 +343,12 @@
                             <span>{{ 'transfer_items' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="transfer.transferItems || []" [rows]="10" [paginator]="true"
+                            <p-table [value]="transfer.transferItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.transferDetailsMovements, [10,25,50])" [paginator]="true"
                                 [showCurrentPageReport]="true"
                                 styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,25,50]"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.transferDetailsMovements, [10,25,50], $event)"
                                 dataKey="transferItemId"
                                 *ngIf="transfer.transferItems?.length > 0; else noItems">
                                 <ng-template pTemplate="header">

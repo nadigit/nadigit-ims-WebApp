@@ -1,0 +1,225 @@
+﻿<div class="grid">
+  <div class="col-12">
+    <!-- Product families — page header (matches categories / warehouses) -->
+    <div class="mb-4">
+      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+        <div>
+          <h2 class="m-0 text-900">{{ 'product_families_menu_title' | translate }}</h2>
+          <p class="text-600 mt-2 mb-0">{{ 'product_families_page_description' | translate }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card px-6 py-6">
+      <p-toast></p-toast>
+
+      <div *ngIf="activityProfileService.emphasizeProductVariants"
+        class="mb-4 p-3 surface-100 border-round flex align-items-start gap-2">
+        <i class="pi pi-info-circle text-primary mt-1"></i>
+        <div>
+          <span class="text-700">{{ 'product_families_fashion_banner' | translate }}</span>
+          <button pButton pRipple [label]="'products_menu_title' | translate" class="p-button-link p-0 ml-2"
+            (click)="goToProducts()"></button>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
+        <div class="flex align-items-center gap-2">
+          <button pButton pRipple *ngIf="canAdd" [label]="'new_button' | translate" icon="pi pi-plus"
+            class="p-button-success" (click)="openCreateFamily()"
+            pTooltip="{{ 'product_family_new' | translate }}"></button>
+        </div>
+      </div>
+
+      <!-- Filters bar -->
+      <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+        <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+          <i class="pi pi-search"></i>
+          <input type="text" pInputText [placeholder]="'search_label' | translate" [(ngModel)]="search"
+            (input)="onSearchInput()" class="w-full" />
+        </span>
+
+        <div class="flex align-items-center gap-2 ml-auto" *ngIf="isAdmin">
+          <p-dropdown [options]="warehouses" [(ngModel)]="selectedWarehouseId" optionLabel="name"
+            optionValue="warehouseId" [showClear]="true" [placeholder]="'reports_all_warehouses' | translate"
+            (onChange)="onWarehouseFilterChange()" styleClass="w-12rem md:w-14rem" appendTo="body"></p-dropdown>
+        </div>
+      </div>
+
+      <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading && !overviews.length">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+        </div>
+      </div>
+
+      <p-table *ngIf="!isLoading || overviews.length" [value]="overviews" dataKey="family.productFamilyId" [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)" [loading]="isLoading" [paginator]="true" [rows]="pageSize"
+        [totalRecords]="totalRecords" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first} / {last} ({totalRecords} {{ 'table_records' | translate }})"
+        [rowHover]="true" styleClass="p-datatable-gridlines" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 3rem"></th>
+            <th>{{ 'product_family_style_reference' | translate }}</th>
+            <th>{{ 'product_family_name' | translate }}</th>
+            <th>{{ 'category' | translate }}</th>
+            <th class="text-right">{{ 'total_quantity' | translate }}</th>
+            <th class="text-right">{{ 'net_available_quantity' | translate }}</th>
+            <th>{{ 'status' | translate }}</th>
+            <th class="text-center">{{ 'variants' | translate }}</th>
+            <th>{{ 'actions' | translate }}</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+          <tr>
+            <td>
+              <button type="button" pButton pRipple
+                [icon]="isRowExpanded(row.family.productFamilyId) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+                class="p-button-text p-button-rounded p-button-primary"
+                (click)="toggleRow(row.family.productFamilyId); $event.stopPropagation()"></button>
+            </td>
+            <td style="min-width: 8rem;">
+              <span class="p-column-title">{{ 'product_family_style_reference' | translate }}</span>
+              {{ row.family.styleReference || 'N/A' }}
+            </td>
+            <td style="min-width: 10rem;">
+              <span class="p-column-title">{{ 'product_family_name' | translate }}</span>
+              {{ row.family.name || 'N/A' }}
+            </td>
+            <td style="min-width: 8rem;">
+              <span class="p-column-title">{{ 'category' | translate }}</span>
+              {{ row.family.categoryName || 'N/A' }}
+            </td>
+            <td class="text-right" style="min-width: 6rem;">
+              <span class="p-column-title">{{ 'total_quantity' | translate }}</span>
+              {{ row.totalQuantityAvailable ?? 0 }}
+            </td>
+            <td class="text-right" style="min-width: 6rem;">
+              <span class="p-column-title">{{ 'net_available_quantity' | translate }}</span>
+              {{ row.totalNetAvailableQuantity ?? 0 }}
+            </td>
+            <td>
+              <span class="p-column-title">{{ 'status' | translate }}</span>
+              <p-tag [value]="statusLabel(row.overallInventoryStatus)"
+                [severity]="getQuantitySeverity(row.overallInventoryStatus)"></p-tag>
+            </td>
+            <td class="text-center">
+              <span class="p-column-title">{{ 'variants' | translate }}</span>
+              {{ row.variantCombinationCount ?? 0 }}
+            </td>
+            <td>
+              <div class="flex gap-1">
+                <button pButton pRipple icon="pi pi-th-large" *ngIf="canAdd"
+                  class="p-button-rounded p-button-text p-button-primary"
+                  [pTooltip]="'product_family_generate_variants_title' | translate"
+                  (click)="openGenerateVariants(row); $event.stopPropagation()"></button>
+                <button pButton pRipple icon="pi pi-pencil" *ngIf="canAdd"
+                  class="p-button-rounded p-button-text p-button-primary"
+                  [pTooltip]="'edit' | translate"
+                  (click)="openEditFamily(row); $event.stopPropagation()"></button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="isRowExpanded(row.family.productFamilyId)">
+            <td colspan="9" class="p-0">
+              <div class="p-3 surface-100 border-round mx-2 my-2">
+                <p-table [value]="row.variants" styleClass="p-datatable-sm p-datatable-gridlines"
+                  responsiveLayout="scroll">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>{{ 'reference' | translate }}</th>
+                      <th>{{ 'variant' | translate }}</th>
+                      <th>{{ 'warehouse' | translate }}</th>
+                      <th class="text-right">{{ 'quantity' | translate }}</th>
+                      <th class="text-right">{{ 'net_available_quantity' | translate }}</th>
+                      <th>{{ 'status' | translate }}</th>
+                      <th>{{ 'actions' | translate }}</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-v>
+                    <tr>
+                      <td>
+                        <span class="p-column-title">{{ 'reference' | translate }}</span>
+                        {{ v.reference || 'N/A' }}
+                      </td>
+                      <td>
+                        <span class="p-column-title">{{ 'variant' | translate }}</span>
+                        {{ v.variantSummary || 'N/A' }}
+                      </td>
+                      <td>
+                        <span class="p-column-title">{{ 'warehouse' | translate }}</span>
+                        {{ v.warehouseName || 'N/A' }}
+                      </td>
+                      <td class="text-right">
+                        <span class="p-column-title">{{ 'quantity' | translate }}</span>
+                        {{ v.quantityAvailable ?? 0 }}
+                      </td>
+                      <td class="text-right">
+                        <span class="p-column-title">{{ 'net_available_quantity' | translate }}</span>
+                        {{ v.netAvailableQuantity ?? 0 }}
+                      </td>
+                      <td>
+                        <span class="p-column-title">{{ 'status' | translate }}</span>
+                        <p-tag *ngIf="v.inventoryStatus" [value]="statusLabel(v.inventoryStatus)"
+                          [severity]="getQuantitySeverity(v.inventoryStatus)"></p-tag>
+                        <span *ngIf="!v.inventoryStatus">N/A</span>
+                      </td>
+                      <td>
+                        <button pButton pRipple icon="pi pi-external-link"
+                          class="p-button-rounded p-button-text p-button-primary"
+                          (click)="navigateToProduct(v.productId)"
+                          [pTooltip]="'view_product' | translate"></button>
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr>
+                      <td colspan="7">
+                        <div class="text-center text-600 py-3">
+                          {{ 'product_family_no_variants' | translate }}
+                          <button *ngIf="canAdd" pButton pRipple [label]="'product_family_generate_button' | translate"
+                            class="p-button-link p-0 ml-2" (click)="openGenerateVariants(row)"></button>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="summary">
+          <div class="flex align-items-center justify-content-between">
+            {{ 'total_product_families' | translate }} {{ totalRecords }}.
+          </div>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="9">
+              <div class="flex flex-column align-items-center justify-content-center py-5">
+                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                  style="max-width: 250px; opacity: 0.6;">
+                <p class="mt-3 text-gray-600 font-medium text-lg">
+                  {{ 'no_product_families_found' | translate }}
+                </p>
+                <button *ngIf="canAdd" pButton pRipple [label]="'product_family_new' | translate" icon="pi pi-plus"
+                  class="p-button-success mt-3" (click)="openCreateFamily()"></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>
+
+<app-product-family-form-dialog [(visible)]="familyFormVisible" [mode]="familyFormMode" [family]="editingFamily"
+  [categories]="categories" [suppliers]="suppliers" (saved)="onFamilySaved()">
+</app-product-family-form-dialog>
+
+<app-generate-variants-dialog [(visible)]="generateDialogVisible" [family]="generateFamily"
+  [warehouses]="warehouses" [currency]="currency" (generated)="onVariantsGenerated()">
+</app-generate-variants-dialog>

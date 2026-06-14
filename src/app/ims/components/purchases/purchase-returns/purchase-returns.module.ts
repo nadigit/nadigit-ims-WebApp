@@ -20,7 +20,6 @@ import { DataViewModule } from 'primeng/dataview';
 import { MenuModule } from 'primeng/menu';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { MenubarModule } from 'primeng/menubar';
-import { PickListModule } from 'primeng/picklist';
 import { TranslateModule } from '@ngx-translate/core';
 import { TimelineModule } from 'primeng/timeline';
 import { CardModule } from 'primeng/card';
@@ -62,7 +61,6 @@ import { PurchaseReturnDetailsPageComponent } from './purchase-return-details-pa
         MenuModule,
         ContextMenuModule,
         MenubarModule,
-        PickListModule,
         TranslateModule,
         TimelineModule,
         CardModule,

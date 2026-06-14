@@ -1,25 +1,10 @@
-<svg width="260" height="64" viewBox="0 0 260 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background is transparent on purpose -->
-
-  <!-- Icon container -->
-  <rect x="4" y="8" width="48" height="48" rx="12" fill="#0B1120"/>
-  <!-- Bars (analytics / inventory) -->
-  <rect x="14" y="38" width="6" height="12" rx="2" fill="#38BDF8"/>
-  <rect x="24" y="30" width="6" height="20" rx="2" fill="#22C55E"/>
-  <rect x="34" y="22" width="6" height="28" rx="2" fill="#F97316"/>
-  <!-- Stylized N overlay -->
-  <path d="M16 44L22 24L32 40L40 20" stroke="#E5E7EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <!-- Wordmark: Nadigit IMS -->
-  <g fill="#111827" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
-    <!-- Nadigit -->
-    <text x="64" y="30" font-size="20" font-weight="600" letter-spacing="0.03em">
-      Nadigit
-    </text>
-    <!-- IMS tag -->
-    <rect x="64" y="38" width="70" height="20" rx="10" fill="#EEF2FF"/>
-    <text x="74" y="52" font-size="12" font-weight="600" fill="#4F46E5" letter-spacing="0.16em">
-      IMS
-    </text>
-  </g>
+<svg width="260" height="64" viewBox="0 0 260 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nadigit IMS">
+  <rect x="4" y="8" width="48" height="48" rx="12" fill="#0B1F4A"/>
+  <rect x="14" y="38" width="6" height="12" rx="2" fill="#18C5D8"/>
+  <rect x="24" y="30" width="6" height="20" rx="2" fill="#16C784"/>
+  <rect x="34" y="22" width="6" height="28" rx="2" fill="#F4B740"/>
+  <path d="M16 44L22 24L32 40L40 20" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="64" y="30" fill="#1A1F36" font-family="Poppins, system-ui, sans-serif" font-size="20" font-weight="600" letter-spacing="0.02em">Nadigit</text>
+  <rect x="64" y="38" width="70" height="20" rx="10" fill="#E8EFFF"/>
+  <text x="74" y="52" fill="#1E5EFF" font-family="Poppins, system-ui, sans-serif" font-size="12" font-weight="700" letter-spacing="0.14em">IMS</text>
 </svg>

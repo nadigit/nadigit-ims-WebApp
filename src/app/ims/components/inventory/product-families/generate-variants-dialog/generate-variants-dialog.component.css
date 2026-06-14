@@ -1,0 +1,69 @@
+.generate-variants-family-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.generate-variants-family-summary__ref {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.generate-variants-family-summary__name {
+  font-size: 0.8125rem;
+  color: var(--text-color-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.generate-variants-axis-panel {
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--brand-radius-field, 8px);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-ground);
+}
+
+.generate-variants-combination-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--brand-radius-field, 8px);
+  border: 1px solid rgba(30, 94, 255, 0.14);
+  background: rgba(30, 94, 255, 0.06);
+  font-size: 0.8125rem;
+  color: var(--text-color-secondary);
+}
+
+.generate-variants-combination-summary i {
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.generate-variants-combination-summary strong {
+  color: var(--text-color);
+}
+
+:host ::ng-deep .generate-variants-dialog .p-inputgroup p-inputnumber,
+:host ::ng-deep .generate-variants-dialog .p-inputgroup .p-inputnumber {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+:host ::ng-deep .generate-variants-dialog .p-inputgroup .p-inputnumber .p-inputnumber-input {
+  width: 100%;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+:host ::ng-deep .generate-variants-axis-panel .p-chip {
+  font-size: 0.8125rem;
+}

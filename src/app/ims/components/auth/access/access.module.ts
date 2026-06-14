@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { AccessRoutingModule } from './access-routing.module';
 import { AccessComponent } from './access.component';
 import { TranslateModule } from '@ngx-translate/core';
+import { BrandLogoComponent } from '../../../../shared/brand-logo';
 
 @NgModule({
     imports: [
@@ -12,6 +13,7 @@ import { TranslateModule } from '@ngx-translate/core';
         AccessRoutingModule,
         ButtonModule,
         TranslateModule,
+        BrandLogoComponent,
     ],
     declarations: [AccessComponent]
 })

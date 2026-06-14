@@ -1,0 +1,11 @@
+.variant-picker {
+  background: var(--surface-card);
+}
+
+.variant-picker--compact .field {
+  margin-bottom: 0.5rem;
+}
+
+.variant-picker-preview {
+  border-left: 3px solid var(--primary-color);
+}

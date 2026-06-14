@@ -8,12 +8,16 @@ import { LocationService } from 'src/app/services/location.service';
 
 export interface ShopFormDialogData {
   shop: Shop;
+  cashRegisterOpeningTime?: Date | null;
+  cashRegisterClosingTime?: Date | null;
 }
 
 export interface ShopFormDialogConfig {
   visible: boolean;
   mode: 'create' | 'edit';
   shop: Shop;
+  cashRegisterOpeningTime?: Date | null;
+  cashRegisterClosingTime?: Date | null;
 }
 
 @Component({
@@ -102,7 +106,9 @@ export class ShopFormDialogComponent implements OnInit, OnChanges {
 
   onSave() {
     const dialogData: ShopFormDialogData = {
-      shop: this.config.shop
+      shop: this.config.shop,
+      cashRegisterOpeningTime: this.config.cashRegisterOpeningTime,
+      cashRegisterClosingTime: this.config.cashRegisterClosingTime,
     };
 
     this.save.emit(dialogData);

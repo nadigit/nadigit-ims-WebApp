@@ -268,6 +268,12 @@ export class PosService {
     return this.http.put<POSCartDTO>(`${this.getBaseUrl()}carts/${cartId}/transport`, {}, { headers, params });
   }
 
+  async updateCartAdditionalCharges(cartId: number, additionalChargesAmount: number): Promise<Observable<POSCartDTO>> {
+    const headers = await this.getHeaders();
+    const params = new HttpParams().set('additionalChargesAmount', additionalChargesAmount.toString());
+    return this.http.put<POSCartDTO>(`${this.getBaseUrl()}carts/${cartId}/additional-charges`, {}, { headers, params });
+  }
+
   async setCustomer(cartId: number, customerId?: number): Promise<Observable<POSCartDTO>> {
     const headers = await this.getHeaders();
     let params = new HttpParams();

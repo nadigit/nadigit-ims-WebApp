@@ -66,8 +66,8 @@
   gap: 0.75rem;
   padding: 0.85rem 1rem;
   padding-inline-end: 3rem;
-  background: rgba(99, 102, 241, 0.12);
-  border-bottom: 2px solid rgba(99, 102, 241, 0.35);
+  background: rgba(16, 43, 99, 0.12);
+  border-bottom: 2px solid rgba(16, 43, 99, 0.35);
   color: var(--text-color);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   animation: slideDown 0.3s ease-out;
@@ -79,7 +79,7 @@
 }
 
 .activity-profile-banner > i {
-  color: var(--indigo-500, #6366f1);
+  color: var(--primary-500, #1E5EFF);
   font-size: 1.25rem;
   margin-top: 0.15rem;
   flex-shrink: 0;

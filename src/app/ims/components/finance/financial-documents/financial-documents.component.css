@@ -1,7 +1,65 @@
+.financial-doc-dialog .required-asterisk,
+.enhanced-financial-doc-dialog .required-asterisk {
+  color: var(--red-500);
+}
+
+.fin-doc-order-option {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  padding: 0.25rem 0;
+}
+
+.fin-doc-order-option__ref {
+  font-weight: 600;
+}
+
+.fin-doc-order-option__customer {
+  color: var(--text-color-secondary);
+  width: 100%;
+}
+
+.fin-doc-order-option__selected {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fin-doc-return-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  padding: 0.25rem 0;
+}
+
+.fin-doc-return-option__ref {
+  font-weight: 600;
+}
+
+.fin-doc-issue-form {
+  gap: 0.875rem;
+}
+
+.fin-doc-issue-form .ims-form-section {
+  margin-bottom: 0;
+}
+
+:host ::ng-deep .fin-doc-issue-tabs .p-tabview-panels {
+  padding: 0.75rem 0 0;
+}
+
+:host ::ng-deep .fin-doc-issue-tabs .p-tabview-nav {
+  margin-bottom: 0.25rem;
+}
+
 /* Enhanced Financial Document Dialog Styles */
 .enhanced-financial-doc-dialog {
   .issue-document-container {
-    height: calc(90vh - 120px);
+    height: calc(min(95vh, 900px) - 120px);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -28,7 +86,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    background: white;
+    background: var(--surface-card);
     border-radius: 8px;
     margin-bottom: 1rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -47,7 +105,7 @@
   }
 
   .preview-html-container {
-    background: white;
+    background: var(--surface-card);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     overflow: auto;
@@ -93,7 +151,7 @@
     align-items: flex-start;
     margin-bottom: 2rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid var(--primary-color);
+    border-bottom: 2px solid var(--brand-saas, var(--primary-color));
   }
 
   .preview-logo img {
@@ -173,7 +231,7 @@
   }
 
   .preview-items-table thead {
-    background: var(--surface-100);
+    background: var(--brand-navy, var(--surface-100));
   }
 
   .preview-items-table th {
@@ -183,6 +241,11 @@
     font-size: 0.9rem;
     color: #666;
     border-bottom: 2px solid var(--surface-border);
+  }
+
+  .preview-items-table thead th {
+    color: #fff;
+    border-bottom-color: var(--brand-corporate, var(--surface-border));
   }
 
   .preview-items-table td {
@@ -240,6 +303,14 @@
     font-size: 0.9rem;
     line-height: 1.5;
     color: #555;
+  }
+
+  .form-panel .field textarea.p-inputtextarea,
+  .form-panel .ims-form-section__body textarea.p-inputtextarea {
+    width: 100%;
+    min-height: 5.5rem;
+    resize: vertical;
+    box-sizing: border-box;
   }
 }
 

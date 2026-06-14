@@ -14,7 +14,7 @@
 			<p-toast></p-toast>
 
 			<!-- Action Buttons -->
-			<div class="flex justify-content-end align-items-center mb-4">
+			<div class="ims-page-actions flex justify-content-end align-items-center mb-4">
 				<div class="flex align-items-center gap-2">
 					<button pButton pRipple *ngIf="canAddReturn" label="{{ 'new_button' | translate }}"
 						icon="pi pi-plus" class="p-button-success" (click)="openNew()"
@@ -97,8 +97,8 @@
 						pButton
 						pRipple
 						[icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
-						class="p-button-warning"
-						pTooltip="PDF"
+						class="p-button-primary"
+						[pTooltip]="'export_pdf' | translate"
 						tooltipPosition="bottom"
 						(click)="exportPdf()"
 						[disabled]="isExporting">
@@ -109,7 +109,7 @@
 						[icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
 						(click)="exportExcel()"
 						class="p-button-success"
-						pTooltip="XLS"
+						[pTooltip]="'export_to_excel' | translate"
 						tooltipPosition="bottom"
 						[disabled]="isExporting">
 					</button>
@@ -126,12 +126,10 @@
 				</div>
 			</div>
 
-			<div class="card flex justify-content-center" *ngIf="isLoading">
-				<p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-			</div>
+			<div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
 			<p-table #dt [value]="returns" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll"
-				[rows]="lastLazyLoadEvent.rows"
+				[rows]="pageSize"
 				[totalRecords]="totalRecords"
 				[paginator]="true"
 				[lazy]="true"
@@ -219,11 +217,11 @@
 							<div class="flex gap-1">
 								<button pButton pRipple *ngIf="canReadReturn"
 									type="button"
-									icon="pi pi-eye" class="p-button-rounded p-button-text p-button-info"
+									icon="pi pi-eye" class="p-button-rounded p-button-text p-button-primary"
 									pTooltip="{{'view_return'|translate}}"
 									(click)="openReturnDetailsDialog(return); $event.stopPropagation(); $event.preventDefault()"></button>
 								<button pButton pRipple *ngIf="canEditReturn && (return.returnStatus ==='PENDING')"
-									icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-warning"
+									icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
 									pTooltip="{{'update_return'|translate}}"
 									(click)="editReturn(return); $event.stopPropagation()"></button>
 								<button pButton pRipple *ngIf="canDeleteReturn && (return.returnStatus ==='PENDING')"
@@ -263,7 +261,7 @@
 															[alt]="item.product.name" width="60" />
 													</td>
 													<td>{{ item.product?.name || 'N/A' }}</td>
-													<td>{{ item.returnedQuantity || 0 }}</td>
+													<td>{{ formatReturnItemDisplayQuantity(item) }} {{ getMeasureUnit(item.product, getPurchaseReturnItemDisplayQuantity(item)) | translate }}</td>
 													<td>{{ item.creditAmount | currency:currency:'symbol':'1.2-2' }}</td>
 													<td style="min-width:10rem;">
 														<span *ngIf="item.reason; else noReason"
@@ -338,151 +336,300 @@
 			</p-table>
 		</div>
 
-		<p-dialog [(visible)]="returnDialog" [style]="{width: '80%', height: '110%'}"
-			header="{{ 'return_details' | translate }}" [modal]="true" class="p-fluid ">
+		<p-dialog [(visible)]="returnDialog"
+			[style]="{ width: 'min(92vw, 1180px)', maxWidth: '1180px', maxHeight: '95vh' }"
+			[breakpoints]="{'1199px': '94vw', '960px': '96vw', '640px': '98vw'}"
+			header="{{ 'return_details' | translate }}" [modal]="true"
+			styleClass="ims-form-dialog-shell purchase-return-dialog-shell"
+			class="p-fluid return-dialog" [draggable]="false" [resizable]="false">
 			<ng-template pTemplate="content">
-				<div class="field" style="position: relative;">
-					<label for="purchase">
-						{{ 'return_purchase' | translate }} <span class="required-asterisk">*</span>
-					</label>
-					<p-dropdown [(ngModel)]="return.purchase" name="purchase" inputId="purchase" id="purchase" ngDefaultControl
-						[optionLabel]="getPurchaseDisplayLabel" [options]="purchases" required
-						placeholder="{{ 'select_purchase_option' | translate }}" [filter]="true"
-						filterBy="reference,totalAmount,itemCount,supplier.name"
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !return.purchase}" (click)="initializePickList()">
-						<ng-template pTemplate="selectedItem">
-							<span *ngIf="return?.purchase" class="product-badge">
-								{{ getPurchaseDisplayLabel(return.purchase) }}
-							</span>
-						</ng-template>
-						<ng-template let-option pTemplate="item">
-							<div class="order-dropdown-item">
-								<div class="flex justify-content-between">
-									<strong>#{{option.reference}}</strong>
-									<span>{{ 'purchase_date' | translate }}: {{option.dateOfPurchase | date: 'dd/MM/yyyy'}}</span>
-								</div>
-								<div class="flex justify-content-between">
-									<span>{{ 'purchase_total' | translate }}: {{option.totalAmount}} {{currency}}</span>
-									<span>{{ 'purchase_items' | translate }}: {{option.itemCount || 0}}</span>
-								</div>
-								<div class="flex justify-content-between">
-									<span>{{ 'supplier' | translate }}: {{ option.supplier?.name || 'N/A' }}</span>
-									<span class="purchase-status"
-										[ngClass]="'purchase-badge purchase-' + (option.purchaseStatus?.toLowerCase() || '')">
-										{{'purchase_status_'+option.purchaseStatus.toLowerCase() | translate}}
-									</span>
-								</div>
-							</div>
-						</ng-template>
-					</p-dropdown>
-					<small class="ng-dirty ng-invalid" *ngIf="submitted && !return.purchase">
-						{{'return_purchase' | translate}} {{'is_required_label' | translate}}
-					</small>
-				</div>
+				<div class="ims-form-layout">
+					<div class="grid">
+						<div class="col-12 lg:col-8">
+							<div class="ims-form-fields">
+								<section class="ims-form-section">
+									<header class="ims-form-section__header">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+											<i class="pi pi-file-edit"></i>
+										</div>
+										<h3 class="ims-form-section__title">{{ 'return_information' | translate }}</h3>
+									</header>
+									<div class="grid ims-form-section__body">
+										<div class="field col-12">
+											<label for="purchase" class="ims-form-label">
+												{{ 'return_purchase' | translate }} <span class="required-asterisk">*</span>
+											</label>
+											<p-dropdown [(ngModel)]="return.purchase" name="purchase" inputId="purchase"
+												ngDefaultControl [optionLabel]="getPurchaseDisplayLabel" [options]="purchases" required
+												styleClass="w-full" placeholder="{{ 'select_purchase_option' | translate }}"
+												[filter]="true" filterBy="reference,totalAmount,itemCount,supplier.name"
+												appendTo="body" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+												[ngClass]="{'ng-invalid ng-dirty' : submitted && !return.purchase}"
+												(onChange)="onReturnPurchaseChange()">
+												<ng-template pTemplate="selectedItem">
+													<span *ngIf="return?.purchase" class="flex align-items-center gap-2">
+														<i class="pi pi-shopping-cart"></i>{{ getPurchaseDisplayLabel(return.purchase) }}
+													</span>
+												</ng-template>
+												<ng-template let-option pTemplate="item">
+													<div class="purchase-dropdown-item">
+														<div class="flex justify-content-between">
+															<strong>#{{ option.reference }}</strong>
+															<span>{{ 'purchase_date' | translate }}: {{ option.dateOfPurchase | date: 'dd/MM/yyyy' }}</span>
+														</div>
+														<div class="flex justify-content-between">
+															<span>{{ 'purchase_total' | translate }}: {{ option.totalAmount }} {{ currency }}</span>
+															<span>{{ 'purchase_items' | translate }}: {{ option.itemCount || 0 }}</span>
+														</div>
+														<div class="flex justify-content-between">
+															<span>{{ 'supplier' | translate }}: {{ option.supplier?.name || 'N/A' }}</span>
+															<span class="purchase-status"
+																[ngClass]="'purchase-badge purchase-' + (option.purchaseStatus?.toLowerCase() || '')">
+																{{ 'purchase_status_' + option.purchaseStatus.toLowerCase() | translate }}
+															</span>
+														</div>
+													</div>
+												</ng-template>
+											</p-dropdown>
+											<small class="p-error" *ngIf="submitted && !return.purchase">
+												{{ 'return_purchase' | translate }} {{ 'is_required_label' | translate }}
+											</small>
+										</div>
 
-				<div class="field">
-					<label for="returnDate">{{ 'return_date' | translate }} <span class="required-asterisk">*</span></label>
-					<p-calendar [(ngModel)]="return.returnDate" ngDefaultControl name="returnDate" inputId="returnDate"
-						dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
-						placeholder="{{ 'return_date' | translate }}" required autofocus
-						[ngClass]="{'ng-invalid ng-dirty' : submitted && !return.returnDate}" />
-					<small class="ng-dirty ng-invalid" *ngIf="submitted && !return.returnDate">{{ 'return_date' |
-						translate }} {{'is_required_label' | translate}}</small>
-				</div>
-
-				<div class="field" *ngIf="return.purchase">
-					<label for="returnItems">
-						{{ 'purchase_products' | translate }} <span class="required-asterisk">* </span>
-					</label>
-					<div class="card">
-						<div class="flex flex-column gap-2 mx-auto" *ngIf="targetProducts.length>0">
-							<div class="text-center mt-3 mb-3 text-xl font-semibold">
-								{{ 'selected_products_number' | translate }} :
-								<p-badge value="{{targetProducts.length}}" badgeSize="xlarge" severity="success" />
-							</div>
-						</div>
-						<p-pickList name="returnItems" [(ngModel)]="returnItems" ngDefaultControl [source]="sourceProducts"
-							[target]="targetProducts" sourceHeader="{{ 'purchase_available_products' | translate }}" required
-							targetHeader="{{ 'purchase_selected_products' | translate }}" [dragdrop]="true" [responsive]="true"
-							[sourceStyle]="{ height: '40rem' }" [targetStyle]="{ height: '40rem' }" filterBy="name"
-							sourceFilterPlaceholder="{{ 'search_label' | translate }}"
-							targetFilterPlaceholder="{{ 'search_label' | translate }}" breakpoint="1300px"
-							(onMoveToTarget)="onMoveToTarget($event)" disableDblClick>
-							<ng-template let-product pTemplate="item">
-								<div class="flex flex-wrap p-2 align-items-center gap-3">
-									<img class="w-4rem shadow-2 flex-shrink-0 border-round"
-										[src]="product | productImage"
-										[alt]="product.name" />
-									<div class="flex-1 flex flex-column gap-2">
-										<span class="font-bold">{{ product.name }}</span>
-										<div class="flex align-products-center gap-2">
-											<i class="pi pi-tag text-sm"></i>
-											<span>{{ product.category.categoryName }}</span>
+										<div class="field col-12 md:col-6">
+											<label for="returnDate" class="ims-form-label">
+												{{ 'return_date' | translate }} <span class="required-asterisk">*</span>
+											</label>
+											<p-calendar [(ngModel)]="return.returnDate" ngDefaultControl name="returnDate"
+												inputId="returnDate" dateFormat="dd/mm/yy" [showOnFocus]="false" [showIcon]="true"
+												styleClass="w-full" placeholder="{{ 'return_date' | translate }}" required
+												appendTo="body"
+												[ngClass]="{'ng-invalid ng-dirty' : submitted && !return.returnDate}">
+											</p-calendar>
+											<small class="p-error" *ngIf="submitted && !return.returnDate">
+												{{ 'return_date' | translate }} {{ 'is_required_label' | translate }}
+											</small>
 										</div>
 									</div>
-									<span class="font-bold text-900">{{currency}} {{product.returnItemPricePerUnit }}</span>
-									<ng-container *ngIf="targetProducts.includes(product)">
-										<div class="field">
-											<label for="returnItemQuantity">{{ 'quantity_returned' | translate }}</label>
-											<p-inputNumber name="returnItemQuantity" id="returnItemQuantity"
-												[(ngModel)]="product.returnItemQuantity" ngDefaultControl mode="decimal"
-												[showButtons]="true" [min]="1" [max]="product.purchaseItem?.quantityPurchased || 0"
-												[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.returnItemQuantity}"
-												required autofocus></p-inputNumber>
-											<small class="ng-dirty ng-invalid"
-												*ngIf="submitted && !product.returnItemQuantity">{{ 'purchase_items_quantity' |
-												translate }} {{'is_required_label' | translate}}</small>
+								</section>
+
+								<section class="ims-form-section" *ngIf="return.purchase">
+									<header class="ims-form-section__header">
+										<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+											<i class="pi pi-shopping-cart"></i>
 										</div>
-										<div class="field">
-											<label for="returnItemPricePerUnit">{{ 'purchase_items_price_per_unit' |
-												translate }}</label>
-											<p-inputNumber name="returnItemPricePerUnit" id="returnItemPricePerUnit"
-												[(ngModel)]="product.returnItemPricePerUnit" ngDefaultControl mode="decimal"
-												[showButtons]="true" [min]="0"
-												[ngClass]="{'ng-invalid ng-dirty' : submitted && !product.returnItemPricePerUnit}"
-												required autofocus></p-inputNumber>
-											<small class="ng-dirty ng-invalid"
-												*ngIf="submitted && !product.returnItemPricePerUnit">{{
-												'purchase_items_price_per_unit' |
-												translate }} {{'is_required_label' | translate}}</small>
+										<div class="ims-form-section__header-text">
+											<h3 class="ims-form-section__title">{{ 'purchase_products' | translate }}</h3>
+											<p class="ims-form-section__subtitle" *ngIf="targetProducts.length">
+												{{ targetProducts.length }} {{ 'items' | translate }}
+											</p>
 										</div>
-										<div class="field">
-											<label>{{ 'item_condition' | translate }}</label>
-											<p-dropdown [(ngModel)]="product.returnItemCondition" [options]="itemConditions"
-												optionLabel="label" optionValue="value" required appendTo="body">
-											</p-dropdown>
+									</header>
+									<div class="ims-form-section__body ims-form-section__body--stack">
+										<div class="return-items-wrapper">
+											<div class="field mb-0">
+												<label for="returnProductSelect" class="ims-form-label">
+													{{ 'purchase_available_products' | translate }}
+												</label>
+												<p-dropdown inputId="returnProductSelect" [(ngModel)]="selectedReturnProduct"
+													[options]="sourceProducts" optionLabel="name" dataKey="productId"
+													placeholder="{{ 'select_product' | translate }}" [filter]="true"
+													filterBy="name,reference" appendTo="body" styleClass="w-full"
+													[showClear]="true" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+													[disabled]="sourceProducts.length === 0"
+													(onChange)="onReturnProductSelect($event)">
+													<ng-template pTemplate="selectedItem">
+														<span *ngIf="selectedReturnProduct" class="return-product-option__selected">
+															<span class="return-product-option__selected-name">{{ selectedReturnProduct.name }}</span>
+															<span class="return-product-option__qty">
+																{{ 'quantity_ordered' | translate }}:
+																{{ formatReturnOrderedQuantity(selectedReturnProduct) }}
+																{{ getMeasureUnit(selectedReturnProduct) | translate }}
+															</span>
+														</span>
+													</ng-template>
+													<ng-template let-product pTemplate="item">
+														<div class="return-product-option">
+															<img [src]="product | productImage" [alt]="product.name"
+																class="return-product-option__image" />
+															<div class="return-product-option__body">
+																<span class="return-product-option__name">{{ product.name }}</span>
+																<small class="return-product-option__meta">
+																	{{ product.reference }} • {{ product.category?.categoryName }}
+																</small>
+																<small class="return-product-option__qty">
+																	{{ 'quantity_ordered' | translate }}:
+																	{{ formatReturnOrderedQuantity(product) }}
+																	{{ getMeasureUnit(product) | translate }}
+																	<span class="return-product-option__qty-sep">•</span>
+																	{{ 'remaining_quantity' | translate }}:
+																	{{ formatLineQuantity(product, getReturnMaxQuantity(product)) }}
+																	{{ getMeasureUnit(product) | translate }}
+																</small>
+															</div>
+															<span class="return-product-option__price">
+																{{ currency }} {{ product.returnItemPricePerUnit | number:'1.2-2' }}
+															</span>
+														</div>
+													</ng-template>
+												</p-dropdown>
+											</div>
 										</div>
-										<div class="field">
-											<label>{{ 'item_return_reason' | translate }}</label>
-											<p-dropdown [(ngModel)]="product.returnItemReason" [options]="returnReasons"
-												optionLabel="label" optionValue="value" appendTo="body">
-											</p-dropdown>
+
+										<div class="selected-products-card">
+											<p-table [value]="targetProducts" dataKey="productId"
+												[scrollable]="targetProducts.length > 4" scrollHeight="320px"
+												styleClass="p-datatable-sm selected-products-table">
+												<ng-template pTemplate="header">
+													<tr>
+														<th class="col-product">{{ 'product_name' | translate }}</th>
+														<th class="col-price">{{ 'purchase_items_price_per_unit' | translate }}</th>
+														<th class="col-qty">{{ 'quantity_returned' | translate }}</th>
+														<th class="col-remaining">{{ 'remaining_quantity' | translate }}</th>
+														<th class="col-subtotal">{{ 'subtotal' | translate }}</th>
+														<th class="col-action"></th>
+													</tr>
+												</ng-template>
+												<ng-template pTemplate="body" let-product>
+													<tr class="return-line-row">
+														<td class="col-product" [attr.data-label]="'product_name' | translate">
+															<div class="return-line-product">
+																<img [src]="product | productImage" [alt]="product.name"
+																	class="return-line-product__image" />
+																<div class="return-line-product__body">
+																	<div class="return-line-product__name">{{ product.name }}</div>
+																	<div class="return-line-product__meta">
+																		{{ product.category?.categoryName || 'N/A' }}
+																	</div>
+																</div>
+															</div>
+														</td>
+														<td class="col-price" [attr.data-label]="'purchase_items_price_per_unit' | translate">
+															<div class="return-line-input">
+																<p-inputNumber [(ngModel)]="product.returnItemPricePerUnit"
+																	mode="decimal" [min]="0" [minFractionDigits]="0" [maxFractionDigits]="2"
+																	styleClass="w-full"
+																	[ngClass]="{'ng-invalid ng-dirty': submitted && !product.returnItemPricePerUnit}">
+																</p-inputNumber>
+															</div>
+														</td>
+														<td class="col-qty" [attr.data-label]="'quantity_returned' | translate">
+															<div class="return-line-input return-line-input--qty">
+																<p-inputNumber [(ngModel)]="product.returnItemQuantity" mode="decimal"
+																	[min]="returnQuantityMin(product)"
+																	[max]="getReturnMaxQuantity(product)"
+																	[minFractionDigits]="0"
+																	[maxFractionDigits]="quantityInputDecimals(product)"
+																	[step]="quantityInputStep(product)"
+																	[useGrouping]="false"
+																	styleClass="w-full"
+																	[ngClass]="{'ng-invalid ng-dirty': submitted && !product.returnItemQuantity}">
+																</p-inputNumber>
+																<span class="return-line-input__unit">
+																	{{ getMeasureUnit(product, product.returnItemQuantity) | translate }}
+																</span>
+															</div>
+														</td>
+														<td class="col-remaining" [attr.data-label]="'remaining_quantity' | translate">
+															<span class="return-line-remaining">
+																{{ formatLineQuantity(product, getReturnRemainingQuantity(product)) }}
+																<span class="return-line-remaining__unit">{{ getMeasureUnit(product) | translate }}</span>
+															</span>
+														</td>
+														<td class="col-subtotal subtotal" [attr.data-label]="'subtotal' | translate">
+															{{ currency }} {{ getReturnLineSubtotal(product) | number:'1.2-2' }}
+														</td>
+														<td class="col-action" [attr.data-label]="'delete_button' | translate">
+															<button pButton pRipple type="button" icon="pi pi-trash"
+																class="p-button-rounded p-button-text p-button-danger p-button-sm"
+																(click)="removeProductFromReturn(product)"
+																pTooltip="{{ 'remove' | translate }}" tooltipPosition="left">
+															</button>
+														</td>
+													</tr>
+													<tr class="return-line-detail-row">
+														<td colspan="6">
+															<div class="return-line-detail">
+																<div class="return-line-detail__fields">
+																	<div class="return-line-detail__field">
+																		<label class="ims-form-label">{{ 'item_condition' | translate }}</label>
+																		<p-dropdown [(ngModel)]="product.returnItemCondition" [options]="itemConditions"
+																			optionLabel="label" optionValue="value" required appendTo="body"
+																			styleClass="w-full">
+																			<ng-template let-option pTemplate="item">
+																				{{ ('item_condition_' + option.value.toLowerCase()) | translate }}
+																			</ng-template>
+																			<ng-template let-option pTemplate="selectedItem">
+																				{{ ('item_condition_' + option.value.toLowerCase()) | translate }}
+																			</ng-template>
+																		</p-dropdown>
+																	</div>
+																	<div class="return-line-detail__field">
+																		<label class="ims-form-label">{{ 'item_return_reason' | translate }}</label>
+																		<p-dropdown [(ngModel)]="product.returnItemReason" [options]="returnReasons"
+																			optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full">
+																		</p-dropdown>
+																	</div>
+																</div>
+															</div>
+														</td>
+													</tr>
+												</ng-template>
+												<ng-template pTemplate="emptymessage">
+													<tr>
+														<td colspan="6" class="text-center py-4 text-600">
+															<i class="pi pi-inbox mr-2"></i>{{ 'no_products_selected' | translate }}
+														</td>
+													</tr>
+												</ng-template>
+											</p-table>
 										</div>
-									</ng-container>
+									</div>
+								</section>
+							</div>
+						</div>
+
+						<div class="col-12 lg:col-4" *ngIf="return.purchase">
+							<section class="ims-form-section ims-form-section--accent return-summary-section">
+								<header class="ims-form-section__header">
+									<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
+										<i class="pi pi-receipt"></i>
+									</div>
+									<h3 class="ims-form-section__title">{{ 'return_details' | translate }}</h3>
+								</header>
+								<div class="ims-form-section__body ims-form-section__body--stack">
+									<div class="return-summary-total">
+										<span>{{ 'total' | translate }}</span>
+										<span class="return-summary-total__amount">
+											{{ currency }} {{ calculateTotalAmount() | number:'1.2-2' }}
+										</span>
+									</div>
+
+									<div class="field mb-0">
+										<label for="returnNotes" class="ims-form-label">{{ 'return_notes' | translate }}</label>
+										<textarea id="returnNotes" rows="4" [(ngModel)]="return.notes" name="notes"
+											placeholder="{{ 'return_notes' | translate }}" pInputTextarea class="w-full"></textarea>
+									</div>
 								</div>
-							</ng-template>
-						</p-pickList>
-					</div>
-					<div class="flex flex-column gap-2 mx-auto">
-						<div class="text-center mt-3 mb-3 text-xl font-semibold">
-							Total: <span class="text-900 font-medium">{{ calculateTotalAmount() | number:'1.2-2' }}</span>
-							{{currency}}
+							</section>
+						</div>
+
+						<div class="col-12">
+							<div class="ims-form-required-note">
+								<small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+							</div>
 						</div>
 					</div>
-				</div>
-
-				<div class="field">
-					<label for="notes">{{ 'return_notes' | translate }}</label>
-					<textarea rows="3" cols="20" [(ngModel)]="return.notes" name="notes"
-						placeholder="{{ 'return_notes' | translate }}" pInputTextarea></textarea>
 				</div>
 			</ng-template>
 
 			<ng-template pTemplate="footer">
-				<button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
-					class="p-button-text p-button-danger" (click)="hideDialog()"></button>
-				<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
-					class="p-button-raised" (click)="saveReturn()"></button>
+				<div class="flex justify-content-between align-items-center w-full">
+					<button pButton pRipple label="{{ 'cancel_button' | translate }}" icon="pi pi-times"
+						class="p-button-text" (click)="hideDialog()"></button>
+					<button pButton pRipple label="{{ 'save_button' | translate }}" icon="pi pi-check"
+						class="p-button-primary" (click)="saveReturn()"></button>
+				</div>
 			</ng-template>
 		</p-dialog>
 
@@ -496,7 +643,7 @@
 			<ng-template pTemplate="footer">
 				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
 					(click)="deleteReturnDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
 					(click)="confirmDelete()"></button>
 			</ng-template>
 		</p-dialog>
@@ -510,7 +657,7 @@
 			<ng-template pTemplate="footer">
 				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
 					(click)="deleteReturnsDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
 					(click)="confirmDeleteSelected()"></button>
 			</ng-template>
 		</p-dialog>
@@ -525,7 +672,7 @@
 			<ng-template pTemplate="footer">
 				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
 					(click)="cancelReturnDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-text" label="{{'yes_button' | translate}}"
+				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
 					(click)="confirmCancelReturn()"></button>
 			</ng-template>
 		</p-dialog>
@@ -541,10 +688,9 @@
 	[resizable]="false"
 	[style]="{width: '450px'}"
 	[header]="'exporting' | translate">
-	<div class="flex flex-column align-items-center gap-3 p-4">
-		<p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+	<div class="import-progress-panel"><p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
 		<div class="text-center">
-			<p class="text-600 m-0">{{ exportProgress || ('exporting' | translate) }}</p>
+			<p class="ims-loading-label m-0">{{ exportProgress || ('exporting' | translate) }}</p>
 		</div>
 	</div>
 </p-dialog>

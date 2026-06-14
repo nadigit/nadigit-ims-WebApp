@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Host, HostBinding, Input, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Host, HostBinding, HostListener, Input, OnDestroy, OnInit } from '@angular/core';
 import { IsActiveMatchOptions, NavigationEnd, Router } from '@angular/router';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { Subscription } from 'rxjs';
@@ -20,7 +20,9 @@ import { LayoutService } from './service/app.layout.service';
                 </p-tag>
             </div>
 			<a *ngIf="(!item.routerLink || item.items) && item.visible !== false" [attr.href]="item.url" (click)="itemClick($event)"
-			   [ngClass]="item.class" [attr.target]="item.target" tabindex="0" pRipple>
+			   [ngClass]="item.class" [attr.target]="item.target" tabindex="0" pRipple
+               [pTooltip]="item.label" [tooltipDisabled]="menuTooltipDisabled"
+               [tooltipPosition]="menuTooltipPosition" [showDelay]="400">
 				<i [ngClass]="item.icon" class="layout-menuitem-icon"></i>
 				<span class="layout-menuitem-text">{{item.label}}</span>
                 <p-tag *ngIf="item.badge && !root"
@@ -34,7 +36,9 @@ import { LayoutService } from './service/app.layout.service';
 			   [routerLink]="item.routerLink" routerLinkActive="active-route" [routerLinkActiveOptions]="item.routerLinkActiveOptions||{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
                [fragment]="item.fragment" [queryParamsHandling]="item.queryParamsHandling" [preserveFragment]="item.preserveFragment" 
                [skipLocationChange]="item.skipLocationChange" [replaceUrl]="item.replaceUrl" [state]="item.state" [queryParams]="item.queryParams"
-               [attr.target]="item.target" tabindex="0" pRipple>
+               [attr.target]="item.target" tabindex="0" pRipple
+               [pTooltip]="item.label" [tooltipDisabled]="menuTooltipDisabled"
+               [tooltipPosition]="menuTooltipPosition" [showDelay]="400">
 				<i [ngClass]="item.icon" class="layout-menuitem-icon"></i>
 				<span class="layout-menuitem-text">{{item.label}}</span>
                 <p-tag *ngIf="item.badge"
@@ -45,7 +49,15 @@ import { LayoutService } from './service/app.layout.service';
 				<i class="pi pi-fw pi-angle-down layout-submenu-toggler" *ngIf="item.items"></i>
 			</a>
 
-			<ul *ngIf="item.items && item.visible !== false" [@children]="submenuAnimation">
+			<ul *ngIf="item.items && item.visible !== false" [@children]="submenuAnimation" [@.disabled]="isSubmenuFlyout"
+                [class.layout-submenu-panel]="isSubmenuFlyout"
+                [class.layout-submenu-panel--open]="isSubmenuFlyout && active"
+                [ngStyle]="isSubmenuFlyout && active ? flyoutPanelStyle : null"
+                (mouseenter)="onFlyoutPanelEnter()"
+                (mouseleave)="onFlyoutPanelLeave()">
+                <li *ngIf="isSubmenuFlyout" class="layout-submenu-panel-header" aria-hidden="true">
+                    <span>{{ item.label }}</span>
+                </li>
 				<ng-template ngFor let-child let-i="index" [ngForOf]="item.items">
 					<li app-menuitem [item]="child" [index]="i" [parentKey]="key" [class]="child.badgeClass"></li>
 				</ng-template>
@@ -82,29 +94,59 @@ export class AppMenuitemComponent implements OnInit, OnDestroy {
 
     key: string = "";
 
-    constructor(public layoutService: LayoutService, private cd: ChangeDetectorRef, public router: Router, private menuService: MenuService) {
+    flyoutPanelStyle: Record<string, string> = {};
+
+    private flyoutCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+    constructor(
+        public layoutService: LayoutService,
+        private cd: ChangeDetectorRef,
+        public router: Router,
+        private menuService: MenuService,
+        private el: ElementRef<HTMLElement>,
+    ) {
         this.menuSourceSubscription = this.menuService.menuSource$.subscribe(value => {
             Promise.resolve(null).then(() => {
                 if (value.routeEvent) {
-                    this.active = (value.key === this.key || value.key.startsWith(this.key + '-')) ? true : false;
+                    if (this.isSubmenuFlyout) {
+                        this.active = false;
+                    } else {
+                        this.active = (value.key === this.key || value.key.startsWith(this.key + '-')) ? true : false;
+                    }
                 }
                 else {
                     if (value.key !== this.key && !value.key.startsWith(this.key + '-')) {
                         this.active = false;
                     }
                 }
+
+                if (!this.active) {
+                    this.clearFlyoutPanel();
+                } else if (this.isSubmenuFlyout) {
+                    this.updateFlyoutPosition();
+                }
+
+                this.cd.markForCheck();
             });
         });
 
         this.menuResetSubscription = this.menuService.resetSource$.subscribe(() => {
             this.active = false;
+            this.clearFlyoutPanel();
+            this.cd.markForCheck();
         });
 
         this.router.events.pipe(filter(event => event instanceof NavigationEnd))
             .subscribe(() => {
+                if (this.isIconRailMode()) {
+                    this.active = false;
+                    this.clearFlyoutPanel();
+                    this.cd.markForCheck();
+                }
+
                 if (this.item.routerLink) {
                     this.updateActiveStateFromRoute();
-                } else if (this.item.items) {
+                } else if (this.item.items && !this.isIconRailMode()) {
                     this.updateActiveFromDescendants();
                 }
             });
@@ -188,16 +230,168 @@ export class AppMenuitemComponent implements OnInit, OnDestroy {
             this.item.command({ originalEvent: event, item: this.item });
         }
 
+        let willOpen = false;
+
         // toggle active state
         if (this.item.items) {
-            this.active = !this.active;
+            if (this.isSubmenuFlyout) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            willOpen = !this.active;
+            this.active = willOpen;
+
+            if (willOpen && this.isSubmenuFlyout) {
+                this.cancelFlyoutClose();
+                this.updateFlyoutPosition();
+            } else {
+                this.clearFlyoutPanel();
+            }
         }
 
         this.menuService.onMenuStateChange({ key: this.key });
+
+        if (this.layoutService.isMenuHoverMode() && !this.item.items) {
+            this.layoutService.collapseMenuHover();
+        }
+
+        if (this.isIconRailMode() && !this.item.items) {
+            this.menuService.reset();
+        }
+
+        this.cd.markForCheck();
+    }
+
+    @HostListener('mouseenter')
+    onHostMouseEnter(): void {
+        if (!this.isSubmenuFlyout || !this.item.items) {
+            return;
+        }
+
+        this.cancelFlyoutClose();
+
+        if (!this.active) {
+            this.active = true;
+            this.menuService.onMenuStateChange({ key: this.key });
+        }
+
+        this.updateFlyoutPosition();
+        this.cd.markForCheck();
+    }
+
+    @HostListener('mouseleave')
+    onHostMouseLeave(): void {
+        if (!this.isSubmenuFlyout || !this.active) {
+            return;
+        }
+
+        this.scheduleFlyoutClose();
+    }
+
+    onFlyoutPanelEnter(): void {
+        if (!this.isSubmenuFlyout) {
+            return;
+        }
+
+        this.cancelFlyoutClose();
+    }
+
+    onFlyoutPanelLeave(): void {
+        if (!this.isSubmenuFlyout || !this.active) {
+            return;
+        }
+
+        this.scheduleFlyoutClose();
+    }
+
+    @HostListener('window:resize')
+    @HostListener('window:scroll')
+    onViewportChange(): void {
+        if (this.isSubmenuFlyout && this.active) {
+            this.updateFlyoutPosition();
+        }
+    }
+
+    private updateFlyoutPosition(): void {
+        requestAnimationFrame(() => {
+            const anchor = this.el.nativeElement.querySelector(':scope > a') as HTMLElement | null;
+            if (!anchor) {
+                return;
+            }
+
+            const rect = anchor.getBoundingClientRect();
+            const rtl = document.documentElement.dir === 'rtl';
+            const gap = 8;
+            const minWidth = 216;
+            const maxHeight = Math.min(window.innerHeight * 0.7, 384);
+            const top = Math.min(rect.top, window.innerHeight - maxHeight - 8);
+
+            if (rtl) {
+                this.flyoutPanelStyle = {
+                    position: 'fixed',
+                    top: `${Math.max(8, top)}px`,
+                    right: `${window.innerWidth - rect.left + gap}px`,
+                    left: 'auto',
+                    minWidth: `${minWidth}px`,
+                    maxHeight: `${maxHeight}px`,
+                    zIndex: '1200',
+                };
+            } else {
+                this.flyoutPanelStyle = {
+                    position: 'fixed',
+                    top: `${Math.max(8, top)}px`,
+                    left: `${rect.right + gap}px`,
+                    minWidth: `${minWidth}px`,
+                    maxHeight: `${maxHeight}px`,
+                    zIndex: '1200',
+                };
+            }
+
+            this.cd.markForCheck();
+        });
+    }
+
+    private scheduleFlyoutClose(): void {
+        this.cancelFlyoutClose();
+        this.flyoutCloseTimer = setTimeout(() => {
+            this.active = false;
+            this.clearFlyoutPanel();
+            this.cd.markForCheck();
+        }, 180);
+    }
+
+    private cancelFlyoutClose(): void {
+        if (this.flyoutCloseTimer) {
+            clearTimeout(this.flyoutCloseTimer);
+            this.flyoutCloseTimer = null;
+        }
+    }
+
+    private clearFlyoutPanel(): void {
+        this.cancelFlyoutClose();
+        this.flyoutPanelStyle = {};
+    }
+
+    get isSubmenuFlyout(): boolean {
+        return !this.root && this.isIconRailMode();
+    }
+
+    private isIconRailMode(): boolean {
+        return this.layoutService.isMenuCompact()
+            || (this.layoutService.isMenuHoverMode() && !this.layoutService.isMenuHoverExpanded());
     }
 
     get submenuAnimation() {
         return this.root ? 'expanded' : (this.active ? 'expanded' : 'collapsed');
+    }
+
+    get menuTooltipDisabled(): boolean {
+        return !this.isIconRailMode();
+    }
+
+    get menuTooltipPosition(): string {
+        return document.documentElement.dir === 'rtl' ? 'left' : 'right';
     }
 
     @HostBinding('class.active-menuitem') 
@@ -213,5 +407,7 @@ export class AppMenuitemComponent implements OnInit, OnDestroy {
         if (this.menuResetSubscription) {
             this.menuResetSubscription.unsubscribe();
         }
+
+        this.cancelFlyoutClose();
     }
 }

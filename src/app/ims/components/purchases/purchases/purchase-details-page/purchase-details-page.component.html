@@ -1,10 +1,10 @@
-<div class="purchase-details-container">
+﻿<div class="purchase-details-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
-            <p-progressSpinner ariaLabel="loading" strokeWidth="3"></p-progressSpinner>
+            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
                 
                 <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
                     <div class="flex align-items-center gap-4">
-                        <div class="purchase-hero-icon">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--amber">
                             <i class="pi pi-shopping-cart"></i>
                         </div>
                         <div>
@@ -58,18 +58,6 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-refresh" 
-                            [label]="'refresh' | translate"
-                            class="p-button-outlined"
-                            (click)="refreshPurchaseDetails()"></button>
-                        <!-- <button pButton pRipple icon="pi pi-print" 
-                            [label]="'print' | translate"
-                            class="p-button-outlined"
-                            (click)="printPurchaseInvoice(purchase)"></button>
-                        <button pButton pRipple icon="pi pi-file-pdf" 
-                            [label]="'export_pdf' | translate"
-                            class="p-button-outlined"
-                            (click)="exportPurchaseToPDF(purchase)"></button> -->
                         <button pButton pRipple icon="pi pi-pencil" 
                             [label]="(purchaseDocumentChainMode ? 'doc_chain_purchase_hero_edit_document' : 'edit') | translate"
                             *ngIf="canEdit && purchase.purchaseStatus === 'PENDING'"
@@ -91,7 +79,7 @@
         <!-- Quick Stats Row -->
         <div class="stats-row">
             <div class="stat-card-modern">
-                <div class="stat-icon total">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                     <i class="pi pi-dollar"></i>
                 </div>
                 <div class="stat-content">
@@ -101,7 +89,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon items">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
                     <i class="pi pi-box"></i>
                 </div>
                 <div class="stat-content">
@@ -112,7 +100,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon tax">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                     <i class="pi pi-percentage"></i>
                 </div>
                 <div class="stat-content">
@@ -122,7 +110,7 @@
             </div>
             
             <div class="stat-card-modern">
-                <div class="stat-icon shipping">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
                     <i class="pi pi-truck"></i>
                 </div>
                 <div class="stat-content">
@@ -154,7 +142,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-hashtag"></i>
                                         </div>
                                         <div class="info-content">
@@ -164,7 +152,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="purchase.dateOfPurchase">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-calendar"></i>
                                         </div>
                                         <div class="info-content">
@@ -174,7 +162,7 @@
                                     </div>
                                     
                                     <div class="info-item" *ngIf="purchase.purpose">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="info-content">
@@ -184,7 +172,7 @@
                                     </div>
 
                                     <div class="info-item" *ngIf="purchase.shop">
-                                        <div class="info-icon">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-shopping-bag"></i>
                                         </div>
                                         <div class="info-content">
@@ -204,7 +192,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="supplier-header mb-3">
-                                    <div class="supplier-avatar">
+                                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                                         <i class="pi pi-building"></i>
                                     </div>
                                     <div class="supplier-info">
@@ -214,7 +202,7 @@
                                 </div>
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="purchase.supplier.email">
-                                        <div class="info-icon supplier">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
                                             <i class="pi pi-envelope"></i>
                                         </div>
                                         <div class="info-content">
@@ -223,7 +211,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="purchase.supplier.phone">
-                                        <div class="info-icon supplier">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
                                             <i class="pi pi-phone"></i>
                                         </div>
                                         <div class="info-content">
@@ -232,7 +220,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="purchase.supplier.address">
-                                        <div class="info-icon supplier">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
                                             <i class="pi pi-map-marker"></i>
                                         </div>
                                         <div class="info-content">
@@ -253,7 +241,7 @@
                             <div class="card-body">
                                 <div class="info-list">
                                     <div class="info-item" *ngIf="purchase.creationDate">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-clock"></i>
                                         </div>
                                         <div class="info-content">
@@ -262,7 +250,7 @@
                                         </div>
                                     </div>
                                     <div class="info-item" *ngIf="purchase.createdBy">
-                                        <div class="info-icon audit">
+                                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
                                             <i class="pi pi-user"></i>
                                         </div>
                                         <div class="info-content">
@@ -286,7 +274,7 @@
                             <div class="card-body">
                                 <div class="financial-grid">
                                     <div class="financial-item">
-                                        <div class="financial-icon subtotal">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
                                             <i class="pi pi-shopping-cart"></i>
                                         </div>
                                         <div class="financial-content">
@@ -297,7 +285,7 @@
                                     </div>
                                     
                                     <div class="financial-item" *ngIf="purchase.taxAmount">
-                                        <div class="financial-icon tax">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                                             <i class="pi pi-percentage"></i>
                                         </div>
                                         <div class="financial-content">
@@ -306,7 +294,7 @@
                                         </div>
                                     </div>
                                     <div class="financial-item" *ngIf="purchase.taxAmount && purchase.taxRateUsed != null">
-                                        <div class="financial-icon tax">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
                                             <i class="pi pi-receipt"></i>
                                         </div>
                                         <div class="financial-content">
@@ -316,7 +304,7 @@
                                     </div>
                                     
                                     <div class="financial-item" *ngIf="purchase.shippingCost">
-                                        <div class="financial-icon shipping">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
                                             <i class="pi pi-truck"></i>
                                         </div>
                                         <div class="financial-content">
@@ -326,7 +314,7 @@
                                     </div>
                                     
                                     <div class="financial-item" *ngIf="purchase.discount">
-                                        <div class="financial-icon discount">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                                             <i class="pi pi-tag"></i>
                                         </div>
                                         <div class="financial-content">
@@ -405,11 +393,12 @@
                             <span>{{ 'purchased_products' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="purchase.purchaseItems || []" [rows]="10" [paginator]="true"
+                            <p-table [value]="purchase.purchaseItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.purchaseDetailsPayments, [10,25,50])" [paginator]="true"
                                 [showCurrentPageReport]="true"
                                 styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,25,50]"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.purchaseDetailsPayments, [10,25,50], $event)"
                                 *ngIf="purchase.purchaseItems?.length > 0; else noItems">
                                 <ng-template pTemplate="header">
                                     <tr>
@@ -437,13 +426,16 @@
                                             </div>
                                         </td>
                                         <td class="text-center">
-                                            <p-tag [value]="item?.quantityPurchased || '0'" severity="info"></p-tag>
+                                            <p-tag severity="info">
+                                                <span class="px-1">{{ formatPurchaseItemQty(item) }} {{ getPurchaseItemMeasureUnit(item) | translate }}</span>
+                                            </p-tag>
                                         </td>
                                         <td class="text-right font-semibold">
                                             {{ item?.buyingPrice | currency:currency:'symbol':'1.2-2' }}
+                                            <small *ngIf="item?.product?.measureUnit" class="text-500 block">/ {{ getPurchaseUnitPriceLabel(item) | translate }}</small>
                                         </td>
                                         <td class="text-right font-bold text-primary">
-                                            {{ (item?.lineNetAmount ?? item?.totalCost ?? ((item?.quantityPurchased || 0) * (item?.buyingPrice || 0))) | currency:currency:'symbol':'1.2-2' }}
+                                            {{ getPurchaseItemLineNetAmount(item) | currency:currency:'symbol':'1.2-2' }}
                                         </td>
                                         <td class="text-right">
                                             {{ (item?.lineTaxAmount || 0) | currency:currency:'symbol':'1.2-2' }}
@@ -452,10 +444,12 @@
                                             {{ formatTaxRate(item?.taxRateUsed) }}
                                         </td>
                                         <td class="text-right font-bold text-primary">
-                                            {{ (item?.lineGrossAmount ?? ((item?.lineNetAmount ?? item?.totalCost ?? ((item?.quantityPurchased || 0) * (item?.buyingPrice || 0))) + (item?.lineTaxAmount || 0))) | currency:currency:'symbol':'1.2-2' }}
+                                            {{ getPurchaseItemLineGrossAmount(item) | currency:currency:'symbol':'1.2-2' }}
                                         </td>
                                         <td class="text-center">
-                                            <p-tag [value]="item?.quantityPurchased || '0'" severity="success"></p-tag>
+                                            <p-tag severity="success">
+                                                <span class="px-1">{{ formatPurchaseItemQty(item) }} {{ getPurchaseItemMeasureUnit(item) | translate }}</span>
+                                            </p-tag>
                                         </td>
                                     </tr>
                                 </ng-template>
@@ -516,6 +510,9 @@
                                         [options]="attachmentTypes"
                                         [(ngModel)]="attachmentDocumentType"
                                         [showClear]="true"
+                                        [filter]="true"
+                                        filterBy="label"
+                                        appendTo="body"
                                         [placeholder]="'select_document_type' | translate">
                                         <ng-template pTemplate="selectedItem" let-type>
                                             {{ getAttachmentDocumentTypeLabel(type) }}
@@ -543,7 +540,9 @@
                                 </button>
                             </div>
 
-                            <p-table [value]="purchaseAttachments" [rows]="10" [paginator]="true"
+                            <p-table [value]="purchaseAttachments" [rows]="pageSizeService.get(TablePageSizeKeys.purchaseDetailsAttachments, [10,25,50])" [paginator]="true"
+                                [rowsPerPageOptions]="[10,25,50]"
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.purchaseDetailsAttachments, [10,25,50], $event)"
                                 styleClass="p-datatable-sm p-datatable-striped"
                                 *ngIf="purchaseAttachments.length > 0; else noPurchaseAttachments">
                                 <ng-template pTemplate="header">

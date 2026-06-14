@@ -102,6 +102,14 @@ export class ProductService {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated product');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, product, { headers: headers });
   }
+  getProductDeleteImpact(id: number) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/delete-impact',
+      { headers }
+    );
+  }
+
   deleteProduct(id: any) {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted product');
     return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });

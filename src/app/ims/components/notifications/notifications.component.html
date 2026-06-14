@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
   <div class="col-12">
     <!-- Header -->
     <div class="mb-4">
@@ -79,9 +79,7 @@
     </div>
 
     <!-- Loading State -->
-    <div class="card flex justify-content-center" *ngIf="isLoading">
-      <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-    </div>
+    <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
     <!-- Notifications List -->
     <div class="card" *ngIf="!isLoading">

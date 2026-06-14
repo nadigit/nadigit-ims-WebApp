@@ -35,6 +35,9 @@ import {
 import { InventoryWriteOff } from 'src/app/models/write-off';
 import { WriteOffService } from 'src/app/services/write-off.service';
 import { getPreferredProductImageUrl, resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
+import { BRAND_PROFIT_CHART } from 'src/app/utils/brand-colors';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 const DEFAULT_PRODUCT_IMAGE = 'assets/core-images/no-image.png';
 const MAX_INLINE_IMAGE_URL_LENGTH = 200_000;
@@ -46,6 +49,7 @@ const MAX_INLINE_IMAGE_URL_LENGTH = 200_000;
   providers: [MessageService, ConfirmationService]
 })
 export class ProductDetailsPageComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
   productId!: number;
   product: Product | null = null;
   productGalleryImages: string[] = [];
@@ -58,6 +62,7 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   
   canEdit: boolean = false;
   canDelete: boolean = false;
+  canArchive: boolean = false;
   isAdmin: boolean = false;
   isWarehouseman: boolean = false;
   isVendor: boolean = false;
@@ -122,6 +127,9 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   // Auto-generate menu items
   autoGenerateMenuItems: any[] = [];
 
+  deleteProductDialog = false;
+  archiveProductDialog = false;
+
   // Stock Adjustment
   stockAdjustmentDialog: boolean = false;
   quantityChange: number = 0;
@@ -159,7 +167,8 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     private categoryService: CategoryService,
     private warehouseService: WarehouseService,
     private supplierService: SupplierService,
-    private writeOffService: WriteOffService
+    private writeOffService: WriteOffService,
+    public pageSizeService: TablePageSizeService
   ) {
     this.printOptions = [
       {
@@ -1195,8 +1204,14 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
       datasets: [
         {
           data: [buyingPrice, secondSliceValue],
-          backgroundColor: ['#42A5F5', profitValue >= 0 ? '#66BB6A' : '#EF5350'],
-          hoverBackgroundColor: ['#64B5F6', profitValue >= 0 ? '#81C784' : '#E57373']
+          backgroundColor: [
+            BRAND_PROFIT_CHART.cost,
+            profitValue >= 0 ? BRAND_PROFIT_CHART.profit : BRAND_PROFIT_CHART.loss,
+          ],
+          hoverBackgroundColor: [
+            BRAND_PROFIT_CHART.costHover,
+            profitValue >= 0 ? BRAND_PROFIT_CHART.profitHover : BRAND_PROFIT_CHART.lossHover,
+          ]
         }
       ]
     };
@@ -1247,6 +1262,7 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     await firstValueFrom(this.permissionService.init(userId));
     this.canEdit = this.permissionService.canUpdate(this.Ressource);
     this.canDelete = this.permissionService.canDelete(this.Ressource);
+    this.canArchive = this.permissionService.canArchive(this.Ressource);
     this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
     this.canAddSupplier = this.permissionService.canCreate('SUPPLIERS');
     this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
@@ -1798,51 +1814,58 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   }
 
   deleteProduct(): void {
-    // Handle delete - could show confirmation dialog first
-    if (confirm(this.translate.instant('delete_confirmation_msg_with_param').replace('{0}', this.product?.name || ''))) {
-      this.productService.deleteProduct(this.productId).subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_deleted'),
-            life: 3000
-          });
-          this.router.navigate(['/inventory/products']);
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_deleting_product'),
-            life: 3000
-          });
-        }
-      });
-    }
+    if (!this.productId || !this.canDelete) return;
+    this.deleteProductDialog = true;
+  }
+
+  onProductDeleteConfirmed(productId: number): void {
+    if (!this.canDelete) return;
+    this.productService.deleteProduct(productId).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('product_deleted'),
+          life: 3000
+        });
+        this.router.navigate(['/inventory/products']);
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_deleting_product'),
+          life: 3000
+        });
+      }
+    });
   }
 
   archiveProduct(): void {
-    if (confirm(this.translate.instant('archive_confirmation_msg_with_param').replace('{0}', this.product?.name || ''))) {
-      this.productService.deactivateProduct(this.productId).subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_archived'),
-            life: 3000
-          });
-          this.router.navigate(['/inventory/products']);
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_archiving_product'),
-            life: 3000
-          });
-        }
-      });
-    }
+    if (!this.canArchive) return;
+    this.archiveProductDialog = true;
+  }
+
+  confirmArchiveProduct(): void {
+    if (!this.canArchive) return;
+    this.productService.deactivateProduct(this.productId).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('product_archived'),
+          life: 3000
+        });
+        this.router.navigate(['/inventory/products']);
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_archiving_product'),
+          life: 3000
+        });
+      }
+    });
   }
 }

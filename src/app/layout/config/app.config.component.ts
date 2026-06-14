@@ -1,5 +1,5 @@
 import { Component, Input, OnInit } from '@angular/core';
-import { LayoutService } from '../service/app.layout.service';
+import { LayoutService, MenuDisplayMode } from '../service/app.layout.service';
 import { MenuService } from '../app.menu.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -7,6 +7,7 @@ import { TranslationService } from 'src/app/services/translation.service';
 @Component({
     selector: 'app-config',
     templateUrl: './app.config.component.html',
+    styleUrls: ['./app.config.component.css'],
 })
 export class AppConfigComponent implements OnInit {
     @Input() minimal: boolean = false;
@@ -31,11 +32,13 @@ export class AppConfigComponent implements OnInit {
         const savedMode = localStorage.getItem('darkMode');
         const savedMenuType = localStorage.getItem('menuType');
         const savedScale = localStorage.getItem('scale');
+        const savedMenuDisplay = localStorage.getItem('menuDisplayMode');
 
 
         this.isDarkMode = savedMode === 'dark';
         this.menuType = savedMenuType || 'static'; // Default to 'static' if not set
-        this.scale = savedScale ? +savedScale : 14; // Default to 14 if not set
+        this.scale = savedScale ? +savedScale : 14;
+        this.menuDisplayMode = this.parseMenuDisplayMode(savedMenuDisplay);
 
 
         // Apply the theme based on the saved preference
@@ -81,6 +84,17 @@ export class AppConfigComponent implements OnInit {
         localStorage.setItem('menuType', _val);
     }
 
+    get menuDisplayMode(): MenuDisplayMode {
+        return this.layoutService.config().menuDisplayMode;
+    }
+    set menuDisplayMode(_val: MenuDisplayMode) {
+        this.layoutService.config.update((config) => ({
+            ...config,
+            menuDisplayMode: _val,
+        }));
+        localStorage.setItem('menuDisplayMode', _val);
+    }
+
     get inputStyle(): string {
         return this.layoutService.config().inputStyle;
     }
@@ -120,6 +134,17 @@ export class AppConfigComponent implements OnInit {
 
     onConfigButtonClick() {
         this.layoutService.showConfigSidebar();
+    }
+
+    closeSidebar(): void {
+        this.visible = false;
+    }
+
+    private parseMenuDisplayMode(value: string | null): MenuDisplayMode {
+        if (value === 'compact' || value === 'hover') {
+            return value;
+        }
+        return 'expanded';
     }
 
     changeTheme(theme: string, colorScheme: string) {

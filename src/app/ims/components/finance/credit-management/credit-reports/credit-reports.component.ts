@@ -14,6 +14,9 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { BRAND_AGING_CHART } from 'src/app/utils/brand-colors';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-credit-reports',
@@ -22,6 +25,9 @@ import { firstValueFrom } from 'rxjs';
   providers: [MessageService]
 })
 export class CreditReportsComponent implements OnInit {
+  readonly TablePageSizeKeys = TablePageSizeKeys;
+  readonly creditReportPageOptions = [10, 20, 50] as const;
+
   isLoading: boolean = true;
   currency: string = 'USD';
   
@@ -57,7 +63,8 @@ export class CreditReportsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private router: Router,
-    private customerService: CustomerService
+    private customerService: CustomerService,
+    public pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
@@ -187,18 +194,8 @@ export class CreditReportsComponent implements OnInit {
           this.creditAging['61-90'] || 0,
           this.creditAging['90+'] || 0
         ],
-        backgroundColor: [
-          '#42A5F5',
-          '#FFA726',
-          '#EF5350',
-          '#B71C1C'
-        ],
-        hoverBackgroundColor: [
-          '#64B5F6',
-          '#FFB74D',
-          '#E57373',
-          '#C62828'
-        ]
+        backgroundColor: [...BRAND_AGING_CHART.background],
+        hoverBackgroundColor: [...BRAND_AGING_CHART.hover]
       }]
     };
   }
@@ -339,18 +336,8 @@ export class CreditReportsComponent implements OnInit {
           aging['61-90'] || 0,
           aging['90+'] || 0
         ],
-        backgroundColor: [
-          '#42A5F5',
-          '#FFA726',
-          '#EF5350',
-          '#B71C1C'
-        ],
-        hoverBackgroundColor: [
-          '#64B5F6',
-          '#FFB74D',
-          '#E57373',
-          '#C62828'
-        ]
+        backgroundColor: [...BRAND_AGING_CHART.background],
+        hoverBackgroundColor: [...BRAND_AGING_CHART.hover]
       }]
     };
   }

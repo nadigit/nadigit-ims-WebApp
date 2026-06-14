@@ -12,6 +12,8 @@ import { BatchMetadataUtil } from 'src/app/utils/batch-metadata.util';
 import { firstValueFrom } from 'rxjs';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   selector: 'app-transfer-details-page',
@@ -19,6 +21,7 @@ import { ActivityProfileService } from 'src/app/services/activity-profile.servic
   styleUrls: ['./transfer-details-page.component.css', '../warehouse-transfers.component.css']
 })
 export class TransferDetailsPageComponent implements OnInit {
+  TablePageSizeKeys = TablePageSizeKeys;
   transferId!: number;
   transfer: WarehouseTransfer | null = null;
   isLoading: boolean = true;
@@ -53,6 +56,7 @@ export class TransferDetailsPageComponent implements OnInit {
     private translateService: TranslationService,
     private configService: AppConfigurationService,
     public activityProfileService: ActivityProfileService,
+    public pageSizeService: TablePageSizeService,
   ) {}
 
   async ngOnInit() {

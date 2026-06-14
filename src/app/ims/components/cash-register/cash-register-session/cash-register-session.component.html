@@ -1,4 +1,4 @@
-<p-dialog header="{{'cash_register_session' | translate}}" [(visible)]="visible" [modal]="true"
+﻿<p-dialog header="{{'cash_register_session' | translate}}" [(visible)]="visible" [modal]="true"
   [style]="{ width: '520px' }" [draggable]="false" [resizable]="false" [closable]="true" [dismissableMask]="true"
   [baseZIndex]="11000" (onHide)="onDialogClose()">
 
@@ -101,7 +101,7 @@
   <!-- =================== LOADING TEMPLATE =================== -->
   <ng-template #loadingTemplate>
     <div class="flex justify-content-center align-items-center" style="min-height: 220px;">
-      <p-progressSpinner strokeWidth="3" styleClass="overlay-spinner"></p-progressSpinner>
+      <p-progressSpinner styleClass="ims-spinner--md overlay-spinner" ariaLabel="loading"></p-progressSpinner>
     </div>
   </ng-template>
 

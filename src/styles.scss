@@ -10,6 +10,18 @@ $gutter: 1rem;
 @import "assets/ims/styles/code.scss";
 @import "assets/ims/styles/code.css";
 
+/* Nadigit IMS brand overrides — loaded after PrimeNG theme & layout */
+@import "assets/ims/styles/icon-tiles.scss";
+@import "assets/ims/styles/ims-form-sections.scss";
+@import "assets/ims/styles/nadigit-brand.scss";
+@import "assets/ims/styles/ims-radius.scss";
+@import "assets/ims/styles/detail-hero.scss";
+@import "assets/ims/styles/ims-buttons.scss";
+@import "assets/ims/styles/ims-loading.scss";
+@import "assets/ims/styles/ims-import-wizard.scss";
+@import "assets/ims/styles/brand-auth-pages.scss";
+@import "assets/ims/styles/print-brand.scss";
+
 /* =====================================================
    Enhanced RTL Support
    ===================================================== */
@@ -50,7 +62,7 @@ body[dir="rtl"] .layout-main-container {
   [dir="rtl"] .layout-wrapper.layout-static .layout-main-container,
   html[dir="rtl"] .layout-wrapper.layout-static .layout-main-container {
     margin-left: 0 !important;
-    margin-right: 300px !important;
+    margin-right: var(--layout-sidebar-width, 300px) !important;
   }
 
   [dir="rtl"] .layout-wrapper.layout-static.layout-static-inactive .layout-main-container,
@@ -255,14 +267,14 @@ html[dir="rtl"] .p-input-icon-right > input {
 }
 
 /* PrimeNG Calendar */
-[dir="rtl"] .p-calendar .p-inputtext,
-html[dir="rtl"] .p-calendar .p-inputtext {
+[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-inputtext,
+html[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-inputtext {
   padding-right: 2.5rem !important;
   padding-left: 0.75rem !important;
 }
 
-[dir="rtl"] .p-calendar .p-datepicker-trigger,
-html[dir="rtl"] .p-calendar .p-datepicker-trigger {
+[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-datepicker-trigger,
+html[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-datepicker-trigger {
   left: 0 !important;
   right: auto !important;
 }
@@ -434,37 +446,26 @@ html[dir="rtl"] .p-button .p-button-icon-right {
   margin-right: 0.5rem !important;
 }
 
-/* Input groups */
+/* Input groups — RTL divider only; outer radius lives on .p-inputgroup shell */
 [dir="rtl"] .p-inputgroup .p-inputgroup-addon:first-child,
 html[dir="rtl"] .p-inputgroup .p-inputgroup-addon:first-child {
-  border-top-right-radius: var(--border-radius) !important;
-  border-bottom-right-radius: var(--border-radius) !important;
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
-  border-right: 1px solid var(--surface-border) !important;
-  border-left: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-inline-end: 1px solid var(--brand-field-border, var(--surface-border)) !important;
 }
 
 [dir="rtl"] .p-inputgroup .p-inputgroup-addon:last-child,
 html[dir="rtl"] .p-inputgroup .p-inputgroup-addon:last-child {
-  border-top-left-radius: var(--border-radius) !important;
-  border-bottom-left-radius: var(--border-radius) !important;
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-  border-left: 1px solid var(--surface-border) !important;
-  border-right: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-inline-start: 1px solid var(--brand-field-border, var(--surface-border)) !important;
 }
 
 [dir="rtl"] .p-inputgroup .p-inputtext:first-child,
-html[dir="rtl"] .p-inputgroup .p-inputtext:first-child {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-}
-
+html[dir="rtl"] .p-inputgroup .p-inputtext:first-child,
 [dir="rtl"] .p-inputgroup .p-inputtext:last-child,
 html[dir="rtl"] .p-inputgroup .p-inputtext:last-child {
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
+  border-radius: 0 !important;
 }
 
 /* TabView */
@@ -515,7 +516,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 
 /* Order Details Header */
 .premium-order-details-dialog .order-details-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  background: var(--brand-gradient-ai);
   color: var(--primary-color-text);
   padding: 2rem;
   transition: background 0.3s ease;
@@ -556,10 +557,10 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
-/* Returned – soft purple tones */
+/* Returned – brand cyan accent */
 .premium-order-details-dialog .order-details-header.status-returned {
-  background: linear-gradient(135deg, #ECCFFF 0%, #b284e3 100%);
-  color: #694382;
+  background: linear-gradient(135deg, #C5F0F5 0%, #18C5D8 100%);
+  color: #0C6C78;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
@@ -942,7 +943,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 }
 
 .premium-payment-details-dialog .payment-details-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  background: var(--brand-gradient-ai);
   color: var(--primary-color-text);
   padding: 2rem;
 }
@@ -1062,7 +1063,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
   background: var(--surface-card);
   border-radius: var(--border-radius);
   padding: 1rem;
-  border-left: 4px solid var(--purple-500);
+  border-left: 4px solid var(--brand-cyan);
   font-style: italic;
   color: var(--text-color);
 }
@@ -1138,7 +1139,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 }
 
 .premium-refund-details-dialog .premium-dialog-header.refund-details-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  background: var(--brand-gradient-ai);
   color: var(--primary-color-text);
   padding: 2rem;
 }
@@ -1323,7 +1324,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
   background: var(--surface-card);
   border-radius: var(--border-radius);
   padding: 1rem;
-  border-left: 4px solid var(--purple-500);
+  border-left: 4px solid var(--brand-cyan);
   font-style: italic;
   color: var(--text-color);
   line-height: 1.5;
@@ -1469,7 +1470,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 
 /* Order Details Header */
 .premium-purchase-details-dialog .purchase-details-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  background: var(--brand-gradient-ai);
   color: var(--primary-color-text);
   padding: 2rem;
   transition: background 0.3s ease;
@@ -1510,10 +1511,10 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
-/* Returned – soft purple tones */
+/* Returned – brand cyan accent */
 .premium-purchase-details-dialog .purchase-details-header.status-returned {
-  background: linear-gradient(135deg, #ECCFFF 0%, #b284e3 100%);
-  color: #694382;
+  background: linear-gradient(135deg, #C5F0F5 0%, #18C5D8 100%);
+  color: #0C6C78;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
@@ -1895,7 +1896,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 }
 
 .premium-expense-details-dialog .premium-dialog-header.expense-details-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  background: var(--brand-gradient-ai);
   color: var(--primary-color-text);
   padding: 2rem;
 }
@@ -2034,7 +2035,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
   background: var(--surface-card);
   border-radius: var(--border-radius);
   padding: 1rem;
-  border-left: 4px solid var(--purple-500);
+  border-left: 4px solid var(--brand-cyan);
   font-style: italic;
   color: var(--text-color);
   line-height: 1.5;
@@ -2113,7 +2114,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 }
 
 .premium-return-details-dialog .premium-dialog-header.return-details-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+  background: var(--brand-gradient-ai);
   color: var(--primary-color-text);
   padding: 2rem;
 }
@@ -2454,7 +2455,7 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
   background: var(--surface-card);
   border-radius: var(--border-radius);
   padding: 1rem;
-  border-left: 4px solid var(--purple-500);
+  border-left: 4px solid var(--brand-cyan);
   font-style: italic;
   color: var(--text-color);
   line-height: 1.5;
@@ -2588,6 +2589,6 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 }
 
 .p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item.p-highlight {
-  background: var(--highlight-bg, color-mix(in srgb, var(--primary-color, #2563eb) 14%, transparent));
+  background: var(--highlight-bg, color-mix(in srgb, var(--primary-color, var(--brand-saas)) 14%, transparent));
   color: var(--highlight-text-color, inherit);
 }

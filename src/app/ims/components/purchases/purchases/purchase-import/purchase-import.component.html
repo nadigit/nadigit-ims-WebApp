@@ -1,436 +1,401 @@
-<p-dialog 
-    [(visible)]="visible" 
-    [modal]="true" 
-    [style]="{width: '90vw', maxWidth: '1200px'}" 
-    [draggable]="false" 
+<p-dialog
+    [(visible)]="visible"
+    [modal]="true"
+    [style]="{ width: '92vw', maxWidth: '1180px' }"
+    [contentStyle]="{ overflow: 'auto', maxHeight: 'calc(90vh - 8rem)' }"
+    [breakpoints]="{ '960px': '95vw', '640px': '98vw' }"
+    [draggable]="false"
     [resizable]="false"
     [closable]="true"
     (onHide)="closeDialog()"
-    [header]="'import_purchases' | translate">
-    
+    [header]="'import_purchases' | translate"
+    class="p-fluid purchase-import-dialog">
+
+    <ng-template pTemplate="content">
     <p-toast></p-toast>
 
-    <!-- Tab View for Phase 1 and Phase 2 -->
     <p-tabView [(activeIndex)]="activeTab">
         
         <!-- Phase 1: Import from File (CSV/Excel) -->
         <p-tabPanel [header]="'import_from_file' | translate">
-            <!-- Step 1: Upload & Options -->
-            <div *ngIf="currentStep === 'upload'" class="import-step">
-        <!-- Template Download Section -->
-        <div class="mb-4">
-            <h3 class="text-900 mb-3">{{ 'download_template' | translate }}</h3>
-            <p class="text-600 mb-3">{{ 'download_template_description' | translate }}</p>
-            <p class="text-600 mb-4">
-                <strong>{{ 'note' | translate }}:</strong> 
-                {{ 'purchase_import_invoice_grouping_note' | translate }}
-            </p>
-            <div class="flex gap-2">
-                <button 
-                    pButton 
-                    pRipple 
-                    icon="pi pi-download" 
-                    [label]="'download_csv_template' | translate"
-                    class="p-button-info"
-                    (click)="downloadTemplate('csv')"
-                    [loading]="loading"></button>
-                <button 
-                    pButton 
-                    pRipple 
-                    icon="pi pi-download" 
-                    [label]="'download_excel_template' | translate"
-                    class="p-button-info"
-                    (click)="downloadTemplate('excel')"
-                    [loading]="loading"></button>
-            </div>
-        </div>
-
-        <p-divider></p-divider>
-
-        <!-- File Upload Section -->
-        <div class="mb-4">
-            <h3 class="text-900 mb-3">{{ 'upload_file' | translate }}</h3>
-            <p class="text-600 mb-3">{{ 'upload_file_description' | translate }}</p>
-            <p-fileUpload 
-                #fileUpload
-                mode="basic"
-                [accept]="'.csv,.xlsx,.xls'"
-                [maxFileSize]="fileSizeLimit"
-                [chooseLabel]="'choose_file' | translate"
-                (onSelect)="onFileSelect($event)"
-                (onRemove)="onFileRemove()"
-                [auto]="false"
-                styleClass="w-full">
-            </p-fileUpload>
-            <div *ngIf="selectedFile" class="mt-2">
-                <p class="text-600">
-                    <i class="pi pi-file mr-2"></i>
-                    {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
-                </p>
-            </div>
-        </div>
-
-        <p-divider></p-divider>
-
-        <!-- Import Options -->
-        <div class="mb-4">
-            <div class="flex justify-content-between align-items-center mb-3">
-                <h3 class="text-900 m-0">{{ 'import_options' | translate }}</h3>
-                <button 
-                    pButton 
-                    pRipple 
-                    [label]="(showAdvancedOptions ? 'hide_advanced_options' : 'show_advanced_options') | translate"
-                    icon="pi" 
-                    [icon]="showAdvancedOptions ? 'pi-chevron-up' : 'pi-chevron-down'"
-                    class="p-button-text p-button-sm"
-                    (click)="showAdvancedOptions = !showAdvancedOptions"></button>
-            </div>
-
-            <!-- Grouping Options -->
-            <div class="grid mb-3">
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.groupByInvoice" 
-                            [binary]="true" 
-                            inputId="groupByInvoice">
-                        </p-checkbox>
-                        <label for="groupByInvoice" class="ml-2">
-                            {{ 'group_by_invoice' | translate }}
-                        </label>
-                    </div>
+            <nav class="import-stepper" aria-label="Import progress">
+                <div *ngFor="let step of wizardSteps; let i = index" class="import-stepper-item"
+                    [class.import-stepper-item--active]="isWizardStepActive(step.id)"
+                    [class.import-stepper-item--complete]="isWizardStepComplete(step.id)">
+                    <span class="import-stepper-badge">
+                        <i *ngIf="isWizardStepComplete(step.id)" class="pi pi-check"></i>
+                        <span *ngIf="!isWizardStepComplete(step.id)">{{ i + 1 }}</span>
+                    </span>
+                    <span class="import-stepper-label">{{ step.labelKey | translate }}</span>
                 </div>
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.groupBySupplierAndDate" 
-                            [binary]="true" 
-                            inputId="groupBySupplierAndDate">
-                        </p-checkbox>
-                        <label for="groupBySupplierAndDate" class="ml-2">
-                            {{ 'group_by_supplier_date' | translate }}
-                        </label>
+            </nav>
+
+            <div class="import-guide-banner mb-4" *ngIf="currentStep === 'upload'">
+                <div class="import-guide-banner__glow" aria-hidden="true"></div>
+                <div class="import-guide-banner__inner">
+                    <div class="import-guide-banner__header">
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary import-guide-banner__icon">
+                            <i class="pi pi-info-circle"></i>
+                        </div>
+                        <div class="import-guide-banner__copy flex-1 min-w-0">
+                            <div class="flex align-items-center justify-content-between gap-2">
+                                <h3 class="import-guide-banner__title m-0">{{ 'import_guide' | translate }}</h3>
+                                <button type="button" class="import-guide-toggle"
+                                    [pTooltip]="showHelpGuide ? ('hide_guide' | translate) : ('show_guide' | translate)"
+                                    tooltipPosition="left"
+                                    [attr.aria-expanded]="showHelpGuide"
+                                    [attr.aria-label]="showHelpGuide ? ('hide_guide' | translate) : ('show_guide' | translate)"
+                                    (click)="showHelpGuide = !showHelpGuide">
+                                    <i [class]="showHelpGuide ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <p class="import-guide-banner__description m-0">{{ 'purchase_import_invoice_grouping_note' | translate }}</p>
+                        </div>
+                    </div>
+
+                    <div *ngIf="showHelpGuide" class="import-guide-body">
+                        <div class="grid import-guide-steps">
+                            <div class="col-12 md:col-6 lg:col-3" *ngFor="let guideStep of guideSteps">
+                                <div class="import-guide-step">
+                                    <span class="import-guide-step__number" [ngClass]="'import-guide-step__number--' + guideStep.tile">
+                                        {{ guideStep.n }}
+                                    </span>
+                                    <div class="import-guide-step__copy min-w-0">
+                                        <span class="import-guide-step__title">{{ guideStep.titleKey | translate }}</span>
+                                        <p class="import-guide-step__desc m-0">{{ guideStep.descKey | translate }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="import-columns-card mt-3">
+                            <div class="import-columns-card__glow" aria-hidden="true"></div>
+                            <div class="import-columns-card__inner">
+                                <div class="import-columns-card__header">
+                                    <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+                                        <i class="pi pi-check-circle"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="import-columns-card__title m-0">{{ 'required_columns' | translate }}</h4>
+                                        <p class="import-columns-card__subtitle m-0">{{ 'fields_marked_with_asterisk_required' | translate }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="grid mt-3">
+                                    <div class="col-12 lg:col-7">
+                                        <div class="import-columns-grid">
+                                            <div class="import-column-item" *ngFor="let col of requiredColumns">
+                                                <div class="ims-icon-tile ims-icon-tile--sm" [ngClass]="'ims-icon-tile--' + col.tile">
+                                                    <i [class]="col.icon"></i>
+                                                </div>
+                                                <div class="import-column-item__copy min-w-0">
+                                                    <div class="import-column-item__label">
+                                                        <span class="required-asterisk" aria-hidden="true">*</span>
+                                                        <strong>{{ col.labelKey | translate }}</strong>
+                                                    </div>
+                                                    <p class="import-column-item__help m-0">{{ col.helpKey | translate }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 lg:col-5">
+                                        <div class="import-columns-optional">
+                                            <div class="import-columns-optional__header">
+                                                <i class="pi pi-sliders-h mr-2"></i>
+                                                <span>{{ 'optional_columns' | translate }}</span>
+                                            </div>
+                                            <p class="import-columns-optional__text m-0">{{ 'purchase_import_optional_columns_description' | translate }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Data Options -->
-            <div class="grid mb-3">
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.skipDuplicates" 
-                            [binary]="true" 
-                            inputId="skipDuplicates">
-                        </p-checkbox>
-                        <label for="skipDuplicates" class="ml-2">
-                            {{ 'skip_duplicates' | translate }}
-                        </label>
+            <div *ngIf="currentStep === 'upload'" class="grid">
+                <div class="col-12 lg:col-7 flex flex-column gap-4">
+                    <div class="import-section">
+                        <div class="import-section-header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                                <i class="pi pi-download"></i>
+                            </div>
+                            <div>
+                                <h3 class="import-section-title">{{ 'download_template' | translate }}</h3>
+                                <p class="import-section-subtitle">{{ 'download_template_description' | translate }}</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button pButton pRipple type="button"
+                                [label]="'download_csv_template' | translate" icon="pi pi-file"
+                                class="p-button-outlined" [loading]="loading" (click)="downloadTemplate('csv')">
+                            </button>
+                            <button pButton pRipple type="button"
+                                [label]="'download_excel_template' | translate" icon="pi pi-file-excel"
+                                class="p-button-outlined" [loading]="loading" (click)="downloadTemplate('excel')">
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="import-section">
+                        <div class="import-section-header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+                                <i class="pi pi-upload"></i>
+                            </div>
+                            <div>
+                                <h3 class="import-section-title">{{ 'upload_file' | translate }}</h3>
+                                <p class="import-section-subtitle">{{ 'upload_file_description' | translate }}</p>
+                            </div>
+                        </div>
+
+                        <div class="import-upload-zone"
+                            [class.import-upload-zone--active]="isDragOver"
+                            [class.import-upload-zone--has-file]="!!selectedFile"
+                            (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+                            <ng-container *ngIf="!selectedFile; else selectedFileBlock">
+                                <i class="pi pi-cloud-upload import-upload-icon"></i>
+                                <p class="font-semibold m-0 mb-1">{{ 'drag_drop_title' | translate }}</p>
+                                <p class="text-sm text-color-secondary m-0 mb-3">{{ 'drag_drop_subtitle' | translate }}</p>
+                                <p-fileUpload #fileUpload mode="basic" [accept]="'.csv,.xlsx,.xls'" [maxFileSize]="fileSizeLimit"
+                                    [auto]="false" (onSelect)="onFileSelect($event)" (onRemove)="onFileRemove()"
+                                    [chooseLabel]="'choose_file' | translate" chooseIcon="pi pi-folder-open"
+                                    styleClass="import-file-upload-btn">
+                                </p-fileUpload>
+                                <small class="text-color-secondary block mt-2">CSV, XLSX, XLS · max 10 MB</small>
+                            </ng-container>
+
+                            <ng-template #selectedFileBlock>
+                                <div class="import-file-card">
+                                    <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+                                        <i class="pi pi-file"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold truncate">{{ selectedFile?.name }}</div>
+                                        <small class="text-color-secondary">{{ formatFileSize(selectedFile?.size || 0) }}</small>
+                                    </div>
+                                    <button pButton pRipple type="button" icon="pi pi-times"
+                                        class="p-button-text p-button-danger p-button-rounded"
+                                        (click)="onFileRemove()" [pTooltip]="'remove' | translate">
+                                    </button>
+                                </div>
+                            </ng-template>
+                        </div>
                     </div>
                 </div>
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.updateExisting" 
-                            [binary]="true" 
-                            inputId="updateExisting">
-                        </p-checkbox>
-                        <label for="updateExisting" class="ml-2">
-                            {{ 'update_existing_purchases' | translate }}
-                        </label>
+
+                <div class="col-12 lg:col-5">
+                    <div class="import-section import-section--secondary h-full">
+                        <div class="import-section-header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+                                <i class="pi pi-sliders-h"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="import-section-title">{{ 'import_options' | translate }}</h3>
+                                <p class="import-section-subtitle">{{ 'import_options_hint' | translate }}</p>
+                            </div>
+                        </div>
+
+                        <div class="import-options-grid">
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.groupByInvoice" [binary]="true" inputId="groupByInvoice"></p-checkbox>
+                                <label for="groupByInvoice" class="import-option-label">{{ 'group_by_invoice' | translate }}</label>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.groupBySupplierAndDate" [binary]="true" inputId="groupBySupplierAndDate"></p-checkbox>
+                                <label for="groupBySupplierAndDate" class="import-option-label">{{ 'group_by_supplier_date' | translate }}</label>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.skipDuplicates" [binary]="true" inputId="skipDuplicates"></p-checkbox>
+                                <label for="skipDuplicates" class="import-option-label">{{ 'skip_duplicates' | translate }}</label>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.updateExisting" [binary]="true" inputId="updateExisting"></p-checkbox>
+                                <label for="updateExisting" class="import-option-label">{{ 'update_existing_purchases' | translate }}</label>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.createMissingSuppliers" [binary]="true" inputId="createMissingSuppliers"></p-checkbox>
+                                <label for="createMissingSuppliers" class="import-option-label">{{ 'create_missing_suppliers' | translate }}</label>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.createMissingProducts" [binary]="true" inputId="createMissingProducts"></p-checkbox>
+                                <label for="createMissingProducts" class="import-option-label">{{ 'create_missing_products' | translate }}</label>
+                            </div>
+                        </div>
+
+                        <div *ngIf="importOptions.createMissingProducts" class="mt-3 flex flex-column gap-3">
+                            <div class="field mb-0">
+                                <div class="flex align-items-center justify-content-between mb-2">
+                                    <label for="defaultCategoryFile" class="font-bold">{{ 'purchase_import_default_category' | translate }}</label>
+                                    <a *ngIf="isAdmin" (click)="openCategoryDialogForDefault()" class="text-sm text-primary cursor-pointer">
+                                        <i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
+                                    </a>
+                                </div>
+                                <p-dropdown inputId="defaultCategoryFile" [(ngModel)]="importOptions.defaultCategoryId"
+                                    [options]="categories" optionLabel="categoryName" optionValue="categoryId"
+                                    [showClear]="true" [placeholder]="'purchase_import_default_category_placeholder' | translate"
+                                    [filter]="true" filterBy="categoryName" appendTo="body" styleClass="w-full">
+                                </p-dropdown>
+                                <small class="text-color-secondary">{{ 'purchase_import_default_category_hint' | translate }}</small>
+                            </div>
+                            <div class="field mb-0">
+                                <label for="defaultWarehouseFile" class="block mb-2 font-bold">{{ 'purchase_import_default_warehouse' | translate }}</label>
+                                <p-dropdown inputId="defaultWarehouseFile" [(ngModel)]="importOptions.defaultWarehouseId"
+                                    [options]="warehouses" optionLabel="name" optionValue="warehouseId"
+                                    [showClear]="true" [placeholder]="'purchase_import_default_warehouse_placeholder' | translate"
+                                    [filter]="true" filterBy="name" appendTo="body" styleClass="w-full">
+                                </p-dropdown>
+                                <small class="text-color-secondary">{{ 'purchase_import_default_warehouse_hint' | translate }}</small>
+                            </div>
+                        </div>
+
+                        <button pButton pRipple type="button"
+                            [label]="showAdvancedOptions ? ('hide_advanced_options' | translate) : ('show_advanced_options' | translate)"
+                            [icon]="showAdvancedOptions ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                            class="p-button-text p-button-sm mt-2" (click)="showAdvancedOptions = !showAdvancedOptions">
+                        </button>
+
+                        <div *ngIf="showAdvancedOptions" class="import-advanced-panel mt-3">
+                            <div class="field" *ngIf="isAdmin">
+                                <label for="defaultShop" class="block mb-2 font-bold">{{ 'default_shop' | translate }}</label>
+                                <p-dropdown id="defaultShop" [(ngModel)]="importOptions.defaultShopId"
+                                    [options]="shops" optionLabel="shopName" optionValue="shopId"
+                                    [showClear]="true" [placeholder]="'select_shop' | translate" appendTo="body" styleClass="w-full">
+                                </p-dropdown>
+                            </div>
+                            <div class="field">
+                                <label for="batchSize" class="block mb-2 font-bold">{{ 'batch_size' | translate }}</label>
+                                <p-inputNumber id="batchSize" [(ngModel)]="importOptions.batchSize"
+                                    [min]="1" [max]="1000" inputId="batchSize" styleClass="w-full"></p-inputNumber>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.validateInvoiceUniqueness" [binary]="true" inputId="validateInvoiceUniqueness"></p-checkbox>
+                                <label for="validateInvoiceUniqueness" class="import-option-label">{{ 'validate_invoice_uniqueness' | translate }}</label>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.stopOnFirstError" [binary]="true" inputId="stopOnFirstError"></p-checkbox>
+                                <label for="stopOnFirstError" class="import-option-label">{{ 'stop_on_first_error' | translate }}</label>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.createMissingSuppliers" 
-                            [binary]="true" 
-                            inputId="createMissingSuppliers">
-                        </p-checkbox>
-                        <label for="createMissingSuppliers" class="ml-2">
-                            {{ 'create_missing_suppliers' | translate }}
-                        </label>
-                    </div>
-                </div>
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.createMissingProducts" 
-                            [binary]="true" 
-                            inputId="createMissingProducts">
-                        </p-checkbox>
-                        <label for="createMissingProducts" class="ml-2">
-                            {{ 'create_missing_products' | translate }}
-                        </label>
-                    </div>
-                </div>
-                <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
-                    <div class="flex align-items-center justify-content-between mb-2">
-                        <label for="defaultCategoryFile">{{ 'purchase_import_default_category' | translate }}</label>
-                        <a *ngIf="isAdmin" (click)="openCategoryDialogForDefault()" class="text-sm text-primary cursor-pointer">
-                            <i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
-                        </a>
-                    </div>
-                    <p-dropdown
-                        inputId="defaultCategoryFile"
-                        [(ngModel)]="importOptions.defaultCategoryId"
-                        [options]="categories"
-                        optionLabel="categoryName"
-                        optionValue="categoryId"
-                        [showClear]="true"
-                        [placeholder]="'purchase_import_default_category_placeholder' | translate"
-                        [filter]="true"
-                        filterBy="categoryName"
-                        styleClass="w-full">
-                    </p-dropdown>
-                    <small class="text-600">{{ 'purchase_import_default_category_hint' | translate }}</small>
-                </div>
-                <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
-                    <label for="defaultWarehouseFile" class="block mb-2">{{ 'purchase_import_default_warehouse' | translate }}</label>
-                    <p-dropdown
-                        inputId="defaultWarehouseFile"
-                        [(ngModel)]="importOptions.defaultWarehouseId"
-                        [options]="warehouses"
-                        optionLabel="name"
-                        optionValue="warehouseId"
-                        [showClear]="true"
-                        [placeholder]="'purchase_import_default_warehouse_placeholder' | translate"
-                        [filter]="true"
-                        filterBy="name"
-                        styleClass="w-full">
-                    </p-dropdown>
-                    <small class="text-600">{{ 'purchase_import_default_warehouse_hint' | translate }}</small>
                 </div>
             </div>
-
-            <!-- Advanced Options -->
-            <div *ngIf="showAdvancedOptions" class="grid">
-                <div class="col-12 md:col-6" *ngIf="isAdmin">
-                    <label for="defaultShop" class="block mb-2">{{ 'default_shop' | translate }}</label>
-                    <p-dropdown 
-                        id="defaultShop"
-                        [(ngModel)]="importOptions.defaultShopId" 
-                        [options]="shops" 
-                        optionLabel="shopName" 
-                        optionValue="shopId"
-                        [showClear]="true"
-                        [placeholder]="'select_shop' | translate"
-                        styleClass="w-full">
-                    </p-dropdown>
-                </div>
-                <div class="col-12 md:col-6">
-                    <label for="batchSize" class="block mb-2">{{ 'batch_size' | translate }}</label>
-                    <p-inputNumber 
-                        id="batchSize"
-                        [(ngModel)]="importOptions.batchSize" 
-                        [min]="1" 
-                        [max]="1000"
-                        styleClass="w-full">
-                    </p-inputNumber>
-                </div>
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.validateInvoiceUniqueness" 
-                            [binary]="true" 
-                            inputId="validateInvoiceUniqueness">
-                        </p-checkbox>
-                        <label for="validateInvoiceUniqueness" class="ml-2">
-                            {{ 'validate_invoice_uniqueness' | translate }}
-                        </label>
-                    </div>
-                </div>
-                <div class="col-12 md:col-6">
-                    <div class="field-checkbox">
-                        <p-checkbox 
-                            [(ngModel)]="importOptions.stopOnFirstError" 
-                            [binary]="true" 
-                            inputId="stopOnFirstError">
-                        </p-checkbox>
-                        <label for="stopOnFirstError" class="ml-2">
-                            {{ 'stop_on_first_error' | translate }}
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex justify-content-end gap-2 mt-4">
-            <button 
-                pButton 
-                pRipple 
-                [label]="'validate_file' | translate"
-                icon="pi pi-check"
-                class="p-button-success"
-                (click)="validateFile()"
-                [disabled]="!selectedFile || validating"
-                [loading]="validating"></button>
-        </div>
-    </div>
 
     <!-- Step 2: Validation Results -->
-    <div *ngIf="currentStep === 'validation'" class="import-step">
-        <h3 class="text-900 mb-3">{{ 'validation_results' | translate }}</h3>
-        
-        <div *ngIf="validationResult" class="mb-4">
-            <div class="grid">
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'total_rows' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold">{{ validationResult.totalRows }}</div>
-                    </div>
+    <div *ngIf="currentStep === 'validation' && validationResult" class="flex flex-column gap-4">
+        <div class="import-section">
+            <div class="import-section-header">
+                <div class="ims-icon-tile ims-icon-tile--sm"
+                    [ngClass]="validationResult.valid ? 'ims-icon-tile--teal' : 'ims-icon-tile--amber'">
+                    <i [class]="validationResult.valid ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"></i>
                 </div>
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'valid_rows' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold text-green-600">{{ validationResult.validRows }}</div>
-                    </div>
+                <div>
+                    <h3 class="import-section-title">{{ 'validation_results' | translate }}</h3>
+                    <p class="import-section-subtitle">
+                        {{ validationResult.valid ? ('file_validated_successfully' | translate) : ('please_review_errors' | translate) }}
+                    </p>
                 </div>
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'error_rows' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold text-red-600">{{ validationResult.errorRows }}</div>
+            </div>
+
+            <div class="import-stats-row">
+                <div class="import-stat-card" *ngFor="let stat of [
+                    { value: validationResult.totalRows, label: 'total_rows', tile: 'neutral', icon: 'pi pi-list' },
+                    { value: validationResult.validRows, label: 'valid_rows', tile: 'teal', icon: 'pi pi-check' },
+                    { value: validationResult.errorRows, label: 'error_rows', tile: 'danger', icon: 'pi pi-times' },
+                    { value: validationResult.warningRows, label: 'warning_rows', tile: 'amber', icon: 'pi pi-exclamation-triangle' }
+                ]">
+                    <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="'ims-icon-tile--' + stat.tile">
+                        <i [class]="stat.icon"></i>
                     </div>
-                </div>
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'warning_rows' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold text-orange-600">{{ validationResult.warningRows }}</div>
+                    <div>
+                        <div class="import-stat-value">{{ stat.value }}</div>
+                        <div class="import-stat-label">{{ stat.label | translate }}</div>
                     </div>
                 </div>
             </div>
 
-            <!-- General Errors -->
-            <div *ngIf="validationResult.generalErrors && validationResult.generalErrors.length > 0" class="mt-3">
-                <p class="text-red-600 font-semibold mb-2">{{ 'general_errors' | translate }}</p>
-                <ul class="list-none p-0 m-0">
-                    <li *ngFor="let error of validationResult.generalErrors" class="text-red-600 mb-1">
-                        <i class="pi pi-times-circle mr-2"></i>{{ error }}
-                    </li>
+            <div *ngIf="validationResult.generalErrors?.length" class="import-alert import-alert--error mt-3">
+                <strong>{{ 'general_errors' | translate }}</strong>
+                <ul class="m-0 mt-2 pl-3">
+                    <li *ngFor="let error of validationResult.generalErrors">{{ translateErrorMessage(error, null) }}</li>
                 </ul>
             </div>
 
-            <!-- Missing Columns -->
-            <div *ngIf="validationResult.missingColumns && validationResult.missingColumns.length > 0" class="mt-3">
-                <p class="text-orange-600 font-semibold mb-2">{{ 'missing_columns' | translate }}</p>
-                <ul class="list-none p-0 m-0">
-                    <li *ngFor="let col of validationResult.missingColumns" class="text-orange-600 mb-1">
-                        <i class="pi pi-exclamation-triangle mr-2"></i>{{ col }}
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Validation Errors Table -->
-            <div *ngIf="validationResult.errors && validationResult.errors.length > 0" class="mt-4">
-                <div class="flex justify-content-between align-items-center mb-2">
-                    <p class="text-900 font-semibold m-0">{{ 'validation_errors' | translate }}</p>
-                    <button 
-                        pButton 
-                        pRipple 
-                        icon="pi pi-download" 
-                        [label]="'download_error_report' | translate"
-                        class="p-button-text p-button-sm"
-                        (click)="downloadErrorReport()"></button>
+            <div *ngIf="validationResult.missingColumns?.length" class="import-alert import-alert--warn mt-3">
+                <strong>{{ 'missing_columns' | translate }}</strong>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <p-tag *ngFor="let col of validationResult.missingColumns" [value]="col" severity="warning"></p-tag>
                 </div>
-                <p-table 
-                    [value]="validationResult.errors" 
-                    [paginator]="true" 
-                    [rows]="10"
-                    styleClass="p-datatable-sm">
-                    <ng-template pTemplate="header">
-                        <tr>
-                            <th>{{ 'row_number' | translate }}</th>
-                            <th>{{ 'column' | translate }}</th>
-                            <th>{{ 'error_message' | translate }}</th>
-                            <th>{{ 'invalid_value' | translate }}</th>
-                            <th>{{ 'severity' | translate }}</th>
-                        </tr>
-                    </ng-template>
-                    <ng-template pTemplate="body" let-error>
-                        <tr>
-                            <td>{{ error.rowNumber }}</td>
-                            <td>{{ error.column }}</td>
-                            <td>{{ translateErrorMessage(error.message, error) }}</td>
-                            <td>{{ error.invalidValue || '-' }}</td>
-                            <td>
-                                <p-tag 
-                                    [value]="error.severity" 
-                                    [severity]="getErrorSeverity(error.severity)"
-                                    styleClass="text-xs">
-                                </p-tag>
-                            </td>
-                        </tr>
-                    </ng-template>
-                </p-table>
             </div>
         </div>
 
-        <!-- Actions -->
-        <div class="flex justify-content-between mt-4">
-            <button 
-                pButton 
-                pRipple 
-                [label]="'back' | translate"
-                icon="pi pi-arrow-left"
-                class="p-button-text"
-                (click)="currentStep = 'upload'"></button>
-            <div class="flex gap-2">
-                <button 
-                    pButton 
-                    pRipple 
-                    [label]="'preview_import' | translate"
-                    icon="pi pi-eye"
-                    class="p-button-info"
-                    (click)="previewImport()"
-                    [disabled]="!validationResult?.valid || previewing"
-                    [loading]="previewing"></button>
-                <button 
-                    pButton 
-                    pRipple 
-                    [label]="'import_purchases' | translate"
-                    icon="pi pi-upload"
-                    class="p-button-success"
-                    (click)="executeImport()"
-                    [disabled]="!validationResult?.valid || importing || importBlockedByStrictBatch()"
-                    [loading]="importing"></button>
+        <div *ngIf="validationResult.errors?.length" class="import-section">
+            <div class="import-section-header import-section-header--compact">
+                <h3 class="import-section-title m-0">{{ 'validation_errors' | translate }}</h3>
+                <button pButton pRipple type="button" [label]="'download_error_report' | translate"
+                    icon="pi pi-download" class="p-button-outlined p-button-sm" (click)="downloadErrorReport()">
+                </button>
             </div>
+            <p-table [value]="validationResult.errors" [paginator]="true" [rows]="10" styleClass="p-datatable-gridlines">
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th>{{ 'row_number' | translate }}</th>
+                        <th>{{ 'column' | translate }}</th>
+                        <th>{{ 'error_message' | translate }}</th>
+                        <th>{{ 'invalid_value' | translate }}</th>
+                        <th>{{ 'severity' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-error>
+                    <tr>
+                        <td>{{ error.rowNumber }}</td>
+                        <td>{{ error.column }}</td>
+                        <td>{{ translateErrorMessage(error.message, error) }}</td>
+                        <td>{{ error.invalidValue || '-' }}</td>
+                        <td>
+                            <p-tag [value]="error.severity" [severity]="getErrorSeverity(error.severity)"></p-tag>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
         </div>
     </div>
 
     <!-- Step 3: Preview -->
-    <div *ngIf="currentStep === 'preview'" class="import-step">
-        <h3 class="text-900 mb-3">{{ 'import_preview' | translate }}</h3>
+    <div *ngIf="currentStep === 'preview' && preview" class="flex flex-column gap-4">
+        <div class="import-section">
+            <div class="import-section-header">
+                <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+                    <i class="pi pi-eye"></i>
+                </div>
+                <div>
+                    <h3 class="import-section-title">{{ 'import_preview' | translate }}</h3>
+                    <p class="import-section-subtitle">{{ 'tip_6' | translate }}</p>
+                </div>
+            </div>
 
-        <div *ngIf="activityProfileService.emphasizeBatchAndExpiry && strictBatchPreviewBlocksImport"
-            class="border-round p-3 mb-3 bg-orange-50 border-1 border-orange-200 text-orange-900 text-sm line-height-3">
-            <i class="pi pi-exclamation-triangle mr-2"></i>{{ 'purchase_batch_lot_expiry_required' | translate }}
-        </div>
-        
-        <div *ngIf="preview" class="mb-4">
-            <div class="grid mb-4">
-                <div class="col-12 md:col-4">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'estimated_purchases' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold">{{ preview.estimatedPurchases }}</div>
+            <div *ngIf="activityProfileService.emphasizeBatchAndExpiry && strictBatchPreviewBlocksImport"
+                class="import-alert import-alert--warn mb-3">
+                <i class="pi pi-exclamation-triangle mr-2"></i>{{ 'purchase_batch_lot_expiry_required' | translate }}
+            </div>
+
+            <div class="import-stats-row">
+                <div class="import-stat-card" *ngFor="let stat of [
+                    { value: preview.estimatedPurchases, label: 'estimated_purchases', tile: 'teal', icon: 'pi pi-shopping-cart' },
+                    { value: preview.estimatedItems, label: 'estimated_items', tile: 'primary', icon: 'pi pi-box' },
+                    { value: preview.totalRows, label: 'total_rows', tile: 'neutral', icon: 'pi pi-list' }
+                ]">
+                    <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="'ims-icon-tile--' + stat.tile">
+                        <i [class]="stat.icon"></i>
                     </div>
-                </div>
-                <div class="col-12 md:col-4">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'estimated_items' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold">{{ preview.estimatedItems }}</div>
-                    </div>
-                </div>
-                <div class="col-12 md:col-4">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'total_rows' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold">{{ preview.totalRows }}</div>
+                    <div>
+                        <div class="import-stat-value">{{ stat.value }}</div>
+                        <div class="import-stat-label">{{ stat.label | translate }}</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Grouped Purchases -->
-            <div class="purchase-groups">
+            <div class="purchase-groups mt-3">
                 <div *ngFor="let purchase of preview.groupedPurchases" 
                      class="purchase-group-card mb-3 surface-card p-3 border-round"
                      [ngClass]="{'border-red-300': purchase.status === 'ERROR', 'border-orange-300': purchase.status === 'WARNING'}">
@@ -526,7 +491,7 @@
                                         <td>{{ item.quantityPurchased }}</td>
                                         <td>{{ formatCurrency(item.buyingPrice) }}</td>
                                         <td>{{ item.sellingPrice != null && item.sellingPrice !== undefined ? formatCurrency(item.sellingPrice) : '-' }}</td>
-                                        <td>{{ formatCurrency(item.quantityPurchased * item.buyingPrice) }}</td>
+                                        <td>{{ formatCurrency(formatImportLineSubtotal(item.quantityPurchased, item.buyingPrice)) }}</td>
                                         <td *ngIf="hasExpirationDate(purchase.items)">
                                             {{ item.expirationDate ? formatDate(item.expirationDate) : '-' }}
                                         </td>
@@ -572,77 +537,51 @@
                 </div>
             </div>
         </div>
-
-        <!-- Actions -->
-        <div class="flex justify-content-between mt-4">
-            <button 
-                pButton 
-                pRipple 
-                [label]="'back' | translate"
-                icon="pi pi-arrow-left"
-                class="p-button-text"
-                (click)="currentStep = 'validation'"></button>
-            <button 
-                pButton 
-                pRipple 
-                [label]="'import_purchases' | translate"
-                icon="pi pi-upload"
-                class="p-button-success"
-                (click)="executeImport()"
-                [disabled]="importing || importBlockedByStrictBatch()"
-                [loading]="importing"></button>
-        </div>
     </div>
 
-    <!-- Step 4: Import Progress -->
-    <div *ngIf="currentStep === 'import'" class="import-step">
-        <div class="text-center">
-            <i class="pi pi-spin pi-spinner text-4xl text-primary mb-3"></i>
-            <h3 class="text-900 mb-2">{{ 'importing_products' | translate }}</h3>
-            <p class="text-600">{{ 'please_wait' | translate }}</p>
-        </div>
+    <div *ngIf="currentStep === 'import' && importing" class="import-progress-panel">
+        <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+        <p class="mt-4 mb-0 text-color-secondary font-medium">{{ 'importing_products' | translate }}…</p>
     </div>
 
-    <!-- Step 5: Import Results -->
-    <div *ngIf="currentStep === 'results'" class="import-step">
-        <h3 class="text-900 mb-3">{{ 'import_results' | translate }}</h3>
-        
-        <div *ngIf="importResult" class="mb-4">
-            <div class="grid mb-4">
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'purchases_created' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold text-green-600">{{ importResult.purchasesCreated }}</div>
-                    </div>
+    <div *ngIf="currentStep === 'results' && importResult" class="flex flex-column gap-4">
+        <div class="import-section">
+            <div class="import-section-header">
+                <div class="ims-icon-tile ims-icon-tile--sm"
+                    [ngClass]="importResult.success ? 'ims-icon-tile--teal' : 'ims-icon-tile--amber'">
+                    <i [class]="importResult.success ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"></i>
                 </div>
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'items_created' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold text-green-600">{{ importResult.itemsCreated }}</div>
-                    </div>
-                </div>
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'failed' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold text-red-600">{{ importResult.failed }}</div>
-                    </div>
-                </div>
-                <div class="col-12 md:col-3">
-                    <div class="surface-card p-3 border-round">
-                        <div class="text-600 text-sm mb-1">{{ 'duration' | translate }}</div>
-                        <div class="text-900 text-2xl font-bold">{{ formatDuration(importResult.durationMs) }}</div>
-                    </div>
+                <div>
+                    <h3 class="import-section-title">{{ 'import_results' | translate }}</h3>
+                    <p class="import-section-subtitle">
+                        <i class="pi pi-clock mr-1"></i>{{ 'duration' | translate }}: {{ formatDuration(importResult.durationMs) }}
+                    </p>
                 </div>
             </div>
 
-            <!-- Created Purchases -->
-            <div *ngIf="importResult.createdPurchases && importResult.createdPurchases.length > 0" class="mt-4">
-                <p class="text-900 font-semibold mb-2">{{ 'created_purchases' | translate }}</p>
-                <p-table 
-                    [value]="importResult.createdPurchases" 
-                    [paginator]="true" 
-                    [rows]="10"
-                    styleClass="p-datatable-sm">
+            <div class="import-stats-row">
+                <div class="import-stat-card" *ngFor="let stat of [
+                    { value: importResult.purchasesCreated, label: 'purchases_created', tile: 'teal', icon: 'pi pi-shopping-cart' },
+                    { value: importResult.itemsCreated, label: 'items_created', tile: 'primary', icon: 'pi pi-box' },
+                    { value: importResult.failed, label: 'failed', tile: 'danger', icon: 'pi pi-times' },
+                    { value: importResult.totalRows, label: 'total_rows', tile: 'neutral', icon: 'pi pi-list' }
+                ]">
+                    <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="'ims-icon-tile--' + stat.tile">
+                        <i [class]="stat.icon"></i>
+                    </div>
+                    <div>
+                        <div class="import-stat-value">{{ stat.value }}</div>
+                        <div class="import-stat-label">{{ stat.label | translate }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div *ngIf="importResult.createdPurchases?.length" class="import-section">
+            <div class="import-section-header import-section-header--compact">
+                <h3 class="import-section-title m-0">{{ 'created_purchases' | translate }}</h3>
+            </div>
+            <p-table [value]="importResult.createdPurchases" [paginator]="true" [rows]="10" styleClass="p-datatable-gridlines">
                     <ng-template pTemplate="header">
                         <tr>
                             <th>{{ 'reference' | translate }}</th>
@@ -672,245 +611,249 @@
                         </tr>
                     </ng-template>
                 </p-table>
-            </div>
-
-            <!-- Import Errors -->
-            <div *ngIf="importResult.errors && importResult.errors.length > 0" class="mt-4">
-                <div class="flex justify-content-between align-items-center mb-2">
-                    <p class="text-900 font-semibold m-0">{{ 'import_errors' | translate }}</p>
-                    <button 
-                        pButton 
-                        pRipple 
-                        icon="pi pi-download" 
-                        [label]="'download_error_report' | translate"
-                        class="p-button-text p-button-sm"
-                        (click)="downloadErrorReport()"></button>
-                </div>
-                <p-table 
-                    [value]="importResult.errors" 
-                    [paginator]="true" 
-                    [rows]="10"
-                    styleClass="p-datatable-sm">
-                    <ng-template pTemplate="header">
-                        <tr>
-                            <th>{{ 'row_number' | translate }}</th>
-                            <th>{{ 'column' | translate }}</th>
-                            <th>{{ 'error_message' | translate }}</th>
-                            <th>{{ 'invalid_value' | translate }}</th>
-                            <th>{{ 'severity' | translate }}</th>
-                        </tr>
-                    </ng-template>
-                    <ng-template pTemplate="body" let-error>
-                        <tr>
-                            <td>{{ error.rowNumber }}</td>
-                            <td>{{ error.column }}</td>
-                            <td>{{ translateErrorMessage(error.message, error) }}</td>
-                            <td>{{ error.invalidValue || '-' }}</td>
-                            <td>
-                                <p-tag 
-                                    [value]="error.severity" 
-                                    [severity]="getErrorSeverity(error.severity)"
-                                    styleClass="text-xs">
-                                </p-tag>
-                            </td>
-                        </tr>
-                    </ng-template>
-                </p-table>
-            </div>
         </div>
 
-        <!-- Actions -->
-        <div class="flex justify-content-end mt-4">
-            <button 
-                pButton 
-                pRipple 
-                [label]="'close' | translate"
-                icon="pi pi-times"
-                class="p-button-text"
-                (click)="closeDialog()"></button>
+        <div *ngIf="importResult.errors?.length" class="import-section">
+            <div class="import-section-header import-section-header--compact">
+                <h3 class="import-section-title m-0">{{ 'import_errors' | translate }}</h3>
+                <button pButton pRipple type="button" [label]="'download_error_report' | translate"
+                    icon="pi pi-download" class="p-button-outlined p-button-sm" (click)="downloadErrorReport()">
+                </button>
+            </div>
+            <p-table [value]="importResult.errors" [paginator]="true" [rows]="10" styleClass="p-datatable-gridlines">
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th>{{ 'row_number' | translate }}</th>
+                        <th>{{ 'column' | translate }}</th>
+                        <th>{{ 'error_message' | translate }}</th>
+                        <th>{{ 'invalid_value' | translate }}</th>
+                        <th>{{ 'severity' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-error>
+                    <tr>
+                        <td>{{ error.rowNumber }}</td>
+                        <td>{{ error.column }}</td>
+                        <td>{{ translateErrorMessage(error.message, error) }}</td>
+                        <td>{{ error.invalidValue || '-' }}</td>
+                        <td>
+                            <p-tag [value]="error.severity" [severity]="getErrorSeverity(error.severity)"></p-tag>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
         </div>
     </div>
         </p-tabPanel>
 
         <!-- Phase 2: Import from Invoice -->
         <p-tabPanel [header]="'import_from_invoice' | translate">
-            <!-- Invoice Upload Section -->
-            <div *ngIf="!parsedInvoiceData" class="import-step">
-                <div class="mb-4">
-                    <h3 class="text-900 mb-3">{{ 'upload_invoice' | translate }}</h3>
-                    <p class="text-600 mb-3">{{ 'upload_invoice_description' | translate }}</p>
-                    <p-fileUpload 
-                        mode="basic"
-                        [accept]="'.pdf,.jpg,.jpeg,.png'"
-                        [maxFileSize]="fileSizeLimit"
-                        [chooseLabel]="'choose_file' | translate"
-                        (onSelect)="onInvoiceFileSelect($event)"
-                        (onRemove)="onInvoiceFileRemove()"
-                        [auto]="false"
-                        styleClass="w-full">
-                    </p-fileUpload>
-                    <div *ngIf="selectedInvoiceFile" class="mt-2">
-                        <p class="text-600">
-                            <i class="pi pi-file mr-2"></i>
-                            {{ selectedInvoiceFile.name }} ({{ formatFileSize(selectedInvoiceFile.size) }})
-                        </p>
-                        <img *ngIf="invoicePreviewUrl" [src]="invoicePreviewUrl" alt="Invoice preview" class="mt-2 border-round" style="max-width: 100%; max-height: 300px;">
-                    </div>
+            <nav class="import-stepper" aria-label="Invoice import progress">
+                <div *ngFor="let step of invoiceWizardSteps; let i = index" class="import-stepper-item"
+                    [class.import-stepper-item--active]="isInvoiceWizardStepActive(step.id)"
+                    [class.import-stepper-item--complete]="isInvoiceWizardStepComplete(step.id)">
+                    <span class="import-stepper-badge">
+                        <i *ngIf="isInvoiceWizardStepComplete(step.id)" class="pi pi-check"></i>
+                        <span *ngIf="!isInvoiceWizardStepComplete(step.id)">{{ i + 1 }}</span>
+                    </span>
+                    <span class="import-stepper-label">{{ step.labelKey | translate }}</span>
                 </div>
+            </nav>
 
-                <p-divider></p-divider>
-
-                <!-- Language Selection -->
-                <div class="mb-4">
-                    <label for="preferredLanguage" class="block mb-2">{{ 'preferred_language' | translate }}</label>
-                    <p-dropdown 
-                        id="preferredLanguage"
-                        [(ngModel)]="preferredLanguage" 
-                        [options]="[
-                            {label: 'auto_detect' | translate, value: ''},
-                            {label: 'english' | translate, value: 'en'},
-                            {label: 'arabic' | translate, value: 'ar'},
-                            {label: 'french' | translate, value: 'fr'},
-                            {label: 'spanish' | translate, value: 'es'}
-                        ]" 
-                        optionLabel="label" 
-                        optionValue="value"
-                        [placeholder]="'select_language' | translate"
-                        styleClass="w-full">
-                    </p-dropdown>
-                    <small class="text-600">{{ 'language_selection_help' | translate }}</small>
-                </div>
-
-                <!-- Import Options -->
-                <div class="mb-4">
-                    <h3 class="text-900 mb-3">{{ 'import_options' | translate }}</h3>
-                    <div class="grid">
-                        <div class="col-12 md:col-6">
-                            <div class="field-checkbox">
-                                <p-checkbox 
-                                    [(ngModel)]="importOptions.autoMatchProducts" 
-                                    [binary]="true" 
-                                    inputId="autoMatchProducts">
-                                </p-checkbox>
-                                <label for="autoMatchProducts" class="ml-2">
-                                    {{ 'auto_match_products' | translate }}
-                                </label>
+            <div class="import-guide-banner mb-4" *ngIf="!parsedInvoiceData">
+                <div class="import-guide-banner__glow" aria-hidden="true"></div>
+                <div class="import-guide-banner__inner">
+                    <div class="import-guide-banner__header">
+                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary import-guide-banner__icon">
+                            <i class="pi pi-info-circle"></i>
+                        </div>
+                        <div class="import-guide-banner__copy flex-1 min-w-0">
+                            <div class="flex align-items-center justify-content-between gap-2">
+                                <h3 class="import-guide-banner__title m-0">{{ 'import_guide' | translate }}</h3>
+                                <button type="button" class="import-guide-toggle"
+                                    [pTooltip]="showInvoiceHelpGuide ? ('hide_guide' | translate) : ('show_guide' | translate)"
+                                    tooltipPosition="left"
+                                    [attr.aria-expanded]="showInvoiceHelpGuide"
+                                    [attr.aria-label]="showInvoiceHelpGuide ? ('hide_guide' | translate) : ('show_guide' | translate)"
+                                    (click)="showInvoiceHelpGuide = !showInvoiceHelpGuide">
+                                    <i [class]="showInvoiceHelpGuide ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
+                                </button>
                             </div>
-                        </div>
-                        <div class="col-12 md:col-6" *ngIf="importOptions.autoMatchProducts">
-                            <label for="productMatchThreshold" class="block mb-2">
-                                {{ 'product_match_threshold' | translate }}: 
-                                {{ Math.round((importOptions.productMatchThreshold || 0.8) * 100) }}%
-                            </label>
-                            <p-slider 
-                                [(ngModel)]="importOptions.productMatchThreshold" 
-                                [min]="0" 
-                                [max]="1" 
-                                [step]="0.1"
-                                styleClass="w-full">
-                            </p-slider>
-                        </div>
-                        <div class="col-12 md:col-6">
-                            <div class="field-checkbox">
-                                <p-checkbox 
-                                    [(ngModel)]="importOptions.createMissingSuppliers" 
-                                    [binary]="true" 
-                                    inputId="createMissingSuppliersInvoice">
-                                </p-checkbox>
-                                <label for="createMissingSuppliersInvoice" class="ml-2">
-                                    {{ 'create_missing_suppliers' | translate }}
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-12 md:col-6">
-                            <div class="field-checkbox">
-                                <p-checkbox 
-                                    [(ngModel)]="importOptions.createMissingProducts" 
-                                    [binary]="true" 
-                                    inputId="createMissingProductsInvoice">
-                                </p-checkbox>
-                                <label for="createMissingProductsInvoice" class="ml-2">
-                                    {{ 'create_missing_products' | translate }}
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-12 md:col-6" *ngIf="isAdmin">
-                            <label for="defaultShopInvoice" class="block mb-2">{{ 'default_shop' | translate }}</label>
-                            <p-dropdown 
-                                id="defaultShopInvoice"
-                                [(ngModel)]="importOptions.defaultShopId" 
-                                [options]="shops" 
-                                optionLabel="shopName" 
-                                optionValue="shopId"
-                                [showClear]="true"
-                                [placeholder]="'select_shop' | translate"
-                                styleClass="w-full">
-                            </p-dropdown>
-                        </div>
-                        <div class="col-12 md:col-6" *ngIf="importOptions.createMissingProducts">
-                            <div class="flex align-items-center justify-content-between mb-2">
-                                <label for="defaultCategoryInvoice">{{ 'purchase_import_default_category' | translate }}</label>
-                                <a *ngIf="isAdmin" (click)="openCategoryDialogForDefault()" class="text-sm text-primary cursor-pointer">
-                                    <i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
-                                </a>
-                            </div>
-                            <p-dropdown
-                                inputId="defaultCategoryInvoice"
-                                [(ngModel)]="importOptions.defaultCategoryId"
-                                [options]="categories"
-                                optionLabel="categoryName"
-                                optionValue="categoryId"
-                                [showClear]="true"
-                                [placeholder]="'purchase_import_default_category_placeholder' | translate"
-                                [filter]="true"
-                                filterBy="categoryName"
-                                styleClass="w-full">
-                            </p-dropdown>
-                            <small class="text-600">{{ 'purchase_import_default_category_hint' | translate }}</small>
-                        </div>
-                        <div class="col-12 md:col-6" *ngIf="isAdmin">
-                            <label for="defaultWarehouseInvoice" class="block mb-2">
-                                {{ 'purchase_import_default_warehouse' | translate }}
-                                <span *ngIf="isAdmin" class="required-asterisk">*</span>
-                            </label>
-                            <p-dropdown
-                                inputId="defaultWarehouseInvoice"
-                                [(ngModel)]="importOptions.defaultWarehouseId"
-                                [options]="warehouses"
-                                optionLabel="name"
-                                optionValue="warehouseId"
-                                [showClear]="true"
-                                [placeholder]="'purchase_import_default_warehouse_placeholder' | translate"
-                                [filter]="true"
-                                filterBy="name"
-                                styleClass="w-full">
-                            </p-dropdown>
-                            <small class="text-600">{{ 'purchase_import_default_warehouse_hint' | translate }}</small>
+                            <p class="import-guide-banner__description m-0">{{ 'upload_invoice_description' | translate }}</p>
                         </div>
                     </div>
-                </div>
 
-                <!-- Actions -->
-                <div class="flex justify-content-end gap-2 mt-4">
-                    <button 
-                        pButton 
-                        pRipple 
-                        [label]="'parse_invoice' | translate"
-                        icon="pi pi-search"
-                        class="p-button-success"
-                        (click)="parseInvoice()"
-                        [disabled]="!selectedInvoiceFile || parsingInvoice"
-                        [loading]="parsingInvoice"></button>
+                    <div *ngIf="showInvoiceHelpGuide" class="import-guide-body">
+                        <div class="grid import-guide-steps">
+                            <div class="col-12 md:col-6 lg:col-3" *ngFor="let guideStep of invoiceGuideSteps">
+                                <div class="import-guide-step">
+                                    <span class="import-guide-step__number" [ngClass]="'import-guide-step__number--' + guideStep.tile">
+                                        {{ guideStep.n }}
+                                    </span>
+                                    <div class="import-guide-step__copy min-w-0">
+                                        <span class="import-guide-step__title">{{ guideStep.titleKey | translate }}</span>
+                                        <p class="import-guide-step__desc m-0">{{ guideStep.descKey | translate }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Parsed Invoice Display (match products) -->
-            <div *ngIf="parsedInvoiceData && !invoiceReviewStep" class="import-step">
-                <!-- Invoice Header Card -->
-                <div class="mb-4 surface-card p-4 border-round">
-                    <div class="flex justify-content-between align-items-start align-items-md-center flex-column md:flex-row gap-3 mb-3">
+            <div *ngIf="parsingInvoice" class="import-progress-panel">
+                <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                <p class="mt-4 mb-0 text-color-secondary font-medium">{{ 'parse_invoice' | translate }}…</p>
+            </div>
+
+            <div *ngIf="!parsedInvoiceData && !parsingInvoice" class="grid">
+                <div class="col-12 lg:col-7 flex flex-column gap-4">
+                    <div class="import-section">
+                        <div class="import-section-header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+                                <i class="pi pi-file-pdf"></i>
+                            </div>
+                            <div>
+                                <h3 class="import-section-title">{{ 'upload_invoice' | translate }}</h3>
+                                <p class="import-section-subtitle">{{ 'upload_invoice_description' | translate }}</p>
+                            </div>
+                        </div>
+
+                        <div class="import-upload-zone"
+                            [class.import-upload-zone--active]="isInvoiceDragOver"
+                            [class.import-upload-zone--has-file]="!!selectedInvoiceFile"
+                            (dragover)="onInvoiceDragOver($event)" (dragleave)="onInvoiceDragLeave($event)" (drop)="onInvoiceDrop($event)">
+                            <ng-container *ngIf="!selectedInvoiceFile; else selectedInvoiceBlock">
+                                <i class="pi pi-cloud-upload import-upload-icon"></i>
+                                <p class="font-semibold m-0 mb-1">{{ 'drag_drop_title' | translate }}</p>
+                                <p class="text-sm text-color-secondary m-0 mb-3">{{ 'drag_drop_subtitle' | translate }}</p>
+                                <p-fileUpload mode="basic" [accept]="'.pdf,.jpg,.jpeg,.png'" [maxFileSize]="fileSizeLimit"
+                                    [auto]="false" (onSelect)="onInvoiceFileSelect($event)" (onRemove)="onInvoiceFileRemove()"
+                                    [chooseLabel]="'choose_file' | translate" chooseIcon="pi pi-folder-open"
+                                    styleClass="import-file-upload-btn">
+                                </p-fileUpload>
+                                <small class="text-color-secondary block mt-2">PDF, JPEG, PNG · max 10 MB</small>
+                            </ng-container>
+
+                            <ng-template #selectedInvoiceBlock>
+                                <div class="import-file-card">
+                                    <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+                                        <i class="pi pi-file"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold truncate">{{ selectedInvoiceFile?.name }}</div>
+                                        <small class="text-color-secondary">{{ formatFileSize(selectedInvoiceFile?.size || 0) }}</small>
+                                    </div>
+                                    <button pButton pRipple type="button" icon="pi pi-times"
+                                        class="p-button-text p-button-danger p-button-rounded"
+                                        (click)="onInvoiceFileRemove()" [pTooltip]="'remove' | translate">
+                                    </button>
+                                </div>
+                                <img *ngIf="invoicePreviewUrl" [src]="invoicePreviewUrl" alt="Invoice preview"
+                                    class="mt-3 border-round w-full invoice-upload-preview">
+                            </ng-template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 lg:col-5">
+                    <div class="import-section import-section--secondary h-full">
+                        <div class="import-section-header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+                                <i class="pi pi-sliders-h"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="import-section-title">{{ 'import_options' | translate }}</h3>
+                                <p class="import-section-subtitle">{{ 'import_options_hint' | translate }}</p>
+                            </div>
+                        </div>
+
+                        <div class="field mb-3">
+                            <label for="preferredLanguage" class="block mb-2 font-bold">{{ 'preferred_language' | translate }}</label>
+                            <p-dropdown id="preferredLanguage" [(ngModel)]="preferredLanguage"
+                                [options]="[
+                                    {label: 'auto_detect' | translate, value: ''},
+                                    {label: 'english' | translate, value: 'en'},
+                                    {label: 'arabic' | translate, value: 'ar'},
+                                    {label: 'french' | translate, value: 'fr'},
+                                    {label: 'spanish' | translate, value: 'es'}
+                                ]"
+                                optionLabel="label" optionValue="value"
+                                [placeholder]="'select_language' | translate" appendTo="body" styleClass="w-full">
+                            </p-dropdown>
+                            <small class="text-color-secondary">{{ 'language_selection_help' | translate }}</small>
+                        </div>
+
+                        <div class="import-options-grid">
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.autoMatchProducts" [binary]="true" inputId="autoMatchProducts"></p-checkbox>
+                                <label for="autoMatchProducts" class="import-option-label">{{ 'auto_match_products' | translate }}</label>
+                            </div>
+                            <div *ngIf="importOptions.autoMatchProducts" class="import-advanced-panel">
+                                <label for="productMatchThreshold" class="block mb-2 font-bold">
+                                    {{ 'product_match_threshold' | translate }}:
+                                    {{ Math.round((importOptions.productMatchThreshold || 0.8) * 100) }}%
+                                </label>
+                                <p-slider [(ngModel)]="importOptions.productMatchThreshold"
+                                    [min]="0" [max]="1" [step]="0.1" styleClass="w-full"></p-slider>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.createMissingSuppliers" [binary]="true" inputId="createMissingSuppliersInvoice"></p-checkbox>
+                                <label for="createMissingSuppliersInvoice" class="import-option-label">{{ 'create_missing_suppliers' | translate }}</label>
+                            </div>
+                            <div class="import-option-item">
+                                <p-checkbox [(ngModel)]="importOptions.createMissingProducts" [binary]="true" inputId="createMissingProductsInvoice"></p-checkbox>
+                                <label for="createMissingProductsInvoice" class="import-option-label">{{ 'create_missing_products' | translate }}</label>
+                            </div>
+                        </div>
+
+                        <div *ngIf="importOptions.createMissingProducts || isAdmin" class="mt-3 flex flex-column gap-3">
+                            <div class="field mb-0" *ngIf="isAdmin">
+                                <label for="defaultShopInvoice" class="block mb-2 font-bold">{{ 'default_shop' | translate }}</label>
+                                <p-dropdown id="defaultShopInvoice" [(ngModel)]="importOptions.defaultShopId"
+                                    [options]="shops" optionLabel="shopName" optionValue="shopId"
+                                    [showClear]="true" [placeholder]="'select_shop' | translate" appendTo="body" styleClass="w-full">
+                                </p-dropdown>
+                            </div>
+                            <div class="field mb-0" *ngIf="importOptions.createMissingProducts">
+                                <div class="flex align-items-center justify-content-between mb-2">
+                                    <label for="defaultCategoryInvoice" class="font-bold">{{ 'purchase_import_default_category' | translate }}</label>
+                                    <a *ngIf="isAdmin" (click)="openCategoryDialogForDefault()" class="text-sm text-primary cursor-pointer">
+                                        <i class="pi pi-plus"></i> {{ 'add_new_category' | translate }}
+                                    </a>
+                                </div>
+                                <p-dropdown inputId="defaultCategoryInvoice" [(ngModel)]="importOptions.defaultCategoryId"
+                                    [options]="categories" optionLabel="categoryName" optionValue="categoryId"
+                                    [showClear]="true" [placeholder]="'purchase_import_default_category_placeholder' | translate"
+                                    [filter]="true" filterBy="categoryName" appendTo="body" styleClass="w-full">
+                                </p-dropdown>
+                                <small class="text-color-secondary">{{ 'purchase_import_default_category_hint' | translate }}</small>
+                            </div>
+                            <div class="field mb-0" *ngIf="isAdmin">
+                                <label for="defaultWarehouseInvoice" class="block mb-2 font-bold">
+                                    {{ 'purchase_import_default_warehouse' | translate }}
+                                    <span class="required-asterisk">*</span>
+                                </label>
+                                <p-dropdown inputId="defaultWarehouseInvoice" [(ngModel)]="importOptions.defaultWarehouseId"
+                                    [options]="warehouses" optionLabel="name" optionValue="warehouseId"
+                                    [showClear]="true" [placeholder]="'purchase_import_default_warehouse_placeholder' | translate"
+                                    [filter]="true" filterBy="name" appendTo="body" styleClass="w-full">
+                                </p-dropdown>
+                                <small class="text-color-secondary">{{ 'purchase_import_default_warehouse_hint' | translate }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div *ngIf="parsedInvoiceData && !invoiceReviewStep" class="flex flex-column gap-4">
+                <div class="import-section">
+                    <div class="import-section-header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--primary">
+                            <i class="pi pi-file-edit"></i>
+                        </div>
                         <div class="flex-1 min-w-0">
-                            <h3 class="text-900 m-0">{{ 'parsed_invoice_details' | translate }}</h3>
+                            <h3 class="import-section-title">{{ 'parsed_invoice_details' | translate }}</h3>
                             <p *ngIf="isParsedInvoiceAiEnhanced()" class="text-600 text-sm m-0 mt-2 line-height-3 flex align-items-start gap-2">
                                 <i class="pi pi-sparkles text-primary mt-1 flex-shrink-0"></i>
                                 <span *ngIf="getParsedInvoiceAiProviderLabel(); else aiEnhancedHintGeneric">
@@ -933,14 +876,31 @@
                             </p-tag>
                         </div>
                     </div>
+
+                    <div class="import-stats-row mb-3">
+                        <div class="import-stat-card" *ngFor="let stat of [
+                            { value: parsedInvoiceData.items?.length || 0, label: 'items', tile: 'neutral', icon: 'pi pi-list' },
+                            { value: getInvoiceMatchedItemsCount(), label: 'system_product', tile: 'teal', icon: 'pi pi-check' },
+                            { value: Math.round(parsedInvoiceData.confidence * 100) + '%', label: 'confidence', tile: 'primary', icon: 'pi pi-percentage' }
+                        ]">
+                            <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="'ims-icon-tile--' + stat.tile">
+                                <i [class]="stat.icon"></i>
+                            </div>
+                            <div>
+                                <div class="import-stat-value">{{ stat.value }}</div>
+                                <div class="import-stat-label">{{ stat.label | translate }}</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid">
                         <div class="col-12 md:col-3">
-                            <label for="parsedInvoiceNumber" class="text-600 text-sm">{{ 'invoice_number' | translate }}:</label>
-                            <input id="parsedInvoiceNumber" type="text" pInputText [(ngModel)]="parsedInvoiceData.invoiceNumber" class="w-full mt-1" />
+                            <label for="parsedInvoiceNumber" class="font-bold text-sm block mb-2">{{ 'invoice_number' | translate }}</label>
+                            <input id="parsedInvoiceNumber" type="text" pInputText [(ngModel)]="parsedInvoiceData.invoiceNumber" class="w-full" />
                         </div>
                         <div class="col-12 md:col-3">
-                            <label for="parsedSupplierName" class="text-600 text-sm">{{ 'supplier' | translate }}:</label>
-                            <input id="parsedSupplierName" type="text" pInputText [(ngModel)]="parsedInvoiceData.supplierName" class="w-full mt-1" />
+                            <label for="parsedSupplierName" class="font-bold text-sm block mb-2">{{ 'supplier' | translate }}</label>
+                            <input id="parsedSupplierName" type="text" pInputText [(ngModel)]="parsedInvoiceData.supplierName" class="w-full" />
                         </div>
                         <div class="col-12 md:col-3" *ngIf="parsedInvoiceData.invoiceDate">
                             <span class="text-600 text-sm">{{ 'invoice_date' | translate }}:</span>
@@ -1021,14 +981,16 @@
                     </div>
                 </div>
 
-                <!-- Product Matching Table -->
-                <div class="mb-4">
-                    <h3 class="text-900 mb-3">{{ 'product_matching' | translate }}</h3>
-                    <p-table 
-                        [value]="parsedInvoiceData.items" 
-                        [paginator]="true" 
-                        [rows]="10"
-                        styleClass="p-datatable-sm">
+                <div class="import-section">
+                    <div class="import-section-header import-section-header--compact">
+                        <div class="flex align-items-center gap-2">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                                <i class="pi pi-link"></i>
+                            </div>
+                            <h3 class="import-section-title m-0">{{ 'product_matching' | translate }}</h3>
+                        </div>
+                    </div>
+                    <p-table [value]="parsedInvoiceData.items" [paginator]="true" [rows]="10" styleClass="p-datatable-gridlines">
                         <ng-template pTemplate="header">
                             <tr>
                                 <th>{{ 'status' | translate }}</th>
@@ -1145,54 +1107,38 @@
                         </ng-template>
                     </p-table>
                 </div>
-
-                <!-- Actions -->
-                <div class="flex justify-content-between mt-4">
-                    <button 
-                        pButton 
-                        pRipple 
-                        [label]="'back' | translate"
-                        icon="pi pi-arrow-left"
-                        class="p-button-text"
-                        (click)="parsedInvoiceData = null; productMappings = {}; invoiceReviewStep = false"></button>
-                    <div class="flex gap-2 flex-wrap">
-                        <button 
-                            pButton 
-                            pRipple 
-                            [label]="'preview_import' | translate"
-                            icon="pi pi-eye"
-                            class="p-button-info"
-                            (click)="previewParsedInvoice()"
-                            [disabled]="previewing"
-                            [loading]="previewing"></button>
-                        <button 
-                            pButton 
-                            pRipple 
-                            [label]="'purchase_invoice_continue_review' | translate"
-                            icon="pi pi-list"
-                            class="p-button-success"
-                            (click)="goToInvoiceReview()"></button>
-                    </div>
-                </div>
             </div>
 
-            <!-- Review & confirm (JSON import, no file re-upload) -->
-            <div *ngIf="parsedInvoiceData && invoiceReviewStep" class="import-step">
-                <h3 class="text-900 mb-2">{{ 'purchase_invoice_review_title' | translate }}</h3>
-                <p class="text-600 mb-4">{{ 'purchase_invoice_review_hint' | translate }}</p>
+            <div *ngIf="importing && invoiceReviewStep" class="import-progress-panel">
+                <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                <p class="mt-4 mb-0 text-color-secondary font-medium">{{ 'importing_products' | translate }}…</p>
+            </div>
 
-                <div *ngIf="isParsedInvoiceAiEnhanced()" class="flex align-items-start gap-2 p-3 mb-4 border-round surface-ground border-1 surface-border">
-                    <i class="pi pi-sparkles text-primary mt-1"></i>
-                    <span class="text-700 text-sm line-height-3" *ngIf="getParsedInvoiceAiProviderLabel(); else aiReviewHintGeneric">
-                        {{ 'purchase_import_ai_enhanced_review_note' | translate: { provider: getParsedInvoiceAiProviderLabel() } }}
-                    </span>
-                    <ng-template #aiReviewHintGeneric>
-                        <span class="text-700 text-sm line-height-3">{{ 'purchase_import_ai_enhanced_review_note_generic' | translate }}</span>
-                    </ng-template>
+            <div *ngIf="parsedInvoiceData && invoiceReviewStep && !importing" class="flex flex-column gap-4">
+                <div class="import-section">
+                    <div class="import-section-header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--amber">
+                            <i class="pi pi-check-square"></i>
+                        </div>
+                        <div>
+                            <h3 class="import-section-title">{{ 'purchase_invoice_review_title' | translate }}</h3>
+                            <p class="import-section-subtitle">{{ 'purchase_invoice_review_hint' | translate }}</p>
+                        </div>
+                    </div>
+
+                    <div *ngIf="isParsedInvoiceAiEnhanced()" class="import-alert import-alert--warn mb-3">
+                        <i class="pi pi-sparkles mr-2"></i>
+                        <span *ngIf="getParsedInvoiceAiProviderLabel(); else aiReviewHintGeneric">
+                            {{ 'purchase_import_ai_enhanced_review_note' | translate: { provider: getParsedInvoiceAiProviderLabel() } }}
+                        </span>
+                        <ng-template #aiReviewHintGeneric>{{ 'purchase_import_ai_enhanced_review_note_generic' | translate }}</ng-template>
+                    </div>
                 </div>
 
-                <div class="surface-card p-4 border-round mb-4">
-                    <h4 class="text-900 mt-0 mb-3">{{ 'parsed_invoice_details' | translate }}</h4>
+                <div class="import-section">
+                    <div class="import-section-header import-section-header--compact">
+                        <h4 class="import-section-title m-0">{{ 'parsed_invoice_details' | translate }}</h4>
+                    </div>
                     <div class="grid">
                         <div class="col-12 md:col-4">
                             <label for="reviewSupplier" class="block mb-2">{{ 'supplier' | translate }}</label>
@@ -1287,19 +1233,15 @@
                     </div>
                 </div>
 
-                <div class="mb-3 flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h4 class="text-900 m-0">{{ 'items' | translate }}</h4>
-                    <button
-                        pButton
-                        pRipple
-                        type="button"
-                        icon="pi pi-plus"
-                        class="p-button-outlined p-button-sm"
-                        [label]="'purchase_invoice_add_line' | translate"
-                        (click)="addInvoiceReviewLine()"></button>
-                </div>
-
-                <p-table [value]="invoiceReviewLines" styleClass="p-datatable-sm p-datatable-gridlines">
+                <div class="import-section">
+                    <div class="import-section-header import-section-header--compact">
+                        <h4 class="import-section-title m-0">{{ 'items' | translate }}</h4>
+                        <button pButton pRipple type="button" icon="pi pi-plus"
+                            class="p-button-outlined p-button-sm"
+                            [label]="'purchase_invoice_add_line' | translate"
+                            (click)="addInvoiceReviewLine()"></button>
+                    </div>
+                    <p-table [value]="invoiceReviewLines" styleClass="p-datatable-gridlines">
                     <ng-template pTemplate="header">
                         <tr>
                             <th>{{ 'reference' | translate }}</th>
@@ -1353,7 +1295,14 @@
                                 </p-dropdown>
                             </td>
                             <td>
-                                <p-inputNumber [(ngModel)]="line.quantityPurchased" [min]="1" [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+                                <p-inputNumber
+                                    [(ngModel)]="line.quantityPurchased"
+                                    [min]="0.001"
+                                    mode="decimal"
+                                    [minFractionDigits]="0"
+                                    [maxFractionDigits]="3"
+                                    [useGrouping]="false"
+                                    styleClass="w-full"></p-inputNumber>
                             </td>
                             <td>
                                 <p-inputNumber
@@ -1399,27 +1348,7 @@
                             </td>
                         </tr>
                     </ng-template>
-                </p-table>
-
-                <div class="flex justify-content-between mt-4 flex-wrap gap-2">
-                    <button
-                        pButton
-                        pRipple
-                        [label]="'purchase_invoice_back_matching' | translate"
-                        icon="pi pi-arrow-left"
-                        class="p-button-text"
-                        type="button"
-                        (click)="backFromInvoiceReview()"></button>
-                    <button
-                        pButton
-                        pRipple
-                        [label]="'purchase_invoice_confirm_import' | translate"
-                        icon="pi pi-check"
-                        class="p-button-success"
-                        type="button"
-                        (click)="executeInvoiceReview()"
-                        [disabled]="importing"
-                        [loading]="importing"></button>
+                    </p-table>
                 </div>
             </div>
         </p-tabPanel>
@@ -1488,5 +1417,78 @@
         (save)="onCategorySave($event)"
         (cancel)="onCategoryCancel()">
     </app-category-form-dialog>
+    </ng-template>
+
+    <ng-template pTemplate="footer">
+        <ng-container *ngIf="activeTab === 0">
+            <div class="flex justify-content-between align-items-center w-full" *ngIf="currentStep === 'upload'">
+                <button pButton pRipple type="button" [label]="'cancel_button' | translate" icon="pi pi-times"
+                    class="p-button-text" (click)="closeDialog()"></button>
+                <button pButton pRipple type="button" [label]="'validate_file' | translate" icon="pi pi-check-circle"
+                    class="p-button-primary" [disabled]="!selectedFile || validating" [loading]="validating"
+                    (click)="validateFile()"></button>
+            </div>
+
+            <div class="flex justify-content-between align-items-center w-full" *ngIf="currentStep === 'validation'">
+                <button pButton pRipple type="button" [label]="'back' | translate" icon="pi pi-arrow-left"
+                    class="p-button-text" (click)="currentStep = 'upload'"></button>
+                <div class="flex gap-2">
+                    <button pButton pRipple type="button" [label]="'preview_import' | translate" icon="pi pi-eye"
+                        class="p-button-outlined" [disabled]="!validationResult?.valid || previewing" [loading]="previewing"
+                        (click)="previewImport()"></button>
+                    <button pButton pRipple type="button" [label]="'import_purchases' | translate" icon="pi pi-upload"
+                        class="p-button-primary"
+                        [disabled]="!validationResult?.valid || importing || importBlockedByStrictBatch()"
+                        [loading]="importing" (click)="executeImport()"></button>
+                </div>
+            </div>
+
+            <div class="flex justify-content-between align-items-center w-full" *ngIf="currentStep === 'preview'">
+                <button pButton pRipple type="button" [label]="'back' | translate" icon="pi pi-arrow-left"
+                    class="p-button-text" (click)="currentStep = 'validation'"></button>
+                <button pButton pRipple type="button" [label]="'import_purchases' | translate" icon="pi pi-upload"
+                    class="p-button-primary" [disabled]="importing || importBlockedByStrictBatch()"
+                    [loading]="importing" (click)="executeImport()"></button>
+            </div>
+
+            <div class="flex justify-content-end w-full" *ngIf="currentStep === 'results'">
+                <button pButton pRipple type="button" [label]="'close' | translate" icon="pi pi-check"
+                    class="p-button-primary" (click)="closeDialog()"></button>
+            </div>
+        </ng-container>
+
+        <ng-container *ngIf="activeTab === 1">
+            <div class="flex justify-content-between align-items-center w-full" *ngIf="!parsedInvoiceData && !parsingInvoice">
+                <button pButton pRipple type="button" [label]="'cancel_button' | translate" icon="pi pi-times"
+                    class="p-button-text" (click)="closeDialog()"></button>
+                <button pButton pRipple type="button" [label]="'parse_invoice' | translate" icon="pi pi-search"
+                    class="p-button-primary" [disabled]="!selectedInvoiceFile || parsingInvoice"
+                    [loading]="parsingInvoice" (click)="parseInvoice()"></button>
+            </div>
+
+            <div class="flex justify-content-between align-items-center w-full"
+                *ngIf="parsedInvoiceData && !invoiceReviewStep && !parsingInvoice">
+                <button pButton pRipple type="button" [label]="'back' | translate" icon="pi pi-arrow-left"
+                    class="p-button-text" (click)="resetInvoiceParse()"></button>
+                <div class="flex gap-2 flex-wrap justify-content-end">
+                    <button pButton pRipple type="button" [label]="'preview_import' | translate" icon="pi pi-eye"
+                        class="p-button-outlined" [disabled]="previewing" [loading]="previewing"
+                        (click)="previewParsedInvoice()"></button>
+                    <button pButton pRipple type="button" [label]="'purchase_invoice_continue_review' | translate"
+                        icon="pi pi-list" class="p-button-primary" (click)="goToInvoiceReview()"></button>
+                </div>
+            </div>
+
+            <div class="flex justify-content-between align-items-center w-full"
+                *ngIf="parsedInvoiceData && invoiceReviewStep && !importing">
+                <button pButton pRipple type="button" [label]="'purchase_invoice_back_matching' | translate"
+                    icon="pi pi-arrow-left" class="p-button-text"
+                    (click)="backFromInvoiceReview()"></button>
+                <button pButton pRipple type="button" [label]="'purchase_invoice_confirm_import' | translate"
+                    icon="pi pi-check-circle" class="p-button-primary"
+                    [disabled]="importing" [loading]="importing" (click)="executeInvoiceReview()"></button>
+            </div>
+        </ng-container>
+    </ng-template>
 </p-dialog>
 

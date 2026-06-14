@@ -32,6 +32,7 @@ export class Order {
   /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
   taxRateUsed?: number;
   transportAmount?:number;
+  additionalChargesAmount?: number;
   shop?: Shop;
   payments?: Array<Payment>;
   itemCount?: number;

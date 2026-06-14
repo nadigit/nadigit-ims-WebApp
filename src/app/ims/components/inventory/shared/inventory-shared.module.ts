@@ -24,11 +24,19 @@ import { SharedModule } from 'src/app/shared/shared.module';
 // Shared components
 import { WarehouseFormDialogComponent } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
 import { ProductFormComponent } from '../products/product-form/product-form.component';
+import { ProductDeleteDialogComponent } from '../products/product-delete-dialog/product-delete-dialog.component';
+import { ProductArchiveDialogComponent } from '../products/product-archive-dialog/product-archive-dialog.component';
+import { VariantProductPickerComponent } from './variant-product-picker/variant-product-picker.component';
+import { AutoCompleteModule } from 'primeng/autocomplete';
+import { MessageModule } from 'primeng/message';
 
 @NgModule({
   declarations: [
     WarehouseFormDialogComponent,
-    ProductFormComponent
+    ProductFormComponent,
+    ProductDeleteDialogComponent,
+    ProductArchiveDialogComponent,
+    VariantProductPickerComponent,
   ],
   imports: [
     CommonModule,
@@ -48,11 +56,16 @@ import { ProductFormComponent } from '../products/product-form/product-form.comp
     CalendarModule,
     TooltipModule,
     RippleModule,
-    ProgressSpinnerModule
+    ProgressSpinnerModule,
+    AutoCompleteModule,
+    MessageModule,
   ],
   exports: [
     WarehouseFormDialogComponent,
-    ProductFormComponent
+    ProductFormComponent,
+    ProductDeleteDialogComponent,
+    ProductArchiveDialogComponent,
+    VariantProductPickerComponent,
   ]
 })
 export class InventorySharedModule { }

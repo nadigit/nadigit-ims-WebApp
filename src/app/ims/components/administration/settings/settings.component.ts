@@ -18,6 +18,8 @@ import { ActivityProfileService } from 'src/app/services/activity-profile.servic
 import { BusinessActivityProfileValue } from 'src/app/models/activity-profile-context';
 import { Params } from '@angular/router';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 
 interface UploadEvent {
@@ -52,6 +54,7 @@ interface AppConfigSection {
   providers: [MessageService, ConfirmationService]
 })
 export class SettingsComponent implements OnInit, OnDestroy {
+  TablePageSizeKeys = TablePageSizeKeys;
 
   rowsPerPageOptions = [20, 50, 100];
   valSwitch: boolean = false;
@@ -296,6 +299,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private confirmationService: ConfirmationService,
     private activityProfileService: ActivityProfileService,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
+    public pageSizeService: TablePageSizeService,
   ) {
   }
 

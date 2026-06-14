@@ -1,4 +1,4 @@
-<p-toast></p-toast>
+﻿<p-toast></p-toast>
 
 <div class="action-reminders-page">
   <div class="page-header">
@@ -6,12 +6,10 @@
       <h2 class="m-0">{{ 'action_reminders_title' | translate }}</h2>
       <p class="m-0 subtitle">{{ 'action_reminders_subtitle' | translate }}</p>
     </div>
-    <button pButton type="button" icon="pi pi-refresh" [label]="'refresh' | translate" class="p-button-outlined" (click)="loadReminders()"
-      [loading]="loading"></button>
   </div>
 
   <div *ngIf="loading" class="loading-container">
-    <p-progressSpinner [style]="{width: '36px', height: '36px'}"></p-progressSpinner>
+    <p-progressSpinner styleClass="ims-spinner--base" ariaLabel="loading"></p-progressSpinner>
   </div>
 
   <div *ngIf="!loading && items.length === 0" class="empty-state">

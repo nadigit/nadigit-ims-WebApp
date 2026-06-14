@@ -6,10 +6,38 @@
     <title>Nadigit IMS</title>
     <base href="/webconsole/">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" type="image/x-icon" href="assets/app-logo/nadigitims-logo.png">
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="assets/app-logo/favicon/nadigitims-favicon-light.svg">
+    <link id="app-touch-icon" rel="apple-touch-icon" href="assets/app-logo/appicon/nadigitims-App-Icon.png">
+    <script>
+        (function () {
+            var isDark = localStorage.getItem('darkMode') === 'dark';
+            document.getElementById('app-favicon').href = isDark
+                ? 'assets/app-logo/favicon/nadigitims-favicon-dark.svg'
+                : 'assets/app-logo/favicon/nadigitims-favicon-light.svg';
+            document.getElementById('app-touch-icon').href = isDark
+                ? 'assets/app-logo/appicon/nadigitims-App-Icon-Dark.png'
+                : 'assets/app-logo/appicon/nadigitims-App-Icon.png';
+        })();
+    </script>
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#0B1F4A">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
     <link id="theme-css" rel="stylesheet" type="text/css" href="assets/layout/styles/theme/lara-light-indigo/theme.css">
+    <script>
+        (function () {
+            var isDark = localStorage.getItem('darkMode') === 'dark';
+            if (!isDark) {
+                return;
+            }
+            document.documentElement.setAttribute('color-scheme', 'dark');
+            document.documentElement.classList.add('layout-theme-dark');
+            document.getElementById('theme-css').href =
+                'assets/layout/styles/theme/lara-dark-indigo/theme.css';
+        })();
+    </script>
+    <link id="brand-overrides-css" rel="stylesheet" type="text/css" href="assets/ims/styles/nadigit-theme-overrides.css">
     <!-- <link id="layout-css" rel="stylesheet" href="assets/layout/styles/theme/lara-light-indigo/theme.css"> -->
     <script src="assets/environment.js"></script>
 </head>

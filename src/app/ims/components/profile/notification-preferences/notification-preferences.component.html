@@ -1,4 +1,4 @@
-<div class="grid">
+﻿<div class="grid">
   <div class="col-12">
     <!-- Header -->
     <div class="mb-4">
@@ -11,8 +11,11 @@
         <i class="pi pi-angle-right text-400 text-sm"></i>
         <span class="text-700 text-sm font-medium">{{ 'notification_preferences' | translate }}</span>
       </div>
-      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
-        <div>
+      <div class="integration-hero">
+        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--amber" aria-hidden="true">
+          <i class="pi pi-bell"></i>
+        </div>
+        <div class="integration-hero__body">
           <h2 class="m-0 text-900">{{ 'notification_preferences' | translate }}</h2>
           <p class="text-600 mt-2 mb-0">{{ 'notification_preferences_description' | translate }}</p>
         </div>
@@ -22,21 +25,36 @@
     <p-toast></p-toast>
 
     <!-- Loading State -->
-    <div class="card flex justify-content-center" *ngIf="isLoading">
-      <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-    </div>
+    <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
     <!-- Preferences Form -->
     <div class="card" *ngIf="!isLoading">
       <!-- Email Notifications Info -->
       <div class="mb-4 p-3 surface-ground border-round">
         <div class="flex align-items-start gap-2">
-          <i class="pi pi-info-circle text-primary mt-1"></i>
+          <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan flex-shrink-0">
+            <i class="pi pi-info-circle"></i>
+          </div>
           <div>
             <div class="font-medium mb-1">{{ 'email_notifications' | translate }}</div>
             <div class="text-sm text-600">{{ 'email_notifications_managed_by_admin' | translate }}</div>
           </div>
         </div>
+      </div>
+
+      <!-- Preferred language for external notifications -->
+      <div class="field mb-4">
+        <label class="font-medium mb-2 block">{{ 'notification_preferred_language' | translate }}</label>
+        <span class="text-sm text-600 block mb-2">{{ 'notification_preferred_language_description' | translate }}</span>
+        <p-dropdown
+          [options]="localeOptions"
+          optionLabel="label"
+          optionValue="value"
+          [(ngModel)]="preferences.preferredLocale"
+          (onChange)="onPreferenceChange()"
+          [style]="{ width: '100%', maxWidth: '320px' }"
+          placeholder="{{ 'select_locale_option' | translate }}">
+        </p-dropdown>
       </div>
 
       <!-- Push Notifications -->
