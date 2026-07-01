@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DashboardComponent } from './dashboard.component';
+import { KpiCardComponent } from './kpi-card/kpi-card.component';
 import { ChartModule } from 'primeng/chart';
 import { MenuModule } from 'primeng/menu';
 import { TableModule } from 'primeng/table';
@@ -43,6 +44,6 @@ import { SharedModule } from 'src/app/shared/shared.module';
         ProgressBarModule,
         TagModule
     ],
-    declarations: [DashboardComponent]
+    declarations: [DashboardComponent, KpiCardComponent]
 })
 export class DashboardModule { }

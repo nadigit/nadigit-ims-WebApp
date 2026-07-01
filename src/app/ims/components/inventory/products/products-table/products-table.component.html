@@ -14,6 +14,85 @@
 </div>
 
 <div class="card">
+  <!-- Admin KPI cards -->
+  <div class="products-summary-row" *ngIf="isAdmin && productStats">
+    <div class="products-stat-card">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
+        <i class="pi pi-box"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">{{ 'total_products' | translate }}</span>
+        <span class="products-stat-card__value">{{ productStats.totalProducts ?? 0 }}</span>
+      </div>
+    </div>
+    <div class="products-stat-card">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
+        <i class="pi pi-wallet"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">{{ 'products_stock_value_cost' | translate }}</span>
+        <span class="products-stat-card__value">{{ productStats.stockValueAtCost | currency:currency:'symbol':'1.2-2' }}</span>
+      </div>
+    </div>
+    <div class="products-stat-card">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green">
+        <i class="pi pi-chart-line"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">{{ 'products_stock_value_retail' | translate }}</span>
+        <span class="products-stat-card__value">{{ productStats.stockValueAtRetail | currency:currency:'symbol':'1.2-2' }}</span>
+      </div>
+    </div>
+    <div class="products-stat-card">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
+        <i class="pi pi-exclamation-triangle"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">{{ 'low_stock' | translate }}</span>
+        <span class="products-stat-card__value">{{ productStats.lowStockCount ?? 0 }}</span>
+      </div>
+    </div>
+    <div class="products-stat-card">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--danger">
+        <i class="pi pi-times-circle"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">{{ 'out_of_stock' | translate }}</span>
+        <span class="products-stat-card__value">{{ productStats.outOfStockCount ?? 0 }}</span>
+      </div>
+    </div>
+    <div class="products-stat-card">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal">
+        <i class="pi pi-percentage"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">
+          {{ 'products_avg_margin' | translate }}
+          <app-hint [text]="'products_avg_margin_hint' | translate"></app-hint>
+        </span>
+        <span class="products-stat-card__value">{{ (productStats.averageMarginPercent ?? 0) | number:'1.0-1' }}%</span>
+      </div>
+    </div>
+    <div class="products-stat-card" *ngIf="productStats.expiringSoonCount > 0">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
+        <i class="pi pi-clock"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">{{ 'products_expiring_soon' | translate }}</span>
+        <span class="products-stat-card__value">{{ productStats.expiringSoonCount ?? 0 }}</span>
+      </div>
+    </div>
+    <div class="products-stat-card" *ngIf="productStats.inactiveCount > 0">
+      <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--neutral">
+        <i class="pi pi-ban"></i>
+      </div>
+      <div class="products-stat-card__content">
+        <span class="products-stat-card__label">{{ 'products_archived_count' | translate }}</span>
+        <span class="products-stat-card__value">{{ productStats.inactiveCount ?? 0 }}</span>
+      </div>
+    </div>
+  </div>
+
   <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
     <div class="flex align-items-center gap-2">
       <button pButton pRipple *ngIf="canAddProduct" icon="pi pi-plus" [label]="'new_button' | translate"
@@ -252,13 +331,8 @@
           <td style="min-width:10rem;" *ngIf="isProduct(product)">
             <div *ngIf="strictSellableStockExcludesWriteoffs" class="text-xs text-500 mb-1">{{ 'sellable_quantity_caption' | translate }}</div>
             <div class="flex align-items-center gap-2">
-              <ng-container *ngIf="formatStockLabel(product) as stockLabel">
-                <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
-                  [value]="stockLabel.quantity + ' ' + (stockLabel.unit | translate)"
-                  [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
-                  [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
-                </p-tag>
-              </ng-container>
+              <app-product-quantity [product]="product"
+                [styleClass]="hasWriteOffs(product) ? 'has-writeoff' : ''"></app-product-quantity>
               <span *ngIf="hasWriteOffs(product)" class="writeoff-indicator"
                 [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
                 tooltipPosition="top">
@@ -266,9 +340,7 @@
               </span>
             </div>
             <div class="mt-2" *ngIf="product.inventoryStatus">
-              <span [class]="'product-badge status-' + (product.inventoryStatus || '').toLowerCase()">
-                {{ 'product_' + (product.inventoryStatus || '').toLowerCase() | translate }}
-              </span>
+              <app-inventory-status [status]="product.inventoryStatus"></app-inventory-status>
             </div>
             <div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
               <small>{{ 'products_on_hand_writeoff_detail' | translate: { onHand: (product.quantityAvailable || 0), writeOff: getWriteOffQuantity(product) } }}</small>
@@ -368,9 +440,7 @@
             </p-tag>
           </td>
           <td>
-            <span [class]="'product-badge status-' + (stock.inventoryStatus || '').toLowerCase()">
-              {{ 'product_' + (stock.inventoryStatus || '').toLowerCase() | translate }}
-            </span>
+            <app-inventory-status [status]="stock.inventoryStatus"></app-inventory-status>
           </td>
           <td *ngIf="product.expirationDate">
             {{ stock.expirationDate ? (stock.expirationDate | date:'dd/MM/yyyy') : 'N/A' }}
@@ -398,7 +468,10 @@
       <ng-template pTemplate="emptymessage">
         <tr>
           <td [attr.colspan]="product.expirationDate ? 6 : 5" class="text-center">
-            {{ 'no_warehouse_stock' | translate }}
+            <div class="flex flex-column align-items-center justify-content-center py-4">
+              <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+              <p class="mt-2 text-gray-600 font-medium">{{ 'no_warehouse_stock' | translate }}</p>
+            </div>
           </td>
         </tr>
       </ng-template>
@@ -447,10 +520,8 @@
           </div>
           <div class="flex align-items-center gap-2 flex-wrap">
             <!-- Inventory Status (Products only) -->
-            <span *ngIf="isProduct(product) && product.inventoryStatus"
-              [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
-              {{'product_' + product.inventoryStatus.toLowerCase() | translate}}
-            </span>
+            <app-inventory-status *ngIf="isProduct(product) && product.inventoryStatus"
+              [status]="product.inventoryStatus"></app-inventory-status>
             <!-- Service Type Badge -->
             <p-tag *ngIf="isService(product)" [value]="'product_type_service' | translate" severity="purple"
               icon="pi pi-cog" styleClass="text-xs">
@@ -512,13 +583,8 @@
           <div class="flex flex-column align-items-center gap-2">
             <div *ngIf="strictSellableStockExcludesWriteoffs" class="text-xs text-500">{{ 'sellable_quantity_caption' | translate }}</div>
             <div class="flex align-items-center gap-2">
-              <ng-container *ngIf="formatStockLabel(product) as stockLabel">
-                <p-tag [severity]="getQuantitySeverity(getAvailableQuantity(product))"
-                  [value]="stockLabel.quantity + ' ' + (stockLabel.unit | translate)"
-                  [icon]="getAvailableQuantity(product) <= 0 ? 'pi pi-exclamation-triangle' : ''"
-                  [ngClass]="{'has-writeoff': hasWriteOffs(product)}">
-                </p-tag>
-              </ng-container>
+              <app-product-quantity [product]="product"
+                [styleClass]="hasWriteOffs(product) ? 'has-writeoff' : ''"></app-product-quantity>
               <span *ngIf="hasWriteOffs(product)" class="writeoff-indicator"
                 [pTooltip]="getWriteOffQuantity(product) + ' ' + ('units_written_off' | translate)"
                 tooltipPosition="top">

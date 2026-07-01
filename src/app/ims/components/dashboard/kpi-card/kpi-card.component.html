@@ -1,0 +1,25 @@
+<div class="kpi-card">
+  <div class="kpi-card__top">
+    <div class="kpi-card__text">
+      <span class="kpi-card__label">{{ label }}</span>
+      <div class="kpi-card__value">{{ value }}</div>
+    </div>
+    <div class="ims-icon-tile ims-icon-tile--md" [ngClass]="'ims-icon-tile--' + tone">
+      <i [class]="icon"></i>
+    </div>
+  </div>
+
+  <svg *ngIf="sparklinePoints" class="kpi-card__sparkline" viewBox="0 0 100 28" preserveAspectRatio="none"
+       [attr.aria-hidden]="true">
+    <polyline [attr.points]="sparklinePoints"></polyline>
+  </svg>
+
+  <div class="kpi-card__foot" *ngIf="hasDelta || footnote">
+    <span *ngIf="hasDelta" class="kpi-card__delta"
+          [ngClass]="deltaIsGood ? 'kpi-card__delta--good' : 'kpi-card__delta--bad'">
+      <i [class]="deltaArrowIcon"></i>
+      {{ deltaDisplay }}
+    </span>
+    <span *ngIf="footnote" class="kpi-card__foot-text">{{ footnote }}</span>
+  </div>
+</div>

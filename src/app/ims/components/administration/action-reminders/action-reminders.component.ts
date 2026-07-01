@@ -15,6 +15,13 @@ export class ActionRemindersComponent implements OnInit {
   loading = false;
   tier = 'STARTER';
 
+  viewMode: 'grid' | 'list' = 'grid';
+  viewOptions = [
+    { icon: 'pi pi-th-large', value: 'grid' },
+    { icon: 'pi pi-list', value: 'list' }
+  ];
+  private readonly VIEW_MODE_STORAGE_KEY = 'action_reminders_view_mode';
+
   constructor(
     private actionReminderService: ActionReminderService,
     private router: Router,
@@ -23,7 +30,15 @@ export class ActionRemindersComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const savedViewMode = localStorage.getItem(this.VIEW_MODE_STORAGE_KEY);
+    if (savedViewMode === 'grid' || savedViewMode === 'list') {
+      this.viewMode = savedViewMode;
+    }
     this.loadReminders();
+  }
+
+  onViewModeChange(): void {
+    localStorage.setItem(this.VIEW_MODE_STORAGE_KEY, this.viewMode);
   }
 
   loadReminders(): void {

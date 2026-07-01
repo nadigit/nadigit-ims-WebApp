@@ -12,6 +12,8 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { TableModule } from 'primeng/table';
 import { FileSizePipe } from '../pipes/file-size.pipe';
 import { ProductImagePipe } from '../pipes/product-image.pipe';
+import { InventoryStatusComponent } from './components/inventory-status/inventory-status.component';
+import { ProductQuantityComponent } from './components/product-quantity/product-quantity.component';
 
 
 @NgModule({
@@ -26,10 +28,12 @@ import { ProductImagePipe } from '../pipes/product-image.pipe';
     TagModule,
     SplitButtonModule,
     ProgressBarModule,
-    TableModule
+    TableModule,
+    InventoryStatusComponent,
+    ProductQuantityComponent
   ],
   exports: [
-    CountryTranslatePipe, 
+    CountryTranslatePipe,
     TranslateModule,
     DialogModule,
     ChartModule,
@@ -40,7 +44,9 @@ import { ProductImagePipe } from '../pipes/product-image.pipe';
     ProgressBarModule,
     TableModule,
     FileSizePipe,
-    ProductImagePipe
+    ProductImagePipe,
+    InventoryStatusComponent,
+    ProductQuantityComponent
   ]
 })
 export class SharedModule { }

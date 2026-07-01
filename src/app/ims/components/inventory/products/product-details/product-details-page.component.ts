@@ -19,7 +19,7 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { Supplier } from 'src/app/models/supplier';
 import { firstValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { getMeasureUnit, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
+import { getMeasureUnit, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity, displayWarehouseStockQuantity, formatLineQuantity, getLineMeasureUnit, lineQuantityMin, lineQuantityStep, lineQuantityDecimals, toWriteOffStorageQuantity } from 'src/app/shared/product-utils';
 import { getExpirationInfo, formatExpirationDate, getExpirationStatus, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
 import { ProductBatch, BatchStatus } from 'src/app/models/productBatch';
 import { 
@@ -689,10 +689,28 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     return this.batches.reduce((sum, batch) => sum + (batch.quantityAvailable || 0), 0);
   }
 
+  /** Batch storage quantity → display units (e.g. 500 → 0.5 kg) for this product. */
+  getBatchDisplayQuantity(storageQuantity: number | null | undefined): number {
+    return displayWarehouseStockQuantity(this.product, storageQuantity ?? 0);
+  }
+
+  formatBatchQuantity(storageQuantity: number | null | undefined): string {
+    return formatLineQuantity(this.product, this.getBatchDisplayQuantity(storageQuantity));
+  }
+
+  getBatchQuantityUnit(storageQuantity: number | null | undefined): string {
+    return getLineMeasureUnit(this.product, this.getBatchDisplayQuantity(storageQuantity));
+  }
+
+  formatTotalBatchQuantity(): string {
+    return this.formatBatchQuantity(this.getTotalBatchQuantity());
+  }
+
   getTotalBatchValue(): number {
     return this.batches.reduce((sum, batch) => {
       const price = batch.buyingPrice ?? this.product?.buyingPrice ?? 0;
-      return sum + ((batch.quantityAvailable || 0) * price);
+      // price is per display unit; convert the batch's storage quantity before multiplying.
+      return sum + (this.getBatchDisplayQuantity(batch.quantityAvailable) * price);
     }, 0);
   }
 
@@ -880,8 +898,71 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     }).format(amount);
   }
 
+  /** Storage quantity → display quantity for this product (e.g. 500 → 0.5 kg for fractional). */
+  getWriteOffDisplayQuantity(writeOff: InventoryWriteOff): number {
+    if (writeOff?.displayQuantity != null) {
+      return writeOff.displayQuantity;
+    }
+    return displayWarehouseStockQuantity(this.product, writeOff?.quantity ?? 0);
+  }
+
+  /** Formatted display quantity (respects fractional precision) for the write-offs table. */
+  formatWriteOffQuantity(writeOff: InventoryWriteOff): string {
+    if (writeOff?.quantityLabel) {
+      return writeOff.quantityLabel;
+    }
+    return formatLineQuantity(this.product, this.getWriteOffDisplayQuantity(writeOff));
+  }
+
+  /** Translatable unit key for a write-off quantity ('' when no unit should be shown). */
+  getWriteOffQuantityUnit(writeOff: InventoryWriteOff): string {
+    if (writeOff?.quantityLabel) {
+      return '';
+    }
+    return getLineMeasureUnit(this.product, this.getWriteOffDisplayQuantity(writeOff));
+  }
+
   getTotalWriteOffQuantity(): number {
-    return this.writeOffs.reduce((sum, wo) => sum + (wo.quantity || 0), 0);
+    return this.writeOffs.reduce((sum, wo) => sum + this.getWriteOffDisplayQuantity(wo), 0);
+  }
+
+  /** On-hand quantity in display units (e.g. 0.5 kg) for stock-value calculations. */
+  private onHandDisplayQuantity(): number {
+    return displayWarehouseStockQuantity(this.product, this.product?.quantityAvailable ?? 0);
+  }
+
+  /** Convert any storage quantity for this product to display units (e.g. 500 → 0.5 kg). */
+  displayStockQuantity(storageQuantity: number | null | undefined): number {
+    return displayWarehouseStockQuantity(this.product, storageQuantity ?? 0);
+  }
+
+  formatStockQuantity(storageQuantity: number | null | undefined): string {
+    return formatLineQuantity(this.product, this.displayStockQuantity(storageQuantity));
+  }
+
+  getStockQuantityUnit(storageQuantity: number | null | undefined): string {
+    return getLineMeasureUnit(this.product, this.displayStockQuantity(storageQuantity));
+  }
+
+  /** Buying-price valuation: unit price is per display unit, so multiply by display quantity. */
+  getStockBuyingValue(): number {
+    return (this.product?.buyingPrice || 0) * this.onHandDisplayQuantity();
+  }
+
+  getStockSellingValue(): number {
+    return (this.product?.sellingPrice || 0) * this.onHandDisplayQuantity();
+  }
+
+  getStockProfitValue(): number {
+    return ((this.product?.sellingPrice || 0) - (this.product?.buyingPrice || 0)) * this.onHandDisplayQuantity();
+  }
+
+  formatTotalWriteOffQuantity(): string {
+    return formatLineQuantity(this.product, this.getTotalWriteOffQuantity());
+  }
+
+  getTotalWriteOffQuantityUnit(): string {
+    return getLineMeasureUnit(this.product, this.getTotalWriteOffQuantity());
   }
 
   getTotalWriteOffCost(): number {
@@ -1634,16 +1715,48 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     this.adjustmentReason = '';
   }
 
-  getNewQuantity(): number {
+  /** Current stock in display units (e.g. 30 L instead of 30000 mL). */
+  getAdjustCurrentDisplay(): number {
     const p = this.stockAdjustmentContext();
     if (!p) return 0;
-    return (p.quantityAvailable || 0) + this.quantityChange;
+    return displayWarehouseStockQuantity(p, p.quantityAvailable ?? 0);
+  }
+
+  /** Formatted current stock for the dialog header. */
+  getAdjustCurrentFormatted(): string {
+    const p = this.stockAdjustmentContext();
+    if (!p) return '0';
+    return formatLineQuantity(p, this.getAdjustCurrentDisplay());
+  }
+
+  /** Unit label for current/new stock display. */
+  getAdjustUnit(): string {
+    return getLineMeasureUnit(this.stockAdjustmentContext(), this.getAdjustCurrentDisplay()) ?? '';
+  }
+
+  /** Minimum allowed input value (negative = max decrease to 0). */
+  getAdjustMin(): number {
+    return -this.getAdjustCurrentDisplay();
+  }
+
+  /** Input step for fractional/prepaid products (e.g. 0.001 L). */
+  getAdjustStep(): number {
+    return lineQuantityStep(this.stockAdjustmentContext());
+  }
+
+  /** Decimal places for the input. */
+  getAdjustDecimals(): number {
+    return lineQuantityDecimals(this.stockAdjustmentContext());
+  }
+
+  /** Projected stock in display units after applying quantityChange (display units). */
+  getNewQuantity(): number {
+    return this.getAdjustCurrentDisplay() + this.quantityChange;
   }
 
   canAdjustStock(): boolean {
     if (this.quantityChange === 0) return false;
-    const newQuantity = this.getNewQuantity();
-    return newQuantity >= 0;
+    return this.getNewQuantity() >= 0;
   }
 
   async adjustStock(): Promise<void> {
@@ -1666,11 +1779,14 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('cannot_decrease_stock_below_zero').replace('{0}', (ctx.quantityAvailable || 0).toString()).replace('{1}', this.quantityChange.toString()),
+        detail: this.translate.instant('cannot_decrease_stock_below_zero').replace('{0}', this.getAdjustCurrentDisplay().toString()).replace('{1}', this.quantityChange.toString()),
         life: 4000
       });
       return;
     }
+
+    // Convert display-unit change → storage-unit change before sending to backend
+    const storageChange = toWriteOffStorageQuantity(ctx, Math.abs(this.quantityChange)) * Math.sign(this.quantityChange);
 
     this.isAdjustingStock = true;
     try {
@@ -1678,7 +1794,7 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
       const response = await firstValueFrom(
         this.productService.adjustStock(
           ctx.productId!,
-          this.quantityChange,
+          storageChange,
           this.adjustmentReason
         )
       );
@@ -1820,7 +1936,16 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
 
   onProductDeleteConfirmed(productId: number): void {
     if (!this.canDelete) return;
-    this.productService.deleteProduct(productId).subscribe({
+    this.performDeleteProduct(productId, false);
+  }
+
+  onProductForceDeleteConfirmed(productId: number): void {
+    if (!this.canDelete || !this.isAdmin) return;
+    this.performDeleteProduct(productId, true);
+  }
+
+  private performDeleteProduct(productId: number, force: boolean): void {
+    this.productService.deleteProduct(productId, force).subscribe({
       next: () => {
         this.messageService.add({
           severity: 'success',

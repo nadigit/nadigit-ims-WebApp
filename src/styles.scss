@@ -4,6 +4,7 @@ $gutter: 1rem;
 @import "../node_modules/primeng/resources/primeng.min.css";
 @import "../node_modules/primeflex/primeflex.scss";
 @import "../node_modules/primeicons/primeicons.css";
+@import "../node_modules/driver.js/dist/driver.css";
 
 @import "assets/ims/styles/flags/flags.css";
 @import "assets/ims/styles/badges.scss";
@@ -21,6 +22,7 @@ $gutter: 1rem;
 @import "assets/ims/styles/ims-import-wizard.scss";
 @import "assets/ims/styles/brand-auth-pages.scss";
 @import "assets/ims/styles/print-brand.scss";
+@import "assets/ims/styles/ims-tour.scss";
 
 /* =====================================================
    Enhanced RTL Support
@@ -2591,4 +2593,15 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 .p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item.p-highlight {
   background: var(--highlight-bg, color-mix(in srgb, var(--primary-color, var(--brand-saas)) 14%, transparent));
   color: var(--highlight-text-color, inherit);
+}
+/* NadiPilot brand mark — rendered as a CSS mask so it inherits `color` (brand blue + dark mode),
+   matching how the previous icon-font glyph was tinted. */
+.nadipilot-mark {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  -webkit-mask: url('assets/core-images/nadipilot.svg') center / contain no-repeat;
+  mask: url('assets/core-images/nadipilot.svg') center / contain no-repeat;
+  vertical-align: -0.125em;
 }

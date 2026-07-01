@@ -2408,21 +2408,42 @@ body,
     gap: 0.25rem;
   }
 
+  // Stretch every tab to the same height so tabs with a count badge and tabs
+  // without one share one baseline (otherwise short, badge-less tabs sit higher).
+  .p-tabview-nav {
+    align-items: stretch !important;
+  }
+
   .p-tabview-nav li {
     margin: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
   }
 
   .p-tabview-nav li .p-tabview-nav-link {
     background: transparent !important;
     border: none !important;
-    border-bottom: 3px solid transparent !important;
+    // 2px to exactly match the nav's 2px baseline; margin -2px overlaps it so the
+    // active underline sits flush on the baseline (no offset).
+    border-bottom: 2px solid transparent !important;
     border-radius: 0 !important;
     padding: 0.875rem 1.25rem !important;
     margin: 0 0 -2px !important;
+    // Fill the (stretched) tab height and keep content centred so the underline
+    // is on the baseline whether or not the tab has a count badge.
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
     font-weight: 600;
     font-size: 0.9375rem;
     color: var(--text-color-secondary) !important;
     transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  // The underline comes from the active nav-link's bottom border — hide PrimeNG's
+  // separate ink-bar so there is a single, aligned indicator.
+  .p-tabview-ink-bar {
+    display: none !important;
   }
 
   .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {

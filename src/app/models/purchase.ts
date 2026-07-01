@@ -39,9 +39,15 @@ export class Purchase {
     boeNumber?: string;
     boeExpirationDate?: Date | string;
     discount?:number;
+    /** Whether `discount` is a flat amount or a percentage of the line subtotal. */
+    discountType?: 'Amount' | 'Percentage';
     taxEnabled?:boolean;
     dutyFreeAmount?: number;
     taxAmount?: number;
+    /** Shipping / transport fee (non-taxable, added on top of the total). */
+    transportAmount?: number;
+    /** Generic additional charges (non-taxable, added on top of the total). */
+    additionalChargesAmount?: number;
     /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
     taxRateUsed?: number;
     creationDate?: Date;

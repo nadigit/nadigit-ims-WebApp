@@ -13,30 +13,41 @@
             </div>
         </div>
 
-        <div class="grid mb-4" *ngIf="!isLoading && rows.length">
-            <div class="col-12 md:col-4">
-                <div class="surface-card shadow-2 border-round p-4">
-                    <div class="text-600 font-medium mb-2">{{ 'total_cash_balance' | translate }}</div>
-                    <div class="text-3xl font-bold text-900">{{ totalCashBalance | currency:currency:'symbol':'1.2-2' }}</div>
-                </div>
-            </div>
-            <div class="col-12 md:col-4">
-                <div class="surface-card shadow-2 border-round p-4">
-                    <div class="text-600 font-medium mb-2">{{ 'open_registers' | translate }}</div>
-                    <div class="text-3xl font-bold text-orange-500">{{ openRegistersCount }}</div>
-                </div>
-            </div>
-            <div class="col-12 md:col-4">
-                <div class="surface-card shadow-2 border-round p-4">
-                    <div class="text-600 font-medium mb-2">{{ 'closed_registers' | translate }}</div>
-                    <div class="text-3xl font-bold text-600">{{ closedRegistersCount }}</div>
-                </div>
-            </div>
-        </div>
-
         <div class="card px-6 py-6">
             <p-toast></p-toast>
 
+            <!-- Summary stat strip (matches orders list style) -->
+            <div class="cr-summary-row" *ngIf="!isLoading && rows.length">
+                <div class="cr-stat-card">
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
+                        <i class="pi pi-wallet"></i>
+                    </div>
+                    <div class="cr-stat-card__content">
+                        <span class="cr-stat-card__label">{{ 'total_cash_balance' | translate }}</span>
+                        <span class="cr-stat-card__value">{{ totalCashBalance | currency:currency:'symbol':'1.2-2' }}</span>
+                    </div>
+                </div>
+                <div class="cr-stat-card">
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
+                        <i class="pi pi-lock-open"></i>
+                    </div>
+                    <div class="cr-stat-card__content">
+                        <span class="cr-stat-card__label">{{ 'open_registers' | translate }}</span>
+                        <span class="cr-stat-card__value">{{ openRegistersCount }}</span>
+                    </div>
+                </div>
+                <div class="cr-stat-card">
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--neutral">
+                        <i class="pi pi-lock"></i>
+                    </div>
+                    <div class="cr-stat-card__content">
+                        <span class="cr-stat-card__label">{{ 'closed_registers' | translate }}</span>
+                        <span class="cr-stat-card__value">{{ closedRegistersCount }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
             <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
                 <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
                     <i class="pi pi-search"></i>
@@ -50,6 +61,24 @@
                     {label: ('closed' | translate), value: 'closed'}
                 ]" [(ngModel)]="statusFilter" (onChange)="onStatusFilterChange()"
                     optionLabel="label" optionValue="value"></p-selectButton>
+
+                <!-- Export & reset (matches orders toolbar) -->
+                <div class="flex align-items-center gap-2 ml-auto">
+                    <button pButton pRipple
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
+                        class="p-button-primary"
+                        [pTooltip]="'export_pdf' | translate" tooltipPosition="bottom"
+                        (click)="exportPdf()" [disabled]="isExporting || !filteredRows.length"></button>
+                    <button pButton pRipple
+                        [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
+                        class="p-button-success"
+                        [pTooltip]="'export_to_excel' | translate" tooltipPosition="bottom"
+                        (click)="exportExcel()" [disabled]="isExporting || !filteredRows.length"></button>
+                    <button pButton pRipple icon="pi pi-filter-slash"
+                        class="p-button-outlined p-button-secondary"
+                        [pTooltip]="'clear_filters' | translate" tooltipPosition="bottom"
+                        (click)="resetFilters()"></button>
+                </div>
             </div>
 
             <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
@@ -85,7 +114,8 @@
                 </ng-template>
 
                 <ng-template pTemplate="body" let-row>
-                    <tr>
+                    <tr (click)="canReadCash ? openRegister(row) : null"
+                        [class.cursor-pointer]="canReadCash">
                         <td>
                             <div class="flex align-items-center gap-2">
                                 <i class="pi pi-building text-primary"></i>
@@ -109,7 +139,7 @@
                             <button pButton pRipple icon="pi pi-eye" *ngIf="canReadCash"
                                 class="p-button-rounded p-button-text p-button-primary"
                                 [pTooltip]="'view_cash_register' | translate"
-                                (click)="openRegister(row)"></button>
+                                (click)="openRegister(row); $event.stopPropagation()"></button>
                         </td>
                     </tr>
                 </ng-template>
@@ -128,11 +158,6 @@
                     </tr>
                 </ng-template>
 
-                <ng-template pTemplate="summary">
-                    <div class="flex align-items-center justify-content-between">
-                        {{ 'total_registers' | translate }}: {{ filteredRows.length }}
-                    </div>
-                </ng-template>
             </p-table>
         </div>
     </div>

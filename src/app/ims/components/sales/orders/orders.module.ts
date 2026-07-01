@@ -44,6 +44,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { DividerModule } from 'primeng/divider';
 import { OrdersTableComponent } from './orders-table/orders-table.component';
 import { OrderDetailsPageComponent } from './order-details-page/order-details-page.component';
+import { OrderDeleteDialogComponent } from './order-delete-dialog/order-delete-dialog.component';
 import { CheckboxModule } from 'primeng/checkbox';
 import { StepsModule } from 'primeng/steps';
 import { InventorySharedModule } from '../../inventory/shared/inventory-shared.module';
@@ -95,7 +96,7 @@ import { ShopFormDialogModule } from '../../inventory/shops/shop-form-dialog/sho
         InventorySharedModule,
         ShopFormDialogModule
     ],
-    declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent],
+    declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent, OrderDeleteDialogComponent],
     providers: [ReportingService]
 })
 export class OrdersModule { }

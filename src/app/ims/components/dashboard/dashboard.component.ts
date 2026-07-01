@@ -4,6 +4,8 @@ import { MenuItem, MessageService } from 'primeng/api';
 
 import { Subject, Subscription, catchError, debounceTime, firstValueFrom, forkJoin, of, takeUntil, map, from, switchMap, timeout } from 'rxjs';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
+import { QuantityScale } from 'src/app/utils/quantity-scale.util';
+import { displayWarehouseStockQuantity, formatLineQuantity, getLineMeasureUnit } from 'src/app/shared/product-utils';
 import { OrderService } from 'src/app/services/order.service';
 import { ProductService } from 'src/app/services/product.service';
 import { CustomerService } from 'src/app/services/customer.service';
@@ -20,6 +22,8 @@ import { WarehouseTransferService } from 'src/app/services/warehouse-transfer.se
 import { PaymentService } from 'src/app/services/payment.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { DashboardService, DashboardOverview } from 'src/app/services/dashboard.service';
+import { AnalysisService, ProfitAnalysis, ProfitPeriod } from 'src/app/services/analysis.service';
 import {
   BRAND_COLORS,
   getBrandCssColors,
@@ -102,6 +106,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Warehouse
   warehouseProductCounts: { [key: string]: number } = {};
 
+  // Admin command-center overview (accurate, backend-aggregated)
+  overview?: DashboardOverview;
+  overviewLoading = false;
+  selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
+  readonly ProfitPeriod = ProfitPeriod;
+  periodOptions: { label: string; value: ProfitPeriod }[] = [];
+
+  // 12-month trend context (for KPI sparklines + the profit & cash trend chart)
+  revenueSparkline: number[] = [];
+  netProfitSparkline: number[] = [];
+  grossProfitSparkline: number[] = [];
+  profitTrendData: any = null;
+  profitTrendOptions: any = null;
+  profitTrendReady = false;
+
   // Admin-specific metrics
   totalStockValue = 0;
   unpaidReceivables = 0;
@@ -111,7 +130,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   totalExpensesMTD = 0;
   totalPurchasesMTD = 0;
   grossMarginPercentage = 0;
-  topCustomersByRevenue: any[] = [];
   criticalAlerts: any[] = [];
   isWarehouseman = false;
   isWarehouseTransfersFeatureEnabled = true;
@@ -174,7 +192,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     public messageService: MessageService,
     private cdr: ChangeDetectorRef,
     private router: Router,
-    private licenseCapabilitiesService: LicenseCapabilitiesService
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
+    private dashboardService: DashboardService,
+    private analysisService: AnalysisService
   ) {
     this.subscription = this.layoutService.configUpdate$
       .pipe(debounceTime(25))
@@ -210,8 +230,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
         this.messageService.add({
           severity: 'info',
-          summary: 'Dashboard',
-          detail: 'Dashboard loaded. Some data may still be loading.',
+          summary: this.translate.instant('dashboard_loading'),
+          detail: this.translate.instant('dashboard_loaded_with_some_data_loading'),
           life: 3000
         });
       }
@@ -326,6 +346,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private async loadTodayMetrics() {
+    // The sales/customer "today" endpoints require order/customer read access, which warehouse-only
+    // roles don't have. Skip the calls for them so their dashboard stays clean (no 403s, no empty
+    // sales cards). setUserRoles() runs before this in loadCriticalData, so roles are known here.
+    if (!this.isAdmin && !this.isVendor) {
+      this.todayOrders = [];
+      this.todayCustomers = [];
+      this.todayRevenue = 0;
+      this.categorizeOrdersByStatus();
+      return;
+    }
     try {
       // Use firstValueFrom instead of deprecated toPromise()
       // Add timeout to prevent hanging
@@ -428,12 +458,204 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private loadHeavyComponents() {
     this.loadAnalyticsData(); // Charts will be initialized inside loadAnalyticsData after data loads
     if (this.isAdmin) {
+      this.buildPeriodOptions();
+      this.loadOverview();
       this.loadAdminMetrics();
     } else if (this.isVendor) {
       this.loadVendorMetrics();
     } else if (this.isWarehouseman) {
       this.loadWarehousemanMetrics();
     }
+  }
+
+  // ==================== ADMIN COMMAND-CENTER OVERVIEW ====================
+
+  private buildPeriodOptions() {
+    if (this.periodOptions.length > 0) {
+      return;
+    }
+    this.periodOptions = [
+      { label: this.tr('Today'), value: ProfitPeriod.TODAY },
+      { label: this.tr('Yesterday'), value: ProfitPeriod.YESTERDAY },
+      { label: this.tr('This Week'), value: ProfitPeriod.WEEK },
+      { label: this.tr('This Month'), value: ProfitPeriod.MONTH },
+      { label: this.tr('Last 6 Months'), value: ProfitPeriod.LAST_SIX_MONTHS },
+      { label: this.tr('This Year'), value: ProfitPeriod.YEAR },
+      { label: this.tr('Last 12 Months'), value: ProfitPeriod.LAST_12_MONTHS },
+    ];
+  }
+
+  /** translate.instant with the English key itself as fallback (keys mirror the Reports module). */
+  private tr(key: string): string {
+    const value = this.translate.instant(key);
+    return value && value !== key ? value : key;
+  }
+
+  async loadOverview(): Promise<void> {
+    if (!this.isAdmin) {
+      return;
+    }
+    this.overviewLoading = true;
+    this.cdr.markForCheck();
+    this.loadTrends();
+    try {
+      const request$ = await this.dashboardService.getAdminOverview(this.selectedPeriod);
+      const data = await firstValueFrom(
+        request$.pipe(
+          timeout(15000),
+          catchError((error) => {
+            console.error('Error loading dashboard overview:', error);
+            return of(undefined as unknown as DashboardOverview);
+          })
+        )
+      );
+      this.overview = data || undefined;
+    } catch (error) {
+      console.error('Error loading dashboard overview:', error);
+    } finally {
+      this.overviewLoading = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  onPeriodChange(): void {
+    this.loadOverview();
+  }
+
+  /** Percentage change of current vs previous comparable window. */
+  private pctChange(current: number, previous: number): number | null {
+    if (previous === 0) {
+      return current > 0 ? 100 : current < 0 ? -100 : 0;
+    }
+    return ((current - previous) / Math.abs(previous)) * 100;
+  }
+
+  get revenueDeltaPercent(): number | null {
+    if (!this.overview) return null;
+    return this.pctChange(this.overview.profit.totalRevenue, this.overview.previous.totalRevenue);
+  }
+
+  get netProfitDeltaPercent(): number | null {
+    if (!this.overview) return null;
+    return this.pctChange(this.overview.profit.netProfit, this.overview.previous.netProfit);
+  }
+
+  get grossProfitDeltaPercent(): number | null {
+    if (!this.overview) return null;
+    return this.pctChange(this.overview.profit.grossProfit, this.overview.previous.grossProfit);
+  }
+
+  get grossMarginPercent(): number {
+    const revenue = this.overview?.profit?.totalRevenue ?? 0;
+    if (revenue <= 0) return 0;
+    return (this.overview!.profit.grossProfit / revenue) * 100;
+  }
+
+  /** Percentage formatted for display, capped so extreme loss ratios read cleanly (e.g. "< -999%"). */
+  formatPercentCapped(pct: number | null | undefined, cap = 999): string {
+    if (pct === null || pct === undefined || !isFinite(pct)) {
+      return '0%';
+    }
+    if (Math.abs(pct) > cap) {
+      return (pct > 0 ? '> ' : '< -') + cap + '%';
+    }
+    return pct.toFixed(1) + '%';
+  }
+
+  /** Top customers in the legacy template shape, sourced from the accurate overview endpoint. */
+  get topCustomersByRevenue(): { customer: any; revenue: number }[] {
+    return (this.overview?.topCustomers ?? []).map((c) => ({
+      customer: {
+        customerId: c.customerId,
+        companyName: c.displayName,
+        firstName: '',
+        lastName: '',
+        email: c.email,
+      },
+      revenue: c.revenue,
+    }));
+  }
+
+  /** Fetch the 12-month profit trend → KPI sparklines + the profit & cash trend chart. */
+  async loadTrends(): Promise<void> {
+    if (!this.isAdmin) {
+      return;
+    }
+    try {
+      const request$: any = await this.analysisService.getProfitTrends(this.selectedPeriod);
+      const trends = await firstValueFrom(
+        request$.pipe(
+          timeout(15000),
+          catchError((error: any) => {
+            console.error('Error loading profit trends:', error);
+            return of([] as ProfitAnalysis[]);
+          })
+        )
+      );
+      this.applyTrends(Array.isArray(trends) ? (trends as ProfitAnalysis[]) : []);
+    } catch (error) {
+      console.error('Error loading profit trends:', error);
+    }
+  }
+
+  private applyTrends(trends: ProfitAnalysis[]): void {
+    this.revenueSparkline = trends.map((t) => t?.totalRevenue ?? 0);
+    this.grossProfitSparkline = trends.map((t) => t?.grossProfit ?? 0);
+    this.netProfitSparkline = trends.map((t) => t?.netProfit ?? 0);
+
+    const labels = trends.map((t) => {
+      const d = t?.startDate ? new Date(t.startDate) : null;
+      return d ? d.toLocaleString('default', { month: 'short' }) : '';
+    });
+
+    const theme = getChartThemeColors();
+    this.profitTrendData = {
+      labels,
+      datasets: [
+        {
+          label: this.tr('revenue'),
+          data: this.revenueSparkline,
+          borderColor: BRAND_COLORS.premium,
+          backgroundColor: BRAND_COLORS.premium,
+          fill: false,
+          tension: 0.4,
+        },
+        {
+          label: this.tr('gross_profit'),
+          data: this.grossProfitSparkline,
+          borderColor: BRAND_COLORS.saas,
+          backgroundColor: BRAND_COLORS.saas,
+          fill: false,
+          tension: 0.4,
+        },
+        {
+          label: this.tr('net_profit'),
+          data: this.netProfitSparkline,
+          borderColor: BRAND_COLORS.success,
+          backgroundColor: BRAND_COLORS.success,
+          fill: false,
+          tension: 0.4,
+        },
+      ],
+    };
+    this.profitTrendOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: theme.textColor } } },
+      scales: {
+        x: {
+          ticks: { color: theme.textColorSecondary },
+          grid: { color: theme.surfaceBorder, drawBorder: false },
+        },
+        y: {
+          ticks: { color: theme.textColorSecondary },
+          grid: { color: theme.surfaceBorder, drawBorder: false },
+          beginAtZero: true,
+        },
+      },
+    };
+    this.profitTrendReady = true;
+    this.cdr.markForCheck();
   }
 
   private loadAnalyticsData() {
@@ -647,21 +869,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.productService.getProductsPaginated(0, 20, '', 'creationDate', 'DESC').pipe(
       map((res: any) => {
         this.totalProducts = res?.totalProducts ?? 0;
-        return res?.page?.content ?? [];
-      }),
-      catchError(() => of([]))
-    );
-  }
-
-  getAllProductsForStockValue() {
-    const cacheKey = 'all-products-stock';
-    const cached = this.getCachedData(cacheKey);
-    if (cached) return of(cached);
-
-    // Load a large number of products for accurate stock value calculation
-    // Using a large page size (1000) to get most/all products
-    return this.productService.getProductsPaginated(0, 1000, '', 'creationDate', 'DESC').pipe(
-      map((res: any) => {
         return res?.page?.content ?? [];
       }),
       catchError(() => of([]))
@@ -1350,6 +1557,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loadSecondaryData();
       this.loadAnalyticsData();
       if (this.isAdmin) {
+        this.loadOverview();
         this.loadAdminMetrics();
       } else if (this.isVendor) {
         this.loadVendorMetrics();
@@ -1398,41 +1606,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ==================== ADMIN-SPECIFIC METHODS ====================
 
   private loadAdminMetrics() {
+    // Financial truth (revenue, margin, receivables, payables, stock value, top customers) now comes
+    // from the accurate /api/dashboard/admin/overview endpoint (see loadOverview). This loader covers
+    // transfer health and the MTD expense/purchase quick-stats, plus the critical-alerts feed.
     forkJoin({
       transfers: this.getPendingTransfers(),
-      payments: this.getUnpaidPayments(),
       purchases: this.getMonthlyPurchases(),
-      expenses: this.getMonthlyExpenses(),
-      allProducts: this.getAllProductsForStockValue()
+      expenses: this.getMonthlyExpenses()
     })
       .pipe(
         timeout(15000), // 15 second timeout to prevent hanging
         takeUntil(this.destroy$),
         catchError(error => {
           console.error('Error loading admin metrics:', error);
-          // Return empty data structure to prevent dashboard from breaking
-          return of({
-            transfers: [],
-            payments: { incoming: [], outgoing: [] },
-            purchases: [],
-            expenses: [],
-            allProducts: []
-          });
+          return of({ transfers: [], purchases: [], expenses: [] });
         })
       )
       .subscribe((data: any) => {
         try {
           this.calculateAdminMetrics(data);
-          // Calculate stock value using all products for accurate calculation
-          if (data.allProducts && data.allProducts.length > 0) {
-            this.calculateStockValue(data.allProducts);
-          } else if (this.products && this.products.length > 0) {
-            // Fallback to loaded products if all products failed to load
-            this.calculateStockValue(this.products);
-          }
-          this.calculateUnpaidBalances(data);
-          this.calculateGrossMargin();
-          this.calculateTopCustomers();
           this.buildCriticalAlerts();
           this.cdr.markForCheck();
         } catch (error) {
@@ -1534,74 +1726,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
-  private calculateStockValue(products?: Product[]) {
-    const productsToCalculate = products || this.products;
-    
-    if (!productsToCalculate || productsToCalculate.length === 0) {
-      this.totalStockValue = 0;
-      return;
-    }
-    
-    this.totalStockValue = productsToCalculate.reduce((sum, product) => {
-      const quantity = product.quantityAvailable || 0;
-      const cost = product.standardCost || product.buyingPrice || 0;
-      const productValue = quantity * cost;
-      return sum + productValue;
-    }, 0);
-    
-    console.log('Stock value calculated:', {
-      productsCount: productsToCalculate.length,
-      totalStockValue: this.totalStockValue
-    });
-  }
-
-  private calculateUnpaidBalances(data: any) {
-    // Calculate unpaid receivables (orders with unpaid amounts)
-    this.unpaidReceivables = this.orders.reduce((sum, order) => {
-      const totalAmount = order.totalAmount || 0;
-      const totalPaid = order.totalPaid || 0;
-      const unpaid = totalAmount - totalPaid;
-      return sum + (unpaid > 0 ? unpaid : 0);
-    }, 0);
-
-    // Calculate unpaid payables from purchases
-    // This would require purchase data - for now, we'll estimate from orders
-    // In a real scenario, you'd fetch purchases and calculate unpaid amounts
-    this.unpaidPayables = 0; // Placeholder - would need purchase service data
-  }
-
-  private calculateGrossMargin() {
-    if (this.revenue > 0) {
-      const totalCosts = this.orders.reduce((sum, order) => {
-        return sum + (order.orderItems?.reduce((itemSum: number, item: any) => {
-          const cost = item.product?.standardCost || item.product?.buyingPrice || 0;
-          return itemSum + (cost * (item.quantity || 0));
-        }, 0) || 0);
-      }, 0);
-      const grossProfit = this.revenue - totalCosts;
-      this.grossMarginPercentage = (grossProfit / this.revenue) * 100;
-    }
-  }
-
-  private calculateTopCustomers() {
-    const customerRevenue = new Map<number, { customer: Customer, revenue: number }>();
-    
-    this.orders.forEach(order => {
-      if (order.customer?.customerId) {
-        const existing = customerRevenue.get(order.customer.customerId) || { 
-          customer: order.customer, 
-          revenue: 0 
-        };
-        existing.revenue += order.totalAmount || 0;
-        customerRevenue.set(order.customer.customerId, existing);
-      }
-    });
-
-    this.topCustomersByRevenue = Array.from(customerRevenue.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-  }
-
   private buildCriticalAlerts() {
     this.criticalAlerts = [];
 
@@ -1649,9 +1773,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
     }
 
-    // High unpaid receivables
-    if (this.unpaidReceivables > this.revenue * 0.2) {
-      const percentage = ((this.unpaidReceivables / this.revenue) * 100).toFixed(1);
+    // High unpaid receivables (from the accurate overview, when loaded)
+    const receivables = this.overview?.salesSummary?.totalOutstandingAmount ?? 0;
+    const overviewRevenue = this.overview?.profit?.totalRevenue ?? 0;
+    if (overviewRevenue > 0 && receivables > overviewRevenue * 0.2) {
+      const percentage = ((receivables / overviewRevenue) * 100).toFixed(1);
       this.criticalAlerts.push({
         type: 'info',
         icon: 'pi-dollar',
@@ -1966,7 +2092,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
             };
           }
           productSales[productId].quantity += item.quantity || 0;
-          productSales[productId].revenue += (item.price || 0) * (item.quantity || 0);
+          // price is per display unit; lineAmount converts storage qty for fractional/prepaid products.
+          productSales[productId].revenue += QuantityScale.lineAmount(item.product, item.quantity || 0, item.price || 0);
         }
       });
     });
@@ -1974,6 +2101,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.vendorTopSellingProducts = Object.values(productSales)
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
+  }
+
+  /** Top-selling product sold quantity in display units + unit (e.g. "0.5 kg"). */
+  formatTopProductQuantity(item: any): string {
+    const displayQty = displayWarehouseStockQuantity(item?.product, item?.quantity ?? 0);
+    const formatted = formatLineQuantity(item?.product, displayQty);
+    const unit = getLineMeasureUnit(item?.product, displayQty);
+    return unit ? `${formatted} ${this.translate.instant(unit)}` : `${formatted} ${this.translate.instant('units')}`;
   }
 
   // ==================== WAREHOUSEMAN-SPECIFIC METHODS ====================

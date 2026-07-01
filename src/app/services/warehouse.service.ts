@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { environment } from 'src/environments/environment';
@@ -31,9 +31,17 @@ export class WarehouseService {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated warehouse');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id, supplier, { headers: headers });
   }
-  deleteWarehouse(id: any) {
-    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted warehouse');
-    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id, { headers: headers });
+  getWarehouseDeleteImpact(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id + '/delete-impact', { headers });
+  }
+  deleteWarehouse(id: any, force: boolean = false) {
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), force ? 'Force deleted warehouse' : 'Deleted warehouse');
+    let params = new HttpParams();
+    if (force) {
+      params = params.set('force', 'true');
+    }
+    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/' + id, { headers: headers, params });
   }
   getWarehouses() {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })

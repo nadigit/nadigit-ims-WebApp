@@ -443,7 +443,12 @@
 
   <ng-template pTemplate="emptymessage">
     <tr>
-      <td colspan="10">{{ 'no_products_msg' | translate }}</td>
+      <td colspan="10">
+        <div class="flex flex-column align-items-center justify-content-center py-4">
+          <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+          <p class="mt-2 text-gray-600 font-medium">{{ 'no_products_msg' | translate }}</p>
+        </div>
+      </td>
     </tr>
   </ng-template>
 

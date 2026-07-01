@@ -1,0 +1,87 @@
+<!-- Populated state: hero image with zoom/change/remove toolbar -->
+<div class="image-upload-shell" *ngIf="resolvedUrl; else uploadEmpty">
+  <div class="image-upload-card surface-section">
+    <div class="image-upload-head flex align-items-start justify-content-between gap-3 mb-3" *ngIf="showHeader">
+      <div class="flex align-items-start gap-3 min-w-0">
+        <div class="image-upload-head-icon hidden md:flex align-items-center justify-content-center flex-shrink-0">
+          <i class="pi pi-images"></i>
+        </div>
+        <div class="min-w-0">
+          <span class="image-upload-title block m-0">{{ label | translate }}</span>
+          <p class="image-upload-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'drag_drop_subtitle' | translate }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="image-container relative">
+      <div class="image-upload-hero-shell border-round-xl overflow-hidden">
+        <div class="image-upload-hero-wrap border-round-xl overflow-hidden flex flex-column">
+          <div class="image-upload-stage relative flex-1 w-full min-w-0 min-h-0">
+            <div class="image-wrapper h-full relative border-round-xl overflow-hidden">
+              <p-image [src]="resolvedUrl" [alt]="label | translate" width="100%" [preview]="true"
+                class="block image-upload-pimage" imageClass="image-upload-img"></p-image>
+              <div class="loading-overlay flex align-items-center justify-content-center border-round-xl" *ngIf="uploading">
+                <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="image-loading"></p-progressSpinner>
+              </div>
+            </div>
+          </div>
+
+          <input #replaceInput type="file" accept="image/*" tabindex="-1" class="image-upload-replace-input"
+            (change)="onNativeFileChange($event)" />
+
+          <div class="image-upload-toolbar flex align-items-center justify-content-center gap-2 flex-wrap">
+            <p-button type="button" icon="pi pi-pencil" [rounded]="true" [text]="true"
+              class="image-upload-fab image-upload-fab--accent" [disabled]="uploading"
+              (click)="replaceInput.click()" [pTooltip]="'change_image' | translate" tooltipPosition="top">
+            </p-button>
+            <p-button type="button" icon="pi pi-trash" [rounded]="true" [text]="true"
+              class="image-upload-fab image-upload-fab--danger" [disabled]="uploading"
+              (click)="remove()" [pTooltip]="'remove_image_tooltip' | translate" tooltipPosition="top">
+            </p-button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Empty state: drag & drop / browse dropzone -->
+<ng-template #uploadEmpty>
+  <div class="image-upload-shell">
+    <div class="image-upload-card image-upload-card--empty surface-section">
+      <div class="image-upload-head flex align-items-start justify-content-between gap-3 mb-3" *ngIf="showHeader">
+        <div class="flex align-items-start gap-3 min-w-0">
+          <div class="image-upload-head-icon hidden md:flex align-items-center justify-content-center flex-shrink-0">
+            <i class="pi pi-cloud-upload"></i>
+          </div>
+          <div class="min-w-0">
+            <span class="image-upload-title block m-0">{{ label | translate }}</span>
+            <p class="image-upload-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'drag_drop_subtitle' | translate }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="upload-dropzone upload-dropzone--modern border-round-xl p-4 md:p-5 text-center"
+        (drop)="onDrop($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
+        [ngClass]="{'upload-dropzone--active': isDragOver}" role="region" [attr.aria-label]="label | translate">
+
+        <div class="upload-dropzone-icon mx-auto mb-4">
+          <i class="pi pi-cloud-upload"></i>
+        </div>
+
+        <h3 class="upload-dropzone-title m-0 mb-2 text-xl font-semibold text-900">{{ 'drag_drop_title' | translate }}</h3>
+        <p class="text-color-secondary text-sm m-0 mb-4 line-height-3 upload-dropzone-desc mx-auto">
+          {{ 'image_upload_hint' | translate }}
+        </p>
+
+        <div class="upload-button-wrapper flex justify-content-center">
+          <p-fileUpload mode="basic" name="imageUpload" accept="image/*" [maxFileSize]="maxFileSize"
+            (onSelect)="onFileUpload($event)" styleClass="image-upload-btn"
+            chooseLabel="{{ 'browse_files_button' | translate }}" chooseIcon="pi pi-folder-open"
+            [auto]="true" [showUploadButton]="false" [showCancelButton]="false">
+          </p-fileUpload>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-template>

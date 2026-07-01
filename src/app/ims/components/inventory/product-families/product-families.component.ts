@@ -17,7 +17,6 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 import { KeycloakService } from 'keycloak-angular';
-import { getQuantitySeverity } from 'src/app/shared/product-utils';
 import {
   initTablePageSizeState,
   persistTablePageSizeFromLazyEvent,
@@ -209,15 +208,6 @@ export class ProductFamiliesComponent implements OnInit {
 
   isRowExpanded(familyId: number): boolean {
     return !!this.expandedRows[familyId];
-  }
-
-  getQuantitySeverity = getQuantitySeverity;
-
-  statusLabel(status?: string): string {
-    if (!status) {
-      return '';
-    }
-    return this.translate.instant(status.toLowerCase());
   }
 
   navigateToProduct(productId?: number): void {

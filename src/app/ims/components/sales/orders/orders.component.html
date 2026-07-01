@@ -242,6 +242,7 @@
 												(completeMethod)="filterProducts($event)" [minLength]="1" [field]="'name'"
 												placeholder="{{ 'search_products_placeholder' | translate }}" [dropdown]="true"
 												(onSelect)="onProductSelect($event)" [forceSelection]="true"
+												appendTo="body"
 												[disabled]="isAdmin && !selectedOrderWarehouse">
 
 										<!-- Selected Item Template -->
@@ -316,8 +317,16 @@
 											<label for="categoryFilter" class="ims-form-label">{{ 'filter_by_category' | translate }}</label>
 							<p-autoComplete [(ngModel)]="selectedCategory" [suggestions]="filteredCategories"
 								field="categoryName" placeholder="{{ 'select_category_option' | translate }}"
-								[dropdown]="true" [forceSelection]="true" (completeMethod)="filterCategories($event)"
+								[dropdown]="true" appendTo="body" [forceSelection]="true" (completeMethod)="filterCategories($event)"
 								(onSelect)="filterByCategory()" (onClear)="clearCategoryFilter()">
+								<ng-template let-category pTemplate="item">
+									<span class="flex align-items-center gap-2">
+										<img *ngIf="category.categoryImage; else ordCatIcon" [src]="categoryImageUrl(category)"
+											alt="" style="width:1.5rem;height:1.5rem;object-fit:cover;border-radius:4px;flex-shrink:0;" />
+										<ng-template #ordCatIcon><i class="pi pi-folder"></i></ng-template>
+										<span>{{ category.categoryName }}</span>
+									</span>
+								</ng-template>
 							</p-autoComplete>
 										</div>
 
@@ -492,7 +501,10 @@
 												<ng-template pTemplate="emptymessage">
 													<tr>
 														<td colspan="6" class="text-center py-4 text-600">
-															<i class="pi pi-inbox mr-2"></i>{{ 'no_products_selected' | translate }}
+															<div class="flex flex-column align-items-center justify-content-center py-4">
+																<img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+																<p class="mt-2 text-gray-600 font-medium">{{ 'no_products_selected' | translate }}</p>
+															</div>
 														</td>
 													</tr>
 												</ng-template>
@@ -1187,30 +1199,29 @@
 			</ng-template>
 		</p-dialog>
 
-		<p-dialog [(visible)]="deleteOrderDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
-			[style]="{width:'450px'}">
-			<div class="flex align-items-center justify-content-center">
-				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-				<span *ngIf="order">{{ 'delete_confirmation_msg_with_param' | translate }}
-					<b>#{{order.reference}}</b>?</span>
-			</div>
-			<ng-template pTemplate="footer">
-				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
-					(click)="deleteOrderDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{ 'yes_button' | translate }}"
-					(click)="confirmDelete()"></button>
-			</ng-template>
-		</p-dialog>
+		<app-order-delete-dialog
+			[(visible)]="deleteOrderDialog"
+			[orderId]="order?.orderId"
+			[canForceDelete]="isAdmin"
+			(confirmed)="confirmDelete($event)"
+			(forceConfirmed)="confirmDelete($event, true)">
+		</app-order-delete-dialog>
 
 		<p-dialog [(visible)]="deleteOrdersDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
-			[style]="{width:'450px'}">
+			[style]="{width:'460px'}">
 			<div class="flex align-items-center justify-content-center">
 				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
 				<span>{{ 'delete_selected_confirmation_msg' | translate }}</span>
 			</div>
+			<p *ngIf="isAdmin" class="mt-3 mb-0 text-sm" style="color: var(--brand-danger);">
+				{{ 'force_delete_orders_warning' | translate }}
+			</p>
 			<ng-template pTemplate="footer">
 				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
 					(click)="deleteOrdersDialog = false"></button>
+				<button *ngIf="isAdmin" pButton pRipple icon="pi pi-exclamation-triangle"
+					class="p-button-danger p-button-outlined" label="{{ 'force_delete_order' | translate }}"
+					(click)="confirmDeleteSelected(true)"></button>
 				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{ 'yes_button' | translate }}"
 					(click)="confirmDeleteSelected()"></button>
 			</ng-template>

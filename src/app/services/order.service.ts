@@ -75,9 +75,20 @@ export class OrderService {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated order');
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, order, { headers: headers });
   }
-  deleteOrder(id: any) {
-    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted order');
-    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
+  getOrderDeleteImpact(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/delete-impact',
+      { headers }
+    );
+  }
+  deleteOrder(id: any, force: boolean = false) {
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), force ? 'Force deleted order' : 'Deleted order');
+    let params = new HttpParams();
+    if (force) {
+      params = params.set('force', 'true');
+    }
+    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers, params });
   }
   getOrders() {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })

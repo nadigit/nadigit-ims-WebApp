@@ -205,30 +205,29 @@
             (cancel)="onSupplierCancel()">
         </app-supplier-form-dialog>
 
-        <p-dialog [(visible)]="deleteSupplierDialog" header="{{'confirm_label' | translate}}" [modal]="true"
-            [style]="{width:'450px'}">
-            <div class="flex align-items-center justify-content-center">
-                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-                <span *ngIf="supplier">{{'delete_confirmation_msg_with_param' | translate}}
-                    <b>{{supplier.name}}</b>?</span>
-            </div>
-            <ng-template pTemplate="footer">
-                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
-                    (click)="deleteSupplierDialog = false"></button>
-                <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
-                    (click)="confirmDelete()"></button>
-            </ng-template>
-        </p-dialog>
+        <app-supplier-delete-dialog
+            [(visible)]="deleteSupplierDialog"
+            [supplierId]="supplier?.supplierId"
+            [canForceDelete]="isAdmin"
+            (confirmed)="confirmDelete($event)"
+            (forceConfirmed)="confirmDelete($event, true)">
+        </app-supplier-delete-dialog>
 
         <p-dialog [(visible)]="deleteSuppliersDialog" header="{{'confirm_label' | translate}}" [modal]="true"
-            [style]="{width:'450px'}">
+            [style]="{width:'460px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span>{{'delete_selected_confirmation_msg' | translate}}</span>
             </div>
+            <p *ngIf="isAdmin" class="mt-3 mb-0 text-sm" style="color: var(--brand-danger);">
+                {{ 'force_delete_suppliers_warning' | translate }}
+            </p>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'no_button' | translate}}"
                     (click)="deleteSuppliersDialog = false"></button>
+                <button *ngIf="isAdmin" pButton pRipple icon="pi pi-exclamation-triangle"
+                    class="p-button-danger p-button-outlined" label="{{ 'force_delete_supplier' | translate }}"
+                    (click)="confirmDeleteSelected(true)"></button>
                 <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'yes_button' | translate}}"
                     (click)="confirmDeleteSelected()"></button>
             </ng-template>

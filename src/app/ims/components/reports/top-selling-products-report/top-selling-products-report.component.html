@@ -165,7 +165,12 @@
           </ng-template>
           <ng-template pTemplate="emptymessage">
             <tr *ngIf="!loading && !isInitialLoad">
-              <td colspan="7" class="text-center text-500 py-5">{{ 'reports_top_products_empty' | translate }}</td>
+              <td colspan="7" class="text-center text-500 py-5">
+                <div class="flex flex-column align-items-center justify-content-center py-4">
+                  <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                  <p class="mt-2 text-gray-600 font-medium">{{ 'reports_top_products_empty' | translate }}</p>
+                </div>
+              </td>
             </tr>
           </ng-template>
         </p-table>

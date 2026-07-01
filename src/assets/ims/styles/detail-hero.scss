@@ -1,12 +1,35 @@
 @import 'brand-tokens';
 
 // ---------------------------------------------------------------------------
-// Detail / profile page hero shells — rounded card style (backups reference)
-// Stats rows and content spacing stay in each page component.
+// Details-page design system — single source of truth for ALL *-details pages.
+//
+// Every details page (warehouse, shop, category, product, supplier, customer,
+// order, purchase, payment, refund, return, expense, write-off, transfer,
+// banking, user, role, financial document, ...) shares the same markup
+// vocabulary: a `*-hero` header with `.hero-background` / `.hero-content` /
+// `.back-button`, a `.stats-row` of `.stat-card-modern`, and `.detail-card`
+// bodies. Historically each component re-declared these in its own scoped CSS,
+// which drifted into two visual patterns. This file standardises them on the
+// warehouse pattern so all pages look identical. `!important` is used because
+// Angular's emulated encapsulation makes component-scoped rules more specific.
 // ---------------------------------------------------------------------------
 
 :root {
   --detail-hero-radius: 16px;
+}
+
+// All per-page hero wrappers — the rounded card shell + unified padding/background.
+%ims-details-hero {
+  position: relative;
+  border-radius: var(--detail-hero-radius) !important;
+  border: 1px solid var(--surface-border) !important;
+  overflow: hidden;
+  background: var(--surface-card) !important;
+  box-shadow: none;
+  padding: 1.5rem 2rem 2rem !important;
+  // Cancel horizontal bleed so rounded corners stay visible
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 .detail-page-hero-shell,
@@ -31,15 +54,49 @@
 .write-off-hero,
 .profile-hero,
 .backups-hero {
-  position: relative;
-  border-radius: var(--detail-hero-radius) !important;
-  border: 1px solid var(--surface-border) !important;
-  overflow: hidden;
+  @extend %ims-details-hero;
+}
+
+// Decorative angled accent (warehouse pattern) — overrides any radial variants.
+.hero-background {
+  position: absolute !important;
+  inset: 0 0 0 auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 400px !important;
+  height: 100% !important;
+  background: linear-gradient(135deg, transparent 0%, var(--primary-100) 100%) !important;
+  opacity: 0.3 !important;
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%) !important;
+  pointer-events: none;
+}
+
+.layout-theme-dark .hero-background {
+  background: linear-gradient(135deg, transparent 0%, var(--primary-900) 100%) !important;
+  opacity: 0.15 !important;
+}
+
+// Hero content sits above the accent; full width (no per-page centering).
+.hero-content {
+  position: relative !important;
+  z-index: 1 !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+// Back button — circular, surface card with soft shadow.
+.back-button {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
   background: var(--surface-card) !important;
-  box-shadow: none;
-  // Cancel horizontal bleed so rounded corners stay visible
-  margin-left: 0 !important;
-  margin-right: 0 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  color: var(--text-color-secondary) !important;
+}
+
+.back-button:hover {
+  background: var(--surface-hover) !important;
 }
 
 .backups-container {
@@ -50,4 +107,217 @@
 
 .backups-container .backups-hero {
   margin-bottom: 0 !important;
+}
+
+// ---------------------------------------------------------------------------
+// Stats row — KPI cards overlapping under the hero.
+// ---------------------------------------------------------------------------
+.stats-row {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  gap: 1rem !important;
+  margin: -1.5rem 0 1.5rem !important;
+  padding: 0 1rem !important;
+  position: relative;
+  z-index: 2;
+}
+
+.stat-card-modern {
+  display: flex !important;
+  align-items: center !important;
+  gap: 1rem !important;
+  padding: 1.25rem !important;
+  background: var(--surface-card) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid var(--surface-border) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+}
+
+.stat-card-modern .stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-card-modern .stat-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-card-modern .stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color);
+  line-height: 1.2;
+}
+
+// ---------------------------------------------------------------------------
+// Detail cards — the standard content panel.
+// ---------------------------------------------------------------------------
+.detail-card {
+  background: var(--surface-card) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid var(--surface-border) !important;
+  overflow: hidden;
+}
+
+.detail-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-color);
+}
+
+.detail-card .card-header i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+.detail-card .card-header.warning i {
+  color: var(--orange-500);
+}
+
+.detail-card .card-body {
+  padding: 1.25rem;
+}
+
+// ---------------------------------------------------------------------------
+// Info list — label/value pairs inside detail cards.
+// ---------------------------------------------------------------------------
+.info-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+}
+
+// Description block — flat (warehouse look), not a tinted box.
+.description-section {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.info-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  // Flat (warehouse) look — reset the boxed variant some pages used.
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  transition: none !important;
+}
+
+.info-item:hover {
+  background: transparent !important;
+}
+
+.info-item .info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.info-item .info-label {
+  display: block;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em !important;
+  color: var(--text-color-secondary) !important;
+  margin-bottom: 0 !important;
+}
+
+.info-item .info-value {
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  color: var(--text-color) !important;
+  word-break: break-word;
+}
+
+// ---------------------------------------------------------------------------
+// Empty state — shared placeholder.
+// ---------------------------------------------------------------------------
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.empty-state .empty-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-ground);
+  margin-bottom: 1.5rem;
+}
+
+.empty-state .empty-icon i {
+  font-size: 2.5rem;
+  color: var(--text-color-secondary);
+}
+
+.empty-state h4 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--text-color-secondary);
+  max-width: 320px;
+}
+
+// NOTE: TabView styling (underline + alignment) is owned globally by
+// nadigit-brand.scss (.p-tabview …), which applies to every details page.
+
+// ---------------------------------------------------------------------------
+// Responsive — keep the hero/stats readable on small screens.
+// ---------------------------------------------------------------------------
+@media screen and (max-width: 992px) {
+  .detail-page-hero-shell,
+  .account-hero, .category-hero, .company-hero, .customer-hero, .expense-hero,
+  .financial-doc-hero, .order-hero, .payment-hero, .product-hero, .purchase-hero,
+  .refund-hero, .return-hero, .role-hero, .shop-hero, .supplier-hero, .transfer-hero,
+  .user-hero, .warehouse-hero, .write-off-hero, .profile-hero, .backups-hero {
+    padding: 1.5rem 1rem !important;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    padding: 0 0.5rem !important;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .stats-row {
+    grid-template-columns: 1fr !important;
+  }
 }

@@ -31,6 +31,7 @@ export class PosStorageService {
   private readonly PENDINGSALES_KEY = 'pos_pendingsales';
   private readonly FULLSCREEN_KEY = 'pos_fullscreen';
   private readonly LASTSYNC_KEY = 'pos_lastsync';
+  private readonly WAREHOUSEID_KEY = 'pos_warehouseid';
 
   // Session & Cart
   saveSession(session: POSSessionDTO | null): void {
@@ -78,6 +79,19 @@ export class PosStorageService {
 
   getShopId(): number | null {
     const data = localStorage.getItem(this.SHOPID_KEY);
+    return data ? +data : null;
+  }
+
+  saveWarehouseId(warehouseId: number | null): void {
+    if (warehouseId) {
+      localStorage.setItem(this.WAREHOUSEID_KEY, warehouseId.toString());
+    } else {
+      localStorage.removeItem(this.WAREHOUSEID_KEY);
+    }
+  }
+
+  getWarehouseId(): number | null {
+    const data = localStorage.getItem(this.WAREHOUSEID_KEY);
     return data ? +data : null;
   }
 

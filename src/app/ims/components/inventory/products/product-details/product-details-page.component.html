@@ -44,10 +44,8 @@
                                     [severity]="isService(product) ? 'purple' : 'info'"
                                     [icon]="isService(product) ? 'pi pi-cog' : 'pi pi-box'">
                                 </p-tag>
-                                <span *ngIf="isProduct(product) && product.inventoryStatus" 
-                                    [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
-                                    {{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
-                                </span>
+                                <app-inventory-status *ngIf="isProduct(product) && product.inventoryStatus"
+                                    [status]="product.inventoryStatus"></app-inventory-status>
                                 <!-- Expiration Status Badge -->
                                 <p-tag *ngIf="isProduct(product) && product.expirationDate && (getExpirationStatus(product) === 'EXPIRED' || getExpirationStatus(product) === 'EXPIRING_SOON')"
                                     [value]="getExpirationStatus(product) === 'EXPIRED' ? ('expired' | translate) : ('expiring_soon_days' | translate).replace('{0}', getExpirationInfo(product).daysUntilExpiration.toString())"
@@ -220,21 +218,19 @@
                                     <strong>{{ stock.warehouseName || 'N/A' }}</strong>
                                 </td>
                                 <td>
-                                    <p-tag [severity]="getQuantitySeverity(stock.quantityAvailable)"
-                                        [value]="stock.quantityAvailable + ' ' + (getMeasureUnit(product?.measureUnit || 'UNIT', stock.quantityAvailable) | translate)"
+                                    <p-tag [severity]="getQuantitySeverity(displayStockQuantity(stock.quantityAvailable))"
+                                        [value]="formatStockQuantity(stock.quantityAvailable) + ' ' + (getStockQuantityUnit(stock.quantityAvailable) ? (getStockQuantityUnit(stock.quantityAvailable) | translate) : ('units' | translate))"
                                         styleClass="text-xs">
                                     </p-tag>
                                 </td>
                                 <td>
-                                    <p-tag [severity]="getQuantitySeverity(stock.netAvailableQuantity)"
-                                        [value]="stock.netAvailableQuantity + ' ' + (getMeasureUnit(product?.measureUnit || 'UNIT', stock.netAvailableQuantity) | translate)"
+                                    <p-tag [severity]="getQuantitySeverity(displayStockQuantity(stock.netAvailableQuantity))"
+                                        [value]="formatStockQuantity(stock.netAvailableQuantity) + ' ' + (getStockQuantityUnit(stock.netAvailableQuantity) ? (getStockQuantityUnit(stock.netAvailableQuantity) | translate) : ('units' | translate))"
                                         styleClass="text-xs">
                                     </p-tag>
                                 </td>
                                 <td>
-                                    <span [class]="'product-badge status-' + (stock.inventoryStatus || '').toLowerCase()">
-                                        {{ 'product_' + (stock.inventoryStatus || '').toLowerCase() | translate }}
-                                    </span>
+                                    <app-inventory-status [status]="stock.inventoryStatus"></app-inventory-status>
                                 </td>
                                 <td *ngIf="product?.expirationDate">
                                     {{ stock.expirationDate ? (stock.expirationDate | date:'dd/MM/yyyy') : 'N/A' }}
@@ -272,11 +268,14 @@
                             </tr>
                         </ng-template>
                         <ng-template pTemplate="emptymessage">
-                            <tr>
-                                <td [attr.colspan]="product?.expirationDate ? 6 : 5" class="text-center">
-                                    {{ 'no_warehouse_stock' | translate }}
-                                </td>
-                            </tr>
+                          <tr>
+                            <td [attr.colspan]="product?.expirationDate ? 6 : 5" class="text-center">
+                              <div class="flex flex-column align-items-center justify-content-center py-4">
+                                <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                <p class="mt-2 text-gray-600 font-medium">{{ 'no_warehouse_stock' | translate }}</p>
+                              </div>
+                            </td>
+                          </tr>
                         </ng-template>
                     </p-table>
                 </div>
@@ -504,6 +503,7 @@
                                 icon="pi pi-plus" 
                                 [label]="'generate_barcode' | translate"
                                 [model]="autoGenerateMenuItems"
+                                appendTo="body"
                                 (onClick)="openGenerateBarcodeDialog()">
                             </p-splitButton>
                             <button pButton pRipple icon="pi pi-print" 
@@ -639,7 +639,7 @@
                                         </div>
                                         <div class="stock-details">
                                             <span class="stock-label">{{ 'total_cost_value' | translate }}</span>
-                                            <span class="stock-amount">{{ ((product.buyingPrice || 0) * (product.quantityAvailable || 0)) | currency:currency }}</span>
+                                            <span class="stock-amount">{{ getStockBuyingValue() | currency:currency }}</span>
                                         </div>
                         </div>
 
@@ -649,7 +649,7 @@
                                         </div>
                                         <div class="stock-details">
                                             <span class="stock-label">{{ 'total_retail_value' | translate }}</span>
-                                            <span class="stock-amount">{{ (product.sellingPrice * (product.quantityAvailable || 0)) | currency:currency }}</span>
+                                            <span class="stock-amount">{{ getStockSellingValue() | currency:currency }}</span>
                                         </div>
                                             </div>
                                     
@@ -659,7 +659,7 @@
                                         </div>
                                         <div class="stock-details">
                                             <span class="stock-label">{{ 'potential_profit' | translate }}</span>
-                                            <span class="stock-amount profit">{{ ((product.sellingPrice - (product.buyingPrice || 0)) * (product.quantityAvailable || 0)) | currency:currency }}</span>
+                                            <span class="stock-amount profit">{{ getStockProfitValue() | currency:currency }}</span>
                                         </div>
                                     </div>
                                     
@@ -761,11 +761,14 @@
                                 </ng-template>
                                 
                                 <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="5" class="text-center p-4">
-                                            {{ 'no_price_history' | translate }}
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td colspan="5" class="text-center p-4">
+                                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_price_history' | translate }}</p>
+                                      </div>
+                                    </td>
+                                  </tr>
                                 </ng-template>
                             </p-table>
                         </div>
@@ -796,7 +799,7 @@
                                     <div class="flex flex-column gap-1">
                                         <p class="m-0 text-500 text-sm" *ngIf="hasMultipleBatches()">
                                             {{ 'multiple_batches' | translate }} ({{ batches.length }} {{ 'batches' | translate }}, 
-                                            {{ getTotalBatchQuantity() }} {{ getMeasureUnit(product?.measureUnit, getTotalBatchQuantity()) | translate }})
+                                            {{ formatTotalBatchQuantity() }}<ng-container *ngIf="getBatchQuantityUnit(getTotalBatchQuantity())"> {{ getBatchQuantityUnit(getTotalBatchQuantity()) | translate }}</ng-container>)
                                         </p>
                                         <p class="m-0 text-500 text-sm" *ngIf="!hasMultipleBatches() && batches.length === 1">
                                             {{ batches.length }} {{ 'batch' | translate }}
@@ -854,7 +857,7 @@
                                             </td>
                                             <td>
                                                 <span class="font-semibold text-900">
-                                                    {{ batch.quantityAvailable || 0 }} {{ getMeasureUnit(product?.measureUnit, batch.quantityAvailable || 0) | translate }}
+                                                    {{ formatBatchQuantity(batch.quantityAvailable) }}<ng-container *ngIf="getBatchQuantityUnit(batch.quantityAvailable)"> {{ getBatchQuantityUnit(batch.quantityAvailable) | translate }}</ng-container>
                                                 </span>
                                             </td>
                                             <td>
@@ -941,11 +944,14 @@
                                     </ng-template>
 
                                     <ng-template pTemplate="emptymessage">
-                                        <tr>
-                                            <td [attr.colspan]="(isAdmin ? 8 : 7) + (isAggregatedView ? 1 : 0)" class="text-center p-4">
-                                                {{ 'no_batches' | translate }}
-                                            </td>
-                                        </tr>
+                                      <tr>
+                                        <td [attr.colspan]="(isAdmin ? 8 : 7) + (isAggregatedView ? 1 : 0)" class="text-center p-4">
+                                          <div class="flex flex-column align-items-center justify-content-center py-4">
+                                            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                            <p class="mt-2 text-gray-600 font-medium">{{ 'no_batches' | translate }}</p>
+                                          </div>
+                                        </td>
+                                      </tr>
                                     </ng-template>
                                 </p-table>
                             </div>
@@ -993,7 +999,7 @@
                                     <div class="flex flex-column gap-1">
                                         <p class="m-0 text-500 text-sm">
                                             {{ writeOffs.length }} {{ writeOffs.length === 1 ? ('write_off' | translate) : ('write_offs' | translate) }}
-                                            ({{ getTotalWriteOffQuantity() }} {{ getMeasureUnit(product?.measureUnit, getTotalWriteOffQuantity()) | translate }})
+                                            ({{ formatTotalWriteOffQuantity() }}<ng-container *ngIf="getTotalWriteOffQuantityUnit()"> {{ getTotalWriteOffQuantityUnit() | translate }}</ng-container>)
                                         </p>
                                     </div>
                                     <div class="flex flex-column align-items-end gap-1" *ngIf="getTotalWriteOffCost() > 0">
@@ -1055,7 +1061,7 @@
                                             </td>
                                             <td>
                                                 <span class="font-semibold text-900">
-                                                    {{ writeOff.quantity || 0 }} {{ getMeasureUnit(product?.measureUnit, writeOff.quantity || 0) | translate }}
+                                                    {{ formatWriteOffQuantity(writeOff) }}<ng-container *ngIf="getWriteOffQuantityUnit(writeOff)"> {{ getWriteOffQuantityUnit(writeOff) | translate }}</ng-container>
                                                 </span>
                                             </td>
                                             <td>
@@ -1091,11 +1097,14 @@
                                     </ng-template>
 
                                     <ng-template pTemplate="emptymessage">
-                                        <tr>
-                                            <td colspan="9" class="text-center p-4">
-                                                {{ 'no_write_offs' | translate }}
-                                            </td>
-                                        </tr>
+                                      <tr>
+                                        <td colspan="9" class="text-center p-4">
+                                          <div class="flex flex-column align-items-center justify-content-center py-4">
+                                            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                            <p class="mt-2 text-gray-600 font-medium">{{ 'no_write_offs' | translate }}</p>
+                                          </div>
+                                        </td>
+                                      </tr>
                                     </ng-template>
                                 </p-table>
                             </div>
@@ -1125,87 +1134,119 @@
 </div>
 
 <!-- Generate Barcode Dialog -->
-<p-dialog [(visible)]="generateBarcodeDialog" 
-    [style]="{width: '500px'}" 
+<p-dialog [(visible)]="generateBarcodeDialog"
+    [style]="{width: 'min(92vw, 540px)'}"
+    [breakpoints]="{'640px': '95vw'}"
     [header]="'generate_barcode' | translate"
-    [modal]="true" 
-    [draggable]="false" 
+    [modal]="true"
+    [draggable]="false"
     [resizable]="false"
-    styleClass="p-fluid product-dialog">
+    styleClass="ims-form-dialog-shell"
+    class="p-fluid">
     <ng-template pTemplate="content">
-        <div class="grid">
-            <div class="field col-12">
-                <label for="barcodeType" class="block mb-2 font-bold">
-                    {{ 'barcode_type' | translate }}
-                </label>
-                <p-dropdown [(ngModel)]="newBarcodeType" 
-                    [options]="barcodeTypes" 
-                    optionLabel="label" 
-                    optionValue="value"
-                    (onChange)="onBarcodeTypeChange()"
-                    appendTo="body">
-                    <ng-template pTemplate="selectedItem">
-                        <div class="flex align-items-center gap-2" *ngIf="newBarcodeType">
-                            <i [class]="newBarcodeType === 'QRCODE' ? 'pi pi-qrcode' : 'pi pi-bars'"></i>
-                            <span>{{ newBarcodeType === 'QRCODE' ? ('qr_code_2d' | translate) : ('barcode_1d' | translate) }}</span>
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+                <!-- Type & format -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                            <i class="pi pi-qrcode"></i>
                         </div>
-                    </ng-template>
-                </p-dropdown>
-            </div>
-
-            <div class="field col-12">
-                <label for="barcodeFormat" class="block mb-2 font-bold">
-                    {{ 'barcode_format' | translate }}
-                </label>
-                <p-dropdown [(ngModel)]="newBarcodeFormat" 
-                    [options]="currentFormats" 
-                    optionLabel="label" 
-                    optionValue="value"
-                    appendTo="body">
-                    <ng-template let-format pTemplate="item">
-                        <div class="flex flex-column">
-                            <span>{{ format.label }}</span>
-                            <small class="text-500" *ngIf="format.description">{{ format.description }}</small>
+                        <h3 class="ims-form-section__title">{{ 'barcode_type' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12 md:col-6">
+                            <label for="barcodeType" class="ims-form-label">
+                                {{ 'barcode_type' | translate }}
+                            </label>
+                            <p-dropdown [(ngModel)]="newBarcodeType"
+                                [options]="barcodeTypes"
+                                optionLabel="label"
+                                optionValue="value"
+                                (onChange)="onBarcodeTypeChange()"
+                                styleClass="w-full"
+                                appendTo="body">
+                                <ng-template pTemplate="selectedItem">
+                                    <div class="flex align-items-center gap-2" *ngIf="newBarcodeType">
+                                        <i [class]="newBarcodeType === 'QRCODE' ? 'pi pi-qrcode' : 'pi pi-bars'"></i>
+                                        <span>{{ newBarcodeType === 'QRCODE' ? ('qr_code_2d' | translate) : ('barcode_1d' | translate) }}</span>
+                                    </div>
+                                </ng-template>
+                            </p-dropdown>
                         </div>
-                    </ng-template>
-                </p-dropdown>
-            </div>
 
-            <div class="field col-12">
-                <label for="customValue" class="block mb-2 font-bold">
-                    {{ 'custom_barcode_value' | translate }}
-                    <span class="text-500 font-normal ml-1">({{ 'optional' | translate }})</span>
-                </label>
-                <input type="text" pInputText [(ngModel)]="newBarcodeCustomValue" 
-                    [placeholder]="'leave_empty_for_auto_generate' | translate" />
-                <small class="text-500 block mt-1">{{ 'custom_value_hint' | translate }}</small>
-            </div>
+                        <div class="field col-12 md:col-6">
+                            <label for="barcodeFormat" class="ims-form-label">
+                                {{ 'barcode_format' | translate }}
+                            </label>
+                            <p-dropdown [(ngModel)]="newBarcodeFormat"
+                                [options]="currentFormats"
+                                optionLabel="label"
+                                optionValue="value"
+                                styleClass="w-full"
+                                appendTo="body">
+                                <ng-template let-format pTemplate="item">
+                                    <div class="flex flex-column">
+                                        <span>{{ format.label }}</span>
+                                        <small class="text-500" *ngIf="format.description">{{ format.description }}</small>
+                                    </div>
+                                </ng-template>
+                            </p-dropdown>
+                        </div>
+                    </div>
+                </section>
 
-            <div class="field col-12">
-                <label for="label" class="block mb-2 font-bold">
-                    {{ 'barcode_label' | translate }}
-                    <span class="text-500 font-normal ml-1">({{ 'optional' | translate }})</span>
-                </label>
-                <input type="text" pInputText [(ngModel)]="newBarcodeLabel" 
-                    [placeholder]="'enter_barcode_label' | translate" />
-            </div>
+                <!-- Details -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                            <i class="pi pi-tag"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'details' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="customValue" class="ims-form-label">
+                                {{ 'custom_barcode_value' | translate }}
+                                <span class="text-500 font-normal ml-1">({{ 'optional' | translate }})</span>
+                            </label>
+                            <input type="text" pInputText [(ngModel)]="newBarcodeCustomValue"
+                                class="w-full"
+                                [placeholder]="'leave_empty_for_auto_generate' | translate" />
+                            <small class="ims-form-hint">{{ 'custom_value_hint' | translate }}</small>
+                        </div>
 
-            <div class="field col-12">
-                <div class="flex align-items-center gap-2">
-                    <p-checkbox [(ngModel)]="newBarcodeIsPrimary" 
-                        [binary]="true" 
-                        inputId="isPrimary"></p-checkbox>
-                    <label for="isPrimary">{{ 'set_as_primary_barcode' | translate }}</label>
-                </div>
+                        <div class="field col-12">
+                            <label for="label" class="ims-form-label">
+                                {{ 'barcode_label' | translate }}
+                                <span class="text-500 font-normal ml-1">({{ 'optional' | translate }})</span>
+                            </label>
+                            <input type="text" pInputText [(ngModel)]="newBarcodeLabel"
+                                class="w-full"
+                                [placeholder]="'enter_barcode_label' | translate" />
+                        </div>
+
+                        <div class="field col-12">
+                            <div class="ims-form-checkbox-row">
+                                <p-checkbox [(ngModel)]="newBarcodeIsPrimary"
+                                    [binary]="true"
+                                    inputId="isPrimary"></p-checkbox>
+                                <label for="isPrimary" class="ims-form-label ims-form-label--inline">{{ 'set_as_primary_barcode' | translate }}</label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     </ng-template>
-    
+
     <ng-template pTemplate="footer">
-        <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
-            class="p-button-text" (click)="generateBarcodeDialog = false"></button>
-        <button pButton pRipple [label]="'generate' | translate" icon="pi pi-check"
-            (click)="generateBarcode()" [loading]="isGenerating"></button>
+        <div class="flex justify-content-end gap-2">
+            <button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times"
+                class="p-button-text" (click)="generateBarcodeDialog = false"></button>
+            <button pButton pRipple [label]="'generate' | translate" icon="pi pi-check"
+                class="p-button-primary" (click)="generateBarcode()" [loading]="isGenerating"></button>
+        </div>
     </ng-template>
 </p-dialog>
 
@@ -1306,130 +1347,151 @@
 </app-product-form>
 
 <!-- Stock Adjustment Dialog -->
-<p-dialog [(visible)]="stockAdjustmentDialog" 
-    [modal]="true" 
-    [style]="{width: '500px'}"
+<p-dialog [(visible)]="stockAdjustmentDialog"
+    [modal]="true"
+    [style]="{width: 'min(92vw, 520px)'}"
+    [breakpoints]="{'640px': '95vw'}"
     [header]="'adjust_stock' | translate"
     [draggable]="false"
     [resizable]="false"
+    styleClass="ims-form-dialog-shell"
+    class="p-fluid"
     (onHide)="closeStockAdjustmentDialog()">
     <ng-template pTemplate="content">
-        <div class="stock-adjustment-form">
-            <!-- Current Stock Display -->
-            <div class="current-stock-display p-3 mb-4 surface-100 border-round">
-                <div class="flex align-items-center justify-content-between">
-                    <span class="text-600 font-medium">{{ 'current_stock' | translate }}:</span>
-                    <span class="text-900 font-bold text-xl" *ngIf="stockAdjustmentContext() as sa">
-                        {{ sa.quantityAvailable || 0 }}
-                        <span class="text-600 text-sm ml-2">{{ getMeasureUnit(sa.measureUnit || 'UNIT', sa.quantityAvailable || 0) | translate }}</span>
-                    </span>
-                </div>
-            </div>
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+                <!-- Quantity adjustment -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                            <i class="pi pi-sliders-h"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'quantity_change' | translate }}</h3>
+                    </header>
+                    <div class="ims-form-section__body ims-form-section__body--stack">
+                        <!-- Current Stock Display -->
+                        <div class="current-stock-display p-3 surface-100 border-round">
+                            <div class="flex align-items-center justify-content-between">
+                                <span class="text-600 font-medium">{{ 'current_stock' | translate }}:</span>
+                                <span class="text-900 font-bold text-xl" *ngIf="stockAdjustmentContext()">
+                                    {{ getAdjustCurrentFormatted() }}
+                                    <span class="text-600 text-sm ml-2" *ngIf="getAdjustUnit()">{{ getAdjustUnit() | translate }}</span>
+                                </span>
+                            </div>
+                        </div>
 
-            <!-- Quick Adjustment Buttons -->
-            <div class="quick-adjustment-buttons mb-4">
-                <label class="block mb-2 font-medium">{{ 'quick_adjustments' | translate }}</label>
-                <div class="flex flex-wrap gap-2">
-                    <button pButton pRipple 
-                        type="button"
-                        icon="pi pi-plus" 
-                        [label]="'+1'"
-                        class="p-button-sm p-button-outlined"
-                        (click)="quickAdjustStock(1)"></button>
-                    <button pButton pRipple 
-                        type="button"
-                        icon="pi pi-minus" 
-                        [label]="'-1'"
-                        class="p-button-sm p-button-outlined"
-                        (click)="quickAdjustStock(-1)"></button>
-                    <button pButton pRipple 
-                        type="button"
-                        icon="pi pi-plus" 
-                        [label]="'+10'"
-                        class="p-button-sm p-button-outlined"
-                        (click)="quickAdjustStock(10)"></button>
-                    <button pButton pRipple 
-                        type="button"
-                        icon="pi pi-minus" 
-                        [label]="'-10'"
-                        class="p-button-sm p-button-outlined"
-                        (click)="quickAdjustStock(-10)"></button>
-                </div>
-            </div>
+                        <!-- Quick Adjustment Buttons -->
+                        <div class="quick-adjustment-buttons">
+                            <label class="ims-form-label">{{ 'quick_adjustments' | translate }}</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button pButton pRipple
+                                    type="button"
+                                    icon="pi pi-plus"
+                                    [label]="'+1'"
+                                    class="p-button-sm p-button-outlined"
+                                    (click)="quickAdjustStock(1)"></button>
+                                <button pButton pRipple
+                                    type="button"
+                                    icon="pi pi-minus"
+                                    [label]="'-1'"
+                                    class="p-button-sm p-button-outlined"
+                                    (click)="quickAdjustStock(-1)"></button>
+                                <button pButton pRipple
+                                    type="button"
+                                    icon="pi pi-plus"
+                                    [label]="'+10'"
+                                    class="p-button-sm p-button-outlined"
+                                    (click)="quickAdjustStock(10)"></button>
+                                <button pButton pRipple
+                                    type="button"
+                                    icon="pi pi-minus"
+                                    [label]="'-10'"
+                                    class="p-button-sm p-button-outlined"
+                                    (click)="quickAdjustStock(-10)"></button>
+                            </div>
+                        </div>
 
-            <!-- Quantity Change Input -->
-            <div class="field mb-4">
-                <label for="quantityChange" class="block mb-2 font-bold">
-                    {{ 'quantity_change' | translate }}
-                    <span class="text-500 text-sm ml-2">({{ 'positive_increase_negative_decrease' | translate }})</span>
-                </label>
-                <p-inputNumber 
-                    id="quantityChange"
-                    [(ngModel)]="quantityChange" 
-                    [showButtons]="true"
-                    [min]="stockAdjustmentContext() ? -((stockAdjustmentContext()?.quantityAvailable) || 0) : undefined"
-                    [max]="999999"
-                    [placeholder]="'enter_quantity_change' | translate"
-                    styleClass="w-full">
-                </p-inputNumber>
-                <small class="text-500">{{ 'quantity_change_hint' | translate }}</small>
-            </div>
+                        <!-- Quantity Change Input -->
+                        <div class="field">
+                            <label for="quantityChange" class="ims-form-label">
+                                {{ 'quantity_change' | translate }}
+                                <span class="text-500 text-sm ml-2">({{ 'positive_increase_negative_decrease' | translate }})</span>
+                            </label>
+                            <p-inputNumber
+                                id="quantityChange"
+                                [(ngModel)]="quantityChange"
+                                [showButtons]="true"
+                                [min]="getAdjustMin()"
+                                [max]="999999"
+                                [step]="getAdjustStep()"
+                                [maxFractionDigits]="getAdjustDecimals()"
+                                [placeholder]="'enter_quantity_change' | translate"
+                                styleClass="w-full">
+                            </p-inputNumber>
+                            <small class="ims-form-hint">{{ 'quantity_change_hint' | translate }}</small>
+                        </div>
 
-            <!-- New Quantity Preview -->
-            <div class="new-quantity-preview p-3 mb-4 surface-50 border-round" *ngIf="quantityChange !== 0">
-                <div class="flex align-items-center justify-content-between">
-                    <span class="text-600 font-medium">{{ 'new_quantity_will_be' | translate }}:</span>
-                    <span class="text-900 font-bold text-xl" 
-                        [ngClass]="{'text-danger': getNewQuantity() < 0, 'text-success': getNewQuantity() >= 0}">
-                        {{ getNewQuantity() }}
-                        <span class="text-600 text-sm ml-2" *ngIf="stockAdjustmentContext() as sa2">
-                            {{ getMeasureUnit(sa2.measureUnit || 'UNIT', getNewQuantity()) | translate }}
-                        </span>
-                    </span>
-                </div>
-            </div>
+                        <!-- New Quantity Preview -->
+                        <div class="new-quantity-preview p-3 surface-50 border-round" *ngIf="quantityChange !== 0">
+                            <div class="flex align-items-center justify-content-between">
+                                <span class="text-600 font-medium">{{ 'new_quantity_will_be' | translate }}:</span>
+                                <span class="text-900 font-bold text-xl"
+                                    [ngClass]="{'text-danger': getNewQuantity() < 0, 'text-success': getNewQuantity() >= 0}">
+                                    {{ getNewQuantity() | number:'1.0-' + getAdjustDecimals() }}
+                                    <span class="text-600 text-sm ml-2" *ngIf="getAdjustUnit()">{{ getAdjustUnit() | translate }}</span>
+                                </span>
+                            </div>
+                        </div>
 
-            <!-- Reason Input -->
-            <div class="field mb-4">
-                <label for="adjustmentReason" class="block mb-2 font-bold">
-                    {{ 'reason_optional' | translate }}
-                </label>
-                <textarea 
-                    id="adjustmentReason"
-                    pInputTextarea 
-                    [(ngModel)]="adjustmentReason" 
-                    [rows]="3"
-                    [autoResize]="true"
-                    [placeholder]="'enter_adjustment_reason' | translate"
-                    class="w-full">
-                </textarea>
-                <small class="text-500">{{ 'reason_hint' | translate }}</small>
-            </div>
+                        <!-- Error Message -->
+                        <div class="ims-form-callout"
+                            *ngIf="quantityChange !== 0 && getNewQuantity() < 0"
+                            style="border-color: var(--red-200); background: var(--red-50);">
+                            <i class="pi pi-exclamation-triangle" style="color: var(--red-500);"></i>
+                            <span class="text-red-600">{{ 'cannot_decrease_stock_below_zero' | translate }}</span>
+                        </div>
+                    </div>
+                </section>
 
-            <!-- Error Message -->
-            <div class="error-message p-3 mb-3 border-round" 
-                *ngIf="quantityChange !== 0 && getNewQuantity() < 0"
-                style="background: var(--red-50); border: 1px solid var(--red-200);">
-                <div class="flex align-items-center gap-2 text-red-600">
-                    <i class="pi pi-exclamation-triangle"></i>
-                    <span>{{ 'cannot_decrease_stock_below_zero' | translate }}</span>
-                </div>
+                <!-- Reason -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                            <i class="pi pi-comment"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'reason_optional' | translate }}</h3>
+                    </header>
+                    <div class="ims-form-section__body">
+                        <div class="field">
+                            <textarea
+                                id="adjustmentReason"
+                                pInputTextarea
+                                [(ngModel)]="adjustmentReason"
+                                [rows]="3"
+                                [autoResize]="true"
+                                [placeholder]="'enter_adjustment_reason' | translate"
+                                class="w-full">
+                            </textarea>
+                            <small class="ims-form-hint">{{ 'reason_hint' | translate }}</small>
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     </ng-template>
     <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2">
-            <button pButton 
-                pRipple 
-                [label]="'cancel' | translate" 
+            <button pButton
+                pRipple
+                [label]="'cancel' | translate"
                 icon="pi pi-times"
                 class="p-button-text"
                 (click)="closeStockAdjustmentDialog()"
                 [disabled]="isAdjustingStock">
             </button>
-            <button pButton 
-                pRipple 
-                [label]="'adjust_stock' | translate" 
+            <button pButton
+                pRipple
+                [label]="'adjust_stock' | translate"
                 icon="pi pi-check"
                 class="p-button-primary"
                 (click)="adjustStock()"
@@ -1443,7 +1505,9 @@
 <app-product-delete-dialog
     [(visible)]="deleteProductDialog"
     [productId]="productId"
-    (confirmed)="onProductDeleteConfirmed($event)">
+    [canForceDelete]="isAdmin"
+    (confirmed)="onProductDeleteConfirmed($event)"
+    (forceConfirmed)="onProductForceDeleteConfirmed($event)">
 </app-product-delete-dialog>
 
 <app-product-archive-dialog

@@ -59,7 +59,7 @@
 			<div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
 			<p-table #dt [value]="warehouses" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
-				[globalFilterFields]="['name','description','address','country','city','warehouseType']"
+				[globalFilterFields]="['name','address','country','city','warehouseType']"
 				[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
 				(onPage)="onTablePage($event)"
 				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
@@ -72,8 +72,7 @@
 						</th>
 						<th pSortableColumn="name">{{ 'warehouse_name' | translate }}<p-sortIcon
 								field="name"></p-sortIcon></th>
-						<th pSortableColumn="description">{{ 'warehouse_description' | translate }}<p-sortIcon
-								field="description"></p-sortIcon></th>
+
 						<th pSortableColumn="address">{{ 'warehouse_address' | translate }}<p-sortIcon
 								field="address"></p-sortIcon></th>
 						<th pSortableColumn="location">{{ 'warehouse_location' | translate }}<p-sortIcon
@@ -98,10 +97,7 @@
 							<span class="p-column-title">{{ 'warehouse_name' | translate }}</span>
 							{{warehouse.name ? warehouse.name : 'N/A'}}
 						</td>
-						<td>
-							<span class="p-column-title">{{ 'warehouse_description' | translate }}</span>
-							{{warehouse.description ? warehouse.description : 'N/A'}}
-						</td>
+
 						<td>
 							<span class="p-column-title">{{ 'warehouse_address' | translate }}</span>
 							{{warehouse.address ? warehouse.address : 'N/A'}}
@@ -165,30 +161,29 @@
 		</app-warehouse-form-dialog>
 
 
-		<p-dialog [(visible)]="deleteWarehouseDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
-			[style]="{width:'450px'}">
-			<div class="flex align-items-center justify-content-center">
-				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-				<span *ngIf="warehouse">{{'delete_confirmation_msg_with_param' | translate}}
-					<b>{{warehouse.name}}</b>?</span>
-			</div>
-			<ng-template pTemplate="footer">
-				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
-					(click)="deleteWarehouseDialog = false"></button>
-				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{ 'yes_button' | translate }}"
-					(click)="confirmDelete()"></button>
-			</ng-template>
-		</p-dialog>
+		<app-warehouse-delete-dialog
+			[(visible)]="deleteWarehouseDialog"
+			[warehouseId]="warehouse?.warehouseId"
+			[canForceDelete]="isAdmin"
+			(confirmed)="confirmDelete($event)"
+			(forceConfirmed)="confirmDelete($event, true)">
+		</app-warehouse-delete-dialog>
 
 		<p-dialog [(visible)]="deleteWarehousesDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
-			[style]="{width:'450px'}">
+			[style]="{width:'460px'}">
 			<div class="flex align-items-center justify-content-center">
 				<i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
 				<span>{{'delete_selected_confirmation_msg' | translate}}</span>
 			</div>
+			<p *ngIf="isAdmin" class="mt-3 mb-0 text-sm" style="color: var(--brand-danger);">
+				{{ 'force_delete_warehouses_warning' | translate }}
+			</p>
 			<ng-template pTemplate="footer">
 				<button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
 					(click)="deleteWarehousesDialog = false"></button>
+				<button *ngIf="isAdmin" pButton pRipple icon="pi pi-exclamation-triangle"
+					class="p-button-danger p-button-outlined" label="{{ 'force_delete_warehouse' | translate }}"
+					(click)="confirmDeleteSelected(true)"></button>
 				<button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{ 'yes_button' | translate }}"
 					(click)="confirmDeleteSelected()"></button>
 			</ng-template>

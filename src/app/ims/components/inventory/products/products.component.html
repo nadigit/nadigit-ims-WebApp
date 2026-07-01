@@ -25,7 +25,7 @@
 		
 		<!-- List of Products (table and grid view) -->
 		<app-products-table [products]="products" [cols]="cols" (lazyLoadEvent)="onLazyLoad($event)"
-				[isLoading]="isLoading"
+				[isLoading]="isLoading" [productStats]="productStats"
 				[pageSize]="pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
 				[totalRecords]="totalRecords"
 				[currency]="currency" [canArchiveProduct]="canArchiveProduct"
@@ -196,9 +196,7 @@
 									</div>
 								</td>
 								<td>
-									<span [class]="'product-badge status-' + product.inventoryStatus.toLowerCase()">
-										{{ 'product_' + product.inventoryStatus.toLowerCase() | translate }}
-									</span>
+									<app-inventory-status [status]="product.inventoryStatus"></app-inventory-status>
 								</td>
 								<td *ngIf="isAdmin">{{ product.buyingPrice }} {{ currency }}</td>
 								<td>{{ product.sellingPrice }} {{ currency }}</td>
@@ -267,7 +265,9 @@
 		<app-product-delete-dialog
 			[(visible)]="deleteProductDialog"
 			[productId]="product?.productId"
-			(confirmed)="onProductDeleteConfirmed($event)">
+			[canForceDelete]="isAdmin"
+			(confirmed)="onProductDeleteConfirmed($event)"
+			(forceConfirmed)="onProductForceDeleteConfirmed($event)">
 		</app-product-delete-dialog>
 
 		<app-product-archive-dialog

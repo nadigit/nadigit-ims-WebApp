@@ -303,16 +303,26 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="financial-item" *ngIf="purchase.shippingCost">
+                                    <div class="financial-item" *ngIf="purchase.transportAmount">
                                         <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
                                             <i class="pi pi-truck"></i>
                                         </div>
                                         <div class="financial-content">
-                                            <span class="financial-label">{{ 'shipping_cost' | translate }}</span>
-                                            <span class="financial-value">+{{ purchase.shippingCost | currency:currency:'symbol':'1.2-2' }}</span>
+                                            <span class="financial-label">{{ 'transport_amount' | translate }}</span>
+                                            <span class="financial-value">+{{ purchase.transportAmount | currency:currency:'symbol':'1.2-2' }}</span>
                                         </div>
                                     </div>
-                                    
+
+                                    <div class="financial-item" *ngIf="purchase.additionalChargesAmount">
+                                        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
+                                            <i class="pi pi-plus-circle"></i>
+                                        </div>
+                                        <div class="financial-content">
+                                            <span class="financial-label">{{ 'additional_charges_amount' | translate }}</span>
+                                            <span class="financial-value">+{{ purchase.additionalChargesAmount | currency:currency:'symbol':'1.2-2' }}</span>
+                                        </div>
+                                    </div>
+
                                     <div class="financial-item" *ngIf="purchase.discount">
                                         <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
                                             <i class="pi pi-tag"></i>
@@ -342,9 +352,12 @@
                             <div class="card-body">
                                 <p *ngIf="purchaseDocumentChainMode" class="text-600 text-sm mt-0 mb-3">{{ 'doc_chain_purchase_status_guide_blurb' | translate }}</p>
                                 <div class="actions-grid">
-                                    <button pButton pRipple icon="pi pi-print" 
+                                    <button pButton pRipple icon="pi pi-print"
                                         [label]="'view_purchase_order' | translate"
                                         class="p-button-outlined p-button-help"
+                                        [disabled]="!hasPurchaseOrderDocument"
+                                        [pTooltip]="!hasPurchaseOrderDocument ? ('expense_attachments_empty' | translate) : null"
+                                        tooltipPosition="top"
                                         (click)="viewPurchaseOrderDocument(purchase)"></button>
                                     
                                     <button pButton pRipple icon="pi pi-undo" 

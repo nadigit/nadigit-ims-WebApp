@@ -48,7 +48,7 @@
         </button>
 
         <button
-            *ngIf="isAdminUser"
+            *ngIf="canUseCopilot"
             #copilotTopbarBtn
             type="button"
             class="p-link layout-topbar-button copilot-topbar-button"
@@ -67,7 +67,7 @@
             <span>{{ 'ai_copilot_title' | translate }}</span>
         </button>
 
-        <button #btn class="p-link layout-topbar-button" (click)="menu.toggle($event)">
+        <button #btn class="p-link layout-topbar-button" data-tour="settings-menu" (click)="menu.toggle($event)">
             <i class="pi pi-cog"></i>
             <span>Settings</span>
         </button>

@@ -189,12 +189,24 @@ export class CashRegisterService {
     );
   }
 
-  async addCollection(shopId: number, amount: number, notes?: string): Promise<Observable<CashCollection>> {
+  async addCollection(
+    shopId: number,
+    amount: number,
+    notes?: string,
+    destination?: 'BANK' | 'OWNER' | 'SUPPLIER' | 'OTHER',
+    bankAccountId?: number | null,
+  ): Promise<Observable<CashCollection>> {
     const headers = withAudit(await this.getAuthHeaders(), 'Added cash collection');
 
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('amount', amount.toString())
       .set('notes', notes || '');
+    if (destination) {
+      params = params.set('destination', destination);
+    }
+    if (bankAccountId != null) {
+      params = params.set('bankAccountId', bankAccountId.toString());
+    }
 
     return this.http.post<CashCollection>(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}shops/${shopId}/collection`,
@@ -214,6 +226,21 @@ export class CashRegisterService {
     const headers = withAudit(await this.getAuthHeaders(), 'Withdrew money from register');
     return this.http.post(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${registerId}/withdraw`, data, { headers}
+    );
+  }
+
+  /** Move cash between a shop's register and a bank account (PRO feature). */
+  async transferCashBank(shopId: number, payload: {
+    direction: 'REGISTER_TO_BANK' | 'BANK_TO_REGISTER';
+    bankAccountId: number;
+    amount: number;
+    notes?: string;
+  }) {
+    const headers = withAudit(await this.getAuthHeaders(), 'Cash/bank transfer');
+    return this.http.post(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}/api/treasury/shops/${shopId}/cash-bank-transfers`,
+      payload,
+      { headers }
     );
   }
 

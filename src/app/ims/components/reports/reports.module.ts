@@ -16,6 +16,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
+import { TabViewModule } from 'primeng/tabview';
 import { CreditReportsModule } from '../finance/credit-management/credit-reports/credit-reports.module';
 import { ReportsRoutingModule } from './reports-routing.module';
 import { ReportsShellComponent } from './reports-shell/reports-shell.component';
@@ -26,6 +27,7 @@ import { InventorySnapshotReportComponent } from './inventory-snapshot-report/in
 import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-analysis-report.component';
 import { ForecastingReportComponent } from './forecasting-report/forecasting-report.component';
 import { TopSellingProductsReportComponent } from './top-selling-products-report/top-selling-products-report.component';
+import { InventoryStatusComponent } from 'src/app/shared/components/inventory-status/inventory-status.component';
 
 @NgModule({
   declarations: [
@@ -56,6 +58,8 @@ import { TopSellingProductsReportComponent } from './top-selling-products-report
     TableModule,
     TagModule,
     TooltipModule,
+    TabViewModule,
+    InventoryStatusComponent,
     CreditReportsModule,
     ReportsRoutingModule
   ]

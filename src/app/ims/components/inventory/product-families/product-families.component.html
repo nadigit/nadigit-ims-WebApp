@@ -101,8 +101,7 @@
             </td>
             <td>
               <span class="p-column-title">{{ 'status' | translate }}</span>
-              <p-tag [value]="statusLabel(row.overallInventoryStatus)"
-                [severity]="getQuantitySeverity(row.overallInventoryStatus)"></p-tag>
+              <app-inventory-status [status]="row.overallInventoryStatus"></app-inventory-status>
             </td>
             <td class="text-center">
               <span class="p-column-title">{{ 'variants' | translate }}</span>
@@ -161,9 +160,7 @@
                       </td>
                       <td>
                         <span class="p-column-title">{{ 'status' | translate }}</span>
-                        <p-tag *ngIf="v.inventoryStatus" [value]="statusLabel(v.inventoryStatus)"
-                          [severity]="getQuantitySeverity(v.inventoryStatus)"></p-tag>
-                        <span *ngIf="!v.inventoryStatus">N/A</span>
+                        <app-inventory-status [status]="v.inventoryStatus"></app-inventory-status>
                       </td>
                       <td>
                         <button pButton pRipple icon="pi pi-external-link"
@@ -176,10 +173,9 @@
                   <ng-template pTemplate="emptymessage">
                     <tr>
                       <td colspan="7">
-                        <div class="text-center text-600 py-3">
-                          {{ 'product_family_no_variants' | translate }}
-                          <button *ngIf="canAdd" pButton pRipple [label]="'product_family_generate_button' | translate"
-                            class="p-button-link p-0 ml-2" (click)="openGenerateVariants(row)"></button>
+                        <div class="flex flex-column align-items-center justify-content-center py-4">
+                          <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                          <p class="mt-2 text-gray-600 font-medium">{{ 'product_family_no_variants' | translate }}</p>
                         </div>
                       </td>
                     </tr>

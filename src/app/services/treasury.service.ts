@@ -261,6 +261,10 @@ export class TreasuryService {
         if (!timestamp || timestamp < periodStart) {
           return;
         }
+        // Skip COLLECTION movements — the matching collection record is added below (avoids duplicate rows).
+        if (movement.type === 'COLLECTION') {
+          return;
+        }
         activityItems.push({
           kind: 'MOVEMENT',
           shopId,

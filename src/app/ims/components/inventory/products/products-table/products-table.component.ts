@@ -72,6 +72,7 @@ export class ProductsTableComponent {
   @Input() viewMode: 'standard' | 'aggregated' = 'standard';
   @Input() tableViewMode: 'list' | 'grid' = 'list';
   @Input() isExporting: boolean = false;
+  @Input() productStats: { totalProducts: number; inStockCount: number; lowStockCount: number; outOfStockCount: number; stockValueAtCost: number; stockValueAtRetail: number; expiringSoonCount: number; inactiveCount: number; averageMarginPercent: number; } | null = null;
 
   @Output() onTableViewModeChange = new EventEmitter<{ value: 'list' | 'grid' }>();
   @Output() editProductEvent = new EventEmitter<Product>();

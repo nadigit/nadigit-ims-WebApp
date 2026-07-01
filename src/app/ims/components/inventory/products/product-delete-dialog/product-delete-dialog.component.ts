@@ -13,8 +13,12 @@ import { ProductService } from 'src/app/services/product.service';
 export class ProductDeleteDialogComponent implements OnChanges {
   @Input() visible = false;
   @Input() productId: number | null | undefined = null;
+  /** When true, administrators get a force-delete button even if the product is referenced. */
+  @Input() canForceDelete = false;
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() confirmed = new EventEmitter<number>();
+  /** Emitted when an administrator confirms deletion despite blocking references. */
+  @Output() forceConfirmed = new EventEmitter<number>();
 
   loading = false;
   impact: ProductDeleteImpact | null = null;
@@ -80,5 +84,20 @@ export class ProductDeleteDialogComponent implements OnChanges {
     const id = this.productId;
     this.onVisibleChange(false);
     this.confirmed.emit(id);
+  }
+
+  /** Whether the force-delete action should be offered (admin + blocked product). */
+  get showForceDelete(): boolean {
+    return this.canForceDelete && !!this.impact && !this.impact.canDelete;
+  }
+
+  onForceConfirm(): void {
+    if (this.loading || !this.showForceDelete || !this.productId) {
+      return;
+    }
+
+    const id = this.productId;
+    this.onVisibleChange(false);
+    this.forceConfirmed.emit(id);
   }
 }

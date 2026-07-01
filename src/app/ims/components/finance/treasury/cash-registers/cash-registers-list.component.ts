@@ -15,6 +15,8 @@ import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
 import { firstValueFrom } from 'rxjs';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
+import { DatePipe, CurrencyPipe } from '@angular/common';
 
 export interface CashRegisterListRow {
   shop: Shop;
@@ -28,7 +30,7 @@ export interface CashRegisterListRow {
 @Component({
   templateUrl: './cash-registers-list.component.html',
   styleUrls: ['./cash-registers-list.component.css', '../../finance.component.css'],
-  providers: [MessageService]
+  providers: [MessageService, ReportingService, DatePipe, CurrencyPipe]
 })
 export class CashRegistersListComponent implements OnInit {
   TablePageSizeKeys = TablePageSizeKeys;
@@ -45,6 +47,7 @@ export class CashRegistersListComponent implements OnInit {
   pageSize = 20;
 
   canReadCash = false;
+  isExporting = false;
 
   totalCashBalance = 0;
   openRegistersCount = 0;
@@ -60,7 +63,10 @@ export class CashRegistersListComponent implements OnInit {
     private keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private router: Router,
-    public pageSizeService: TablePageSizeService
+    public pageSizeService: TablePageSizeService,
+    private reportingService: ReportingService,
+    private datePipe: DatePipe,
+    private currencyPipe: CurrencyPipe
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -161,6 +167,62 @@ export class CashRegistersListComponent implements OnInit {
 
   onStatusFilterChange(): void {
     // table uses getter filteredRows
+  }
+
+  resetFilters(): void {
+    this.globalFilter = '';
+    this.statusFilter = 'all';
+    this.dt?.filterGlobal('', 'contains');
+    this.dt?.clear();
+  }
+
+  /** Flat rows for export, honouring the current search + status filter. */
+  private buildExportRows(): any[] {
+    const term = (this.globalFilter || '').toLowerCase().trim();
+    const rows = term
+      ? this.filteredRows.filter(r =>
+          [r.shop?.shopName, r.shop?.city, r.shop?.country, r.openedBy]
+            .some(v => String(v ?? '').toLowerCase().includes(term)))
+      : this.filteredRows;
+
+    return rows.map(r => ({
+      [this.translate.instant('shop_name')]: r.shop?.shopName ?? '—',
+      [this.translate.instant('shop_city')]: r.shop?.city ?? '—',
+      [this.translate.instant('cash_register_balance')]:
+        this.currencyPipe.transform(r.balance, this.currency, 'symbol', '1.2-2') ?? r.balance,
+      [this.translate.instant('status')]: this.translate.instant(r.isOpen ? 'opened' : 'closed'),
+      [this.translate.instant('opened_at')]:
+        r.openedAt ? (this.datePipe.transform(r.openedAt, 'dd/MM/yyyy HH:mm') ?? '—') : '—',
+      [this.translate.instant('cashier')]: r.openedBy ?? '—',
+    }));
+  }
+
+  exportPdf(): void {
+    if (this.isExporting) return;
+    this.isExporting = true;
+    try {
+      const exportColumns: ExportColumn[] = [
+        'shop_name', 'shop_city', 'cash_register_balance', 'status', 'opened_at', 'cashier'
+      ].map(key => ({ title: this.translate.instant(key), dataKey: this.translate.instant(key) }));
+      this.reportingService.exportPdf(
+        exportColumns,
+        this.buildExportRows(),
+        'cash_registers',
+        this.translate.instant('cash_registers_management')
+      );
+    } finally {
+      this.isExporting = false;
+    }
+  }
+
+  exportExcel(): void {
+    if (this.isExporting) return;
+    this.isExporting = true;
+    try {
+      this.reportingService.exportExcel(this.buildExportRows(), 'cash_registers');
+    } finally {
+      this.isExporting = false;
+    }
   }
 
   openRegister(row: CashRegisterListRow): void {

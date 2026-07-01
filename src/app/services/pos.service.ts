@@ -118,11 +118,14 @@ export class PosService {
     return this.http.get<POSProductDTO>(`${this.getBaseUrl()}products/reference/${encodeURIComponent(reference)}`, { headers, params });
   }
 
-  async getQuickProducts(shopId?: number): Promise<Observable<POSProductDTO[]>> {
+  async getQuickProducts(shopId?: number, warehouseId?: number): Promise<Observable<POSProductDTO[]>> {
     const headers = await this.getHeaders();
     let params = new HttpParams();
     if (shopId !== undefined && shopId !== null) {
       params = params.set('shopId', shopId.toString());
+    }
+    if (warehouseId !== undefined && warehouseId !== null) {
+      params = params.set('warehouseId', warehouseId.toString());
     }
     return this.http.get<POSProductDTO[]>(`${this.getBaseUrl()}products/quick`, { headers, params });
   }

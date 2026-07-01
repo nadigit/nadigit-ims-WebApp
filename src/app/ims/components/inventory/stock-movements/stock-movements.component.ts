@@ -22,6 +22,11 @@ import {
   persistTablePageSizeFromLazyEvent,
   TablePageSizeKeys,
 } from 'src/app/utils/table-page-size.storage';
+import {
+  displayWarehouseStockQuantity,
+  formatLineQuantity,
+  getLineMeasureUnit,
+} from 'src/app/shared/product-utils';
 
 @Component({
   templateUrl: './stock-movements.component.html',
@@ -53,7 +58,7 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
   private searchTimeout: any;
   
   // Dropdowns
-  products: any[] = [];
+  productSuggestions: any[] = [];
   warehouses: any[] = [];
   movementTypeOptions: any[] = [];
   
@@ -129,7 +134,6 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
 
   async loadInitialData() {
     await this.loadWarehouses();
-    await this.loadProducts();
     this.lastLazyLoadEvent = {
       first: 0,
       rows: this.pageSize,
@@ -141,9 +145,10 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
 
   async loadWarehouses() {
     try {
+      await this.warehouseService.loadToken();
       this.warehouseService.getWarehouses().subscribe({
         next: (response: any) => {
-          const warehousesList = Array.isArray(response) ? response : (response || []);
+          const warehousesList: any[] = Array.isArray(response) ? response : (response?.content ?? response?.page?.content ?? []);
           this.warehouses = warehousesList.map((w: Warehouse) => ({
             label: w.name || '',
             value: w.warehouseId,
@@ -159,76 +164,23 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
     }
   }
 
-  async loadProducts() {
+  async searchProducts(event: { query: string }) {
     try {
-      // Load token first - productService.loadToken() is not async, so we need to get token directly
       const token = await this.keycloakService.getToken();
       this.productService.jwt = token;
-      
-      // Use getProductsPaginated with all required parameters
-      this.productService.getProductsPaginated(0, 1000, '', 'creationDate', 'DESC').subscribe({
+      this.productService.searchProductsForFilter(event.query).subscribe({
         next: (response: any) => {
-          console.log('Products response:', response);
-          // Handle different response structures: response.page.content, response.content, or direct array
-          let productsList: any[] = [];
-          if (Array.isArray(response)) {
-            productsList = response;
-          } else if (response?.page?.content) {
-            productsList = response.page.content;
-          } else if (response?.content) {
-            productsList = response.content;
-          }
-          
-          if (productsList && productsList.length > 0) {
-            this.products = productsList.map((p: Product) => ({
-              label: `${p.reference || ''} - ${p.name || ''}`,
-              value: p.productId,
-              product: p
-            }));
-            console.log('Products loaded successfully:', this.products.length);
-          } else {
-            console.warn('No products found in response');
-            this.products = [];
-          }
+          const list: any[] = Array.isArray(response) ? response : (response?.page?.content ?? response?.content ?? []);
+          this.productSuggestions = list.map((p: Product) => ({
+            label: `${p.reference || ''} - ${p.name || ''}`,
+            value: p.productId,
+            product: p
+          }));
         },
-        error: (err: any) => {
-          console.error('Error loading products with getProductsPaginated:', err);
-          // Fallback to getProducts
-          this.productService.getProducts().subscribe({
-            next: (response: any) => {
-              console.log('Products response (fallback):', response);
-              // Handle different response structures
-              let productsList: any[] = [];
-              if (Array.isArray(response)) {
-                productsList = response;
-              } else if (response?.page?.content) {
-                productsList = response.page.content;
-              } else if (response?.content) {
-                productsList = response.content;
-              }
-              
-              if (productsList && productsList.length > 0) {
-                this.products = productsList.map((p: Product) => ({
-                  label: `${p.reference || ''} - ${p.name || ''}`,
-                  value: p.productId,
-                  product: p
-                }));
-                console.log('Products loaded via getProducts:', this.products.length);
-              } else {
-                console.warn('No products found in fallback response');
-                this.products = [];
-              }
-            },
-            error: (fallbackErr: any) => {
-              console.error('Error loading products (fallback):', fallbackErr);
-              this.products = [];
-            }
-          });
-        }
+        error: () => { this.productSuggestions = []; }
       });
-    } catch (error) {
-      console.error('Error in loadProducts:', error);
-      this.products = [];
+    } catch {
+      this.productSuggestions = [];
     }
   }
 
@@ -341,14 +293,12 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
     setTimeout(async () => {
       this.isLoading = true;
       
-      // Backend now supports movementType and search parameters
-      // Sorting is hardcoded to DESC by movementDate on the backend
       (await this.movementService.getStockMovements(
         page,
         rows!,
         productId,
         warehouseId,
-        // movementType,
+        undefined,
         startStr,
         endStr,
         searchTerm
@@ -360,7 +310,10 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
             product: dto.productId ? {
               productId: dto.productId,
               reference: dto.productReference,
-              name: dto.productName
+              name: dto.productName,
+              stockTrackingMode: dto.stockTrackingMode,
+              measureUnit: dto.measureUnit,
+              quantityPrecision: dto.quantityPrecision
             } : undefined,
             warehouse: dto.warehouseId ? {
               warehouseId: dto.warehouseId,
@@ -499,18 +452,40 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
     return 'pi pi-circle';
   }
 
+  /** Storage quantity → display quantity using the movement product's tracking mode (e.g. 500 → 0.5 kg). */
+  private toMovementDisplayQuantity(movement: StockMovement, storageQuantity: number | null | undefined): number {
+    return displayWarehouseStockQuantity(movement?.product as Product, storageQuantity ?? 0);
+  }
+
   getQuantityDisplay(movement: StockMovement): string {
-    const quantity = movement.quantity || 0;
+    const rawQuantity = movement.quantity || 0;
+    // quantityChange is a magnitude for in/out moves; sign is derived from the movement type.
+    const displayMagnitude = this.toMovementDisplayQuantity(movement, Math.abs(rawQuantity));
+    const formatted = formatLineQuantity(movement?.product as Product, displayMagnitude);
     const type = movement.movementType?.toUpperCase();
     // Backend enum: INBOUND, OUTBOUND, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT
     if (type === 'INBOUND' || type === 'TRANSFER_IN') {
-      return `+${quantity}`;
+      return `+${formatted}`;
     }
     if (type === 'OUTBOUND' || type === 'TRANSFER_OUT') {
-      return `-${quantity}`;
+      return `-${formatted}`;
     }
-    // For ADJUSTMENT, show sign based on quantity value
-    return quantity > 0 ? `+${quantity}` : `${quantity}`;
+    // For ADJUSTMENT, show sign based on the raw quantity value
+    return rawQuantity < 0 ? `-${formatted}` : `+${formatted}`;
+  }
+
+  /** Display-unit value for the previous/new stock-level columns (unsigned). */
+  formatStockLevel(movement: StockMovement, storageQuantity: number | null | undefined): string {
+    if (storageQuantity == null) {
+      return 'N/A';
+    }
+    return formatLineQuantity(movement?.product as Product, this.toMovementDisplayQuantity(movement, storageQuantity));
+  }
+
+  /** Translatable unit key for a movement's quantity columns ('' when no unit should be shown). */
+  getMovementQuantityUnit(movement: StockMovement): string {
+    const displayQty = this.toMovementDisplayQuantity(movement, Math.abs(movement.quantity || 0));
+    return getLineMeasureUnit(movement?.product as Product, displayQty);
   }
 
   hasSourceDocument(movement: StockMovement): boolean {
@@ -674,7 +649,10 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
         product: dto.productId ? {
           productId: dto.productId,
           reference: dto.productReference,
-          name: dto.productName
+          name: dto.productName,
+          stockTrackingMode: dto.stockTrackingMode,
+          measureUnit: dto.measureUnit,
+          quantityPrecision: dto.quantityPrecision
         } : undefined,
         warehouse: dto.warehouseId ? {
           warehouseId: dto.warehouseId,
@@ -699,8 +677,8 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
         warehouseName: movement.warehouse?.name || 'N/A',
         movementType: movement.movementType ? this.translate.instant(`stock_movement_type_${movement.movementType.toLowerCase()}`) : 'N/A',
         quantity: this.getQuantityDisplay(movement),
-        previousQuantity: movement.previousQuantity || 0,
-        newQuantity: movement.newQuantity || 0,
+        previousQuantity: this.formatStockLevel(movement, movement.previousQuantity),
+        newQuantity: this.formatStockLevel(movement, movement.newQuantity),
         reference: movement.reference || 'N/A',
         sourceDocument: movement.sourceDocumentType && movement.reference ? `${movement.sourceDocumentType}: ${movement.reference}` : (movement.sourceDocumentType || 'N/A'),
         performedBy: movement.performedBy || 'N/A'
@@ -892,7 +870,10 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
         product: dto.productId ? {
           productId: dto.productId,
           reference: dto.productReference,
-          name: dto.productName
+          name: dto.productName,
+          stockTrackingMode: dto.stockTrackingMode,
+          measureUnit: dto.measureUnit,
+          quantityPrecision: dto.quantityPrecision
         } : undefined,
         warehouse: dto.warehouseId ? {
           warehouseId: dto.warehouseId,
@@ -918,8 +899,8 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
         translated[this.translate.instant('warehouse')] = movement.warehouse?.name || 'N/A';
         translated[this.translate.instant('movement_type')] = movement.movementType ? this.translate.instant(`stock_movement_type_${movement.movementType.toLowerCase()}`) : 'N/A';
         translated[this.translate.instant('quantity')] = this.getQuantityDisplay(movement);
-        translated[this.translate.instant('previous_quantity')] = movement.previousQuantity || 0;
-        translated[this.translate.instant('new_quantity')] = movement.newQuantity || 0;
+        translated[this.translate.instant('previous_quantity')] = this.formatStockLevel(movement, movement.previousQuantity);
+        translated[this.translate.instant('new_quantity')] = this.formatStockLevel(movement, movement.newQuantity);
         translated[this.translate.instant('reference')] = movement.reference || 'N/A';
         translated[this.translate.instant('source_document')] = movement.sourceDocumentType && movement.reference ? `${movement.sourceDocumentType}: ${movement.reference}` : (movement.sourceDocumentType || 'N/A');
         translated[this.translate.instant('performed_by')] = movement.performedBy || 'N/A';

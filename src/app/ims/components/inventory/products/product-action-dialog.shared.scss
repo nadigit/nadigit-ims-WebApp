@@ -65,6 +65,15 @@
   background: color-mix(in srgb, var(--brand-danger) 6%, var(--surface-ground));
 }
 
+.ims-product-action-dialog__force-warning {
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px dashed color-mix(in srgb, var(--brand-danger) 24%, var(--surface-border));
+  color: var(--brand-danger);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .ims-product-action-dialog__impact-intro {
   margin: 0 0 0.5rem;
   font-weight: 600;

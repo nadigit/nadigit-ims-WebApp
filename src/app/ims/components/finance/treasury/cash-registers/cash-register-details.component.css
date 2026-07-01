@@ -1,3 +1,111 @@
-.cash-register-page {
+/* ==========================================================================
+   Cash Register Details Page — page-specific styles only.
+   Shared hero / stats / detail-card / empty-state styling lives in
+   assets/ims/styles/detail-hero.scss; tabs in nadigit-brand.scss.
+   ========================================================================== */
+
+.cash-register-details-container {
+  min-height: 100vh;
+  background: var(--surface-ground);
+}
+
+.cash-register-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+/* Loading State */
+.loading-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 60vh;
+}
+
+/* Hero title (hero shell/background/back-button are shared) */
+.cash-register-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-color);
+  letter-spacing: -0.02em;
+}
+
+.action-buttons .p-button {
+  transition: all 0.2s ease;
+}
+
+.action-buttons .p-button:hover {
+  transform: translateY(-2px);
+}
+
+/* Tab layout wrapper (underline styling is shared) */
+::ng-deep .cash-register-tabs {
+  margin-top: 1.5rem;
+}
+
+::ng-deep .cash-register-tabs .p-tabview-panel {
+  padding: 0;
+}
+
+/* ==========================================================================
+   Metric rows (Overview summary cards)
+   ========================================================================== */
+.metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--surface-50);
+  border-radius: 10px;
+}
+
+.metric-row + .metric-row {
+  margin-top: 0.75rem;
+}
+
+.metric-row__label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+/* Hoverable help icon next to a metric label */
+.cr-info {
+  font-size: 0.8rem;
+  color: var(--text-color-secondary);
+  cursor: help;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.cr-info:hover {
+  opacity: 1;
+  color: var(--primary-color);
+}
+
+/* ==========================================================================
+   In-tab filter toolbar
+   ========================================================================== */
+.cr-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+@media screen and (max-width: 992px) {
+  .cash-register-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* ==========================================================================
+   Dark Mode (page-specific)
+   ========================================================================== */
+:host-context(.layout-theme-dark) .metric-row {
+  background: var(--surface-ground);
 }

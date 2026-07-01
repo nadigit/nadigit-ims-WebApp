@@ -244,15 +244,15 @@ export class WarehousesComponent implements OnInit, OnDestroy {
     this.warehouse = { ...warehouse };
   }
 
-  async confirmDeleteSelected() {
+  async confirmDeleteSelected(force: boolean = false) {
     this.deleteWarehousesDialog = false;
-    await this.selectedWarehouses.forEach(selectedWarehouse => this.onDeleteWarehouse(selectedWarehouse.warehouseId));
+    await this.selectedWarehouses.forEach(selectedWarehouse => this.onDeleteWarehouse(selectedWarehouse.warehouseId, force));
     this.selectedWarehouses = [];
   }
 
-  async confirmDelete() {
+  async confirmDelete(warehouseId?: number, force: boolean = false) {
     this.deleteWarehouseDialog = false;
-    await this.onDeleteWarehouse(this.warehouse.warehouseId);
+    await this.onDeleteWarehouse(warehouseId ?? this.warehouse.warehouseId, force);
     this.warehouse = {};
   }
 
@@ -385,8 +385,8 @@ export class WarehousesComponent implements OnInit, OnDestroy {
       })
   }
 
-  async onDeleteWarehouse(id: any) {
-    await this.warehouseService.deleteWarehouse(id)
+  async onDeleteWarehouse(id: any, force: boolean = false) {
+    await this.warehouseService.deleteWarehouse(id, force)
       .subscribe({
         next: (response: any) => {
           console.log(response);

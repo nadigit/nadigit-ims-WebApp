@@ -59,7 +59,7 @@
             <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
             <p-table #dt [value]="shops" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
-                [globalFilterFields]="['shopName','description','address','country','city']" [paginator]="true"
+                [globalFilterFields]="['shopName','address','country','city']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 (onPage)="onTablePage($event)"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
@@ -72,8 +72,6 @@
                         </th>
                         <th pSortableColumn="shopName">{{ 'shop_name' | translate }}<p-sortIcon
                                 field="shopName"></p-sortIcon></th>
-                        <th pSortableColumn="description">{{ 'shop_description' | translate }}<p-sortIcon
-                                field="description"></p-sortIcon></th>
                         <th pSortableColumn="address">{{ 'shop_address' | translate }}<p-sortIcon
                                 field="address"></p-sortIcon></th>
                         <th pSortableColumn="location">{{ 'shop_location' | translate }}<p-sortIcon
@@ -95,10 +93,6 @@
                         <td>
                             <span class="p-column-title">{{ 'shop_name' | translate }}</span>
                             {{shop.shopName ? shop.shopName : 'N/A'}}
-                        </td>
-                        <td>
-                            <span class="p-column-title">{{ 'shop_description' | translate }}</span>
-                            {{shop.description ? shop.description : 'N/A'}}
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'shop_address' | translate }}</span>
@@ -206,6 +200,5 @@
                 </div>
             </div>
         </p-dialog>
-
     </div>
 </div>

@@ -51,6 +51,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
   documentChainSteps: MenuItem[] = [];
   documentChainActiveIndex = 0;
   purchaseAttachments: PurchaseAttachment[] = [];
+  hasPurchaseOrderDocument: boolean = false;
   attachmentUploading: boolean = false;
   attachmentNotes: string = '';
   attachmentDocumentType: string = '';
@@ -520,6 +521,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
     } catch (error) {
       this.purchaseAttachments = [];
     }
+    await this.refreshPurchaseOrderDocumentAvailability();
   }
 
   private async loadAttachmentTypeConfigs(): Promise<void> {
@@ -619,6 +621,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
           detail: this.translate.instant('expense_attachment_deleted')
         });
         this.purchaseAttachments = this.purchaseAttachments.filter(a => a.id !== att.id);
+        void this.refreshPurchaseOrderDocumentAvailability();
       },
       error: (err: any) => {
         this.messageService.add({
@@ -717,7 +720,7 @@ export class PurchaseDetailsPageComponent implements OnInit {
     this.attachmentPreviewTitle = '';
   }
 
-  private async openGeneratedPurchaseOrderIfExists(): Promise<boolean> {
+  private async findGeneratedPurchaseOrder(): Promise<FinancialDocument | null> {
     try {
       this.financialDocService.loadToken();
       const response = await firstValueFrom(this.financialDocService.getFinancialDocs());
@@ -729,14 +732,34 @@ export class PurchaseDetailsPageComponent implements OnInit {
           && String((doc as any)?.additionalReferences || '').includes(this.purchase.reference);
         return isPo && (linkedByPurchase || linkedByReference);
       });
-      if (generatedPo?.docNumber) {
-        this.financialDocService.printFinancialDoc(generatedPo.docNumber);
-        return true;
-      }
-      return false;
+      return generatedPo || null;
     } catch (_error) {
-      return false;
+      return null;
     }
+  }
+
+  private async openGeneratedPurchaseOrderIfExists(): Promise<boolean> {
+    const generatedPo = await this.findGeneratedPurchaseOrder();
+    if (generatedPo?.docNumber) {
+      this.financialDocService.printFinancialDoc(generatedPo.docNumber);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * A purchase-order document is available either as a generated financial
+   * document (PURCHASE_ORDER) linked to this purchase, or as an uploaded
+   * PURCHASE_ORDER attachment. Used to enable/disable the "view purchase order"
+   * quick action so we never surface an empty-state toast.
+   */
+  private async refreshPurchaseOrderDocumentAvailability(): Promise<void> {
+    if (this.findLatestAttachmentByType('PURCHASE_ORDER')) {
+      this.hasPurchaseOrderDocument = true;
+      return;
+    }
+    const generatedPo = await this.findGeneratedPurchaseOrder();
+    this.hasPurchaseOrderDocument = !!generatedPo?.docNumber;
   }
 
   private extractFinancialDocs(response: any): FinancialDocument[] {

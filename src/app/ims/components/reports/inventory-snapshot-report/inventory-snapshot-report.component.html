@@ -1,4 +1,4 @@
-﻿<div class="grid">
+<div class="grid">
   <div class="col-12">
     <div class="card px-6 py-6">
       <div class="mb-4">
@@ -63,528 +63,557 @@
         </div>
       </div>
 
-      <div class="mb-5 p-3 surface-ground border-round">
-        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3 mb-3">
-          <div>
-            <h3 class="m-0 text-900 text-lg">{{ 'reports_inventory_situation_title' | translate }}</h3>
-            <p class="text-600 text-sm mt-2 mb-0">{{ 'reports_inventory_situation_subtitle' | translate }}</p>
-          </div>
-          <div class="ims-export-actions flex align-items-center gap-2 flex-wrap">
-            <button pButton pRipple type="button"
-              [icon]="isDownloadingCsv ? 'pi pi-spin pi-spinner' : 'pi pi-file'"
-              class="p-button-secondary"
-              [pTooltip]="'reports_inventory_situation_download_csv' | translate"
-              tooltipPosition="bottom"
-              [disabled]="situationLoading || isDownloadingExcel || isDownloadingPdf"
-              (click)="downloadSituation('csv')">
-            </button>
-            <button pButton pRipple type="button"
-              [icon]="isDownloadingExcel ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
-              class="p-button-success"
-              [pTooltip]="'reports_inventory_situation_download_excel' | translate"
-              tooltipPosition="bottom"
-              [disabled]="situationLoading || isDownloadingCsv || isDownloadingPdf"
-              (click)="downloadSituation('excel')">
-            </button>
-            <button pButton pRipple type="button"
-              [icon]="isDownloadingPdf ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
-              class="p-button-primary"
-              [pTooltip]="'reports_inventory_situation_download_pdf' | translate"
-              tooltipPosition="bottom"
-              [disabled]="situationLoading || isDownloadingCsv || isDownloadingExcel"
-              (click)="downloadSituation('pdf')">
-            </button>
-          </div>
-        </div>
+      <p-tabView styleClass="inventory-snapshot-tabs">
 
-        <div class="reports-filter-bar flex gap-3 mb-3 flex-wrap align-items-end">
-          <div class="flex flex-column" style="min-width: 12rem; max-width: 16rem">
-            <label class="reports-filter-label">
-              <i class="pi pi-calendar mr-2 text-primary"></i>
-              {{ 'reports_inventory_situation_as_of' | translate }}
-            </label>
-            <p-calendar
-              [(ngModel)]="asOfDate"
-              (onSelect)="onSituationFilterChange()"
-              (onClear)="onSituationFilterChange()"
-              [showIcon]="true"
-              dateFormat="dd/mm/yy"
-              [maxDate]="maxAsOfDate"
-              appendTo="body"
-              styleClass="w-full"
-              inputStyleClass="w-full">
-            </p-calendar>
-          </div>
-          <div class="flex align-items-center gap-2 pt-3">
-            <p-inputSwitch
-              [(ngModel)]="includeZeroQuantity"
-              (onChange)="onSituationFilterChange()">
-            </p-inputSwitch>
-            <span class="text-600 text-sm">{{ 'reports_inventory_situation_include_zero' | translate }}</span>
-          </div>
-        </div>
-
-        <p class="text-500 text-sm m-0 mb-3" *ngIf="situation?.ledgerDisclaimer">
-          <i class="pi mr-2" [ngClass]="situation.snapshotBacked ? 'pi-database' : 'pi-info-circle'"></i>
-          {{ situation.ledgerDisclaimer }}
-        </p>
-
-        <p-message *ngIf="situationError && !situationLoading && !situationInitialLoad" severity="error" [text]="situationError" styleClass="w-full mb-3"></p-message>
-
-        <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
-          *ngIf="(situationLoading || situationInitialLoad) && !situation">
-          <div class="ims-loading-panel__inner">
-            <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
-            <p class="ims-loading-label">{{ 'loading' | translate }}</p>
-          </div>
-        </div>
-
-        <div *ngIf="situation && (!situationInitialLoad || situation) && (!situationLoading || situation)" class="grid mb-3">
-          <div class="col-12 md:col-4">
-            <div class="reports-stat-tile">
-              <span class="reports-stat-label">{{ 'reports_active_sku_count' | translate }}</span>
-              <span class="reports-stat-value">{{ situation.totalSkuCount }}</span>
-            </div>
-          </div>
-          <div class="col-12 md:col-4">
-            <div class="reports-stat-tile">
-              <span class="reports-stat-label">{{ 'reports_total_units_on_hand' | translate }}</span>
-              <span class="reports-stat-value">{{ situation.totalUnitsOnHand }}</span>
-            </div>
-          </div>
-          <div class="col-12 md:col-4">
-            <div class="reports-stat-tile reports-stat-tile--accent-green">
-              <span class="reports-stat-label">{{ 'reports_estimated_stock_value' | translate }}</span>
-              <span class="reports-stat-value text-green-600">
-                {{ situation.estimatedStockValue | currency: (currency || 'USD'):'symbol':'1.2-2' }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <p-table
-          *ngIf="situation && (!situationInitialLoad || situation) && (!situationLoading || situation)"
-          [value]="situation.lines"
-          [lazy]="true"
-          [lazyLoadOnInit]="false"
-          [paginator]="true"
-          [rows]="pageSizeService.get(TablePageSizeKeys.inventorySnapshot, [25, 50, 100])"
-          [totalRecords]="situation.totalElements"
-          [first]="situationPage * situationSize"
-          (onLazyLoad)="onSituationPage($event)"
-          [rowsPerPageOptions]="[25, 50, 100]"
-          [loading]="situationLoading && (situation.lines?.length ?? 0) > 0"
-          responsiveLayout="scroll"
-          styleClass="p-datatable-sm">
+        <!-- ============================ TAB 1: Vue stock (live snapshot) ============================ -->
+        <p-tabPanel>
           <ng-template pTemplate="header">
-            <tr>
-              <th>{{ 'reference' | translate }}</th>
-              <th>{{ 'product_name' | translate }}</th>
-              <th>{{ 'category' | translate }}</th>
-              <th>{{ 'warehouse' | translate }}</th>
-              <th class="text-right">{{ 'quantity' | translate }}</th>
-              <th>{{ 'unit' | translate }}</th>
-              <th class="text-right">{{ 'buying_price' | translate }}</th>
-              <th class="text-right">{{ 'reports_estimated_stock_value' | translate }}</th>
-              <th>{{ 'status' | translate }}</th>
-            </tr>
+            <i class="pi pi-box mr-2"></i>
+            <span>{{ 'reports_inventory_section_stock' | translate }}</span>
           </ng-template>
-          <ng-template pTemplate="body" let-line>
-            <tr>
-              <td>{{ line.reference }}</td>
-              <td>{{ line.name }}</td>
-              <td>{{ line.categoryName }}</td>
-              <td>{{ line.warehouseName }}</td>
-              <td class="text-right">{{ line.quantityOnHand }}</td>
-              <td>{{ line.measureUnitLabel || line.measureUnit }}</td>
-              <td class="text-right">{{ line.unitCost | currency: (currency || 'USD'):'symbol':'1.2-2' }}</td>
-              <td class="text-right">{{ line.lineValue | currency: (currency || 'USD'):'symbol':'1.2-2' }}</td>
-              <td>
-                <p-tag [value]="line.inventoryStatusLabel || statusLabel(line.inventoryStatus)" [severity]="statusSeverity(line.inventoryStatus)"></p-tag>
-              </td>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="emptymessage">
-            <tr *ngIf="!situationLoading && !situationInitialLoad">
-              <td colspan="9" class="text-center text-500 py-4">{{ 'reports_inventory_situation_empty' | translate }}</td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
 
-      <div class="mb-5 p-3 surface-ground border-round mt-4">
-        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3 mb-3">
-          <div>
-            <h3 class="m-0 text-900 text-lg">{{ 'reports_inventory_situation_delta_title' | translate }}</h3>
-            <p class="text-600 text-sm mt-2 mb-0">{{ 'reports_inventory_situation_delta_subtitle' | translate }}</p>
-          </div>
-          <div class="ims-export-actions flex align-items-center gap-2 flex-wrap">
-            <button pButton pRipple type="button"
-              [icon]="isDownloadingDeltaCsv ? 'pi pi-spin pi-spinner' : 'pi pi-file'"
-              class="p-button-secondary"
-              [pTooltip]="'reports_inventory_situation_download_csv' | translate"
-              tooltipPosition="bottom"
-              [disabled]="deltaLoading || isDownloadingDeltaExcel || isDownloadingDeltaPdf"
-              (click)="downloadDelta('csv')"></button>
-            <button pButton pRipple type="button"
-              [icon]="isDownloadingDeltaExcel ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
-              class="p-button-success"
-              [pTooltip]="'reports_inventory_situation_download_excel' | translate"
-              tooltipPosition="bottom"
-              [disabled]="deltaLoading || isDownloadingDeltaCsv || isDownloadingDeltaPdf"
-              (click)="downloadDelta('excel')"></button>
-            <button pButton pRipple type="button"
-              [icon]="isDownloadingDeltaPdf ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
-              class="p-button-primary"
-              [pTooltip]="'reports_inventory_situation_download_pdf' | translate"
-              tooltipPosition="bottom"
-              [disabled]="deltaLoading || isDownloadingDeltaCsv || isDownloadingDeltaExcel"
-              (click)="downloadDelta('pdf')"></button>
-          </div>
-        </div>
-
-        <div class="reports-filter-bar flex gap-3 mb-3 flex-wrap align-items-end">
-          <div class="flex flex-column" style="min-width: 12rem; max-width: 16rem">
-            <label class="reports-filter-label">
-              <i class="pi pi-calendar mr-2 text-primary"></i>
-              {{ 'reports_inventory_situation_delta_from' | translate }}
-            </label>
-            <p-calendar [(ngModel)]="fromDate" (onSelect)="onSituationFilterChange()" (onClear)="onSituationFilterChange()"
-              [showIcon]="true" dateFormat="dd/mm/yy" [maxDate]="maxAsOfDate" appendTo="body" styleClass="w-full" inputStyleClass="w-full">
-            </p-calendar>
-          </div>
-          <div class="flex flex-column" style="min-width: 12rem; max-width: 16rem">
-            <label class="reports-filter-label">
-              <i class="pi pi-calendar mr-2 text-primary"></i>
-              {{ 'reports_inventory_situation_delta_to' | translate }}
-            </label>
-            <p-calendar [(ngModel)]="toDate" (onSelect)="onSituationFilterChange()" (onClear)="onSituationFilterChange()"
-              [showIcon]="true" dateFormat="dd/mm/yy" [maxDate]="maxAsOfDate" appendTo="body" styleClass="w-full" inputStyleClass="w-full">
-            </p-calendar>
-          </div>
-          <div class="flex align-items-center gap-2 pt-3">
-            <p-inputSwitch [(ngModel)]="deltaOnlyChanges" (onChange)="onSituationFilterChange()"></p-inputSwitch>
-            <span class="text-600 text-sm">{{ 'reports_inventory_situation_delta_only_changes' | translate }}</span>
-          </div>
-        </div>
-
-        <p class="text-500 text-sm m-0 mb-3" *ngIf="delta?.disclaimer">
-          <i class="pi pi-info-circle mr-2"></i>{{ delta.disclaimer }}
-        </p>
-        <p-message *ngIf="deltaError && !deltaLoading" severity="error" [text]="deltaError" styleClass="w-full mb-3"></p-message>
-
-        <div *ngIf="deltaLoading" class="flex align-items-center gap-2 py-3">
-          <p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"></p-progressSpinner>
-          <span class="text-600">{{ 'loading' | translate }}</span>
-        </div>
-
-        <div *ngIf="delta && !deltaLoading" class="grid mb-3">
-          <div class="col-12 md:col-4">
-            <div class="reports-stat-tile">
-              <span class="reports-stat-label">{{ 'reports_inventory_situation_delta_changed_skus' | translate }}</span>
-              <span class="reports-stat-value">{{ delta.changedSkuCount }}</span>
+          <div class="ims-loading-panel ims-loading-panel--section reports-loading-panel"
+            *ngIf="(loading || isInitialLoad) && !snapshot">
+            <div class="ims-loading-panel__inner">
+              <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+              <p class="ims-loading-label">{{ 'loading' | translate }}</p>
             </div>
           </div>
-          <div class="col-12 md:col-4">
-            <div class="reports-stat-tile">
-              <span class="reports-stat-label">{{ 'reports_inventory_situation_delta_qty_change' | translate }}</span>
-              <span class="reports-stat-value" [ngClass]="{'text-green-600': delta.totalQuantityDelta > 0, 'text-red-600': delta.totalQuantityDelta < 0}">
-                {{ delta.totalQuantityDelta > 0 ? '+' : '' }}{{ delta.totalQuantityDelta }}
-              </span>
-            </div>
-          </div>
-          <div class="col-12 md:col-4">
-            <div class="reports-stat-tile reports-stat-tile--accent-green">
-              <span class="reports-stat-label">{{ 'reports_inventory_situation_delta_value_change' | translate }}</span>
-              <span class="reports-stat-value" [ngClass]="{'text-green-600': delta.totalValueDelta > 0, 'text-red-600': delta.totalValueDelta < 0}">
-                {{ delta.totalValueDelta > 0 ? '+' : '' }}{{ delta.totalValueDelta | currency: (currency || 'USD'):'symbol':'1.2-2' }}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        <p-table
-          *ngIf="delta && (!deltaInitialLoad || delta) && (!deltaLoading || delta)"
-          [value]="delta.lines" [lazy]="true" [lazyLoadOnInit]="false"
-          [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.inventorySnapshotDelta, [25, 50, 100])" [totalRecords]="delta.totalElements"
-          [first]="deltaPage * deltaSize" (onLazyLoad)="onDeltaPage($event)"
-          [rowsPerPageOptions]="[25, 50, 100]"
-          [loading]="deltaLoading && (delta.lines?.length ?? 0) > 0"
-          responsiveLayout="scroll" styleClass="p-datatable-sm">
+          <p-message *ngIf="error && !loading && !isInitialLoad" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
+
+          <div *ngIf="snapshot && (!isInitialLoad || snapshot) && (!loading || snapshot)" class="grid">
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_active_sku_count' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.activeSkuCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_total_units_on_hand' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.totalUnitsOnHand }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-green">
+                <span class="reports-stat-label">{{ 'reports_estimated_stock_value' | translate }}</span>
+                <span class="reports-stat-value text-green-600">{{ snapshot.estimatedStockValue | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_low_stock_sku_count' | translate }}</span>
+                <span class="reports-stat-value text-orange-500">{{ snapshot.lowStockSkuCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-red">
+                <span class="reports-stat-label">{{ 'reports_out_of_stock_sku_count' | translate }}</span>
+                <span class="reports-stat-value text-red-500">{{ snapshot.outOfStockSkuCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_warehouse_scope' | translate }}</span>
+                <span class="reports-stat-value text-base font-semibold">{{ snapshot.warehouseLabel }}</span>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <h3 class="text-900 text-lg font-semibold mt-4 mb-3">{{ 'reports_inventory_section_product_expiry' | translate }}</h3>
+              <p class="text-500 text-sm m-0 mb-3">{{ 'reports_inventory_product_expiry_hint' | translate:{ days: snapshot.expirationWarningDaysUsed } }}</p>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_skus_with_expiry' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.productSkusWithExpirationDate }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-red">
+                <span class="reports-stat-label">{{ 'reports_inventory_product_skus_expired' | translate }}</span>
+                <span class="reports-stat-value text-red-600">{{ snapshot.productSkusExpiredByDate }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-red">
+                <span class="reports-stat-label">{{ 'reports_inventory_product_units_expired' | translate }}</span>
+                <span class="reports-stat-value text-red-600">{{ snapshot.productUnitsExpiredByDate }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-red">
+                <span class="reports-stat-label">{{ 'reports_inventory_product_value_expired' | translate }}</span>
+                <span class="reports-stat-value text-red-600">{{ snapshot.estimatedValueProductExpiredByDate | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_inventory_product_skus_expiring_soon' | translate }}</span>
+                <span class="reports-stat-value text-orange-600">{{ snapshot.productSkusExpiringSoonByDate }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_inventory_product_units_expiring_soon' | translate }}</span>
+                <span class="reports-stat-value text-orange-600">{{ snapshot.productUnitsExpiringSoonByDate }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_inventory_product_value_expiring_soon' | translate }}</span>
+                <span class="reports-stat-value text-orange-600">{{ snapshot.estimatedValueProductExpiringSoon | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <h3 class="text-900 text-lg font-semibold mt-4 mb-3">{{ 'reports_inventory_section_batch_expiry' | translate }}</h3>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-red">
+                <span class="reports-stat-label">{{ 'reports_inventory_expired_batch_lines' | translate }}</span>
+                <span class="reports-stat-value text-red-600">{{ snapshot.expiredBatchRowCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-red">
+                <span class="reports-stat-label">{{ 'reports_inventory_expired_batch_units' | translate }}</span>
+                <span class="reports-stat-value text-red-600">{{ snapshot.expiredBatchUnits }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-red">
+                <span class="reports-stat-label">{{ 'reports_inventory_expired_batch_value' | translate }}</span>
+                <span class="reports-stat-value text-red-600">{{ snapshot.estimatedValueExpiredBatches | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_inventory_soon_batch_lines' | translate }}</span>
+                <span class="reports-stat-value text-orange-600">{{ snapshot.expiringSoonBatchRowCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_inventory_soon_batch_units' | translate }}</span>
+                <span class="reports-stat-value text-orange-600">{{ snapshot.expiringSoonBatchUnits }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_inventory_soon_batch_value' | translate }}</span>
+                <span class="reports-stat-value text-orange-600">{{ snapshot.estimatedValueExpiringSoonBatches | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <h3 class="text-900 text-lg font-semibold mt-4 mb-3">{{ 'reports_inventory_section_writeoffs' | translate }}</h3>
+              <p class="text-500 text-sm m-0 mb-3">{{ 'reports_inventory_writeoff_hint' | translate:{ days: snapshot.writeOffLookbackDaysUsed } }}</p>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-orange">
+                <span class="reports-stat-label">{{ 'reports_inventory_pending_writeoff_count' | translate }}</span>
+                <span class="reports-stat-value text-orange-600">{{ snapshot.pendingWriteOffCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_pending_writeoff_qty' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.pendingWriteOffQuantity }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_pending_writeoff_cost' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.pendingWriteOffCost | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_approved_writeoff_lines_lookback' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffLineCountLookback }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_approved_writeoff_qty_lookback' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffQuantityLookback }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_approved_writeoff_cost_lookback' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_damaged_qty' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffDamagedQuantityLookback }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_damaged_cost' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffDamagedCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_lost_qty' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffLostQuantityLookback }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_lost_cost' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffLostCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_expired_qty' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffExpiredQuantityLookback }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_expired_cost' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedWriteOffExpiredCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_theft_count' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedTheftWriteOffCountLookback }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_theft_qty' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedTheftWriteOffQuantityLookback }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_writeoff_theft_cost' | translate }}</span>
+                <span class="reports-stat-value">{{ snapshot.approvedTheftWriteOffCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <div class="col-12" *ngIf="snapshot.generatedAt">
+              <p class="text-500 text-sm m-0 mt-2 mb-0">
+                <i class="pi pi-clock mr-2"></i>
+                {{ snapshot.generatedAt | date:'medium' }}
+              </p>
+            </div>
+          </div>
+        </p-tabPanel>
+
+        <!-- ===================== TAB 2: État des stocks à date (situation) ===================== -->
+        <p-tabPanel>
           <ng-template pTemplate="header">
-            <tr>
-              <th>{{ 'reference' | translate }}</th>
-              <th>{{ 'product_name' | translate }}</th>
-              <th>{{ 'warehouse' | translate }}</th>
-              <th class="text-right">{{ 'reports_inventory_situation_delta_qty_from' | translate }}</th>
-              <th class="text-right">{{ 'reports_inventory_situation_delta_qty_to' | translate }}</th>
-              <th class="text-right">{{ 'reports_inventory_situation_delta_qty_change' | translate }}</th>
-              <th class="text-right">{{ 'reports_inventory_situation_delta_value_change' | translate }}</th>
-            </tr>
+            <i class="pi pi-calendar mr-2"></i>
+            <span>{{ 'reports_inventory_situation_title' | translate }}</span>
           </ng-template>
-          <ng-template pTemplate="body" let-line>
-            <tr>
-              <td>{{ line.reference }}</td>
-              <td>{{ line.name }}</td>
-              <td>{{ line.warehouseName }}</td>
-              <td class="text-right">{{ line.quantityFrom }}</td>
-              <td class="text-right">{{ line.quantityTo }}</td>
-              <td class="text-right" [ngClass]="{'text-green-600': line.quantityDelta > 0, 'text-red-600': line.quantityDelta < 0}">
-                {{ line.quantityDelta > 0 ? '+' : '' }}{{ line.quantityDelta }}
-              </td>
-              <td class="text-right" [ngClass]="{'text-green-600': line.valueDelta > 0, 'text-red-600': line.valueDelta < 0}">
-                {{ line.valueDelta > 0 ? '+' : '' }}{{ line.valueDelta | currency: (currency || 'USD'):'symbol':'1.2-2' }}
-              </td>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="emptymessage">
-            <tr *ngIf="!deltaLoading && !deltaInitialLoad">
-              <td colspan="7" class="text-center text-500 py-4">{{ 'reports_inventory_situation_delta_empty' | translate }}</td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
 
-      <div class="ims-loading-panel ims-loading-panel--section reports-loading-panel"
-        *ngIf="(loading || isInitialLoad) && !snapshot">
-        <div class="ims-loading-panel__inner">
-          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
-          <p class="ims-loading-label">{{ 'loading' | translate }}</p>
-        </div>
-      </div>
+          <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3 mb-3">
+            <div>
+              <p class="text-600 text-sm mt-0 mb-0">{{ 'reports_inventory_situation_subtitle' | translate }}</p>
+            </div>
+            <div class="ims-export-actions flex align-items-center gap-2 flex-wrap">
+              <button pButton pRipple type="button"
+                [icon]="isDownloadingCsv ? 'pi pi-spin pi-spinner' : 'pi pi-file'"
+                class="p-button-secondary"
+                [pTooltip]="'reports_inventory_situation_download_csv' | translate"
+                tooltipPosition="bottom"
+                [disabled]="situationLoading || isDownloadingExcel || isDownloadingPdf"
+                (click)="downloadSituation('csv')">
+              </button>
+              <button pButton pRipple type="button"
+                [icon]="isDownloadingExcel ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
+                class="p-button-success"
+                [pTooltip]="'reports_inventory_situation_download_excel' | translate"
+                tooltipPosition="bottom"
+                [disabled]="situationLoading || isDownloadingCsv || isDownloadingPdf"
+                (click)="downloadSituation('excel')">
+              </button>
+              <button pButton pRipple type="button"
+                [icon]="isDownloadingPdf ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
+                class="p-button-primary"
+                [pTooltip]="'reports_inventory_situation_download_pdf' | translate"
+                tooltipPosition="bottom"
+                [disabled]="situationLoading || isDownloadingCsv || isDownloadingExcel"
+                (click)="downloadSituation('pdf')">
+              </button>
+            </div>
+          </div>
 
-      <p-message *ngIf="error && !loading && !isInitialLoad" severity="error" [text]="error" styleClass="w-full mb-3"></p-message>
+          <div class="reports-filter-bar flex gap-3 mb-3 flex-wrap align-items-end">
+            <div class="flex flex-column" style="min-width: 12rem; max-width: 16rem">
+              <label class="reports-filter-label">
+                <i class="pi pi-calendar mr-2 text-primary"></i>
+                {{ 'reports_inventory_situation_as_of' | translate }}
+              </label>
+              <p-calendar
+                [(ngModel)]="asOfDate"
+                (onSelect)="onSituationFilterChange()"
+                (onClear)="onSituationFilterChange()"
+                [showIcon]="true"
+                dateFormat="dd/mm/yy"
+                [maxDate]="maxAsOfDate"
+                appendTo="body"
+                styleClass="w-full"
+                inputStyleClass="w-full">
+              </p-calendar>
+            </div>
+            <div class="flex align-items-center gap-2 pt-3">
+              <p-inputSwitch
+                [(ngModel)]="includeZeroQuantity"
+                (onChange)="onSituationFilterChange()">
+              </p-inputSwitch>
+              <span class="text-600 text-sm">{{ 'reports_inventory_situation_include_zero' | translate }}</span>
+            </div>
+          </div>
 
-      <div *ngIf="snapshot && (!isInitialLoad || snapshot) && (!loading || snapshot)" class="grid">
-        <div class="col-12">
-          <h3 class="text-900 text-lg font-semibold mt-0 mb-3">{{ 'reports_inventory_section_stock' | translate }}</h3>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_active_sku_count' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.activeSkuCount }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_total_units_on_hand' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.totalUnitsOnHand }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-green">
-            <span class="reports-stat-label">{{ 'reports_estimated_stock_value' | translate }}</span>
-            <span class="reports-stat-value text-green-600">{{ snapshot.estimatedStockValue | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_low_stock_sku_count' | translate }}</span>
-            <span class="reports-stat-value text-orange-500">{{ snapshot.lowStockSkuCount }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-red">
-            <span class="reports-stat-label">{{ 'reports_out_of_stock_sku_count' | translate }}</span>
-            <span class="reports-stat-value text-red-500">{{ snapshot.outOfStockSkuCount }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_warehouse_scope' | translate }}</span>
-            <span class="reports-stat-value text-base font-semibold">{{ snapshot.warehouseLabel }}</span>
-          </div>
-        </div>
-
-        <div class="col-12">
-          <h3 class="text-900 text-lg font-semibold mt-4 mb-3">{{ 'reports_inventory_section_product_expiry' | translate }}</h3>
-          <p class="text-500 text-sm m-0 mb-3">{{ 'reports_inventory_product_expiry_hint' | translate:{ days: snapshot.expirationWarningDaysUsed } }}</p>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_skus_with_expiry' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.productSkusWithExpirationDate }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-red">
-            <span class="reports-stat-label">{{ 'reports_inventory_product_skus_expired' | translate }}</span>
-            <span class="reports-stat-value text-red-600">{{ snapshot.productSkusExpiredByDate }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-red">
-            <span class="reports-stat-label">{{ 'reports_inventory_product_units_expired' | translate }}</span>
-            <span class="reports-stat-value text-red-600">{{ snapshot.productUnitsExpiredByDate }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-red">
-            <span class="reports-stat-label">{{ 'reports_inventory_product_value_expired' | translate }}</span>
-            <span class="reports-stat-value text-red-600">{{ snapshot.estimatedValueProductExpiredByDate | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_inventory_product_skus_expiring_soon' | translate }}</span>
-            <span class="reports-stat-value text-orange-600">{{ snapshot.productSkusExpiringSoonByDate }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_inventory_product_units_expiring_soon' | translate }}</span>
-            <span class="reports-stat-value text-orange-600">{{ snapshot.productUnitsExpiringSoonByDate }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_inventory_product_value_expiring_soon' | translate }}</span>
-            <span class="reports-stat-value text-orange-600">{{ snapshot.estimatedValueProductExpiringSoon | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-
-        <div class="col-12">
-          <h3 class="text-900 text-lg font-semibold mt-4 mb-3">{{ 'reports_inventory_section_batch_expiry' | translate }}</h3>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-red">
-            <span class="reports-stat-label">{{ 'reports_inventory_expired_batch_lines' | translate }}</span>
-            <span class="reports-stat-value text-red-600">{{ snapshot.expiredBatchRowCount }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-red">
-            <span class="reports-stat-label">{{ 'reports_inventory_expired_batch_units' | translate }}</span>
-            <span class="reports-stat-value text-red-600">{{ snapshot.expiredBatchUnits }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-red">
-            <span class="reports-stat-label">{{ 'reports_inventory_expired_batch_value' | translate }}</span>
-            <span class="reports-stat-value text-red-600">{{ snapshot.estimatedValueExpiredBatches | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_inventory_soon_batch_lines' | translate }}</span>
-            <span class="reports-stat-value text-orange-600">{{ snapshot.expiringSoonBatchRowCount }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_inventory_soon_batch_units' | translate }}</span>
-            <span class="reports-stat-value text-orange-600">{{ snapshot.expiringSoonBatchUnits }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_inventory_soon_batch_value' | translate }}</span>
-            <span class="reports-stat-value text-orange-600">{{ snapshot.estimatedValueExpiringSoonBatches | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-
-        <div class="col-12">
-          <h3 class="text-900 text-lg font-semibold mt-4 mb-3">{{ 'reports_inventory_section_writeoffs' | translate }}</h3>
-          <p class="text-500 text-sm m-0 mb-3">{{ 'reports_inventory_writeoff_hint' | translate:{ days: snapshot.writeOffLookbackDaysUsed } }}</p>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile reports-stat-tile--accent-orange">
-            <span class="reports-stat-label">{{ 'reports_inventory_pending_writeoff_count' | translate }}</span>
-            <span class="reports-stat-value text-orange-600">{{ snapshot.pendingWriteOffCount }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_pending_writeoff_qty' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.pendingWriteOffQuantity }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_pending_writeoff_cost' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.pendingWriteOffCost | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_approved_writeoff_lines_lookback' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffLineCountLookback }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_approved_writeoff_qty_lookback' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffQuantityLookback }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_approved_writeoff_cost_lookback' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_damaged_qty' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffDamagedQuantityLookback }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_damaged_cost' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffDamagedCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_lost_qty' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffLostQuantityLookback }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_lost_cost' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffLostCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_expired_qty' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffExpiredQuantityLookback }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_expired_cost' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedWriteOffExpiredCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_theft_count' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedTheftWriteOffCountLookback }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_theft_qty' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedTheftWriteOffQuantityLookback }}</span>
-          </div>
-        </div>
-        <div class="col-12 md:col-4">
-          <div class="reports-stat-tile">
-            <span class="reports-stat-label">{{ 'reports_inventory_writeoff_theft_cost' | translate }}</span>
-            <span class="reports-stat-value">{{ snapshot.approvedTheftWriteOffCostLookback | currency: (currency || 'USD'):'symbol':'1.2-2' }}</span>
-          </div>
-        </div>
-
-        <div class="col-12" *ngIf="snapshot.generatedAt">
-          <p class="text-500 text-sm m-0 mt-2 mb-0">
-            <i class="pi pi-clock mr-2"></i>
-            {{ snapshot.generatedAt | date:'medium' }}
+          <p class="text-500 text-sm m-0 mb-3" *ngIf="situation?.ledgerDisclaimer">
+            <i class="pi mr-2" [ngClass]="situation.snapshotBacked ? 'pi-database' : 'pi-info-circle'"></i>
+            {{ situation.ledgerDisclaimer }}
           </p>
-        </div>
-      </div>
+
+          <p-message *ngIf="situationError && !situationLoading && !situationInitialLoad" severity="error" [text]="situationError" styleClass="w-full mb-3"></p-message>
+
+          <div class="ims-loading-panel ims-loading-panel--section ims-table-loading"
+            *ngIf="(situationLoading || situationInitialLoad) && !situation">
+            <div class="ims-loading-panel__inner">
+              <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+              <p class="ims-loading-label">{{ 'loading' | translate }}</p>
+            </div>
+          </div>
+
+          <div *ngIf="situation && (!situationInitialLoad || situation) && (!situationLoading || situation)" class="grid mb-3">
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_active_sku_count' | translate }}</span>
+                <span class="reports-stat-value">{{ situation.totalSkuCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_total_units_on_hand' | translate }}</span>
+                <span class="reports-stat-value">{{ situation.totalUnitsOnHand }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-green">
+                <span class="reports-stat-label">{{ 'reports_estimated_stock_value' | translate }}</span>
+                <span class="reports-stat-value text-green-600">
+                  {{ situation.estimatedStockValue | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p-table
+            *ngIf="situation && (!situationInitialLoad || situation) && (!situationLoading || situation)"
+            [value]="situation.lines"
+            [lazy]="true"
+            [lazyLoadOnInit]="false"
+            [paginator]="true"
+            [rows]="pageSizeService.get(TablePageSizeKeys.inventorySnapshot, [25, 50, 100])"
+            [totalRecords]="situation.totalElements"
+            [first]="situationPage * situationSize"
+            (onLazyLoad)="onSituationPage($event)"
+            [rowsPerPageOptions]="[25, 50, 100]"
+            [loading]="situationLoading && (situation.lines?.length ?? 0) > 0"
+            responsiveLayout="scroll"
+            styleClass="p-datatable-sm">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>{{ 'reference' | translate }}</th>
+                <th>{{ 'product_name' | translate }}</th>
+                <th>{{ 'category' | translate }}</th>
+                <th>{{ 'warehouse' | translate }}</th>
+                <th class="text-right">{{ 'quantity' | translate }}</th>
+                <th>{{ 'unit' | translate }}</th>
+                <th class="text-right">{{ 'buying_price' | translate }}</th>
+                <th class="text-right">{{ 'reports_estimated_stock_value' | translate }}</th>
+                <th>{{ 'status' | translate }}</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-line>
+              <tr>
+                <td>{{ line.reference }}</td>
+                <td>{{ line.name }}</td>
+                <td>{{ line.categoryName }}</td>
+                <td>{{ line.warehouseName }}</td>
+                <td class="text-right">{{ line.quantityOnHand }}</td>
+                <td>{{ line.measureUnitLabel || line.measureUnit }}</td>
+                <td class="text-right">{{ line.unitCost | currency: (currency || 'USD'):'symbol':'1.2-2' }}</td>
+                <td class="text-right">{{ line.lineValue | currency: (currency || 'USD'):'symbol':'1.2-2' }}</td>
+                <td>
+                  <app-inventory-status [status]="line.inventoryStatus"></app-inventory-status>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr *ngIf="!situationLoading && !situationInitialLoad">
+                <td colspan="9" class="text-center text-500 py-4">
+                  <div class="flex flex-column align-items-center justify-content-center py-4">
+                    <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                    <p class="mt-2 text-gray-600 font-medium">{{ 'reports_inventory_situation_empty' | translate }}</p>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </p-tabPanel>
+
+        <!-- ===================== TAB 3: Comparer deux dates (delta) ===================== -->
+        <p-tabPanel>
+          <ng-template pTemplate="header">
+            <i class="pi pi-arrow-right-arrow-left mr-2"></i>
+            <span>{{ 'reports_inventory_situation_delta_title' | translate }}</span>
+          </ng-template>
+
+          <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3 mb-3">
+            <div>
+              <p class="text-600 text-sm mt-0 mb-0">{{ 'reports_inventory_situation_delta_subtitle' | translate }}</p>
+            </div>
+            <div class="ims-export-actions flex align-items-center gap-2 flex-wrap">
+              <button pButton pRipple type="button"
+                [icon]="isDownloadingDeltaCsv ? 'pi pi-spin pi-spinner' : 'pi pi-file'"
+                class="p-button-secondary"
+                [pTooltip]="'reports_inventory_situation_download_csv' | translate"
+                tooltipPosition="bottom"
+                [disabled]="deltaLoading || isDownloadingDeltaExcel || isDownloadingDeltaPdf"
+                (click)="downloadDelta('csv')"></button>
+              <button pButton pRipple type="button"
+                [icon]="isDownloadingDeltaExcel ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
+                class="p-button-success"
+                [pTooltip]="'reports_inventory_situation_download_excel' | translate"
+                tooltipPosition="bottom"
+                [disabled]="deltaLoading || isDownloadingDeltaCsv || isDownloadingDeltaPdf"
+                (click)="downloadDelta('excel')"></button>
+              <button pButton pRipple type="button"
+                [icon]="isDownloadingDeltaPdf ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
+                class="p-button-primary"
+                [pTooltip]="'reports_inventory_situation_download_pdf' | translate"
+                tooltipPosition="bottom"
+                [disabled]="deltaLoading || isDownloadingDeltaCsv || isDownloadingDeltaExcel"
+                (click)="downloadDelta('pdf')"></button>
+            </div>
+          </div>
+
+          <div class="reports-filter-bar flex gap-3 mb-3 flex-wrap align-items-end">
+            <div class="flex flex-column" style="min-width: 12rem; max-width: 16rem">
+              <label class="reports-filter-label">
+                <i class="pi pi-calendar mr-2 text-primary"></i>
+                {{ 'reports_inventory_situation_delta_from' | translate }}
+              </label>
+              <p-calendar [(ngModel)]="fromDate" (onSelect)="onSituationFilterChange()" (onClear)="onSituationFilterChange()"
+                [showIcon]="true" dateFormat="dd/mm/yy" [maxDate]="maxAsOfDate" appendTo="body" styleClass="w-full" inputStyleClass="w-full">
+              </p-calendar>
+            </div>
+            <div class="flex flex-column" style="min-width: 12rem; max-width: 16rem">
+              <label class="reports-filter-label">
+                <i class="pi pi-calendar mr-2 text-primary"></i>
+                {{ 'reports_inventory_situation_delta_to' | translate }}
+              </label>
+              <p-calendar [(ngModel)]="toDate" (onSelect)="onSituationFilterChange()" (onClear)="onSituationFilterChange()"
+                [showIcon]="true" dateFormat="dd/mm/yy" [maxDate]="maxAsOfDate" appendTo="body" styleClass="w-full" inputStyleClass="w-full">
+              </p-calendar>
+            </div>
+            <div class="flex align-items-center gap-2 pt-3">
+              <p-inputSwitch [(ngModel)]="deltaOnlyChanges" (onChange)="onSituationFilterChange()"></p-inputSwitch>
+              <span class="text-600 text-sm">{{ 'reports_inventory_situation_delta_only_changes' | translate }}</span>
+            </div>
+          </div>
+
+          <p class="text-500 text-sm m-0 mb-3" *ngIf="delta?.disclaimer">
+            <i class="pi pi-info-circle mr-2"></i>{{ delta.disclaimer }}
+          </p>
+          <p-message *ngIf="deltaError && !deltaLoading" severity="error" [text]="deltaError" styleClass="w-full mb-3"></p-message>
+
+          <div *ngIf="deltaLoading" class="flex align-items-center gap-2 py-3">
+            <p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"></p-progressSpinner>
+            <span class="text-600">{{ 'loading' | translate }}</span>
+          </div>
+
+          <div *ngIf="delta && !deltaLoading" class="grid mb-3">
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_situation_delta_changed_skus' | translate }}</span>
+                <span class="reports-stat-value">{{ delta.changedSkuCount }}</span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile">
+                <span class="reports-stat-label">{{ 'reports_inventory_situation_delta_qty_change' | translate }}</span>
+                <span class="reports-stat-value" [ngClass]="{'text-green-600': delta.totalQuantityDelta > 0, 'text-red-600': delta.totalQuantityDelta < 0}">
+                  {{ delta.totalQuantityDelta > 0 ? '+' : '' }}{{ delta.totalQuantityDelta }}
+                </span>
+              </div>
+            </div>
+            <div class="col-12 md:col-4">
+              <div class="reports-stat-tile reports-stat-tile--accent-green">
+                <span class="reports-stat-label">{{ 'reports_inventory_situation_delta_value_change' | translate }}</span>
+                <span class="reports-stat-value" [ngClass]="{'text-green-600': delta.totalValueDelta > 0, 'text-red-600': delta.totalValueDelta < 0}">
+                  {{ delta.totalValueDelta > 0 ? '+' : '' }}{{ delta.totalValueDelta | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p-table
+            *ngIf="delta && (!deltaInitialLoad || delta) && (!deltaLoading || delta)"
+            [value]="delta.lines" [lazy]="true" [lazyLoadOnInit]="false"
+            [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.inventorySnapshotDelta, [25, 50, 100])" [totalRecords]="delta.totalElements"
+            [first]="deltaPage * deltaSize" (onLazyLoad)="onDeltaPage($event)"
+            [rowsPerPageOptions]="[25, 50, 100]"
+            [loading]="deltaLoading && (delta.lines?.length ?? 0) > 0"
+            responsiveLayout="scroll" styleClass="p-datatable-sm">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>{{ 'reference' | translate }}</th>
+                <th>{{ 'product_name' | translate }}</th>
+                <th>{{ 'warehouse' | translate }}</th>
+                <th class="text-right">{{ 'reports_inventory_situation_delta_qty_from' | translate }}</th>
+                <th class="text-right">{{ 'reports_inventory_situation_delta_qty_to' | translate }}</th>
+                <th class="text-right">{{ 'reports_inventory_situation_delta_qty_change' | translate }}</th>
+                <th class="text-right">{{ 'reports_inventory_situation_delta_value_change' | translate }}</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-line>
+              <tr>
+                <td>{{ line.reference }}</td>
+                <td>{{ line.name }}</td>
+                <td>{{ line.warehouseName }}</td>
+                <td class="text-right">{{ line.quantityFrom }}</td>
+                <td class="text-right">{{ line.quantityTo }}</td>
+                <td class="text-right" [ngClass]="{'text-green-600': line.quantityDelta > 0, 'text-red-600': line.quantityDelta < 0}">
+                  {{ line.quantityDelta > 0 ? '+' : '' }}{{ line.quantityDelta }}
+                </td>
+                <td class="text-right" [ngClass]="{'text-green-600': line.valueDelta > 0, 'text-red-600': line.valueDelta < 0}">
+                  {{ line.valueDelta > 0 ? '+' : '' }}{{ line.valueDelta | currency: (currency || 'USD'):'symbol':'1.2-2' }}
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr *ngIf="!deltaLoading && !deltaInitialLoad">
+                <td colspan="7" class="text-center text-500 py-4">
+                  <div class="flex flex-column align-items-center justify-content-center py-4">
+                    <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                    <p class="mt-2 text-gray-600 font-medium">{{ 'reports_inventory_situation_delta_empty' | translate }}</p>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </p-tabPanel>
+
+      </p-tabView>
     </div>
   </div>
 </div>

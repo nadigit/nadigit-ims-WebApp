@@ -1241,12 +1241,13 @@
                             [label]="'purchase_invoice_add_line' | translate"
                             (click)="addInvoiceReviewLine()"></button>
                     </div>
-                    <p-table [value]="invoiceReviewLines" styleClass="p-datatable-gridlines">
+                    <div class="invoice-review-scroll">
+                    <p-table [value]="invoiceReviewLines" styleClass="p-datatable-gridlines p-datatable-sm invoice-review-table">
                     <ng-template pTemplate="header">
                         <tr>
-                            <th>{{ 'reference' | translate }}</th>
-                            <th>{{ 'invoice_product_name' | translate }}</th>
-                            <th *ngIf="importOptions.createMissingProducts" style="min-width: 12rem">
+                            <th style="min-width: 10rem">{{ 'reference' | translate }}</th>
+                            <th style="min-width: 18rem">{{ 'invoice_product_name' | translate }}</th>
+                            <th *ngIf="importOptions.createMissingProducts" style="min-width: 13rem">
                                 <div class="flex align-items-center justify-content-between gap-2">
                                     <span>{{ 'category' | translate }}</span>
                                     <a
@@ -1260,16 +1261,16 @@
                                     </a>
                                 </div>
                             </th>
-                            <th style="width: 7rem">{{ 'quantity' | translate }}</th>
-                            <th style="width: 9rem">{{ 'buying_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
-                            <th style="width: 9rem">{{ 'selling_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
-                            <th style="width: 9rem">{{ 'batch_number' | translate }}
+                            <th style="min-width: 7rem">{{ 'quantity' | translate }}</th>
+                            <th style="min-width: 9rem">{{ 'buying_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
+                            <th style="min-width: 9rem">{{ 'selling_price' | translate }} <span class="text-600 font-normal text-sm">({{ 'per_unit' | translate }})</span></th>
+                            <th style="min-width: 10rem">{{ 'batch_number' | translate }}
                                 <span *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="required-asterisk">*</span>
                             </th>
-                            <th style="width: 11rem">{{ 'expiration_date' | translate }}
+                            <th style="min-width: 11rem">{{ 'expiration_date' | translate }}
                                 <span *ngIf="activityProfileService.emphasizeBatchAndExpiry" class="required-asterisk">*</span>
                             </th>
-                            <th style="width: 5rem"></th>
+                            <th style="min-width: 4rem; width: 4rem"></th>
                         </tr>
                     </ng-template>
                     <ng-template pTemplate="body" let-line let-rowIndex="rowIndex">
@@ -1349,6 +1350,7 @@
                         </tr>
                     </ng-template>
                     </p-table>
+                    </div>
                 </div>
             </div>
         </p-tabPanel>

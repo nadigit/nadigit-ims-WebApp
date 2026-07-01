@@ -9,6 +9,7 @@ import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 import { DialogModule } from 'primeng/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -29,6 +30,7 @@ import { ReportingService } from 'src/app/utils/reporting.service';
         ToastModule,
         InputTextModule,
         DropdownModule,
+        AutoCompleteModule,
         DialogModule,
         TranslateModule,
         ProgressSpinnerModule,

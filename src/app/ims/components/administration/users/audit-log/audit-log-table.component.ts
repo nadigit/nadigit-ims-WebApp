@@ -361,6 +361,27 @@ export class AuditLogTableComponent implements OnInit, OnChanges, OnDestroy {
   translateDescription(description: string): string {
     if (!description) return description;
 
+    // Session & authentication descriptions: fixed sentences (no verb + entity
+    // structure), some carrying a dynamic username. Handle these before the
+    // generic verb-prefix logic so they get localized instead of staying English.
+    const trimmed = description.trim();
+    if (trimmed === 'User logged in') {
+      return this.translate.instant('audit_desc_user_logged_in');
+    }
+    if (trimmed === 'User logged out') {
+      return this.translate.instant('audit_desc_user_logged_out');
+    }
+    const authFailMatch = trimmed.match(/^Authentication failed for user:\s*(.*)$/);
+    if (authFailMatch) {
+      return this.translate.instant('audit_desc_authentication_failed_for_user')
+        .replace('{0}', authFailMatch[1].trim());
+    }
+    const authzDeniedMatch = trimmed.match(/^Authorization denied for user:\s*(.*)$/);
+    if (authzDeniedMatch) {
+      return this.translate.instant('audit_desc_authorization_denied_for_user')
+        .replace('{0}', authzDeniedMatch[1].trim());
+    }
+
     // Extract the resource name in quotes (if present) and strip it from the working text
     let resourceRef = '';
     const quoteMatch = description.match(/'([^']+)'$/);

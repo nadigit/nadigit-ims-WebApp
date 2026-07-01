@@ -50,6 +50,46 @@
         <div class="card px-6 py-6">
             <p-toast></p-toast>
 
+            <!-- Summary KPI cards (same style as orders) -->
+            <div class="purchases-summary-row" *ngIf="isAdmin && (!isLoading || purchases.length)">
+                <div class="purchases-stat-card">
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
+                        <i class="pi pi-shopping-bag"></i>
+                    </div>
+                    <div class="purchases-stat-card__content">
+                        <span class="purchases-stat-card__label">{{ 'total_purchases' | translate }}</span>
+                        <span class="purchases-stat-card__value">{{ totalRecords ?? 0 }}</span>
+                    </div>
+                </div>
+                <div class="purchases-stat-card">
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
+                        <i class="pi pi-money-bill"></i>
+                    </div>
+                    <div class="purchases-stat-card__content">
+                        <span class="purchases-stat-card__label">{{ 'purchase_total_amount' | translate }}</span>
+                        <span class="purchases-stat-card__value">{{ purchasesTotalAmount | currency:currency:'symbol':'1.2-2' }}</span>
+                    </div>
+                </div>
+                <div class="purchases-stat-card">
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
+                        <i class="pi pi-check-circle"></i>
+                    </div>
+                    <div class="purchases-stat-card__content">
+                        <span class="purchases-stat-card__label">{{ 'purchase_total_paid' | translate }}</span>
+                        <span class="purchases-stat-card__value">{{ purchasesTotalPaid | currency:currency:'symbol':'1.2-2' }}</span>
+                    </div>
+                </div>
+                <div class="purchases-stat-card">
+                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
+                        <i class="pi pi-clock"></i>
+                    </div>
+                    <div class="purchases-stat-card__content">
+                        <span class="purchases-stat-card__label">{{ 'purchase_remaining_balance' | translate }}</span>
+                        <span class="purchases-stat-card__value">{{ purchasesRemainingBalance | currency:currency:'symbol':'1.2-2' }}</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
                 <div class="flex align-items-center gap-2">
@@ -410,9 +450,14 @@
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
-                    <tr>
-                        <td colspan="10">{{ 'no_products_msg' | translate }}</td>
-                    </tr>
+                  <tr>
+                    <td colspan="10">
+                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_products_msg' | translate }}</p>
+                      </div>
+                    </td>
+                  </tr>
                 </ng-template>
             </p-table>
         </div>
@@ -505,7 +550,8 @@
                                             </a>
                                         </div>
                                         <p-dropdown appendTo="body" [(ngModel)]="purchase.shop" name="shop" inputId="shop"
-                                            ngDefaultControl optionLabel="shopName" [options]="shops" [filter]="true"
+                                            ngDefaultControl optionLabel="shopName" [options]="shops" dataKey="shopId"
+                                            [filter]="true"
                                             filterBy="shopName" placeholder="{{ 'select_shop_option' | translate }}" required
                                             styleClass="w-full"
                                             [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.shop}">
@@ -536,6 +582,7 @@
                                         </div>
                                         <p-dropdown appendTo="body" [(ngModel)]="purchase.supplier" name="supplier"
                                             inputId="supplier" ngDefaultControl optionLabel="name" [options]="suppliers"
+                                            dataKey="supplierId"
                                             [filter]="true" filterBy="name" placeholder="{{ 'select_supplier_option' | translate }}"
                                             required styleClass="w-full"
                                             [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.supplier}">
@@ -566,7 +613,8 @@
                                         </div>
                                         <p-dropdown appendTo="body" [(ngModel)]="selectedPurchaseWarehouse"
                                             name="purchaseWarehouse" inputId="purchaseWarehouse" ngDefaultControl
-                                            optionLabel="name" [options]="warehouses" [filter]="true" filterBy="name"
+                                            optionLabel="name" [options]="warehouses" dataKey="warehouseId"
+                                            [filter]="true" filterBy="name"
                                             [showClear]="true" placeholder="{{ 'select_warehouse' | translate }}"
                                             styleClass="w-full"
                                             [ngClass]="{'ng-invalid ng-dirty' : submitted && !selectedPurchaseWarehouse}"
@@ -630,6 +678,7 @@
                             [minLength]="1" [field]="'name'"
                             placeholder="{{ 'search_products_placeholder' | translate }}" [dropdown]="true"
                             (onSelect)="onPurchasePickerProductSelect($event)" [forceSelection]="true"
+                            appendTo="body"
                             [disabled]="isAdmin && !selectedPurchaseWarehouse">
                             <ng-template let-product pTemplate="selectedItem">
                                 <span>{{ product?.name }}</span>
@@ -685,11 +734,19 @@
                             [(ngModel)]="selectedPurchasePickerCategory"
                             [suggestions]="filteredPurchasePickerCategories"
                             field="categoryName" placeholder="{{ 'select_category_option' | translate }}"
-                            [dropdown]="true" [forceSelection]="true" [showClear]="true"
+                            [dropdown]="true" appendTo="body" [forceSelection]="true" [showClear]="true"
                             (completeMethod)="filterPurchasePickerCategories($event)"
                             (onSelect)="filterByPurchasePickerCategory()"
                             (onClear)="clearPurchasePickerCategoryFilter()"
                             [disabled]="isAdmin && !selectedPurchaseWarehouse">
+                            <ng-template let-category pTemplate="item">
+                                <span class="flex align-items-center gap-2">
+                                    <img *ngIf="category.categoryImage; else purCatIcon" [src]="categoryImageUrl(category)"
+                                        alt="" style="width:1.5rem;height:1.5rem;object-fit:cover;border-radius:4px;flex-shrink:0;" />
+                                    <ng-template #purCatIcon><i class="pi pi-folder"></i></ng-template>
+                                    <span>{{ category.categoryName }}</span>
+                                </span>
+                            </ng-template>
                         </p-autoComplete>
                     </div>
 
@@ -861,11 +918,14 @@
                                 </tr>
                             </ng-template>
                             <ng-template pTemplate="emptymessage">
-                                <tr>
-                                    <td colspan="6" class="text-center py-4 text-600">
-                                        {{ 'no_products_selected' | translate }}
-                                    </td>
-                                </tr>
+                              <tr>
+                                <td colspan="6" class="text-center py-4 text-600">
+                                  <div class="flex flex-column align-items-center justify-content-center py-4">
+                                    <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                    <p class="mt-2 text-gray-600 font-medium">{{ 'no_products_selected' | translate }}</p>
+                                  </div>
+                                </td>
+                              </tr>
                             </ng-template>
                         </p-table>
                     </div>
@@ -885,11 +945,27 @@
                             </header>
                             <div class="ims-form-section__body ims-form-section__body--stack">
                                 <div class="field mb-0">
-                                    <label for="discount" class="ims-form-label">{{ 'discount' | translate }}</label>
-                                    <p-inputNumber [(ngModel)]="purchase.discount" inputId="discount" mode="decimal"
-                                        [min]="0" [minFractionDigits]="0" [maxFractionDigits]="2" styleClass="w-full"
+                                    <label for="discountType" class="ims-form-label">{{ 'discount_type' | translate }}</label>
+                                    <p-selectButton [options]="discountTypeOptions" [(ngModel)]="discountType"
+                                        optionLabel="label" optionValue="value" styleClass="w-full">
+                                    </p-selectButton>
+                                </div>
+
+                                <div class="field mb-0">
+                                    <label for="discount" class="ims-form-label">{{ 'discount_value' | translate }}</label>
+                                    <p-inputNumber [(ngModel)]="purchase.discount" inputId="discount"
+                                        [mode]="discountType === 'Percentage' ? 'decimal' : 'currency'"
+                                        [currency]="currency" [min]="0"
+                                        [max]="discountType === 'Percentage' ? 100 : getPurchaseSubtotal()"
+                                        [minFractionDigits]="0" [maxFractionDigits]="2" styleClass="w-full"
+                                        [suffix]="discountType === 'Percentage' ? '%' : ''"
                                         placeholder="{{ 'enter_discount' | translate }}">
                                     </p-inputNumber>
+                                </div>
+
+                                <div class="purchase-summary-row" *ngIf="purchase.discount && purchase.discount > 0">
+                                    <span>{{ 'discount_applied' | translate }}</span>
+                                    <span>-{{ calculateDiscountAmount() | currency:currency:'symbol':'1.2-2' }}</span>
                                 </div>
 
                                 <div class="field mb-0">
@@ -902,6 +978,24 @@
                                 <div *ngIf="taxEnabled" class="purchase-summary-row">
                                     <span>{{ 'tax_to_pay' | translate }}</span>
                                     <span>{{ calculateTax() | currency:currency:'symbol':'1.2-2' }}</span>
+                                </div>
+
+                                <div class="field mb-0">
+                                    <label for="transportAmount" class="ims-form-label">
+                                        <i class="pi pi-truck mr-1"></i>{{ 'transport_amount' | translate }}
+                                    </label>
+                                    <p-inputNumber [(ngModel)]="purchase.transportAmount" inputId="transportAmount"
+                                        mode="currency" [currency]="currency" [min]="0" styleClass="w-full">
+                                    </p-inputNumber>
+                                </div>
+
+                                <div class="field mb-0">
+                                    <label for="additionalChargesAmount" class="ims-form-label">
+                                        <i class="pi pi-plus-circle mr-1"></i>{{ 'additional_charges_amount' | translate }}
+                                    </label>
+                                    <p-inputNumber [(ngModel)]="purchase.additionalChargesAmount" inputId="additionalChargesAmount"
+                                        mode="currency" [currency]="currency" [min]="0" styleClass="w-full">
+                                    </p-inputNumber>
                                 </div>
 
                                 <div class="purchase-summary-total">

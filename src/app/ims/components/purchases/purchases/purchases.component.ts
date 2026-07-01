@@ -1,5 +1,5 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { MessageService, LazyLoadEvent, MenuItem } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { PurchaseService } from 'src/app/services/purchase.service';
@@ -61,12 +61,20 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   filters?: { [field: string]: any };
 }
 
+import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
+
 @Component({
   templateUrl: './purchases.component.html',
   styleUrls: ['./purchases.component.css', '../purchases.component.css'],
   providers: [MessageService, DatePipe]
 })
 export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
+
+  /** Display-ready URL for a category's stored (relative) image. */
+  categoryImageUrl(category: any): string {
+    return resolvePublicAssetUrl(category?.categoryImage);
+  }
+
   @ViewChild('pickList') pickList: ElementRef | undefined;
   @ViewChild('purchaseImport') purchaseImport: any;
 
@@ -147,6 +155,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   private lastBarcodeKeyAt = 0;
 
   TaxEnabledOptions: any[] = [];
+  discountType: 'Amount' | 'Percentage' = 'Amount';
+  discountTypeOptions: any[] = [];
 
   taxEnabled: boolean = false;
 
@@ -176,6 +186,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   
   // Lazy loading properties
   totalRecords: number = 0;
+  // Summary KPIs (from the purchases list response)
+  purchasesTotalAmount: number = 0;
+  purchasesTotalPaid: number = 0;
+  purchasesRemainingBalance: number = 0;
   globalFilter: string = '';
   lastLazyLoadEvent: LazyLoadEvent = {
     first: 0,
@@ -308,6 +322,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     this.initializeStatuses();
 
     this.applyPurchaseStatusFromQueryParam(this.route.snapshot.queryParamMap.get('purchaseStatus'));
+    this.applyCreatePurchaseFromQuery(this.route.snapshot.queryParamMap);
     this.route.queryParamMap.pipe(skip(1)).subscribe((qm) => {
       this.applyPurchaseStatusFromQueryParam(qm.get('purchaseStatus'));
       this.applyFilters();
@@ -358,6 +373,39 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     // Load first page of purchases (respects URL purchaseStatus)
     this.applyFilters();
     this.isLoading = false;
+
+    // Open the edit dialog directly when navigated here with ?edit=<purchaseId>
+    // (e.g. the "Edit purchase" action on the purchase details page).
+    await this.openEditFromQueryParam();
+  }
+
+  /**
+   * When the route carries an `edit` query param, fetch that purchase and open
+   * the edit dialog, then strip the param so a refresh/back doesn't re-open it.
+   */
+  private async openEditFromQueryParam(): Promise<void> {
+    const editId = this.route.snapshot.queryParamMap.get('edit');
+    if (!editId) {
+      return;
+    }
+    if (this.canEditPurchase) {
+      try {
+        this.purchaseService.loadToken();
+        const response = await firstValueFrom(this.purchaseService.getPurchase(+editId));
+        const purchase = (Array.isArray(response) ? response[0] : response) as Purchase;
+        if (purchase?.purchaseId) {
+          this.editPurchase(purchase);
+        }
+      } catch (_error) {
+        // Ignore — fall back to the plain table view.
+      }
+    }
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { edit: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   ngOnDestroy(): void {
@@ -446,6 +494,10 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           { label: translations['enabled'], value: true },
           { label: translations['disabled'], value: false },
         ];
+        this.discountTypeOptions = [
+          { label: translations['amount'], value: 'Amount' },
+          { label: translations['percentage'], value: 'Percentage' },
+        ];
       });
   }
 
@@ -457,8 +509,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       total += product.purchaseItemQuantity * product.purchaseItemPricePerUnit;
     }
 
-    // Apply discount first
-    total -= this.purchase.discount;
+    // Apply discount first (flat amount or percentage of the line subtotal)
+    total -= this.calculateDiscountAmount();
 
     // Ensure the total is not below zero after applying the discount
     if (total < 0) {
@@ -469,6 +521,9 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     if (this.taxEnabled) {
       total += this.calculateTax(); // Include tax in the total
     }
+
+    // Add non-taxable extras (shipping fee + additional charges) on top of the total
+    total += (this.purchase.transportAmount || 0) + (this.purchase.additionalChargesAmount || 0);
 
     // Return the final total
     return total;
@@ -485,21 +540,36 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
     // Calculate the total based on product quantities and prices
     for (const product of this.targetProducts) {
-      console.log(product.purchaseItemQuantity)
-      console.log(product.purchaseItemPricePerUnit)
       total += product.purchaseItemQuantity * product.purchaseItemPricePerUnit;
     }
 
-    // Apply discount first
-    total -= this.purchase.discount;
+    // Apply discount first (flat amount or percentage of the line subtotal)
+    total -= this.calculateDiscountAmount();
 
     // Ensure the total is not below zero after applying the discount
     if (total < 0) {
       total = 0;
     }
 
-    console.log(total)
     return total;
+  }
+
+  /** Line subtotal (before discount/tax/extras) used as the percentage-discount base. */
+  getPurchaseSubtotal(): number {
+    return this.targetProducts.reduce(
+      (sum, product) => sum + (product.purchaseItemQuantity || 0) * (product.purchaseItemPricePerUnit || 0),
+      0
+    );
+  }
+
+  /** Resolves the discount into a concrete amount, honouring the selected discount type. */
+  calculateDiscountAmount(): number {
+    const subtotal = this.getPurchaseSubtotal();
+    const discount = this.purchase.discount || 0;
+    const amount = this.discountType === 'Percentage'
+      ? subtotal * (Math.min(Math.max(discount, 0), 100) / 100)
+      : discount;
+    return Math.min(Math.max(amount, 0), subtotal);
   }
 
   async loadTaxRate() {
@@ -924,6 +994,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   editPurchase(purchase: Purchase) {
     if (!this.canEditPurchase) return;
     this.purchase = { ...purchase };
+    this.discountType = purchase.discountType === 'Percentage' ? 'Percentage' : 'Amount';
+    this.taxEnabled = !!purchase.taxEnabled;
     this.purchaseItems = this.purchase.purchaseItems.map(item => {
       // Convert expiration date string to Date object for calendar component
       let expirationDate: Date | null = null;
@@ -999,6 +1071,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   resetPurchaseForm() {
     this.purchase = {};
+    this.discountType = 'Amount';
+    this.taxEnabled = false;
     this.targetProducts = [];
     this.sourceProducts = [];
     this.selectedPurchaseWarehouse = null;
@@ -1026,6 +1100,44 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       detail: this.translate.instant('import_completed_successfully'),
       life: 3000
     });
+  }
+
+  /** When NadiPilot sends the user here with ?newPurchase=1, open the prepared new-purchase dialog. */
+  private applyCreatePurchaseFromQuery(qp: ParamMap): void {
+    if (!qp || !qp.get('newPurchase')) {
+      return;
+    }
+    const supplierName = qp.get('supplier');
+    // Defer so permissions/data finish loading before opening the dialog.
+    setTimeout(() => {
+      try {
+        this.openNew();
+        if (supplierName) {
+          this.prefillPurchaseSupplier(supplierName);
+        }
+      } catch {
+        // best-effort; the user is already on the purchases screen
+      }
+    }, 600);
+  }
+
+  /** Best-effort: match a supplier by name from NadiPilot and preselect it once the list has loaded. */
+  private prefillPurchaseSupplier(name: string, attempt: number = 0): void {
+    const wanted = (name || '').trim().toLowerCase();
+    if (!wanted) {
+      return;
+    }
+    const list = this.suppliers || [];
+    if (!list.length) {
+      if (attempt < 15) {
+        setTimeout(() => this.prefillPurchaseSupplier(name, attempt + 1), 200);
+      }
+      return;
+    }
+    const match = list.find((s: any) => (s.name || '').toLowerCase().includes(wanted));
+    if (match) {
+      this.purchase.supplier = match;
+    }
   }
 
   openNew() {
@@ -1198,6 +1310,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       });
 
       newPurchase.taxEnabled = this.taxEnabled;
+      newPurchase.discountType = this.discountType;
 
       if (this.isAdmin) {
         const whId = this.getSelectedPurchaseWarehouseId();
@@ -1488,8 +1601,11 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           };
         });
 
-        // Assign total records from backend
+        // Assign total records and summary KPIs from backend
         this.totalRecords = res.totalPurchases;
+        this.purchasesTotalAmount = res.totalAmount ?? 0;
+        this.purchasesTotalPaid = res.totalPaid ?? 0;
+        this.purchasesRemainingBalance = res.remainingBalance ?? 0;
 
         this.isLoading = false;
         

@@ -49,3 +49,18 @@ export class Order {
   profitMargin?: number;                  // Overall profit margin percentage (0-100)
   costBreakdown?: OrderItemCostInfo[];    // Detailed breakdown array with cost info per item
 }
+
+export interface OrderDeleteImpactItem {
+  type: string;
+  count: number;
+  blocking: boolean;
+}
+
+export interface OrderDeleteImpact {
+  orderId: number;
+  orderReference?: string;
+  canDelete: boolean;
+  blockingReasonKey?: string;
+  impacts: OrderDeleteImpactItem[];
+  totalCascadeRecords: number;
+}

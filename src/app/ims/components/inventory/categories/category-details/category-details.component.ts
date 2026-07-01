@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Category } from 'src/app/models/category';
+import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
 import { Product } from 'src/app/models/product';
 import { Supplier } from 'src/app/models/supplier';
 import { Warehouse } from 'src/app/models/warehouse';
@@ -100,6 +101,11 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     private permissionService: PermissionService,
     public pageSizeService: TablePageSizeService,
   ) { }
+
+  /** Display-ready URL for the category's stored (relative) hero image. */
+  categoryImageUrl(): string {
+    return resolvePublicAssetUrl(this.category?.categoryImage);
+  }
 
   async ngOnInit() {
     this.isLoading = true;

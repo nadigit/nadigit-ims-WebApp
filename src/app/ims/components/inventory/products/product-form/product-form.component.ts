@@ -1873,24 +1873,31 @@ export class ProductFormComponent implements OnInit, OnChanges {
     const selectedFiles = this.pendingUploadFiles.length > 0
       ? [...this.pendingUploadFiles]
       : (this.uploadedFile ? [this.uploadedFile] : []);
-    const additionalGalleryFiles = !this.localProduct?.productId && selectedFiles.length > 1
-      ? selectedFiles.slice(1)
-      : [];
+    const isCreate = !this.localProduct?.productId;
 
-    // Upload primary image if selected (for create flow)
+    // Upload every newly selected image up front (one stored file each), keeping
+    // the chosen order. On create they are ALL linked to the product gallery once
+    // it exists (see below) so the first becomes the primary image and every image
+    // shows on the details page. The first URL is also kept on productImage (list
+    // thumbnail) and stays in sync with the gallery primary.
+    const uploadedImageUrls: string[] = [];
     if (selectedFiles.length > 0) {
       this.isSaving = true;
       try {
         this.uploadProgress = 30;
         this.productService.loadToken();
-        const uploadResp = await lastValueFrom(this.productService.uploadProductImage(selectedFiles[0]));
-        const url = uploadResp?.url;
-        if (!url) {
+        for (const file of selectedFiles) {
+          const uploadResp = await lastValueFrom(this.productService.uploadProductImage(file));
+          if (uploadResp?.url) {
+            uploadedImageUrls.push(uploadResp.url);
+          }
+        }
+        if (!uploadedImageUrls.length) {
           throw new Error('Invalid upload response: missing image URL');
         }
         this.uploadProgress = 100;
-        this.localProduct.productImage = url;
-        this.addToRecentImages(url);
+        this.localProduct.productImage = uploadedImageUrls[0];
+        this.addToRecentImages(uploadedImageUrls[0]);
       } catch (error) {
         console.error('Error uploading file:', error);
         this.messageService.add({
@@ -1967,13 +1974,21 @@ export class ProductFormComponent implements OnInit, OnChanges {
     try {
       // Use saveProduct for both create and update (matching warehouse details behavior)
       const savedProduct = await this.saveProductToBackend(productToSave);
-      if (!productToSave.productId && additionalGalleryFiles.length > 0) {
+      if (isCreate && uploadedImageUrls.length > 0) {
         const raw = savedProduct as any;
         const createdProductId = Number(
           raw?.productId ?? raw?.id ?? raw?.product?.productId ?? raw?.data?.productId
         );
         if (createdProductId) {
-          await this.uploadAdditionalGalleryImages(createdProductId, additionalGalleryFiles);
+          await this.linkGalleryImagesForNewProduct(createdProductId, uploadedImageUrls);
+        } else {
+          console.error('Could not resolve created product id from save response; gallery images not linked.', raw);
+          this.messageService.add({
+            severity: 'warn',
+            summary: this.translate.instant('warning'),
+            detail: 'Product saved, but its images could not be linked.',
+            life: 4000,
+          });
         }
       }
       
@@ -2066,19 +2081,29 @@ export class ProductFormComponent implements OnInit, OnChanges {
     });
   }
 
-  private async uploadAdditionalGalleryImages(productId: number, files: File[]): Promise<void> {
-    if (!productId || !files?.length) return;
-    try {
-      this.productService.loadToken();
-      for (const file of files) {
-        await lastValueFrom(this.productService.uploadAndAttachProductImage(productId, file));
+  /**
+   * Links already-uploaded image URLs to a freshly created product's gallery, in
+   * order. The backend marks the first attached image as primary and keeps it in
+   * sync with productImage. Each link is attempted independently so one failure
+   * does not drop the remaining images.
+   */
+  private async linkGalleryImagesForNewProduct(productId: number, urls: string[]): Promise<void> {
+    if (!productId || !urls?.length) return;
+    this.productService.loadToken();
+    let failed = 0;
+    for (const url of urls) {
+      try {
+        await lastValueFrom(this.productService.attachProductImageUrl(productId, url));
+      } catch (error) {
+        failed++;
+        console.error('Error linking product gallery image:', error);
       }
-    } catch (error) {
-      console.error('Error uploading additional gallery images:', error);
+    }
+    if (failed > 0) {
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
-        detail: 'Product saved, but some additional images failed to upload.',
+        detail: 'Product saved, but some images failed to attach.',
         life: 4000
       });
     }

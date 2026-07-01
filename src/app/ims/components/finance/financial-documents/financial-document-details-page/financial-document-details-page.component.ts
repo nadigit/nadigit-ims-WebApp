@@ -15,6 +15,12 @@ import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import {
+  getOrderItemLineNetAmount,
+  getOrderItemDisplayQuantity,
+  formatLineQuantity,
+  getLineMeasureUnit,
+} from 'src/app/shared/product-utils';
 
 @Component({
   selector: 'app-financial-document-details-page',
@@ -254,8 +260,21 @@ export class FinancialDocumentDetailsPageComponent implements OnInit {
   }
 
   getOrderTotal(): number {
-    return this.financialDoc?.order?.orderItems?.reduce((sum, item) => 
-      sum + (item.pricePerUnit * item.quantity), 0) || 0;
+    return this.financialDoc?.order?.orderItems?.reduce((sum, item) =>
+      sum + getOrderItemLineNetAmount(item), 0) || 0;
+  }
+
+  /** Line total in money, converting storage qty for fractional/prepaid products. */
+  getItemLineTotal(item: any): number {
+    return getOrderItemLineNetAmount(item);
+  }
+
+  /** Line quantity in display units + unit (e.g. "0.5 kg"). */
+  formatItemQuantity(item: any): string {
+    const displayQty = getOrderItemDisplayQuantity(item);
+    const formatted = formatLineQuantity(item?.product, displayQty);
+    const unit = getLineMeasureUnit(item?.product, displayQty);
+    return unit ? `${formatted} ${this.translate.instant(unit)}` : formatted;
   }
 
   onGlobalFilter(table: Table, event: Event) {

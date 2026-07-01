@@ -34,6 +34,9 @@
             {{ getDeleteImpactLabel(item.type) }}: <strong>{{ item.count }}</strong>
           </li>
         </ul>
+        <p *ngIf="showForceDelete" class="ims-product-action-dialog__force-warning">
+          {{ 'force_delete_product_warning' | translate }}
+        </p>
       </div>
 
       <div *ngIf="impact.canDelete && impact.impacts?.length" class="ims-product-action-dialog__impact">
@@ -54,6 +57,11 @@
   <ng-template pTemplate="footer">
     <button pButton pRipple icon="pi pi-times" class="p-button-text" type="button"
       [label]="'no_button' | translate" [disabled]="loading" (click)="onCancel()"></button>
+    <button *ngIf="showForceDelete" pButton pRipple icon="pi pi-exclamation-triangle"
+      class="p-button-danger p-button-outlined" type="button"
+      [label]="'force_delete_product' | translate"
+      [disabled]="loading"
+      (click)="onForceConfirm()"></button>
     <button pButton pRipple icon="pi pi-trash" class="p-button-danger" type="button"
       [label]="'yes_button' | translate"
       [disabled]="loading || !impact?.canDelete"

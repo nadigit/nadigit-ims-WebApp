@@ -26,6 +26,9 @@ import { WarehouseFormDialogComponent } from '../warehouses/warehouse-form-dialo
 import { ProductFormComponent } from '../products/product-form/product-form.component';
 import { ProductDeleteDialogComponent } from '../products/product-delete-dialog/product-delete-dialog.component';
 import { ProductArchiveDialogComponent } from '../products/product-archive-dialog/product-archive-dialog.component';
+import { CategoryDeleteDialogComponent } from '../categories/category-delete-dialog/category-delete-dialog.component';
+import { WarehouseDeleteDialogComponent } from '../warehouses/warehouse-delete-dialog/warehouse-delete-dialog.component';
+import { SupplierDeleteDialogComponent } from '../../purchases/suppliers/supplier-delete-dialog/supplier-delete-dialog.component';
 import { VariantProductPickerComponent } from './variant-product-picker/variant-product-picker.component';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { MessageModule } from 'primeng/message';
@@ -36,6 +39,9 @@ import { MessageModule } from 'primeng/message';
     ProductFormComponent,
     ProductDeleteDialogComponent,
     ProductArchiveDialogComponent,
+    CategoryDeleteDialogComponent,
+    WarehouseDeleteDialogComponent,
+    SupplierDeleteDialogComponent,
     VariantProductPickerComponent,
   ],
   imports: [
@@ -65,6 +71,9 @@ import { MessageModule } from 'primeng/message';
     ProductFormComponent,
     ProductDeleteDialogComponent,
     ProductArchiveDialogComponent,
+    CategoryDeleteDialogComponent,
+    WarehouseDeleteDialogComponent,
+    SupplierDeleteDialogComponent,
     VariantProductPickerComponent,
   ]
 })

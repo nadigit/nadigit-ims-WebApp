@@ -290,8 +290,83 @@
         </p-card>
     </div> -->
 
-    <!-- First Row - Primary Key Metrics -->
-    <div class="col-12 lg:col-6 xl:col-3">
+    <!-- Admin Command Center — accurate, period-scoped KPIs (backend-aggregated) -->
+    <div class="col-12 mb-2" *ngIf="isAdmin">
+        <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2 mb-3">
+            <div class="flex align-items-center gap-2">
+                <i class="pi pi-compass text-primary text-xl"></i>
+                <h3 class="m-0 text-900">{{ 'dashboard_command_center' | translate }}</h3>
+            </div>
+            <div class="flex align-items-center gap-2">
+                <i class="pi pi-spin pi-spinner text-500" *ngIf="overviewLoading"></i>
+                <p-dropdown [options]="periodOptions" [(ngModel)]="selectedPeriod"
+                    optionLabel="label" optionValue="value"
+                    (onChange)="onPeriodChange()" styleClass="dashboard-period-dropdown"
+                    [disabled]="overviewLoading"></p-dropdown>
+            </div>
+        </div>
+
+        <div class="grid" *ngIf="overview as ov">
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'revenue' | translate" tone="amber" icon="pi pi-dollar"
+                    [value]="ov.profit.totalRevenue | currency:currency:'symbol':'1.0-0'"
+                    [deltaPercent]="revenueDeltaPercent" [sparkline]="revenueSparkline"></app-kpi-card>
+            </div>
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'net_profit' | translate" tone="success" icon="pi pi-wallet"
+                    [value]="ov.profit.netProfit | currency:currency:'symbol':'1.0-0'"
+                    [deltaPercent]="netProfitDeltaPercent" [sparkline]="netProfitSparkline"></app-kpi-card>
+            </div>
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'gross_margin' | translate" tone="teal" icon="pi pi-percentage"
+                    [value]="formatPercentCapped(grossMarginPercent)"
+                    [deltaPercent]="grossProfitDeltaPercent" [sparkline]="grossProfitSparkline"></app-kpi-card>
+            </div>
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'average_order_value' | translate" tone="cyan" icon="pi pi-chart-bar"
+                    [value]="ov.salesSummary.averageOrderValue | currency:currency:'symbol':'1.0-0'"></app-kpi-card>
+            </div>
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'unpaid_receivables' | translate" tone="primary" icon="pi pi-arrow-circle-down"
+                    [value]="ov.salesSummary.totalOutstandingAmount | currency:currency:'symbol':'1.0-0'"
+                    [higherIsBetter]="false"
+                    [footnote]="ov.salesSummary.unpaidOrderCount + ' ' + ('unpaid_orders' | translate)"></app-kpi-card>
+            </div>
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'unpaid_payables' | translate" tone="orange" icon="pi pi-arrow-circle-up"
+                    [value]="ov.purchaseSummary.totalOutstandingPurchaseAmount | currency:currency:'symbol':'1.0-0'"
+                    [higherIsBetter]="false"></app-kpi-card>
+            </div>
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'stock_value' | translate" tone="blue" icon="pi pi-building"
+                    [value]="ov.inventory.estimatedStockValue | currency:currency:'symbol':'1.0-0'"
+                    [footnote]="ov.inventory.activeSkuCount + ' ' + ('products' | translate)"></app-kpi-card>
+            </div>
+            <div class="col-6 sm:col-4 xl:col-3">
+                <app-kpi-card [label]="'orders_menu_title' | translate" tone="purple" icon="pi pi-shopping-cart"
+                    [value]="formatNumber(ov.salesSummary.completedOrderCount)"></app-kpi-card>
+            </div>
+        </div>
+
+        <!-- Profit & Cash trend (last 12 months) -->
+        <div class="mt-2" *ngIf="profitTrendReady && profitTrendData">
+            <p-card styleClass="shadow-2 border-round-lg">
+                <ng-template pTemplate="header">
+                    <div class="flex align-items-center gap-2 p-3">
+                        <i class="pi pi-chart-line text-primary text-xl"></i>
+                        <h5 class="m-0">{{ 'dashboard_profit_cash_trend' | translate }}</h5>
+                    </div>
+                </ng-template>
+                <div class="p-3" style="position: relative; height: 18rem;">
+                    <p-chart type="line" [data]="profitTrendData" [options]="profitTrendOptions"
+                        style="height: 100%;"></p-chart>
+                </div>
+            </p-card>
+        </div>
+    </div>
+
+    <!-- First Row - Primary Key Metrics (sales cards hidden for warehouse-only roles) -->
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
@@ -314,7 +389,7 @@
         </p-card>
     </div>
 
-    <div class="col-12 lg:col-6 xl:col-3">
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
@@ -339,7 +414,7 @@
         </p-card>
     </div>
 
-    <div class="col-12 lg:col-6 xl:col-3">
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
@@ -385,182 +460,44 @@
         </p-card>
     </div>
 
-    <!-- Admin-Specific Financial KPIs -->
-    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
-        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
-            <div class="flex flex-column">
-                <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1 min-w-0">
-                        <span class="block text-600 font-medium mb-2">{{ 'stock_value' | translate }}</span>
-                        <div class="stat-number stat-currency text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(totalStockValue)">
-                            {{ totalStockValue | currency:currency:'symbol':'1.0-0' }}
-                        </div>
-                    </div>
-                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary">
-                        <i class="pi pi-building"></i>
-                    </div>
-                </div>
-                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
-                    <i class="pi pi-box text-primary"></i>
-                    <span class="text-600 text-sm">{{ totalProducts || 0 }} {{ 'products' | translate }}</span>
-                </div>
-            </div>
-        </p-card>
-    </div>
-
-    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
-        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
-            <div class="flex flex-column">
-                <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1 min-w-0">
-                        <span class="block text-600 font-medium mb-2">{{ 'unpaid_receivables' | translate }}</span>
-                        <div class="stat-number stat-currency text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(unpaidReceivables)">
-                            {{ unpaidReceivables | currency:currency:'symbol':'1.0-0' }}
-                        </div>
-                    </div>
-                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
-                        <i class="pi pi-wallet"></i>
-                    </div>
-                </div>
-                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
-                    <i [class]="unpaidReceivables > revenue * 0.2 ? 'pi pi-exclamation-triangle text-red-500' : 'pi pi-check-circle text-green-500'"></i>
-                    <span class="text-600 text-sm">{{ (revenue > 0 ? (unpaidReceivables / revenue * 100 | number:'1.1-1') : 0) }}% {{ 'of_revenue' | translate }}</span>
-                </div>
-            </div>
-        </p-card>
-    </div>
-
-    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin">
-        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
-            <div class="flex flex-column">
-                <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1">
-                        <span class="block text-600 font-medium mb-2">{{ 'gross_margin' | translate }}</span>
-                        <div class="text-900 font-bold text-2xl mb-2">
-                            {{ grossMarginPercentage | number:'1.1-1' }}%
-                        </div>
-                    </div>
-                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--teal">
-                        <i class="pi pi-percentage"></i>
-                    </div>
-                </div>
-                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
-                    <i [class]="grossMarginPercentage >= 20 ? 'pi pi-arrow-up text-green-500' : 'pi pi-arrow-down text-orange-500'"></i>
-                    <span class="text-600 text-sm">{{ 'margin_indicator' | translate }}</span>
-                </div>
-            </div>
-        </p-card>
-    </div>
-
     <!-- Warehouseman-specific: Pending Transfers -->
     <div class="col-12 lg:col-6 xl:col-3" *ngIf="isWarehouseman && !isAdmin && !isVendor && isWarehouseTransfersFeatureEnabled">
-        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
-            <div class="flex flex-column">
-                <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1 min-w-0">
-                        <span class="block text-600 font-medium mb-2">{{ 'pending_transfers' | translate }}</span>
-                        <div class="stat-number text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(warehousePendingTransfers || 0)">
-                            {{ formatNumber(warehousePendingTransfers || 0) }}
-                        </div>
-                    </div>
-                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
-                        <i class="pi pi-arrow-right-arrow-left"></i>
-                    </div>
-                </div>
-                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
-                    <i class="pi pi-info-circle text-primary"></i>
-                    <span class="text-600 text-sm">{{ 'transfers_awaiting_action' | translate }}</span>
-                </div>
-            </div>
-        </p-card>
+        <app-kpi-card [label]="'pending_transfers' | translate" tone="amber"
+            icon="pi pi-arrow-right-arrow-left"
+            [value]="formatNumber(warehousePendingTransfers || 0)"
+            [footnote]="'transfers_awaiting_action' | translate"></app-kpi-card>
     </div>
 
     <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin && isWarehouseTransfersFeatureEnabled">
-        <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
-            <div class="flex flex-column">
-                <div class="flex justify-content-between align-items-start mb-3">
-                    <div class="flex-1 min-w-0">
-                        <span class="block text-600 font-medium mb-2">{{ 'pending_transfers' | translate }}</span>
-                        <div class="stat-number text-900 font-bold mb-2" [ngClass]="getNumberSizeClass(pendingTransfers || 0)">
-                            {{ formatNumber(pendingTransfers || 0) }}
-                        </div>
-                    </div>
-                    <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
-                        <i class="pi pi-arrow-right-arrow-left"></i>
-                    </div>
-                </div>
-                <div class="flex align-items-center gap-2 pt-3 border-top-1 surface-border">
-                    <i class="pi pi-clock text-orange-500" *ngIf="overdueTransfers > 0"></i>
-                    <span class="text-orange-500 font-semibold" *ngIf="overdueTransfers > 0">{{ overdueTransfers }}</span>
-                    <span class="text-600 text-sm">{{ overdueTransfers > 0 ? ('overdue' | translate) : ('all_on_time' | translate) }}</span>
-                </div>
-            </div>
-        </p-card>
+        <app-kpi-card [label]="'pending_transfers' | translate" tone="amber"
+            icon="pi pi-arrow-right-arrow-left"
+            [value]="formatNumber(pendingTransfers || 0)"
+            [footnote]="overdueTransfers > 0 ? (overdueTransfers + ' ' + ('overdue' | translate)) : ('all_on_time' | translate)"></app-kpi-card>
     </div>
 
     <!-- Second Row - Status Metrics & Alerts -->
     <div class="col-12 lg:col-6 xl:col-3">
-        <p-card styleClass="shadow-2 border-round-lg h-full">
-            <div class="flex justify-content-between align-items-start">
-                <div class="flex-1 min-w-0">
-                    <span class="block text-600 font-medium mb-2">{{'dashboard_products_lowstock_header' | translate}}</span>
-                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0))">
-                        {{ formatNumber(isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0)) }}
-                    </div>
-                </div>
-                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
-                    <i class="pi pi-exclamation-triangle"></i>
-                </div>
-            </div>
-        </p-card>
+        <app-kpi-card [label]="'dashboard_products_lowstock_header' | translate" tone="orange"
+            icon="pi pi-exclamation-triangle"
+            [value]="formatNumber(isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0))"></app-kpi-card>
     </div>
 
     <div class="col-12 lg:col-6 xl:col-3">
-        <p-card styleClass="shadow-2 border-round-lg h-full">
-            <div class="flex justify-content-between align-items-start">
-                <div class="flex-1 min-w-0">
-                    <span class="block text-600 font-medium mb-2">{{'dashboard_products_outofstock_header' | translate}}</span>
-                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0))">
-                        {{ formatNumber(isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0)) }}
-                    </div>
-                </div>
-                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--danger">
-                    <i class="pi pi-times-circle"></i>
-                </div>
-            </div>
-        </p-card>
+        <app-kpi-card [label]="'dashboard_products_outofstock_header' | translate" tone="danger"
+            icon="pi pi-times-circle"
+            [value]="formatNumber(isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0))"></app-kpi-card>
     </div>
 
-    <div class="col-12 lg:col-6 xl:col-3">
-        <p-card styleClass="shadow-2 border-round-lg h-full">
-            <div class="flex justify-content-between align-items-start">
-                <div class="flex-1 min-w-0">
-                    <span class="block text-600 font-medium mb-2">{{'dashboard_orders_delivered_today_header' | translate}}</span>
-                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(deliveredOrders?.length || 0)">
-                        {{ formatNumber(deliveredOrders?.length || 0) }}
-                    </div>
-                </div>
-                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--success">
-                    <i class="pi pi-check-circle"></i>
-                </div>
-            </div>
-        </p-card>
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">
+        <app-kpi-card [label]="'dashboard_orders_delivered_today_header' | translate" tone="success"
+            icon="pi pi-check-circle"
+            [value]="formatNumber(deliveredOrders?.length || 0)"></app-kpi-card>
     </div>
 
-    <div class="col-12 lg:col-6 xl:col-3">
-        <p-card styleClass="shadow-2 border-round-lg h-full">
-            <div class="flex justify-content-between align-items-start">
-                <div class="flex-1 min-w-0">
-                    <span class="block text-600 font-medium mb-2">{{'dashboard_orders_canceled_today_header' | translate}}</span>
-                    <div class="stat-number text-900 font-bold" [ngClass]="getNumberSizeClass(canceledOrders?.length || 0)">
-                        {{ formatNumber(canceledOrders?.length || 0) }}
-                    </div>
-                </div>
-                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--pink">
-                    <i class="pi pi-ban"></i>
-                </div>
-            </div>
-        </p-card>
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">
+        <app-kpi-card [label]="'dashboard_orders_canceled_today_header' | translate" tone="pink"
+            icon="pi pi-ban"
+            [value]="formatNumber(canceledOrders?.length || 0)"></app-kpi-card>
     </div>
 
     <!-- Alert Center - Admin Only -->
@@ -674,12 +611,14 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="emptymessage">
-                    <tr>
-                        <td colspan="5" class="text-center py-6">
-                            <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
-                            <span class="text-600">{{ 'no_orders_today' | translate }}</span>
-                        </td>
-                    </tr>
+                  <tr>
+                    <td colspan="5" class="text-center py-6">
+                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_orders_today' | translate }}</p>
+                      </div>
+                    </td>
+                  </tr>
                 </ng-template>
             </p-table>
         </p-card>
@@ -786,7 +725,7 @@
                         </div>
                         <div class="flex flex-column align-items-end">
                             <span class="font-bold text-primary">{{ item.revenue | currency:currency:'symbol':'1.2-2' }}</span>
-                            <span class="text-600 text-sm">{{ item.quantity }} {{ 'units' | translate }}</span>
+                            <span class="text-600 text-sm">{{ formatTopProductQuantity(item) }}</span>
                         </div>
                     </div>
                 </div>
@@ -1011,12 +950,14 @@
                     </tr>
                 </ng-template>
                 <ng-template pTemplate="emptymessage">
-                    <tr>
-                        <td colspan="4" class="text-center py-6">
-                            <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
-                            <span class="text-600">{{ 'no_products_found' | translate }}</span>
-                        </td>
-                    </tr>
+                  <tr>
+                    <td colspan="4" class="text-center py-6">
+                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_products_found' | translate }}</p>
+                      </div>
+                    </td>
+                  </tr>
                 </ng-template>
             </p-table>
         </p-card>

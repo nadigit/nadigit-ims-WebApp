@@ -12,6 +12,8 @@ export interface TransferItem {
   transferItemId?: number;
   product: Product;
   quantity: number;
+  /** UI-only: quantity in display units (e.g. 0.5 kg). Converted to storage `quantity` on submit. */
+  displayQuantity?: number;
   notes?: string;
   batchMetadata?: string; // JSON string with batch information
 }

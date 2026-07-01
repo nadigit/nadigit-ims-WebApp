@@ -97,12 +97,19 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   filters?: { [field: string]: any };
 }
 
+import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
+
 @Component({
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.css', '../sales.component.css'],
   providers: [MessageService, DatePipe]
 })
 export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
+
+  /** Display-ready URL for a category's stored (relative) image. */
+  categoryImageUrl(category: any): string {
+    return resolvePublicAssetUrl(category?.categoryImage);
+  }
 
   @ViewChild('pickList') pickList: ElementRef | undefined;
 
@@ -509,6 +516,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const initialQp = this.route.snapshot.queryParamMap;
     this.applyPendingEditOrderIdFromQuery(initialQp);
     this.applyOrderStatusFromQueryParam(initialQp.get('orderStatus'));
+    this.applyCreateOrderFromQuery(initialQp);
 
     this.route.queryParamMap.pipe(skip(1)).subscribe((qm) => {
       this.applyPendingEditOrderIdFromQuery(qm);
@@ -1850,9 +1858,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.order = { ...order };
   }
 
-  async confirmDeleteSelected() {
+  async confirmDeleteSelected(force: boolean = false) {
     this.deleteOrdersDialog = false;
-    await Promise.all(this.selectedOrders.map(selectedOrder => this.onDeleteOrder(selectedOrder.orderId)));
+    await Promise.all(this.selectedOrders.map(selectedOrder => this.onDeleteOrder(selectedOrder.orderId, force)));
     this.messageService.add({
       severity: 'success',
       summary: this.translate.instant('successful'),
@@ -1862,9 +1870,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.selectedOrders = [];
   }
 
-  async confirmDelete() {
+  async confirmDelete(orderId?: number, force: boolean = false) {
     this.deleteOrderDialog = false;
-    await this.onDeleteOrder(this.order.orderId);
+    const id = orderId ?? this.order?.orderId;
+    await this.onDeleteOrder(id, force);
     this.messageService.add({
       severity: 'success',
       summary: this.translate.instant('successful'),
@@ -1900,6 +1909,54 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   hideOrderReturnDialog() {
     this.orderReturnDialog = false;
+  }
+
+  /** When NadiPilot sends the user here with ?newOrder=1, open the prepared new-order dialog. */
+  private applyCreateOrderFromQuery(qp: ParamMap): void {
+    if (!qp || !qp.get('newOrder')) {
+      return;
+    }
+    const customerName = qp.get('customer');
+    // Defer so permissions/data finish loading before opening the dialog.
+    setTimeout(() => {
+      try {
+        void this.openNew();
+        if (customerName) {
+          this.prefillOrderCustomer(customerName);
+        }
+      } catch {
+        // best-effort; the user is already on the orders screen
+      }
+    }, 600);
+  }
+
+  /** Best-effort: match a customer by name from NadiPilot and preselect it once the list has loaded. */
+  private prefillOrderCustomer(name: string, attempt: number = 0): void {
+    const wanted = (name || '').trim().toLowerCase();
+    if (!wanted) {
+      return;
+    }
+    const list = this.customers || [];
+    if (!list.length) {
+      if (attempt < 15) {
+        setTimeout(() => this.prefillOrderCustomer(name, attempt + 1), 200);
+      }
+      return;
+    }
+    const match = list.find((c: any) => {
+      const display = (this.getCustomerDisplayName(c) || '').toLowerCase();
+      const company = (c.companyName || '').toLowerCase();
+      const full = `${c.firstName || ''} ${c.lastName || ''}`.trim().toLowerCase();
+      return display.includes(wanted) || company.includes(wanted) || (full && full.includes(wanted));
+    });
+    if (match) {
+      this.order.customer = match;
+      try {
+        void this.loadCreditInfo();
+      } catch {
+        // pricing/credit is best-effort
+      }
+    }
   }
 
   async openNew() {
@@ -2211,7 +2268,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         // Display as warning for stock errors (with write-off info)
         this.messageService.add({
           severity: 'warn',
-          summary: this.translate.instant('insufficient_stock'),
+          summary: this.translate.instant('insufficient_stock_title'),
           detail: errorMessage,
           life: 5000,
         });
@@ -3151,8 +3208,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
 
-  async onDeleteOrder(id: any) {
-    this.orderService.deleteOrder(id).subscribe({
+  async onDeleteOrder(id: any, force: boolean = false) {
+    this.orderService.deleteOrder(id, force).subscribe({
       next: () => {
         this.loadOrders();     // ⬅️ clean reload using cached lazy params
       },
@@ -4628,7 +4685,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         
         this.messageService.add({
           severity: 'warn',
-          summary: this.translate.instant('insufficient_stock'),
+          summary: this.translate.instant('insufficient_stock_title'),
           detail: message,
           life: 3000,
         });

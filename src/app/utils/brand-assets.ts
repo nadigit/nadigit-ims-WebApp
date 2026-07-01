@@ -19,10 +19,10 @@ export const BRAND_ASSETS = {
   appIconLight: 'assets/app-logo/appicon/nadigitims-App-Icon.png',
   /** PWA / home-screen icon — dark theme (1024 PNG). */
   appIconDark: 'assets/app-logo/appicon/nadigitims-App-Icon-Dark.png',
-  /** Custom NadiPilot mark — set when marketing finalizes PNG/SVG. */
-  nadiPilotIcon: 'assets/core-images/robot.png',
-  /** Interim PrimeIcons class (v6 has pi-android, no pi-robot). Use until nadiPilotIcon is swapped in. */
-  nadiPilotPrimeIcon: 'pi-android',
+  /** Custom NadiPilot mark (brand "AI" sparkle), tinted via CSS mask to the brand color. */
+  nadiPilotIcon: 'assets/core-images/nadipilot.svg',
+  /** CSS class rendering the NadiPilot mark (mask-based, inherits `color`). Used where the icon shows. */
+  nadiPilotPrimeIcon: 'nadipilot-mark',
   siteUrl: 'https://ims.nadigit.com',
   corporateUrl: 'https://nadigit.com',
 } as const;

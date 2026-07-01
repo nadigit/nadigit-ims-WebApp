@@ -110,7 +110,7 @@
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'total_quantity' | translate }}</span>
-                    <div class="stat-value">{{ getTotalQuantity(transfer) }}</div>
+                    <div class="stat-value">{{ getTotalQuantity(transfer) | number:'1.0-3' }}</div>
                     <span class="stat-sub">{{ 'units' | translate }}</span>
                 </div>
             </div>
@@ -288,7 +288,7 @@
                                         </div>
                                         <div class="stat-content">
                                             <span class="stat-label">{{ 'total_units' | translate }}</span>
-                                            <div class="stat-value">{{ getTotalQuantity(transfer) }}</div>
+                                            <div class="stat-value">{{ getTotalQuantity(transfer) | number:'1.0-3' }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -375,7 +375,7 @@
                                         </td>
                                         <td class="font-medium">{{ item.product?.reference || 'N/A' }}</td>
                                         <td class="text-center">
-                                            <p-tag [value]="item.quantity?.toString() || '0'" severity="info"></p-tag>
+                                            <p-tag [value]="formatItemQuantity(item) + (getItemQuantityUnit(item) ? ' ' + (getItemQuantityUnit(item) | translate) : '')" severity="info"></p-tag>
                                         </td>
                                         <td class="text-600">{{ item.notes || '-' }}</td>
                                         <td>
@@ -402,7 +402,7 @@
                                                                 <strong>{{ 'batch_number' | translate }}:</strong> {{ batch.batchNumber }}
                                                             </span>
                                                             <span class="batch-field">
-                                                                <strong>{{ 'quantity' | translate }}:</strong> {{ batch.quantity }}
+                                                                <strong>{{ 'quantity' | translate }}:</strong> {{ formatBatchQuantity(item, batch.quantity) }}
                                                             </span>
                                                         </div>
                                                         <div class="batch-row">
@@ -425,7 +425,7 @@
                                 <ng-template pTemplate="footer">
                                     <tr class="total-footer">
                                         <td colspan="2" class="text-right font-bold">{{ 'total' | translate }}:</td>
-                                        <td class="text-center font-bold text-primary text-xl">{{ getTotalQuantity(transfer) }}</td>
+                                        <td class="text-center font-bold text-primary text-xl">{{ getTotalQuantity(transfer) | number:'1.0-3' }}</td>
                                         <td colspan="2"></td>
                                     </tr>
                                 </ng-template>

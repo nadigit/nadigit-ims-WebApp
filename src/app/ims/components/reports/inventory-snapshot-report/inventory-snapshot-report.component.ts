@@ -178,31 +178,6 @@ export class InventorySnapshotReportComponent implements OnInit, OnDestroy {
     }
   }
 
-  statusSeverity(status: string | null | undefined): 'success' | 'warning' | 'danger' | 'info' {
-    switch (status) {
-      case 'OUTOFSTOCK':
-        return 'danger';
-      case 'LOWSTOCK':
-        return 'warning';
-      case 'INSTOCK':
-        return 'success';
-      default:
-        return 'info';
-    }
-  }
-
-  statusLabel(status: string | null | undefined): string {
-    if (!status) {
-      return '';
-    }
-    const keyMap: Record<string, string> = {
-      INSTOCK: 'in_stock',
-      LOWSTOCK: 'low_stock',
-      OUTOFSTOCK: 'out_of_stock'
-    };
-    const key = keyMap[status] ?? status;
-    return this.translate.instant(key);
-  }
 
   private async loadWarehouses(): Promise<void> {
     try {

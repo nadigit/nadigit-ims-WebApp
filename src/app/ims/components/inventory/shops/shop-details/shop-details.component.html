@@ -415,16 +415,14 @@
                                         </tr>
                                     </ng-template>
                                     <ng-template pTemplate="emptymessage">
-                                        <tr>
-                                            <td colspan="3">
-                                                <div class="empty-state">
-                                                    <div class="empty-icon">
-                                                        <i class="pi pi-inbox"></i>
-                                                    </div>
-                                                    <h4>{{ 'no_purchases_found' | translate }}</h4>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                      <tr>
+                                        <td colspan="3">
+                                          <div class="flex flex-column align-items-center justify-content-center py-4">
+                                            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                            <p class="mt-2 text-gray-600 font-medium">{{ 'no_purchases_found' | translate }}</p>
+                                          </div>
+                                        </td>
+                                      </tr>
                                     </ng-template>
                                 </p-table>
                             </div>
@@ -499,16 +497,14 @@
                                         </tr>
                                     </ng-template>
                                     <ng-template pTemplate="emptymessage">
-                                        <tr>
-                                            <td colspan="4">
-                                                <div class="empty-state">
-                                                    <div class="empty-icon">
-                                                        <i class="pi pi-inbox"></i>
-                                                    </div>
-                                                    <h4>{{ 'no_expenses_found' | translate }}</h4>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                      <tr>
+                                        <td colspan="4">
+                                          <div class="flex flex-column align-items-center justify-content-center py-4">
+                                            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                            <p class="mt-2 text-gray-600 font-medium">{{ 'no_expenses_found' | translate }}</p>
+                                          </div>
+                                        </td>
+                                      </tr>
                                     </ng-template>
                                 </p-table>
                             </div>
@@ -594,14 +590,14 @@
                                         </tr>
                                     </ng-template>
                                     <ng-template pTemplate="emptymessage">
-                                        <tr>
-                                            <td colspan="8">
-                                                <div class="empty-state py-6">
-                                                    <i class="pi pi-inbox text-4xl text-400 block mb-3"></i>
-                                                    <p class="text-600 font-medium m-0">{{ 'shop_pos_sessions_empty' | translate }}</p>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                      <tr>
+                                        <td colspan="8">
+                                          <div class="flex flex-column align-items-center justify-content-center py-4">
+                                            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                            <p class="mt-2 text-gray-600 font-medium">{{ 'shop_pos_sessions_empty' | translate }}</p>
+                                          </div>
+                                        </td>
+                                      </tr>
                                     </ng-template>
                                 </p-table>
                                 <p-paginator *ngIf="posSessionsTotal > posSessionsPageSize"

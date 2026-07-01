@@ -1,4 +1,5 @@
-<div class="treasury-overview-container">
+<div class="grid">
+  <div class="col-12">
     <p-toast></p-toast>
 
     <div class="loading-wrapper" *ngIf="isLoading">
@@ -15,9 +16,22 @@
                     <p class="text-600 mt-2 mb-0">{{ 'treasury_overview_description' | translate }}</p>
                 </div>
                 <div class="flex flex-wrap align-items-center gap-2">
-                    <p-selectButton [options]="activityPeriodOptions" [(ngModel)]="activityDays"
-                        optionLabel="label" optionValue="value" (onChange)="onActivityPeriodChange()"
-                        [pTooltip]="'treasury_activity_period_hint' | translate"></p-selectButton>
+                    <p-dropdown [options]="activityPeriodOptions" [(ngModel)]="activityDays"
+                        optionValue="value" (onChange)="onActivityPeriodChange()" appendTo="body"
+                        styleClass="w-12rem" [pTooltip]="'treasury_activity_period_hint' | translate">
+                        <ng-template pTemplate="selectedItem">
+                            <span class="flex align-items-center gap-2">
+                                <i class="pi pi-calendar text-500"></i>
+                                {{ 'treasury_last_n_days' | translate:{ days: activityDays } }}
+                            </span>
+                        </ng-template>
+                        <ng-template let-option pTemplate="item">
+                            <span class="flex align-items-center gap-2">
+                                <i class="pi pi-calendar text-500"></i>
+                                {{ 'treasury_last_n_days' | translate:{ days: option.value } }}
+                            </span>
+                        </ng-template>
+                    </p-dropdown>
                     <button pButton pRipple icon="pi pi-file-excel" class="p-button-success p-button-outlined"
                         [label]="'export_to_excel' | translate" (click)="exportExcel()"
                         [disabled]="isLoading || isExporting"></button>
@@ -79,7 +93,7 @@
         <div class="grid mb-4">
             <div class="col-12 md:col-6 lg:col-3" *ngIf="canReadCash">
                 <div class="summary-card clickable" (click)="navigateToCashRegisters()">
-                    <div class="card-icon cash">
+                    <div class="ims-icon-tile ims-icon-tile--lg ims-icon-tile--blue">
                         <i class="pi pi-wallet"></i>
                     </div>
                     <div class="card-content">
@@ -92,7 +106,7 @@
 
             <div class="col-12 md:col-6 lg:col-3" *ngIf="canReadBank">
                 <div class="summary-card clickable" (click)="navigateToBankAccounts()">
-                    <div class="card-icon bank">
+                    <div class="ims-icon-tile ims-icon-tile--lg ims-icon-tile--cyan">
                         <i class="pi pi-credit-card"></i>
                     </div>
                     <div class="card-content">
@@ -105,7 +119,7 @@
 
             <div class="col-12 md:col-6 lg:col-3" *ngIf="canViewCredit">
                 <div class="summary-card clickable" (click)="navigateToCustomerCredits()">
-                    <div class="card-icon credit">
+                    <div class="ims-icon-tile ims-icon-tile--lg ims-icon-tile--purple">
                         <i class="pi pi-chart-pie"></i>
                     </div>
                     <div class="card-content">
@@ -118,8 +132,8 @@
 
             <div class="col-12 md:col-6 lg:col-3" *ngIf="canReadCash || canReadBank">
                 <div class="summary-card">
-                    <div class="card-icon liquidity">
-                        <i class="pi pi-wallet"></i>
+                    <div class="ims-icon-tile ims-icon-tile--lg ims-icon-tile--success">
+                        <i class="pi pi-chart-line"></i>
                     </div>
                     <div class="card-content">
                         <span class="card-label">{{ 'treasury_net_liquidity' | translate }}</span>
@@ -189,8 +203,9 @@
                 </ng-template>
             </p-table>
             <ng-template #noCashFlow>
-                <div class="empty-panel text-center py-4">
-                    <p class="text-600 m-0">{{ 'treasury_no_cash_flow_data' | translate }}</p>
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="pi pi-arrow-right-arrow-left"></i></div>
+                    <h4>{{ 'treasury_no_cash_flow_data' | translate }}</h4>
                 </div>
             </ng-template>
         </div>
@@ -235,9 +250,9 @@
                         </ng-template>
                     </p-table>
                     <ng-template #noOpenRegisters>
-                        <div class="empty-panel text-center py-5">
-                            <i class="pi pi-lock text-4xl text-400 mb-3"></i>
-                            <p class="text-600 m-0">{{ 'treasury_no_open_registers' | translate }}</p>
+                        <div class="empty-state">
+                            <div class="empty-icon"><i class="pi pi-lock"></i></div>
+                            <h4>{{ 'treasury_no_open_registers' | translate }}</h4>
                         </div>
                     </ng-template>
                 </div>
@@ -248,7 +263,7 @@
                 <div class="card h-full">
                     <div class="flex align-items-center gap-2 mb-3">
                         <i class="pi pi-history text-primary"></i>
-                        <h3 class="m-0">{{ 'treasury_recent_activity' | translate }} ({{ activityDays }} {{ 'days' | translate | lowercase }})</h3>
+                        <h3 class="m-0">{{ 'treasury_recent_activity' | translate }}</h3>
                     </div>
 
                     <p-table [value]="recentActivity" styleClass="p-datatable-sm p-datatable-gridlines"
@@ -284,13 +299,14 @@
                         </ng-template>
                     </p-table>
                     <ng-template #noActivity>
-                        <div class="empty-panel text-center py-5">
-                            <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
-                            <p class="text-600 m-0">{{ 'treasury_no_recent_activity' | translate }}</p>
+                        <div class="empty-state">
+                            <div class="empty-icon"><i class="pi pi-inbox"></i></div>
+                            <h4>{{ 'treasury_no_recent_activity' | translate }}</h4>
                         </div>
                     </ng-template>
                 </div>
             </div>
         </div>
     </div>
+  </div>
 </div>

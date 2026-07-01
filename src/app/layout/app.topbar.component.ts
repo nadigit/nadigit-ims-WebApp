@@ -14,6 +14,7 @@ import { MessageService } from 'primeng/api';
 import { AppConfigurationService } from '../services/app-configuration.service';
 import { ActionReminderService } from '../services/action-reminder.service';
 import { SessionAuditService } from '../services/session-audit.service';
+import { TourService } from '../services/tour.service';
 import { BRAND_ASSETS } from '../utils/brand-assets';
 
 
@@ -67,6 +68,7 @@ export class AppTopBarComponent implements OnInit {
 
   // Permissions
   isAdminUser: boolean = false;
+  canUseCopilot: boolean = false;
   adminActionReminderCount = 0;
 
   @ViewChild('menubutton') menuButton!: ElementRef;
@@ -87,7 +89,8 @@ export class AppTopBarComponent implements OnInit {
     private configService: AppConfigurationService,
     private actionReminderService: ActionReminderService,
     private router: Router,
-    private sessionAuditService: SessionAuditService) {
+    private sessionAuditService: SessionAuditService,
+    private tourService: TourService) {
 
   }
   async ngOnInit(): Promise<void> {
@@ -109,6 +112,8 @@ export class AppTopBarComponent implements OnInit {
     // Determine if current user is admin (can see all notifications)
     const roles = await this.keycloakService.getUserRoles();
     this.isAdminUser = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN');
+    this.canUseCopilot = ['ADMIN', 'SUPER_ADMIN', 'VENDOR', 'WAREHOUSEMAN', 'ACCOUNTANT', 'AUDITOR']
+      .some(r => roles.includes(r));
     console.log('Topbar user roles:', roles, 'isAdminUser:', this.isAdminUser);
     if (this.isAdminUser) {
       this.loadAdminActionRemindersCount();
@@ -155,6 +160,11 @@ export class AppTopBarComponent implements OnInit {
         label: translations['my_account'],
         icon: 'pi pi-fw pi-user-edit',
         routerLink: '/profile'
+      },
+      {
+        label: translations['take_a_tour'],
+        icon: 'pi pi-fw pi-compass',
+        command: () => this.tourService.startWelcomeTour(true)
       },
       {
         label: translations['logout'],

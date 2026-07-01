@@ -9,6 +9,27 @@
     font-weight: 600;
 }
 
+/* Make the product autocomplete match the width and look of p-dropdown / p-calendar */
+:host ::ng-deep .filter-autocomplete {
+    width: 14rem;
+}
+
+:host ::ng-deep .filter-autocomplete .p-autocomplete-input {
+    width: calc(14rem - 2.357rem); /* full width minus the dropdown button */
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+:host ::ng-deep .filter-autocomplete .p-autocomplete-dropdown {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+:host ::ng-deep .filter-autocomplete .p-autocomplete,
+:host ::ng-deep .filter-autocomplete .p-inputwrapper {
+    width: 14rem;
+}
+
 /* Responsive */
 @media screen and (max-width: 960px) {
     .p-column-title {

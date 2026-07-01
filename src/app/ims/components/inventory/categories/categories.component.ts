@@ -7,6 +7,7 @@ import { Table } from 'primeng/table';
 import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { Category } from 'src/app/models/category';
+import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
 import { Product } from 'src/app/models/product';
 import { Supplier } from 'src/app/models/supplier';
 import { Warehouse } from 'src/app/models/warehouse';
@@ -186,13 +187,13 @@ export class CategoriesComponent implements OnInit {
     this.category = { ...category };
   }
 
-  async confirmDeleteSelected() {
+  async confirmDeleteSelected(force: boolean = false) {
     this.deleteCategoriesDialog = false;
     let hasError = false;
 
     for (const selectedCategory of this.selectedCategories) {
       try {
-        await this.onDeleteCategory(selectedCategory.categoryId);
+        await this.onDeleteCategory(selectedCategory.categoryId, force);
       } catch (error) {
         hasError = true;
         console.error('Error deleting category:', error);
@@ -219,10 +220,10 @@ export class CategoriesComponent implements OnInit {
     this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
   }
 
-  async confirmDelete() {
+  async confirmDelete(categoryId?: number, force: boolean = false) {
     this.deleteCategoryDialog = false;
     try {
-      await this.onDeleteCategory(this.category.categoryId);
+      await this.onDeleteCategory(categoryId ?? this.category.categoryId, force);
       this.category = {};
     } catch (error) {
       console.error('Error deleting category:', error);
@@ -261,6 +262,11 @@ export class CategoriesComponent implements OnInit {
 
   openCategoryDetails(category: Category): void {
     this.router.navigate(['/inventory/categories', category.categoryId]);
+  }
+
+  /** Display-ready URL for a category's stored (relative) image path. */
+  categoryImageUrl(category: Category): string {
+    return resolvePublicAssetUrl(category?.categoryImage);
   }
 
   async saveCategory() {
@@ -341,9 +347,9 @@ export class CategoriesComponent implements OnInit {
     });
   }
 
-  async onDeleteCategory(id: any): Promise<void> {
+  async onDeleteCategory(id: any, force: boolean = false): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.categoryService.deleteCategory(id)
+      this.categoryService.deleteCategory(id, force)
         .subscribe({
           next: (response: any) => {
             this.onGetAllCategories();

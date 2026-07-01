@@ -13,8 +13,20 @@ export class LocationService {
   getAllCountriesWithTranslation(): any[] {
     return Country.getAllCountries().map(country => ({
       ...country,
-      translatedName: this.translate.instant(`countries.${country.name}`)
+      translatedName: this.translateCountryName(country.name)
     }));
+  }
+
+  /**
+   * Translate a country name, falling back to the raw name when no
+   * `countries.<name>` key exists so dropdowns never display the translation
+   * key itself (e.g. "countries.United States").
+   */
+  private translateCountryName(name: string): string {
+    if (!name) return '';
+    const key = `countries.${name}`;
+    const translated = this.translate.instant(key);
+    return translated === key ? name : translated;
   }
 
   getStatesByCountryCode(countryCode: string): any[] {

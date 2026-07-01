@@ -21,7 +21,9 @@ import { MaintenanceService } from '../services/maintenance.service';
 import { LicenseCapabilitiesService, LicenseDowngradeImpactResponse } from '../services/license-capabilities.service';
 import { buildKeycloakRedirectUri } from '../utils/keycloak-redirect.util';
 import { SessionAuditService } from '../services/session-audit.service';
-import { NadiPilotActionDTO, NadiPilotResponseDTO, AiIntegrationService } from '../services/ai-integration.service';
+import { TourService } from '../services/tour.service';
+import { NadiPilotActionDTO, NadiPilotBriefingDTO, NadiPilotMessage, NadiPilotNavigationDTO, NadiPilotProposedActionDTO, NadiPilotResponseDTO, AiIntegrationService } from '../services/ai-integration.service';
+import { buildCopilotPageContext } from '../utils/copilot-page-context';
 import { Supplier } from '../models/supplier';
 import { BRAND_ASSETS } from '../utils/brand-assets';
 
@@ -94,6 +96,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     @ViewChild(AppTopBarComponent) appTopbar!: AppTopBarComponent;
     @ViewChild('copilotInputField') copilotInputField?: ElementRef<HTMLTextAreaElement>;
+    @ViewChild('copilotThreadEl') copilotThreadEl?: ElementRef<HTMLElement>;
 
     isPosRoute: boolean = false;
     maintenanceStatus: MaintenanceStatus | null = null;
@@ -120,13 +123,28 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     copilotSelectedSupplierId: number | null = null;
     isCopilotOpen = false;
     copilotUnreadCount = 0;
-    isCopilotHistoryExpanded = false;
-    selectedCopilotHistoryKey: string | null = null;
     showCopilotScopeDialog = false;
     showCopilotEvidence = false;
     readonly copilotHistoryStorageKey = 'ims.aiCopilot.history.v1';
     readonly copilotModeStorageKey = 'ims.aiCopilot.mode.v1';
+    readonly copilotWidthStorageKey = 'ims.aiCopilot.width.v1';
     copilotMode: 'simple' | 'advanced' = 'simple';
+    copilotPendingPrompt: string | null = null;
+    copilotExpanded = false;
+    copilotActionLoading = false;
+    private copilotActionDoneKeys = new Set<string>();
+    copilotStreaming = false;
+    copilotStreamingText = '';
+    copilotStreamingStatus: string | null = null;
+    copilotBriefing: NadiPilotBriefingDTO | null = null;
+    copilotBriefingLoading = false;
+    private copilotEvidenceOpenKeys = new Set<string>();
+    private copilotResizeActive = false;
+    readonly copilotSuggestedPrompts: Array<{ key: string; icon: string }> = [
+        { key: 'ai_copilot_prompt_stockout', icon: 'pi-exclamation-circle' },
+        { key: 'ai_copilot_prompt_reorder', icon: 'pi-shopping-cart' },
+        { key: 'ai_copilot_prompt_risk', icon: 'pi-chart-line' },
+    ];
 
     constructor(public layoutService: LayoutService,
         public renderer: Renderer2,
@@ -142,6 +160,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         private licenseCapabilitiesService: LicenseCapabilitiesService,
         private aiIntegrationService: AiIntegrationService,
         private sessionAuditService: SessionAuditService,
+        private tourService: TourService,
     ) {
 
         // Detect POS routes to hide sidebar/topbar
@@ -221,6 +240,12 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         } catch {
             this.showLicensePlanBanner = false;
             this.buildFallbackFeatureList();
+        }
+
+        // First-login welcome tour (skipped on the cashier-only POS layout,
+        // which hides the topbar/sidebar anchors the tour points at).
+        if (!this.isPosRoute) {
+            void this.tourService.maybeStartWelcomeTour();
         }
     }
 
@@ -1045,40 +1070,401 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             });
             return;
         }
+        this.copilotPrompt = '';
+        this.copilotPendingPrompt = message;
         this.copilotLoading = true;
+        this.copilotStreaming = true;
+        this.copilotStreamingText = '';
+        this.copilotStreamingStatus = null;
+        this.scrollCopilotThreadToBottom();
+
+        const catalogListQuestion = this.isCopilotCatalogListQuestion(message);
+        const history = this.buildCopilotConversationHistory();
+        const pageContext = buildCopilotPageContext(this.router.url);
+        const payload = {
+            message,
+            limit: 25,
+            ...(this.copilotSelectedShopId != null ? { shopId: this.copilotSelectedShopId } : {}),
+            ...(!catalogListQuestion && this.copilotSelectedWarehouseId != null
+                ? { warehouseId: this.copilotSelectedWarehouseId }
+                : {}),
+            ...(history.length ? { history } : {}),
+            ...(pageContext ? { pageContext } : {}),
+        };
+
         try {
-            const catalogListQuestion = this.isCopilotCatalogListQuestion(message);
-            const response$ = this.aiIntegrationService.askNadiPilot({
-                message,
-                limit: 25,
-                ...(this.copilotSelectedShopId != null ? { shopId: this.copilotSelectedShopId } : {}),
-                ...(!catalogListQuestion && this.copilotSelectedWarehouseId != null
-                    ? { warehouseId: this.copilotSelectedWarehouseId }
-                    : {}),
+            // Preferred path: stream the answer over SSE for a live typing effect.
+            const response = await this.aiIntegrationService.askNadiPilotStream(payload, {
+                onStatus: area => { this.copilotStreamingStatus = this.copilotStatusLabel(area); },
+                onToken: text => { this.copilotStreamingText += text; this.scrollCopilotThreadToBottom(); },
             });
-            this.copilotResponse = await firstValueFrom(response$);
-            this.copilotHistory = [
-                {
-                    prompt: message,
-                    response: this.copilotResponse,
-                    at: new Date().toISOString()
-                },
-                ...this.copilotHistory
-            ].slice(0, 12);
-            this.persistCopilotHistory();
-            if (!this.isCopilotOpen) {
-                this.copilotUnreadCount = Math.min(this.copilotUnreadCount + 1, 99);
-                this.syncCopilotUiState();
+            this.finalizeCopilotResponse(message, response);
+        } catch (streamError) {
+            // Fallback: non-streaming request (older backend, proxy without SSE, etc.).
+            try {
+                const response = await firstValueFrom(this.aiIntegrationService.askNadiPilot(payload));
+                this.finalizeCopilotResponse(message, response);
+            } catch (error: any) {
+                this.messageService.add({
+                    severity: 'error',
+                    summary: this.translate.instant('ai_copilot_title'),
+                    detail: error?.error?.message || this.translate.instant('ai_copilot_request_failed'),
+                    life: 5000
+                });
             }
+        } finally {
+            this.copilotLoading = false;
+            this.copilotStreaming = false;
+            this.copilotStreamingText = '';
+            this.copilotStreamingStatus = null;
+            this.copilotPendingPrompt = null;
+            this.scrollCopilotThreadToBottom();
+        }
+    }
+
+    private finalizeCopilotResponse(prompt: string, response: NadiPilotResponseDTO): void {
+        this.copilotResponse = response;
+        this.copilotHistory = [
+            { prompt, response, at: new Date().toISOString() },
+            ...this.copilotHistory
+        ].slice(0, 12);
+        this.persistCopilotHistory();
+        if (!this.isCopilotOpen) {
+            this.copilotUnreadCount = Math.min(this.copilotUnreadCount + 1, 99);
+            this.syncCopilotUiState();
+        }
+    }
+
+    private copilotStatusLabel(area: string): string {
+        const key = 'ai_copilot_status_' + (area || 'working');
+        const value = this.translate.instant(key);
+        return value === key ? this.translate.instant('ai_copilot_status_working') : value;
+    }
+
+    /**
+     * Builds chronological user/assistant turns from the most recent local history so the backend
+     * agent has conversation memory for follow-up questions. copilotHistory is newest-first.
+     */
+    private buildCopilotConversationHistory(): NadiPilotMessage[] {
+        const recent = this.copilotHistory.slice(0, 4).reverse();
+        const turns: NadiPilotMessage[] = [];
+        for (const entry of recent) {
+            const prompt = (entry?.prompt || '').trim();
+            const answer = (entry?.response?.answer || '').trim();
+            if (prompt) {
+                turns.push({ role: 'user', content: prompt });
+            }
+            if (answer) {
+                turns.push({ role: 'assistant', content: answer });
+            }
+        }
+        return turns;
+    }
+
+    /** Conversation turns oldest-first for the chat thread (copilotHistory is stored newest-first). */
+    get copilotThread(): Array<{ prompt: string; response: NadiPilotResponseDTO; at: string }> {
+        return [...this.copilotHistory].reverse();
+    }
+
+    trackCopilotTurn(_index: number, turn: { prompt: string; at: string }): string {
+        return `${turn.at}::${turn.prompt}`;
+    }
+
+    onCopilotComposerKeydown(event: KeyboardEvent): void {
+        // Enter sends; Shift+Enter inserts a newline.
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.askAiCopilot();
+        }
+    }
+
+    toggleCopilotExpanded(): void {
+        this.copilotExpanded = !this.copilotExpanded;
+        this.scrollCopilotThreadToBottom();
+    }
+
+    proposalFieldKeys(action: NadiPilotProposedActionDTO | null | undefined): string[] {
+        return action?.fields ? Object.keys(action.fields) : [];
+    }
+
+    actionFieldLabel(field: string): string {
+        const map: { [k: string]: string } = {
+            firstName: 'first_name', lastName: 'last_name', companyName: 'company_name',
+            email: 'email', phoneNumber: 'phone_number', city: 'city',
+            name: 'name', amount: 'amount', purpose: 'purpose',
+        };
+        return map[field] || field;
+    }
+
+    proposalTitle(action: NadiPilotProposedActionDTO | null | undefined): string {
+        if (action?.summary?.trim()) {
+            return action.summary.trim();
+        }
+        const key = action?.type === 'create_supplier' ? 'ai_copilot_create_supplier_title'
+            : action?.type === 'create_expense' ? 'ai_copilot_create_expense_title'
+                : action?.type === 'create_order' ? 'ai_copilot_create_order_title'
+                    : action?.type === 'create_purchase' ? 'ai_copilot_create_purchase_title'
+                        : 'ai_copilot_create_customer_title';
+        return this.translate.instant(key);
+    }
+
+    isPrepareAction(action: NadiPilotProposedActionDTO | null | undefined): boolean {
+        return action?.type === 'create_order' || action?.type === 'create_purchase';
+    }
+
+    proposalConfirmLabel(action: NadiPilotProposedActionDTO | null | undefined): string {
+        if (action?.type === 'create_order') {
+            return this.translate.instant('ai_copilot_action_prepare_order');
+        }
+        if (action?.type === 'create_purchase') {
+            return this.translate.instant('ai_copilot_action_prepare_purchase');
+        }
+        return this.translate.instant('ai_copilot_action_confirm_create');
+    }
+
+    isCopilotActionDone(turn: { at: string; prompt: string }): boolean {
+        return this.copilotActionDoneKeys.has(this.getCopilotHistoryKey(turn));
+    }
+
+    dismissCopilotProposedAction(turn: { at: string; prompt: string }): void {
+        this.copilotActionDoneKeys.add(this.getCopilotHistoryKey(turn));
+    }
+
+    async confirmCopilotProposedAction(turn: { at: string; prompt: string; response: NadiPilotResponseDTO }): Promise<void> {
+        const action = turn?.response?.proposedAction;
+        if (!action) {
+            return;
+        }
+        // create_order / create_purchase are "prepare + open the create screen" — navigate, no DB write here.
+        if (action.type === 'create_order' || action.type === 'create_purchase') {
+            const f = action.fields || {};
+            this.copilotActionDoneKeys.add(this.getCopilotHistoryKey(turn));
+            this.closeCopilotPanel(false);
+            if (action.type === 'create_order') {
+                this.router.navigate(['/sales/orders'], {
+                    queryParams: { newOrder: 1, ...(f['customer'] ? { customer: f['customer'] } : {}) },
+                });
+                this.messageService.add({
+                    severity: 'info',
+                    summary: this.translate.instant('ai_copilot_title'),
+                    detail: this.translate.instant('ai_copilot_order_prepared'),
+                    life: 4000,
+                });
+            } else {
+                this.router.navigate(['/purchases/purchases'], {
+                    queryParams: { newPurchase: 1, ...(f['supplier'] ? { supplier: f['supplier'] } : {}) },
+                });
+                this.messageService.add({
+                    severity: 'info',
+                    summary: this.translate.instant('ai_copilot_title'),
+                    detail: this.translate.instant('ai_copilot_purchase_prepared'),
+                    life: 4000,
+                });
+            }
+            return;
+        }
+        this.copilotActionLoading = true;
+        try {
+            const f = action.fields || {};
+            let detail = '';
+            if (action.type === 'create_customer') {
+                const res = await firstValueFrom(this.aiIntegrationService.createNadiPilotCustomer({
+                    firstName: f['firstName'], lastName: f['lastName'], companyName: f['companyName'],
+                    email: f['email'], phoneNumber: f['phoneNumber'], city: f['city'],
+                }));
+                detail = this.translate.instant('ai_copilot_customer_created', { name: res.name });
+            } else if (action.type === 'create_supplier') {
+                const res = await firstValueFrom(this.aiIntegrationService.createNadiPilotSupplier({
+                    name: f['name'], email: f['email'], phoneNumber: f['phoneNumber'], city: f['city'],
+                }));
+                detail = this.translate.instant('ai_copilot_supplier_created', { name: res.name });
+            } else if (action.type === 'create_expense') {
+                const amount = f['amount'] != null && f['amount'] !== '' ? Number(f['amount']) : undefined;
+                const res = await firstValueFrom(this.aiIntegrationService.createNadiPilotExpense({
+                    amount, purpose: f['purpose'],
+                    ...(this.copilotSelectedShopId != null ? { shopId: this.copilotSelectedShopId } : {}),
+                }));
+                detail = this.translate.instant('ai_copilot_expense_created', { ref: res.reference });
+            } else {
+                return;
+            }
+            this.messageService.add({
+                severity: 'success',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail,
+                life: 5000,
+            });
+            this.copilotActionDoneKeys.add(this.getCopilotHistoryKey(turn));
         } catch (error: any) {
             this.messageService.add({
                 severity: 'error',
                 summary: this.translate.instant('ai_copilot_title'),
-                detail: error?.error?.message || this.translate.instant('ai_copilot_request_failed'),
-                life: 5000
+                detail: error?.error?.message || this.translate.instant('ai_copilot_action_failed'),
+                life: 5000,
             });
         } finally {
-            this.copilotLoading = false;
+            this.copilotActionLoading = false;
+        }
+    }
+
+    copilotCardIcon(type: string | null | undefined): string {
+        switch (type) {
+            case 'customer': return 'pi-user';
+            case 'supplier': return 'pi-truck';
+            case 'order': return 'pi-shopping-cart';
+            case 'purchase': return 'pi-shopping-bag';
+            case 'expense': return 'pi-wallet';
+            case 'order_return': return 'pi-replay';
+            case 'product': return 'pi-box';
+            case 'kpi': return 'pi-chart-bar';
+            default: return 'pi-info-circle';
+        }
+    }
+
+    getCopilotConfidenceClass(confidence: number | null | undefined): string {
+        const value = typeof confidence === 'number' ? confidence : 0;
+        if (value >= 0.75) {
+            return 'is-high';
+        }
+        if (value >= 0.5) {
+            return 'is-medium';
+        }
+        return 'is-low';
+    }
+
+    isCopilotEvidenceOpen(turn: { at: string; prompt: string }): boolean {
+        return this.copilotEvidenceOpenKeys.has(this.getCopilotHistoryKey(turn));
+    }
+
+    toggleCopilotEvidenceFor(turn: { at: string; prompt: string }): void {
+        const key = this.getCopilotHistoryKey(turn);
+        if (this.copilotEvidenceOpenKeys.has(key)) {
+            this.copilotEvidenceOpenKeys.delete(key);
+        } else {
+            this.copilotEvidenceOpenKeys.add(key);
+        }
+    }
+
+    private scrollCopilotThreadToBottom(): void {
+        setTimeout(() => {
+            const el = this.copilotThreadEl?.nativeElement;
+            if (el) {
+                el.scrollTop = el.scrollHeight;
+            }
+        }, 60);
+    }
+
+    /**
+     * Minimal, safe Markdown-to-HTML for assistant answers. Escapes HTML first, then applies a small
+     * subset (headings, bold, inline code, italics, bullet and numbered lists, paragraphs). The result
+     * is bound via [innerHTML]; Angular's sanitizer strips anything unsafe.
+     */
+    renderCopilotMarkdown(answer: string | null | undefined): string {
+        const src = (answer || '').trim();
+        if (!src) {
+            return '';
+        }
+        const escape = (s: string) => s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        const inline = (s: string) => escape(s)
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/(^|[\s(])_([^_]+)_(?=[\s).,!?]|$)/g, '$1<em>$2</em>');
+        const lines = src.split(/\r?\n/);
+        const out: string[] = [];
+        let listType: 'ul' | 'ol' | null = null;
+        let para: string[] = [];
+        const closeList = () => {
+            if (listType) {
+                out.push(`</${listType}>`);
+                listType = null;
+            }
+        };
+        const flushPara = () => {
+            if (para.length) {
+                out.push(`<p>${para.map(inline).join('<br>')}</p>`);
+                para = [];
+            }
+        };
+        for (const raw of lines) {
+            const line = raw.trim();
+            if (!line) {
+                flushPara();
+                closeList();
+                continue;
+            }
+            const heading = /^#{1,6}\s+(.*)$/.exec(line);
+            const bullet = /^[-*•]\s+(.*)$/.exec(line);
+            const ordered = /^\d+[.)]\s+(.*)$/.exec(line);
+            if (heading) {
+                flushPara();
+                closeList();
+                out.push(`<h4 class="copilot-md-h">${inline(heading[1])}</h4>`);
+            } else if (bullet) {
+                flushPara();
+                if (listType !== 'ul') {
+                    closeList();
+                    out.push('<ul>');
+                    listType = 'ul';
+                }
+                out.push(`<li>${inline(bullet[1])}</li>`);
+            } else if (ordered) {
+                flushPara();
+                if (listType !== 'ol') {
+                    closeList();
+                    out.push('<ol>');
+                    listType = 'ol';
+                }
+                out.push(`<li>${inline(ordered[1])}</li>`);
+            } else {
+                closeList();
+                para.push(line);
+            }
+        }
+        flushPara();
+        closeList();
+        return out.join('');
+    }
+
+    startCopilotResize(event: MouseEvent): void {
+        event.preventDefault();
+        this.copilotResizeActive = true;
+        const min = 360;
+        const max = Math.min(window.innerWidth - 80, 900);
+        const onMove = (e: MouseEvent) => {
+            if (!this.copilotResizeActive) {
+                return;
+            }
+            const width = Math.max(min, Math.min(max, window.innerWidth - e.clientX));
+            document.documentElement.style.setProperty('--copilot-panel-width', `${width}px`);
+        };
+        const onUp = () => {
+            this.copilotResizeActive = false;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            const current = getComputedStyle(document.documentElement).getPropertyValue('--copilot-panel-width').trim();
+            if (current) {
+                try {
+                    localStorage.setItem(this.copilotWidthStorageKey, current);
+                } catch {
+                    // storage may be unavailable
+                }
+            }
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    private restoreCopilotPanelWidth(): void {
+        try {
+            const saved = localStorage.getItem(this.copilotWidthStorageKey);
+            if (saved) {
+                document.documentElement.style.setProperty('--copilot-panel-width', saved);
+            }
+        } catch {
+            // storage may be unavailable
         }
     }
 
@@ -1095,42 +1481,27 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     clearCopilotHistory(): void {
         this.copilotHistory = [];
-        this.isCopilotHistoryExpanded = false;
-        this.selectedCopilotHistoryKey = null;
         this.persistCopilotHistory();
     }
 
-    toggleCopilotHistoryExpanded(): void {
-        this.isCopilotHistoryExpanded = !this.isCopilotHistoryExpanded;
-    }
-
-    get displayedCopilotHistory(): Array<{ prompt: string; response: NadiPilotResponseDTO; at: string }> {
-        return this.isCopilotHistoryExpanded ? this.copilotHistory : this.copilotHistory.slice(0, 3);
-    }
-
-    get displayedCopilotHistoryGroups(): Array<{ label: string; items: Array<{ prompt: string; response: NadiPilotResponseDTO; at: string }> }> {
-        const grouped = new Map<string, Array<{ prompt: string; response: NadiPilotResponseDTO; at: string }>>();
-        for (const item of this.displayedCopilotHistory) {
-            const label = this.getCopilotHistoryDateLabel(item.at);
-            const items = grouped.get(label) || [];
-            items.push(item);
-            grouped.set(label, items);
-        }
-        return Array.from(grouped.entries()).map(([label, items]) => ({ label, items }));
-    }
-
+    /** Stable key for a conversation turn (used to track which evidence sections are expanded). */
     getCopilotHistoryKey(item: { prompt: string; at: string }): string {
         return `${item.at}::${item.prompt}`;
     }
 
-    usePromptFromHistory(prompt: string): void {
-        this.copilotPrompt = prompt || '';
-        setTimeout(() => this.copilotInputField?.nativeElement?.focus(), 0);
-    }
-
-    onCopilotHistoryItemSelected(item: { prompt: string; at: string }): void {
-        this.selectedCopilotHistoryKey = this.getCopilotHistoryKey(item);
-        this.usePromptFromHistory(item.prompt);
+    navigateFromCopilot(nav: NadiPilotNavigationDTO): void {
+        if (!nav?.route) {
+            return;
+        }
+        this.router.navigateByUrl(nav.route).catch(() => {
+            this.messageService.add({
+                severity: 'warn',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: nav.route,
+                life: 3000
+            });
+        });
+        this.closeCopilotPanel(false);
     }
 
     applyCopilotFollowUpQuestion(question: string): void {
@@ -1231,50 +1602,6 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         return `${shop} · ${warehouse} · ${supplier}`;
     }
 
-    getFormattedCopilotAnswer(answer: string | null | undefined): string {
-        const normalized = (answer || '').trim();
-        if (!normalized) {
-            return '';
-        }
-        return normalized
-            .replace(/\s*-\s+/g, '\n- ')
-            .replace(/\. ([A-Z])/g, '.\n$1')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-    }
-
-    formatCopilotHistoryTime(iso: string): string {
-        if (!iso) {
-            return '';
-        }
-        try {
-            return new Date(iso).toLocaleString();
-        } catch {
-            return iso;
-        }
-    }
-
-    private getCopilotHistoryDateLabel(iso: string): string {
-        if (!iso) {
-            return this.translate.instant('history');
-        }
-        const date = new Date(iso);
-        if (Number.isNaN(date.getTime())) {
-            return this.translate.instant('history');
-        }
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfEntry = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const diffDays = Math.round((startOfToday.getTime() - startOfEntry.getTime()) / 86400000);
-        if (diffDays === 0) {
-            return this.translate.instant('today');
-        }
-        if (diffDays === 1) {
-            return this.translate.instant('yesterday');
-        }
-        return date.toLocaleDateString();
-    }
-
     applyCopilotAction(action: NadiPilotActionDTO): void {
         const confirmed = window.confirm(this.translate.instant('ai_copilot_action_confirm', { title: action.title }));
         if (!confirmed) {
@@ -1343,8 +1670,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         }
     }
 
-    async applyAllCopilotReorders(): Promise<void> {
-        const result = this.copilotResponse;
+    async applyAllCopilotReorders(result: NadiPilotResponseDTO | null = this.copilotResponse): Promise<void> {
         if (!result?.recommendedActions?.length) {
             this.messageService.add({
                 severity: 'warn',
@@ -1417,13 +1743,13 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         return !!this.copilotSelectedSupplierId && !!this.copilotSelectedShopId && !!this.copilotSelectedWarehouseId;
     }
 
-    getCopilotValidReorderLineCount(): number {
-        const actions = this.copilotResponse?.recommendedActions || [];
+    getCopilotValidReorderLineCount(result: NadiPilotResponseDTO | null = this.copilotResponse): number {
+        const actions = result?.recommendedActions || [];
         return actions.filter(a => a.actionType === 'DRAFT_REORDER' && !!a.productId && !!a.quantity && a.quantity > 0).length;
     }
 
-    canApplyAllCopilotReorders(): boolean {
-        return !this.copilotLoading && this.hasCopilotScopeSelection() && this.getCopilotValidReorderLineCount() > 0;
+    canApplyAllCopilotReorders(result: NadiPilotResponseDTO | null = this.copilotResponse): boolean {
+        return !this.copilotLoading && this.hasCopilotScopeSelection() && this.getCopilotValidReorderLineCount(result) > 0;
     }
 
     canApplyCopilotAction(action: NadiPilotActionDTO): boolean {
@@ -1504,11 +1830,39 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         this.openCopilotPanel();
     }
 
+    get canUseCopilot(): boolean {
+        return this.isAdmin || this.isVendor || this.isWarehouseman
+            || (Array.isArray(this.userRoles)
+                && (this.userRoles.includes('ACCOUNTANT') || this.userRoles.includes('AUDITOR')));
+    }
+
+    private loadCopilotBriefing(): void {
+        if (this.copilotBriefingLoading) {
+            return;
+        }
+        this.copilotBriefingLoading = true;
+        this.aiIntegrationService.getNadiPilotBriefing({
+            ...(this.copilotSelectedShopId != null ? { shopId: this.copilotSelectedShopId } : {}),
+            ...(this.copilotSelectedWarehouseId != null ? { warehouseId: this.copilotSelectedWarehouseId } : {}),
+        }).subscribe({
+            next: briefing => {
+                this.copilotBriefing = briefing;
+                this.copilotBriefingLoading = false;
+            },
+            error: () => {
+                this.copilotBriefingLoading = false;
+            },
+        });
+    }
+
     openCopilotPanel(): void {
         this.isCopilotOpen = true;
         this.copilotUnreadCount = 0;
+        this.restoreCopilotPanelWidth();
         this.syncCopilotUiState();
+        this.loadCopilotBriefing();
         setTimeout(() => this.copilotInputField?.nativeElement?.focus(), 0);
+        this.scrollCopilotThreadToBottom();
     }
 
     closeCopilotPanel(restoreFocus = true): void {
@@ -1528,6 +1882,18 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     onEscapePressed(): void {
         if (this.isCopilotOpen) {
             this.closeCopilotPanel();
+        }
+    }
+
+    @HostListener('document:keydown', ['$event'])
+    onGlobalCopilotShortcut(event: KeyboardEvent): void {
+        // Ctrl/Cmd+K toggles NadiPilot from anywhere (admins only, outside POS).
+        if ((event.ctrlKey || event.metaKey) && (event.key === 'k' || event.key === 'K')) {
+            if (!this.isAdmin || this.isPosRoute) {
+                return;
+            }
+            event.preventDefault();
+            this.toggleCopilotPanel();
         }
     }
 

@@ -90,7 +90,13 @@
 
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{'category_name' | translate}}</span>
-                            {{category.categoryName ? category.categoryName : 'N/A'}}
+                            <div class="flex align-items-center gap-2">
+                                <img *ngIf="category.categoryImage" [src]="categoryImageUrl(category)"
+                                    [alt]="category.categoryName"
+                                    class="border-round border-1 surface-border flex-shrink-0"
+                                    style="width: 36px; height: 36px; object-fit: cover;" />
+                                <span>{{category.categoryName ? category.categoryName : 'N/A'}}</span>
+                            </div>
                         </td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{'category_description' | translate}}</span>
@@ -149,30 +155,29 @@
             (cancel)="onCategoryCancel()">
         </app-category-form-dialog>
 
-        <p-dialog [(visible)]="deleteCategoryDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
-            [style]="{width:'450px'}">
-            <div class="flex align-items-center justify-content-center">
-                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
-                <span *ngIf="category">{{ 'delete_confirmation_msg_with_param' | translate }}
-                    <b>{{category.categoryName}}</b>?</span>
-            </div>
-            <ng-template pTemplate="footer">
-                <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
-                    (click)="deleteCategoryDialog = false"></button>
-                <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{ 'yes_button' | translate }}"
-                    (click)="confirmDelete()"></button>
-            </ng-template>
-        </p-dialog>
+        <app-category-delete-dialog
+            [(visible)]="deleteCategoryDialog"
+            [categoryId]="category?.categoryId"
+            [canForceDelete]="isAdmin"
+            (confirmed)="confirmDelete($event)"
+            (forceConfirmed)="confirmDelete($event, true)">
+        </app-category-delete-dialog>
 
         <p-dialog [(visible)]="deleteCategoriesDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
-            [style]="{width:'450px'}">
+            [style]="{width:'460px'}">
             <div class="flex align-items-center justify-content-center">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem"></i>
                 <span>{{ 'delete_selected_confirmation_msg' | translate }}</span>
             </div>
+            <p *ngIf="isAdmin" class="mt-3 mb-0 text-sm" style="color: var(--brand-danger);">
+                {{ 'force_delete_categories_warning' | translate }}
+            </p>
             <ng-template pTemplate="footer">
                 <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{ 'no_button' | translate }}"
                     (click)="deleteCategoriesDialog = false"></button>
+                <button *ngIf="isAdmin" pButton pRipple icon="pi pi-exclamation-triangle"
+                    class="p-button-danger p-button-outlined" label="{{ 'force_delete_category' | translate }}"
+                    (click)="confirmDeleteSelected(true)"></button>
                 <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{ 'yes_button' | translate }}"
                     (click)="confirmDeleteSelected()"></button>
             </ng-template>

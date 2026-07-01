@@ -58,24 +58,23 @@
         icon="pi pi-cog" [label]="'open_global_settings' | translate" (click)="openProfileSettings()"></button>
     </div>
   </div>
-  <!-- Modern Lock Screen -->
+  <!-- Branded Lock Screen (matches the POS loading screen) -->
   <div class="pos-lock-overlay" *ngIf="isLocked">
     <div class="pos-lock-dialog">
-      <div class="text-center mb-5">
-        <div class="lock-icon-wrapper mb-3">
-          <i class="pi pi-lock text-6xl text-primary"></i>
-        </div>
-        <h2 class="m-0 mb-2 text-2xl font-bold">{{ 'pos_locked' | translate }}</h2>
-        <p class="text-600 mb-4">{{ 'enter_pin_to_unlock' | translate }}</p>
+      <img class="pos-lock-logo" [src]="loadingLogo" alt="Nadigit IMS" />
+      <div class="lock-icon-wrapper mb-3">
+        <i class="pi pi-lock"></i>
       </div>
-      <div class="pos-pin-input mb-4">
+      <h2 class="pos-lock-title">{{ 'pos_locked' | translate }}</h2>
+      <p class="pos-lock-subtitle">{{ 'enter_pin_to_unlock' | translate }}</p>
+
+      <div class="pos-pin-input w-full mb-3">
         <p-password
           [(ngModel)]="lockPinInput"
           [feedback]="false"
           [toggleMask]="true"
           (onSubmit)="unlockPos()"
           [placeholder]="'enter_pin' | translate"
-          [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem', 'letter-spacing': '0.5rem' }"
           [styleClass]="lockPinError ? 'p-invalid p-error-shake' : ''"
           autofocus
           [promptLabel]="''">
@@ -84,21 +83,24 @@
           {{ 'invalid_pin' | translate }}
         </small>
       </div>
+
       <button
         pButton
         [label]="'unlock' | translate"
         icon="pi pi-unlock"
         (click)="unlockPos()"
-        class="w-full p-button-lg p-button-raised">
+        class="w-full p-button-lg p-button-raised pos-lock-unlock-btn">
       </button>
-      <div class="text-center mt-4 text-600 text-sm">
+
+      <div class="pos-lock-hint">
         {{ 'press_enter_to_unlock' | translate }}
       </div>
     </div>
   </div>
 
   <!-- Modern Header with Glass Effect -->
-  <div class="pos-header glass-effect flex align-items-center justify-content-between surface-card border-round shadow-sm">
+  <div class="pos-header glass-effect flex align-items-center justify-content-between surface-card border-round shadow-sm"
+    [class.pos-header--collapsed]="headerCollapsed">
     <div class="flex align-items-center gap-3">
       <div class="pos-brand">
         <i class="pi pi-shopping-cart text-primary"></i>
@@ -113,7 +115,7 @@
             [value]="'session_open' | translate"
             icon="pi pi-check-circle">
           </p-tag>
-          <div class="pos-session-info ml-2">
+          <div class="pos-session-info ml-2 pos-header-collapsible">
             <small class="text-600 text-xs">
               {{ 'started' | translate }}: {{ session.startedAt | date:'short' }}
             </small>
@@ -153,7 +155,7 @@
     
     <div class="flex align-items-center gap-3">
       <!-- Shop Selector (Only for Admin) -->
-      <div class="pos-shop-selector" *ngIf="isAdmin">
+      <div class="pos-shop-selector pos-header-collapsible" *ngIf="isAdmin">
         <p-dropdown
           [options]="shops"
           optionLabel="shopName"
@@ -181,7 +183,7 @@
           {{ 'select_warehouse_first' | translate }}
         </small>
       </div>
-      <div class="pos-shop-selector" *ngIf="isAdmin">
+      <div class="pos-shop-selector pos-header-collapsible" *ngIf="isAdmin">
         <p-dropdown
           [options]="warehouses"
           optionLabel="name"
@@ -209,7 +211,7 @@
       
       <!-- User & Cart Info -->
       <div class="flex align-items-center gap-2">
-        <div class="pos-user-info">
+        <div class="pos-user-info pos-header-collapsible">
           <div class="flex align-items-center gap-1">
             <i class="pi pi-user text-600 text-sm"></i>
             <span class="text-600 text-sm">{{ session?.username || 'Guest' }}</span>
@@ -247,6 +249,17 @@
       
       <!-- Action Buttons -->
       <div class="flex align-items-center gap-2">
+        <!-- Collapse / expand the top bar to save space -->
+        <button
+          pButton
+          type="button"
+          [icon]="headerCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up'"
+          (click)="toggleHeaderCollapsed()"
+          class="p-button-rounded p-button-text pos-header-toggle"
+          [pTooltip]="(headerCollapsed ? 'expand_header' : 'collapse_header') | translate"
+          tooltipPosition="bottom">
+        </button>
+
         <!-- Exit POS Button (Admin & Vendor Only) -->
         <button
           *ngIf="isAdmin || isVendor"
@@ -307,6 +320,7 @@
             icon="pi pi-chart-line"
             (onClick)="downloadXReport('standard')"
             [model]="xReportFormatMenu"
+            [appendTo]="'body'"
             styleClass="p-button-outlined p-button-sm"
             [disabled]="isLocked || loading || reportDownloading"
             [pTooltip]="'pos_x_report_download' | translate">
@@ -317,6 +331,7 @@
             icon="pi pi-file-pdf"
             (onClick)="downloadZReport('standard')"
             [model]="zReportFormatMenu"
+            [appendTo]="'body'"
             styleClass="p-button-outlined p-button-sm"
             [disabled]="isLocked || loading || reportDownloading"
             [pTooltip]="'pos_z_report_download' | translate">
@@ -496,14 +511,14 @@
                 <div *ngIf="!posVariantLinesLoading && posVariantLines.length > 0" class="grid pos-variant-grid">
                   <div class="col-6 md:col-4 lg:col-3" *ngFor="let line of posVariantLines">
                     <div class="pos-variant-card border-1 surface-border border-round p-3 h-full cursor-pointer"
-                      [class.pos-variant-card--disabled]="(line.netAvailableQuantity ?? line.quantityAvailable ?? 0) <= 0"
+                      [class.pos-variant-card--disabled]="getProductStockDisplay(line) <= 0"
                       (click)="onPosVariantCardClick(line)">
                       <div class="font-medium text-900 text-sm">{{ posVariantSummary(line) }}</div>
                       <div class="text-600 text-xs font-mono mt-1">{{ line.reference }}</div>
                       <div class="flex justify-content-between align-items-center mt-2">
                         <span class="font-bold text-primary text-sm">{{ formatCurrency(line.sellingPrice ?? 0) }}</span>
-                        <p-tag [value]="(line.netAvailableQuantity ?? line.quantityAvailable ?? 0) + ''"
-                          [severity]="(line.netAvailableQuantity ?? line.quantityAvailable ?? 0) <= 0 ? 'danger' : 'success'"
+                        <p-tag [value]="formatProductStock(line) + (getProductStockUnit(line) ? ' ' + (getProductStockUnit(line) | translate) : '')"
+                          [severity]="getProductStockDisplay(line) <= 0 ? 'danger' : 'success'"
                           styleClass="text-xs"></p-tag>
                       </div>
                     </div>
@@ -572,10 +587,8 @@
                   <div class="flex flex-column align-items-end gap-1 flex-shrink-0 text-right">
                     <span class="font-bold text-primary pos-suggestion-price">{{ formatCurrency(product.sellingPrice) }}</span>
                     <p-tag
-                      [value]="product.quantityAvailable"
-                      [severity]="
-                        product.quantityAvailable <= 0 ? 'danger' : product.quantityAvailable < 5 ? 'warning' : 'success'
-                      "
+                      [value]="getProductStockLabel(product)"
+                      [severity]="getProductStockSeverity(product)"
                       styleClass="text-xs pos-suggestion-stock-tag">
                     </p-tag>
                   </div>
@@ -605,7 +618,7 @@
                     </button>
                   </div>
                   <p-tag
-                    *ngIf="product.quantityAvailable <= 0"
+                    *ngIf="getProductStockDisplay(product) <= 0"
                     value="Out of Stock"
                     severity="danger"
                     styleClass="pos-stock-badge">
@@ -616,8 +629,8 @@
                   <div class="pos-product-price">{{ formatCurrency(product.sellingPrice) }}</div>
                   <div class="flex justify-content-between align-items-center mt-2">
                     <p-tag
-                      [value]="product.quantityAvailable"
-                      [severity]="product.quantityAvailable <= 0 ? 'danger' : (product.quantityAvailable < 5 ? 'warning' : 'success')"
+                      [value]="getProductStockLabel(product)"
+                      [severity]="getProductStockSeverity(product)"
                       styleClass="pos-stock-tag">
                     </p-tag>
                     <i 
@@ -646,8 +659,8 @@
                   <div class="text-right mr-3">
                     <div class="font-bold">{{ formatCurrency(product.sellingPrice) }}</div>
                     <p-tag
-                      [value]="product.quantityAvailable"
-                      [severity]="product.quantityAvailable <= 0 ? 'danger' : (product.quantityAvailable < 5 ? 'warning' : 'success')"
+                      [value]="getProductStockLabel(product)"
+                      [severity]="getProductStockSeverity(product)"
                       styleClass="mt-1 text-xs">
                     </p-tag>
                   </div>
@@ -691,12 +704,21 @@
               styleClass="w-10rem"
               [showClear]="true"
               appendTo="body">
+              <ng-template let-category pTemplate="item">
+                <span class="flex align-items-center gap-2">
+                  <img *ngIf="category.categoryImage; else posCatIcon" [src]="categoryImageUrl(category)"
+                    alt="" style="width:1.5rem;height:1.5rem;object-fit:cover;border-radius:4px;flex-shrink:0;" />
+                  <ng-template #posCatIcon><i class="pi pi-folder"></i></ng-template>
+                  <span>{{ category.categoryName }}</span>
+                </span>
+              </ng-template>
             </p-autoComplete>
           </div>
         </div>
         
         <div class="pos-quick-products">
-          <div *ngIf="productViewMode === 'grid'" class="grid">
+          <div *ngIf="productViewMode === 'grid'" class="pos-quick-products-grid-scroll">
+          <div class="grid">
             <div class="col-4 md:col-3" *ngFor="let product of filteredQuickProducts">
               <div class="pos-quick-product-card" (click)="addToCart(product)">
                 <div class="pos-quick-image">
@@ -712,6 +734,7 @@
               </div>
             </div>
           </div>
+          </div><!-- /pos-quick-products-grid-scroll -->
           
           <div *ngIf="productViewMode === 'list'">
             <div class="pos-quick-list">
@@ -726,8 +749,8 @@
                 <div class="pos-quick-list-meta">
                   <div class="pos-quick-list-price font-bold">{{ formatCurrency(product.sellingPrice) }}</div>
                   <p-tag
-                    [value]="product.quantityAvailable"
-                    [severity]="product.quantityAvailable <= 0 ? 'danger' : (product.quantityAvailable < 5 ? 'warning' : 'success')"
+                    [value]="getProductStockLabel(product)"
+                    [severity]="getProductStockSeverity(product)"
                     styleClass="text-xs pos-quick-list-stock-tag">
                   </p-tag>
                 </div>
@@ -772,6 +795,7 @@
             <p-autoComplete
               [suggestions]="customerSuggestions"
               (completeMethod)="searchCustomers($event)"
+              (onDropdownClick)="searchCustomers({query: ''})"
               [(ngModel)]="selectedCustomer"
               [placeholder]="'search_customer' | translate"
               field="fullName"
@@ -779,7 +803,7 @@
               [dropdown]="true"
               [minLength]="0"
               [delay]="200"
-              [lazy]="false"
+              appendTo="body"
               styleClass="w-full"
               [style]="{ width: '100%', minWidth: '200px' }">
               <ng-template let-customer pTemplate="item">
@@ -806,6 +830,7 @@
               icon="pi pi-ellipsis-v"
               [model]="cartActions"
               (onClick)="openHoldCarts()"
+              appendTo="body"
               styleClass="p-button-text">
             </p-splitButton>
           </div>
@@ -823,7 +848,7 @@
               <div class="flex align-items-center gap-2 mt-1">
                 <p-tag
                   [value]="'stock' | translate"
-                  [severity]="item.quantityAvailable <= 0 ? 'danger' : (item.quantityAvailable < 5 ? 'warning' : 'success')"
+                  [severity]="getProductStockSeverity(item)"
                   styleClass="text-xs">
                 </p-tag>
                 <span class="text-500 text-sm">{{ formatCartLineQuantity(item) }} / {{ getCartLineDisplayStock(item) }} {{ 'available' | translate }}</span>
@@ -839,9 +864,11 @@
                   [disabled]="getCartLineDisplayQuantity(item) <= getCartLineQuantityMin(item)">
                 </button>
                 <input
+                  #qtyInput
                   type="number"
-                  [ngModel]="getCartLineDisplayQuantity(item)"
-                  (ngModelChange)="onCartDisplayQuantityChange(item, $event)"
+                  [value]="getCartLineDisplayQuantity(item)"
+                  (change)="onCartQuantityInput(item, qtyInput.value)"
+                  (keyup.enter)="onCartQuantityInput(item, qtyInput.value); qtyInput.blur()"
                   [min]="getCartLineQuantityMin(item)"
                   [max]="getCartLineMaxQuantity(item)"
                   [step]="getCartLineQuantityStep(item)"
@@ -857,8 +884,27 @@
             </div>
             <div class="pos-cart-item-price">
               <div class="font-bold">{{ formatCurrency(item.subtotal) }}</div>
-              <small class="text-600" *ngIf="showCartUnitPriceSuffix(item)">{{ formatCurrency(item.pricePerUnit) }} / {{ item.measureUnit | translate }}</small>
-              <small class="text-600" *ngIf="!showCartUnitPriceSuffix(item)">{{ formatCurrency(item.pricePerUnit) }}</small>
+              <!-- Editable unit price when overrides are allowed -->
+              <div *ngIf="priceOverrideAllowed" class="pos-cart-item-unitprice"
+                [pTooltip]="'edit_unit_price' | translate" tooltipPosition="top">
+                <span class="pos-unitprice-currency">{{ currency }}</span>
+                <input
+                  #unitPriceInput
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  [value]="item.pricePerUnit"
+                  (change)="onCartUnitPriceInput(item, unitPriceInput.value)"
+                  (keyup.enter)="onCartUnitPriceInput(item, unitPriceInput.value); unitPriceInput.blur()"
+                  class="pos-unitprice-input"
+                  aria-label="{{ 'edit_unit_price' | translate }}" />
+                <span class="pos-unitprice-suffix" *ngIf="showCartUnitPriceSuffix(item)">/ {{ item.measureUnit | translate }}</span>
+              </div>
+              <!-- Read-only unit price when overrides are disabled -->
+              <ng-container *ngIf="!priceOverrideAllowed">
+                <small class="text-600" *ngIf="showCartUnitPriceSuffix(item)">{{ formatCurrency(item.pricePerUnit) }} / {{ item.measureUnit | translate }}</small>
+                <small class="text-600" *ngIf="!showCartUnitPriceSuffix(item)">{{ formatCurrency(item.pricePerUnit) }}</small>
+              </ng-container>
             </div>
             <div class="pos-cart-item-actions">
               <button
@@ -1254,8 +1300,8 @@
               <div class="font-bold text-lg">{{ formatCurrency(item.subtotal) }}</div>
               <small class="text-600">
                 <p-tag
-                  [value]="item.quantityAvailable"
-                  [severity]="item.quantityAvailable <= 0 ? 'danger' : (item.quantityAvailable < 5 ? 'warning' : 'success')"
+                  [value]="getProductStockLabel(item)"
+                  [severity]="getProductStockSeverity(item)"
                   styleClass="text-xs">
                 </p-tag>
               </small>
@@ -2084,9 +2130,10 @@
 <ng-template #loadingTpl>
   <div class="pos-loading-screen">
     <div class="pos-loading-content">
+      <img class="pos-loading-logo" [src]="loadingLogo" alt="Nadigit IMS" />
       <p-progressSpinner styleClass="ims-spinner--xl ims-spinner--on-dark" fill="transparent" ariaLabel="loading"></p-progressSpinner>
-      <h3 class="mt-4">{{ 'loading_pos' | translate }}</h3>
-      <p class="text-600">{{ 'please_wait' | translate }}</p>
+      <h3 class="pos-loading-title">{{ 'loading_pos' | translate }}</h3>
+      <p class="pos-loading-subtitle">{{ 'please_wait' | translate }}</p>
     </div>
   </div>
 </ng-template>

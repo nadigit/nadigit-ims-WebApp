@@ -222,15 +222,15 @@ export class SuppliersComponent implements OnInit {
     this.supplier = { ...supplier };
   }
 
-  confirmDeleteSelected() {
+  confirmDeleteSelected(force: boolean = false) {
     this.deleteSuppliersDialog = false;
-    this.selectedSuppliers.forEach(selectedSupplier => this.onDeleteSupplier(selectedSupplier.supplierId));
+    this.selectedSuppliers.forEach(selectedSupplier => this.onDeleteSupplier(selectedSupplier.supplierId, force));
     this.selectedSuppliers = [];
   }
 
-  async confirmDelete() {
+  async confirmDelete(supplierId?: number, force: boolean = false) {
     this.deleteSupplierDialog = false;
-    await this.onDeleteSupplier(this.supplier.supplierId);
+    await this.onDeleteSupplier(supplierId ?? this.supplier.supplierId, force);
     this.supplier = {};
   }
 
@@ -554,8 +554,8 @@ export class SuppliersComponent implements OnInit {
       })
   }
 
-  async onDeleteSupplier(id: any) {
-    this.supplierService.deleteSupplier(id).subscribe({
+  async onDeleteSupplier(id: any, force: boolean = false) {
+    this.supplierService.deleteSupplier(id, force).subscribe({
       next: (response: any) => {
         this.onGetAllSuppliers();
         this.messageService.add({

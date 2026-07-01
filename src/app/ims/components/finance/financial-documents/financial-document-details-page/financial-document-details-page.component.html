@@ -466,13 +466,13 @@
 										</td>
 										<td>{{item.product?.reference || 'N/A'}}</td>
 										<td class="text-center">
-											<p-tag [value]="(item.quantity || 0).toString()" severity="info"></p-tag>
+											<p-tag [value]="formatItemQuantity(item)" severity="info"></p-tag>
 										</td>
 										<td class="text-right font-semibold">
 											{{item.pricePerUnit | currency:currency:'symbol':'1.2-2' || 'N/A'}}
 										</td>
 										<td class="text-right font-bold text-primary">
-											{{(item.pricePerUnit * item.quantity) | currency:currency:'symbol':'1.2-2'}}
+											{{ getItemLineTotal(item) | currency:currency:'symbol':'1.2-2'}}
 										</td>
 									</tr>
 								</ng-template>

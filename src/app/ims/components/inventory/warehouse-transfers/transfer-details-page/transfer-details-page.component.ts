@@ -14,6 +14,12 @@ import { AppConfigurationService } from 'src/app/services/app-configuration.serv
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import {
+  displayWarehouseStockQuantity,
+  formatLineQuantity,
+  getLineMeasureUnit,
+} from 'src/app/shared/product-utils';
+import { Product } from 'src/app/models/product';
 
 @Component({
   selector: 'app-transfer-details-page',
@@ -237,8 +243,31 @@ export class TransferDetailsPageComponent implements OnInit {
     return (transfer.status === 'PENDING' || transfer.status === 'IN_TRANSIT') && this.canEdit;
   }
 
+  /** Total in display units (informational; transfers may mix products/units). */
   getTotalQuantity(transfer: WarehouseTransfer): number {
-    return transfer.transferItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    return transfer.transferItems?.reduce(
+      (sum, item) => sum + displayWarehouseStockQuantity(item.product as Product, item.quantity ?? 0), 0) || 0;
+  }
+
+  /** A line's quantity in display units (e.g. 0.5 kg) using its own product's tracking mode. */
+  getItemDisplayQuantity(item: TransferItem): number {
+    return displayWarehouseStockQuantity(item?.product as Product, item?.quantity ?? 0);
+  }
+
+  formatItemQuantity(item: TransferItem): string {
+    return formatLineQuantity(item?.product as Product, this.getItemDisplayQuantity(item));
+  }
+
+  getItemQuantityUnit(item: TransferItem): string {
+    return getLineMeasureUnit(item?.product as Product, this.getItemDisplayQuantity(item));
+  }
+
+  /** A batch-metadata quantity (storage) converted to the line product's display units. */
+  formatBatchQuantity(item: TransferItem, storageQuantity: number | null | undefined): string {
+    const displayQty = displayWarehouseStockQuantity(item?.product as Product, storageQuantity ?? 0);
+    const formatted = formatLineQuantity(item?.product as Product, displayQty);
+    const unit = getLineMeasureUnit(item?.product as Product, displayQty);
+    return unit ? `${formatted} ${this.translate.instant(unit)}` : formatted;
   }
 
   // Batch Metadata Methods

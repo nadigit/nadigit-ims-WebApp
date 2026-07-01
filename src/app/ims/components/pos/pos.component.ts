@@ -4,6 +4,7 @@ import { MessageService } from 'primeng/api';
 import { Subject, debounceTime, takeUntil, interval } from 'rxjs';
 import { POSCartDTO, POSCheckoutDTO, POSProductDTO, POSReceiptDTO, PaymentInfo, PaymentMethod } from 'src/app/models/pos';
 import { paymentMethodOptions, PaymentMethodOption, getPaymentMethodLabel as getSharedPaymentMethodLabel, getPaymentMethodIcon as getSharedPaymentMethodIcon } from 'src/app/shared/payment-utils';
+import { BRAND_ASSETS } from 'src/app/utils/brand-assets';
 import { PosService } from 'src/app/services/pos.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { ShopService } from 'src/app/services/shop.service';
@@ -39,6 +40,7 @@ import {
   formatLineQuantity,
   getCartItemDisplayQuantity,
   getCartItemDisplayStock,
+  getLineMeasureUnit,
   lineQuantityDecimals,
   lineQuantityMin,
   lineQuantityStep,
@@ -51,6 +53,7 @@ import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { MenuItem } from 'primeng/api';
+import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
 
 @Component({
   selector: 'app-pos',
@@ -59,6 +62,20 @@ import { MenuItem } from 'primeng/api';
   providers: [MessageService]
 })
 export class PosComponent implements OnInit, OnDestroy {
+
+  /** Display-ready URL for a category's stored (relative) image. */
+  categoryImageUrl(category: any): string {
+    return resolvePublicAssetUrl(category?.categoryImage);
+  }
+
+  /** Slim/expanded state of the POS top bar, remembered per device. */
+  private readonly POS_HEADER_COLLAPSED_KEY = 'pos_header_collapsed';
+  headerCollapsed = localStorage.getItem('pos_header_collapsed') === 'true';
+
+  toggleHeaderCollapsed(): void {
+    this.headerCollapsed = !this.headerCollapsed;
+    localStorage.setItem(this.POS_HEADER_COLLAPSED_KEY, String(this.headerCollapsed));
+  }
 
   shopId!: number;
   shops: any[] = [];
@@ -74,6 +91,8 @@ export class PosComponent implements OnInit, OnDestroy {
   currency: string = 'USD';
 
   loading: boolean = true;
+  /** Primary logo on dark backgrounds — used by the branded POS loading screen. */
+  loadingLogo: string = BRAND_ASSETS.logoDark;
   productsLoading: boolean = false;
   cartSaving: boolean = false;
   taxEnabled: boolean = false;
@@ -303,6 +322,9 @@ export class PosComponent implements OnInit, OnDestroy {
   /** When true, server reserves cart lines and enforces allocatable qty; show POS hint and relax strict client cap. */
   salesStockSoftReservationEnabled: boolean = false;
 
+  /** When true, the cashier may override a line's unit price (pricing.allow.custom.override). */
+  priceOverrideAllowed: boolean = true;
+
   constructor(
     private posService: PosService,
     private shopService: ShopService,
@@ -358,6 +380,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
     await this.loadSalesStockConfig();
     await this.loadSalesStockSoftReservationConfig();
+    await this.loadPriceOverrideConfig();
 
     this.configService.configurationSaved$
       .pipe(takeUntil(this.destroy$))
@@ -371,6 +394,9 @@ export class PosComponent implements OnInit, OnDestroy {
             await this.loadSalesStockSoftReservationConfig();
             this.cdr.markForCheck();
           })();
+        }
+        if (key === 'pricing.allow.custom.override') {
+          void this.loadPriceOverrideConfig().then(() => this.cdr.markForCheck());
         }
         if (key === 'tax') {
           void this.loadTaxRate().then(() => this.cdr.markForCheck());
@@ -541,11 +567,13 @@ export class PosComponent implements OnInit, OnDestroy {
         } else if (this.shops.length > 0) {
           this.shopId = this.shops[0].shopId;
         }
-        if (this.warehouses.length > 0 && !this.selectedWarehouseId) {
+        // Restore persisted warehouse selection; fall back to first warehouse only if no saved choice
+        const savedWarehouseId = this.posStorage.getWarehouseId();
+        if (savedWarehouseId && this.warehouses.some(w => Number(w.warehouseId) === savedWarehouseId)) {
+          this.selectedWarehouseId = savedWarehouseId;
+        } else if (this.warehouses.length > 0 && !this.selectedWarehouseId) {
           this.selectedWarehouseId = Number(this.warehouses[0].warehouseId);
-        }
-        if (this.warehouses.length === 1) {
-          this.selectedWarehouseId = Number(this.warehouses[0].warehouseId);
+          this.posStorage.saveWarehouseId(this.selectedWarehouseId);
         }
         this.previousSelectedWarehouseId = this.selectedWarehouseId;
 
@@ -646,6 +674,7 @@ export class PosComponent implements OnInit, OnDestroy {
   private async applyWarehouseSelection(nextWarehouseId: number): Promise<void> {
     this.previousSelectedWarehouseId = nextWarehouseId;
     this.selectedWarehouseId = nextWarehouseId;
+    this.posStorage.saveWarehouseId(nextWarehouseId);
     this.selectedCategory = null;
     this.selectedCategoryId = null;
     this.searchQuery = '';
@@ -938,7 +967,7 @@ export class PosComponent implements OnInit, OnDestroy {
     }
     
     try {
-      const quick$ = await this.posService.getQuickProducts(this.getShopIdForApi());
+      const quick$ = await this.posService.getQuickProducts(this.getShopIdForApi(), this.selectedWarehouseId ?? undefined);
       const loadedQuickProducts = await firstValueFrom(quick$);
       this.quickProducts = (loadedQuickProducts || []).filter((product: POSProductDTO) => this.matchesSelectedWarehouse(product));
       this.filteredQuickProducts = [...this.quickProducts];
@@ -1012,17 +1041,18 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   getProductImageUrl(product: POSProductDTO | any): string {
+    let raw = '';
     if (product?.imageUrl) {
-      return product.imageUrl;
-    }
-    // Try to find product in quickProducts by productId
-    if (product?.productId) {
+      raw = product.imageUrl;
+    } else if (product?.productId) {
+      // Try to find product in quickProducts by productId
       const found = this.quickProducts.find(p => p.productId === product.productId);
-      if (found?.imageUrl) {
-        return found.imageUrl;
-      }
+      raw = found?.imageUrl ?? '';
     }
-    return 'assets/core-images/no-image.png';
+    // Stored URLs are relative (e.g. /api/uploads/products/..). Resolve to an
+    // absolute URL against the API host, otherwise the browser requests them
+    // from the SPA origin and they 404 (broken images).
+    return resolvePublicAssetUrl(raw) || 'assets/core-images/no-image.png';
   }
 
   getCartItemImage(item: any): string {
@@ -1164,18 +1194,13 @@ export class PosComponent implements OnInit, OnDestroy {
         ? event
         : (typeof event?.query === 'string' ? event.query : '');
     const query = querySource.trim();
-    this.searchQuery = query; // Update the search query model
-    if (!query || query.length < 1) {
-      this.searchSuggestions = [];
-      this.searchResults = [];
-      return;
-    }
+    this.searchQuery = query;
 
     // Clear previous suggestions immediately to prevent duplicates
     this.searchSuggestions = [];
     this.searchResults = [];
 
-    // Perform search and populate suggestions
+    // Perform search and populate suggestions (empty query loads default products)
     this.performSearch(query);
   }
 
@@ -1210,12 +1235,6 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private async performSearch(query: string) {
-    if (!query || query.length < 1) {
-      this.searchSuggestions = [];
-      this.searchResults = [];
-      return;
-    }
-
     // For admins, validate shopId
     if (this.isAdmin && !this.validateShopIdForAdmin()) {
       this.searchSuggestions = [];
@@ -1573,7 +1592,9 @@ export class PosComponent implements OnInit, OnDestroy {
       }
 
       if (this.isOnline) {
-        const updated$ = await this.posService.addItemToCart(this.cart.cartId, productId, quantity);
+        // Send display quantity; backend converts to storage via toStorageFromUserInput
+        const apiQty = QuantityScale.isFractional(productMeta) ? quantity : Math.max(1, Math.round(quantity));
+        const updated$ = await this.posService.addItemToCart(this.cart.cartId, productId, apiQty);
         this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
         this.updateCartTracking();
         this.saveToLocalStorage();
@@ -2159,7 +2180,9 @@ export class PosComponent implements OnInit, OnDestroy {
   // ========== Hold / resume ==========
 
   async openHoldCarts() {
-    if (!this.shopId) return;
+    // Only admins must pick a shop first; for non-admins the backend resolves
+    // the shop from the JWT (getShopIdForApi() returns undefined).
+    if (this.isAdmin && !this.shopId) return;
     try {
       const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
       const carts = await firstValueFrom(holds$);
@@ -3640,6 +3663,9 @@ export class PosComponent implements OnInit, OnDestroy {
     if (this.shopId) {
       this.posStorage.saveShopId(this.shopId);
     }
+    if (this.selectedWarehouseId) {
+      this.posStorage.saveWarehouseId(this.selectedWarehouseId);
+    }
     if (this.quickProducts && this.quickProducts.length > 0) {
       this.posStorage.saveQuickProducts(this.quickProducts);
     }
@@ -4529,7 +4555,8 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async refreshSessionManually() {
-    if (!this.shopId) {
+    // Only admins must pick a shop first; non-admins resolve it from the JWT.
+    if (this.isAdmin && !this.shopId) {
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
@@ -4603,50 +4630,41 @@ export class PosComponent implements OnInit, OnDestroy {
           ...filtered
         ];
       } else {
-        // Load all customers if not already loaded (for broader search)
-        if (query.length >= 1) {
-          (this.customerService as any).loadToken && await (this.customerService as any).loadToken();
-          const customers$ = this.customerService.getCustomers();
-          const allCustomers = await firstValueFrom(customers$);
-          this.customers = Array.isArray(allCustomers) ? allCustomers : [];
-          // Add fullName property if not present and filter out null IDs and walk-in customers
-          this.customers = this.customers
-            .filter(c => c.customerId != null && !this.isWalkInCustomer(c))
-            .map(c => ({
-              ...c,
-              fullName: c.fullName || `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.name || 'Unknown'
-            }));
-          
-          if (!query || query.length === 0) {
-            // Show initial suggestions
-            this.customerSuggestions = [
-              { customerId: null, fullName: walkInLabel },
-              ...this.customers.slice(0, 10)
-            ];
-            return;
-          }
-          
-          // Filter customers by query (exclude walk-in customer)
-          const queryLower = query.toLowerCase();
-          const filtered = this.customers.filter(customer => 
-            !this.isWalkInCustomer(customer) && (
-              customer.fullName?.toLowerCase().includes(queryLower) ||
-              customer.email?.toLowerCase().includes(queryLower) ||
-              customer.phone?.includes(query) ||
-              customer.firstName?.toLowerCase().includes(queryLower) ||
-              customer.lastName?.toLowerCase().includes(queryLower)
-            )
-          );
-          
-          // Always include walk-in customer as first option
+        // Load all customers if not already loaded
+        (this.customerService as any).loadToken && await (this.customerService as any).loadToken();
+        const customers$ = this.customerService.getCustomers();
+        const allCustomers = await firstValueFrom(customers$);
+        this.customers = Array.isArray(allCustomers) ? allCustomers : [];
+        this.customers = this.customers
+          .filter(c => c.customerId != null && !this.isWalkInCustomer(c))
+          .map(c => ({
+            ...c,
+            fullName: c.fullName || `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.name || 'Unknown'
+          }));
+
+        if (!query) {
           this.customerSuggestions = [
             { customerId: null, fullName: walkInLabel },
-            ...filtered
+            ...this.customers.slice(0, 10)
           ];
-        } else {
-          // Show initial suggestions when no query
-          this.customerSuggestions = [{ customerId: null, fullName: walkInLabel }];
+          return;
         }
+
+        // Filter customers by query
+        const queryLower = query.toLowerCase();
+        const filtered = this.customers.filter(customer =>
+          !this.isWalkInCustomer(customer) && (
+            customer.fullName?.toLowerCase().includes(queryLower) ||
+            customer.email?.toLowerCase().includes(queryLower) ||
+            customer.phone?.includes(query) ||
+            customer.firstName?.toLowerCase().includes(queryLower) ||
+            customer.lastName?.toLowerCase().includes(queryLower)
+          )
+        );
+        this.customerSuggestions = [
+          { customerId: null, fullName: walkInLabel },
+          ...filtered
+        ];
       }
     } catch (error) {
       console.error('Error searching customers:', error);
@@ -4879,6 +4897,44 @@ export class PosComponent implements OnInit, OnDestroy {
     return shouldShowLineMeasureUnit(cartItemAsProduct(item));
   }
 
+  /**
+   * Sellable stock for a POS product/variant tile in DISPLAY units (e.g. 0.5 kg, not 500),
+   * preferring backend display fields and falling back to storage→display conversion.
+   */
+  getProductStockDisplay(product: any): number {
+    if (!product) {
+      return 0;
+    }
+    if (product.displayNetAvailableQuantity != null) {
+      return product.displayNetAvailableQuantity;
+    }
+    if (product.displayQuantityAvailable != null && product.netAvailableQuantity == null) {
+      return product.displayQuantityAvailable;
+    }
+    const storage = (product.netAvailableQuantity ?? product.quantityAvailable) ?? 0;
+    return QuantityScale.toDisplayQuantity(product as Product, storage);
+  }
+
+  formatProductStock(product: any): string {
+    return formatLineQuantity(product as Product, this.getProductStockDisplay(product));
+  }
+
+  getProductStockUnit(product: any): string {
+    return getLineMeasureUnit(product as Product, this.getProductStockDisplay(product));
+  }
+
+  /** Stock-tag severity from display-unit sellable quantity. */
+  getProductStockSeverity(product: any): string {
+    const qty = this.getProductStockDisplay(product);
+    return qty <= 0 ? 'danger' : qty < 5 ? 'warning' : 'success';
+  }
+
+  /** Stock tag label with unit (e.g. "0.5 kg"). */
+  getProductStockLabel(product: any): string {
+    const unit = this.getProductStockUnit(product);
+    return this.formatProductStock(product) + (unit ? ' ' + this.translate.instant(unit) : '');
+  }
+
   /** Max display quantity in cart line editor; soft reservations defer final check to API when online. */
   getCartLineMaxQuantity(item: POSCartItemDTO): number {
     if (this.salesStockSoftReservationEnabled && this.isOnline) {
@@ -4898,14 +4954,29 @@ export class PosComponent implements OnInit, OnDestroy {
 
   private toApiQuantity(item: POSCartItemDTO, displayQuantity: number): number {
     const product = cartItemAsProduct(item);
-    const min = lineQuantityMin(product);
-    const rounded = Math.max(min, Math.round(displayQuantity / min) * min);
-    return QuantityScale.isFractional(product) ? rounded : Math.max(1, Math.round(displayQuantity));
+    if (QuantityScale.isFractional(product)) {
+      // Backend accepts display-unit decimals (e.g. 0.5) and converts to storage internally
+      return displayQuantity;
+    }
+    return Math.max(1, Math.round(displayQuantity));
   }
 
   onCartDisplayQuantityChange(item: POSCartItemDTO, displayQuantity: number) {
     item.displayQuantity = displayQuantity;
     this.onQuantityChange(item, displayQuantity);
+  }
+
+  /**
+   * Commit a typed cart quantity (fired on blur/Enter, not per keystroke) so fractional
+   * input like "1.5" isn't reset to "1" mid-typing by the async cart refresh. Accepts
+   * both '.' and ',' as the decimal separator and clamps to the line's min/max.
+   */
+  onCartQuantityInput(item: POSCartItemDTO, raw: string): void {
+    const parsed = parseFloat(String(raw ?? '').replace(',', '.'));
+    if (isNaN(parsed)) {
+      return;
+    }
+    this.updateQuantity(item, parsed);
   }
 
   updateQuantity(item: POSCartItemDTO, newDisplayQuantity: number) {
@@ -5135,6 +5206,58 @@ export class PosComponent implements OnInit, OnDestroy {
     } catch (e) {
       console.warn('Could not load soft reservation configuration for POS, defaulting to off', e);
       this.salesStockSoftReservationEnabled = false;
+    }
+  }
+
+  /** Loads whether cashiers may override line prices (pricing.allow.custom.override). */
+  async loadPriceOverrideConfig() {
+    try {
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('pricing.allow.custom.override')
+      );
+      this.priceOverrideAllowed = config?.value === 'true' || config?.value === true;
+    } catch (e) {
+      console.warn('Could not load price override configuration for POS, defaulting to allowed', e);
+      this.priceOverrideAllowed = true;
+    }
+  }
+
+  /** Commit a manually typed unit price for a cart line (only when overrides are allowed). */
+  onCartUnitPriceInput(item: POSCartItemDTO, raw: string): void {
+    if (!this.priceOverrideAllowed) {
+      return;
+    }
+    const parsed = parseFloat(String(raw ?? '').replace(',', '.'));
+    if (isNaN(parsed) || parsed < 0) {
+      return;
+    }
+    void this.updateCartItemPrice(item, parsed);
+  }
+
+  /** Persist a unit-price override for a cart line via the cart API. */
+  async updateCartItemPrice(item: any, newPrice: number): Promise<void> {
+    if (!this.priceOverrideAllowed || !this.cart || !item) {
+      return;
+    }
+    item.priceOverride = newPrice;
+    item.manualPriceOverride = true;
+    this.cartSaving = true;
+    try {
+      const apiQuantity = this.toApiQuantity(item, this.getCartLineDisplayQuantity(item));
+      const updated$ = await this.posService.updateCartItem(item.cartItemId, apiQuantity, newPrice);
+      this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
+      this.updateCartTracking();
+      this.saveToLocalStorage();
+    } catch (error: any) {
+      console.error('Error updating cart item price:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: error?.error?.message || this.translate.instant('error_occurred'),
+        life: 3000,
+      });
+    } finally {
+      this.cartSaving = false;
     }
   }
 

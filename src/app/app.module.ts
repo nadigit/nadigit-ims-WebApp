@@ -15,6 +15,7 @@ import { OrganizationChartModule } from 'primeng/organizationchart';
 import { MessageService } from 'primeng/api';
 import { MaintenanceInterceptor } from './interceptors/maintenance.interceptor';
 import { BackendUnavailableInterceptor } from './interceptors/backend-unavailable.interceptor';
+import { AcceptLanguageInterceptor } from './interceptors/accept-language.interceptor';
 import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
 import { BrandLogoComponent } from './shared/brand-logo';
 
@@ -86,6 +87,11 @@ function initializeKeycloak(keycloak: KeycloakService) {
         {
             provide: HTTP_INTERCEPTORS,
             useClass: BackendUnavailableInterceptor,
+            multi: true
+        },
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: AcceptLanguageInterceptor,
             multi: true
         },
         // { provide: LocationStrategy, useClass: HashLocationStrategy },

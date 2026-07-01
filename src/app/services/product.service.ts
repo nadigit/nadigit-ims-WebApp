@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AuthenticationService } from './authentication.service';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { KeycloakService } from 'keycloak-angular';
 import { environment } from 'src/environments/environment';
 import { withAudit, auditSaveAction } from '../utils/audit-action';
@@ -110,13 +110,22 @@ export class ProductService {
     );
   }
 
-  deleteProduct(id: any) {
-    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted product');
-    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
+  deleteProduct(id: any, force: boolean = false) {
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), force ? 'Force deleted product' : 'Deleted product');
+    let params = new HttpParams();
+    if (force) {
+      params = params.set('force', 'true');
+    }
+    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers, params });
   }
   getProducts() {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, { headers: headers });
+  }
+  /** Admin product KPIs: counts (in/low/out of stock) + inventory valuation (cost & retail). */
+  getProductStats() {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
+    return this.http.get<any>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'stats', { headers: headers });
   }
   getProduct(id: number) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
@@ -150,6 +159,15 @@ export class ProductService {
   getQuickProducts() {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'quick-products', { headers: headers });
+  }
+
+  searchProductsForFilter(query: string, size: number = 20) {
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const params = new HttpParams()
+      .set('search', query)
+      .set('page', '0')
+      .set('size', size.toString());
+    return this.http.get<any>(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}`, { headers, params });
   }
 
   getProductPriceHistory(id: number) {

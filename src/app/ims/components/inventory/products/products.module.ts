@@ -48,6 +48,7 @@ import { ProductsTableComponent } from './products-table/products-table.componen
 import { ProductDetailsPageComponent } from './product-details/product-details-page.component';
 import { ProductImportComponent } from './product-import/product-import.component';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { HintComponent } from 'src/app/shared/components/hint/hint.component';
 import { InventorySharedModule } from '../shared/inventory-shared.module';
 import { CategoriesModule } from '../categories/categories.module';
 import { SuppliersModule } from '../../purchases/suppliers/suppliers.module';
@@ -102,6 +103,7 @@ import { SuppliersModule } from '../../purchases/suppliers/suppliers.module';
         InventorySharedModule,
         CategoriesModule,
         SuppliersModule,
+        HintComponent,
     ],
     declarations: [ProductsComponent, ProductsTableComponent, ProductDetailsPageComponent, ProductImportComponent],
     providers: [ReportingService, DialogService],

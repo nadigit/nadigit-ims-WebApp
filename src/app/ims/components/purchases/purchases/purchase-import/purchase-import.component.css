@@ -122,3 +122,43 @@
   color: var(--text-color-secondary);
 }
 
+
+/* Invoice review grid — keep Reference / product-name inputs wide enough to read.
+   Columns carry min-widths; the wrapper scrolls horizontally when they exceed the dialog. */
+.invoice-review-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+:host ::ng-deep .invoice-review-table {
+  min-width: 60rem;
+}
+
+:host ::ng-deep .invoice-review-table input.p-inputtext,
+:host ::ng-deep .invoice-review-table .p-inputnumber,
+:host ::ng-deep .invoice-review-table .p-inputnumber input,
+:host ::ng-deep .invoice-review-table .p-calendar,
+:host ::ng-deep .invoice-review-table .p-dropdown {
+  width: 100%;
+}
+
+:host ::ng-deep .invoice-review-table .p-datatable-tbody > tr > td {
+  vertical-align: top;
+}
+
+/* Pin the row-actions (delete) column to the right so it stays reachable while the grid scrolls. */
+:host ::ng-deep .invoice-review-table th:last-child,
+:host ::ng-deep .invoice-review-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.18);
+}
+
+:host ::ng-deep .invoice-review-table thead th:last-child {
+  background: var(--surface-100);
+}
+
+:host ::ng-deep .invoice-review-table tbody td:last-child {
+  background: var(--surface-card);
+}

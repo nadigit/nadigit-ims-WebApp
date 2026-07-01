@@ -49,6 +49,27 @@
                     </div>
                 </section>
 
+                <!-- Category image -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+                            <i class="pi pi-image"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'category_image' | translate }}</h3>
+                    </header>
+                    <div class="ims-form-section__body">
+                        <app-image-upload
+                            [imageUrl]="config.category.categoryImage"
+                            [label]="'category_image'"
+                            [showHeader]="false"
+                            [uploading]="imageUploading"
+                            (fileSelected)="onImageFile($event)"
+                            (validationError)="onImageValidationError($event)"
+                            (cleared)="removeImage()">
+                        </app-image-upload>
+                    </div>
+                </section>
+
                 <!-- Costing method -->
                 <section class="ims-form-section">
                     <header class="ims-form-section__header">
@@ -72,6 +93,8 @@
                         </div>
                     </div>
                 </section>
+
+
             </div>
 
             <div class="ims-form-required-note">

@@ -75,19 +75,23 @@
 </div>
 
 <div
-  *ngIf="isAdmin && !isPosRoute"
+  *ngIf="canUseCopilot && !isPosRoute"
   class="copilot-panel-backdrop"
   [class.visible]="isCopilotOpen"
   (click)="closeCopilotPanel()"></div>
 
 <aside
-  *ngIf="isAdmin && !isPosRoute"
+  *ngIf="canUseCopilot && !isPosRoute"
   class="copilot-panel"
   [class.open]="isCopilotOpen"
+  [class.expanded]="copilotExpanded"
   role="dialog"
   aria-modal="true"
   [attr.aria-label]="'ai_copilot_title' | translate"
   [attr.aria-hidden]="!isCopilotOpen">
+  <!-- Drag handle to resize the panel width -->
+  <div class="copilot-resize-handle" (mousedown)="startCopilotResize($event)" aria-hidden="true"></div>
+
   <div class="copilot-panel-header">
     <div class="copilot-header-left flex align-items-center gap-2">
       <div class="copilot-header-icon-wrap">
@@ -95,7 +99,6 @@
       </div>
       <div class="copilot-header-meta">
         <p class="copilot-title m-0">{{ 'ai_copilot_title' | translate }}</p>
-        <small class="copilot-subtitle">{{ 'ai_copilot_help_text' | translate }}</small>
         <div class="copilot-online-status">
           <span class="copilot-online-dot" aria-hidden="true"></span>
           <small>{{ 'active' | translate }}</small>
@@ -103,16 +106,22 @@
       </div>
     </div>
     <div class="copilot-header-actions">
-      <div class="copilot-mode-toggle" role="group" [attr.aria-label]="'ai_copilot_mode' | translate">
-        <button pButton pRipple type="button" class="p-button-text p-button-sm copilot-mode-btn"
-          [class.active]="!isCopilotAdvancedMode()"
-          [label]="'ai_copilot_mode_simple' | translate"
-          (click)="setCopilotMode('simple')"></button>
-        <button pButton pRipple type="button" class="p-button-text p-button-sm copilot-mode-btn"
-          [class.active]="isCopilotAdvancedMode()"
-          [label]="'ai_copilot_mode_advanced' | translate"
-          (click)="setCopilotMode('advanced')"></button>
-      </div>
+      <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
+        icon="pi pi-sliders-h"
+        [pTooltip]="'ai_copilot_scope_button' | translate" tooltipPosition="bottom"
+        [attr.aria-label]="'ai_copilot_scope_button' | translate"
+        (click)="openCopilotScopeSettings()"></button>
+      <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
+        icon="pi pi-plus"
+        [disabled]="copilotHistory.length === 0 && !copilotResponse"
+        [pTooltip]="'ai_copilot_new_chat' | translate" tooltipPosition="bottom"
+        [attr.aria-label]="'ai_copilot_new_chat' | translate"
+        (click)="clearCopilotHistory()"></button>
+      <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
+        [icon]="copilotExpanded ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
+        [pTooltip]="(copilotExpanded ? 'ai_copilot_collapse' : 'ai_copilot_expand') | translate" tooltipPosition="bottom"
+        [attr.aria-label]="(copilotExpanded ? 'ai_copilot_collapse' : 'ai_copilot_expand') | translate"
+        (click)="toggleCopilotExpanded()"></button>
       <button pButton pRipple type="button" class="p-button-rounded p-button-text copilot-header-btn"
         icon="pi pi-times"
         [attr.aria-label]="'close' | translate"
@@ -120,158 +129,231 @@
     </div>
   </div>
 
-  <div class="copilot-panel-body">
-    <div *ngIf="copilotLoading" class="copilot-loading">
-      <i class="pi pi-spin pi-spinner text-primary mr-2"></i>
-      <span>{{ 'loading' | translate }}...</span>
-    </div>
+  <div *ngIf="showCopilotCatalogScopeHint()" class="copilot-catalog-scope-hint">
+    <small><i class="pi pi-info-circle mr-1"></i>{{ 'ai_copilot_catalog_scope_hint' | translate }}</small>
+  </div>
 
-    <div class="copilot-quick-prompts flex gap-2 flex-wrap mb-3">
-      <button pButton type="button" class="p-button-sm p-button-outlined"
-        [label]="'ai_copilot_prompt_stockout' | translate"
-        (click)="setCopilotPromptByKey('ai_copilot_prompt_stockout')"></button>
-      <button pButton type="button" class="p-button-sm p-button-outlined"
-        [label]="'ai_copilot_prompt_reorder' | translate"
-        (click)="setCopilotPromptByKey('ai_copilot_prompt_reorder')"></button>
-      <button pButton type="button" class="p-button-sm p-button-outlined"
-        [label]="'ai_copilot_prompt_risk' | translate"
-        (click)="setCopilotPromptByKey('ai_copilot_prompt_risk')"></button>
-    </div>
+  <div class="copilot-panel-body" #copilotThreadEl>
+    <!-- Welcome / empty state -->
+    <div class="copilot-welcome" *ngIf="copilotThread.length === 0 && !copilotLoading && !copilotPendingPrompt">
+      <div class="copilot-welcome-icon">
+        <i class="pi copilot-empty-icon" [ngClass]="brandAssets.nadiPilotPrimeIcon" aria-hidden="true"></i>
+      </div>
+      <p class="copilot-welcome-title m-0">{{ 'ai_copilot_welcome_title' | translate }}</p>
+      <p class="copilot-welcome-text m-0">{{ 'ai_copilot_help_text' | translate }}</p>
 
-    <div *ngIf="showCopilotCatalogScopeHint()" class="copilot-catalog-scope-hint mb-2 p-2 border-round">
-      <small class="text-700"><i class="pi pi-info-circle mr-1"></i>{{ 'ai_copilot_catalog_scope_hint' | translate }}</small>
-    </div>
-
-    <div class="copilot-scope-summary mb-3">
-      <div class="flex align-items-center justify-content-between gap-2 mb-2">
-        <div class="copilot-scope-summary-text">
-          <small class="copilot-scope-summary-title">{{ 'ai_copilot_scope_dialog_title' | translate }}</small>
-          <!-- <small class="copilot-scope-summary-value">{{ getCopilotScopeCompactSummary() }}</small> -->
+      <!-- Proactive briefing -->
+      <div class="copilot-briefing" *ngIf="copilotBriefingLoading || copilotBriefing">
+        <div class="copilot-briefing-head">
+          <i class="pi pi-bolt" aria-hidden="true"></i>
+          <span>{{ 'ai_copilot_briefing_title' | translate }}</span>
         </div>
-        <button pButton type="button" class="p-button-sm p-button-outlined"
-          icon="pi pi-sliders-h" [label]="'ai_copilot_scope_button' | translate"
-          (click)="openCopilotScopeSettings()"></button>
+        <div *ngIf="copilotBriefingLoading" class="copilot-briefing-loading">
+          <i class="pi pi-spin pi-spinner mr-2"></i>{{ 'loading' | translate }}...
+        </div>
+        <ng-container *ngIf="!copilotBriefingLoading && copilotBriefing">
+          <p class="copilot-briefing-headline m-0">{{ copilotBriefing.headline }}</p>
+          <button type="button"
+            *ngFor="let item of copilotBriefing.items"
+            class="copilot-briefing-item"
+            [ngClass]="'is-' + item.severity"
+            [disabled]="!item.navigation"
+            (click)="item.navigation && navigateFromCopilot(item.navigation)">
+            <span class="copilot-briefing-dot" aria-hidden="true"></span>
+            <span class="copilot-briefing-text">{{ item.text }}</span>
+            <i *ngIf="item.navigation" class="pi pi-arrow-up-right" aria-hidden="true"></i>
+          </button>
+        </ng-container>
+      </div>
+
+      <div class="copilot-suggestions">
+        <button type="button" class="copilot-suggestion-card"
+          *ngFor="let s of copilotSuggestedPrompts"
+          (click)="setCopilotPromptByKey(s.key); askAiCopilot()">
+          <i class="pi" [ngClass]="s.icon" aria-hidden="true"></i>
+          <span>{{ s.key | translate }}</span>
+        </button>
       </div>
     </div>
 
-    <div class="copilot-empty-state" *ngIf="!copilotLoading && !copilotResponse">
-      <i class="pi copilot-empty-icon" [ngClass]="brandAssets.nadiPilotPrimeIcon" aria-hidden="true"></i>
-      <p class="copilot-empty-title m-0">{{ 'ai_copilot_title' | translate }}</p>
-      <p class="copilot-empty-text m-0">{{ 'ai_copilot_help_text' | translate }}</p>
-    </div>
-
-    <div class="copilot-response" *ngIf="copilotResponse as result">
-      <div class="copilot-answer-card mb-3">
-        <p class="m-0 text-900 copilot-answer-text">{{ getFormattedCopilotAnswer(result.answer) }}</p>
-      </div>
-      <small class="copilot-confidence block mb-3">
-        {{ 'ai_copilot_confidence' | translate }}: {{ (result.confidence * 100) | number:'1.0-0' }}%
-      </small>
-      <div *ngIf="getVisibleCopilotConfidenceReasons(result.confidenceReasons).length" class="copilot-confidence-reasons mb-3">
-        <p class="text-sm font-semibold text-800 mb-2">{{ 'ai_copilot_confidence_reasons' | translate }}</p>
-        <ul class="m-0 pl-3">
-          <li *ngFor="let reason of getVisibleCopilotConfidenceReasons(result.confidenceReasons)">{{ reason }}</li>
-        </ul>
-      </div>
-
-      <div *ngIf="result.followUpQuestions?.length" class="copilot-section-card mb-3">
-        <p class="text-sm font-semibold text-800 mb-2">{{ 'ai_copilot_followup_title' | translate }}</p>
-        <div class="copilot-followup-list">
-          <button
-            *ngFor="let q of result.followUpQuestions"
-            pButton
-            type="button"
-            class="p-button-sm p-button-outlined copilot-followup-chip"
-            [label]="q"
-            (click)="applyCopilotFollowUpQuestion(q)"></button>
+    <!-- Conversation thread -->
+    <div class="copilot-thread">
+      <ng-container *ngFor="let turn of copilotThread; trackBy: trackCopilotTurn">
+        <!-- User bubble -->
+        <div class="copilot-msg copilot-msg--user">
+          <div class="copilot-bubble copilot-bubble--user">{{ turn.prompt }}</div>
         </div>
-      </div>
 
-      <div *ngIf="result.evidence?.length && isCopilotAdvancedMode()" class="copilot-section-card mb-3">
-        <div class="flex align-items-center justify-content-between gap-2 mb-2">
-          <p class="text-sm font-semibold text-800 m-0">{{ 'ai_copilot_evidence' | translate }}</p>
-          <button pButton type="button" class="p-button-text p-button-sm"
-            [label]="(showCopilotEvidence ? 'ai_copilot_hide_details' : 'ai_copilot_show_details') | translate"
-            (click)="showCopilotEvidence = !showCopilotEvidence"></button>
-        </div>
-        <div *ngIf="showCopilotEvidence" class="copilot-evidence-groups">
-          <div *ngFor="let group of getCopilotEvidenceGroups(result.evidence)" class="copilot-evidence-group">
-            <p class="text-xs font-semibold text-700 mb-1">{{ group.title }}</p>
-            <ul class="m-0 pl-3">
-              <li *ngFor="let ev of group.items">{{ ev.label }}: {{ ev.value }}</li>
-            </ul>
+        <!-- Assistant bubble -->
+        <div class="copilot-msg copilot-msg--assistant">
+          <div class="copilot-avatar" aria-hidden="true">
+            <i class="pi" [ngClass]="brandAssets.nadiPilotPrimeIcon"></i>
+          </div>
+          <div class="copilot-bubble copilot-bubble--assistant">
+            <div class="copilot-md" [innerHTML]="renderCopilotMarkdown(turn.response?.answer)"></div>
+
+            <!-- Structured result cards -->
+            <div *ngIf="turn.response?.cards?.length" class="copilot-cards">
+              <div class="copilot-card" *ngFor="let card of turn.response.cards">
+                <div class="copilot-card-head">
+                  <span class="copilot-card-icon"><i class="pi" [ngClass]="copilotCardIcon(card.type)" aria-hidden="true"></i></span>
+                  <div class="copilot-card-titles">
+                    <div class="copilot-card-title">{{ card.title }}</div>
+                    <div class="copilot-card-subtitle" *ngIf="card.subtitle">{{ card.subtitle }}</div>
+                  </div>
+                  <button *ngIf="card.navigation" type="button" class="copilot-card-open"
+                    [attr.aria-label]="card.navigation.label"
+                    [pTooltip]="card.navigation.label" tooltipPosition="left"
+                    (click)="navigateFromCopilot(card.navigation)">
+                    <i class="pi pi-arrow-up-right" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div *ngIf="card.metrics?.length" class="copilot-card-metrics">
+                  <div class="copilot-metric" *ngFor="let m of card.metrics" [ngClass]="'tone-' + (m.tone || 'neutral')">
+                    <div class="copilot-metric-label">{{ m.label }}</div>
+                    <div class="copilot-metric-value">{{ m.value }}</div>
+                  </div>
+                </div>
+                <div *ngIf="card.rows?.length" class="copilot-card-rows">
+                  <div class="copilot-card-row" *ngFor="let r of card.rows">
+                    <span class="copilot-row-title">{{ r.title }}</span>
+                    <span class="copilot-row-meta" *ngIf="r.meta">{{ r.meta }}</span>
+                    <span class="copilot-row-badge" *ngIf="r.badge" [ngClass]="'tone-' + (r.badgeTone || 'neutral')">{{ r.badge }}</span>
+                    <span class="copilot-row-value" *ngIf="r.value">{{ r.value }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Proposed action (confirm-first create) -->
+            <div *ngIf="turn.response?.proposedAction && !isCopilotActionDone(turn)" class="copilot-proposal">
+              <div class="copilot-proposal-head">
+                <i class="pi pi-user-plus" aria-hidden="true"></i>
+                <span>{{ proposalTitle(turn.response.proposedAction) }}</span>
+              </div>
+              <div class="copilot-proposal-fields">
+                <div class="copilot-proposal-field" *ngFor="let f of proposalFieldKeys(turn.response.proposedAction)">
+                  <label>{{ actionFieldLabel(f) | translate }}</label>
+                  <input type="text" pInputText class="p-inputtext-sm"
+                    [(ngModel)]="turn.response.proposedAction.fields[f]" />
+                </div>
+              </div>
+              <div class="copilot-proposal-actions">
+                <button pButton type="button" class="p-button-sm"
+                  [icon]="isPrepareAction(turn.response.proposedAction) ? 'pi pi-arrow-up-right' : 'pi pi-check'"
+                  [label]="proposalConfirmLabel(turn.response.proposedAction)"
+                  [loading]="copilotActionLoading"
+                  (click)="confirmCopilotProposedAction(turn)"></button>
+                <button pButton type="button" class="p-button-sm p-button-text"
+                  [label]="'cancel' | translate"
+                  [disabled]="copilotActionLoading"
+                  (click)="dismissCopilotProposedAction(turn)"></button>
+              </div>
+            </div>
+            <div *ngIf="turn.response?.proposedAction && isCopilotActionDone(turn)" class="copilot-proposal-done">
+              <i class="pi pi-check-circle" aria-hidden="true"></i>{{ 'ai_copilot_action_done' | translate }}
+            </div>
+
+            <div class="copilot-confidence-pill"
+              *ngIf="turn.response?.confidence != null"
+              [ngClass]="getCopilotConfidenceClass(turn.response.confidence)"
+              [pTooltip]="getVisibleCopilotConfidenceReasons(turn.response?.confidenceReasons).join(' · ')"
+              tooltipPosition="top">
+              <i class="pi pi-shield"></i>
+              {{ 'ai_copilot_confidence' | translate }} {{ (turn.response.confidence * 100) | number:'1.0-0' }}%
+            </div>
+
+            <!-- Follow-up chips -->
+            <div *ngIf="turn.response?.followUpQuestions?.length" class="copilot-followup-list">
+              <button
+                *ngFor="let q of turn.response.followUpQuestions"
+                type="button"
+                class="copilot-followup-chip"
+                (click)="applyCopilotFollowUpQuestion(q)">{{ q }}</button>
+            </div>
+
+            <!-- Navigation suggestions (allowlisted server-side) -->
+            <div *ngIf="turn.response?.navigationSuggestions?.length" class="copilot-nav-list">
+              <button
+                *ngFor="let nav of turn.response.navigationSuggestions"
+                type="button"
+                class="copilot-nav-chip"
+                (click)="navigateFromCopilot(nav)">
+                <i class="pi pi-arrow-up-right" aria-hidden="true"></i>{{ nav.label }}
+              </button>
+            </div>
+
+            <!-- Recommended actions -->
+            <div *ngIf="turn.response?.recommendedActions?.length" class="copilot-actions">
+              <div class="copilot-actions-head">
+                <span class="copilot-actions-title"><i class="pi pi-bolt mr-1"></i>{{ 'ai_copilot_actions' | translate }}</span>
+                <button pButton type="button" class="p-button-sm p-button-text copilot-apply-all-btn"
+                  icon="pi pi-check-square" [label]="'ai_copilot_apply_all' | translate"
+                  [disabled]="!canApplyAllCopilotReorders(turn.response)"
+                  [pTooltip]="!hasCopilotScopeSelection() ? ('ai_copilot_scope_required' | translate) : ((getCopilotValidReorderLineCount(turn.response) === 0) ? ('ai_copilot_no_actions' | translate) : '')"
+                  tooltipPosition="top"
+                  (click)="applyAllCopilotReorders(turn.response)"></button>
+              </div>
+              <div class="copilot-action-card" *ngFor="let action of turn.response.recommendedActions">
+                <div class="copilot-action-text">
+                  <strong>{{ action.title }}</strong>
+                  <small>{{ action.description }}</small>
+                </div>
+                <button pButton type="button" class="p-button-sm copilot-action-apply"
+                  icon="pi pi-check-circle"
+                  [label]="'ai_copilot_apply_action' | translate"
+                  [disabled]="!canApplyCopilotAction(action)"
+                  [pTooltip]="!hasCopilotScopeSelection() ? ('ai_copilot_scope_required' | translate) : ((action.actionType !== 'DRAFT_REORDER' || !action.productId || !action.quantity || action.quantity <= 0) ? ('ai_copilot_action_missing_data' | translate) : '')"
+                  tooltipPosition="top"
+                  (click)="applyCopilotAction(action)"></button>
+              </div>
+            </div>
+
+            <!-- Evidence (advanced mode) -->
+            <div *ngIf="turn.response?.evidence?.length && isCopilotAdvancedMode()" class="copilot-evidence">
+              <button type="button" class="copilot-evidence-toggle"
+                (click)="toggleCopilotEvidenceFor(turn)">
+                <i class="pi" [ngClass]="isCopilotEvidenceOpen(turn) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+                {{ 'ai_copilot_evidence' | translate }}
+              </button>
+              <div *ngIf="isCopilotEvidenceOpen(turn)" class="copilot-evidence-groups">
+                <div *ngFor="let group of getCopilotEvidenceGroups(turn.response.evidence)" class="copilot-evidence-group">
+                  <p class="copilot-evidence-group-title">{{ group.title }}</p>
+                  <ul class="m-0 pl-3">
+                    <li *ngFor="let ev of group.items">{{ ev.label }}: {{ ev.value }}</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Warnings -->
+            <div *ngIf="getVisibleCopilotWarnings(turn.response?.warnings).length" class="copilot-warning">
+              <i class="pi pi-exclamation-triangle mr-1"></i>
+              <ul class="m-0 pl-3">
+                <li *ngFor="let warning of getVisibleCopilotWarnings(turn.response?.warnings)">{{ warning }}</li>
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
+      </ng-container>
 
-      <div *ngIf="result.recommendedActions?.length" class="copilot-section-card mb-3">
-        <div class="flex align-items-center justify-content-between mb-2">
-          <p class="text-sm font-semibold text-800 m-0">{{ 'ai_copilot_actions' | translate }}</p>
-          <button pButton type="button" class="p-button-sm p-button-outlined"
-            icon="pi pi-check-square" [label]="'ai_copilot_apply_all' | translate"
-            [disabled]="!canApplyAllCopilotReorders()"
-            [pTooltip]="!hasCopilotScopeSelection() ? ('ai_copilot_scope_required' | translate) : ((getCopilotValidReorderLineCount() === 0) ? ('ai_copilot_no_actions' | translate) : '')"
-            tooltipPosition="top"
-            (click)="applyAllCopilotReorders()"></button>
+      <!-- Pending user prompt + typing indicator -->
+      <ng-container *ngIf="copilotPendingPrompt">
+        <div class="copilot-msg copilot-msg--user">
+          <div class="copilot-bubble copilot-bubble--user">{{ copilotPendingPrompt }}</div>
         </div>
-        <ul class="m-0 pl-3">
-          <li *ngFor="let action of result.recommendedActions">
-            <strong>{{ action.title }}</strong> - {{ action.description }}
-            <button pButton type="button" class="p-button-text p-button-sm ml-2"
-              icon="pi pi-check-circle"
-              [label]="'ai_copilot_apply_action' | translate"
-              [disabled]="!canApplyCopilotAction(action)"
-              [pTooltip]="!hasCopilotScopeSelection() ? ('ai_copilot_scope_required' | translate) : ((action.actionType !== 'DRAFT_REORDER' || !action.productId || !action.quantity || action.quantity <= 0) ? ('ai_copilot_action_missing_data' | translate) : '')"
-              tooltipPosition="top"
-              (click)="applyCopilotAction(action)"></button>
-          </li>
-        </ul>
-      </div>
-
-      <div *ngIf="getVisibleCopilotWarnings(result.warnings).length" class="copilot-section-card copilot-section-warning">
-        <p class="text-sm font-semibold text-800 mb-2">{{ 'warnings' | translate }}</p>
-        <ul class="m-0 pl-3">
-          <li *ngFor="let warning of getVisibleCopilotWarnings(result.warnings)">{{ warning }}</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="copilot-history mt-3" *ngIf="copilotHistory.length > 0">
-      <div class="flex align-items-center justify-content-between mb-2">
-        <p class="text-sm font-semibold text-800 m-0">{{ 'ai_copilot_history' | translate }}</p>
-        <div class="flex align-items-center gap-1">
-          <button *ngIf="copilotHistory.length > 3" pButton type="button" class="p-button-text p-button-sm"
-            [icon]="isCopilotHistoryExpanded ? 'pi pi-angle-up' : 'pi pi-angle-down'"
-            [label]="isCopilotHistoryExpanded ? ('collapse' | translate) : ('view_all' | translate)"
-            (click)="toggleCopilotHistoryExpanded()"></button>
-          <button pButton type="button" class="p-button-text p-button-sm"
-            icon="pi pi-trash" [label]="'clear' | translate"
-            (click)="clearCopilotHistory()"></button>
+      </ng-container>
+      <div class="copilot-msg copilot-msg--assistant" *ngIf="copilotLoading">
+        <div class="copilot-avatar" aria-hidden="true">
+          <i class="pi" [ngClass]="brandAssets.nadiPilotPrimeIcon"></i>
         </div>
-      </div>
-      <div class="copilot-history-list p-2">
-        <div *ngFor="let group of displayedCopilotHistoryGroups" class="copilot-history-group">
-          <small class="copilot-history-group-label">{{ group.label }}</small>
-          <div
-            *ngFor="let item of group.items; let i = index"
-            class="copilot-history-item p-2"
-            [ngClass]="{
-              'mb-2': i !== group.items.length - 1,
-              'is-selected': selectedCopilotHistoryKey === getCopilotHistoryKey(item)
-            }"
-            (click)="onCopilotHistoryItemSelected(item)">
-            <div class="flex align-items-start justify-content-between gap-2">
-              <div class="copilot-history-texts">
-                <div class="copilot-history-prompt">{{ item.prompt }}</div>
-                <small class="copilot-history-answer">{{ item.response?.answer }}</small>
-                <small class="copilot-history-time">{{ formatCopilotHistoryTime(item.at) }}</small>
-              </div>
-              <button pButton type="button" class="p-button-text p-button-sm copilot-history-reuse-btn"
-                icon="pi pi-replay"
-                [pTooltip]="'ai_copilot_ask' | translate"
-                tooltipPosition="left"
-                (click)="usePromptFromHistory(item.prompt); $event.stopPropagation()"></button>
-            </div>
+        <div class="copilot-bubble copilot-bubble--assistant">
+          <!-- Live streamed answer -->
+          <div class="copilot-md" *ngIf="copilotStreamingText" [innerHTML]="renderCopilotMarkdown(copilotStreamingText)"></div>
+          <!-- Status / typing while waiting for the first token -->
+          <div class="copilot-stream-status" *ngIf="!copilotStreamingText">
+            <span class="copilot-typing"><span></span><span></span><span></span></span>
+            <span class="copilot-stream-status-text" *ngIf="copilotStreamingStatus">{{ copilotStreamingStatus }}</span>
           </div>
         </div>
       </div>
@@ -284,22 +366,22 @@
         #copilotInputField
         pInputTextarea
         [autoResize]="true"
-        rows="2"
+        rows="1"
         class="w-full copilot-prompt-textarea"
         [(ngModel)]="copilotPrompt"
         [placeholder]="'ai_copilot_placeholder' | translate"
-        (keydown.control.enter)="askAiCopilot()"
-        (keydown.meta.enter)="askAiCopilot()"></textarea>
+        (keydown)="onCopilotComposerKeydown($event)"></textarea>
       <button
         pButton
         type="button"
-        icon="pi pi-send"
-        iconPos="right"
-        class="copilot-send-btn"
-        [label]="'ai_copilot_ask' | translate"
+        icon="pi pi-arrow-up"
+        class="copilot-send-btn p-button-rounded"
+        [attr.aria-label]="'ai_copilot_ask' | translate"
+        [disabled]="copilotLoading || !copilotPrompt?.trim()"
         [loading]="copilotLoading"
         (click)="askAiCopilot()"></button>
     </div>
+    <small class="copilot-composer-hint">{{ 'ai_copilot_composer_hint' | translate }}</small>
   </div>
 </aside>
 
@@ -313,6 +395,19 @@
   [style]="{ width: '540px', maxWidth: '95vw' }"
   [header]="'ai_copilot_scope_dialog_title' | translate">
   <div class="copilot-scope-card grid mb-2">
+    <div class="col-12">
+      <label class="text-xs text-600 block mb-1">{{ 'ai_copilot_mode' | translate }}</label>
+      <div class="copilot-mode-toggle" role="group" [attr.aria-label]="'ai_copilot_mode' | translate">
+        <button pButton pRipple type="button" class="p-button-text p-button-sm copilot-mode-btn"
+          [class.active]="!isCopilotAdvancedMode()"
+          [label]="'ai_copilot_mode_simple' | translate"
+          (click)="setCopilotMode('simple')"></button>
+        <button pButton pRipple type="button" class="p-button-text p-button-sm copilot-mode-btn"
+          [class.active]="isCopilotAdvancedMode()"
+          [label]="'ai_copilot_mode_advanced' | translate"
+          (click)="setCopilotMode('advanced')"></button>
+      </div>
+    </div>
     <div class="col-12 md:col-6">
       <label class="text-xs text-600 block mb-1">{{ 'shop' | translate }}</label>
       <p-dropdown [options]="shops" optionLabel="shopName" optionValue="shopId"

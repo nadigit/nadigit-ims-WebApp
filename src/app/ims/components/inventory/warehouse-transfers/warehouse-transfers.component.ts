@@ -25,6 +25,16 @@ import {
   persistTablePageSizeFromLazyEvent,
   TablePageSizeKeys,
 } from 'src/app/utils/table-page-size.storage';
+import {
+  displayProductStockQuantity,
+  displayWarehouseStockQuantity,
+  formatLineQuantity,
+  getLineMeasureUnit,
+  lineQuantityDecimals,
+  lineQuantityMin,
+  lineQuantityStep,
+  toWriteOffStorageQuantity,
+} from 'src/app/shared/product-utils';
 
 @Component({
   templateUrl: './warehouse-transfers.component.html',
@@ -632,6 +642,7 @@ export class WarehouseTransfersComponent implements OnInit {
     const newItem: TransferItem = {
       product: null as any,
       quantity: 1,
+      displayQuantity: 1,
       notes: ''
     };
     this.transferItems.push(newItem);
@@ -650,6 +661,11 @@ export class WarehouseTransfersComponent implements OnInit {
         productId: selectedProduct.productId ?? selectedProduct.id
       };
       this.productSuggestionsMap.delete(itemIndex);
+      // Reset the display quantity to a valid value for the newly selected product.
+      const min = this.quantityInputMin(item.product);
+      const available = this.getAvailableDisplayStock(item.product);
+      const current = item.displayQuantity ?? min;
+      item.displayQuantity = Math.min(Math.max(current, min), available > 0 ? available : min);
     }
   }
 
@@ -669,31 +685,62 @@ export class WarehouseTransfersComponent implements OnInit {
     return this.productSuggestionsLoadingMap.get(itemIndex) || false;
   }
 
+  /** Available stock in storage units (raw). Kept for any storage-level checks. */
   getAvailableStock(product: Product | undefined): number {
     return product?.quantityAvailable || 0;
   }
 
+  /** Available stock in display units (e.g. 0.5 kg) for the quantity input and hints. */
+  getAvailableDisplayStock(product: Product | undefined): number {
+    return displayProductStockQuantity(product);
+  }
+
+  // Quantity input configuration in display units (respects fractional/prepaid precision).
+  quantityInputMin(product: Product | undefined): number {
+    return lineQuantityMin(product);
+  }
+
+  quantityInputStep(product: Product | undefined): number {
+    return lineQuantityStep(product);
+  }
+
+  quantityInputDecimals(product: Product | undefined): number {
+    return lineQuantityDecimals(product);
+  }
+
+  /** Translatable unit key shown next to the quantity ('' when no unit applies). */
+  getItemQuantityUnit(product: Product | undefined, quantity?: number): string {
+    return getLineMeasureUnit(product, quantity);
+  }
+
+  formatDisplayQuantity(product: Product | undefined, quantity: number | null | undefined): string {
+    return formatLineQuantity(product, quantity);
+  }
+
   validateQuantity(item: TransferItem): boolean {
-    if (!item.product || !item.quantity) return false;
-    const available = this.getAvailableStock(item.product);
-    return item.quantity > 0 && item.quantity <= available;
+    if (!item.product || item.displayQuantity == null) return false;
+    const available = this.getAvailableDisplayStock(item.product);
+    const min = this.quantityInputMin(item.product);
+    return item.displayQuantity >= min && item.displayQuantity <= available;
   }
 
   getQuantityError(item: TransferItem): string {
     if (!item.product) return '';
-    const available = this.getAvailableStock(item.product);
-    if (item.quantity && item.quantity > available) {
+    const available = this.getAvailableDisplayStock(item.product);
+    if (item.displayQuantity != null && item.displayQuantity > available) {
       return this.translate.instant('insufficient_stock', {
-        available,
-        required: item.quantity,
+        available: this.formatDisplayQuantity(item.product, available),
+        required: this.formatDisplayQuantity(item.product, item.displayQuantity),
         product: item.product.name
       });
     }
     return '';
   }
 
+  /** Total in display units (only meaningful when items share a unit; informational). */
   calculateTotalQuantity(): number {
-    return this.transferItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    return this.transferItems.reduce(
+      (sum, item) => sum + (item.displayQuantity || 0), 0);
   }
 
   async saveTransfer() {
@@ -788,7 +835,11 @@ export class WarehouseTransfersComponent implements OnInit {
     const transferToSave: WarehouseTransfer = {
       sourceWarehouse: this.transfer.sourceWarehouse,
       destinationWarehouse: this.transfer.destinationWarehouse,
-      transferItems: this.transferItems,
+      // Convert each line's display quantity (e.g. 0.5 kg) to storage units for the backend.
+      transferItems: this.transferItems.map((item) => ({
+        ...item,
+        quantity: toWriteOffStorageQuantity(item.product, item.displayQuantity ?? item.quantity ?? 0),
+      })),
       transferDate: this.transfer.transferDate,
       notes: this.transfer.notes
     };
@@ -1021,8 +1072,10 @@ export class WarehouseTransfersComponent implements OnInit {
     return transfer.transferItems?.length || 0;
   }
 
+  /** Total in display units (informational; transfers may mix products/units). */
   getTotalQuantity(transfer: WarehouseTransfer): number {
-    return transfer.transferItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    return transfer.transferItems?.reduce(
+      (sum, item) => sum + displayWarehouseStockQuantity(item.product as Product, item.quantity ?? 0), 0) || 0;
   }
 
   async exportPdf() {

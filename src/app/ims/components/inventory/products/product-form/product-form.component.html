@@ -366,13 +366,19 @@
 										<ng-template pTemplate="selectedItem">
 											<span *ngIf="localProduct && localProduct.category"
 												class="flex align-items-center gap-2 min-w-0">
-												<i class="pi pi-folder"></i>
+												<img *ngIf="localProduct.category.categoryImage; else selectedCatIcon"
+													[src]="resolvePublicImageUrl(localProduct.category.categoryImage)"
+													alt="" style="width:1.5rem;height:1.5rem;object-fit:cover;border-radius:4px;flex-shrink:0;" />
+												<ng-template #selectedCatIcon><i class="pi pi-folder"></i></ng-template>
 												<span class="truncate">{{ localProduct.category.categoryName }}</span>
 											</span>
 										</ng-template>
 										<ng-template let-option pTemplate="item">
 											<span class="flex align-items-center gap-2">
-												<i class="pi pi-folder"></i>
+												<img *ngIf="option.categoryImage; else optionCatIcon"
+													[src]="resolvePublicImageUrl(option.categoryImage)"
+													alt="" style="width:1.5rem;height:1.5rem;object-fit:cover;border-radius:4px;flex-shrink:0;" />
+												<ng-template #optionCatIcon><i class="pi pi-folder"></i></ng-template>
 												{{ option.categoryName }}
 											</span>
 										</ng-template>

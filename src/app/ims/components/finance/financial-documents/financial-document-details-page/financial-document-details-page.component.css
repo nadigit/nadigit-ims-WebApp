@@ -1,5 +1,7 @@
 /* =====================================================
-   Financial Document Details Page - Modern UI Design
+   Financial Document Details Page — page-specific styles only.
+   Shared hero / stats / detail-card / info-list / empty-state styling lives in
+   assets/ims/styles/detail-hero.scss; tabs in nadigit-brand.scss.
    ===================================================== */
 
 /* Container */
@@ -26,50 +28,7 @@
   text-align: center;
 }
 
-/* =====================================================
-   Hero Section
-   ===================================================== */
-.financial-doc-hero {
-  position: relative;
-  margin: -1rem -1rem 0;
-  padding: 1.5rem 2rem 2rem;
-  background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
-  border-bottom: 1px solid var(--surface-border);
-  overflow: hidden;
-}
-
-.hero-background {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 400px;
-  height: 100%;
-  background: linear-gradient(135deg, transparent 0%, var(--primary-100) 100%);
-  opacity: 0.3;
-  clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
-}
-
-:host-context(.layout-theme-dark) .hero-background {
-  background: linear-gradient(135deg, transparent 0%, var(--primary-900) 100%);
-  opacity: 0.15;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
-}
-
-.back-button {
-  width: 2.5rem;
-  height: 2.5rem;
-  background: var(--surface-card) !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.back-button:hover {
-  background: var(--surface-hover) !important;
-}
-
+/* Hero title + actions (hero shell/background/back-button are shared) */
 .financial-doc-title {
   font-size: 1.75rem;
   font-weight: 700;
@@ -80,64 +39,7 @@
   flex-shrink: 0;
 }
 
-/* =====================================================
-   Stats Row
-   ===================================================== */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin: -1.5rem 0 1.5rem;
-  padding: 0 1rem;
-  position: relative;
-  z-index: 2;
-}
-
-.stat-card-modern {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: var(--surface-card);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--surface-border);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.stat-card-modern:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-.stat-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-color-secondary);
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-color);
-  line-height: 1.2;
-}
-
-/* =====================================================
-   Tabs
-   ===================================================== */
-/* =====================================================
-   Tabs Section
-   ===================================================== */
+/* Tab layout wrapper (underline styling is shared) */
 ::ng-deep .order-tabs {
   margin: 2rem 2.5rem;
   max-width: 1400px;
@@ -146,120 +48,17 @@
   padding: 0 2.5rem;
 }
 
-::ng-deep .order-tabs .p-tabview-nav {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid var(--surface-border);
-  padding: 0;
-  gap: 0.5rem;
-}
-
-::ng-deep .order-tabs .p-tabview-nav li {
-  margin-right: 0.5rem;
-}
-
-::ng-deep .order-tabs .p-tabview-nav-link {
-  background: transparent !important;
-  border: none !important;
-  border-bottom: 3px solid transparent !important;
-  border-radius: 0 !important;
-  padding: 1rem 1.5rem !important;
-  margin-bottom: -2px;
-  font-weight: 600;
-  color: var(--text-color-secondary);
-  transition: all 0.2s ease;
-}
-
-::ng-deep .order-tabs .p-tabview-nav-link:hover {
-  background: var(--surface-hover) !important;
-  color: var(--text-color);
-}
-
-::ng-deep .order-tabs .p-tabview-selected .p-tabview-nav-link,
-::ng-deep .order-tabs .p-highlight .p-tabview-nav-link {
-  color: var(--primary-color) !important;
-  border-bottom-color: var(--primary-color) !important;
-  background: transparent !important;
-}
-
-::ng-deep .order-tabs .p-tabview-panels {
-  background: transparent;
-  padding: 0;
-  border: none;
-}
-
 ::ng-deep .order-tabs .p-tabview-panel {
   padding: 0;
 }
 
 /* =====================================================
-   Detail Cards
-   ===================================================== */
-.detail-card {
-  background: var(--surface-card);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--surface-border);
-  overflow: hidden;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background: var(--surface-ground);
-  border-bottom: 1px solid var(--surface-border);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  color: var(--text-color);
-}
-
-.card-header i {
-  color: var(--primary-color);
-  font-size: 1.1rem;
-}
-
-.card-body {
-  padding: 1.25rem;
-}
-
-/* =====================================================
-   Info Grid
+   Info Grid + Notes
    ===================================================== */
 .info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1.25rem;
-}
-
-.info-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.info-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.info-label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-color-secondary);
-}
-
-.info-value {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--text-color);
-  word-break: break-word;
 }
 
 .notes-content {
@@ -323,9 +122,6 @@
   color: var(--red-400);
 }
 
-/* =====================================================
-   Font Mono
-   ===================================================== */
 .font-mono {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
 }
@@ -439,49 +235,7 @@
   justify-content: center;
 }
 
-/* =====================================================
-   Empty State
-   ===================================================== */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
-  text-align: center;
-}
-
-.empty-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-ground);
-  margin-bottom: 1.5rem;
-}
-
-.empty-icon i {
-  font-size: 2.5rem;
-  color: var(--text-color-secondary);
-}
-
-.empty-state h4 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.empty-state p {
-  margin: 0;
-  color: var(--text-color-secondary);
-}
-
-/* =====================================================
-   Table Footer
-   ===================================================== */
+/* Table footer */
 .total-footer {
   background: var(--surface-ground);
   font-weight: 600;
@@ -492,28 +246,11 @@
 }
 
 /* =====================================================
-   Responsive Design
+   Responsive Design (page-specific)
    ===================================================== */
 @media screen and (max-width: 992px) {
-  .financial-doc-hero {
-    padding: 1.5rem 1rem;
-  }
-  
   .financial-doc-title {
     font-size: 1.5rem;
-  }
-  
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    padding: 0 0.5rem;
-  }
-  
-  .stat-card-modern {
-    padding: 1rem;
-  }
-  
-  .stat-value {
-    font-size: 1.25rem;
   }
 }
 
@@ -521,38 +258,20 @@
   .financial-doc-title {
     font-size: 1.25rem;
   }
-  
-  .stats-row {
-    grid-template-columns: 1fr 1fr;
-    margin-top: -1rem;
-  }
-  
-  ::ng-deep .order-tabs .p-tabview-nav-link {
-    padding: 0.75rem 1rem !important;
-    font-size: 0.875rem;
-  }
 }
 
 @media screen and (max-width: 576px) {
   .financial-doc-content {
     padding: 0 0.5rem 1.5rem;
   }
-  
-  .stats-row {
-    grid-template-columns: 1fr;
-  }
-  
+
   .action-buttons {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .action-buttons button {
     flex: 1;
     max-width: 140px;
-  }
-  
-  ::ng-deep .order-tabs .p-tabview-nav {
-    flex-wrap: wrap;
   }
 }

@@ -20,6 +20,7 @@ import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
 import { InventoryWriteOff } from 'src/app/models/write-off';
 import { WriteOffService } from 'src/app/services/write-off.service';
+import { getWriteOffDisplayQuantity, getWriteOffQuantityDisplayLabel } from 'src/app/shared/product-utils';
 import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormDialogData } from '../warehouse-form-dialog/warehouse-form-dialog.component';
 import { Location } from '@angular/common';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
@@ -840,8 +841,16 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
     }).format(amount);
   }
 
+  /**
+   * Per-row quantity + unit label, converted to display units using each write-off's own
+   * product (e.g. "0.5 kg" for fractional, instead of the raw "500" storage value).
+   */
+  getWriteOffQuantityLabel(writeOff: InventoryWriteOff): string {
+    return getWriteOffQuantityDisplayLabel(writeOff);
+  }
+
   getTotalWriteOffQuantity(): number {
-    return this.writeOffs.reduce((sum, wo) => sum + (wo.quantity || 0), 0);
+    return this.writeOffs.reduce((sum, wo) => sum + getWriteOffDisplayQuantity(wo), 0);
   }
 
   getTotalWriteOffCost(): number {

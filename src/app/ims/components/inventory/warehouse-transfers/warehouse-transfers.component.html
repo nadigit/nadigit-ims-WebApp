@@ -229,7 +229,7 @@
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'total_quantity' | translate }}</span>
-                            <strong>{{ getTotalQuantity(transfer) }}</strong>
+                            <strong>{{ getTotalQuantity(transfer) | number:'1.0-3' }}</strong>
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'batch_info' | translate }}</span>
@@ -293,14 +293,14 @@
                 </ng-template>
 
                 <ng-template pTemplate="emptymessage">
-                    <tr *ngIf="!isLoading && !isInitialLoad">
-                        <td colspan="10" class="text-center p-4">
-                            <div class="flex flex-column align-items-center justify-content-center">
-                                <i class="pi pi-inbox text-4xl text-400 mb-3"></i>
-                                <h4>{{ 'no_transfers_found' | translate }}</h4>
-                            </div>
-                        </td>
-                    </tr>
+                  <tr *ngIf="!isLoading && !isInitialLoad">
+                    <td colspan="10" class="text-center p-4">
+                      <div class="flex flex-column align-items-center justify-content-center py-5">
+                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">
+                        <p class="mt-3 text-gray-600 font-medium text-lg">{{ 'no_transfers_found' | translate }}</p>
+                      </div>
+                    </td>
+                  </tr>
                 </ng-template>
             </p-table>
         </div>
@@ -461,7 +461,7 @@
                         <div class="ims-form-section__header-text">
                             <h3 class="ims-form-section__title">{{ 'transfer_items' | translate }}</h3>
                             <p class="ims-form-section__subtitle" *ngIf="transferItems.length">
-                                {{ transferItems.length }} {{ 'items' | translate }} · {{ 'total_quantity' | translate }}: {{ calculateTotalQuantity() }}
+                                {{ transferItems.length }} {{ 'items' | translate }} · {{ 'total_quantity' | translate }}: {{ calculateTotalQuantity() | number:'1.0-3' }}
                             </p>
                         </div>
                     </header>
@@ -546,7 +546,7 @@
                                                         <span class="transfer-product-option__ref" *ngIf="product.reference">{{ product.reference }}</span>
                                                     </div>
                                                     <span class="transfer-product-option__stock">
-                                                        {{ product.quantityAvailable || 0 }}
+                                                        {{ formatDisplayQuantity(product, getAvailableDisplayStock(product)) }}<ng-container *ngIf="getItemQuantityUnit(product, getAvailableDisplayStock(product))"> {{ getItemQuantityUnit(product, getAvailableDisplayStock(product)) | translate }}</ng-container>
                                                     </span>
                                                 </div>
                                             </ng-template>
@@ -556,7 +556,7 @@
                                         </small>
                                         <div *ngIf="item.product?.productId" class="transfer-item-stock-chip">
                                             <i class="pi pi-box"></i>
-                                            <span>{{ 'available_stock' | translate }}: <strong>{{ getAvailableStock(item.product) }}</strong></span>
+                                            <span>{{ 'available_stock' | translate }}: <strong>{{ formatDisplayQuantity(item.product, getAvailableDisplayStock(item.product)) }}<ng-container *ngIf="getItemQuantityUnit(item.product, getAvailableDisplayStock(item.product))"> {{ getItemQuantityUnit(item.product, getAvailableDisplayStock(item.product)) | translate }}</ng-container></strong></span>
                                         </div>
                                     </div>
 
@@ -564,24 +564,33 @@
                                         <label class="ims-form-label transfer-item-card__mobile-label">
                                             {{ 'quantity' | translate }} <span class="required-asterisk">*</span>
                                         </label>
-                                        <p-inputNumber 
-                                            [(ngModel)]="item.quantity" 
-                                            [min]="1"
-                                            [max]="getAvailableStock(item.product)"
-                                            [showButtons]="true"
-                                            buttonLayout="horizontal"
-                                            incrementButtonIcon="pi pi-plus"
-                                            decrementButtonIcon="pi pi-minus"
-                                            mode="decimal"
-                                            placeholder="{{ 'enter_quantity' | translate }}"
-                                            [disabled]="!item.product"
-                                            [ngClass]="{'ng-invalid ng-dirty' : submitted && (!item.quantity || !validateQuantity(item))}"
-                                            styleClass="w-full transfer-qty-input">
-                                        </p-inputNumber>
-                                        <small class="p-error" *ngIf="submitted && item.quantity && !validateQuantity(item)">
+                                        <div class="p-inputgroup transfer-qty-group">
+                                            <p-inputNumber
+                                                [(ngModel)]="item.displayQuantity"
+                                                [min]="quantityInputMin(item.product)"
+                                                [max]="getAvailableDisplayStock(item.product)"
+                                                [step]="quantityInputStep(item.product)"
+                                                [minFractionDigits]="0"
+                                                [maxFractionDigits]="quantityInputDecimals(item.product)"
+                                                [showButtons]="true"
+                                                buttonLayout="horizontal"
+                                                incrementButtonIcon="pi pi-plus"
+                                                decrementButtonIcon="pi pi-minus"
+                                                mode="decimal"
+                                                placeholder="{{ 'enter_quantity' | translate }}"
+                                                [disabled]="!item.product"
+                                                [ngClass]="{'ng-invalid ng-dirty' : submitted && (item.displayQuantity == null || !validateQuantity(item))}"
+                                                styleClass="w-full transfer-qty-input">
+                                            </p-inputNumber>
+                                            <span class="p-inputgroup-addon transfer-qty-unit"
+                                                *ngIf="getItemQuantityUnit(item.product, item.displayQuantity)">
+                                                {{ getItemQuantityUnit(item.product, item.displayQuantity) | translate }}
+                                            </span>
+                                        </div>
+                                        <small class="p-error" *ngIf="submitted && item.displayQuantity != null && !validateQuantity(item)">
                                             {{ getQuantityError(item) }}
                                         </small>
-                                        <small class="p-error" *ngIf="submitted && !item.quantity">
+                                        <small class="p-error" *ngIf="submitted && item.displayQuantity == null">
                                             {{ 'quantity_required' | translate }}
                                         </small>
                                     </div>
@@ -619,7 +628,7 @@
 
                         <div class="transfer-items-total" *ngIf="transferItems.length > 0">
                             <span class="transfer-items-total__label">{{ 'total_quantity' | translate }}</span>
-                            <strong class="transfer-items-total__value">{{ calculateTotalQuantity() }}</strong>
+                            <strong class="transfer-items-total__value">{{ calculateTotalQuantity() | number:'1.0-3' }}</strong>
                         </div>
                     </div>
                 </section>

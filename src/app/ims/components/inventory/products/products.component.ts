@@ -224,6 +224,9 @@ export class ProductsComponent implements OnInit {
   isAdmin: boolean = false;
   isWarehouseman: boolean = false;
   isVendor: boolean = false;
+
+  /** Admin KPI summary for the products list (counts + inventory valuation). */
+  productStats: { totalProducts: number; inStockCount: number; lowStockCount: number; outOfStockCount: number; stockValueAtCost: number; stockValueAtRetail: number; expiringSoonCount: number; inactiveCount: number; averageMarginPercent: number; } | null = null;
   measureUnits: any[] = [];
   attributeTypes: any[] = [];
 
@@ -1141,6 +1144,12 @@ export class ProductsComponent implements OnInit {
     this.product = {};
   }
 
+  async onProductForceDeleteConfirmed(productId: number) {
+    if (!this.canDeleteProduct || !this.isAdmin) return;
+    await this.onDeleteProduct(productId, true);
+    this.product = {};
+  }
+
   hideProductDialog() {
     this.productDialog = false;
     this.scanning = true;
@@ -1204,12 +1213,28 @@ export class ProductsComponent implements OnInit {
     this.isAdmin = this.userRoles.includes('ADMIN');
     this.isWarehouseman = this.userRoles.includes('WAREHOUSEMAN');
     this.isVendor = this.userRoles.includes('VENDOR');
+    if (this.isAdmin) {
+      this.loadProductStats();
+    }
+  }
+
+  /** Loads the admin KPI summary (counts + inventory valuation) for the cards. */
+  loadProductStats(): void {
+    if (!this.isAdmin) {
+      return;
+    }
+    this.productService.loadToken();
+    this.productService.getProductStats().subscribe({
+      next: (stats) => { this.productStats = stats; },
+      error: (err) => { console.warn('Could not load product stats', err); this.productStats = null; }
+    });
   }
 
   // Handler for product form save success event
   onProductFormSaveSuccess(product: Product): void {
     // Reload products to reflect the changes
     this.loadProducts();
+    this.loadProductStats();
     // Reset product
     this.product = {};
   }
@@ -1652,8 +1677,8 @@ export class ProductsComponent implements OnInit {
       })
   }
 
-  async onDeleteProduct(id: any) {
-    await this.productService.deleteProduct(id)
+  async onDeleteProduct(id: any, force: boolean = false) {
+    await this.productService.deleteProduct(id, force)
       .subscribe({
         next: (response: any) => {
           console.log(response);

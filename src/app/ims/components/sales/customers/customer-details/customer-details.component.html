@@ -691,17 +691,15 @@
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="6">
-                                            <div class="empty-state">
-                                                <div class="empty-icon">
-                                                    <i class="pi pi-tag"></i>
-                                                </div>
-                                                <h4>{{ 'no_special_prices' | translate }}</h4>
-                                                <p>{{ 'no_special_prices_description' | translate }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td colspan="6">
+                                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_special_prices' | translate }}</p>
+                                        <p class="text-500 mt-1">{{ 'no_special_prices_description' | translate }}</p>
+                                      </div>
+                                    </td>
+                                  </tr>
                                 </ng-template>
                             </p-table>
                         </div>
@@ -791,17 +789,15 @@
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="6">
-                                            <div class="empty-state">
-                                                <div class="empty-icon">
-                                                    <i class="pi pi-inbox"></i>
-                                                </div>
-                                                <h4>{{ 'no_orders_found' | translate }}</h4>
-                                                <p>{{ 'try_different_filters' | translate }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td colspan="6">
+                                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_orders_found' | translate }}</p>
+                                        <p class="text-500 mt-1">{{ 'try_different_filters' | translate }}</p>
+                                      </div>
+                                    </td>
+                                  </tr>
                                 </ng-template>
                                 <ng-template pTemplate="footer" *ngIf="customerOrders?.length > 0">
                                     <tr>
@@ -893,17 +889,15 @@
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="6">
-                                            <div class="empty-state">
-                                                <div class="empty-icon">
-                                                    <i class="pi pi-inbox"></i>
-                                                </div>
-                                                <h4>{{ 'no_returns_found' | translate }}</h4>
-                                                <p>{{ 'try_different_filters' | translate }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td colspan="6">
+                                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_returns_found' | translate }}</p>
+                                        <p class="text-500 mt-1">{{ 'try_different_filters' | translate }}</p>
+                                      </div>
+                                    </td>
+                                  </tr>
                                 </ng-template>
                                 <ng-template pTemplate="footer" *ngIf="customerReturns?.length > 0">
                                     <tr>
@@ -992,17 +986,15 @@
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="5">
-                                            <div class="empty-state">
-                                                <div class="empty-icon">
-                                                    <i class="pi pi-inbox"></i>
-                                                </div>
-                                                <h4>{{ 'no_payments_found' | translate }}</h4>
-                                                <p>{{ 'try_different_filters' | translate }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td colspan="5">
+                                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_payments_found' | translate }}</p>
+                                        <p class="text-500 mt-1">{{ 'try_different_filters' | translate }}</p>
+                                      </div>
+                                    </td>
+                                  </tr>
                                 </ng-template>
                                 <ng-template pTemplate="footer" *ngIf="customerPayments?.length > 0">
                                     <tr>

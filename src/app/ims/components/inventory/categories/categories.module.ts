@@ -34,6 +34,7 @@ import { DividerModule } from 'primeng/divider';
 import { ChartModule } from 'primeng/chart';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { InventorySharedModule } from '../shared/inventory-shared.module';
+import { ImageUploadComponent } from 'src/app/shared/components/image-upload/image-upload.component';
 
 
 
@@ -69,7 +70,8 @@ import { InventorySharedModule } from '../shared/inventory-shared.module';
         DividerModule,
         ChartModule,
         SharedModule,
-        InventorySharedModule
+        InventorySharedModule,
+        ImageUploadComponent
     ],
     declarations: [CategoriesComponent, CategoryDetailsComponent, CategoryFormDialogComponent],
     providers: [ReportingService],

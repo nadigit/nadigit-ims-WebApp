@@ -61,6 +61,21 @@
   }
 }
 
+/* Show an uploaded image inside the tile instead of an icon (keeps the tile's
+   rounded shape; the gradient stays as a fallback behind transparent images). */
+.ims-icon-tile--image {
+  padding: 0;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    display: block;
+  }
+}
+
 .ims-icon-tile--primary {
   @include ims-icon-tile-gradient(var(--primary-500), var(--primary-600), rgba(30, 94, 255, 0.28));
 }

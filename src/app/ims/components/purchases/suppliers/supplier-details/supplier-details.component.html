@@ -437,10 +437,7 @@
                                             <span class="text-700">{{ product.category?.categoryName || 'N/A' }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <p-tag [severity]="getQuantitySeverity(product.quantityAvailable)"
-                                                [value]="(product.quantityAvailable || 0) + ' ' + (getMeasureUnit(product.measureUnit, product.quantityAvailable) | translate)"
-                                                [icon]="product.quantityAvailable <= 0 ? 'pi pi-exclamation-triangle' : ''">
-                                            </p-tag>
+                                            <app-product-quantity [product]="product"></app-product-quantity>
                                         </td>
                                         <td class="text-right">
                                             <span class="font-medium">{{ (product.buyingPrice || 0) |
@@ -451,10 +448,7 @@
                                                 currency:currency:'symbol':'1.2-2' }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <p-tag
-                                                [severity]="product.inventoryStatus === 'INSTOCK' ? 'success' : (product.inventoryStatus === 'LOWSTOCK' ? 'warning' : 'danger')"
-                                                [value]="('product_' + (product.inventoryStatus || 'instock').toLowerCase() | translate)">
-                                            </p-tag>
+                                            <app-inventory-status [status]="product.inventoryStatus"></app-inventory-status>
                                         </td>
                                         <td class="text-center">
                                             <div class="flex justify-content-center gap-1">
@@ -479,17 +473,15 @@
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="8">
-                                            <div class="empty-state">
-                                                <div class="empty-icon">
-                                                    <i class="pi pi-inbox"></i>
-                                                </div>
-                                                <h4>{{ 'no_products_found' | translate }}</h4>
-                                                <p>{{ 'try_different_filters' | translate }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td colspan="8">
+                                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_products_found' | translate }}</p>
+                                        <p class="text-500 mt-1">{{ 'try_different_filters' | translate }}</p>
+                                      </div>
+                                    </td>
+                                  </tr>
                                 </ng-template>
                             </p-table>
                         </div>
@@ -582,17 +574,15 @@
                                     </tr>
                                 </ng-template>
                                 <ng-template pTemplate="emptymessage">
-                                    <tr>
-                                        <td colspan="7">
-                                            <div class="empty-state">
-                                                <div class="empty-icon">
-                                                    <i class="pi pi-inbox"></i>
-                                                </div>
-                                                <h4>{{ 'no_purchases_found' | translate }}</h4>
-                                                <p>{{ 'try_different_filters' | translate }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td colspan="7">
+                                      <div class="flex flex-column align-items-center justify-content-center py-4">
+                                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_purchases_found' | translate }}</p>
+                                        <p class="text-500 mt-1">{{ 'try_different_filters' | translate }}</p>
+                                      </div>
+                                    </td>
+                                  </tr>
                                 </ng-template>
                                 <ng-template pTemplate="footer" *ngIf="supplierPurchases?.length > 0">
                                     <tr>

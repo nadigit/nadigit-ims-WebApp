@@ -45,6 +45,65 @@ export interface ForecastResponseDTO {
   narrative?: string;
 }
 
+export interface NadiPilotMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface NadiPilotPageContext {
+  route?: string;
+  label?: string;
+  entityType?: string;
+  entityId?: number;
+}
+
+export interface NadiPilotNavigationDTO {
+  label: string;
+  route: string;
+}
+
+export interface NadiPilotMetricDTO {
+  label: string;
+  value: string;
+  tone?: 'neutral' | 'positive' | 'warning' | 'danger' | string;
+}
+
+export interface NadiPilotCardRowDTO {
+  title: string;
+  meta?: string;
+  badge?: string;
+  badgeTone?: 'neutral' | 'positive' | 'warning' | 'danger' | string;
+  value?: string;
+}
+
+export interface NadiPilotCardDTO {
+  type: string;
+  title: string;
+  subtitle?: string;
+  metrics?: NadiPilotMetricDTO[];
+  rows?: NadiPilotCardRowDTO[];
+  navigation?: NadiPilotNavigationDTO | null;
+}
+
+export interface NadiPilotProposedActionDTO {
+  type: string;
+  summary?: string;
+  fields?: { [key: string]: string };
+}
+
+export interface NadiPilotBriefingItemDTO {
+  type: string;
+  severity: 'critical' | 'warning' | 'info' | 'positive' | string;
+  text: string;
+  navigation?: NadiPilotNavigationDTO | null;
+}
+
+export interface NadiPilotBriefingDTO {
+  headline: string;
+  items: NadiPilotBriefingItemDTO[];
+  generatedAt: string;
+}
+
 export interface NadiPilotAskRequest {
   message: string;
   historyDays?: number;
@@ -52,6 +111,10 @@ export interface NadiPilotAskRequest {
   limit?: number;
   shopId?: number;
   warehouseId?: number;
+  /** Recent prior turns (oldest first) for multi-turn memory. */
+  history?: NadiPilotMessage[];
+  /** The screen the user is viewing, for context-aware answers. */
+  pageContext?: NadiPilotPageContext;
 }
 
 export interface NadiPilotEvidenceDTO {
@@ -76,6 +139,9 @@ export interface NadiPilotResponseDTO {
   recommendedActions: NadiPilotActionDTO[];
   followUpQuestions?: string[];
   warnings: string[];
+  navigationSuggestions?: NadiPilotNavigationDTO[];
+  cards?: NadiPilotCardDTO[];
+  proposedAction?: NadiPilotProposedActionDTO | null;
 }
 
 export interface NadiPilotDraftReorderRequest {
@@ -113,6 +179,11 @@ export class AiIntegrationService {
   private readonly path = '/api/ai/test-connection';
   private readonly forecastPath = '/api/ai/forecasting/items';
   private readonly copilotPath = '/api/ai/copilot/ask';
+  private readonly copilotStreamPath = '/api/ai/copilot/ask/stream';
+  private readonly copilotBriefingPath = '/api/ai/copilot/briefing';
+  private readonly copilotCreateCustomerPath = '/api/ai/copilot/actions/create-customer';
+  private readonly copilotCreateSupplierPath = '/api/ai/copilot/actions/create-supplier';
+  private readonly copilotCreateExpensePath = '/api/ai/copilot/actions/create-expense';
   private readonly copilotDraftReorderPath = '/api/ai/copilot/actions/draft-reorder';
   private readonly copilotDraftReorderBatchPath = '/api/ai/copilot/actions/draft-reorder-batch';
   private readonly apiProtocol: string = (window as any).__env?.apiProtocol || 'http';
@@ -135,6 +206,14 @@ export class AiIntegrationService {
 
   private get copilotUrl(): string {
     return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotPath}`;
+  }
+
+  private get copilotStreamUrl(): string {
+    return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotStreamPath}`;
+  }
+
+  private get copilotBriefingUrl(): string {
+    return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotBriefingPath}`;
   }
 
   private get copilotDraftReorderUrl(): string {
@@ -198,6 +277,144 @@ export class AiIntegrationService {
       switchMap(h =>
         this.http.post<NadiPilotResponseDTO>(this.copilotUrl, payload, {
           headers: withAudit(h, 'Asked AI copilot'),
+        }),
+      ),
+    );
+  }
+
+  /**
+   * Streams a NadiPilot answer over SSE via fetch (EventSource can't send the Bearer header).
+   * Calls onStatus/onToken as events arrive and resolves with the final meta response.
+   * Rejects on network error, server error event, or if no meta event was received.
+   */
+  async askNadiPilotStream(
+    payload: NadiPilotAskRequest,
+    handlers: { onStatus?: (area: string) => void; onToken?: (text: string) => void } = {},
+  ): Promise<NadiPilotResponseDTO> {
+    const token = await this.keycloakService.getToken();
+    const lang = this.translationService.getPreferredLanguage() || 'en';
+    const res = await fetch(this.copilotStreamUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        'Accept-Language': lang,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok || !res.body) {
+      throw new Error(`NadiPilot stream failed: ${res.status}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let meta: NadiPilotResponseDTO | null = null;
+    let errorMessage: string | null = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) >= 0) {
+        const rawEvent = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        const evt = this.parseSseEvent(rawEvent);
+        if (!evt) {
+          continue;
+        }
+        if (evt.event === 'status') {
+          handlers.onStatus?.(evt.data?.area || 'working');
+        } else if (evt.event === 'token') {
+          handlers.onToken?.(evt.data?.text ?? '');
+        } else if (evt.event === 'meta') {
+          meta = evt.data as NadiPilotResponseDTO;
+        } else if (evt.event === 'error') {
+          errorMessage = evt.data?.message || 'stream error';
+        }
+      }
+    }
+    if (errorMessage) {
+      throw new Error(errorMessage);
+    }
+    if (!meta) {
+      throw new Error('NadiPilot stream ended without a result.');
+    }
+    return meta;
+  }
+
+  private parseSseEvent(raw: string): { event: string; data: any } | null {
+    const lines = raw.split('\n');
+    let event = 'message';
+    let dataStr = '';
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        event = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        dataStr += line.slice(5).trim();
+      }
+    }
+    if (!dataStr) {
+      return { event, data: null };
+    }
+    try {
+      return { event, data: JSON.parse(dataStr) };
+    } catch {
+      return { event, data: null };
+    }
+  }
+
+  getNadiPilotBriefing(params: { shopId?: number; warehouseId?: number } = {}): Observable<NadiPilotBriefingDTO> {
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.get<NadiPilotBriefingDTO>(this.copilotBriefingUrl, {
+          headers: h,
+          params: {
+            ...(params.shopId != null ? { shopId: String(params.shopId) } : {}),
+            ...(params.warehouseId != null ? { warehouseId: String(params.warehouseId) } : {}),
+          },
+        }),
+      ),
+    );
+  }
+
+  createNadiPilotCustomer(payload: {
+    firstName?: string; lastName?: string; companyName?: string;
+    email?: string; phoneNumber?: string; city?: string;
+  }): Observable<{ customerId: number; name: string; route: string }> {
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotCreateCustomerPath}`;
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.post<{ customerId: number; name: string; route: string }>(url, payload, {
+          headers: withAudit(h, 'Created customer from AI copilot'),
+        }),
+      ),
+    );
+  }
+
+  createNadiPilotSupplier(payload: {
+    name?: string; email?: string; phoneNumber?: string; city?: string;
+  }): Observable<{ supplierId: number; name: string; route: string }> {
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotCreateSupplierPath}`;
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.post<{ supplierId: number; name: string; route: string }>(url, payload, {
+          headers: withAudit(h, 'Created supplier from AI copilot'),
+        }),
+      ),
+    );
+  }
+
+  createNadiPilotExpense(payload: {
+    amount?: number; purpose?: string; shopId?: number;
+  }): Observable<{ expenseId: number; reference: string; route: string }> {
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotCreateExpensePath}`;
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.post<{ expenseId: number; reference: string; route: string }>(url, payload, {
+          headers: withAudit(h, 'Created expense from AI copilot'),
         }),
       ),
     );

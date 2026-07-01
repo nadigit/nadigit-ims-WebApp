@@ -1,10 +1,18 @@
-﻿<p-toast></p-toast>
+<p-toast></p-toast>
 
 <div class="action-reminders-page">
   <div class="page-header">
     <div>
       <h2 class="m-0">{{ 'action_reminders_title' | translate }}</h2>
       <p class="m-0 subtitle">{{ 'action_reminders_subtitle' | translate }}</p>
+    </div>
+    <div class="view-toggle" *ngIf="!loading && items.length > 0">
+      <p-selectButton [options]="viewOptions" [(ngModel)]="viewMode" optionLabel="icon" optionValue="value"
+        (onChange)="onViewModeChange()" [allowEmpty]="false">
+        <ng-template let-item pTemplate>
+          <i [class]="item.icon"></i>
+        </ng-template>
+      </p-selectButton>
     </div>
   </div>
 
@@ -17,21 +25,38 @@
     <p>{{ 'action_reminders_empty' | translate }}</p>
   </div>
 
-  <div *ngIf="!loading && items.length > 0" class="cards-grid">
-    <p-card *ngFor="let item of items">
-      <ng-template pTemplate="title">
-        <div class="card-title">{{ item.title | translate }}</div>
-      </ng-template>
-      <ng-template pTemplate="subtitle">
-        <p-tag [value]="item.severity" [severity]="getSeverity(item.severity)"></p-tag>
-      </ng-template>
-      <div class="card-content">
-        <div class="pending-count">{{ item.count }}</div>
-        <div class="pending-label">{{ 'pending' | translate }}</div>
+  <!-- Grid view -->
+  <div *ngIf="!loading && items.length > 0 && viewMode === 'grid'" class="cards-grid">
+    <div *ngFor="let item of items"
+      class="reminder-card surface-card border-round shadow-2 hover:shadow-4 transition-all transition-duration-200"
+      [ngClass]="'sev-' + getSeverity(item.severity)">
+      <div class="reminder-card__header">
+        <span class="reminder-card__title">{{ item.title | translate }}</span>
+        <p-tag [value]="item.severity | translate" [severity]="getSeverity(item.severity)"></p-tag>
       </div>
-      <ng-template pTemplate="footer">
-        <button pButton type="button" icon="pi pi-arrow-right" [label]="'open' | translate" (click)="goToAction(item)"></button>
-      </ng-template>
-    </p-card>
+      <div class="reminder-card__count">
+        <span class="reminder-card__count-value">{{ item.count }}</span>
+        <span class="reminder-card__count-label">{{ 'pending' | translate }}</span>
+      </div>
+      <button pButton type="button" icon="pi pi-arrow-right" [label]="'open' | translate"
+        class="reminder-card__action w-full" (click)="goToAction(item)"></button>
+    </div>
+  </div>
+
+  <!-- List view -->
+  <div *ngIf="!loading && items.length > 0 && viewMode === 'list'" class="reminders-list">
+    <div class="reminder-row surface-card border-round shadow-1 hover:shadow-3 transition-all transition-duration-200"
+      *ngFor="let item of items" [ngClass]="'sev-' + getSeverity(item.severity)">
+      <div class="reminder-row__main">
+        <span class="reminder-row__title">{{ item.title | translate }}</span>
+        <p-tag [value]="item.severity | translate" [severity]="getSeverity(item.severity)"></p-tag>
+      </div>
+      <div class="reminder-row__count">
+        <span class="reminder-row__count-value">{{ item.count }}</span>
+        <span class="reminder-row__count-label">{{ 'pending' | translate }}</span>
+      </div>
+      <button pButton type="button" icon="pi pi-arrow-right" [label]="'open' | translate"
+        class="reminder-row__action" (click)="goToAction(item)"></button>
+    </div>
   </div>
 </div>

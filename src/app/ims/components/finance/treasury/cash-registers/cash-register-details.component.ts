@@ -9,6 +9,9 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { ReportingService } from 'src/app/utils/reporting.service';
+import { BankAccountService } from 'src/app/services/bank-account.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { BankAccount } from 'src/app/models/bank-account';
 import { Shop } from 'src/app/models/shop';
 import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
 import { CashMovement } from 'src/app/models/cashMovement';
@@ -55,7 +58,12 @@ export class CashRegisterDetailsComponent implements OnInit {
   showCashRegisterSessionDialog = false;
 
   newCollectionDialogVisible = false;
-  newCollection = { amount: null as number | null, notes: '' };
+  newCollection = {
+    amount: null as number | null,
+    notes: '',
+    destination: 'OWNER' as 'BANK' | 'OWNER' | 'SUPPLIER' | 'OTHER',
+    bankAccountId: null as number | null,
+  };
   newDepositDialogVisible = false;
   newDeposit = { amount: null as number | null, notes: '' };
   newWithdrawDialogVisible = false;
@@ -66,6 +74,16 @@ export class CashRegisterDetailsComponent implements OnInit {
 
   isAdmin = false;
   canReadCash = false;
+
+  // Cash ↔ bank transfer (PRO feature)
+  canTransferCashBank = false;
+  bankAccounts: BankAccount[] = [];
+  transferDialogVisible = false;
+  transferSaving = false;
+  transferDirection: 'REGISTER_TO_BANK' | 'BANK_TO_REGISTER' = 'REGISTER_TO_BANK';
+  transferBankAccountId: number | null = null;
+  transferAmount: number | null = null;
+  transferNotes = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -79,6 +97,8 @@ export class CashRegisterDetailsComponent implements OnInit {
     private keycloakService: KeycloakService,
     private configService: AppConfigurationService,
     private reportingService: ReportingService,
+    private bankAccountService: BankAccountService,
+    private licenseCapabilities: LicenseCapabilitiesService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     public pageSizeService: TablePageSizeService
@@ -96,6 +116,12 @@ export class CashRegisterDetailsComponent implements OnInit {
     });
     await this.setUserRoles();
     await this.checkPermissions();
+
+    await this.licenseCapabilities.ensureLoaded();
+    this.canTransferCashBank = this.isAdmin && this.licenseCapabilities.isFeatureEnabled('CASH_BANK_TRANSFERS');
+    if (this.canTransferCashBank) {
+      await this.loadBankAccounts();
+    }
 
     this.route.paramMap.subscribe(async params => {
       const id = Number(params.get('shopId'));
@@ -417,9 +443,30 @@ export class CashRegisterDetailsComponent implements OnInit {
     );
   }
 
+  /** Collection destinations; the BANK option is only offered on PRO. */
+  get collectionDestinationOptions(): { label: string; value: string }[] {
+    const options = [
+      { label: this.translate.instant('collection_destination_owner'), value: 'OWNER' },
+      { label: this.translate.instant('collection_destination_supplier'), value: 'SUPPLIER' },
+      { label: this.translate.instant('collection_destination_other'), value: 'OTHER' },
+    ];
+    if (this.canTransferCashBank) {
+      options.unshift({ label: this.translate.instant('collection_destination_bank'), value: 'BANK' });
+    }
+    return options;
+  }
+
   openNewCollectionDialog(): void {
+    if (this.canTransferCashBank && !this.bankAccounts.length) {
+      void this.loadBankAccounts();
+    }
+    this.newCollection = {
+      amount: null,
+      notes: '',
+      destination: this.canTransferCashBank ? 'BANK' : 'OWNER',
+      bankAccountId: (this.shop as any)?.defaultBankAccountId ?? null,
+    };
     this.newCollectionDialogVisible = true;
-    this.newCollection = { amount: null, notes: '' };
   }
 
   async saveNewCollection(): Promise<void> {
@@ -432,9 +479,24 @@ export class CashRegisterDetailsComponent implements OnInit {
       });
       return;
     }
+    if (this.newCollection.destination === 'BANK' && !this.newCollection.bankAccountId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('select_bank_account'),
+        life: 3000,
+      });
+      return;
+    }
     try {
       const response = await firstValueFrom(
-        await this.cashRegisterService.addCollection(this.shopId, this.newCollection.amount, this.newCollection.notes)
+        await this.cashRegisterService.addCollection(
+          this.shopId,
+          this.newCollection.amount,
+          this.newCollection.notes,
+          this.newCollection.destination,
+          this.newCollection.destination === 'BANK' ? this.newCollection.bankAccountId : null,
+        )
       );
       if (response) {
         this.collections.unshift(response);
@@ -447,8 +509,11 @@ export class CashRegisterDetailsComponent implements OnInit {
         life: 3000,
       });
       await this.refreshData(true);
-    } catch (error) {
-      console.error('Error performing collection:', error);
+    } catch (error: any) {
+      const msg = error?.error?.message || error?.message || this.translate.instant('error');
+      this.messageService.add({
+        severity: 'error', summary: this.translate.instant('error'), detail: msg, life: 4000,
+      });
     }
   }
 
@@ -521,6 +586,82 @@ export class CashRegisterDetailsComponent implements OnInit {
       });
     } catch (error) {
       console.error('Error performing withdrawal:', error);
+    }
+  }
+
+  // ========== Cash ↔ Bank transfer (PRO) ==========
+
+  get transferDirectionOptions(): { label: string; value: string }[] {
+    return [
+      { label: this.translate.instant('cash_to_bank'), value: 'REGISTER_TO_BANK' },
+      { label: this.translate.instant('bank_to_cash'), value: 'BANK_TO_REGISTER' },
+    ];
+  }
+
+  get selectedTransferBankAccount(): BankAccount | undefined {
+    return this.bankAccounts.find(a => a.accountId === this.transferBankAccountId);
+  }
+
+  private async loadBankAccounts(): Promise<void> {
+    try {
+      const obs = await this.bankAccountService.getBankAccounts(true);
+      this.bankAccounts = (await firstValueFrom(obs)) || [];
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+      this.bankAccounts = [];
+    }
+  }
+
+  openTransferDialog(): void {
+    if (!this.bankAccounts.length) {
+      void this.loadBankAccounts();
+    }
+    this.transferDirection = 'REGISTER_TO_BANK';
+    this.transferAmount = null;
+    this.transferNotes = '';
+    const defaultId = (this.shop as any)?.defaultBankAccountId;
+    this.transferBankAccountId = defaultId
+      ?? (this.bankAccounts.length ? (this.bankAccounts[0].accountId ?? null) : null);
+    this.transferDialogVisible = true;
+  }
+
+  async saveTransfer(): Promise<void> {
+    if (!this.transferBankAccountId) {
+      this.messageService.add({
+        severity: 'warn', summary: this.translate.instant('warning'),
+        detail: this.translate.instant('select_bank_account'), life: 3000,
+      });
+      return;
+    }
+    if (!this.transferAmount || this.transferAmount <= 0) {
+      this.messageService.add({
+        severity: 'warn', summary: this.translate.instant('warning'),
+        detail: this.translate.instant('amount_must_be_greater_than_zero'), life: 3000,
+      });
+      return;
+    }
+    this.transferSaving = true;
+    try {
+      const obs = await this.cashRegisterService.transferCashBank(this.shopId, {
+        direction: this.transferDirection,
+        bankAccountId: this.transferBankAccountId,
+        amount: this.transferAmount,
+        notes: this.transferNotes,
+      });
+      await firstValueFrom(obs);
+      this.transferDialogVisible = false;
+      this.messageService.add({
+        severity: 'success', summary: this.translate.instant('success'),
+        detail: this.translate.instant('cash_bank_transfer_success'), life: 3000,
+      });
+      await this.refreshData(true);
+    } catch (error: any) {
+      const msg = error?.error?.message || error?.message || this.translate.instant('error');
+      this.messageService.add({
+        severity: 'error', summary: this.translate.instant('error'), detail: msg, life: 4000,
+      });
+    } finally {
+      this.transferSaving = false;
     }
   }
 }
