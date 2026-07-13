@@ -1,9 +1,24 @@
+/* The wrapper gets a dynamic pixel height (one comfortable row per bar).
+   PrimeNG renders <p-chart><div><canvas>; every level must fill that height
+   or chart.js keeps the canvas short and the bars stay cramped at the top.
+   NOTE: target the <p-chart> ELEMENT — it has no .p-chart class. */
 .top-products-chart {
-  min-height: 320px;
-  max-height: 520px;
+  min-height: 340px;
 }
 
-:host ::ng-deep .top-products-chart .p-chart {
+:host ::ng-deep .top-products-chart p-chart {
+  display: block;
   height: 100%;
-  min-height: 300px;
+  width: 100%;
+}
+
+:host ::ng-deep .top-products-chart p-chart > div {
+  position: relative;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+:host ::ng-deep .top-products-chart p-chart canvas {
+  height: 100% !important;
+  width: 100% !important;
 }

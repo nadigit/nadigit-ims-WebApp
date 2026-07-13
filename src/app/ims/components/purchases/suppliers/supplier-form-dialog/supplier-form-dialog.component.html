@@ -134,6 +134,15 @@
                                     placeholder="{{ 'enter_supplier_phone' | translate }}" />
                             </div>
                         </div>
+
+                        <div class="field col-12" *ngIf="taxExemptEnabled">
+                            <div class="flex align-items-center gap-2">
+                                <p-inputSwitch inputId="supplierTaxExempt" [(ngModel)]="config.supplier.taxExempt"
+                                    name="taxExempt"></p-inputSwitch>
+                                <label for="supplierTaxExempt" class="ims-form-label m-0">{{ 'tax_exempt' | translate }}</label>
+                            </div>
+                            <small class="text-600">{{ 'tax_exempt_supplier_hint' | translate }}</small>
+                        </div>
                     </div>
                 </section>
             </div>

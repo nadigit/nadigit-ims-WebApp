@@ -88,7 +88,7 @@
 			</div>
 
 			<p-table
-				*ngIf="(!isInitialLoad || financialDocs.length) && (!isLoading || financialDocs.length)"
+				[hidden]="(isLoading || isInitialLoad) && !financialDocs.length"
 				#dt [value]="financialDocs" [columns]="cols" responsiveLayout="scroll"
 				[lazy]="true"
 				(onLazyLoad)="onLazyLoad($event)"

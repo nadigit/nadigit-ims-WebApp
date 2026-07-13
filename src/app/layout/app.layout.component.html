@@ -181,7 +181,55 @@
       <ng-container *ngFor="let turn of copilotThread; trackBy: trackCopilotTurn">
         <!-- User bubble -->
         <div class="copilot-msg copilot-msg--user">
-          <div class="copilot-bubble copilot-bubble--user">{{ turn.prompt }}</div>
+          <div class="copilot-user-group">
+            <!-- Read mode: bubble + hover actions -->
+            <ng-container *ngIf="!isCopilotEditing(turn)">
+              <div class="copilot-bubble copilot-bubble--user">{{ turn.prompt }}</div>
+              <div class="copilot-msg-actions copilot-msg-actions--user">
+                <button pButton pRipple type="button" class="p-button-rounded p-button-text p-button-sm copilot-msg-action-btn"
+                  icon="pi pi-copy"
+                  [pTooltip]="'ai_copilot_msg_copy' | translate" tooltipPosition="top"
+                  [attr.aria-label]="'ai_copilot_msg_copy' | translate"
+                  (click)="copyCopilotPrompt(turn)"></button>
+                <button pButton pRipple type="button" class="p-button-rounded p-button-text p-button-sm copilot-msg-action-btn"
+                  icon="pi pi-pencil"
+                  [pTooltip]="'ai_copilot_msg_edit' | translate" tooltipPosition="top"
+                  [attr.aria-label]="'ai_copilot_msg_edit' | translate"
+                  [disabled]="copilotLoading"
+                  (click)="startCopilotEdit(turn)"></button>
+                <button pButton pRipple type="button" class="p-button-rounded p-button-text p-button-sm copilot-msg-action-btn"
+                  icon="pi pi-replay"
+                  [pTooltip]="'ai_copilot_msg_resend' | translate" tooltipPosition="top"
+                  [attr.aria-label]="'ai_copilot_msg_resend' | translate"
+                  [disabled]="copilotLoading"
+                  (click)="resendCopilotTurn(turn)"></button>
+                <button pButton pRipple type="button" class="p-button-rounded p-button-text p-button-sm copilot-msg-action-btn copilot-msg-action-btn--danger"
+                  icon="pi pi-trash"
+                  [pTooltip]="'ai_copilot_msg_delete' | translate" tooltipPosition="top"
+                  [attr.aria-label]="'ai_copilot_msg_delete' | translate"
+                  [disabled]="copilotLoading"
+                  (click)="confirmDeleteCopilotTurn($event, turn)"></button>
+              </div>
+            </ng-container>
+
+            <!-- Edit mode: inline composer -->
+            <div *ngIf="isCopilotEditing(turn)" class="copilot-edit-box">
+              <textarea pInputTextarea [autoResize]="true" rows="1"
+                class="w-full copilot-edit-textarea"
+                [(ngModel)]="copilotEditDraft"
+                (keydown)="onCopilotEditKeydown($event, turn)"></textarea>
+              <div class="copilot-edit-actions">
+                <button pButton type="button" class="p-button-sm"
+                  icon="pi pi-arrow-up"
+                  [label]="'ai_copilot_msg_edit_save' | translate"
+                  [disabled]="copilotLoading || !copilotEditDraft?.trim()"
+                  (click)="submitCopilotEdit(turn)"></button>
+                <button pButton type="button" class="p-button-sm p-button-text"
+                  [label]="'ai_copilot_msg_edit_cancel' | translate"
+                  (click)="cancelCopilotEdit()"></button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Assistant bubble -->
@@ -190,6 +238,23 @@
             <i class="pi" [ngClass]="brandAssets.nadiPilotPrimeIcon"></i>
           </div>
           <div class="copilot-bubble copilot-bubble--assistant">
+            <!-- AI status notice (e.g. model rate-limited) — shown above the data we still have -->
+            <div class="copilot-ai-notice" *ngIf="turn.response?.aiNotice as notice">
+              <i class="pi pi-clock" aria-hidden="true"></i>
+              <div class="copilot-ai-notice-body">
+                <span class="copilot-ai-notice-text">{{ notice.message }}</span>
+                <!-- Admins can switch provider / add a key; others just wait for the reset -->
+                <div class="copilot-ai-notice-admin" *ngIf="isAdmin">
+                  <span>{{ 'ai_copilot_notice_admin_switch' | translate }}</span>
+                  <button pButton pRipple type="button"
+                    class="p-button-sm p-button-text copilot-ai-notice-link"
+                    icon="pi pi-cog" iconPos="left"
+                    [label]="'ai_copilot_notice_configure' | translate"
+                    (click)="openAiProviderSettings()"></button>
+                </div>
+              </div>
+            </div>
+
             <div class="copilot-md" [innerHTML]="renderCopilotMarkdown(turn.response?.answer)"></div>
 
             <!-- Structured result cards -->
@@ -236,6 +301,22 @@
                   <label>{{ actionFieldLabel(f) | translate }}</label>
                   <input type="text" pInputText class="p-inputtext-sm"
                     [(ngModel)]="turn.response.proposedAction.fields[f]" />
+                </div>
+              </div>
+              <!-- Editable order lines (compose_order) -->
+              <div *ngIf="turn.response.proposedAction.lines?.length" class="copilot-proposal-lines">
+                <div class="copilot-proposal-lines-head">
+                  <span>{{ 'product' | translate }}</span>
+                  <span>{{ 'quantity' | translate }}</span>
+                  <span></span>
+                </div>
+                <div class="copilot-proposal-line"
+                  *ngFor="let line of turn.response.proposedAction.lines; let i = index">
+                  <input type="text" pInputText class="p-inputtext-sm" [(ngModel)]="line.product" />
+                  <input type="number" pInputText class="p-inputtext-sm" min="1" [(ngModel)]="line.quantity" />
+                  <button pButton type="button" class="p-button-sm p-button-text p-button-danger"
+                    icon="pi pi-times" [disabled]="copilotActionLoading"
+                    (click)="removeProposalLine(turn.response.proposedAction, i)"></button>
                 </div>
               </div>
               <div class="copilot-proposal-actions">
@@ -333,6 +414,21 @@
                 <li *ngFor="let warning of getVisibleCopilotWarnings(turn.response?.warnings)">{{ warning }}</li>
               </ul>
             </div>
+
+            <!-- Assistant message actions -->
+            <div class="copilot-msg-actions copilot-msg-actions--assistant" *ngIf="turn.response?.answer">
+              <button pButton pRipple type="button" class="p-button-rounded p-button-text p-button-sm copilot-msg-action-btn"
+                icon="pi pi-copy"
+                [pTooltip]="'ai_copilot_msg_copy' | translate" tooltipPosition="top"
+                [attr.aria-label]="'ai_copilot_msg_copy' | translate"
+                (click)="copyCopilotAnswer(turn)"></button>
+              <button pButton pRipple type="button" class="p-button-rounded p-button-text p-button-sm copilot-msg-action-btn"
+                icon="pi pi-refresh"
+                [pTooltip]="'ai_copilot_msg_regenerate' | translate" tooltipPosition="top"
+                [attr.aria-label]="'ai_copilot_msg_regenerate' | translate"
+                [disabled]="copilotLoading"
+                (click)="regenerateCopilotTurn(turn)"></button>
+            </div>
           </div>
         </div>
       </ng-container>
@@ -361,7 +457,135 @@
   </div>
 
   <div class="copilot-panel-footer">
+    <!-- Attachment import workspace (invoice → purchase, CSV/Excel → products or purchases) -->
+    <div *ngIf="copilotAttachment" class="copilot-attachment">
+      <div class="copilot-attachment-head">
+        <i class="pi pi-paperclip" aria-hidden="true"></i>
+        <span class="copilot-attachment-name">{{ copilotAttachment.name }}</span>
+        <button pButton type="button" icon="pi pi-times" class="p-button-text p-button-sm p-button-rounded copilot-attachment-close"
+          [disabled]="copilotAttachmentBusy" (click)="clearCopilotAttachment()"></button>
+      </div>
+
+      <!-- Step 1: pick the import target + options, then analyze -->
+      <ng-container *ngIf="!copilotPurchasePreview && !copilotProductPreview">
+        <div class="copilot-attachment-targets">
+          <button *ngFor="let t of copilotAttachmentTargets" pButton type="button"
+            class="p-button-sm p-button-outlined copilot-target-chip"
+            [class.active]="copilotAttachmentTarget === t"
+            [label]="('ai_copilot_attach_target_' + t) | translate"
+            (click)="setCopilotAttachmentTarget(t)"></button>
+        </div>
+        <div *ngIf="copilotAttachmentTarget === 'invoice' || copilotAttachmentTarget === 'purchases_csv'"
+          class="copilot-attachment-options">
+          <label class="copilot-attachment-option">
+            <input type="checkbox" [(ngModel)]="copilotImportCreateSuppliers" [disabled]="copilotAttachmentBusy" />
+            {{ 'ai_copilot_attach_create_suppliers' | translate }}
+          </label>
+          <label class="copilot-attachment-option">
+            <input type="checkbox" [(ngModel)]="copilotImportCreateProducts" [disabled]="copilotAttachmentBusy" />
+            {{ 'ai_copilot_attach_create_products' | translate }}
+          </label>
+        </div>
+        <div class="copilot-proposal-actions">
+          <button pButton type="button" class="p-button-sm" icon="pi pi-search"
+            [label]="'ai_copilot_attach_analyze' | translate"
+            [loading]="copilotAttachmentBusy" [disabled]="!copilotAttachmentTarget"
+            (click)="analyzeCopilotAttachment()"></button>
+          <button pButton type="button" class="p-button-sm p-button-text"
+            [label]="'cancel' | translate" [disabled]="copilotAttachmentBusy"
+            (click)="clearCopilotAttachment()"></button>
+        </div>
+      </ng-container>
+
+      <!-- Step 2a: purchase / invoice preview -->
+      <div *ngIf="copilotPurchasePreview" class="copilot-attachment-preview">
+        <div class="copilot-attachment-metrics">
+          <span class="copilot-attachment-metric">
+            <strong>{{ copilotPurchasePreview.estimatedPurchases || 0 }}</strong> {{ 'purchases' | translate }}
+          </span>
+          <span class="copilot-attachment-metric">
+            <strong>{{ copilotPurchasePreview.estimatedItems || 0 }}</strong> {{ 'items' | translate }}
+          </span>
+          <span class="copilot-attachment-metric" [class.is-error]="(copilotPurchasePreview.validationResult?.errorRows || 0) > 0">
+            <strong>{{ copilotPurchasePreview.validationResult?.errorRows || 0 }}</strong> {{ 'ai_copilot_attach_error_rows' | translate }}
+          </span>
+        </div>
+        <div class="copilot-attachment-rows">
+          <div class="copilot-attachment-row" *ngFor="let g of (copilotPurchasePreview.groupedPurchases || []).slice(0, 3)">
+            <span class="copilot-attachment-row-title">{{ g.supplierName || '—' }}</span>
+            <span class="copilot-attachment-row-meta">{{ g.dateOfPurchase }} · {{ g.itemCount }} {{ 'items' | translate }}</span>
+            <span class="copilot-attachment-row-value">{{ g.totalAmount | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="copilot-attachment-errors" *ngIf="copilotPurchasePreview.validationResult?.errors?.length">
+          <div class="copilot-attachment-error" *ngFor="let e of (copilotPurchasePreview.validationResult?.errors || []).slice(0, 3)">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+            <span>#{{ e.rowNumber }} {{ e.message }}</span>
+          </div>
+        </div>
+        <div class="copilot-proposal-actions">
+          <button pButton type="button" class="p-button-sm" icon="pi pi-check"
+            [label]="'ai_copilot_attach_confirm_import' | translate"
+            [loading]="copilotAttachmentBusy" [disabled]="!canConfirmCopilotImport"
+            (click)="confirmCopilotAttachmentImport()"></button>
+          <button pButton type="button" class="p-button-sm p-button-outlined" icon="pi pi-arrow-up-right"
+            [label]="'ai_copilot_attach_open_full' | translate" [disabled]="copilotAttachmentBusy"
+            (click)="openFullImportScreen()"></button>
+          <button pButton type="button" class="p-button-sm p-button-text"
+            [label]="'cancel' | translate" [disabled]="copilotAttachmentBusy"
+            (click)="clearCopilotAttachment()"></button>
+        </div>
+      </div>
+
+      <!-- Step 2b: product CSV preview -->
+      <div *ngIf="copilotProductPreview" class="copilot-attachment-preview">
+        <div class="copilot-attachment-metrics">
+          <span class="copilot-attachment-metric">
+            <strong>{{ copilotProductPreview.estimatedCreates || 0 }}</strong> {{ 'ai_copilot_attach_creates' | translate }}
+          </span>
+          <span class="copilot-attachment-metric">
+            <strong>{{ copilotProductPreview.estimatedUpdates || 0 }}</strong> {{ 'ai_copilot_attach_updates' | translate }}
+          </span>
+          <span class="copilot-attachment-metric" [class.is-error]="(copilotProductPreview.validationResult?.errorRows || 0) > 0">
+            <strong>{{ copilotProductPreview.validationResult?.errorRows || 0 }}</strong> {{ 'ai_copilot_attach_error_rows' | translate }}
+          </span>
+        </div>
+        <div class="copilot-attachment-errors" *ngIf="copilotProductPreview.validationResult?.errors?.length">
+          <div class="copilot-attachment-error" *ngFor="let e of (copilotProductPreview.validationResult?.errors || []).slice(0, 3)">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+            <span>#{{ e.rowNumber }} {{ e.message }}</span>
+          </div>
+        </div>
+        <div class="copilot-proposal-actions">
+          <button pButton type="button" class="p-button-sm" icon="pi pi-check"
+            [label]="'ai_copilot_attach_confirm_import' | translate"
+            [loading]="copilotAttachmentBusy" [disabled]="!canConfirmCopilotImport"
+            (click)="confirmCopilotAttachmentImport()"></button>
+          <button pButton type="button" class="p-button-sm p-button-outlined" icon="pi pi-arrow-up-right"
+            [label]="'ai_copilot_attach_open_full' | translate" [disabled]="copilotAttachmentBusy"
+            (click)="openFullImportScreen()"></button>
+          <button pButton type="button" class="p-button-sm p-button-text"
+            [label]="'cancel' | translate" [disabled]="copilotAttachmentBusy"
+            (click)="clearCopilotAttachment()"></button>
+        </div>
+      </div>
+    </div>
+
     <div class="copilot-composer">
+      <input #copilotFileInput type="file" class="copilot-file-input"
+        accept=".csv,.xlsx,.xls,.pdf,.png,.jpg,.jpeg"
+        (change)="onCopilotFileSelected($event)" />
+      <button
+        *ngIf="copilotAttachmentTargetsAvailable"
+        pButton
+        type="button"
+        icon="pi pi-paperclip"
+        class="copilot-attach-btn p-button-rounded p-button-text"
+        [attr.aria-label]="'ai_copilot_attach' | translate"
+        [pTooltip]="'ai_copilot_attach' | translate"
+        tooltipPosition="top"
+        [disabled]="copilotLoading || copilotAttachmentBusy"
+        (click)="onCopilotAttachClick()"></button>
       <textarea
         #copilotInputField
         pInputTextarea
@@ -384,6 +608,8 @@
     <small class="copilot-composer-hint">{{ 'ai_copilot_composer_hint' | translate }}</small>
   </div>
 </aside>
+
+<p-confirmPopup [key]="'copilotMsgDelete'"></p-confirmPopup>
 
 <p-dialog
   [(visible)]="showCopilotScopeDialog"

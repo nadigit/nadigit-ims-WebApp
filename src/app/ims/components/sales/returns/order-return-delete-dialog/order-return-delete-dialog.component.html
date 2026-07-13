@@ -1,0 +1,61 @@
+<p-dialog
+  [visible]="visible"
+  (visibleChange)="onVisibleChange($event)"
+  [header]="'confirm_label' | translate"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!loading"
+  [style]="{ width: '540px', maxWidth: '95vw' }"
+  styleClass="ims-product-action-dialog"
+  appendTo="body">
+
+  <div class="ims-product-action-dialog__body">
+    <div *ngIf="loading" class="ims-product-action-dialog__loading">
+      <p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"></p-progressSpinner>
+      <span>{{ 'loading_delete_impact' | translate }}</span>
+    </div>
+
+    <ng-container *ngIf="!loading && impact">
+      <div class="ims-product-action-dialog__hero">
+        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber" aria-hidden="true">
+          <i class="pi pi-exclamation-triangle"></i>
+        </div>
+        <div class="ims-product-action-dialog__intro">
+          <p class="ims-product-action-dialog__title">{{ 'confirm_permanent_delete_return' | translate }}</p>
+          <p class="ims-product-action-dialog__product-name" *ngIf="impact.returnReference">{{ impact.returnReference }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="!impact.canDelete" class="ims-product-action-dialog__impact ims-product-action-dialog__impact--blocked">
+        <p class="m-0">{{ impact.blockingReasonKey | translate }}</p>
+        <ul *ngIf="impact.impacts?.length" class="ims-product-action-dialog__list">
+          <li *ngFor="let item of impact.impacts">
+            {{ getDeleteImpactLabel(item.type) }}: <strong>{{ item.count }}</strong>
+          </li>
+        </ul>
+        <p *ngIf="showForceDelete" class="ims-product-action-dialog__force-warning">
+          {{ 'force_delete_return_warning' | translate }}
+        </p>
+      </div>
+
+      <p *ngIf="impact.canDelete" class="ims-product-action-dialog__note">
+        {{ 'return_delete_no_related_records' | translate }}
+      </p>
+    </ng-container>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple icon="pi pi-times" class="p-button-text" type="button"
+      [label]="'no_button' | translate" [disabled]="loading" (click)="onCancel()"></button>
+    <button *ngIf="showForceDelete" pButton pRipple icon="pi pi-exclamation-triangle"
+      class="p-button-danger p-button-outlined" type="button"
+      [label]="'force_delete_return' | translate"
+      [disabled]="loading"
+      (click)="onForceConfirm()"></button>
+    <button pButton pRipple icon="pi pi-trash" class="p-button-danger" type="button"
+      [label]="'yes_button' | translate"
+      [disabled]="loading || !impact?.canDelete"
+      (click)="onConfirm()"></button>
+  </ng-template>
+</p-dialog>

@@ -494,15 +494,15 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
     this.return = { ...purchaseReturn };
   }
 
-  async confirmDeleteSelected() {
+  confirmDeleteSelected(force: boolean = false) {
     this.deleteReturnsDialog = false;
-    await this.selectedReturns.forEach(selectedReturn => this.onDeleteReturn(selectedReturn.returnId));
+    this.selectedReturns.forEach(selectedReturn => this.onDeleteReturn(selectedReturn.returnId, force));
     this.selectedReturns = [];
   }
 
-  async confirmDelete() {
+  async confirmDelete(returnId?: number, force: boolean = false) {
     this.deleteReturnDialog = false;
-    await this.onDeleteReturn(this.return.returnId);
+    await this.onDeleteReturn(returnId ?? this.return.returnId, force);
     this.return = {};
   }
 
@@ -785,8 +785,8 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
     }
   }
 
-  async onDeleteReturn(id: any) {
-    await this.purchaseReturnService.deleteReturn(id).subscribe({
+  async onDeleteReturn(id: any, force: boolean = false) {
+    await this.purchaseReturnService.deleteReturn(id, force).subscribe({
       next: (response: any) => {
         this.loadReturns();
         this.messageService.add({

@@ -91,7 +91,7 @@
     </div>
 
     <!-- Show Getting Started Button (if hidden) -->
-    <div class="col-12 mb-3" *ngIf="!showGettingStartedCard && (totalOrders === 0 || totalProducts === 0 || (customers && customers.length === 0))">
+    <div class="col-12 mb-3" *ngIf="dataLoaded && !showGettingStartedCard && isSetupIncomplete">
         <button pButton pRipple 
             icon="pi pi-info-circle" 
             [label]="'show_getting_started' | translate"
@@ -343,7 +343,7 @@
                     [footnote]="ov.inventory.activeSkuCount + ' ' + ('products' | translate)"></app-kpi-card>
             </div>
             <div class="col-6 sm:col-4 xl:col-3">
-                <app-kpi-card [label]="'orders_menu_title' | translate" tone="purple" icon="pi pi-shopping-cart"
+                <app-kpi-card [label]="'completed_orders' | translate" tone="purple" icon="pi pi-shopping-cart"
                     [value]="formatNumber(ov.salesSummary.completedOrderCount)"></app-kpi-card>
             </div>
         </div>
@@ -365,8 +365,9 @@
         </div>
     </div>
 
-    <!-- First Row - Primary Key Metrics (sales cards hidden for warehouse-only roles) -->
-    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">
+    <!-- First Row - Primary Key Metrics. Admin gets these in the Command Center, so the all-time
+         Orders + Today Revenue cards below are vendor-only to avoid duplicate/conflicting "Orders". -->
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isVendor">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
@@ -389,7 +390,7 @@
         </p-card>
     </div>
 
-    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">
+    <div class="col-12 lg:col-6 xl:col-3" *ngIf="isVendor">
         <p-card styleClass="shadow-2 border-round-lg h-full hover:shadow-4 transition-duration-150">
             <div class="flex flex-column">
                 <div class="flex justify-content-between align-items-start mb-3">
@@ -591,7 +592,7 @@
                 <ng-template pTemplate="body" let-order>
                     <tr>
                         <td>
-                            <span class="font-medium">#{{ order.reference || 'N/A' }}</span>
+                            <span class="reference-badge">#{{ order.reference || 'N/A' }}</span>
                         </td>
                         <td>
                             {{ order.customer 
@@ -634,7 +635,7 @@
                 </div>
             </ng-template>
             <div class="grid">
-                <div class="col-12 md:col-6 lg:col-12 xl:col-6">
+                <div class="col-12 md:col-6 lg:col-12 xl:col-6" *ngIf="!isAdmin">
                     <div class="flex justify-content-between align-items-center p-3 surface-50 border-round mb-2">
                         <div class="flex align-items-center gap-2">
                             <i class="pi pi-chart-bar text-primary"></i>
@@ -872,33 +873,27 @@
                         </ul>
                     </div>
                 </ng-container>
-                <div *ngIf="chartDataReady && chartData && chartOptions && 
-                            chartData.labels && chartData.labels.length > 0 && 
-                            (!chartData.datasets || chartData.datasets.length === 0) &&
-                            (!top5Products || top5Products.length === 0)" 
+                <!-- Empty state: chart finished loading but there is nothing to plot (single message) -->
+                <div *ngIf="chartsInitialized && chartDataReady && chartRenderReady && chartData && chartOptions &&
+                            (!chartData.datasets || chartData.datasets.length === 0 ||
+                             !chartData.labels || chartData.labels.length === 0)"
                      class="flex flex-column align-items-center justify-content-center h-full">
                     <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
                     <span class="text-600 text-center">{{ 'no_products_for_chart' | translate }}</span>
                 </div>
-                <div *ngIf="!chartDataReady || !chartRenderReady || !chartData || !chartOptions || 
-                            !chartData?.labels || chartData.labels.length === 0 || 
-                            !chartData?.datasets || chartData.datasets.length === 0" 
+                <!-- Loading spinner / load button while the chart is not ready yet -->
+                <div *ngIf="!chartsInitialized || !chartDataReady || !chartRenderReady"
                      class="flex flex-column align-items-center justify-content-center h-full">
                     <p-progressSpinner *ngIf="chartsInitialized && (!chartDataReady || !chartRenderReady)" styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
                     <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
                         <i class="pi pi-chart-line text-4xl text-400"></i>
                         <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>
-                        <button pButton pRipple 
-                                label="{{ 'load_chart' | translate }}" 
+                        <button pButton pRipple
+                                label="{{ 'load_chart' | translate }}"
                                 icon="pi pi-play"
                                 class="p-button-sm"
                                 (click)="loadChartOnDemand()"
                                 [disabled]="chartsInitialized"></button>
-                    </div>
-                    <div *ngIf="chartsInitialized && chartDataReady && (!chartData?.datasets || chartData.datasets.length === 0)" 
-                         class="flex flex-column align-items-center gap-2">
-                        <i class="pi pi-info-circle text-3xl text-400"></i>
-                        <span class="text-600 text-center">{{ 'no_chart_data_available' | translate }}</span>
                     </div>
                 </div>
             </div>
@@ -938,8 +933,7 @@
                             <span class="font-medium">{{product.name || 'N/A'}}</span>
                         </td>
                         <td>
-                            <p-tag *ngIf="product.reference" [value]="product.reference" severity="secondary"></p-tag>
-                            <span *ngIf="!product.reference" class="text-600">N/A</span>
+                            <span class="reference-badge">{{ product.reference || 'N/A' }}</span>
                         </td>
                         <td>
                             <button pButton pRipple icon="pi pi-eye"
@@ -1092,35 +1086,27 @@
                         </ul>
                     </div>
                 </ng-container>
-                <!-- Show message if chart is ready but no datasets AND no products exist -->
-                <div *ngIf="chartDataReady && chartData && chartOptions && 
-                            chartData.labels && chartData.labels.length > 0 && 
-                            (!chartData.datasets || chartData.datasets.length === 0) &&
-                            (!top5Products || top5Products.length === 0)" 
+                <!-- Empty state: chart finished loading but there is nothing to plot (single message) -->
+                <div *ngIf="chartsInitialized && chartDataReady && chartRenderReady && chartData && chartOptions &&
+                            (!chartData.datasets || chartData.datasets.length === 0 ||
+                             !chartData.labels || chartData.labels.length === 0)"
                      class="flex flex-column align-items-center justify-content-center h-full">
                     <i class="pi pi-info-circle text-4xl text-400 mb-3"></i>
                     <span class="text-600 text-center">{{ 'no_products_for_chart' | translate }}</span>
                 </div>
                 <!-- Show loading or load button if data is not ready yet -->
-                <div *ngIf="!chartDataReady || !chartRenderReady || !chartData || !chartOptions || 
-                            !chartData?.labels || chartData.labels.length === 0 || 
-                            !chartData?.datasets || chartData.datasets.length === 0" 
+                <div *ngIf="!chartsInitialized || !chartDataReady || !chartRenderReady"
                      class="flex flex-column align-items-center justify-content-center h-full">
                     <p-progressSpinner *ngIf="chartsInitialized && (!chartDataReady || !chartRenderReady)" styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>
                     <div *ngIf="!chartsInitialized" class="flex flex-column align-items-center gap-3">
                         <i class="pi pi-chart-line text-4xl text-400"></i>
                         <span class="text-600">{{ 'chart_not_loaded' | translate }}</span>
-                        <button pButton pRipple 
-                                label="{{ 'load_chart' | translate }}" 
+                        <button pButton pRipple
+                                label="{{ 'load_chart' | translate }}"
                                 icon="pi pi-play"
                                 class="p-button-sm"
                                 (click)="loadChartOnDemand()"
                                 [disabled]="chartsInitialized"></button>
-                    </div>
-                    <div *ngIf="chartsInitialized && chartDataReady && (!chartData?.datasets || chartData.datasets.length === 0)" 
-                         class="flex flex-column align-items-center gap-2">
-                        <i class="pi pi-info-circle text-3xl text-400"></i>
-                        <span class="text-600 text-center">{{ 'no_chart_data_available' | translate }}</span>
                     </div>
                 </div>
             </div>

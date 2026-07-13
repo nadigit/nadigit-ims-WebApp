@@ -2,43 +2,160 @@
 <p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
 
 <div class="tax-rules-page" [class.tax-rules-page--embedded]="embedded" *ngIf="!isLoading; else loadingTpl">
-  <p-toolbar [styleClass]="embedded ? 'mb-2 gap-2 tax-rules-toolbar--embedded' : 'mb-4 gap-2'">
-    <ng-template pTemplate="left">
-      <h2 class="m-0" *ngIf="!embedded">{{ 'tax_rules_page_title' | translate }}</h2>
-    </ng-template>
-    <ng-template pTemplate="right">
+  <!-- Page header (standalone route only) -->
+  <div class="mb-4" *ngIf="!embedded">
+    <h2 class="m-0 text-900">{{ 'tax_rules_page_title' | translate }}</h2>
+    <p class="text-600 mt-2 mb-0">{{ 'tax_rules_intro' | translate }}</p>
+  </div>
+  <p *ngIf="!isAdmin" class="text-600 mb-3" [class.text-sm]="embedded">{{ 'tax_rules_readonly_hint' | translate }}</p>
+
+  <!-- Rules engine disabled: rules are inert until tax.calculation.mode = RULES -->
+  <div *ngIf="!rulesModeActive" class="tax-mode-banner mb-4 p-3 border-round flex align-items-start gap-2">
+    <i class="pi pi-info-circle mt-1"></i>
+    <span>{{ 'tax_rules_mode_global_banner' | translate }}</span>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="isAdmin">
+    <div class="flex align-items-center gap-2">
       <button pButton pRipple
-        *ngIf="isAdmin"
         label="{{ 'new_button' | translate }}"
         icon="pi pi-plus"
         class="p-button-success"
         (click)="openCreate()"
-        pTooltip="{{ 'tax_rules_add' | translate }}">
-      </button>
-    </ng-template>
-  </p-toolbar>
+        pTooltip="{{ 'tax_rules_add' | translate }}"></button>
+      <button pButton pRipple
+        label="{{ 'tax_rules_activate_selected' | translate }}"
+        icon="pi pi-check-circle"
+        class="p-button-outlined p-button-success"
+        (click)="setSelectedRulesActive(true)"
+        [loading]="bulkUpdating"
+        [disabled]="!selectedRules || !selectedRules.length || bulkUpdating"></button>
+      <button pButton pRipple
+        label="{{ 'tax_rules_deactivate_selected' | translate }}"
+        icon="pi pi-ban"
+        class="p-button-outlined p-button-secondary"
+        (click)="setSelectedRulesActive(false)"
+        [loading]="bulkUpdating"
+        [disabled]="!selectedRules || !selectedRules.length || bulkUpdating"></button>
+      <button pButton pRipple
+        label="{{ 'delete_button' | translate }}"
+        icon="pi pi-trash"
+        class="p-button-danger"
+        (click)="deleteSelectedRules()"
+        [disabled]="!selectedRules || !selectedRules.length"></button>
+    </div>
+  </div>
 
-  <p class="text-600 mb-4" *ngIf="!embedded">{{ 'tax_rules_intro' | translate }}</p>
-  <p *ngIf="!isAdmin && !embedded" class="text-600 mb-4">{{ 'tax_rules_readonly_hint' | translate }}</p>
-  <p *ngIf="!isAdmin && embedded" class="text-600 mb-3 text-sm">{{ 'tax_rules_readonly_hint' | translate }}</p>
+  <!-- Filters Bar -->
+  <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+    <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+      <i class="pi pi-search"></i>
+      <input type="text" pInputText
+        [placeholder]="'search_label' | translate"
+        (input)="dt.filterGlobal($event.target.value, 'contains')" class="w-full" />
+    </span>
+  </div>
 
-  <p-table [value]="rules" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.taxRules, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]" (onPage)="pageSizeService.onPage(TablePageSizeKeys.taxRules, [20, 50, 100], $event)" styleClass="p-datatable-sm p-datatable-striped">
+  <!-- Rule simulator: which rate applies for a product / country / document type -->
+  <div class="tax-simulator surface-card border-1 surface-border border-round p-3 mb-4">
+    <div class="flex align-items-center gap-2 mb-3">
+      <i class="pi pi-calculator text-primary"></i>
+      <span class="font-semibold text-900">{{ 'tax_rules_sim_title' | translate }}</span>
+      <span class="text-600 text-sm hidden md:inline">— {{ 'tax_rules_sim_hint' | translate }}</span>
+    </div>
+    <div class="flex flex-wrap gap-3 align-items-end">
+      <div class="flex flex-column gap-1" style="min-width: 220px;">
+        <label class="text-sm text-600" for="simProduct">{{ 'tax_rule_product' | translate }}</label>
+        <p-autoComplete
+          inputId="simProduct"
+          [(ngModel)]="simProduct"
+          [suggestions]="productSuggestions"
+          [loading]="productSuggestionsLoading"
+          (completeMethod)="searchProducts($event)"
+          field="name"
+          [forceSelection]="true"
+          [dropdown]="true"
+          appendTo="body"
+          [placeholder]="'search_products' | translate">
+          <ng-template let-product pTemplate="item">
+            <div class="flex flex-column">
+              <span class="font-medium">{{ product.name }}</span>
+              <small *ngIf="product.reference"><span class="reference-badge">{{ product.reference }}</span></small>
+            </div>
+          </ng-template>
+        </p-autoComplete>
+      </div>
+      <div class="flex flex-column gap-1" style="min-width: 170px;">
+        <label class="text-sm text-600" for="simDocType">{{ 'tax_rule_document_type' | translate }}</label>
+        <p-dropdown inputId="simDocType" [options]="documentTypeOptions.slice(0, 2)" [(ngModel)]="simDocumentType"
+          optionLabel="label" optionValue="value" appendTo="body"></p-dropdown>
+      </div>
+      <div class="flex flex-column gap-1" style="min-width: 200px;">
+        <label class="text-sm text-600" for="simCountry">{{ 'tax_rule_country' | translate }}</label>
+        <p-dropdown inputId="simCountry" [options]="countryOptions" [(ngModel)]="simCountry"
+          optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [showClear]="true"
+          appendTo="body" [placeholder]="'tax_rule_country_placeholder' | translate"></p-dropdown>
+      </div>
+      <button pButton pRipple icon="pi pi-play" [label]="'tax_rules_sim_run' | translate"
+        [loading]="simRunning" [disabled]="!simProduct?.productId || simRunning"
+        (click)="runSimulation()"></button>
+    </div>
+    <div *ngIf="simResult" class="mt-3 pt-3 border-top-1 surface-border flex flex-wrap gap-4 align-items-center">
+      <div class="flex flex-column gap-1">
+        <span class="text-sm text-600">{{ 'tax_rules_sim_applied_rate' | translate }}</span>
+        <span class="text-xl font-bold text-primary">{{ percentDisplay(simResult.appliedRate) }}</span>
+      </div>
+      <div class="flex flex-column gap-1" *ngIf="simResult.line?.ruleId; else simNoRule">
+        <span class="text-sm text-600">{{ 'tax_rules_sim_matched_rule' | translate }}</span>
+        <span class="font-medium text-900">
+          <span class="reference-badge">{{ simResult.line.ruleCode }}</span>
+          {{ simResult.line.ruleLabel }} ({{ percentDisplay(simResult.line.ruleRate) }})
+        </span>
+      </div>
+      <ng-template #simNoRule>
+        <div class="flex flex-column gap-1">
+          <span class="text-sm text-600">{{ 'tax_rules_sim_matched_rule' | translate }}</span>
+          <span class="text-700">{{ 'tax_rules_sim_no_rule' | translate }}</span>
+        </div>
+      </ng-template>
+      <div *ngIf="simResult.mode === 'GLOBAL' && simResult.line?.ruleId" class="text-sm text-600 flex align-items-center gap-2">
+        <i class="pi pi-info-circle"></i>
+        {{ 'tax_rules_sim_global_note' | translate }}
+      </div>
+    </div>
+  </div>
+
+  <p-table #dt [value]="rules" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.taxRules, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
+    (onPage)="pageSizeService.onPage(TablePageSizeKeys.taxRules, [20, 50, 100], $event)"
+    [(selection)]="selectedRules" selectionMode="multiple" dataKey="taxRuleId" [rowHover]="true"
+    [globalFilterFields]="['code','label','documentType','country']"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+    styleClass="p-datatable-gridlines">
     <ng-template pTemplate="header">
       <tr>
-        <th>{{ 'tax_rule_code' | translate }}</th>
-        <th>{{ 'tax_rule_label' | translate }}</th>
-        <th class="text-right">{{ 'tax_rule_rate_percent' | translate }}</th>
-        <th>{{ 'tax_rule_document_type' | translate }}</th>
-        <th class="text-right">{{ 'tax_rule_priority' | translate }}</th>
-        <th class="text-center">{{ 'tax_rule_active' | translate }}</th>
-        <th>{{ 'tax_rule_country' | translate }}</th>
-        <th class="text-right">{{ 'tax_rule_product_id' | translate }}</th>
-        <th class="text-right">{{ 'tax_rule_category_id' | translate }}</th>
-        <th *ngIf="isAdmin" style="width: 8rem"></th>
+        <th *ngIf="isAdmin" style="width: 3rem">
+          <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+        </th>
+        <th pSortableColumn="code">{{ 'tax_rule_code' | translate }} <p-sortIcon field="code"></p-sortIcon></th>
+        <th pSortableColumn="label">{{ 'tax_rule_label' | translate }} <p-sortIcon field="label"></p-sortIcon></th>
+        <th class="text-right" pSortableColumn="rate">{{ 'tax_rule_rate_percent' | translate }} <p-sortIcon field="rate"></p-sortIcon></th>
+        <th pSortableColumn="documentType">{{ 'tax_rule_document_type' | translate }} <p-sortIcon field="documentType"></p-sortIcon></th>
+        <th class="text-right" pSortableColumn="priority">{{ 'tax_rule_priority' | translate }} <p-sortIcon field="priority"></p-sortIcon></th>
+        <th class="text-center" pSortableColumn="active">{{ 'tax_rule_active' | translate }} <p-sortIcon field="active"></p-sortIcon></th>
+        <th pSortableColumn="country">{{ 'tax_rule_country' | translate }} <p-sortIcon field="country"></p-sortIcon></th>
+        <th pSortableColumn="validFrom">{{ 'tax_rule_effective' | translate }} <p-sortIcon field="validFrom"></p-sortIcon></th>
+        <th pSortableColumn="productName">{{ 'tax_rule_product' | translate }} <p-sortIcon field="productName"></p-sortIcon></th>
+        <th pSortableColumn="categoryName">{{ 'tax_rule_category' | translate }} <p-sortIcon field="categoryName"></p-sortIcon></th>
+        <th *ngIf="isAdmin">{{ 'actions' | translate }}</th>
       </tr>
     </ng-template>
     <ng-template pTemplate="body" let-row>
       <tr>
+        <td *ngIf="isAdmin">
+          <p-tableCheckbox [value]="row"></p-tableCheckbox>
+        </td>
         <td><span class="font-semibold">{{ row.code }}</span></td>
         <td>{{ row.label }}</td>
         <td class="text-right">{{ rateDisplay(row) }}</td>
@@ -47,18 +164,36 @@
         <td class="text-center">
           <p-tag [severity]="row.active ? 'success' : 'secondary'" [value]="row.active ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
         </td>
-        <td>{{ row.country || '—' }}</td>
-        <td class="text-right">{{ row.productId ?? '—' }}</td>
-        <td class="text-right">{{ row.categoryId ?? '—' }}</td>
+        <td>{{ countryDisplay(row.country) }}</td>
+        <td>
+          <div class="flex flex-column">
+            <span [class.text-500]="!isEffectiveNow(row)">{{ windowDisplay(row) }}</span>
+            <span *ngIf="!isEffectiveNow(row)" class="text-orange-500 text-xs">{{ 'tax_rule_not_effective_now' | translate }}</span>
+          </div>
+        </td>
+        <td>
+          <div *ngIf="row.productId; else noScope" class="flex flex-column">
+            <span class="font-medium text-900">{{ row.productName || ('#' + row.productId) }}</span>
+            <small *ngIf="row.productReference"><span class="reference-badge">{{ row.productReference }}</span></small>
+          </div>
+        </td>
+        <td>
+          <span *ngIf="row.categoryId; else noScope">{{ row.categoryName || ('#' + row.categoryId) }}</span>
+        </td>
+        <ng-template #noScope><span class="text-500">—</span></ng-template>
         <td *ngIf="isAdmin">
-          <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="primary" (onClick)="openEdit(row)" [pTooltip]="'edit' | translate"></p-button>
-          <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger" (onClick)="confirmDelete(row)" [pTooltip]="'delete' | translate"></p-button>
+          <div class="flex gap-1">
+            <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
+              (click)="openEdit(row)" [pTooltip]="'edit' | translate"></button>
+            <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+              (click)="confirmDelete(row)" [pTooltip]="'delete' | translate"></button>
+          </div>
         </td>
       </tr>
     </ng-template>
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td [attr.colspan]="isAdmin ? 10 : 9" class="text-center py-4">
+        <td [attr.colspan]="isAdmin ? 12 : 10" class="text-center py-4">
           <div class="flex flex-column align-items-center justify-content-center py-5">
             <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">
             <p class="mt-3 text-gray-600 font-medium text-lg">{{ 'no_data_found' | translate }}</p>
@@ -81,64 +216,169 @@
   [(visible)]="dialogVisible"
   [header]="(isEdit ? 'tax_rules_edit' : 'tax_rules_add') | translate"
   [modal]="true"
-  [style]="{ width: '520px' }"
+  [style]="{ width: 'min(92vw, 560px)' }"
+  [breakpoints]="{'640px': '95vw'}"
   [draggable]="false"
+  [resizable]="false"
+  styleClass="ims-form-dialog-shell"
+  class="p-fluid"
   (onHide)="hideDialog()">
   <ng-template pTemplate="content">
-    <div class="flex flex-column gap-3">
-      <div *ngIf="!isEdit">
-        <label class="block mb-1 font-medium">{{ 'tax_rule_code' | translate }} *</label>
-        <input pInputText class="w-full" [(ngModel)]="form.code" [class.ng-invalid]="submitted && !form.code?.trim()" />
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <!-- Rule definition -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+              <i class="pi pi-info-circle"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'basic_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="taxRuleCode" class="ims-form-label">
+                  {{ 'tax_rule_code' | translate }} <span class="required-asterisk" *ngIf="!isEdit">*</span>
+                </label>
+                <input id="taxRuleCode" pInputText class="w-full" [(ngModel)]="form.code"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !isEdit && !form.code?.trim()}" />
+                <small class="p-error" *ngIf="submitted && !isEdit && !form.code?.trim()">
+                  {{ 'tax_rule_code' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+              <div class="field">
+                <label for="taxRuleLabel" class="ims-form-label">
+                  {{ 'tax_rule_label' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="taxRuleLabel" pInputText class="w-full" [(ngModel)]="form.label"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !form.label?.trim()}" />
+                <small class="p-error" *ngIf="submitted && !form.label?.trim()">
+                  {{ 'tax_rule_label' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="taxRuleRate" class="ims-form-label">
+                  {{ 'tax_rule_rate_percent' | translate }}
+                  <span class="ims-form-hint ims-form-hint--inline">(0–100)</span>
+                </label>
+                <p-inputNumber inputId="taxRuleRate" [(ngModel)]="ratePercent" mode="decimal"
+                  [minFractionDigits]="0" [maxFractionDigits]="4" [min]="0" [max]="100"
+                  styleClass="w-full"></p-inputNumber>
+              </div>
+              <div class="field">
+                <label for="taxRuleDocType" class="ims-form-label">{{ 'tax_rule_document_type' | translate }}</label>
+                <p-dropdown inputId="taxRuleDocType" [options]="documentTypeOptions" [(ngModel)]="form.documentType"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+            </div>
+            <div class="ims-form-checkbox-row">
+              <p-checkbox [(ngModel)]="form.active" [binary]="true" inputId="taxRuleActive"></p-checkbox>
+              <label for="taxRuleActive" class="ims-form-label ims-form-label--inline">{{ 'tax_rule_active' | translate }}</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Scope & priority -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+              <i class="pi pi-sliders-h"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'additional_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="taxRulePriority" class="ims-form-label">{{ 'tax_rule_priority' | translate }}</label>
+                <p-inputNumber inputId="taxRulePriority" [(ngModel)]="form.priority" [min]="0"
+                  [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+              </div>
+              <div class="field">
+                <label for="taxRuleCountry" class="ims-form-label">{{ 'tax_rule_country' | translate }}</label>
+                <p-dropdown
+                  inputId="taxRuleCountry"
+                  [options]="countryOptions"
+                  [(ngModel)]="form.country"
+                  optionLabel="label"
+                  optionValue="value"
+                  [filter]="true"
+                  filterBy="label"
+                  [showClear]="true"
+                  [editable]="true"
+                  appendTo="body"
+                  [placeholder]="'tax_rule_country_placeholder' | translate"
+                  styleClass="w-full">
+                </p-dropdown>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="taxRuleCategory" class="ims-form-label">{{ 'tax_rule_category' | translate }}</label>
+                <p-dropdown
+                  inputId="taxRuleCategory"
+                  [options]="categoryOptions"
+                  [(ngModel)]="form.categoryId"
+                  optionLabel="label"
+                  optionValue="value"
+                  [showClear]="true"
+                  appendTo="body"
+                  styleClass="w-full">
+                </p-dropdown>
+              </div>
+              <div class="field">
+                <label for="taxRuleProduct" class="ims-form-label">{{ 'tax_rule_product' | translate }}</label>
+                <p-autoComplete
+                  inputId="taxRuleProduct"
+                  [(ngModel)]="selectedProduct"
+                  [suggestions]="productSuggestions"
+                  [loading]="productSuggestionsLoading"
+                  (completeMethod)="searchProducts($event)"
+                  field="name"
+                  [forceSelection]="true"
+                  [dropdown]="true"
+                  [showClear]="true"
+                  appendTo="body"
+                  styleClass="w-full"
+                  [placeholder]="'search_products' | translate">
+                  <ng-template let-product pTemplate="item">
+                    <div class="flex flex-column">
+                      <span class="font-medium">{{ product.name }}</span>
+                      <small *ngIf="product.reference"><span class="reference-badge">{{ product.reference }}</span></small>
+                    </div>
+                  </ng-template>
+                </p-autoComplete>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="taxRuleValidFrom" class="ims-form-label">{{ 'tax_rule_valid_from' | translate }}</label>
+                <p-calendar inputId="taxRuleValidFrom" [(ngModel)]="validFromDate" dateFormat="yy-mm-dd"
+                  [showIcon]="true" [showClear]="true" appendTo="body" styleClass="w-full"
+                  [placeholder]="'tax_rule_valid_from_placeholder' | translate"></p-calendar>
+              </div>
+              <div class="field">
+                <label for="taxRuleValidTo" class="ims-form-label">{{ 'tax_rule_valid_to' | translate }}</label>
+                <p-calendar inputId="taxRuleValidTo" [(ngModel)]="validToDate" dateFormat="yy-mm-dd"
+                  [showIcon]="true" [showClear]="true" appendTo="body" styleClass="w-full"
+                  [placeholder]="'tax_rule_valid_to_placeholder' | translate"></p-calendar>
+              </div>
+            </div>
+            <p class="text-600 text-sm m-0">{{ 'tax_rule_effective_hint' | translate }}</p>
+          </div>
+        </section>
       </div>
-      <div *ngIf="isEdit">
-        <label class="block mb-1 font-medium">{{ 'tax_rule_code' | translate }}</label>
-        <input pInputText class="w-full" [(ngModel)]="form.code" />
-      </div>
-      <div>
-        <label class="block mb-1 font-medium">{{ 'tax_rule_label' | translate }} *</label>
-        <input pInputText class="w-full" [(ngModel)]="form.label" [class.ng-invalid]="submitted && !form.label?.trim()" />
-      </div>
-      <div>
-        <label class="block mb-1 font-medium">{{ 'tax_rule_rate_percent' | translate }} (0–100)</label>
-        <p-inputNumber [(ngModel)]="ratePercent" mode="decimal" [minFractionDigits]="0" [maxFractionDigits]="4" [min]="0" [max]="100" class="w-full" styleClass="w-full"></p-inputNumber>
-      </div>
-      <div>
-        <label class="block mb-1 font-medium">{{ 'tax_rule_document_type' | translate }}</label>
-        <p-dropdown [options]="documentTypeOptions" [(ngModel)]="form.documentType" optionLabel="label" optionValue="value" class="w-full" appendTo="body" styleClass="w-full"></p-dropdown>
-      </div>
-      <div>
-        <label class="block mb-1 font-medium">{{ 'tax_rule_priority' | translate }}</label>
-        <p-inputNumber [(ngModel)]="form.priority" [min]="0" [useGrouping]="false" class="w-full" styleClass="w-full"></p-inputNumber>
-      </div>
-      <div class="flex align-items-center gap-2">
-        <p-checkbox [(ngModel)]="form.active" [binary]="true" inputId="taxRuleActive"></p-checkbox>
-        <label for="taxRuleActive" class="m-0">{{ 'tax_rule_active' | translate }}</label>
-      </div>
-      <div>
-        <label class="block mb-1 font-medium">{{ 'tax_rule_country' | translate }}</label>
-        <input pInputText class="w-full" [(ngModel)]="form.country" [placeholder]="'tax_rule_country_placeholder' | translate" />
-      </div>
-      <div>
-        <label class="block mb-1 font-medium">{{ 'tax_rule_category' | translate }}</label>
-        <p-dropdown
-          [options]="categoryOptions"
-          [(ngModel)]="form.categoryId"
-          optionLabel="label"
-          optionValue="value"
-          [showClear]="true"
-          class="w-full"
-          appendTo="body"
-          styleClass="w-full">
-        </p-dropdown>
-      </div>
-      <div>
-        <label class="block mb-1 font-medium">{{ 'tax_rule_product_id' | translate }}</label>
-        <p-inputNumber [(ngModel)]="form.productId" [useGrouping]="false" class="w-full" styleClass="w-full" [showClear]="true"></p-inputNumber>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
       </div>
     </div>
   </ng-template>
   <ng-template pTemplate="footer">
-    <p-button [label]="'cancel' | translate" icon="pi pi-times" [outlined]="true" (onClick)="hideDialog()"></p-button>
-    <p-button [label]="'save_button' | translate" icon="pi pi-check" (onClick)="save()"></p-button>
+    <button pButton pRipple [label]="'cancel' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="hideDialog()"></button>
+    <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
+      class="p-button-primary" (click)="save()"></button>
   </ng-template>
 </p-dialog>

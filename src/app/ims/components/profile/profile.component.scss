@@ -1,5 +1,11 @@
 /* =====================================================
    Profile Page - Modern Details Layout
+
+   Hero (.profile-hero), .stats-row / .stat-card-modern, .detail-card and
+   .card-header are owned by the shared design system in
+   assets/ims/styles/detail-hero.scss (the same source of truth the settings
+   integration pages use). Only profile-specific rules live here so the page
+   stays visually unified with the integration pages and can't drift.
    ===================================================== */
 
 /* Container */
@@ -27,38 +33,8 @@
 }
 
 /* =====================================================
-   Hero Section
+   Hero content (shell comes from detail-hero.scss)
    ===================================================== */
-.profile-hero {
-    position: relative;
-    margin: -1rem -1rem 0;
-    padding: 1.5rem 2rem 2rem;
-    background: linear-gradient(135deg, var(--surface-card) 0%, var(--surface-hover) 100%);
-    border-bottom: 1px solid var(--surface-border);
-    overflow: hidden;
-}
-
-.hero-background {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 400px;
-    height: 100%;
-    background: linear-gradient(135deg, transparent 0%, var(--primary-100) 100%);
-    opacity: 0.3;
-    clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
-}
-
-:host-context(.layout-theme-dark) .hero-background {
-    background: linear-gradient(135deg, transparent 0%, var(--primary-900) 100%);
-    opacity: 0.15;
-}
-
-.hero-content {
-    position: relative;
-    z-index: 1;
-}
-
 .profile-title {
     font-size: 1.75rem;
     font-weight: 700;
@@ -69,58 +45,7 @@
     flex-shrink: 0;
 }
 
-/* =====================================================
-   Stats Row
-   ===================================================== */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin: -1.5rem 0 1.5rem;
-    padding: 0 1rem;
-    position: relative;
-    z-index: 2;
-}
-
-.stat-card-modern {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.25rem;
-    background: var(--surface-card);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: 1px solid var(--surface-border);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.stat-card-modern:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-.stat-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-color-secondary);
-    margin-bottom: 0.25rem;
-}
-
-.stat-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-color);
-    line-height: 1.2;
-}
-
+/* Stat value emphasis colours (used in the POS PIN card) */
 .text-success {
     color: var(--green-500) !important;
 }
@@ -130,39 +55,7 @@
 }
 
 /* =====================================================
-   Detail Cards
-   ===================================================== */
-.detail-card {
-    background: var(--surface-card);
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    border: 1px solid var(--surface-border);
-    overflow: hidden;
-}
-
-.card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    background: var(--surface-ground);
-    border-bottom: 1px solid var(--surface-border);
-    font-weight: 600;
-    font-size: 0.9375rem;
-    color: var(--text-color);
-}
-
-.card-header i {
-    color: var(--primary-color);
-    font-size: 1.1rem;
-}
-
-.card-body {
-    padding: 1.25rem;
-}
-
-/* =====================================================
-   Detail List
+   Detail List — label/value pairs inside detail cards
    ===================================================== */
 .detail-list {
     display: flex;
@@ -238,39 +131,17 @@
 }
 
 /* =====================================================
-   Responsive Design
+   Responsive Design (profile-specific bits only)
    ===================================================== */
 @media screen and (max-width: 992px) {
-    .profile-hero {
-        padding: 1.5rem 1rem;
-    }
-
     .profile-title {
         font-size: 1.5rem;
-    }
-
-    .stats-row {
-        grid-template-columns: repeat(2, 1fr);
-        padding: 0 0.5rem;
-    }
-
-    .stat-card-modern {
-        padding: 1rem;
-    }
-
-    .stat-value {
-        font-size: 1.25rem;
     }
 }
 
 @media screen and (max-width: 768px) {
     .profile-title {
         font-size: 1.25rem;
-    }
-
-    .stats-row {
-        grid-template-columns: 1fr 1fr;
-        margin-top: -1rem;
     }
 
     .detail-item {
@@ -286,10 +157,6 @@
 @media screen and (max-width: 576px) {
     .profile-content {
         padding: 0 0.5rem 1.5rem;
-    }
-
-    .stats-row {
-        grid-template-columns: 1fr;
     }
 
     .action-buttons {

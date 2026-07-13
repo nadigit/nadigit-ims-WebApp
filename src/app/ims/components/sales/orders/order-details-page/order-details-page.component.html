@@ -618,7 +618,7 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="font-medium">{{ orderItem?.product?.reference || 'N/A' }}</td>
+                                            <td><span class="reference-badge">{{ orderItem?.product?.reference || 'N/A' }}</span></td>
                                             <td class="text-center">
                                                 <p-tag severity="info">
                                                     <span class="px-1">{{ formatOrderItemQty(orderItem) }}<ng-container *ngIf="showOrderItemMeasureUnit(orderItem)"> {{ getOrderItemMeasureUnit(orderItem) | translate }}</ng-container></span>

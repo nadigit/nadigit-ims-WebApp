@@ -594,7 +594,7 @@
                     </ng-template>
                     <ng-template pTemplate="body" let-purchase>
                         <tr>
-                            <td>{{ purchase.reference }}</td>
+                            <td><span class="reference-badge">{{ purchase.reference }}</span></td>
                             <td>{{ purchase.supplierName }}</td>
                             <td>{{ purchase.invoice || '-' }}</td>
                             <td>{{ purchase.itemCount }}</td>
@@ -1393,7 +1393,7 @@
                 <ng-template pTemplate="body" let-product>
                     <tr>
                         <td>{{ product.name }}</td>
-                        <td>{{ product.reference }}</td>
+                        <td><span class="reference-badge">{{ product.reference }}</span></td>
                         <td>
                             <button 
                                 pButton 

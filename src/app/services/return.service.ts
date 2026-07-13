@@ -31,9 +31,17 @@ export class ReturnService {
     let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Updated order return');
     return this.http.put(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id , orderReturn, {headers:headers});
   }
-  deleteReturn(id: any) {
-    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), 'Deleted order return');
-    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers});
+  deleteReturn(id: any, force: boolean = false) {
+    let headers=withAudit(new HttpHeaders({'authorization':'Bearer '+this.jwt}), force ? 'Force deleted order return' : 'Deleted order return');
+    let params = new HttpParams();
+    if (force) {
+      params = params.set('force', 'true');
+    }
+    return this.http.delete(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id,{headers:headers, params});
+  }
+  getReturnDeleteImpact(id: any) {
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort+this.schema+id+'/delete-impact', { headers });
   }
   getReturns() {
     let headers=new HttpHeaders({'authorization':'Bearer '+this.jwt})

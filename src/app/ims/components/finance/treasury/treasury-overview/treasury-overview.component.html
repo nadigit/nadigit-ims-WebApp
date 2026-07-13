@@ -32,12 +32,22 @@
                             </span>
                         </ng-template>
                     </p-dropdown>
-                    <button pButton pRipple icon="pi pi-file-excel" class="p-button-success p-button-outlined"
-                        [label]="'export_to_excel' | translate" (click)="exportExcel()"
-                        [disabled]="isLoading || isExporting"></button>
-                    <button pButton pRipple icon="pi pi-file-pdf" class="p-button-danger p-button-outlined"
-                        [label]="'export_pdf' | translate" (click)="exportPdf()"
-                        [disabled]="isLoading || isExporting"></button>
+                    <div class="ims-export-actions flex align-items-center gap-2">
+                        <button pButton pRipple type="button"
+                            [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
+                            class="p-button-success"
+                            [pTooltip]="'export_to_excel' | translate"
+                            tooltipPosition="bottom"
+                            (click)="exportExcel()"
+                            [disabled]="isLoading || isExporting"></button>
+                        <button pButton pRipple type="button"
+                            [icon]="isExporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'"
+                            class="p-button-primary"
+                            [pTooltip]="'export_pdf' | translate"
+                            tooltipPosition="bottom"
+                            (click)="exportPdf()"
+                            [disabled]="isLoading || isExporting"></button>
+                    </div>
                     <button pButton pRipple icon="pi pi-refresh" [label]="'refresh' | translate"
                         class="p-button-outlined" (click)="refresh()" [disabled]="isLoading"></button>
                 </div>

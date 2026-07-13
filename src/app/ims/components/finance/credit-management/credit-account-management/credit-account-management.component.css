@@ -1,19 +1,13 @@
+/* Layout — hero/stats/detail cards come from the global detail-hero.scss. */
 .credit-account-management-container {
-    padding: 2rem;
-}
-
-.loading-wrapper {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 400px;
-}
-
-.credit-header {
-    margin-bottom: 2rem;
+    min-height: 100vh;
+    background: var(--surface-ground);
 }
 
 .credit-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1rem 2rem;
     animation: fadeIn 0.3s;
 }
 
@@ -28,8 +22,20 @@
     }
 }
 
-.card-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--surface-border);
+.loading-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
 }
 
+@media screen and (max-width: 992px) {
+    .credit-content {
+        padding: 0 0.5rem 1.5rem;
+    }
+
+    .action-buttons {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

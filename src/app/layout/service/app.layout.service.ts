@@ -165,7 +165,7 @@ export class LayoutService {
                     // fallback
                     this.systemInfo = {
                         appName: 'Nadigit IMS',
-                        appVersion: '2026.0.1',
+                        appVersion: '2027.0.2',
                         supportWebsite: 'https://nadigit.com',
                         supportEmail: 'support@nadigit.ma',
                         supportPhone: '+212-536-336-166',

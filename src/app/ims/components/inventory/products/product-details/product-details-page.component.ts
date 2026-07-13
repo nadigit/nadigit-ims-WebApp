@@ -1833,7 +1833,16 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   }
 
   quickAdjustStock(change: number): void {
-    this.quantityChange = change;
+    // Accumulate onto the running change so repeated taps keep adjusting
+    // (e.g. tapping +1 three times = +3) instead of resetting to a fixed value.
+    const decimals = this.getAdjustDecimals();
+    const factor = Math.pow(10, decimals);
+    const min = this.getAdjustMin();
+    let next = Math.round((this.quantityChange + change) * factor) / factor;
+    if (next < min) {
+      next = min;
+    }
+    this.quantityChange = next;
     // Optionally auto-fill reason for quick adjustments
     if (!this.adjustmentReason) {
       if (change > 0) {

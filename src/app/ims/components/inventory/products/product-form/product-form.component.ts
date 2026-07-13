@@ -12,6 +12,9 @@ import { QuantityScale } from 'src/app/utils/quantity-scale.util';
 import { ProductService } from 'src/app/services/product.service';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 import { OrganizationService } from 'src/app/services/organization.service';
+import { TaxRuleService } from 'src/app/services/tax-rule.service';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { Organization } from 'src/app/models/organization';
 import {
   EffectiveCostingSource,
@@ -95,18 +98,119 @@ export class ProductFormComponent implements OnInit, OnChanges {
   localProduct: Product = {};
   backendFieldErrors: Record<string, string> = {};
 
+  /** Enterprise VAT assignment (visible with license + RULES mode, admin only). */
+  vatFeatureReady = false;
+  vatOptions: { label: string; value: number | null }[] = [];
+  selectedVatRate: number | null = null;
+  private initialVatRate: number | null = null;
+  appliedVatLabel = '';
+
   constructor(
     private translate: TranslateService,
     private messageService: MessageService,
     private productService: ProductService,
     public activityProfileService: ActivityProfileService,
     private organizationService: OrganizationService,
+    private taxRuleService: TaxRuleService,
+    private configService: AppConfigurationService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
   ) {
     this.initializeOptions();
   }
 
+  /** Loads license + tax mode once, then the rule catalog for the VAT dropdown. */
+  private async initVatFeature(): Promise<void> {
+    try {
+      if (!this.licenseCapabilitiesService.isFeatureEnabled('TAX_RULE_ENGINE')) {
+        this.vatFeatureReady = false;
+        return;
+      }
+      const modeCfg: any = await firstValueFrom(await this.configService.getConfiguration('tax.calculation.mode')).catch(() => null);
+      const rulesMode = String(modeCfg?.value || 'GLOBAL').toUpperCase() === 'RULES';
+      if (!rulesMode) {
+        this.vatFeatureReady = false;
+        return;
+      }
+      const rules: any[] = await firstValueFrom(await this.taxRuleService.listTaxRules()).catch(() => []);
+      const seen = new Set<number>();
+      const options: { label: string; value: number | null }[] = [
+        { label: this.translate.instant('product_vat_inherited'), value: null }
+      ];
+      for (const rule of (rules || []).filter(r => r.active !== false)) {
+        const rate = Number(rule.rate ?? 0);
+        const key = Math.round(rate * 10000);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        options.push({ label: `${(rate * 100).toFixed(2)} %`, value: rate });
+      }
+      options.sort((a, b) => (a.value ?? -1) - (b.value ?? -1));
+      this.vatOptions = options;
+      this.vatFeatureReady = true;
+    } catch {
+      this.vatFeatureReady = false;
+    }
+  }
+
+  /** Loads the product's current simple VAT rule + the applied (resolved) rate. */
+  private async loadVatStateForProduct(): Promise<void> {
+    this.selectedVatRate = null;
+    this.initialVatRate = null;
+    this.appliedVatLabel = '';
+    if (!this.vatFeatureReady) return;
+    const id = this.localProduct?.productId;
+    if (!id) return;
+    try {
+      const rule: any = await firstValueFrom(await this.taxRuleService.getProductVatRule(id)).catch(() => null);
+      if (rule && rule.rate != null) {
+        const rate = Number(rule.rate);
+        this.selectedVatRate = rate;
+        this.initialVatRate = rate;
+        // Ensure the dropdown has an option matching an out-of-catalog rate.
+        if (!this.vatOptions.some(o => o.value != null && Math.round(o.value * 10000) === Math.round(rate * 10000))) {
+          this.vatOptions = [...this.vatOptions, { label: `${(rate * 100).toFixed(2)} %`, value: rate }];
+        }
+      }
+      const res: any = await firstValueFrom(await this.taxRuleService.resolveTaxRates({
+        documentType: 'SALES',
+        lines: [{ productId: id, netAmount: 100 }]
+      })).catch(() => null);
+      const line = res?.lines?.[0];
+      if (line) {
+        const pct = ((line.rate ?? 0) * 100).toFixed(2);
+        this.appliedVatLabel = line.ruleLabel
+          ? `${pct} % — ${line.ruleLabel}`
+          : `${pct} % — ${this.translate.instant('product_vat_global_default')}`;
+      }
+    } catch {
+      /* non-blocking */
+    }
+  }
+
+  /** Persists the VAT selection after the product is saved (create or edit). */
+  private async applyVatSelection(productId: number | null | undefined): Promise<void> {
+    if (!this.vatFeatureReady || !this.isAdmin || !productId) return;
+    const changed = (this.selectedVatRate ?? null) !== (this.initialVatRate ?? null);
+    if (!changed) return;
+    try {
+      if (this.selectedVatRate == null) {
+        await firstValueFrom(await this.taxRuleService.clearProductVatRule(productId));
+      } else {
+        await firstValueFrom(await this.taxRuleService.setProductVatRule(productId, this.selectedVatRate));
+      }
+    } catch (e) {
+      console.error('Failed to apply product VAT assignment:', e);
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('product_vat_assign_failed'),
+        life: 5000
+      });
+    }
+  }
+
   ngOnInit(): void {
     this.loadRecentImages();
+    void this.initVatFeature().then(() => this.loadVatStateForProduct());
     void this.activityProfileService.ensureLoaded().then(() => {
       this.applyProfileProductTypePolicy();
       this.applyProfileDrivenDefaultsForNewProduct();
@@ -148,6 +252,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
         this.applyProfileDrivenDefaultsForNewProduct();
         this.applyDefaultWarehouseIfSingle();
         void this.loadOrganizationCostingMethod();
+        void this.loadVatStateForProduct();
       } else {
         // When dialog closes, reset form
         this.resetForm();
@@ -862,6 +967,9 @@ export class ProductFormComponent implements OnInit, OnChanges {
     this.isDragOver = false;
     this.uploadProgress = 0;
     this.existingImageFile = null;
+    this.selectedVatRate = null;
+    this.initialVatRate = null;
+    this.appliedVatLabel = '';
   }
 
   resetScanning(): void {
@@ -1974,6 +2082,13 @@ export class ProductFormComponent implements OnInit, OnChanges {
     try {
       // Use saveProduct for both create and update (matching warehouse details behavior)
       const savedProduct = await this.saveProductToBackend(productToSave);
+      const savedRaw = savedProduct as any;
+      const savedProductId = Number(
+        productToSave.productId ??
+        savedRaw?.productId ?? savedRaw?.id ?? savedRaw?.product?.productId ?? savedRaw?.data?.productId
+      ) || null;
+      // Persist the enterprise VAT assignment (no-op when unchanged/unavailable).
+      await this.applyVatSelection(savedProductId);
       if (isCreate && uploadedImageUrls.length > 0) {
         const raw = savedProduct as any;
         const createdProductId = Number(

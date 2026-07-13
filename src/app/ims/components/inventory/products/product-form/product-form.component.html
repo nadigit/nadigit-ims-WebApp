@@ -887,6 +887,18 @@
 								{{'product_selling_price' | translate}} {{'is_required_label' | translate}}
 							</small>
 						</div>
+
+						<!-- Enterprise VAT assignment (rules mode + license + admin only) -->
+						<div class="field col-12 md:col-6" *ngIf="vatFeatureReady && isAdmin">
+							<label for="productVat" class="ims-form-label">{{ 'product_vat_label' | translate }}</label>
+							<p-dropdown inputId="productVat" [options]="vatOptions" [(ngModel)]="selectedVatRate"
+								[ngModelOptions]="{standalone: true}" optionLabel="label" optionValue="value"
+								appendTo="body" styleClass="w-full"></p-dropdown>
+							<small class="ims-form-hint" *ngIf="appliedVatLabel">
+								<i class="pi pi-percentage mr-1"></i>{{ 'product_vat_applied' | translate }}: {{ appliedVatLabel }}
+							</small>
+							<small class="ims-form-hint">{{ 'product_vat_hint' | translate }}</small>
+						</div>
 							</div>
 						</section>
 

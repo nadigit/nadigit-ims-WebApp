@@ -62,7 +62,7 @@
                                 severity="info"></p-tag>
                         </td>
                         <td>{{transaction.description || '-'}}</td>
-                        <td>{{transaction.reference || '-'}}</td>
+                        <td><span class="reference-badge">{{transaction.reference || '-'}}</span></td>
                         <td>
                             <span [ngClass]="['DEPOSIT', 'TRANSFER_IN', 'RECEIPT', 'INTEREST'].includes(transaction.type) ? 'text-green-600' : 'text-red-600'"
                                 class="font-bold">

@@ -1,12 +1,4 @@
-.integration-hero {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.09), rgba(251, 191, 36, 0.05));
-  border: 1px solid var(--surface-border);
-  border-radius: 14px;
-  padding: 1rem 1.25rem;
-}
+/* Page shell and cards come from the global detail-hero.scss + integration-pages.scss. */
 
 .recipients-list {
   max-height: 400px;
@@ -14,9 +6,9 @@
 }
 
 .recipient-item {
-  transition: all 0.2s;
+  transition: background 0.2s;
 }
 
 .recipient-item:hover {
-  background: var(--surface-hover) !important;
+  background: var(--surface-hover);
 }

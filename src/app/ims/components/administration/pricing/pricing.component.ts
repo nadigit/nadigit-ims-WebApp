@@ -100,42 +100,12 @@ export class PricingComponent implements OnInit, OnDestroy {
       const items = await firstValueFrom(
         await this.pricingService.getPriceListItems(this.selectedPriceList.id)
       );
+      // The backend returns productName with each item (PriceListItemDTO); the
+      // table falls back to "#<id>" when it is absent (see tierProductDisplayName).
+      // We intentionally do NOT resolve names per-id here: with many rules that
+      // fired one getProduct() request per product in parallel and tripped the
+      // API rate limiter (429).
       this.priceListItems = Array.isArray(items) ? items : [];
-
-      // Ensure productName is populated for display, even if backend doesn't send it
-      const itemsNeedingName = this.priceListItems.filter(
-        i => !!i.productId && !i.productName
-      );
-
-      if (itemsNeedingName.length > 0) {
-        try {
-          this.productService.loadToken();
-          const uniqueProductIds = Array.from(
-            new Set(itemsNeedingName.map(i => i.productId))
-          );
-
-          const productMap = new Map<number, string>();
-          await Promise.all(
-            uniqueProductIds.map(async (id) => {
-              try {
-                const product: any = await firstValueFrom(this.productService.getProduct(id));
-                if (product && product.name) {
-                  productMap.set(id, product.name);
-                }
-              } catch {
-                // Ignore individual product load errors
-              }
-            })
-          );
-
-          this.priceListItems = this.priceListItems.map(i => ({
-            ...i,
-            productName: i.productName || (i.productId && productMap.get(i.productId)) || i.productName
-          }));
-        } catch (e) {
-          console.error('Error enriching price list items with product names:', e);
-        }
-      }
     } catch (error) {
       console.error('Error loading price list items:', error);
       this.messageService.add({

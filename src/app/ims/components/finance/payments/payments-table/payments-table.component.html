@@ -179,7 +179,7 @@
 </div>
 
 <p-table
-  *ngIf="(!isInitialLoad || payments.length) && (!isLoading || payments.length)"
+  [hidden]="(isLoading || isInitialLoad) && !payments.length"
   #dt [value]="payments" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
   [totalRecords]="totalRecords" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [rowsPerPageOptions]="rowsPerPageOptions"
   [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"

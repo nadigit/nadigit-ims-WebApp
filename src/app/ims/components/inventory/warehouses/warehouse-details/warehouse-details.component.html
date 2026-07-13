@@ -528,7 +528,7 @@
                                     <ng-template pTemplate="body" let-writeOff>
                                         <tr>
                                             <td>
-                                                <span class="font-semibold">{{ writeOff.reference || '-' }}</span>
+                                                <span class="reference-badge">{{ writeOff.reference || '-' }}</span>
                                             </td>
                                             <td>
                                                 <span class="flex align-items-center gap-2">
@@ -539,7 +539,7 @@
                                             <td>
                                                 <div class="flex flex-column">
                                                     <span class="font-medium text-900">{{ writeOff.product?.name || '-' }}</span>
-                                                    <small class="text-500" *ngIf="writeOff.product?.reference">{{ writeOff.product.reference }}</small>
+                                                    <small *ngIf="writeOff.product?.reference"><span class="reference-badge">{{ writeOff.product.reference }}</span></small>
                                                 </div>
                                             </td>
                                             <td>

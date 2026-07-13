@@ -13,4 +13,11 @@ export interface TaxRule {
   productId?: number | null;
   categoryId?: number | null;
   country?: string | null;
+  /** Read-only display fields resolved by the backend. */
+  productName?: string | null;
+  productReference?: string | null;
+  categoryName?: string | null;
+  /** Optional effective window (ISO yyyy-MM-dd); null bounds are open-ended. */
+  validFrom?: string | null;
+  validTo?: string | null;
 }

@@ -6,6 +6,12 @@
   max-width: none;
 }
 
-::ng-deep .tax-rules-toolbar--embedded.p-toolbar {
-  justify-content: flex-end;
+.tax-mode-banner {
+  background: var(--brand-badge-warning-bg, rgba(244, 183, 64, 0.15));
+  color: var(--text-color);
+  border: 1px solid var(--brand-badge-warning-text, #b45309);
+}
+
+.tax-mode-banner .pi {
+  color: var(--brand-badge-warning-text, #b45309);
 }

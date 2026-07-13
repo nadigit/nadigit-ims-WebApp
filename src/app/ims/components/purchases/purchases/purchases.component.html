@@ -239,7 +239,8 @@
 
             <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
-            <p-table #dt [value]="purchases" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" 
+            <p-table #dt [value]="purchases" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll"
+                [sortField]="'dateOfPurchase'" [sortOrder]="-1"
                 [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [loading]="isLoading"
                 [totalRecords]="totalRecords" [rows]="pageSize"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
@@ -295,7 +296,7 @@
 
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'purchase_reference' | translate }}</span>
-                            #{{purchase.reference ? purchase.reference : 'N/A'}}
+                            <span class="reference-badge">#{{purchase.reference ? purchase.reference : 'N/A'}}</span>
                             <!-- <i *ngIf="!isPurchaseFinalized(purchase)" class="pi pi-lock text-red-500 ml-2"
                                 pTooltip="{{ 'purchase_locked' | translate }}">
                             </i> -->
@@ -1144,9 +1145,17 @@
         </ng-template>
 
         <ng-template pTemplate="footer">
-            <div class="flex justify-content-between align-items-center w-full">
+            <div class="ims-form-footer-bar">
                 <button pButton pRipple label="{{'cancel_button' | translate}}" icon="pi pi-times"
                     class="p-button-text" (click)="hideDialog()"></button>
+
+                <div class="ims-form-footer-total" aria-live="polite">
+                    <span class="ims-form-footer-total__label">{{ 'total' | translate }}</span>
+                    <span class="ims-form-footer-total__amount">
+                        {{ calculateTotalAmount() | currency:currency:'symbol':'1.2-2' }}
+                    </span>
+                </div>
+
                 <button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check" class="p-button-primary"
                     (click)="savePurchase()" [loading]="isSaving"></button>
             </div>

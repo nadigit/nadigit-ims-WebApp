@@ -10,6 +10,7 @@ import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextareaModule } from 'primeng/inputtextarea';
+import { InputSwitchModule } from 'primeng/inputswitch';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 // Models and Services
@@ -18,6 +19,7 @@ import { PriceListDTO } from 'src/app/models/pricing';
 import { Country, State } from 'country-state-city';
 import { LocationService } from 'src/app/services/location.service';
 import { PricingService } from 'src/app/services/pricing.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { MessageService } from 'primeng/api';
 
 export interface CustomerFormDialogData {
@@ -46,6 +48,7 @@ export interface CustomerFormDialogConfig {
     InputTextModule,
     DropdownModule,
     InputTextareaModule,
+    InputSwitchModule,
     TranslateModule
   ],
   templateUrl: './customer-form-dialog.component.html',
@@ -68,8 +71,14 @@ export class CustomerFormDialogComponent implements OnInit, OnChanges {
   constructor(
     private locationService: LocationService,
     private messageService: MessageService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService
   ) {}
+
+  /** Tax exemption is part of the enterprise tax feature. */
+  get taxExemptEnabled(): boolean {
+    return this.licenseCapabilitiesService.isFeatureEnabled('TAX_RULE_ENGINE');
+  }
 
   ngOnInit() {
     if (!this.countries || this.countries.length === 0) {

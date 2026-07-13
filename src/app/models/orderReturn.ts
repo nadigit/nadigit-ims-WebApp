@@ -4,7 +4,7 @@ import { Refund } from "./refund";
 import { ReturnItem } from "./returnItem";
 
 
-export class OrderReturn { 
+export class OrderReturn {
   returnId?: number;
   reference?: string;
   notes?: string;
@@ -16,4 +16,20 @@ export class OrderReturn {
   refunds?: Array<Refund>;
   createdBy?: string;
   creationDate?: Date;
+}
+
+export interface OrderReturnDeleteImpactItem {
+  type: string;
+  count: number;
+  blocking: boolean;
+}
+
+export interface OrderReturnDeleteImpact {
+  returnId: number;
+  returnReference?: string;
+  canDelete: boolean;
+  forceable: boolean;
+  blockingReasonKey?: string;
+  impacts: OrderReturnDeleteImpactItem[];
+  totalCascadeRecords: number;
 }

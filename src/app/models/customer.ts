@@ -13,6 +13,7 @@ export class Customer {
   phoneNumber?:string;
   ice?:string;
   cin?:string;
+  taxExempt?: boolean;
   customerType?:string;
   creationDate?: Date;
   fullName?: string;

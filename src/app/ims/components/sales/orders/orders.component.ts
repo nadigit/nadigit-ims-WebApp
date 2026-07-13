@@ -14,6 +14,7 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { LocationService } from 'src/app/services/location.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { TaxRuleService } from 'src/app/services/tax-rule.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { Shop } from 'src/app/models/shop';
@@ -281,6 +282,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   taxEnabled: boolean = false;
 
+  /** True when tax.calculation.mode = RULES (per-line tax rule engine active). */
+  taxRulesMode: boolean = false;
+  /** True when pricing.tax.inclusive = true (prices are TTC; tax extracted, not added). */
+  taxInclusive: boolean = false;
+  private taxResolveSignature = '';
+  private taxResolveSeq = 0;
+
   taxRate: number = 0.0;
 
   discountTypeOptions: any;
@@ -462,6 +470,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     private stockReservationService: StockReservationService,
     public activityProfileService: ActivityProfileService,
     private locationService: LocationService,
+    private taxRuleService: TaxRuleService,
   ) {
     this.loadTaxRate();
 
@@ -639,7 +648,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
     const page = first! / rows!;
     const size = rows!;
-    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    // PrimeNG convention: sortOrder -1 = descending, 1 = ascending.
+    const direction = sortOrder === -1 ? 'DESC' : 'ASC';
     
     // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
     const filterPayload = filters || {};
@@ -1515,9 +1525,69 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   async loadTaxRate() {
     (await this.configService.getConfiguration("tax")).subscribe((response: any) => {
-      this.taxRate = response.value;
-      console.log("tax:" + this.taxRate)
+      // Config values arrive as strings; coerce to a number so arithmetic works. Otherwise the
+      // TTC formula `1 + this.taxRate` does string concatenation ("1" + "0.2" = "10.2") and the
+      // tax amount / total come out wrong.
+      this.taxRate = Number(response?.value) || 0;
     });
+    try {
+      (await this.configService.getConfiguration('tax.calculation.mode')).subscribe({
+        next: (cfg: any) => {
+          this.taxRulesMode = String(cfg?.value || 'GLOBAL').toUpperCase() === 'RULES';
+        },
+        error: () => (this.taxRulesMode = false)
+      });
+    } catch {
+      this.taxRulesMode = false;
+    }
+    try {
+      (await this.configService.getConfiguration('pricing.tax.inclusive')).subscribe({
+        next: (cfg: any) => {
+          this.taxInclusive = String(cfg?.value).toLowerCase() === 'true';
+        },
+        error: () => (this.taxInclusive = false)
+      });
+    } catch {
+      this.taxInclusive = false;
+    }
+  }
+
+  /**
+   * RULES mode only: keeps the previewed tax rate aligned with backend per-line
+   * resolution by fetching the net-weighted effective rate whenever the order
+   * lines or customer change. Deduped by signature so change detection passes
+   * don't spam the API; stale responses are dropped via sequence guard.
+   */
+  private maybeRefreshRuleTaxRate(): void {
+    if (!this.taxRulesMode || !this.taxEnabled) return;
+    const lines = (this.targetProducts || [])
+      .filter(p => p?.productId)
+      .map(p => ({
+        productId: p.productId,
+        netAmount: Math.max(0, (p.orderItemQuantity || 0) * (p.orderItemPricePerUnit || 0))
+      }));
+    if (!lines.length) return;
+    const customerId = this.order?.customer?.customerId ?? null;
+    const signature = JSON.stringify({ c: customerId, l: lines });
+    if (signature === this.taxResolveSignature) return;
+    this.taxResolveSignature = signature;
+    const seq = ++this.taxResolveSeq;
+    this.taxRuleService
+      .resolveTaxRates({ documentType: 'SALES', customerId, lines })
+      .then(obs =>
+        obs.subscribe({
+          next: res => {
+            if (seq !== this.taxResolveSeq) return;
+            if (res && typeof res.effectiveRate === 'number' && res.mode === 'RULES') {
+              this.taxRate = res.effectiveRate;
+            }
+          },
+          error: () => {
+            /* keep current rate; retry on next change */
+            this.taxResolveSignature = '';
+          }
+        })
+      );
   }
 
   toggleRow(orderId: number): void {
@@ -3377,7 +3447,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       
       // Build filters object from component filter properties (same as loadOrders)
       const { sortField, sortOrder } = this.lastLazyLoadEvent;
-      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      // PrimeNG convention: sortOrder -1 = descending, 1 = ascending.
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC';
       const filterPayload: any = { ...this.lastLazyLoadEvent.filters };
       
       // Ensure token is loaded
@@ -3543,7 +3614,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       
       // Build filters object from component filter properties (same as loadOrders)
       const { sortField, sortOrder } = this.lastLazyLoadEvent;
-      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      // PrimeNG convention: sortOrder -1 = descending, 1 = ascending.
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC';
       const filterPayload: any = { ...this.lastLazyLoadEvent.filters };
       
       // Ensure token is loaded
@@ -4009,13 +4081,16 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   getTotalWithoutCredit(): number {
     const subtotal = this.getSubtotal();
     const discountAmount = this.calculateDiscountAmount();
-    const taxAmount = this.calculateTax(subtotal - discountAmount);
+    const taxableAmount = subtotal - discountAmount;
+    // In TTC mode the tax is already inside the goods amount, so it is not added again.
+    const taxToAdd = this.taxInclusive ? 0 : this.calculateTax(taxableAmount);
     const transportAmount = this.order.transportAmount || 0;
     const additionalCharges = this.order.additionalChargesAmount || 0;
-    return subtotal - discountAmount + taxAmount + transportAmount + additionalCharges;
+    return taxableAmount + taxToAdd + transportAmount + additionalCharges;
   }
 
   calculateTotalAmount(): number {
+    this.maybeRefreshRuleTaxRate();
     // Recalculate credit usage when total changes
     if (this.creditInfo && this.showPaymentSection) {
       const orderTotal = this.getTotalWithoutCredit();
@@ -4025,17 +4100,27 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const subtotal = this.getSubtotal();
     const discountAmount = this.calculateDiscountAmount();
     const taxableAmount = subtotal - discountAmount;
-    const taxAmount = this.calculateTax(taxableAmount);
+    // In TTC mode the tax is already inside the goods amount, so it is not added again.
+    const taxToAdd = this.taxInclusive ? 0 : this.calculateTax(taxableAmount);
     const transportAmount = this.order.transportAmount || 0;
     const additionalCharges = this.order.additionalChargesAmount || 0;
 
-    return taxableAmount + taxAmount + transportAmount + additionalCharges;
+    return taxableAmount + taxToAdd + transportAmount + additionalCharges;
   }
 
 
   calculateTax(amount: number): number {
-    if (!this.taxEnabled) return 0;
+    if (!this.taxEnabled || this.isCustomerTaxExempt()) return 0;
+    if (this.taxInclusive) {
+      // TTC: the amount already includes tax — extract it rather than add on top.
+      return this.taxRate > 0 ? amount - amount / (1 + this.taxRate) : 0;
+    }
     return amount * this.taxRate; // 0.2 * amount = 20% of amount
+  }
+
+  /** A tax-exempt customer is never taxed, regardless of mode or rules (matches backend). */
+  isCustomerTaxExempt(): boolean {
+    return !!this.order?.customer?.taxExempt;
   }
 
   getTotalWithoutTax(): number {
@@ -4871,7 +4956,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   calculateOrderTax(): number {
-    if (!this.order?.taxEnabled) return 0;
+    if (!this.order?.taxEnabled || this.isCustomerTaxExempt()) return 0;
     const subtotal = this.getOrderSubtotal();
     const discountAmount = this.calculateOrderDiscount();
     const taxableAmount = subtotal - discountAmount;

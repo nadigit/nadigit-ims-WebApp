@@ -26,7 +26,9 @@ import { PurchaseSummaryReportComponent } from './purchase-summary-report/purcha
 import { InventorySnapshotReportComponent } from './inventory-snapshot-report/inventory-snapshot-report.component';
 import { ProfitAnalysisReportComponent } from './profit-analysis-report/profit-analysis-report.component';
 import { ForecastingReportComponent } from './forecasting-report/forecasting-report.component';
+import { ProductMovementReportComponent } from './product-movement-report/product-movement-report.component';
 import { TopSellingProductsReportComponent } from './top-selling-products-report/top-selling-products-report.component';
+import { VatDeclarationReportComponent } from './vat-declaration-report/vat-declaration-report.component';
 import { InventoryStatusComponent } from 'src/app/shared/components/inventory-status/inventory-status.component';
 
 @NgModule({
@@ -38,7 +40,9 @@ import { InventoryStatusComponent } from 'src/app/shared/components/inventory-st
     InventorySnapshotReportComponent,
     ProfitAnalysisReportComponent,
     ForecastingReportComponent,
-    TopSellingProductsReportComponent
+    ProductMovementReportComponent,
+    TopSellingProductsReportComponent,
+    VatDeclarationReportComponent
   ],
   imports: [
     CommonModule,

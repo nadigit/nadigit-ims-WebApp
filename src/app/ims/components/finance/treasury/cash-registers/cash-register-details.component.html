@@ -59,8 +59,11 @@
               [label]="'cash_bank_transfer' | translate" (click)="openTransferDialog()"></button>
             <button pButton pRipple icon="pi pi-building" class="p-button-outlined"
               [label]="'edit_shop_schedule' | translate" (click)="navigateToShopSettings()"></button>
-            <button pButton pRipple icon="pi pi-file-excel" class="p-button-success"
-              [label]="'export_to_excel' | translate" (click)="exportCashRegisterData()"></button>
+            <button pButton pRipple icon="pi pi-file-excel"
+              class="p-button-success"
+              [pTooltip]="'export_to_excel' | translate"
+              tooltipPosition="bottom"
+              (click)="exportCashRegisterData()"></button>
           </div>
         </div>
       </div>
@@ -424,8 +427,7 @@
                     {{ (m.amount || 0) | currency:currency:'symbol':'1.2-2' }}
                   </td>
                   <td>
-                    <p-tag *ngIf="m.reference" [value]="m.reference" severity="secondary"></p-tag>
-                    <span *ngIf="!m.reference" class="text-600">N/A</span>
+                    <span class="reference-badge">{{ m.reference || 'N/A' }}</span>
                   </td>
                   <td>
                     <div class="flex align-items-center gap-2">
@@ -565,34 +567,67 @@
      ========================================================================== -->
 
 <!-- New Collection Dialog -->
-<p-dialog header="{{ 'new_collection' | translate }}" [(visible)]="newCollectionDialogVisible" [modal]="true"
-  [style]="{width: '450px'}" [closable]="true" [draggable]="false">
-  <div class="p-fluid">
-    <div class="field">
-      <label for="collectionDestination">{{ 'collection_destination' | translate }}</label>
-      <p-dropdown inputId="collectionDestination" [options]="collectionDestinationOptions"
-        [(ngModel)]="newCollection.destination" optionLabel="label" optionValue="value" appendTo="body"></p-dropdown>
+<p-dialog [header]="'new_collection' | translate" [(visible)]="newCollectionDialogVisible" [modal]="true"
+  [style]="{width: 'min(92vw, 520px)'}" [breakpoints]="{'640px': '95vw'}"
+  [closable]="true" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell" class="p-fluid">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+              <i class="pi pi-wallet"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'new_collection' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="collectionDestination" class="ims-form-label">{{ 'collection_destination' | translate }}</label>
+              <p-dropdown inputId="collectionDestination" [options]="collectionDestinationOptions"
+                [(ngModel)]="newCollection.destination" optionLabel="label" optionValue="value" appendTo="body"
+                styleClass="w-full"></p-dropdown>
+            </div>
+            <div class="field col-12" *ngIf="newCollection.destination === 'BANK'">
+              <label for="collectionBank" class="ims-form-label">
+                {{ 'bank_account' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-dropdown inputId="collectionBank" [options]="bankAccounts" [(ngModel)]="newCollection.bankAccountId"
+                optionLabel="accountName" optionValue="accountId" appendTo="body"
+                [placeholder]="'select_bank_account' | translate" [filter]="true" filterBy="accountName"
+                [ngClass]="{'ng-invalid ng-dirty': collectionSubmitted && !newCollection.bankAccountId}"
+                styleClass="w-full"></p-dropdown>
+              <small class="p-error" *ngIf="collectionSubmitted && !newCollection.bankAccountId">
+                {{ 'select_bank_account' | translate }}
+              </small>
+              <small class="ims-form-hint ims-form-hint--accent">
+                <i class="pi pi-info-circle mr-1"></i>{{ 'collection_deposits_to_bank_hint' | translate }}
+              </small>
+            </div>
+            <div class="field col-12">
+              <label for="collectionAmount" class="ims-form-label">
+                {{ 'amount' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-inputNumber inputId="collectionAmount" [(ngModel)]="newCollection.amount"
+                mode="currency" [currency]="currency" [min]="0" [step]="0.01"
+                [ngClass]="{'ng-invalid ng-dirty': collectionSubmitted && (!newCollection.amount || newCollection.amount <= 0)}"
+                styleClass="w-full"></p-inputNumber>
+              <small class="p-error" *ngIf="collectionSubmitted && (!newCollection.amount || newCollection.amount <= 0)">
+                {{ 'amount_must_be_greater_than_zero' | translate }}
+              </small>
+            </div>
+            <div class="field col-12">
+              <label for="collectionNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
+              <textarea pInputTextarea id="collectionNotes" [(ngModel)]="newCollection.notes" rows="2" [autoResize]="true"></textarea>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
     </div>
-    <div class="field" *ngIf="newCollection.destination === 'BANK'">
-      <label for="collectionBank">{{ 'bank_account' | translate }} <span class="required-asterisk">*</span></label>
-      <p-dropdown inputId="collectionBank" [options]="bankAccounts" [(ngModel)]="newCollection.bankAccountId"
-        optionLabel="accountName" optionValue="accountId" appendTo="body"
-        [placeholder]="'select_bank_account' | translate" [filter]="true" filterBy="accountName"></p-dropdown>
-    </div>
-    <div class="flex align-items-start gap-2 mb-3 p-2 border-round surface-100"
-      *ngIf="newCollection.destination === 'BANK'">
-      <i class="pi pi-info-circle text-primary mt-1"></i>
-      <small class="text-600">{{ 'collection_deposits_to_bank_hint' | translate }}</small>
-    </div>
-    <div class="field">
-      <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
-      <input pInputText type="number" min="0" step="0.01" [(ngModel)]="newCollection.amount" placeholder="0.00" />
-    </div>
-    <div class="field">
-      <label for="notes">{{ 'notes' | translate }}</label>
-      <textarea pInputTextarea [(ngModel)]="newCollection.notes" rows="2"></textarea>
-    </div>
-  </div>
+  </ng-template>
   <ng-template pTemplate="footer">
     <button pButton label="{{ 'cancel' | translate }}" icon="pi pi-times" class="p-button-text"
       (click)="newCollectionDialogVisible = false"></button>
@@ -619,7 +654,7 @@
       <tr>
         <td>{{ ("movement_" + m.type.toLowerCase()) | translate }}</td>
         <td>{{ m.amount | number:'1.2-2' }} {{ currency }}</td>
-        <td>{{ m.reference }}</td>
+        <td><span class="reference-badge" *ngIf="m.reference">{{ m.reference }}</span></td>
         <td>{{ m.performedByName }}</td>
         <td>{{ m.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
       </tr>
@@ -638,18 +673,45 @@
 </p-dialog>
 
 <!-- New Deposit Dialog -->
-<p-dialog header="{{ 'new_deposit' | translate }}" [(visible)]="newDepositDialogVisible" [modal]="true"
-  [style]="{width: '450px'}" [closable]="true" [draggable]="false">
-  <div class="p-fluid">
-    <div class="field">
-      <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
-      <input pInputText type="number" [(ngModel)]="newDeposit.amount" placeholder="0.00" />
+<p-dialog [header]="'new_deposit' | translate" [(visible)]="newDepositDialogVisible" [modal]="true"
+  [style]="{width: 'min(92vw, 520px)'}" [breakpoints]="{'640px': '95vw'}"
+  [closable]="true" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell" class="p-fluid">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+              <i class="pi pi-arrow-down"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'new_deposit' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="depositAmount" class="ims-form-label">
+                {{ 'amount' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-inputNumber inputId="depositAmount" [(ngModel)]="newDeposit.amount"
+                mode="currency" [currency]="currency" [min]="0" [step]="0.01"
+                [ngClass]="{'ng-invalid ng-dirty': depositSubmitted && (!newDeposit.amount || newDeposit.amount <= 0)}"
+                styleClass="w-full"></p-inputNumber>
+              <small class="p-error" *ngIf="depositSubmitted && (!newDeposit.amount || newDeposit.amount <= 0)">
+                {{ 'amount_must_be_greater_than_zero' | translate }}
+              </small>
+            </div>
+            <div class="field col-12">
+              <label for="depositNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
+              <textarea pInputTextarea id="depositNotes" [(ngModel)]="newDeposit.notes" rows="2" [autoResize]="true"></textarea>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
     </div>
-    <div class="field">
-      <label for="notes">{{ 'notes' | translate }}</label>
-      <textarea pInputTextarea [(ngModel)]="newDeposit.notes" rows="2"></textarea>
-    </div>
-  </div>
+  </ng-template>
   <ng-template pTemplate="footer">
     <button pButton label="{{ 'cancel' | translate }}" icon="pi pi-times" class="p-button-text"
       (click)="newDepositDialogVisible = false"></button>
@@ -659,18 +721,45 @@
 </p-dialog>
 
 <!-- New Withdraw Dialog -->
-<p-dialog header="{{ 'new_withdraw' | translate }}" [(visible)]="newWithdrawDialogVisible" [modal]="true"
-  [style]="{width: '450px'}" [closable]="true" [draggable]="false">
-  <div class="p-fluid">
-    <div class="field">
-      <label for="amount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
-      <input pInputText type="number" [(ngModel)]="newWithdraw.amount" placeholder="0.00" />
+<p-dialog [header]="'new_withdraw' | translate" [(visible)]="newWithdrawDialogVisible" [modal]="true"
+  [style]="{width: 'min(92vw, 520px)'}" [breakpoints]="{'640px': '95vw'}"
+  [closable]="true" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell" class="p-fluid">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
+              <i class="pi pi-arrow-up"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'new_withdraw' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="withdrawAmount" class="ims-form-label">
+                {{ 'amount' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-inputNumber inputId="withdrawAmount" [(ngModel)]="newWithdraw.amount"
+                mode="currency" [currency]="currency" [min]="0" [step]="0.01"
+                [ngClass]="{'ng-invalid ng-dirty': withdrawSubmitted && (!newWithdraw.amount || newWithdraw.amount <= 0)}"
+                styleClass="w-full"></p-inputNumber>
+              <small class="p-error" *ngIf="withdrawSubmitted && (!newWithdraw.amount || newWithdraw.amount <= 0)">
+                {{ 'amount_must_be_greater_than_zero' | translate }}
+              </small>
+            </div>
+            <div class="field col-12">
+              <label for="withdrawNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
+              <textarea pInputTextarea id="withdrawNotes" [(ngModel)]="newWithdraw.notes" rows="2" [autoResize]="true"></textarea>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
     </div>
-    <div class="field">
-      <label for="notes">{{ 'notes' | translate }}</label>
-      <textarea pInputTextarea [(ngModel)]="newWithdraw.notes" rows="2"></textarea>
-    </div>
-  </div>
+  </ng-template>
   <ng-template pTemplate="footer">
     <button pButton label="{{ 'cancel' | translate }}" icon="pi pi-times" class="p-button-text"
       (click)="newWithdrawDialogVisible = false"></button>
@@ -680,43 +769,76 @@
 </p-dialog>
 
 <!-- Cash ↔ Bank Transfer Dialog (PRO) -->
-<p-dialog header="{{ 'cash_bank_transfer' | translate }}" [(visible)]="transferDialogVisible" [modal]="true"
-  [style]="{width: '480px'}" [closable]="true" [draggable]="false">
-  <div class="p-fluid">
-    <div class="field">
-      <label>{{ 'transfer_direction' | translate }}</label>
-      <p-selectButton [options]="transferDirectionOptions" [(ngModel)]="transferDirection"
-        optionLabel="label" optionValue="value" [allowEmpty]="false"></p-selectButton>
-    </div>
-    <div class="field">
-      <label for="transferBank">{{ 'bank_account' | translate }} <span class="required-asterisk">*</span></label>
-      <p-dropdown inputId="transferBank" [options]="bankAccounts" [(ngModel)]="transferBankAccountId"
-        optionLabel="accountName" optionValue="accountId" appendTo="body"
-        [placeholder]="'select_bank_account' | translate" [filter]="true" filterBy="accountName">
-        <ng-template let-acc pTemplate="item">
-          <div class="flex align-items-center justify-content-between gap-3">
-            <span><i class="pi pi-credit-card mr-2"></i>{{ acc.accountName }}</span>
-            <small class="text-600">{{ (acc.currentBalance || 0) | currency:(acc.currency || currency):'symbol':'1.2-2' }}</small>
+<p-dialog [header]="'cash_bank_transfer' | translate" [(visible)]="transferDialogVisible" [modal]="true"
+  [style]="{width: 'min(92vw, 520px)'}" [breakpoints]="{'640px': '95vw'}"
+  [closable]="true" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell" class="p-fluid">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+              <i class="pi pi-arrow-right-arrow-left"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'cash_bank_transfer' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label class="ims-form-label">{{ 'transfer_direction' | translate }}</label>
+              <p-selectButton [options]="transferDirectionOptions" [(ngModel)]="transferDirection"
+                optionLabel="label" optionValue="value" [allowEmpty]="false" styleClass="w-full"></p-selectButton>
+            </div>
+            <div class="field col-12">
+              <label for="transferBank" class="ims-form-label">
+                {{ 'bank_account' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-dropdown inputId="transferBank" [options]="bankAccounts" [(ngModel)]="transferBankAccountId"
+                optionLabel="accountName" optionValue="accountId" appendTo="body"
+                [placeholder]="'select_bank_account' | translate" [filter]="true" filterBy="accountName"
+                [ngClass]="{'ng-invalid ng-dirty': transferSubmitted && !transferBankAccountId}"
+                styleClass="w-full">
+                <ng-template let-acc pTemplate="item">
+                  <div class="flex align-items-center justify-content-between gap-3">
+                    <span><i class="pi pi-credit-card mr-2"></i>{{ acc.accountName }}</span>
+                    <small class="text-600">{{ (acc.currentBalance || 0) | currency:(acc.currency || currency):'symbol':'1.2-2' }}</small>
+                  </div>
+                </ng-template>
+              </p-dropdown>
+              <small class="p-error" *ngIf="transferSubmitted && !transferBankAccountId">
+                {{ 'select_bank_account' | translate }}
+              </small>
+            </div>
+            <div class="field col-12">
+              <label for="transferAmount" class="ims-form-label">
+                {{ 'amount' | translate }} <span class="required-asterisk">*</span>
+              </label>
+              <p-inputNumber inputId="transferAmount" [(ngModel)]="transferAmount"
+                mode="currency" [currency]="currency" [min]="0" [step]="0.01"
+                [ngClass]="{'ng-invalid ng-dirty': transferSubmitted && (!transferAmount || transferAmount <= 0)}"
+                styleClass="w-full"></p-inputNumber>
+              <small class="p-error" *ngIf="transferSubmitted && (!transferAmount || transferAmount <= 0)">
+                {{ 'amount_must_be_greater_than_zero' | translate }}
+              </small>
+              <small class="ims-form-hint">
+                {{ (transferDirection === 'REGISTER_TO_BANK' ? 'current_balance' : 'bank_balance') | translate }}:
+                {{ (transferDirection === 'REGISTER_TO_BANK'
+                      ? (cashRegisterData?.totalBalance || 0)
+                      : (selectedTransferBankAccount?.currentBalance || 0)) | currency:currency:'symbol':'1.2-2' }}
+              </small>
+            </div>
+            <div class="field col-12">
+              <label for="transferNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
+              <textarea pInputTextarea id="transferNotes" [(ngModel)]="transferNotes" rows="2" [autoResize]="true"></textarea>
+            </div>
           </div>
-        </ng-template>
-      </p-dropdown>
+        </section>
+      </div>
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
     </div>
-    <div class="field">
-      <label for="transferAmount">{{ 'amount' | translate }} <span class="required-asterisk">*</span></label>
-      <input pInputText id="transferAmount" type="number" min="0" step="0.01"
-        [(ngModel)]="transferAmount" placeholder="0.00" />
-      <small class="text-600 mt-1 block">
-        {{ (transferDirection === 'REGISTER_TO_BANK' ? 'current_balance' : 'bank_balance') | translate }}:
-        {{ (transferDirection === 'REGISTER_TO_BANK'
-              ? (cashRegisterData?.totalBalance || 0)
-              : (selectedTransferBankAccount?.currentBalance || 0)) | currency:currency:'symbol':'1.2-2' }}
-      </small>
-    </div>
-    <div class="field">
-      <label for="transferNotes">{{ 'notes' | translate }}</label>
-      <textarea pInputTextarea id="transferNotes" [(ngModel)]="transferNotes" rows="2"></textarea>
-    </div>
-  </div>
+  </ng-template>
   <ng-template pTemplate="footer">
     <button pButton label="{{ 'cancel' | translate }}" icon="pi pi-times" class="p-button-text"
       (click)="transferDialogVisible = false" [disabled]="transferSaving"></button>

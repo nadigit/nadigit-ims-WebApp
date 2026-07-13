@@ -40,6 +40,8 @@ export class TopSellingProductsReportComponent implements OnInit, OnDestroy {
   isAdmin = false;
   chartData: any = null;
   chartOptions: any = null;
+  /** Height grows with the number of bars so labels never overlap and bars stay readable. */
+  chartHeight = 360;
 
   private readonly destroy$ = new Subject<void>();
   private readonly filterChange$ = new Subject<void>();
@@ -247,6 +249,7 @@ export class TopSellingProductsReportComponent implements OnInit, OnDestroy {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { left: 4, right: 16, top: 4, bottom: 4 } },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -258,13 +261,18 @@ export class TopSellingProductsReportComponent implements OnInit, OnDestroy {
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { precision: 0 }
+          border: { display: false },
+          ticks: { precision: 0, color: '#64748b' },
+          grid: { color: '#eef2f6' }
         },
         y: {
+          border: { display: false },
           ticks: {
             autoSkip: false,
-            font: { size: 11 }
-          }
+            color: '#334155',
+            font: { size: 12 }
+          },
+          grid: { display: false }
         }
       }
     };
@@ -276,6 +284,9 @@ export class TopSellingProductsReportComponent implements OnInit, OnDestroy {
     const data = lines.map(line => line.quantitySold);
     const colors = lines.map((_, i) => this.chartPalette[i % this.chartPalette.length]);
 
+    // Give each bar a comfortable row (~38px) so labels stay legible however many products there are.
+    this.chartHeight = Math.max(340, lines.length * 38 + 80);
+
     this.chartData = {
       labels,
       datasets: [
@@ -284,8 +295,11 @@ export class TopSellingProductsReportComponent implements OnInit, OnDestroy {
           data,
           backgroundColor: colors,
           borderColor: colors,
-          borderWidth: 1,
-          borderRadius: 4
+          borderWidth: 0,
+          borderRadius: 6,
+          categoryPercentage: 0.72,
+          barPercentage: 0.9,
+          maxBarThickness: 30
         }
       ]
     };

@@ -58,6 +58,35 @@ export class CreditAccountManagementComponent implements OnInit {
   Math = Math;
   isFinite = isFinite;
 
+  // Template helper — value is displayable (finite, within sane range)
+  hasValue(value: number | null | undefined): boolean {
+    if (value === null || value === undefined) {
+      return false;
+    }
+    return isFinite(value) && Math.abs(value) <= 1e15;
+  }
+
+  getStatusLabel(status?: CreditStatus | null): string {
+    if (!status) return '';
+    return this.translate.instant(`credit_status_${status.toLowerCase()}`);
+  }
+
+  getStatusSeverity(status?: CreditStatus | null): string {
+    switch (status) {
+      case 'ACTIVE':
+        return 'success';
+      case 'SUSPENDED':
+        return 'warning';
+      case 'PENDING':
+        return 'info';
+      case 'CLOSED':
+      case 'EXPIRED':
+        return 'danger';
+      default:
+        return 'secondary';
+    }
+  }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,

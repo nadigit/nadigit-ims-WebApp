@@ -339,6 +339,14 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         roles: ['ADMIN'],
         licenseFeature: 'REPORTS_AND_ANALYTICS',
       },
+      {
+        label: translations['reports_movement_title'],
+        icon: 'pi pi-fw pi-flag',
+        routerLink: ['/reports/product-movement'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN'],
+        licenseFeature: 'REPORTS_AND_ANALYTICS',
+      },
     ];
 
     const reportsFinancialLeaves = [
@@ -349,6 +357,14 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         routerLinkActiveOptions: { exact: false },
         roles: ['ADMIN'],
         licenseFeature: 'REPORTS_AND_ANALYTICS',
+      },
+      {
+        label: translations['reports_vat_declaration'],
+        icon: 'pi pi-fw pi-percentage',
+        routerLink: ['/reports/vat'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN', 'ACCOUNTANT'],
+        licenseFeature: 'TAX_RULE_ENGINE',
       },
       {
         label: translations['reports_forecasting_title'],

@@ -10,6 +10,8 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DropdownModule } from 'primeng/dropdown';
+import { AutoCompleteModule } from 'primeng/autocomplete';
+import { CalendarModule } from 'primeng/calendar';
 import { DialogModule } from 'primeng/dialog';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -32,6 +34,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
         InputTextModule,
         InputNumberModule,
         DropdownModule,
+        AutoCompleteModule,
+        CalendarModule,
         DialogModule,
         CheckboxModule,
         ConfirmDialogModule,

@@ -4,6 +4,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChange
 import { Supplier } from 'src/app/models/supplier';
 import { TranslateService } from '@ngx-translate/core';
 import { LocationService } from 'src/app/services/location.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 export interface SupplierFormDialogData {
   supplier: Supplier;
@@ -35,8 +36,14 @@ export class SupplierFormDialogComponent implements OnInit, OnChanges {
 
   constructor(
     private locationService: LocationService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService
   ) {}
+
+  /** Tax exemption is part of the enterprise tax feature. */
+  get taxExemptEnabled(): boolean {
+    return this.licenseCapabilitiesService.isFeatureEnabled('TAX_RULE_ENGINE');
+  }
 
   ngOnInit() {
     if (!this.countries || this.countries.length === 0) {

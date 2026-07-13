@@ -6,6 +6,7 @@ import { NotificationRecipientsComponent } from './notification-recipients/notif
 import { TelegramConfigComponent } from './telegram-config/telegram-config.component';
 import { WhatsAppConfigComponent } from './whatsapp-config/whatsapp-config.component';
 import { AiIntegrationConfigComponent } from './ai-integration-config/ai-integration-config.component';
+import { TrendDataConfigComponent } from './trend-data-config/trend-data-config.component';
 
 @NgModule({
 	imports: [RouterModule.forChild([
@@ -14,7 +15,8 @@ import { AiIntegrationConfigComponent } from './ai-integration-config/ai-integra
 		{ path: 'email/recipients', component: NotificationRecipientsComponent },
 		{ path: 'telegram', component: TelegramConfigComponent },
 		{ path: 'whatsapp', component: WhatsAppConfigComponent },
-		{ path: 'ai', component: AiIntegrationConfigComponent }
+		{ path: 'ai', component: AiIntegrationConfigComponent },
+		{ path: 'trends', component: TrendDataConfigComponent }
 	])],
 	exports: [RouterModule]
 })

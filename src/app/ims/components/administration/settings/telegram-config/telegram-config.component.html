@@ -1,34 +1,50 @@
-﻿<div class="integration-config-page telegram-config-page">
+<div class="integration-config-page telegram-config-page">
   <p-toast></p-toast>
 
-  <div class="mb-4">
-    <div class="flex align-items-center gap-2 mb-3">
-      <button pButton pRipple icon="pi pi-arrow-left"
-        class="p-button-text p-button-rounded p-button-plain"
-        [pTooltip]="'back' | translate" tooltipPosition="bottom"
-        (click)="goBack()"></button>
-      <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
-      <i class="pi pi-angle-right text-400 text-sm"></i>
-      <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
-      <i class="pi pi-angle-right text-400 text-sm"></i>
-      <span class="text-700 text-sm font-medium">{{ 'telegram_configuration' | translate }}</span>
-    </div>
-    <div class="integration-hero">
-      <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--cyan" aria-hidden="true">
-        <i class="pi pi-send"></i>
+  <!-- Hero Header Section -->
+  <div class="detail-page-hero-shell">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+      <div class="flex align-items-center gap-2 mb-3">
+        <button pButton pRipple icon="pi pi-arrow-left"
+          class="p-button-text p-button-rounded p-button-plain back-button"
+          [pTooltip]="'back' | translate" tooltipPosition="bottom"
+          (click)="goBack()"></button>
+        <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'telegram_configuration' | translate }}</span>
       </div>
-      <div class="integration-hero__body">
-        <h2 class="m-0 text-900">{{ 'telegram_configuration' | translate }}</h2>
-        <p class="text-600 mt-2 mb-0 line-height-3">{{ 'telegram_configuration_description' | translate }}</p>
+
+      <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+        <div class="flex align-items-center gap-4">
+          <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--cyan" aria-hidden="true">
+            <i class="pi pi-send"></i>
+          </div>
+          <div>
+            <h1 class="m-0 text-900 mb-2">{{ 'telegram_configuration' | translate }}</h1>
+            <p class="text-600 m-0 line-height-3">{{ 'telegram_configuration_description' | translate }}</p>
+            <div class="integration-status-chips mt-3">
+              <p-tag [severity]="botTokenConfigured ? 'success' : 'warning'" [rounded]="true"
+                [value]="(botTokenConfigured ? ('ai_status_key_set' | translate) : ('ai_status_key_missing' | translate))"></p-tag>
+              <p-tag [severity]="chatIds.length > 0 ? 'success' : 'warning'" [rounded]="true"
+                [value]="('telegram_notification_chats' | translate) + ': ' + chatIds.length"></p-tag>
+              <p-tag [severity]="form.get('enabled')?.value ? 'success' : 'info'" [rounded]="true"
+                [value]="form.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-page-actions flex gap-2">
+          <button pButton pRipple type="button" class="p-button-outlined" icon="pi pi-send"
+            [label]="'send_test_telegram' | translate" (click)="openTestDialog()"
+            [disabled]="isLoading || isSaving"></button>
+          <button pButton pRipple type="button" class="p-button-primary" icon="pi pi-save"
+            [label]="'save_configuration' | translate" (click)="save()"
+            [loading]="isSaving" [disabled]="isLoading || isSaving"></button>
+        </div>
       </div>
-    </div>
-    <div class="integration-status-chips mt-3">
-      <p-tag [severity]="botTokenConfigured ? 'success' : 'warning'" [rounded]="true"
-        [value]="(botTokenConfigured ? ('ai_status_key_set' | translate) : ('ai_status_key_missing' | translate))"></p-tag>
-      <p-tag [severity]="chatIds.length > 0 ? 'success' : 'warning'" [rounded]="true"
-        [value]="('telegram_notification_chats' | translate) + ': ' + chatIds.length"></p-tag>
-      <p-tag [severity]="form.get('enabled')?.value ? 'success' : 'info'" [rounded]="true"
-        [value]="form.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
     </div>
   </div>
 
@@ -37,100 +53,137 @@
   </div>
 
   <form [formGroup]="form" class="integration-form p-fluid" *ngIf="!isLoading">
-    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
-      <div class="integration-section-head">
-        <h3 class="m-0 text-900">{{ 'enable_telegram_notifications' | translate }}</h3>
-        <p class="text-600 text-sm m-0 mt-2">{{ 'telegram_help_intro' | translate }}</p>
+    <!-- Enable -->
+    <div class="detail-card">
+      <div class="card-header">
+        <i class="pi pi-power-off"></i>
+        <span>{{ 'enable_telegram_notifications' | translate }}</span>
       </div>
-      <div class="integration-toggle-row mt-3">
-        <p-inputSwitch formControlName="enabled" [binary]="true"></p-inputSwitch>
-        <span class="font-medium text-800">{{ form.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate) }}</span>
-      </div>
-    </div>
-
-    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
-      <div class="integration-section-head mb-3">
-        <h3 class="m-0 text-900">{{ 'telegram_bot_token' | translate }}</h3>
-      </div>
-      <div class="field mb-0">
-        <label for="botToken">{{ 'telegram_bot_token' | translate }}</label>
-        <span class="p-input-icon-right w-full block">
-          <input id="botToken" pInputText class="w-full" formControlName="botToken"
-            [type]="showToken ? 'text' : 'password'"
-            [placeholder]="'telegram_bot_token_placeholder' | translate" />
-          <i [class]="showToken ? 'pi pi-eye-slash' : 'pi pi-eye'" class="cursor-pointer"
-            (click)="showToken = !showToken"></i>
-        </span>
-        <small class="text-500 block mt-2">{{ 'telegram_bot_token_hint' | translate }}</small>
-        <small class="text-500 block" *ngIf="botTokenConfigured">{{ 'leave_blank_to_keep_telegram_token' | translate }}</small>
-      </div>
-    </div>
-
-    <div class="surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1 mb-3">
-      <div class="integration-section-head mb-3">
-        <h3 class="m-0 text-900">{{ 'telegram_notification_chats' | translate }}</h3>
-        <p class="text-600 text-sm m-0 mt-2">{{ 'telegram_chat_ids_hint' | translate }}</p>
-      </div>
-      <div class="integration-list-input mb-3">
-        <input type="text" pInputText class="w-full" [(ngModel)]="newChatId"
-          [ngModelOptions]="{standalone: true}"
-          [placeholder]="'telegram_chat_id_placeholder' | translate"
-          (keydown)="onChatKeydown($event)" />
-        <button pButton pRipple type="button" icon="pi pi-plus" class="p-button-primary"
-          [label]="'add' | translate" (click)="addChatId()"></button>
-      </div>
-
-      <div *ngIf="chatIds.length === 0" class="integration-empty-state">
-        <i class="pi pi-inbox text-400"></i>
-        <span>{{ 'telegram_no_chats' | translate }}</span>
-      </div>
-
-      <div class="integration-list" *ngIf="chatIds.length > 0">
-        <div *ngFor="let cid of chatIds" class="integration-list-item">
-          <span class="font-mono text-sm">{{ cid }}</span>
-          <button pButton pRipple type="button" icon="pi pi-trash"
-            class="p-button-text p-button-danger p-button-sm"
-            (click)="removeChatId(cid)"></button>
+      <div class="card-body">
+        <p class="text-600 text-sm m-0 mb-3">{{ 'telegram_help_intro' | translate }}</p>
+        <div class="integration-toggle-row">
+          <p-inputSwitch formControlName="enabled" [binary]="true"></p-inputSwitch>
+          <span class="font-medium text-800">{{ form.get('enabled')?.value ? ('enabled' | translate) : ('disabled' | translate) }}</span>
         </div>
       </div>
     </div>
 
-    <div class="integration-actions surface-card border-1 surface-border border-round p-3 md:p-4 shadow-1">
-      <button pButton pRipple type="button" class="p-button-outlined" icon="pi pi-send"
-        [label]="'send_test_telegram' | translate" (click)="openTestDialog()"
-        [disabled]="isSaving"></button>
-      <button pButton pRipple type="button" class="p-button-primary" icon="pi pi-save"
-        [label]="'save_configuration' | translate" (click)="save()"
-        [loading]="isSaving" [disabled]="isSaving"></button>
+    <!-- Bot token -->
+    <div class="detail-card">
+      <div class="card-header">
+        <i class="pi pi-key"></i>
+        <span>{{ 'telegram_bot_token' | translate }}</span>
+      </div>
+      <div class="card-body">
+        <div class="field mb-0">
+          <label for="botToken" class="ims-form-label">{{ 'telegram_bot_token' | translate }}</label>
+          <span class="p-input-icon-right w-full block">
+            <input id="botToken" pInputText class="w-full" formControlName="botToken"
+              [type]="showToken ? 'text' : 'password'"
+              [placeholder]="'telegram_bot_token_placeholder' | translate" />
+            <i [class]="showToken ? 'pi pi-eye-slash' : 'pi pi-eye'" class="cursor-pointer"
+              (click)="showToken = !showToken"></i>
+          </span>
+          <small class="ims-form-hint">{{ 'telegram_bot_token_hint' | translate }}</small>
+          <small class="ims-form-hint" *ngIf="botTokenConfigured">{{ 'leave_blank_to_keep_telegram_token' | translate }}</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification chats -->
+    <div class="detail-card">
+      <div class="card-header card-header--split">
+        <div class="flex align-items-center gap-2">
+          <i class="pi pi-comments"></i>
+          <span>{{ 'telegram_notification_chats' | translate }}</span>
+        </div>
+        <p-tag [value]="chatIds.length.toString()" [rounded]="true"
+          [severity]="chatIds.length > 0 ? 'success' : 'warning'"></p-tag>
+      </div>
+      <div class="card-body">
+        <p class="text-600 text-sm m-0 mb-3">{{ 'telegram_chat_ids_hint' | translate }}</p>
+        <div class="integration-list-input mb-3">
+          <input type="text" pInputText class="w-full" [(ngModel)]="newChatId"
+            [ngModelOptions]="{standalone: true}"
+            [placeholder]="'telegram_chat_id_placeholder' | translate"
+            (keydown)="onChatKeydown($event)" />
+          <button pButton pRipple type="button" icon="pi pi-plus" class="p-button-primary"
+            [label]="'add' | translate" (click)="addChatId()"></button>
+        </div>
+
+        <div *ngIf="chatIds.length === 0" class="integration-empty-state">
+          <i class="pi pi-inbox text-400"></i>
+          <span>{{ 'telegram_no_chats' | translate }}</span>
+        </div>
+
+        <div class="integration-list" *ngIf="chatIds.length > 0">
+          <div *ngFor="let cid of chatIds" class="integration-list-item">
+            <span class="font-mono text-sm">{{ cid }}</span>
+            <button pButton pRipple type="button" icon="pi pi-trash"
+              class="p-button-text p-button-danger p-button-sm"
+              (click)="removeChatId(cid)"></button>
+          </div>
+        </div>
+      </div>
     </div>
   </form>
 </div>
 
 <p-dialog [(visible)]="testDialog" [header]="'test_telegram_dialog_title' | translate"
-  [modal]="true" [style]="{width: '480px'}" [draggable]="false" [resizable]="false">
-  <div class="field">
-    <label for="testChat">{{ 'telegram_test_chat_id' | translate }} <span class="required-asterisk">*</span></label>
-    <input id="testChat" pInputText class="w-full" [(ngModel)]="testChatId"
-      [placeholder]="'telegram_chat_id_placeholder' | translate" />
-    <div class="mt-2">
-      <p-tag [value]="(testChatPreviewLabelKey | translate)" [severity]="testChatPreviewSeverity" [rounded]="true"></p-tag>
+  [modal]="true" [style]="{width: 'min(92vw, 480px)'}" [breakpoints]="{'640px': '95vw'}"
+  styleClass="ims-form-dialog-shell" class="p-fluid"
+  [draggable]="false" [resizable]="false">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+              <i class="pi pi-send"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'send_test_telegram' | translate }}</h3>
+          </header>
+          <div class="grid ims-form-section__body">
+            <div class="field col-12">
+              <label for="testChat" class="ims-form-label">{{ 'telegram_test_chat_id' | translate }} <span class="required-asterisk">*</span></label>
+              <input id="testChat" pInputText class="w-full" [(ngModel)]="testChatId"
+                [placeholder]="'telegram_chat_id_placeholder' | translate" />
+              <div class="mt-2">
+                <p-tag [value]="(testChatPreviewLabelKey | translate)" [severity]="testChatPreviewSeverity" [rounded]="true"></p-tag>
+              </div>
+            </div>
+            <div class="field col-12">
+              <label for="testMsg" class="ims-form-label">{{ 'telegram_test_message_optional' | translate }}</label>
+              <textarea id="testMsg" pInputTextarea rows="3" class="w-full" [autoResize]="true" [(ngModel)]="testMessage"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
+              <i class="pi pi-question-circle"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'telegram_test_helper_title' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body">
+            <p class="m-0 text-600 text-sm">{{ 'telegram_test_helper_steps' | translate }}</p>
+            <div class="telegram-test-helper__url-row">
+              <input pInputText class="w-full" [value]="testGetUpdatesUrl"
+                [placeholder]="'telegram_getupdates_token_missing' | translate" readonly />
+              <button pButton pRipple type="button" icon="pi pi-copy"
+                class="p-button-outlined" [label]="'telegram_copy_getupdates_url' | translate"
+                (click)="copyGetUpdatesUrl()"></button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
     </div>
-  </div>
-  <div class="field">
-    <label for="testMsg">{{ 'telegram_test_message_optional' | translate }}</label>
-    <textarea id="testMsg" pInputTextarea rows="3" class="w-full" [(ngModel)]="testMessage"></textarea>
-  </div>
-  <div class="telegram-test-helper">
-    <div class="telegram-test-helper__title">{{ 'telegram_test_helper_title' | translate }}</div>
-    <p class="m-0 text-600 text-sm">{{ 'telegram_test_helper_steps' | translate }}</p>
-    <div class="telegram-test-helper__url-row">
-      <input pInputText class="w-full" [value]="testGetUpdatesUrl"
-        [placeholder]="'telegram_getupdates_token_missing' | translate" readonly />
-      <button pButton pRipple type="button" icon="pi pi-copy"
-        class="p-button-outlined" [label]="'telegram_copy_getupdates_url' | translate"
-        (click)="copyGetUpdatesUrl()"></button>
-    </div>
-  </div>
+  </ng-template>
   <ng-template pTemplate="footer">
     <button pButton pRipple type="button" class="p-button-text" icon="pi pi-times"
       [label]="'cancel' | translate" (click)="testDialog = false"></button>

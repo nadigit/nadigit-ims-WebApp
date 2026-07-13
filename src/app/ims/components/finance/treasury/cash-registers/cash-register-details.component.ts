@@ -64,10 +64,13 @@ export class CashRegisterDetailsComponent implements OnInit {
     destination: 'OWNER' as 'BANK' | 'OWNER' | 'SUPPLIER' | 'OTHER',
     bankAccountId: null as number | null,
   };
+  collectionSubmitted = false;
   newDepositDialogVisible = false;
   newDeposit = { amount: null as number | null, notes: '' };
+  depositSubmitted = false;
   newWithdrawDialogVisible = false;
   newWithdraw = { amount: null as number | null, notes: '' };
+  withdrawSubmitted = false;
 
   dailyDifferenceTrend = 0;
   dailyDifferencePercentage = 0;
@@ -84,6 +87,7 @@ export class CashRegisterDetailsComponent implements OnInit {
   transferBankAccountId: number | null = null;
   transferAmount: number | null = null;
   transferNotes = '';
+  transferSubmitted = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -460,6 +464,7 @@ export class CashRegisterDetailsComponent implements OnInit {
     if (this.canTransferCashBank && !this.bankAccounts.length) {
       void this.loadBankAccounts();
     }
+    this.collectionSubmitted = false;
     this.newCollection = {
       amount: null,
       notes: '',
@@ -470,6 +475,7 @@ export class CashRegisterDetailsComponent implements OnInit {
   }
 
   async saveNewCollection(): Promise<void> {
+    this.collectionSubmitted = true;
     if (!this.newCollection.amount || this.newCollection.amount <= 0) {
       this.messageService.add({
         severity: 'warn',
@@ -518,11 +524,13 @@ export class CashRegisterDetailsComponent implements OnInit {
   }
 
   openNewDepositDialog(): void {
+    this.depositSubmitted = false;
     this.newDepositDialogVisible = true;
     this.newDeposit = { amount: null, notes: '' };
   }
 
   async saveNewDeposit(): Promise<void> {
+    this.depositSubmitted = true;
     if (!this.newDeposit.amount || this.newDeposit.amount <= 0) {
       this.messageService.add({
         severity: 'warn',
@@ -552,11 +560,13 @@ export class CashRegisterDetailsComponent implements OnInit {
   }
 
   openNewWithdrawDialog(): void {
+    this.withdrawSubmitted = false;
     this.newWithdrawDialogVisible = true;
     this.newWithdraw = { amount: null, notes: '' };
   }
 
   async saveNewWithdraw(): Promise<void> {
+    this.withdrawSubmitted = true;
     if (!this.newWithdraw.amount || this.newWithdraw.amount <= 0) {
       this.messageService.add({
         severity: 'warn',
@@ -616,6 +626,7 @@ export class CashRegisterDetailsComponent implements OnInit {
     if (!this.bankAccounts.length) {
       void this.loadBankAccounts();
     }
+    this.transferSubmitted = false;
     this.transferDirection = 'REGISTER_TO_BANK';
     this.transferAmount = null;
     this.transferNotes = '';
@@ -626,6 +637,7 @@ export class CashRegisterDetailsComponent implements OnInit {
   }
 
   async saveTransfer(): Promise<void> {
+    this.transferSubmitted = true;
     if (!this.transferBankAccountId) {
       this.messageService.add({
         severity: 'warn', summary: this.translate.instant('warning'),

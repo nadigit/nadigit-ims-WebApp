@@ -53,7 +53,7 @@
         </div>
       </div>
 
-      <p-table *ngIf="!isLoading || overviews.length" [value]="overviews" dataKey="family.productFamilyId" [lazy]="true"
+      <p-table [hidden]="isLoading && !overviews.length" [value]="overviews" dataKey="family.productFamilyId" [lazy]="true"
         (onLazyLoad)="onLazyLoad($event)" [loading]="isLoading" [paginator]="true" [rows]="pageSize"
         [totalRecords]="totalRecords" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
         currentPageReportTemplate="{first} / {last} ({totalRecords} {{ 'table_records' | translate }})"
@@ -140,7 +140,7 @@
                     <tr>
                       <td>
                         <span class="p-column-title">{{ 'reference' | translate }}</span>
-                        {{ v.reference || 'N/A' }}
+                        <span class="reference-badge">{{ v.reference || 'N/A' }}</span>
                       </td>
                       <td>
                         <span class="p-column-title">{{ 'variant' | translate }}</span>

@@ -1,0 +1,17 @@
+/* Shares the common report look via reports-common.css.
+   Full-width chart card with the doughnut constrained and centered. */
+.movement-chart__canvas {
+  width: 100%;
+  max-width: 24rem;
+  height: 320px;
+}
+
+/* PrimeNG's chart host needs an explicit height or the canvas overflows the card. */
+:host ::ng-deep .movement-chart__canvas .p-chart {
+  height: 320px !important;
+  width: 100%;
+}
+
+:host ::ng-deep .movement-chart__canvas .p-chart canvas {
+  max-width: 100%;
+}

@@ -179,8 +179,8 @@
             </div>
 
             <p-table
-                *ngIf="(!isInitialLoad || writeOffs.length) && (!isLoading || writeOffs.length)"
-                #dt 
+                [hidden]="(isLoading || isInitialLoad) && !writeOffs.length"
+                #dt
                 [value]="writeOffs" 
                 [lazy]="true"
                 (onLazyLoad)="onLazyLoad($event)"
@@ -233,7 +233,7 @@
                         class="cursor-pointer">
                         <td>
                             <span class="p-column-title">{{ 'reference' | translate }}</span>
-                            <strong class="text-primary">#{{ writeOff.reference }}</strong>
+                            <span class="reference-badge">#{{ writeOff.reference }}</span>
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'product' | translate }}</span>

@@ -128,7 +128,7 @@
 
         <div class="mb-4" *ngIf="chartData && report.lines.length > 0">
           <h3 class="text-900 text-lg font-semibold mt-0 mb-3">{{ 'reports_top_products_chart_title' | translate }}</h3>
-          <div class="top-products-chart surface-ground border-round p-3">
+          <div class="top-products-chart surface-ground border-round p-3" [style.height.px]="chartHeight">
             <p-chart type="bar" [data]="chartData" [options]="chartOptions"></p-chart>
           </div>
         </div>
@@ -150,7 +150,7 @@
           <ng-template pTemplate="body" let-line>
             <tr>
               <td><p-tag [value]="line.rank.toString()" severity="info"></p-tag></td>
-              <td>{{ line.reference || '—' }}</td>
+              <td><span class="reference-badge">{{ line.reference || '—' }}</span></td>
               <td class="font-medium">{{ line.name }}</td>
               <td>{{ line.categoryName || '—' }}</td>
               <td>{{ line.warehouseName || '—' }}</td>

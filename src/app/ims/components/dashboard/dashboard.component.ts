@@ -1492,9 +1492,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!this.dataLoaded) {
       return false;
     }
-    // Show card if user hasn't dismissed it AND system is new (no orders, products, or customers)
-    const isSystemNew = this.totalOrders === 0 || this.totalProducts === 0 || (this.customers && this.customers.length === 0);
-    return this.showGettingStartedCard && isSystemNew;
+    return this.showGettingStartedCard && this.isSetupIncomplete;
+  }
+
+  /**
+   * Whether the initial setup still looks incomplete, used to decide if onboarding should show.
+   * Role-aware: warehouse-only roles can't read orders/customers (403), so their onboarding — which
+   * only offers the "create product" step — is judged on products alone. Otherwise those endpoints
+   * would always read as empty and the card would never disappear.
+   */
+  get isSetupIncomplete(): boolean {
+    const productsMissing = (this.totalProducts || 0) === 0;
+    if (!this.isAdmin && !this.isVendor) {
+      return productsMissing;
+    }
+    const customersMissing = !this.customers || this.customers.length === 0;
+    const ordersMissing = (this.totalOrders || 0) === 0;
+    return productsMissing || customersMissing || ordersMissing;
   }
 
   // Quick Actions Navigation Methods

@@ -38,9 +38,10 @@ type AppConfigCategoryId =
   | 'payments'
   | 'notifications_audit'
   | 'expenses'
+  | 'system'
   | 'other';
 
-type SettingsChannelId = 'email' | 'telegram' | 'whatsapp' | 'ai' | 'notifications';
+type SettingsChannelId = 'email' | 'telegram' | 'whatsapp' | 'ai' | 'trends' | 'notifications';
 
 interface AppConfigSection {
   id: AppConfigCategoryId;
@@ -79,11 +80,23 @@ export class SettingsComponent implements OnInit, OnDestroy {
   processModeOptions: { label: string; value: string }[] = [];
   aiProviderOptions: { label: string; value: string }[] = [];
   aiInvoiceModeOptions: { label: string; value: string }[] = [];
+  taxModeOptions: { label: string; value: string }[] = [];
   /** 0 = global parameters, 1 = integrations, 2 = banks, 3 = tax rules */
   activeTabIndex = 0;
 
+  /** URL slugs per tab index — mirrored to `?tab=` so refresh/back keeps the active tab. */
+  private readonly tabQuerySlugs: string[] = ['global', 'integrations', 'banks', 'tax-rules'];
+
+  /**
+   * The Keycloak login roundtrip on page load strips query params from the redirect URI
+   * (see keycloak-redirect.util.ts), so `?tab=` alone cannot survive a refresh.
+   * The last active tab is therefore also persisted here and used when no `?tab=` is present.
+   */
+  private readonly LS_ACTIVE_TAB = 'ims.settings.activeTab';
+
   /** Updated after `/api/license/capabilities` loads (tax rules tab). */
   taxRulesFeatureEnabled = false;
+  trendsFeatureEnabled = false;
 
   private licenseCapabilitiesSub?: Subscription;
   private routeTabQuerySub?: Subscription;
@@ -162,6 +175,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     'payments',
     'notifications_audit',
     'expenses',
+    'system',
     'other',
   ];
 
@@ -176,6 +190,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     payments: 'pi pi-wallet',
     notifications_audit: 'pi pi-bell',
     expenses: 'pi pi-money-bill',
+    system: 'pi pi-shield',
     other: 'pi pi-ellipsis-h',
   };
 
@@ -207,6 +222,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     { id: 'telegram', icon: 'pi pi-send', titleKey: 'telegram_configuration', descKey: 'telegram_configuration_card_hint' },
     { id: 'whatsapp', icon: 'pi pi-phone', titleKey: 'whatsapp_configuration', descKey: 'whatsapp_configuration_card_hint' },
     { id: 'ai', icon: 'pi pi-bolt', titleKey: 'ai_integration_configuration', descKey: 'ai_integration_configuration_card_hint' },
+    { id: 'trends', icon: 'pi pi-chart-line', titleKey: 'trends_integration_title', descKey: 'trends_integration_card_hint' },
     { id: 'notifications', icon: 'pi pi-bell', titleKey: 'notification_recipients', descKey: 'notification_recipients_description' },
   ];
 
@@ -305,11 +321,47 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.licenseCapabilitiesSub?.unsubscribe();
+    this.routeTabQuerySub?.unsubscribe();
+  }
+
+  /**
+   * Keeps the active tab in the URL (`?tab=...`) so a refresh or shared link
+   * restores the same tab instead of falling back to global parameters.
+   */
+  onActiveTabChange(index: number): void {
+    this.activeTabIndex = index;
+    const slug = this.tabQuerySlugs[index];
+    try {
+      localStorage.setItem(this.LS_ACTIVE_TAB, slug ?? 'global');
+    } catch {
+      /* ignore */
+    }
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: index === 0 ? null : slug ?? null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   /** Reload tax-rules tab visibility when `/api/license/capabilities` resolves or updates. */
   private refreshTaxRulesFeatureFromLicense(): void {
+    const previous = this.taxRulesFeatureEnabled;
     this.taxRulesFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('TAX_RULE_ENGINE');
+    this.trendsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('MARKET_TRENDS_INTEGRATION');
+    // Tax settings appear/disappear with the license — recompute the visible parameter list.
+    if (previous !== this.taxRulesFeatureEnabled) {
+      this.rebuildCategoryFilterOptions();
+      this.recomputeConfigSections();
+    }
+  }
+
+  /** Advanced tax settings (mode, tax-inclusive pricing) are enterprise-only. */
+  private isTaxGatedHidden(key: string | undefined): boolean {
+    if (this.taxRulesFeatureEnabled) {
+      return false;
+    }
+    return key === 'tax.calculation.mode' || key === 'pricing.tax.inclusive';
   }
 
   getProcessModeLabel(value: string): string {
@@ -336,13 +388,30 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   getAiProviderLabel(value: string): string {
     const v = (value || '').toUpperCase();
+    if (v === 'NONE' || v === '') {
+      return this.translate.instant('ai_provider_NONE');
+    }
     const opt = this.aiProviderOptions.find(o => o.value === v);
     return opt ? opt.label : (value || '');
+  }
+
+  /** Options for the fallback-provider dropdown: NONE (disabled) + the regular providers. */
+  get aiFallbackProviderOptions(): { label: string; value: string }[] {
+    return [
+      { label: this.translate.instant('ai_provider_NONE'), value: 'NONE' },
+      ...this.aiProviderOptions,
+    ];
   }
 
   getAiInvoiceModeLabel(value: string): string {
     const v = (value || '').toUpperCase();
     const opt = this.aiInvoiceModeOptions.find(o => o.value === v);
+    return opt ? opt.label : (value || '');
+  }
+
+  getTaxModeLabel(value: string): string {
+    const v = (value || '').toUpperCase();
+    const opt = this.taxModeOptions.find(o => o.value === v);
     return opt ? opt.label : (value || '');
   }
 
@@ -390,10 +459,27 @@ export class SettingsComponent implements OnInit, OnDestroy {
       case 'ai':
         this.navigateToAiIntegrationConfig();
         break;
+      case 'trends':
+        this.navigateToTrendsConfig();
+        break;
       case 'notifications':
         this.navigateToNotificationRecipients();
         break;
     }
+  }
+
+  /** Enterprise-gated: locked tiles show an upgrade notice instead of navigating. */
+  navigateToTrendsConfig(): void {
+    if (!this.trendsFeatureEnabled) {
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('trends_integration_title'),
+        detail: this.translate.instant('trends_upgrade_text'),
+        life: 6000,
+      });
+      return;
+    }
+    void this.router.navigate(['/administration/settings/trends']);
   }
 
   resolveConfigCategoryId(key: string | undefined): AppConfigCategoryId {
@@ -405,6 +491,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       'app.timezone',
       'currency',
       'tax',
+      'tax.calculation.mode',
       'autoOrderComplete',
       'lowStockThreshold',
       'restore.enabled',
@@ -445,6 +532,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
     if (k.startsWith('expense.')) {
       return 'expenses';
+    }
+    if (k.startsWith('app.rate-limit.')) {
+      return 'system';
     }
     if (k.startsWith('sales.') || k.startsWith('pos.') || k.startsWith('order.') || k.startsWith('pricing.')) {
       return 'sales_pos';
@@ -518,6 +608,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     if (k === 'tax') {
       return `${(parseFloat(String(v)) * 100).toFixed(2)} %`;
     }
+    if (k === 'tax.calculation.mode') {
+      return this.getTaxModeLabel(String(v));
+    }
     if (k === 'cashRegDefaultOpeningBalance') {
       return `${v} ${this.appConfigCurrency?.value ?? ''}`.trim();
     }
@@ -545,6 +638,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       k === 'sales.stock.include.approved.writeoff.quantity' ||
       k === 'sales.stock.soft.reservation.enabled' ||
       k === 'pricing.allow.custom.override' ||
+      k === 'pricing.tax.inclusive' ||
       k === 'order.backoffice.auto.status.enabled' ||
       k === 'cash.register.auto.schedule.enabled' ||
       k === 'pos.credit.order.auto.delivered' ||
@@ -631,7 +725,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   private rebuildCategoryFilterOptions(): void {
     const list = (this.configs || []).filter(
-      c => !this.isAiConfigKey(c.key) && this.passesAdvancedFilter(c, ''),
+      c => !this.isAiConfigKey(c.key) && !this.isTaxGatedHidden(c.key) && this.passesAdvancedFilter(c, ''),
     );
     const opts: { label: string; value: 'all' | AppConfigCategoryId }[] = [
       { label: `${this.translate.instant('settings_filter_all')} (${list.length})`, value: 'all' },
@@ -683,7 +777,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     const matchesCategory = (c: AppConfiguration): boolean =>
       cat === 'all' || this.resolveConfigCategoryId(c.key) === cat;
     const filtered = (this.configs || []).filter(
-      c => !this.isAiConfigKey(c.key) && matchesCategory(c) && matchesSearch(c) && this.passesAdvancedFilter(c, q),
+      c => !this.isAiConfigKey(c.key) && !this.isTaxGatedHidden(c.key) && matchesCategory(c) && matchesSearch(c) && this.passesAdvancedFilter(c, q),
     );
     const byCat = new Map<AppConfigCategoryId, AppConfiguration[]>();
     for (const id of this.appConfigCategoryOrder) {
@@ -708,6 +802,53 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     this.isLoading = true;
+
+    // Deep-link tabs: ?tab=banks | ?tab=tax-rules | ?tab=integrations | ?tab=channels | ?tab=parameters | ?tab=global
+    // Runs before the slow awaits below so the restored tab shows immediately.
+    const applyTabQuery = (tab: string | undefined | null): void => {
+      let nextIndex = this.activeTabIndex;
+      if (tab === 'banks') {
+        nextIndex = 2;
+      } else if (tab === 'tax-rules' || tab === 'tax') {
+        nextIndex = 3;
+      } else if (tab === 'integrations' || tab === 'channels') {
+        nextIndex = 1;
+      } else if (tab === 'parameters' || tab === 'global') {
+        nextIndex = 0;
+      } else {
+        return;
+      }
+      if (nextIndex !== this.activeTabIndex) {
+        this.activeTabIndex = nextIndex;
+      }
+    };
+    const queryTab = this.route.snapshot.queryParamMap.get('tab');
+    if (queryTab) {
+      applyTabQuery(queryTab);
+    } else {
+      // No ?tab= (e.g. stripped by the Keycloak login redirect) — restore the last active tab.
+      let storedTab: string | null = null;
+      try {
+        storedTab = localStorage.getItem(this.LS_ACTIVE_TAB);
+      } catch {
+        /* ignore */
+      }
+      if (storedTab) {
+        applyTabQuery(storedTab);
+        if (this.activeTabIndex !== 0) {
+          // Mirror the restored tab back into the URL so refresh/deep-link stays consistent.
+          void this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { tab: this.tabQuerySlugs[this.activeTabIndex] },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
+        }
+      }
+    }
+    this.routeTabQuerySub = this.route.queryParams
+      .pipe(map(params => params['tab']), distinctUntilChanged())
+      .subscribe(tab => applyTabQuery(tab));
 
     const translations = await this.translate.get(['a4', 'receipt']).toPromise();
 
@@ -764,30 +905,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
       { label: this.translate.instant('ai_invoice_mode_PRIMARY'), value: 'PRIMARY' },
     ];
 
-    this.loadParameterUiPreferences();
+    this.taxModeOptions = [
+      { label: this.translate.instant('tax_mode_GLOBAL'), value: 'GLOBAL' },
+      { label: this.translate.instant('tax_mode_RULES'), value: 'RULES' },
+    ];
 
-    // Deep-link tabs: ?tab=banks | ?tab=tax-rules | ?tab=integrations | ?tab=channels | ?tab=parameters | ?tab=global
-    const applyTabQuery = (tab: string | undefined): void => {
-      let nextIndex = this.activeTabIndex;
-      if (tab === 'banks') {
-        nextIndex = 2;
-      } else if (tab === 'tax-rules' || tab === 'tax') {
-        nextIndex = 3;
-      } else if (tab === 'integrations' || tab === 'channels') {
-        nextIndex = 1;
-      } else if (tab === 'parameters' || tab === 'global') {
-        nextIndex = 0;
-      } else {
-        return;
-      }
-      if (nextIndex !== this.activeTabIndex) {
-        this.activeTabIndex = nextIndex;
-      }
-    };
-    applyTabQuery(this.route.snapshot.queryParamMap.get('tab') ?? undefined);
-    this.routeTabQuerySub = this.route.queryParams
-      .pipe(map(params => params['tab']), distinctUntilChanged())
-      .subscribe(tab => applyTabQuery(tab));
+    this.loadParameterUiPreferences();
 
     if (this.route.snapshot.queryParamMap.get('businessProfile') === '1') {
       this.activeTabIndex = 0;
@@ -1059,7 +1182,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
           // Only keep non-editable configs and exclude email-related configurations
           const nonEditableConfigs = params.filter(config =>
             config.editable && !config.key?.startsWith('email.') && !config.key?.startsWith('telegram.')
-              && !config.key?.startsWith('whatsapp.')
+              && !config.key?.startsWith('whatsapp.') && !config.key?.startsWith('trends.')
           );
 
           this.configs = nonEditableConfigs.sort((a, b) => a.id - b.id);

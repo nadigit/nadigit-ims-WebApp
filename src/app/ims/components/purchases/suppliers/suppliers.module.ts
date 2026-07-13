@@ -13,6 +13,7 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { RatingModule } from 'primeng/rating';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
+import { InputSwitchModule } from 'primeng/inputswitch';
 import { DropdownModule } from 'primeng/dropdown';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -48,6 +49,7 @@ import { InventorySharedModule } from '../../inventory/shared/inventory-shared.m
         ToolbarModule,
         RatingModule,
         InputTextModule,
+        InputSwitchModule,
         InputTextareaModule,
         DropdownModule,
         RadioButtonModule,

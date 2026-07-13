@@ -251,7 +251,7 @@
                                 pTooltip="{{ 'refund_locked' | translate }}">
                             </i>
                         </td>
-                        <td>#{{ refund.orderReturn?.order?.reference || 'N/A' }}</td>
+                        <td><span class="reference-badge">#{{ refund.orderReturn?.order?.reference || 'N/A' }}</span></td>
                         <td style="min-width:10rem;">
                             <span class="p-column-title">{{ 'customer' | translate }}</span>
                             {{

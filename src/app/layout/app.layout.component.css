@@ -1634,6 +1634,85 @@
   flex: 1;
 }
 
+/* Per-message actions (copy / edit / resend / regenerate) */
+.copilot-user-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  max-width: 85%;
+}
+
+.copilot-msg-actions {
+  display: flex;
+  gap: 0.1rem;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+
+.copilot-msg-actions--user {
+  justify-content: flex-end;
+}
+
+.copilot-msg-actions--assistant {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--surface-border);
+}
+
+.copilot-msg--user:hover .copilot-msg-actions--user,
+.copilot-msg--user:focus-within .copilot-msg-actions--user,
+.copilot-bubble--assistant:hover .copilot-msg-actions--assistant,
+.copilot-bubble--assistant:focus-within .copilot-msg-actions--assistant {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.copilot-msg-action-btn.p-button.p-button-sm {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--text-color-secondary);
+}
+
+.copilot-msg-action-btn.p-button.p-button-sm .p-button-icon {
+  font-size: 0.8rem;
+}
+
+.copilot-msg-action-btn.p-button.p-button-sm:enabled:hover {
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+
+.copilot-msg-action-btn--danger.p-button.p-button-sm:enabled:hover {
+  color: var(--red-500, #ef4444);
+  background: color-mix(in srgb, var(--red-500, #ef4444) 12%, transparent);
+}
+
+/* Inline edit box for user messages */
+.copilot-edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 15rem;
+}
+
+.copilot-edit-textarea.p-inputtextarea {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  border-radius: 12px;
+}
+
+.copilot-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
 /* Markdown content inside assistant bubbles */
 .copilot-md > *:first-child { margin-top: 0; }
 .copilot-md > *:last-child { margin-bottom: 0; }
@@ -1890,6 +1969,36 @@
   border: 1px solid color-mix(in srgb, var(--yellow-500, #eab308) 30%, transparent);
 }
 .copilot-warning ul { margin: 0; }
+
+/* AI status notice (rate-limited / quota reached) — informational, distinct from warnings */
+.copilot-ai-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-card));
+  border: 1px solid color-mix(in srgb, var(--primary-color) 28%, transparent);
+}
+.copilot-ai-notice > .pi { margin-top: 0.1rem; font-size: 0.85rem; }
+.copilot-ai-notice-body { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
+.copilot-ai-notice-text { display: block; }
+.copilot-ai-notice-admin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.4rem;
+  font-size: 0.76rem;
+  color: var(--text-color-secondary);
+}
+.copilot-ai-notice-link.p-button.p-button-sm {
+  padding: 0.1rem 0.4rem;
+  font-size: 0.76rem;
+}
 
 /* Typing indicator */
 .copilot-typing {
@@ -2212,6 +2321,29 @@ html:has(.pos-fullscreen) {
   font-size: 0.82rem;
   padding: 0.35rem 0.5rem;
 }
+.copilot-proposal-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+.copilot-proposal-lines-head,
+.copilot-proposal-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.5rem 2rem;
+  gap: 0.4rem;
+  align-items: center;
+}
+.copilot-proposal-lines-head span {
+  font-size: 0.68rem;
+  color: var(--text-color-secondary);
+  text-transform: capitalize;
+}
+.copilot-proposal-line input {
+  width: 100%;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.5rem;
+}
 .copilot-proposal-actions { display: flex; gap: 0.4rem; }
 .copilot-proposal-done {
   display: inline-flex;
@@ -2220,4 +2352,102 @@ html:has(.pos-fullscreen) {
   margin-top: 0.6rem;
   font-size: 0.8rem;
   color: var(--green-600, #16a34a);
+}
+
+/* Chat attachment import workspace */
+.copilot-file-input { display: none; }
+.copilot-attach-btn { flex: 0 0 auto; }
+.copilot-attachment {
+  margin-bottom: 0.55rem;
+  border: 1px dashed color-mix(in srgb, var(--primary-color) 35%, var(--surface-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary-color) 4%, var(--surface-card));
+  padding: 0.6rem 0.7rem;
+}
+.copilot-attachment-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+.copilot-attachment-head i { color: var(--primary-color); }
+.copilot-attachment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.copilot-attachment-close { flex: 0 0 auto; }
+.copilot-attachment-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+.copilot-target-chip.active {
+  background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+  border-color: var(--primary-color);
+}
+.copilot-attachment-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-bottom: 0.55rem;
+}
+.copilot-attachment-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: var(--text-color-secondary);
+  cursor: pointer;
+}
+.copilot-attachment-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-color-secondary);
+}
+.copilot-attachment-metric strong { color: var(--text-color); }
+.copilot-attachment-metric.is-error strong { color: var(--red-500, #ef4444); }
+.copilot-attachment-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+.copilot-attachment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.78rem;
+}
+.copilot-attachment-row-title {
+  font-weight: 600;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.copilot-attachment-row-meta { color: var(--text-color-secondary); white-space: nowrap; }
+.copilot-attachment-row-value { font-weight: 600; color: var(--text-color); white-space: nowrap; }
+.copilot-attachment-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.copilot-attachment-error {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  color: var(--orange-600, #ea580c);
 }

@@ -1,5 +1,5 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, TreeNode, ConfirmationService, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
@@ -294,6 +294,7 @@ export class ProductsComponent implements OnInit {
     private permissionService: PermissionService,
     public keycloakService: KeycloakService,
     private router: Router,
+    private route: ActivatedRoute,
     private organizationService: OrganizationService,
     public activityProfileService: ActivityProfileService,
     public pageSizeService: TablePageSizeService) {
@@ -342,6 +343,20 @@ export class ProductsComponent implements OnInit {
       lastLazyLoadEvent: this.lastLazyLoadEvent,
     });
     this.ensureSortFieldValidForViewMode();
+    // NadiPilot hand-off: ?import=1 opens the full product-import wizard for a file attached in chat.
+    if (this.route.snapshot.queryParamMap.get('import')) {
+      setTimeout(() => {
+        try {
+          this.openImportDialog();
+        } catch {
+          // best-effort; the user is already on the products screen
+        }
+      }, 600);
+    }
+    // NadiPilot hand-off: ?newProduct=1 opens the new-product dialog prefilled from a confirmed chat proposal.
+    if (this.route.snapshot.queryParamMap.get('newProduct')) {
+      this.applyCreateProductFromQuery();
+    }
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -1206,6 +1221,59 @@ export class ProductsComponent implements OnInit {
     this.updateEffectiveCostingMethodLabel();
     this.productDialog = true;
     this.scanning = false;
+  }
+
+  /** When NadiPilot sends the user here with ?newProduct=1, open the new-product dialog prefilled. */
+  private applyCreateProductFromQuery(): void {
+    const qp = this.route.snapshot.queryParamMap;
+    const name = qp.get('name');
+    const categoryName = qp.get('category');
+    const description = qp.get('description');
+    const sellingPrice = qp.get('sellingPrice');
+    // Defer so permissions and reference data (categories) finish loading before opening the dialog.
+    setTimeout(() => {
+      try {
+        this.openNew();
+        if (!this.productDialog) {
+          return; // user cannot add products
+        }
+        if (name) {
+          this.product.name = name;
+        }
+        if (description) {
+          this.product.description = description;
+        }
+        if (sellingPrice != null && sellingPrice !== '' && !isNaN(Number(sellingPrice))) {
+          this.product.sellingPrice = Number(sellingPrice);
+        }
+        if (categoryName) {
+          this.prefillProductCategory(categoryName);
+        }
+      } catch {
+        // best-effort; the user is already on the products screen
+      }
+    }, 600);
+  }
+
+  /** Best-effort: match a category by name from NadiPilot once the list has loaded. */
+  private prefillProductCategory(name: string, attempt: number = 0): void {
+    const wanted = (name || '').trim().toLowerCase();
+    if (!wanted) {
+      return;
+    }
+    const list = this.categories || [];
+    if (!list.length) {
+      if (attempt < 15) {
+        setTimeout(() => this.prefillProductCategory(name, attempt + 1), 200);
+      }
+      return;
+    }
+    const match = list.find(c => (c.categoryName || '').trim().toLowerCase() === wanted)
+      || list.find(c => (c.categoryName || '').trim().toLowerCase().includes(wanted));
+    if (match) {
+      this.product.category = match;
+      this.updateEffectiveCostingMethodLabel();
+    }
   }
 
   private async setUserRoles() {

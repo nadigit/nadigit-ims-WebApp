@@ -1,0 +1,9 @@
+:host {
+  display: block;
+}
+
+/* Keep the two VAT tables visually distinct from summary tiles above them. */
+:host ::ng-deep .p-datatable .p-datatable-footer,
+:host ::ng-deep .p-datatable tfoot > tr {
+  background: var(--surface-ground);
+}

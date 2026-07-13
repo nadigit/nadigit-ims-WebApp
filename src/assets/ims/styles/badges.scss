@@ -272,6 +272,21 @@
 }
 
 // ---------------------------------------------------------------------------
+// Utility — entity reference (product SKU, order/purchase/return numbers, …)
+// Single canonical style for displaying a reference anywhere in the app.
+// ---------------------------------------------------------------------------
+.reference-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--surface-ground);
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-size: 0.8125rem;
+  color: var(--text-color-secondary);
+  white-space: nowrap;
+}
+
+// ---------------------------------------------------------------------------
 // Utility — profit margin (used in order/product details)
 // ---------------------------------------------------------------------------
 .profit-margin-badge {

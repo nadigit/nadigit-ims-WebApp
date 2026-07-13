@@ -51,7 +51,7 @@
 		<div class="settings-main-inner p-3 md:p-4">
 
 		<div class="settings-tab-shell border-1 surface-border border-round overflow-hidden">
-		<p-tabView styleClass="settings-tabs" [(activeIndex)]="activeTabIndex">
+		<p-tabView styleClass="settings-tabs" [activeIndex]="activeTabIndex" (activeIndexChange)="onActiveTabChange($event)">
 
 			<!-- Global parameters (+ business activity profile for admins) -->
 			<p-tabPanel>
@@ -270,7 +270,7 @@
 												</span>
 
 												<!-- Boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled'" class="value-text">
+												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled'" class="value-text">
 													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
 														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
 												</span>
@@ -314,11 +314,14 @@
 													<span class="value-number">{{ getProcessModeLabel(config.value) }}</span>
 												</span>
 
-												<span *ngIf="config.key === 'ai.integration.provider'" class="value-text">
+												<span *ngIf="config.key === 'ai.integration.provider' || config.key === 'ai.integration.fallback.provider'" class="value-text">
 													<span class="value-number">{{ getAiProviderLabel(config.value) }}</span>
 												</span>
 												<span *ngIf="config.key === 'ai.invoice.mode'" class="value-text">
 													<span class="value-number">{{ getAiInvoiceModeLabel(config.value) }}</span>
+												</span>
+												<span *ngIf="config.key === 'tax.calculation.mode'" class="value-text">
+													<span class="value-number">{{ getTaxModeLabel(config.value) }}</span>
 												</span>
 												<span *ngIf="isAiSecretConfigKey(config.key)" class="value-text">
 													<span class="value-number">{{ getAiSecretDisplaySummary(config.value) }}</span>
@@ -371,6 +374,7 @@
 													config.key !== 'sales.stock.soft.reservation.enabled' &&
 													config.key !== 'sales.stock.soft.reservation.ttl.minutes' &&
 													config.key !== 'pricing.allow.custom.override' &&
+													config.key !== 'pricing.tax.inclusive' &&
 													config.key !== 'order.backoffice.auto.status.enabled' &&
 													config.key !== 'cash.register.auto.schedule.enabled' &&
 													config.key !== 'pos.credit.order.auto.delivered' &&
@@ -392,7 +396,9 @@
 													config.key !== 'sales.pos.enabled' &&
 													config.key !== 'ai.integration.enabled' &&
 													config.key !== 'ai.integration.provider' &&
+													config.key !== 'ai.integration.fallback.provider' &&
 													config.key !== 'ai.invoice.mode' &&
+													config.key !== 'tax.calculation.mode' &&
 													config.key !== 'ai.invoice.hybrid.confidence.threshold' &&
 													config.key !== 'ai.invoice.max.context.chars' &&
 													config.key !== 'ai.openai.base.url' &&
@@ -411,7 +417,8 @@
 													config.key !== 'ai.anthropic.api.key' &&
 													config.key !== 'ai.groq.api.key' &&
 													config.key !== 'ai.google.api.key' &&
-													config.key !== 'ai.openrouter.api.key'" class="value-text">
+													config.key !== 'ai.openrouter.api.key' &&
+													config.key !== 'app.rate-limit.enabled'" class="value-text">
 													<span class="value-number">{{ config.value }}</span>
 												</span>
 
@@ -500,7 +507,7 @@
 												</div>
 
 												<!-- Edit mode for boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'pricing.allow.custom.override' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled'" class="edit-field">
+												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="booleanOptions"
 														optionLabel="label"
@@ -508,6 +515,15 @@
 														placeholder="{{ 'enabled' | translate }}" class="w-full"
 														appendTo="body">
 													</p-dropdown>
+												</div>
+
+												<!-- API rate limiting (requests/min, burst) -->
+												<div *ngIf="config.key === 'app.rate-limit.requests-per-minute' || config.key === 'app.rate-limit.requests-per-minute-auth'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" [min]="1" />
+													<span class="edit-unit">{{ 'settings_rate_limit_unit' | translate }}</span>
+												</div>
+												<div *ngIf="config.key === 'app.rate-limit.burst'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" [min]="0" />
 												</div>
 
 												<div *ngIf="config.key === 'sales.stock.soft.reservation.ttl.minutes'" class="edit-field">
@@ -601,9 +617,27 @@
 														appendTo="body">
 													</p-dropdown>
 												</div>
+												<div *ngIf="config.key === 'ai.integration.fallback.provider'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="aiFallbackProviderOptions"
+														optionLabel="label"
+														optionValue="value"
+														class="w-full"
+														appendTo="body">
+													</p-dropdown>
+												</div>
 												<div *ngIf="config.key === 'ai.invoice.mode'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="aiInvoiceModeOptions"
+														optionLabel="label"
+														optionValue="value"
+														class="w-full"
+														appendTo="body">
+													</p-dropdown>
+												</div>
+												<div *ngIf="config.key === 'tax.calculation.mode'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="taxModeOptions"
 														optionLabel="label"
 														optionValue="value"
 														class="w-full"
@@ -672,13 +706,19 @@
 								'ims-icon-tile--cyan': ch.id === 'telegram',
 								'ims-icon-tile--green': ch.id === 'whatsapp',
 								'ims-icon-tile--purple': ch.id === 'ai',
-								'ims-icon-tile--amber': ch.id === 'notifications'
+								'ims-icon-tile--amber': ch.id === 'notifications' || ch.id === 'trends'
 							}"><i [class]="ch.icon"></i></span>
 							<span class="settings-channel-body">
-								<span class="settings-channel-name">{{ ch.titleKey | translate }}</span>
+								<span class="settings-channel-name">
+									{{ ch.titleKey | translate }}
+									<!-- <p-tag *ngIf="ch.id === 'trends' && !trendsFeatureEnabled"
+										severity="warning" [rounded]="true" styleClass="settings-channel-lock-tag"
+										[value]="'license_tier_enterprise' | translate"></p-tag> -->
+								</span>
 								<span class="settings-channel-hint">{{ ch.descKey | translate }}</span>
 							</span>
-							<i class="pi pi-chevron-right settings-channel-go" aria-hidden="true"></i>
+							<i class="settings-channel-go" aria-hidden="true"
+								[ngClass]="ch.id === 'trends' && !trendsFeatureEnabled ? 'pi pi-lock' : 'pi pi-chevron-right'"></i>
 						</button>
 					</div>
 				</div>
@@ -692,37 +732,43 @@
 
 				<div class="settings-tab-panel-inner p-3 md:p-4">
 					<p class="settings-workspace-lead text-600 m-0 mb-3 line-height-3">{{ 'manage_bank_information' | translate }}</p>
-					<div class="settings-toolbar surface-ground border-1 surface-border border-round p-3 mb-4">
-						<div class="flex flex-column lg:flex-row gap-3 align-items-stretch lg:align-items-center lg:justify-content-between">
-							<div class="flex flex-column sm:flex-row gap-3 flex-1 min-w-0">
-								<span class="p-input-icon-left w-full flex-1 min-w-0">
-									<i class="pi pi-search"></i>
-									<input type="text" pInputText [(ngModel)]="globalFilter"
-										[placeholder]="'search_banks' | translate" class="w-full" />
-								</span>
-								<p-selectButton [options]="[
-									{label: ('all' | translate), value: undefined},
-									{label: ('active' | translate), value: true},
-									{label: ('inactive' | translate), value: false}
-								]" [(ngModel)]="activeFilter" (onChange)="onActiveFilterChange()"
-									optionLabel="label" optionValue="value"></p-selectButton>
-							</div>
+
+					<!-- Action Buttons -->
+					<div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="canAddBank || canDeleteBank">
+						<div class="flex align-items-center gap-2">
 							<button *ngIf="canAddBank" pButton pRipple icon="pi pi-plus"
-								[label]="'add_bank' | translate" class="p-button-primary flex-shrink-0"
+								[label]="'add_bank' | translate" class="p-button-success"
 								(click)="openNewBank()"></button>
+							<button *ngIf="canDeleteBank" pButton pRipple icon="pi pi-trash"
+								[label]="'delete_button' | translate" class="p-button-danger"
+								(click)="deleteSelectedBanks()"
+								[disabled]="!selectedBanks || !selectedBanks.length"></button>
 						</div>
 					</div>
 
+					<!-- Filters Bar -->
+					<div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+						<span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+							<i class="pi pi-search"></i>
+							<input type="text" pInputText [(ngModel)]="globalFilter"
+								[placeholder]="'search_banks' | translate"
+								(input)="dtBanks.filterGlobal($event.target.value, 'contains')" class="w-full" />
+						</span>
+						<p-selectButton [options]="[
+							{label: ('all' | translate), value: undefined},
+							{label: ('active' | translate), value: true},
+							{label: ('inactive' | translate), value: false}
+						]" [(ngModel)]="activeFilter" (onChange)="onActiveFilterChange()"
+							optionLabel="label" optionValue="value"></p-selectButton>
+					</div>
+
 					<!-- Banks Table -->
-					<div class="detail-card">
-						<div class="card-body p-0">
-							<p-table [value]="banks" [(selection)]="selectedBanks"
-								[paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.settings, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
-								(onPage)="pageSizeService.onPage(TablePageSizeKeys.settings, [20, 50, 100], $event)"
-								[globalFilterFields]="['name','code','country','city']"
-								[loading]="isLoadingBanks" dataKey="bankId"
-								[responsive]="true" styleClass="p-datatable-gridlines"
-								[globalFilter]="globalFilter">
+					<p-table #dtBanks [value]="banks" [(selection)]="selectedBanks"
+						[paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.settings, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
+						(onPage)="pageSizeService.onPage(TablePageSizeKeys.settings, [20, 50, 100], $event)"
+						[globalFilterFields]="['name','code','country','city']"
+						[loading]="isLoadingBanks" dataKey="bankId"
+						[responsive]="true" styleClass="p-datatable-gridlines">
 
 								<ng-template pTemplate="header">
 									<tr>
@@ -795,22 +841,6 @@
 									</tr>
 								</ng-template>
 							</p-table>
-						</div>
-					</div>
-
-					<!-- Bulk Actions -->
-					<div *ngIf="selectedBanks.length > 0" class="mt-3">
-						<div class="detail-card">
-							<div class="card-body">
-								<div class="flex justify-content-between align-items-center">
-									<span class="text-600">{{ selectedBanks.length }} {{ 'banks_selected' | translate }}</span>
-									<button pButton pRipple [label]="'delete_selected' | translate"
-										icon="pi pi-trash" class="p-button-danger p-button-outlined"
-										(click)="deleteSelectedBanks()"></button>
-								</div>
-							</div>
-						</div>
-					</div>
 				</div>
 			</p-tabPanel>
 
@@ -822,11 +852,7 @@
 				<div class="settings-tab-panel-inner p-3 md:p-4">
 					<ng-container *ngIf="taxRulesFeatureEnabled">
 						<p class="settings-workspace-lead text-600 m-0 mb-3 line-height-3">{{ 'tax_rules_intro' | translate }}</p>
-						<div class="detail-card">
-							<div class="card-body p-0">
-								<app-tax-rules [embedded]="true"></app-tax-rules>
-							</div>
-						</div>
+						<app-tax-rules [embedded]="true"></app-tax-rules>
 					</ng-container>
 					<div *ngIf="!taxRulesFeatureEnabled" class="detail-card">
 						<div class="card-body p-4 md:p-5">
@@ -845,155 +871,130 @@
 </div>
 
 <!-- Bank Dialog -->
-<p-dialog [(visible)]="bankDialog" [style]="{width: '700px'}"
+<p-dialog [(visible)]="bankDialog" [style]="{width: 'min(92vw, 700px)'}"
+  [breakpoints]="{'960px': '90vw', '640px': '95vw'}"
   [header]="(bank.bankId ? 'edit_bank' : 'add_bank') | translate"
-  [modal]="true" class="bank-dialog p-fluid">
+  [modal]="true" [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell"
+  class="bank-dialog p-fluid">
 
   <ng-template pTemplate="content">
-    <div class="bank-form-container">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
 
-      <!-- Bank Header Section -->
-      <div class="bank-form-header" *ngIf="bank.bankId">
-        <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue">
-          <i class="pi pi-building"></i>
-        </div>
-        <div class="bank-info">
-          <h3 class="bank-name">{{ bank.name || ('new_bank' | translate) }}</h3>
-          <p class="bank-subtitle">{{ 'edit_bank_details' | translate }}</p>
-        </div>
+        <!-- Basic information -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+              <i class="pi pi-building"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'basic_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="name" class="ims-form-label">
+                  {{'bank_name' | translate}} <span class="required-asterisk">*</span>
+                </label>
+                <input id="name" type="text" pInputText [(ngModel)]="bank.name"
+                  [ngClass]="{'ng-invalid ng-dirty': submittedBank && !bank.name}"
+                  placeholder="{{ 'enter_bank_name' | translate }}" />
+                <small *ngIf="submittedBank && !bank.name" class="p-error">
+                  {{'bank_name' | translate}} {{'is_required_label' | translate}}
+                </small>
+              </div>
+              <div class="field">
+                <label for="code" class="ims-form-label">{{'bank_code' | translate}}</label>
+                <input id="code" type="text" pInputText [(ngModel)]="bank.code"
+                  placeholder="{{ 'enter_bank_code' | translate }}" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Location information -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
+              <i class="pi pi-map-marker"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'location_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="country" class="ims-form-label">{{'country' | translate}}</label>
+                <input id="country" type="text" pInputText [(ngModel)]="bank.country"
+                  placeholder="{{ 'enter_country' | translate }}" />
+              </div>
+              <div class="field">
+                <label for="city" class="ims-form-label">{{'city' | translate}}</label>
+                <input id="city" type="text" pInputText [(ngModel)]="bank.city"
+                  placeholder="{{ 'enter_city' | translate }}" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="address" class="ims-form-label">{{'address' | translate}}</label>
+              <textarea id="address" rows="3" pInputTextarea [autoResize]="true" [(ngModel)]="bank.address"
+                placeholder="{{ 'enter_address' | translate }}"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Contact information -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal">
+              <i class="pi pi-phone"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'contact_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="phoneNumber" class="ims-form-label">{{'phone_number' | translate}}</label>
+                <input id="phoneNumber" type="tel" pInputText [(ngModel)]="bank.phoneNumber"
+                  placeholder="{{ 'enter_phone_number' | translate }}" />
+              </div>
+              <div class="field">
+                <label for="email" class="ims-form-label">{{'email' | translate}}</label>
+                <input id="email" type="email" pInputText [(ngModel)]="bank.email"
+                  placeholder="{{ 'enter_email_address' | translate }}" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="website" class="ims-form-label">{{'website' | translate}}</label>
+              <input id="website" type="url" pInputText [(ngModel)]="bank.website"
+                placeholder="https://example.com" />
+            </div>
+          </div>
+        </section>
+
+        <!-- Additional information -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
+              <i class="pi pi-align-left"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'additional_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="field">
+              <label for="notes" class="ims-form-label">{{'notes' | translate}}</label>
+              <textarea id="notes" rows="3" pInputTextarea [autoResize]="true" [(ngModel)]="bank.notes"
+                placeholder="{{ 'enter_additional_notes' | translate }}"></textarea>
+            </div>
+            <div class="ims-form-checkbox-row">
+              <p-checkbox [(ngModel)]="bank.active" inputId="active" [binary]="true"></p-checkbox>
+              <label for="active" class="ims-form-label ims-form-label--inline">{{'active' | translate}}</label>
+            </div>
+          </div>
+        </section>
+
       </div>
 
-      <!-- Form Fields -->
-      <div class="form-sections">
-
-        <!-- Basic Information Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <i class="pi pi-info-circle"></i>
-            <span>{{ 'basic_information' | translate }}</span>
-          </div>
-          <div class="section-body">
-            <div class="grid">
-              <div class="col-12">
-                <div class="field">
-                  <label for="name" class="field-label">
-                    {{'bank_name' | translate}} <span class="required-asterisk">*</span>
-                  </label>
-                  <input id="name" type="text" pInputText [(ngModel)]="bank.name"
-                    [ngClass]="{'ng-invalid ng-dirty': submittedBank && !bank.name}"
-                    placeholder="{{ 'enter_bank_name' | translate }}" />
-                  <small *ngIf="submittedBank && !bank.name" class="error-message">
-                    <i class="pi pi-exclamation-circle mr-1"></i>
-                    {{'bank_name' | translate}} {{'is_required_label' | translate}}
-                  </small>
-                </div>
-              </div>
-
-              <div class="col-12">
-                <div class="field">
-                  <label for="code" class="field-label">{{'bank_code' | translate}}</label>
-                  <input id="code" type="text" pInputText [(ngModel)]="bank.code"
-                    placeholder="{{ 'enter_bank_code' | translate }}" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Location Information Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <i class="pi pi-map-marker"></i>
-            <span>{{ 'location_information' | translate }}</span>
-          </div>
-          <div class="section-body">
-            <div class="grid">
-              <div class="col-12 md:col-6">
-                <div class="field">
-                  <label for="country" class="field-label">{{'country' | translate}}</label>
-                  <input id="country" type="text" pInputText [(ngModel)]="bank.country"
-                    placeholder="{{ 'enter_country' | translate }}" />
-                </div>
-              </div>
-              <div class="col-12 md:col-6">
-                <div class="field">
-                  <label for="city" class="field-label">{{'city' | translate}}</label>
-                  <input id="city" type="text" pInputText [(ngModel)]="bank.city"
-                    placeholder="{{ 'enter_city' | translate }}" />
-                </div>
-              </div>
-              <div class="col-12">
-                <div class="field">
-                  <label for="address" class="field-label">{{'address' | translate}}</label>
-                  <textarea id="address" rows="3" pInputTextarea [(ngModel)]="bank.address"
-                    placeholder="{{ 'enter_address' | translate }}"></textarea>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Contact Information Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <i class="pi pi-phone"></i>
-            <span>{{ 'contact_information' | translate }}</span>
-          </div>
-          <div class="section-body">
-            <div class="grid">
-              <div class="col-12 md:col-6">
-                <div class="field">
-                  <label for="phoneNumber" class="field-label">{{'phone_number' | translate}}</label>
-                  <input id="phoneNumber" type="tel" pInputText [(ngModel)]="bank.phoneNumber"
-                    placeholder="{{ 'enter_phone_number' | translate }}" />
-                </div>
-              </div>
-              <div class="col-12 md:col-6">
-                <div class="field">
-                  <label for="email" class="field-label">{{'email' | translate}}</label>
-                  <input id="email" type="email" pInputText [(ngModel)]="bank.email"
-                    placeholder="{{ 'enter_email_address' | translate }}" />
-                </div>
-              </div>
-              <div class="col-12">
-                <div class="field">
-                  <label for="website" class="field-label">{{'website' | translate}}</label>
-                  <input id="website" type="url" pInputText [(ngModel)]="bank.website"
-                    placeholder="https://example.com" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Additional Information Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <i class="pi pi-file-text"></i>
-            <span>{{ 'additional_information' | translate }}</span>
-          </div>
-          <div class="section-body">
-            <div class="grid">
-              <div class="col-12">
-                <div class="field">
-                  <label for="notes" class="field-label">{{'notes' | translate}}</label>
-                  <textarea id="notes" rows="3" pInputTextarea [(ngModel)]="bank.notes"
-                    placeholder="{{ 'enter_additional_notes' | translate }}"></textarea>
-                </div>
-              </div>
-              <div class="col-12">
-                <div class="field">
-                  <div class="flex align-items-center">
-                    <p-checkbox [(ngModel)]="bank.active" inputId="active"
-                      [binary]="true"></p-checkbox>
-                    <label for="active" class="field-label checkbox-label">{{'active' | translate}}</label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
       </div>
     </div>
   </ng-template>

@@ -122,7 +122,7 @@
             </div>
 
             <p-table
-                *ngIf="(!isInitialLoad || movements.length) && (!isLoading || movements.length)"
+                [hidden]="(isLoading || isInitialLoad) && !movements.length"
                 #dt 
                 [value]="movements" 
                 [lazy]="true"
@@ -178,7 +178,7 @@
                                     class="product-image-small border-round">
                                 <div>
                                     <div class="font-bold">{{ movement.product?.name || 'N/A' }}</div>
-                                    <div class="text-600 text-sm">{{ movement.product?.reference || '' }}</div>
+                                    <div *ngIf="movement.product?.reference"><span class="reference-badge">{{ movement.product.reference }}</span></div>
                                 </div>
                             </div>
                         </td>
@@ -217,22 +217,23 @@
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'reference' | translate }}</span>
-                            {{ movement.reference || 'N/A' }}
+                            <span class="reference-badge">{{ movement.reference || 'N/A' }}</span>
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'source_document' | translate }}</span>
-                            <button 
-                                *ngIf="hasSourceDocument(movement)"
-                                pButton 
+                            <button
+                                *ngIf="isNavigableSource(movement)"
+                                pButton
                                 pRipple
                                 type="button"
-                                [label]="movement.sourceDocumentType | translate"
+                                [label]="getSourceDocumentLabel(movement.sourceDocumentType)"
                                 icon="pi pi-external-link"
                                 class="p-button-sm p-button-link"
                                 (click)="navigateToSourceDocument(movement)"
                                 pTooltip="{{ 'view_source_document' | translate }}">
                             </button>
-                            <span *ngIf="!hasSourceDocument(movement)" class="text-600">-</span>
+                            <span *ngIf="!isNavigableSource(movement) && movement.sourceDocumentType" class="text-600">{{ getSourceDocumentLabel(movement.sourceDocumentType) }}</span>
+                            <span *ngIf="!movement.sourceDocumentType" class="text-600">-</span>
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'performed_by' | translate }}</span>

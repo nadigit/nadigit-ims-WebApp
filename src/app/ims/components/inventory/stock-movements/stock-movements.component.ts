@@ -398,36 +398,37 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
-  // Navigation to source documents
+  /** Source types that map to a document detail page we can navigate to. */
+  private readonly navigableSourceTypes = new Set<string>([
+    'ORDER',
+    'PURCHASE', 'PURCHASE_RECEIVED', 'PURCHASE_ADJUSTMENT',
+    'ORDER_RETURN', 'ORDER_RETURN_CANCEL',
+    'PURCHASE_RETURN', 'PURCHASE_RETURN_CANCEL',
+  ]);
+
+  /** True when the movement's source document has a detail page we can open. */
+  isNavigableSource(movement: StockMovement): boolean {
+    return !!(movement.sourceDocumentType && movement.sourceDocumentId
+      && this.navigableSourceTypes.has(movement.sourceDocumentType.toUpperCase()));
+  }
+
+  // Navigation to source documents (uses the movement's sourceDocumentId → document detail page)
   navigateToSourceDocument(movement: StockMovement) {
-    if (!movement.sourceDocumentType || !movement.sourceDocumentId) {
+    if (!this.isNavigableSource(movement)) {
       return;
     }
+    const id = movement.sourceDocumentId;
+    const type = (movement.sourceDocumentType || '').toUpperCase();
 
-    switch (movement.sourceDocumentType) {
-      case 'PURCHASE':
-        if (movement.purchase?.purchaseId) {
-          this.router.navigate(['/inventory/purchases'], {
-            queryParams: { id: movement.purchase.purchaseId }
-          });
-        }
-        break;
-      case 'ORDER':
-        if (movement.order?.orderId) {
-          this.router.navigate(['/sales/orders'], {
-            queryParams: { id: movement.order.orderId }
-          });
-        }
-        break;
-      case 'WAREHOUSE_TRANSFER':
-        if (movement.warehouseTransfer?.transferId) {
-          this.router.navigate(['/inventory/warehouse-transfers'], {
-            queryParams: { id: movement.warehouseTransfer.transferId }
-          });
-        }
-        break;
-      default:
-        console.log('Unknown source document type:', movement.sourceDocumentType);
+    if (type === 'ORDER') {
+      this.router.navigate(['/sales/orders', id]);
+    } else if (type === 'ORDER_RETURN' || type === 'ORDER_RETURN_CANCEL') {
+      this.router.navigate(['/sales/returns', id]);
+    } else if (type === 'PURCHASE_RETURN' || type === 'PURCHASE_RETURN_CANCEL') {
+      this.router.navigate(['/purchases/purchase-returns', id]);
+    } else if (type.startsWith('PURCHASE')) {
+      // PURCHASE, PURCHASE_RECEIVED, PURCHASE_ADJUSTMENT
+      this.router.navigate(['/purchases/purchases', id]);
     }
   }
 
@@ -490,6 +491,20 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
 
   hasSourceDocument(movement: StockMovement): boolean {
     return !!(movement.sourceDocumentType && movement.sourceDocumentId);
+  }
+
+  /**
+   * Human-readable, translated label for a movement's source document type
+   * (e.g. ORDER → "Order"/"Commande", PURCHASE → "Purchase"/"Achat").
+   * Falls back to the raw value when no translation key exists.
+   */
+  getSourceDocumentLabel(type: string | undefined | null): string {
+    if (!type) {
+      return '';
+    }
+    const key = 'stock_movement_source_' + type.toLowerCase();
+    const translated = this.translate.instant(key);
+    return translated && translated !== key ? translated : type;
   }
 
   ngOnDestroy() {
@@ -680,7 +695,7 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
         previousQuantity: this.formatStockLevel(movement, movement.previousQuantity),
         newQuantity: this.formatStockLevel(movement, movement.newQuantity),
         reference: movement.reference || 'N/A',
-        sourceDocument: movement.sourceDocumentType && movement.reference ? `${movement.sourceDocumentType}: ${movement.reference}` : (movement.sourceDocumentType || 'N/A'),
+        sourceDocument: movement.sourceDocumentType ? (movement.reference ? `${this.getSourceDocumentLabel(movement.sourceDocumentType)}: ${movement.reference}` : this.getSourceDocumentLabel(movement.sourceDocumentType)) : 'N/A',
         performedBy: movement.performedBy || 'N/A'
       }));
       
@@ -902,7 +917,7 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
         translated[this.translate.instant('previous_quantity')] = this.formatStockLevel(movement, movement.previousQuantity);
         translated[this.translate.instant('new_quantity')] = this.formatStockLevel(movement, movement.newQuantity);
         translated[this.translate.instant('reference')] = movement.reference || 'N/A';
-        translated[this.translate.instant('source_document')] = movement.sourceDocumentType && movement.reference ? `${movement.sourceDocumentType}: ${movement.reference}` : (movement.sourceDocumentType || 'N/A');
+        translated[this.translate.instant('source_document')] = movement.sourceDocumentType ? (movement.reference ? `${this.getSourceDocumentLabel(movement.sourceDocumentType)}: ${movement.reference}` : this.getSourceDocumentLabel(movement.sourceDocumentType)) : 'N/A';
         translated[this.translate.instant('performed_by')] = movement.performedBy || 'N/A';
         return translated;
       });

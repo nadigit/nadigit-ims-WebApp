@@ -308,15 +308,7 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.reference-badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  background: var(--surface-ground);
-  border-radius: 4px;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 0.8125rem;
-  color: var(--text-color-secondary);
-}
+/* .reference-badge is defined globally in assets/ims/styles/badges.scss */
 
 .out-of-stock-row {
   background: rgba(239, 68, 68, 0.03) !important;

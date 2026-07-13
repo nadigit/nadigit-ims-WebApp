@@ -91,6 +91,17 @@
                             </p-dropdown>
                             <small class="ims-form-hint">{{ 'costing_method_inheritance_help' | translate }}</small>
                         </div>
+
+                        <!-- Enterprise VAT assignment (rules mode + license + admin, edit mode only) -->
+                        <div class="field col-12" *ngIf="showVatField">
+                            <label for="categoryVat" class="ims-form-label">{{ 'category_vat_label' | translate }}</label>
+                            <p-dropdown appendTo="body" inputId="categoryVat"
+                                [(ngModel)]="selectedVatRate" name="categoryVat"
+                                [options]="vatOptions" optionLabel="label" optionValue="value"
+                                styleClass="w-full">
+                            </p-dropdown>
+                            <small class="ims-form-hint">{{ 'category_vat_hint' | translate }}</small>
+                        </div>
                     </div>
                 </section>
 

@@ -1,65 +1,35 @@
-/* Container + hero shell: see global detail-hero.scss */
-
-.backups-hero {
-  position: relative;
-  overflow: hidden;
+/* Layout — hero shell and detail-card visuals come from the global detail-hero.scss. */
+.backups-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
 }
 
-.hero-background {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(64, 117, 168, 0.08), transparent);
-}
-
-.hero-content {
-  position: relative;
-  padding: 1.5rem 2rem;
-}
-
+/* Cards stack with a consistent gap */
 .backups-content {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
-.backup-config-card,
-.backup-list-card {
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
+/* Card header variant: title on the left, status tag pushed right */
+.card-header--split {
   justify-content: space-between;
-  margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
+/* =====================================================
+   Backup configuration
+   ===================================================== */
 .config-grid {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-.config-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.config-item.full-width {
+.config-item--full {
   grid-column: 1 / -1;
-}
-
-.config-item .label {
-  font-size: 0.85rem;
-  color: var(--text-color-secondary);
-}
-
-.config-item .value {
-  font-weight: 600;
-  color: var(--text-color);
+  align-items: flex-start !important;
 }
 
 .path-item {
@@ -79,6 +49,9 @@
   color: var(--text-color-secondary);
 }
 
+/* =====================================================
+   Tables
+   ===================================================== */
 .actions {
   display: flex;
   align-items: center;
@@ -91,6 +64,9 @@
   font-size: 0.8rem;
 }
 
+/* =====================================================
+   Details dialog
+   ===================================================== */
 .details-grid {
   display: grid;
   gap: 0.75rem;
@@ -121,13 +97,9 @@
   color: var(--red-500);
 }
 
-.restore-card {
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-}
-
+/* =====================================================
+   Restore management
+   ===================================================== */
 .restore-warning {
   display: flex;
   gap: 0.75rem;
@@ -162,13 +134,20 @@
   margin-bottom: 1rem;
 }
 
+.restore-disabled--inline {
+  margin-bottom: 0;
+}
+
 .restore-form {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
-.restore-settings-section {
+/* Step sections share one boxed look */
+.restore-settings-section,
+.maintenance-section,
+.restore-options-section {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -176,6 +155,33 @@
   border-radius: 12px;
   border: 1px solid var(--surface-border);
   background: var(--surface-50);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: var(--primary-color-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .settings-status {
@@ -185,32 +191,15 @@
   gap: 0.5rem;
 }
 
-.restore-settings-actions {
+.settings-status .label {
+  color: var(--text-color-secondary);
+}
+
+.restore-settings-actions,
+.maintenance-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-}
-
-.maintenance-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-radius: 12px;
-  border: 1px solid var(--surface-border);
-  background: var(--surface-50);
-}
-
-.maintenance-section .section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.section-title {
-  font-weight: 600;
-  color: var(--text-color);
 }
 
 .maintenance-message {
@@ -219,10 +208,8 @@
   gap: 0.35rem;
 }
 
-.maintenance-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+.maintenance-message textarea {
+  width: 100%;
 }
 
 .maintenance-note {
@@ -233,6 +220,15 @@
   font-size: 0.9rem;
 }
 
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+/* =====================================================
+   Restore options (step 3)
+   ===================================================== */
 .form-grid {
   display: grid;
   gap: 1rem;
@@ -245,11 +241,22 @@
   gap: 0.35rem;
 }
 
+.toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 2rem;
+  row-gap: 0.5rem;
+}
+
 .toggle-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--text-color);
+}
+
+.toggle-row label {
+  cursor: pointer;
 }
 
 .confirm-row {
@@ -261,11 +268,16 @@
   background: var(--surface-100);
 }
 
+.confirm-row input {
+  width: 100%;
+}
+
 .confirm-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .confirm-phrase {
@@ -280,6 +292,11 @@
   justify-content: flex-end;
 }
 
-.restore-jobs {
-  margin-top: 1.5rem;
+/* =====================================================
+   Responsive
+   ===================================================== */
+@media screen and (max-width: 992px) {
+  .backups-container {
+    padding: 0 0.5rem 1.5rem;
+  }
 }

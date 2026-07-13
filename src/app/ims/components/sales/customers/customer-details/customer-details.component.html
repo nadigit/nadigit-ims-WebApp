@@ -1013,49 +1013,108 @@
         </p-tabView>
     </div>
 
-    <p-dialog [(visible)]="overrideDialog" [style]="{width: '520px'}"
+    <p-dialog [(visible)]="overrideDialog" [style]="{width: 'min(92vw, 560px)'}"
+        [breakpoints]="{'640px': '95vw'}"
         [header]="overrideForm?.id ? ('edit_override' | translate) : ('add_override' | translate)" [modal]="true"
-        [draggable]="false" [resizable]="false" class="p-fluid">
+        [draggable]="false" [resizable]="false"
+        styleClass="ims-form-dialog-shell" class="p-fluid">
         <ng-template pTemplate="content">
-            <div class="field">
-                <label>{{ 'product' | translate }} <span class="required-asterisk">*</span></label>
-                <p-autoComplete [(ngModel)]="selectedOverrideProduct" [suggestions]="productSuggestions"
-                    [loading]="productSuggestionsLoading" (completeMethod)="searchProducts($event)"
-                    (onSelect)="onOverrideProductSelect($event.value)" field="name" [forceSelection]="true" [dropdown]="true"
-                    placeholder="{{ 'search_products' | translate }}">
-                    <ng-template let-product pTemplate="item">
-                        <div class="flex flex-column">
-                            <span class="font-medium">{{ product.name }}</span>
-                            <small class="text-500">{{ product.reference }}</small>
+            <div class="ims-form-layout">
+                <div class="ims-form-fields">
+                    <!-- Product & price -->
+                    <section class="ims-form-section">
+                        <header class="ims-form-section__header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                                <i class="pi pi-tag"></i>
+                            </div>
+                            <h3 class="ims-form-section__title">{{ 'pricing' | translate }}</h3>
+                        </header>
+                        <div class="grid ims-form-section__body">
+                            <div class="field col-12">
+                                <label for="overrideProduct" class="ims-form-label">
+                                    {{ 'product' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <p-autoComplete inputId="overrideProduct" [(ngModel)]="selectedOverrideProduct"
+                                    [suggestions]="productSuggestions" [loading]="productSuggestionsLoading"
+                                    (completeMethod)="searchProducts($event)"
+                                    (onSelect)="onOverrideProductSelect($event.value)" field="name"
+                                    [forceSelection]="true" [dropdown]="true" appendTo="body"
+                                    placeholder="{{ 'search_products' | translate }}">
+                                    <ng-template let-product pTemplate="item">
+                                        <div class="flex flex-column">
+                                            <span class="font-medium">{{ product.name }}</span>
+                                            <small class="text-500">{{ product.reference }}</small>
+                                        </div>
+                                    </ng-template>
+                                </p-autoComplete>
+                                <small class="p-error" *ngIf="overrideSubmitted && (!overrideForm || !overrideForm.productId)">
+                                    {{ 'product' | translate }} {{ 'is_required_label' | translate }}
+                                </small>
+                            </div>
+                            <div class="field col-12">
+                                <label for="overrideUnitPrice" class="ims-form-label">
+                                    {{ 'unit_price' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <p-inputNumber inputId="overrideUnitPrice" [(ngModel)]="overrideForm!.unitPrice"
+                                    [min]="0" mode="currency" [currency]="currency"
+                                    styleClass="w-full"></p-inputNumber>
+                                <small class="p-error"
+                                    *ngIf="overrideSubmitted && (!overrideForm || !overrideForm.unitPrice || overrideForm.unitPrice <= 0)">
+                                    {{ 'unit_price' | translate }} {{ 'is_required_label' | translate }}
+                                </small>
+                            </div>
                         </div>
-                    </ng-template>
-                </p-autoComplete>
-                <small class="p-error" *ngIf="overrideSubmitted && (!overrideForm || !overrideForm.productId)">
-                    {{ 'product' | translate }} {{ 'is_required_label' | translate }}
-                </small>
-            </div>
-            <div class="field">
-                <label>{{ 'unit_price' | translate }} <span class="required-asterisk">*</span></label>
-                <p-inputNumber [(ngModel)]="overrideForm!.unitPrice" [min]="0" [minFractionDigits]="2"
-                    [maxFractionDigits]="2"></p-inputNumber>
-                <small class="p-error"
-                    *ngIf="overrideSubmitted && (!overrideForm || !overrideForm.unitPrice || overrideForm.unitPrice <= 0)">
-                    {{ 'unit_price' | translate }} {{ 'is_required_label' | translate }}
-                </small>
-            </div>
-            <div class="field">
-                <label>{{ 'valid_from' | translate }}</label>
-                <p-calendar [(ngModel)]="overrideForm!.validFrom" dateFormat="yy-mm-dd" showIcon="true"
-                    appendTo="body"></p-calendar>
-            </div>
-            <div class="field">
-                <label>{{ 'valid_to' | translate }}</label>
-                <p-calendar [(ngModel)]="overrideForm!.validTo" dateFormat="yy-mm-dd" showIcon="true"
-                    appendTo="body"></p-calendar>
-            </div>
-            <div class="field">
-                <label>{{ 'notes' | translate }}</label>
-                <textarea pInputTextarea rows="3" [(ngModel)]="overrideForm!.notes"></textarea>
+                    </section>
+
+                    <!-- Validity period -->
+                    <section class="ims-form-section">
+                        <header class="ims-form-section__header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                                <i class="pi pi-calendar"></i>
+                            </div>
+                            <h3 class="ims-form-section__title">{{ 'validity_period' | translate }}</h3>
+                        </header>
+                        <div class="ims-form-section__body">
+                            <div class="ims-form-row">
+                                <div class="field">
+                                    <label for="overrideValidFrom" class="ims-form-label">{{ 'valid_from' | translate }}</label>
+                                    <p-calendar inputId="overrideValidFrom" [(ngModel)]="overrideForm!.validFrom"
+                                        dateFormat="yy-mm-dd" showIcon="true" appendTo="body"></p-calendar>
+                                </div>
+                                <div class="field">
+                                    <label for="overrideValidTo" class="ims-form-label">{{ 'valid_to' | translate }}</label>
+                                    <p-calendar inputId="overrideValidTo" [(ngModel)]="overrideForm!.validTo"
+                                        dateFormat="yy-mm-dd" showIcon="true" appendTo="body"></p-calendar>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Additional information -->
+                    <section class="ims-form-section">
+                        <header class="ims-form-section__header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--neutral">
+                                <i class="pi pi-align-left"></i>
+                            </div>
+                            <h3 class="ims-form-section__title">{{ 'additional_information' | translate }}</h3>
+                        </header>
+                        <div class="grid ims-form-section__body">
+                            <div class="field col-12">
+                                <label for="overrideNotes" class="ims-form-label">
+                                    {{ 'notes' | translate }}
+                                    <span class="ims-form-hint ims-form-hint--inline">({{ 'optional' | translate }})</span>
+                                </label>
+                                <textarea pInputTextarea id="overrideNotes" rows="3" [autoResize]="true"
+                                    [(ngModel)]="overrideForm!.notes"
+                                    placeholder="{{ 'enter_notes_optional' | translate }}"></textarea>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="ims-form-required-note">
+                    <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+                </div>
             </div>
         </ng-template>
         <ng-template pTemplate="footer">

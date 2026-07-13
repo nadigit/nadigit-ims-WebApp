@@ -44,6 +44,35 @@ export interface PurchaseSummary {
   totalOutstandingPurchaseAmount: number;
 }
 
+export interface VatRateLine {
+  ratePercent: number;
+  taxableBase: number;
+  taxAmount: number;
+  documentCount: number;
+  returnedBase: number;
+  returnedTax: number;
+  netTax: number;
+}
+
+export interface VatDeclaration {
+  fromDate: string;
+  toDate: string;
+  shopName: string;
+  outputVat: VatRateLine[];
+  totalOutputBase: number;
+  totalOutputTax: number;
+  totalOutputReturnedTax: number;
+  netOutputTax: number;
+  salesDocumentCount: number;
+  inputVat: VatRateLine[];
+  totalInputBase: number;
+  totalInputTax: number;
+  totalInputReturnedTax: number;
+  netInputTax: number;
+  purchaseDocumentCount: number;
+  netVatPayable: number;
+}
+
 export interface InventorySituationLine {
   productId: number;
   reference: string;
@@ -294,6 +323,40 @@ export class ReportsService {
     return this.http.get<PurchaseSummary>(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/purchases/summary`,
       { headers, params }
+    );
+  }
+
+  async getVatDeclaration(fromDate: string, toDate: string, shopId?: number): Promise<Observable<VatDeclaration>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams().set('fromDate', fromDate).set('toDate', toDate);
+    if (shopId != null) {
+      params = params.set('shopId', shopId.toString());
+    }
+    return this.http.get<VatDeclaration>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/vat/declaration`,
+      { headers, params }
+    );
+  }
+
+  async downloadVatDeclaration(
+    fromDate: string,
+    toDate: string,
+    format: 'csv' | 'excel',
+    shopId?: number
+  ): Promise<Observable<any>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams()
+      .set('fromDate', fromDate)
+      .set('toDate', toDate)
+      .set('format', format === 'excel' ? 'xlsx' : 'csv');
+    if (shopId != null) {
+      params = params.set('shopId', shopId.toString());
+    }
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/vat/declaration/export`,
+      { headers, params, responseType: 'blob' as 'blob', observe: 'response' }
     );
   }
 

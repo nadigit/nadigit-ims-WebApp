@@ -221,7 +221,7 @@
                                                 [icon]="getTransactionTypeIcon(transaction.type)"></p-tag>
                                         </td>
                                         <td>{{ transaction.description || '-' }}</td>
-                                        <td class="font-mono text-sm">{{ transaction.reference || '-' }}</td>
+                                        <td><span class="reference-badge">{{ transaction.reference || '-' }}</span></td>
                                         <td>
                                             <span [ngClass]="getTransactionTypeSeverity(transaction.type) === 'success' ? 'text-green-600' : 'text-red-600'"
                                                 class="font-bold">
@@ -470,7 +470,7 @@
             <div class="col-12 md:col-6">
                 <div class="dialog-info-item">
                     <strong>{{ 'reference' | translate }}:</strong>
-                    <p class="m-0 font-mono">{{ selectedTransaction.reference || '-' }}</p>
+                    <p class="m-0"><span class="reference-badge">{{ selectedTransaction.reference || '-' }}</span></p>
                 </div>
             </div>
             <div class="col-12 md:col-6">

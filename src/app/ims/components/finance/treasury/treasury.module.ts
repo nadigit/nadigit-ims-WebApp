@@ -43,6 +43,7 @@ import { ReportingService } from 'src/app/utils/reporting.service';
     CalendarModule,
     TagModule,
     SelectButtonModule,
+    InputNumberModule,
     TooltipModule,
     ProgressSpinnerModule,
     TranslateModule,

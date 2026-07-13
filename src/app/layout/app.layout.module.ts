@@ -34,6 +34,7 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { BrandLogoComponent } from '../shared/brand-logo';
 
 
@@ -75,6 +76,7 @@ import { BrandLogoComponent } from '../shared/brand-logo';
         TooltipModule,
         ProgressBarModule,
         ProgressSpinnerModule,
+        ConfirmPopupModule,
         CashRegisterSessionModule,
         BrandLogoComponent
     ],

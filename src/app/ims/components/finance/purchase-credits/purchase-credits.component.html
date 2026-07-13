@@ -231,7 +231,7 @@
                                 pTooltip="{{ 'credit_locked' | translate }}">
                             </i>
                         </td>
-                        <td>#{{ credit.purchaseReturn?.purchase?.reference || 'N/A' }}</td>
+                        <td><span class="reference-badge">#{{ credit.purchaseReturn?.purchase?.reference || 'N/A' }}</span></td>
                         <td>{{ credit.amount | currency:currency:'symbol':'1.2-2' }}</td>
                         <td>
                             <span [class]="'refund-badge refund-' + credit?.status?.toLowerCase()">

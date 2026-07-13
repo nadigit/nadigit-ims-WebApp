@@ -10,7 +10,7 @@ import {
   AiLlmTestResult,
 } from 'src/app/services/ai-integration.service';
 
-type AiFieldKind = 'boolean' | 'provider' | 'invoiceMode' | 'secret' | 'hybridThreshold' | 'maxChars' | 'integer' | 'endpoint' | 'text';
+type AiFieldKind = 'boolean' | 'provider' | 'fallbackProvider' | 'invoiceMode' | 'secret' | 'hybridThreshold' | 'maxChars' | 'integer' | 'endpoint' | 'text';
 
 @Component({
   selector: 'app-ai-integration-config',
@@ -29,6 +29,7 @@ export class AiIntegrationConfigComponent implements OnInit {
 
   booleanOptions: { label: string; value: string }[] = [];
   aiProviderOptions: { label: string; value: string }[] = [];
+  aiFallbackProviderOptions: { label: string; value: string }[] = [];
   aiInvoiceModeOptions: { label: string; value: string }[] = [];
 
   private readonly aiSecretConfigKeys = new Set<string>([
@@ -63,6 +64,7 @@ export class AiIntegrationConfigComponent implements OnInit {
   private readonly alwaysVisibleConfigKeys = new Set<string>([
     'ai.integration.enabled',
     'ai.integration.provider',
+    'ai.integration.fallback.provider',
     'ai.invoice.mode',
     'ai.invoice.hybrid.confidence.threshold',
     'ai.invoice.max.context.chars',
@@ -85,6 +87,7 @@ export class AiIntegrationConfigComponent implements OnInit {
   private static readonly KEY_ORDER: string[] = [
     'ai.integration.enabled',
     'ai.integration.provider',
+    'ai.integration.fallback.provider',
     'ai.openai.api.key',
     'ai.openai.base.url',
     'ai.openai.model',
@@ -115,6 +118,7 @@ export class AiIntegrationConfigComponent implements OnInit {
   private static readonly DEFAULT_VALUES: Record<string, string> = {
     'ai.integration.enabled': 'false',
     'ai.integration.provider': 'OPENAI',
+    'ai.integration.fallback.provider': 'NONE',
     'ai.openai.api.key': '',
     'ai.openai.base.url': 'https://api.openai.com/v1',
     'ai.openai.model': 'gpt-4o-mini',
@@ -221,6 +225,10 @@ export class AiIntegrationConfigComponent implements OnInit {
       { label: this.translate.instant('ai_provider_GOOGLE'), value: 'GOOGLE' },
       { label: this.translate.instant('ai_provider_OPENROUTER'), value: 'OPENROUTER' },
     ];
+    this.aiFallbackProviderOptions = [
+      { label: this.translate.instant('ai_provider_NONE'), value: 'NONE' },
+      ...this.aiProviderOptions,
+    ];
     this.aiInvoiceModeOptions = [
       { label: this.translate.instant('ai_invoice_mode_OFF'), value: 'OFF' },
       { label: this.translate.instant('ai_invoice_mode_HYBRID'), value: 'HYBRID' },
@@ -283,6 +291,9 @@ export class AiIntegrationConfigComponent implements OnInit {
     if (key === 'ai.integration.provider') {
       return 'provider';
     }
+    if (key === 'ai.integration.fallback.provider') {
+      return 'fallbackProvider';
+    }
     if (key === 'ai.invoice.mode') {
       return 'invoiceMode';
     }
@@ -320,6 +331,9 @@ export class AiIntegrationConfigComponent implements OnInit {
 
   getAiProviderLabel(value: string): string {
     const v = (value || '').toUpperCase();
+    if (v === 'NONE' || v === '') {
+      return this.translate.instant('ai_provider_NONE');
+    }
     const opt = this.aiProviderOptions.find(o => o.value === v);
     return opt ? opt.label : (value || '');
   }
@@ -341,11 +355,21 @@ export class AiIntegrationConfigComponent implements OnInit {
     return (v || 'NONE').toUpperCase();
   }
 
+  getFallbackProviderValue(): string {
+    const v = this.getConfigValue('ai.integration.fallback.provider');
+    return (v || 'NONE').toUpperCase();
+  }
+
   private shouldDisplayConfig(key: string | undefined): boolean {
     if (!key) {
       return false;
     }
     if (this.alwaysVisibleConfigKeys.has(key)) {
+      return true;
+    }
+    // The fallback provider's credentials/model must be editable too when a fallback is selected.
+    const fallbackKeys = this.providerSpecificConfigKeys[this.getFallbackProviderValue()];
+    if (Array.isArray(fallbackKeys) && fallbackKeys.includes(key)) {
       return true;
     }
     const provider = this.getCurrentProviderValue();

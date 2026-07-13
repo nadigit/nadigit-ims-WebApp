@@ -1,0 +1,99 @@
+<div class="integration-config-page trends-integration-page">
+  <p-toast></p-toast>
+
+  <!-- Hero header -->
+  <div class="detail-page-hero-shell">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+      <div class="flex align-items-center gap-2 mb-3">
+        <button pButton pRipple icon="pi pi-arrow-left"
+          class="p-button-text p-button-rounded p-button-plain back-button"
+          [pTooltip]="'back' | translate" tooltipPosition="bottom" type="button"
+          (click)="goBack()"></button>
+        <span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+        <i class="pi pi-angle-right text-400 text-sm"></i>
+        <span class="text-700 text-sm font-medium">{{ 'trends_integration_title' | translate }}</span>
+      </div>
+
+      <div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+        <div class="flex align-items-center gap-4">
+          <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--amber" aria-hidden="true">
+            <i class="pi pi-chart-line"></i>
+          </div>
+          <div>
+            <h1 class="m-0 text-900 mb-2">{{ 'trends_integration_title' | translate }}</h1>
+            <p class="text-600 m-0 line-height-3">{{ 'trends_integration_lead' | translate }}</p>
+            <div class="integration-status-chips mt-3">
+              <p-tag severity="warning" [rounded]="true" [value]="'license_tier_enterprise' | translate"></p-tag>
+              <p-tag *ngIf="licensed"
+                [severity]="isConfigured ? 'success' : 'info'" [rounded]="true"
+                [value]="(isConfigured ? 'trends_status_active' : 'trends_status_not_configured') | translate"></p-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-3 md:p-4" *ngIf="!isLoading">
+
+    <!-- Not licensed: upgrade notice -->
+    <div *ngIf="!licensed" class="surface-card border-1 surface-border border-round shadow-1 p-4 flex flex-column align-items-start gap-3 max-w-40rem">
+      <div class="flex align-items-center gap-2">
+        <i class="pi pi-lock text-2xl text-600" aria-hidden="true"></i>
+        <span class="font-semibold text-900 text-lg">{{ 'trends_upgrade_title' | translate }}</span>
+      </div>
+      <p class="text-600 m-0 line-height-3">{{ 'trends_upgrade_text' | translate }}</p>
+    </div>
+
+    <!-- Licensed: configuration form -->
+    <div *ngIf="licensed" class="flex flex-column gap-3 max-w-40rem">
+      <div class="surface-card border-1 surface-border border-round shadow-1 p-4">
+        <h3 class="mt-0 mb-3 text-900">{{ 'trends_provider_section' | translate }}</h3>
+
+        <div class="mb-3">
+          <label class="block text-600 text-sm mb-1" for="trendsProvider">{{ 'trends.provider' | translate }}</label>
+          <p-dropdown inputId="trendsProvider" [(ngModel)]="provider" [options]="providerOptions"
+            optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body"></p-dropdown>
+          <small class="text-600 block mt-1">{{ 'settings_trends.provider_hint' | translate }}</small>
+        </div>
+
+        <div class="mb-3" *ngIf="provider !== 'NONE'">
+          <label class="block text-600 text-sm mb-1" for="trendsApiKey">{{ 'trends.api.key' | translate }}</label>
+          <input id="trendsApiKey" [(ngModel)]="apiKey" type="password" pInputText class="w-full" autocomplete="off" />
+          <small class="text-600 block mt-1">{{ 'settings_trends.api.key_hint' | translate }}</small>
+        </div>
+
+        <div class="mb-3" *ngIf="provider !== 'NONE'">
+          <label class="block text-600 text-sm mb-1" for="trendsMaxResults">{{ 'trends.max.results' | translate }}</label>
+          <input id="trendsMaxResults" [(ngModel)]="maxResults" type="number" pInputText class="w-full" [min]="1" [max]="10" />
+        </div>
+
+        <div class="flex gap-2 mt-3">
+          <button pButton type="button" icon="pi pi-check" [label]="'save_button' | translate"
+            [loading]="isSaving" (click)="save()"></button>
+          <button pButton type="button" icon="pi pi-bolt" class="p-button-outlined"
+            [label]="'trends_test_connection' | translate"
+            [loading]="isTesting" [disabled]="!isConfigured" (click)="testConnection()"></button>
+        </div>
+
+        <div class="mt-3" *ngIf="lastTestStatus !== 'idle'">
+          <p-tag [severity]="lastTestStatus === 'success' ? 'success' : 'danger'" [rounded]="true"
+            [value]="lastTestMessage"></p-tag>
+        </div>
+      </div>
+
+      <div class="surface-card border-1 surface-border border-round shadow-1 p-4">
+        <h3 class="mt-0 mb-2 text-900">{{ 'trends_how_it_works_title' | translate }}</h3>
+        <p class="text-600 m-0 line-height-3">{{ 'trends_how_it_works_text' | translate }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-4 flex align-items-center gap-2" *ngIf="isLoading">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span class="text-600">{{ 'loading' | translate }}…</span>
+  </div>
+</div>

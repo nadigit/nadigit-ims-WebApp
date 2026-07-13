@@ -37,6 +37,7 @@ import { NotificationRecipientsComponent } from './notification-recipients/notif
 import { TelegramConfigComponent } from './telegram-config/telegram-config.component';
 import { WhatsAppConfigComponent } from './whatsapp-config/whatsapp-config.component';
 import { AiIntegrationConfigComponent } from './ai-integration-config/ai-integration-config.component';
+import { TrendDataConfigComponent } from './trend-data-config/trend-data-config.component';
 import { ReactiveFormsModule } from '@angular/forms';
 import { TaxRulesUiModule } from '../../finance/tax-rules/tax-rules-ui.module';
 
@@ -85,7 +86,8 @@ import { TaxRulesUiModule } from '../../finance/tax-rules/tax-rules-ui.module';
         NotificationRecipientsComponent,
         TelegramConfigComponent,
         WhatsAppConfigComponent,
-        AiIntegrationConfigComponent
+        AiIntegrationConfigComponent,
+        TrendDataConfigComponent
     ],
     providers: [ReportingService],
 })

@@ -6,6 +6,7 @@ export class Supplier {
     country?: string;
     city?: string;
     address?: string;
+    taxExempt?: boolean;
     creationDate?: Date;
 }
 

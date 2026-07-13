@@ -21,6 +21,7 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { TaxRuleService } from 'src/app/services/tax-rule.service';
 import {
   calculateProfit,
   displayAttributeValue,
@@ -160,6 +161,11 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   taxEnabled: boolean = false;
 
+  /** True when tax.calculation.mode = RULES (per-line tax rule engine active). */
+  taxRulesMode: boolean = false;
+  private taxResolveSignature = '';
+  private taxResolveSeq = 0;
+
   taxRate: number = 0.0;
 
   canAddPurchase: boolean = false;
@@ -295,7 +301,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     private organizationService: OrganizationService,
     private datePipe: DatePipe,
     private processModeService: ProcessModeService,
-    public activityProfileService: ActivityProfileService) {
+    public activityProfileService: ActivityProfileService,
+    private taxRuleService: TaxRuleService) {
     this.loadTaxRate();
   }
 
@@ -530,9 +537,46 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   }
 
   calculateTax(): number {
+    this.maybeRefreshRuleTaxRate();
     // Calculate tax based on the total amount (not including tax itself)
     const totalWithoutTax = this.calculateTotalAmountWithoutTax();
     return this.taxEnabled ? totalWithoutTax * this.taxRate : 0;
+  }
+
+  /**
+   * RULES mode only: keeps the previewed tax rate aligned with backend per-line
+   * resolution (net-weighted effective rate) whenever lines or supplier change.
+   * Deduped by signature; stale responses dropped via sequence guard.
+   */
+  private maybeRefreshRuleTaxRate(): void {
+    if (!this.taxRulesMode || !this.taxEnabled) return;
+    const lines = (this.targetProducts || [])
+      .filter(p => p?.productId)
+      .map(p => ({
+        productId: p.productId,
+        netAmount: Math.max(0, (p.purchaseItemQuantity || 0) * (p.purchaseItemPricePerUnit || 0))
+      }));
+    if (!lines.length) return;
+    const supplierId = this.purchase?.supplier?.supplierId ?? null;
+    const signature = JSON.stringify({ s: supplierId, l: lines });
+    if (signature === this.taxResolveSignature) return;
+    this.taxResolveSignature = signature;
+    const seq = ++this.taxResolveSeq;
+    this.taxRuleService
+      .resolveTaxRates({ documentType: 'PURCHASE', supplierId, lines })
+      .then(obs =>
+        obs.subscribe({
+          next: res => {
+            if (seq !== this.taxResolveSeq) return;
+            if (res && typeof res.effectiveRate === 'number' && res.mode === 'RULES') {
+              this.taxRate = res.effectiveRate;
+            }
+          },
+          error: () => {
+            this.taxResolveSignature = '';
+          }
+        })
+      );
   }
 
   calculateTotalAmountWithoutTax(): number {
@@ -574,9 +618,20 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   async loadTaxRate() {
     (await this.configService.getConfiguration("tax")).subscribe((response: any) => {
-      this.taxRate = response.value;
-      console.log("tax:" + this.taxRate)
+      // Config values arrive as strings; coerce to a number so tax arithmetic stays numeric
+      // (avoids string concatenation bugs and keeps the total correct).
+      this.taxRate = Number(response?.value) || 0;
     });
+    try {
+      (await this.configService.getConfiguration('tax.calculation.mode')).subscribe({
+        next: (cfg: any) => {
+          this.taxRulesMode = String(cfg?.value || 'GLOBAL').toUpperCase() === 'RULES';
+        },
+        error: () => (this.taxRulesMode = false)
+      });
+    } catch {
+      this.taxRulesMode = false;
+    }
   }
 
   ngAfterViewInit() {
@@ -1102,9 +1157,23 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     });
   }
 
-  /** When NadiPilot sends the user here with ?newPurchase=1, open the prepared new-purchase dialog. */
+  /** When NadiPilot sends the user here with ?newPurchase=1 or ?import=1, open the matching dialog. */
   private applyCreatePurchaseFromQuery(qp: ParamMap): void {
-    if (!qp || !qp.get('newPurchase')) {
+    if (!qp) {
+      return;
+    }
+    if (qp.get('import')) {
+      // NadiPilot hand-off: open the full import wizard for a file attached in chat.
+      setTimeout(() => {
+        try {
+          this.openImportDialog();
+        } catch {
+          // best-effort; the user is already on the purchases screen
+        }
+      }, 600);
+      return;
+    }
+    if (!qp.get('newPurchase')) {
       return;
     }
     const supplierName = qp.get('supplier');
@@ -1563,7 +1632,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
     const page = first! / rows!;
     const size = rows!;
-    const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+    // PrimeNG convention: sortOrder -1 = descending, 1 = ascending.
+    const direction = sortOrder === -1 ? 'DESC' : 'ASC';
     
     // Pass filters as-is - the service expects { field: { value: ..., matchMode: ... } } format
     const filterPayload = filters || {};
@@ -1776,7 +1846,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       
       // Build filters object from component filter properties (same as loadPurchases)
       const { sortField, sortOrder } = this.lastLazyLoadEvent;
-      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      // PrimeNG convention: sortOrder -1 = descending, 1 = ascending.
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC';
       const filterPayload: any = { ...this.lastLazyLoadEvent.filters };
       
       if (this.selectedPurchaseStatus) {
@@ -1957,7 +2028,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       
       // Build filters object from component filter properties (same as loadPurchases)
       const { sortField, sortOrder } = this.lastLazyLoadEvent;
-      const direction = sortOrder === -1 ? 'ASC' : 'DESC';
+      // PrimeNG convention: sortOrder -1 = descending, 1 = ascending.
+      const direction = sortOrder === -1 ? 'DESC' : 'ASC';
       const filterPayload: any = { ...this.lastLazyLoadEvent.filters };
       
       if (this.selectedPurchaseStatus) {

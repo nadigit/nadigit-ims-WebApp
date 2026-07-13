@@ -19,6 +19,7 @@ import { CreditInfo } from 'src/app/models/credit-info';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { TaxRuleService } from 'src/app/services/tax-rule.service';
 import { PosStorageService, PendingSale } from 'src/app/services/pos-storage.service';
 import { PwaService } from 'src/app/services/pwa.service';
 import { KeycloakService } from 'keycloak-angular';
@@ -97,6 +98,12 @@ export class PosComponent implements OnInit, OnDestroy {
   cartSaving: boolean = false;
   taxEnabled: boolean = false;
   taxRate: number = 0.0; // Tax rate as decimal (e.g., 0.2 for 20%)
+  /** True when tax.calculation.mode = RULES (per-line tax rule engine active). */
+  taxRulesMode: boolean = false;
+  /** True when pricing.tax.inclusive = true (prices are TTC; tax extracted, not added). */
+  taxInclusive: boolean = false;
+  private taxResolveSignature = '';
+  private taxResolveSeq = 0;
 
   // Session & cart
   session: any = null;
@@ -338,6 +345,7 @@ export class PosComponent implements OnInit, OnDestroy {
     private translate: TranslateService,
     private translationService: TranslationService,
     private configService: AppConfigurationService,
+    private taxRuleService: TaxRuleService,
     private posStorage: PosStorageService,
     private pwaService: PwaService,
     private keycloakService: KeycloakService,
@@ -1336,11 +1344,18 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private recalculateCartTotalFromParts(cart: POSCartDTO): void {
-    cart.totalAmount =
-      (cart.subtotal || 0) -
-      (cart.discountAmount || 0) +
-      (cart.taxAmount || 0) +
-      this.cartNonTaxableExtras(cart);
+    const goods = (cart.subtotal || 0) - (cart.discountAmount || 0);
+    // In TTC mode the tax is already inside the goods amount, so it is not added again.
+    const taxToAdd = this.taxInclusive ? 0 : (cart.taxAmount || 0);
+    cart.totalAmount = goods + taxToAdd + this.cartNonTaxableExtras(cart);
+  }
+
+  /** Client-side tax for a taxable (goods after discount) amount, honouring TTC mode. */
+  private computeClientTax(taxableAmount: number): number {
+    if (this.taxRate <= 0) return 0;
+    return this.taxInclusive
+      ? taxableAmount - taxableAmount / (1 + this.taxRate)
+      : taxableAmount * this.taxRate;
   }
 
   private clearSummaryFieldDebounceTimers(): void {
@@ -1380,9 +1395,9 @@ export class PosComponent implements OnInit, OnDestroy {
     this.cart.discountType = this.discountType;
     this.cart.discountAmount = this.computeCartDiscountFromUi();
     this.cart.taxEnabled = this.taxEnabled;
-    if (this.taxEnabled && this.taxRate > 0) {
+    if (this.taxEnabled && this.taxRate > 0 && !this.isCustomerTaxExempt()) {
       const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
-      this.cart.taxAmount = taxableAmount * this.taxRate;
+      this.cart.taxAmount = this.computeClientTax(taxableAmount);
     } else {
       this.cart.taxAmount = 0;
     }
@@ -1412,6 +1427,48 @@ export class PosComponent implements OnInit, OnDestroy {
     } else if (this.cart) {
       this.summaryFieldsDirty = false;
     }
+    this.maybeRefreshRuleTaxRate();
+  }
+
+  /** A tax-exempt customer is never taxed, regardless of mode or rules (matches backend). */
+  isCustomerTaxExempt(): boolean {
+    return !!this.selectedCustomer?.taxExempt;
+  }
+
+  /**
+   * RULES mode only: refreshes the effective (net-weighted) tax rate for the current
+   * cart lines so optimistic client-side tax previews match the server's per-line
+   * rule resolution between syncs. Deduped by signature; stale responses dropped.
+   */
+  private maybeRefreshRuleTaxRate(): void {
+    if (!this.taxRulesMode || !this.cart?.items?.length) return;
+    const lines = this.cart.items
+      .filter((it: any) => it?.productId || it?.product?.productId)
+      .map((it: any) => ({
+        productId: it.productId || it.product?.productId,
+        netAmount: Math.max(0, Number(it.subtotal) || 0)
+      }));
+    if (!lines.length) return;
+    const customerId = this.selectedCustomer?.customerId ?? null;
+    const signature = JSON.stringify({ c: customerId, l: lines });
+    if (signature === this.taxResolveSignature) return;
+    this.taxResolveSignature = signature;
+    const seq = ++this.taxResolveSeq;
+    this.taxRuleService
+      .resolveTaxRates({ documentType: 'SALES', customerId, lines })
+      .then(obs =>
+        obs.subscribe({
+          next: res => {
+            if (seq !== this.taxResolveSeq) return;
+            if (res && typeof res.effectiveRate === 'number' && res.mode === 'RULES') {
+              this.taxRate = res.effectiveRate;
+            }
+          },
+          error: () => {
+            this.taxResolveSignature = '';
+          }
+        })
+      );
   }
 
   /** Push pending summary edits to the server before checkout. */
@@ -1505,10 +1562,10 @@ export class PosComponent implements OnInit, OnDestroy {
     
     // Recalculate tax if tax is enabled
     // Always recalculate to ensure consistency, even if tax rate is 0 (will be 0 temporarily)
-    if (cart.taxEnabled) {
+    if (cart.taxEnabled && !this.isCustomerTaxExempt()) {
       if (this.taxRate > 0) {
         const taxableAmount = (cart.subtotal || 0) - (cart.discountAmount || 0);
-        cart.taxAmount = taxableAmount * this.taxRate;
+        cart.taxAmount = this.computeClientTax(taxableAmount);
       } else {
         // Tax rate not loaded yet, but tax is enabled - set to 0 for now
         // Will be recalculated when tax rate is loaded via loadTaxRate()
@@ -1980,10 +2037,23 @@ export class PosComponent implements OnInit, OnDestroy {
 
   async loadTaxRate(): Promise<void> {
     try {
+      const modeConfig$ = await this.configService.getConfiguration('tax.calculation.mode');
+      const modeConfig: any = await firstValueFrom(modeConfig$).catch(() => null);
+      this.taxRulesMode = String(modeConfig?.value || 'GLOBAL').toUpperCase() === 'RULES';
+    } catch {
+      this.taxRulesMode = false;
+    }
+    try {
+      const incConfig$ = await this.configService.getConfiguration('pricing.tax.inclusive');
+      const incConfig: any = await firstValueFrom(incConfig$).catch(() => null);
+      this.taxInclusive = String(incConfig?.value).toLowerCase() === 'true';
+    } catch {
+      this.taxInclusive = false;
+    }
+    try {
       const config$ = await this.configService.getConfiguration("tax");
       const response = await firstValueFrom(config$);
       this.taxRate = response.value || 0;
-      console.log("Tax rate loaded from configuration:", this.taxRate);
       
       // Recalculate tax if cart exists and tax is enabled
       if (this.cart && this.taxEnabled) {
@@ -2007,8 +2077,8 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // If tax is disabled, set tax to 0 and recalculate total
-    if (!this.taxEnabled) {
+    // If tax is disabled or the customer is tax-exempt, set tax to 0 and recalculate total
+    if (!this.taxEnabled || this.isCustomerTaxExempt()) {
       this.cart.taxAmount = 0;
       const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
       this.cart.totalAmount = taxableAmount + this.cartNonTaxableExtras(this.cart);
@@ -2026,12 +2096,9 @@ export class PosComponent implements OnInit, OnDestroy {
     
     // Calculate taxable amount (subtotal - discount)
     const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
-    
-    // Calculate tax amount using the tax rate from configuration
-    // Same formula as orders component: amount * taxRate
-    const calculatedTaxAmount = taxableAmount * this.taxRate;
-    
-    this.cart.taxAmount = calculatedTaxAmount;
+
+    // Calculate tax amount (extracted in TTC mode, added on top otherwise)
+    this.cart.taxAmount = this.computeClientTax(taxableAmount);
     this.recalculateCartTotalFromParts(this.cart);
   }
 

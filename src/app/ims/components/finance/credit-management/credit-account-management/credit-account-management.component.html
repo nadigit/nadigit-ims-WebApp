@@ -1,4 +1,4 @@
-﻿<div class="credit-account-management-container">
+<div class="credit-account-management-container">
     <p-toast></p-toast>
 
     <!-- Loading State -->
@@ -10,49 +10,146 @@
 
     <!-- Main Content -->
     <div class="credit-content" *ngIf="!isLoading && customer">
-        <!-- Header -->
-        <div class="credit-header">
-            <div class="flex align-items-center gap-2 mb-3">
-                <button pButton pRipple icon="pi pi-arrow-left"
-                    class="p-button-text p-button-rounded p-button-plain"
-                    [pTooltip]="'back' | translate" tooltipPosition="bottom" (click)="goBack()"></button>
-                <span class="text-500 text-sm">{{ 'customers_menu_title' | translate }}</span>
-                <i class="pi pi-angle-right text-400 text-sm"></i>
-                <span class="text-700 text-sm font-medium">{{ getCustomerDisplayName(customer) }}</span>
-                <i class="pi pi-angle-right text-400 text-sm"></i>
-                <span class="text-700 text-sm font-medium">{{ 'credit_account' | translate }}</span>
+
+        <!-- Hero Header Section -->
+        <div class="detail-page-hero-shell">
+            <div class="hero-background"></div>
+            <div class="hero-content">
+                <div class="flex align-items-center gap-2 mb-3">
+                    <button pButton pRipple icon="pi pi-arrow-left"
+                        class="p-button-text p-button-rounded p-button-plain back-button"
+                        [pTooltip]="'back' | translate" tooltipPosition="bottom" (click)="goBack()"></button>
+                    <span class="text-500 text-sm">{{ 'customers_menu_title' | translate }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">{{ getCustomerDisplayName(customer) }}</span>
+                    <i class="pi pi-angle-right text-400 text-sm"></i>
+                    <span class="text-700 text-sm font-medium">{{ 'credit_account' | translate }}</span>
+                </div>
+
+                <div
+                    class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+                    <div class="flex align-items-center gap-4">
+                        <div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--primary">
+                            <i class="pi pi-credit-card"></i>
+                        </div>
+                        <div>
+                            <div class="flex align-items-center gap-3 mb-2">
+                                <h1 class="m-0 text-900">{{ 'credit_account_management' | translate }}</h1>
+                                <p-tag *ngIf="creditAccount?.status" [value]="getStatusLabel(creditAccount?.status)"
+                                    [severity]="getStatusSeverity(creditAccount?.status)" [rounded]="true"></p-tag>
+                            </div>
+                            <div class="flex flex-wrap align-items-center gap-4 text-500">
+                                <span class="flex align-items-center gap-2">
+                                    <i class="pi"
+                                        [ngClass]="customer.customerType === 'Company' ? 'pi-building' : 'pi-user'"></i>
+                                    {{ getCustomerDisplayName(customer) }}
+                                </span>
+                                <span class="flex align-items-center gap-2"
+                                    *ngIf="creditInfo?.creditTermsDays !== null && creditInfo?.creditTermsDays !== undefined">
+                                    <i class="pi pi-calendar"></i>
+                                    {{ 'payment_terms' | translate }}: Net {{ creditInfo?.creditTermsDays }} {{ 'days' | translate }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 action-buttons" *ngIf="canManageCredit">
+                        <button pButton pRipple
+                                label="{{ 'issue_credit' | translate }}"
+                                icon="pi pi-plus"
+                                class="p-button-success"
+                                (click)="openIssueCredit()"
+                                [disabled]="!creditAccount || creditAccount.status !== 'ACTIVE'"></button>
+                        <button pButton pRipple
+                                label="{{ 'adjust_credit' | translate }}"
+                                icon="pi pi-pencil"
+                                class="p-button-warning"
+                                (click)="openAdjustCredit()"
+                                [disabled]="!creditAccount || creditAccount.status !== 'ACTIVE'"></button>
+                        <button pButton pRipple
+                                label="{{ 'set_limit' | translate }}"
+                                icon="pi pi-cog"
+                                class="p-button-info"
+                                (click)="openSetLimit()"
+                                [disabled]="!creditAccount"></button>
+                        <button pButton pRipple
+                                label="{{ 'change_status' | translate }}"
+                                icon="pi pi-sync"
+                                class="p-button-secondary"
+                                (click)="openChangeStatus()"
+                                [disabled]="!creditAccount"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="stats-row" *ngIf="creditInfo">
+            <div class="stat-card-modern">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber">
+                    <i class="pi pi-wallet"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'outstanding_balance' | translate }}</span>
+                    <div class="stat-value"
+                        [ngClass]="hasValue(creditInfo.outstandingBalance) && (creditInfo.outstandingBalance || 0) > 0 ? 'text-red-600' : ''">
+                        {{ hasValue(creditInfo.outstandingBalance)
+                            ? (creditInfo.outstandingBalance | currency:currency:'symbol':'1.2-2')
+                            : '-' }}
+                    </div>
+                </div>
             </div>
 
-            <div class="flex align-items-center justify-content-between">
-                <div>
-                    <h1 class="m-0 text-900">{{ 'credit_account_management' | translate }}</h1>
-                    <p class="text-500 mt-2">{{ 'manage_customer_credit_account' | translate }}</p>
+            <div class="stat-card-modern">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--danger">
+                    <i class="pi pi-clock"></i>
                 </div>
-                <div class="flex gap-2" *ngIf="canManageCredit">
-                    <button pButton 
-                            label="{{ 'issue_credit' | translate }}" 
-                            icon="pi pi-plus"
-                            class="p-button-success"
-                            (click)="openIssueCredit()"
-                            [disabled]="!creditAccount || creditAccount.status !== 'ACTIVE'"></button>
-                    <button pButton 
-                            label="{{ 'adjust_credit' | translate }}" 
-                            icon="pi pi-pencil"
-                            class="p-button-warning"
-                            (click)="openAdjustCredit()"
-                            [disabled]="!creditAccount || creditAccount.status !== 'ACTIVE'"></button>
-                    <button pButton 
-                            label="{{ 'set_limit' | translate }}" 
-                            icon="pi pi-cog"
-                            class="p-button-info"
-                            (click)="openSetLimit()"
-                            [disabled]="!creditAccount"></button>
-                    <button pButton 
-                            label="{{ 'change_status' | translate }}" 
-                            icon="pi pi-sync"
-                            class="p-button-secondary"
-                            (click)="openChangeStatus()"
-                            [disabled]="!creditAccount"></button>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'overdue_balance' | translate }}</span>
+                    <div class="stat-value"
+                        [ngClass]="hasValue(creditInfo.overdueBalance) && (creditInfo.overdueBalance || 0) > 0 ? 'text-red-600' : ''">
+                        {{ hasValue(creditInfo.overdueBalance)
+                            ? (creditInfo.overdueBalance | currency:currency:'symbol':'1.2-2')
+                            : '-' }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card-modern">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--purple">
+                    <i class="pi pi-chart-line"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'net_balance' | translate }}</span>
+                    <div class="stat-value"
+                        [ngClass]="hasValue(creditInfo.netBalance) ? ((creditInfo.netBalance || 0) > 0 ? 'text-red-600' : 'text-green-600') : ''">
+                        {{ hasValue(creditInfo.netBalance)
+                            ? (creditInfo.netBalance | currency:currency:'symbol':'1.2-2')
+                            : '-' }}
+                    </div>
+                    <small class="text-500" *ngIf="hasValue(creditInfo.netBalance)">
+                        {{ (creditInfo.netBalance || 0) > 0 ? ('customer_owes_business' | translate) : ('business_owes_customer' | translate) }}
+                    </small>
+                </div>
+            </div>
+
+            <div class="stat-card-modern">
+                <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--cyan">
+                    <i class="pi pi-credit-card"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">{{ 'available_credit_limit' | translate }}</span>
+                    <div class="stat-value"
+                        [ngClass]="hasValue(creditInfo.availableCreditLimit) && (creditInfo.availableCreditLimit || 0) < 100 ? 'text-orange-600' : ''">
+                        {{ hasValue(creditInfo.availableCreditLimit)
+                            ? (creditInfo.availableCreditLimit | currency:currency:'symbol':'1.2-2')
+                            : '-' }}
+                    </div>
+                    <small class="text-orange-600"
+                        *ngIf="hasValue(creditInfo.availableCreditLimit) && (creditInfo.availableCreditLimit || 0) < 100">
+                        <i class="pi pi-exclamation-triangle"></i>
+                        {{ 'low_credit_limit_warning' | translate }}
+                    </small>
                 </div>
             </div>
         </div>
@@ -67,233 +164,140 @@
             </app-credit-balance-card>
         </div>
 
-        <!-- ⚠️ NEW: Outstanding Balance Information Card -->
-        <div class="card mb-4" *ngIf="creditInfo">
-            <div class="card-header mb-3">
-                <div class="flex align-items-center gap-2">
-                    <i class="pi pi-chart-line"></i>
-                    <h3 class="m-0">{{ 'customer_financial_summary' | translate }}</h3>
-                </div>
+        <!-- Outstanding Balance Aging -->
+        <div class="detail-card mb-4" *ngIf="creditInfo?.outstandingAging">
+            <div class="card-header">
+                <i class="pi pi-chart-line"></i>
+                <span>{{ 'outstanding_balance_aging' | translate }}</span>
             </div>
             <div class="card-body">
                 <div class="grid">
-                    <!-- Outstanding Balance -->
-                    <div class="col-12 md:col-6 lg:col-3" *ngIf="creditInfo">
-                        <div class="flex flex-column gap-1">
-                            <span class="text-500 text-sm">{{ 'outstanding_balance' | translate }}</span>
-                            <span class="text-xl font-semibold text-red-600"
-                                  *ngIf="creditInfo.outstandingBalance !== undefined && creditInfo.outstandingBalance !== null && isFinite(creditInfo.outstandingBalance) && Math.abs(creditInfo.outstandingBalance) <= 1e15">
-                                {{ creditInfo.outstandingBalance | currency:currency:'symbol':'1.2-2' }}
-                            </span>
-                            <span class="text-xl font-semibold text-500"
-                                  *ngIf="!creditInfo.outstandingBalance || creditInfo.outstandingBalance === null || creditInfo.outstandingBalance === undefined || !isFinite(creditInfo.outstandingBalance) || Math.abs(creditInfo.outstandingBalance) > 1e15">
-                                -
-                            </span>
-                            <small class="text-500">{{ 'total_unpaid_orders' | translate }}</small>
-                        </div>
-                    </div>
-
-                    <!-- Overdue Balance -->
-                    <div class="col-12 md:col-6 lg:col-3" *ngIf="creditInfo">
-                        <div class="flex flex-column gap-1">
-                            <span class="text-500 text-sm">{{ 'overdue_balance' | translate }}</span>
-                            <span class="text-xl font-semibold" 
-                                  *ngIf="creditInfo.overdueBalance !== undefined && creditInfo.overdueBalance !== null && isFinite(creditInfo.overdueBalance) && Math.abs(creditInfo.overdueBalance) <= 1e15"
-                                  [ngClass]="creditInfo.overdueBalance > 0 ? 'text-red-600' : 'text-600'">
-                                <p-tag *ngIf="creditInfo.overdueBalance > 0" 
-                                       severity="danger" 
-                                       [value]="creditInfo.overdueBalance | currency:currency:'symbol':'1.2-2'">
-                                </p-tag>
-                                <span *ngIf="creditInfo.overdueBalance === 0">
-                                    {{ creditInfo.overdueBalance | currency:currency:'symbol':'1.2-2' }}
-                                </span>
-                            </span>
-                            <span class="text-xl font-semibold text-500"
-                                  *ngIf="!creditInfo.overdueBalance || creditInfo.overdueBalance === null || creditInfo.overdueBalance === undefined || !isFinite(creditInfo.overdueBalance) || Math.abs(creditInfo.overdueBalance) > 1e15">
-                                -
-                            </span>
-                            <small class="text-500">{{ 'overdue_amount' | translate }}</small>
-                        </div>
-                    </div>
-
-                    <!-- Net Position -->
-                    <div class="col-12 md:col-6 lg:col-3" *ngIf="creditInfo">
-                        <div class="flex flex-column gap-1">
-                            <span class="text-500 text-sm">{{ 'net_balance' | translate }}</span>
-                            <span class="text-xl font-semibold" 
-                                  *ngIf="creditInfo.netBalance !== undefined && creditInfo.netBalance !== null && isFinite(creditInfo.netBalance) && Math.abs(creditInfo.netBalance) <= 1e15"
-                                  [ngClass]="creditInfo.netBalance > 0 ? 'text-red-600' : 'text-green-600'">
-                                {{ creditInfo.netBalance | currency:currency:'symbol':'1.2-2' }}
-                            </span>
-                            <span class="text-xl font-semibold text-500"
-                                  *ngIf="!creditInfo.netBalance || creditInfo.netBalance === null || creditInfo.netBalance === undefined || !isFinite(creditInfo.netBalance) || Math.abs(creditInfo.netBalance) > 1e15">
-                                -
-                            </span>
-                            <small class="text-500"
-                                   *ngIf="creditInfo.netBalance !== undefined && creditInfo.netBalance !== null && isFinite(creditInfo.netBalance) && Math.abs(creditInfo.netBalance) <= 1e15">
-                                {{ creditInfo.netBalance > 0 ? ('customer_owes_business' | translate) : ('business_owes_customer' | translate) }}
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- Available Credit Limit -->
-                    <div class="col-12 md:col-6 lg:col-3" *ngIf="creditInfo">
-                        <div class="flex flex-column gap-1">
-                            <span class="text-500 text-sm">{{ 'available_credit_limit' | translate }}</span>
-                            <span class="text-xl font-semibold" 
-                                  *ngIf="creditInfo.availableCreditLimit !== undefined && creditInfo.availableCreditLimit !== null && isFinite(creditInfo.availableCreditLimit) && Math.abs(creditInfo.availableCreditLimit) <= 1e15"
-                                  [ngClass]="creditInfo.availableCreditLimit < 100 ? 'text-orange-600' : 'text-600'">
-                                {{ creditInfo.availableCreditLimit | currency:currency:'symbol':'1.2-2' }}
-                            </span>
-                            <span class="text-xl font-semibold text-500" 
-                                  *ngIf="!creditInfo.availableCreditLimit || creditInfo.availableCreditLimit === null || creditInfo.availableCreditLimit === undefined || !isFinite(creditInfo.availableCreditLimit) || Math.abs(creditInfo.availableCreditLimit) > 1e15">
-                                -
-                            </span>
-                            <small class="text-500" *ngIf="creditInfo.availableCreditLimit !== undefined && creditInfo.availableCreditLimit !== null && isFinite(creditInfo.availableCreditLimit) && Math.abs(creditInfo.availableCreditLimit) <= 1e15 && creditInfo.availableCreditLimit < 100">
-                                <i class="pi pi-exclamation-triangle text-orange-500"></i>
-                                {{ 'low_credit_limit_warning' | translate }}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Outstanding Balance Aging -->
-                <div class="mt-4" *ngIf="creditInfo.outstandingAging">
-                    <h4 class="mb-3">{{ 'outstanding_balance_aging' | translate }}</h4>
-                    <div class="grid">
-                        <div class="col-12 md:col-6 lg:col-3">
-                            <div class="p-3 border-round surface-card">
-                                <div class="text-500 text-sm mb-1">0-30 {{ 'days' | translate }}</div>
-                                <div class="text-xl font-semibold">
-                                    {{ creditInfo.outstandingAging['0-30'] | currency:currency:'symbol':'1.2-2' }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 md:col-6 lg:col-3">
-                            <div class="p-3 border-round surface-card">
-                                <div class="text-500 text-sm mb-1">31-60 {{ 'days' | translate }}</div>
-                                <div class="text-xl font-semibold">
-                                    {{ creditInfo.outstandingAging['31-60'] | currency:currency:'symbol':'1.2-2' }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 md:col-6 lg:col-3">
-                            <div class="p-3 border-round surface-card">
-                                <div class="text-500 text-sm mb-1">61-90 {{ 'days' | translate }}</div>
-                                <div class="text-xl font-semibold">
-                                    {{ creditInfo.outstandingAging['61-90'] | currency:currency:'symbol':'1.2-2' }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 md:col-6 lg:col-3">
-                            <div class="p-3 border-round surface-card critical-row">
-                                <div class="text-500 text-sm mb-1">90+ {{ 'days' | translate }}</div>
-                                <div class="text-xl font-semibold text-red-600">
-                                    {{ creditInfo.outstandingAging['90+'] | currency:currency:'symbol':'1.2-2' }}
-                                </div>
+                    <div class="col-12 md:col-6 lg:col-3">
+                        <div class="p-3 border-round border-1 surface-border surface-ground">
+                            <div class="text-500 text-sm mb-1">0-30 {{ 'days' | translate }}</div>
+                            <div class="text-xl font-semibold">
+                                {{ creditInfo!.outstandingAging!['0-30'] | currency:currency:'symbol':'1.2-2' }}
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Payment Terms -->
-                <div class="mt-3" *ngIf="creditInfo.creditTermsDays !== null && creditInfo.creditTermsDays !== undefined">
-                    <div class="flex align-items-center gap-2">
-                        <i class="pi pi-calendar text-500"></i>
-                        <span class="text-500">{{ 'payment_terms' | translate }}:</span>
-                        <span class="font-semibold">Net {{ creditInfo.creditTermsDays }} {{ 'days' | translate }}</span>
+                    <div class="col-12 md:col-6 lg:col-3">
+                        <div class="p-3 border-round border-1 surface-border surface-ground">
+                            <div class="text-500 text-sm mb-1">31-60 {{ 'days' | translate }}</div>
+                            <div class="text-xl font-semibold">
+                                {{ creditInfo!.outstandingAging!['31-60'] | currency:currency:'symbol':'1.2-2' }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 md:col-6 lg:col-3">
+                        <div class="p-3 border-round border-1 surface-border surface-ground">
+                            <div class="text-500 text-sm mb-1">61-90 {{ 'days' | translate }}</div>
+                            <div class="text-xl font-semibold">
+                                {{ creditInfo!.outstandingAging!['61-90'] | currency:currency:'symbol':'1.2-2' }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 md:col-6 lg:col-3">
+                        <div class="p-3 border-round border-1 surface-border surface-ground">
+                            <div class="text-500 text-sm mb-1">90+ {{ 'days' | translate }}</div>
+                            <div class="text-xl font-semibold text-red-600">
+                                {{ creditInfo!.outstandingAging!['90+'] | currency:currency:'symbol':'1.2-2' }}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Transactions Table -->
-        <div class="card">
-            <div class="card-header mb-3">
-                <h3 class="m-0">{{ 'credit_transactions' | translate }}</h3>
+        <div class="detail-card">
+            <div class="card-header">
+                <i class="pi pi-list"></i>
+                <span>{{ 'credit_transactions' | translate }}</span>
             </div>
+            <div class="card-body p-0">
+                <p-table [value]="transactions"
+                         [paginator]="true"
+                         [rows]="pageSizeService.get(TablePageSizeKeys.creditAccounts, [10, 20, 50])"
+                         [rowsPerPageOptions]="[10, 20, 50]"
+                         [totalRecords]="totalRecords"
+                         [lazy]="true"
+                         (onLazyLoad)="onPageChange($event)"
+                         [loading]="isLoading"
+                         styleClass="p-datatable-sm p-datatable-striped">
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th pSortableColumn="transactionDate">
+                                {{ 'date' | translate }}
+                                <p-sortIcon field="transactionDate"></p-sortIcon>
+                            </th>
+                            <th pSortableColumn="transactionType">
+                                {{ 'type' | translate }}
+                                <p-sortIcon field="transactionType"></p-sortIcon>
+                            </th>
+                            <th pSortableColumn="amount">
+                                {{ 'amount' | translate }}
+                                <p-sortIcon field="amount"></p-sortIcon>
+                            </th>
+                            <th>{{ 'balance_before' | translate }}</th>
+                            <th>{{ 'balance_after' | translate }}</th>
+                            <th>{{ 'description' | translate }}</th>
+                            <th>{{ 'reference' | translate }}</th>
+                        </tr>
+                    </ng-template>
 
-            <p-table [value]="transactions" 
-                     [paginator]="true"
-                     [rows]="pageSizeService.get(TablePageSizeKeys.creditAccounts, [10, 20, 50])"
-                     [rowsPerPageOptions]="[10, 20, 50]"
-                     [totalRecords]="totalRecords"
-                     [lazy]="true"
-                     (onLazyLoad)="onPageChange($event)"
-                     [loading]="isLoading"
-                     styleClass="p-datatable-striped">
-                <ng-template pTemplate="header">
-                    <tr>
-                        <th pSortableColumn="transactionDate">
-                            {{ 'date' | translate }}
-                            <p-sortIcon field="transactionDate"></p-sortIcon>
-                        </th>
-                        <th pSortableColumn="transactionType">
-                            {{ 'type' | translate }}
-                            <p-sortIcon field="transactionType"></p-sortIcon>
-                        </th>
-                        <th pSortableColumn="amount">
-                            {{ 'amount' | translate }}
-                            <p-sortIcon field="amount"></p-sortIcon>
-                        </th>
-                        <th>{{ 'balance_before' | translate }}</th>
-                        <th>{{ 'balance_after' | translate }}</th>
-                        <th>{{ 'description' | translate }}</th>
-                        <th>{{ 'reference' | translate }}</th>
-                    </tr>
-                </ng-template>
+                    <ng-template pTemplate="body" let-transaction>
+                        <tr>
+                            <td>{{ transaction.transactionDate | date:'short' }}</td>
+                            <td>
+                                <p-tag [value]="getTransactionTypeLabel(transaction.transactionType)"
+                                       [severity]="getTransactionTypeSeverity(transaction.transactionType)"
+                                       [rounded]="true"></p-tag>
+                            </td>
+                            <td [ngClass]="transaction.amount && transaction.amount > 0 ? 'text-green-600' : 'text-red-600'">
+                                {{ transaction.amount | currency:currency:'symbol':'1.2-2' }}
+                            </td>
+                            <td>{{ transaction.balanceBefore | currency:currency:'symbol':'1.2-2' }}</td>
+                            <td>{{ transaction.balanceAfter | currency:currency:'symbol':'1.2-2' }}</td>
+                            <td>{{ transaction.description || '-' }}</td>
+                            <td>
+                                <span *ngIf="transaction.order">
+                                    <a (click)="router.navigate(['/sales/orders', transaction.order?.orderId])"
+                                       class="text-primary cursor-pointer">
+                                        {{ transaction.order?.reference }}
+                                    </a>
+                                </span>
+                                <span *ngIf="transaction.payment && !transaction.order">
+                                    <a (click)="router.navigate(['/finance/payments', transaction.payment?.paymentId])"
+                                       class="text-primary cursor-pointer">
+                                        {{ 'payment' | translate }} #{{ transaction.payment?.paymentId }}
+                                    </a>
+                                </span>
+                                <span *ngIf="transaction.refund && !transaction.order && !transaction.payment">
+                                    <a (click)="router.navigate(['/finance/refunds', transaction.refund?.refundId])"
+                                       class="text-primary cursor-pointer">
+                                        {{ 'refund' | translate }} #{{ transaction.refund?.refundId }}
+                                    </a>
+                                </span>
+                                <span *ngIf="!transaction.order && !transaction.payment && !transaction.refund"
+                                    class="reference-badge">
+                                    {{ transaction.reference || '-' }}
+                                </span>
+                            </td>
+                        </tr>
+                    </ng-template>
 
-                <ng-template pTemplate="body" let-transaction>
-                    <tr>
-                        <td>{{ transaction.transactionDate | date:'short' }}</td>
-                        <td>
-                            <p-tag [value]="getTransactionTypeLabel(transaction.transactionType)"
-                                   [severity]="getTransactionTypeSeverity(transaction.transactionType)"
-                                   [rounded]="true"></p-tag>
+                    <ng-template pTemplate="emptymessage">
+                      <tr>
+                        <td colspan="7">
+                          <div class="flex flex-column align-items-center justify-content-center py-4">
+                            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                            <p class="mt-2 text-gray-600 font-medium">{{ 'no_transactions_found' | translate }}</p>
+                          </div>
                         </td>
-                        <td [ngClass]="transaction.amount && transaction.amount > 0 ? 'text-green-600' : 'text-red-600'">
-                            {{ transaction.amount | currency:currency:'symbol':'1.2-2' }}
-                        </td>
-                        <td>{{ transaction.balanceBefore | currency:currency:'symbol':'1.2-2' }}</td>
-                        <td>{{ transaction.balanceAfter | currency:currency:'symbol':'1.2-2' }}</td>
-                        <td>{{ transaction.description || '-' }}</td>
-                        <td>
-                            <span *ngIf="transaction.order">
-                                <a (click)="router.navigate(['/sales/orders', transaction.order?.orderId])" 
-                                   class="text-primary cursor-pointer">
-                                    {{ transaction.order?.reference }}
-                                </a>
-                            </span>
-                            <span *ngIf="transaction.payment && !transaction.order">
-                                <a (click)="router.navigate(['/finance/payments', transaction.payment?.paymentId])" 
-                                   class="text-primary cursor-pointer">
-                                    {{ 'payment' | translate }} #{{ transaction.payment?.paymentId }}
-                                </a>
-                            </span>
-                            <span *ngIf="transaction.refund && !transaction.order && !transaction.payment">
-                                <a (click)="router.navigate(['/finance/refunds', transaction.refund?.refundId])" 
-                                   class="text-primary cursor-pointer">
-                                    {{ 'refund' | translate }} #{{ transaction.refund?.refundId }}
-                                </a>
-                            </span>
-                            <span *ngIf="!transaction.order && !transaction.payment && !transaction.refund">
-                                {{ transaction.reference || '-' }}
-                            </span>
-                        </td>
-                    </tr>
-                </ng-template>
-
-                <ng-template pTemplate="emptymessage">
-                  <tr>
-                    <td colspan="7">
-                      <div class="flex flex-column align-items-center justify-content-center py-4">
-                        <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
-                        <p class="mt-2 text-gray-600 font-medium">{{ 'no_transactions_found' | translate }}</p>
-                      </div>
-                    </td>
-                  </tr>
-                </ng-template>
-            </p-table>
+                      </tr>
+                    </ng-template>
+                </p-table>
+            </div>
         </div>
     </div>
 
@@ -325,38 +329,54 @@
     <!-- Change Status Dialog -->
     <p-dialog [(visible)]="changeStatusVisible"
               [modal]="true"
-              [style]="{width: '400px'}"
+              [style]="{width: 'min(92vw, 440px)'}"
+              [breakpoints]="{'640px': '95vw'}"
               [header]="'change_status' | translate"
+              [draggable]="false" [resizable]="false"
+              styleClass="ims-form-dialog-shell"
+              class="p-fluid"
               (onHide)="changeStatusVisible = false">
         <ng-template pTemplate="content">
-            <div class="p-fluid">
-                <div class="field">
-                    <label for="status">{{ 'status' | translate }}</label>
-                    <p-dropdown [(ngModel)]="newStatus"
-                                 [options]="statusOptions"
-                                 optionLabel="label"
-                                 optionValue="value"
-                                 placeholder="{{ 'select_status' | translate }}"
-                                 styleClass="w-full"
-                                 appendTo="body">
-                    </p-dropdown>
+            <div class="ims-form-layout">
+                <div class="ims-form-fields">
+                    <section class="ims-form-section">
+                        <header class="ims-form-section__header">
+                            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                                <i class="pi pi-sync"></i>
+                            </div>
+                            <h3 class="ims-form-section__title">{{ 'credit_account' | translate }}</h3>
+                        </header>
+                        <div class="grid ims-form-section__body">
+                            <div class="field col-12">
+                                <label for="status" class="ims-form-label">{{ 'status' | translate }}</label>
+                                <p-dropdown inputId="status"
+                                             [(ngModel)]="newStatus"
+                                             [options]="statusOptions"
+                                             optionLabel="label"
+                                             optionValue="value"
+                                             placeholder="{{ 'select_status' | translate }}"
+                                             styleClass="w-full"
+                                             appendTo="body">
+                                </p-dropdown>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         </ng-template>
         <ng-template pTemplate="footer">
-            <button pButton 
-                    type="button" 
-                    label="{{ 'cancel_button' | translate }}" 
+            <button pButton
+                    type="button"
+                    label="{{ 'cancel_button' | translate }}"
                     icon="pi pi-times"
-                    class="p-button-text" 
+                    class="p-button-text"
                     (click)="changeStatusVisible = false"></button>
-            <button pButton 
-                    type="button" 
-                    label="{{ 'save_button' | translate }}" 
+            <button pButton
+                    type="button"
+                    label="{{ 'save_button' | translate }}"
                     icon="pi pi-check"
-                    class="p-button-primary" 
+                    class="p-button-primary"
                     (click)="saveStatusChange()"></button>
         </ng-template>
     </p-dialog>
 </div>
-

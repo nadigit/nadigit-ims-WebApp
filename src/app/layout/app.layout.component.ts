@@ -9,7 +9,7 @@ import { KeycloakProfile } from 'keycloak-js';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { CashRegisterService } from '../services/cash-register.service';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { CashRegisterSession } from '../models/cashRegisterSession';
 import { Shop } from '../models/shop';
 import { Warehouse } from '../models/warehouse';
@@ -24,13 +24,18 @@ import { SessionAuditService } from '../services/session-audit.service';
 import { TourService } from '../services/tour.service';
 import { NadiPilotActionDTO, NadiPilotBriefingDTO, NadiPilotMessage, NadiPilotNavigationDTO, NadiPilotProposedActionDTO, NadiPilotResponseDTO, AiIntegrationService } from '../services/ai-integration.service';
 import { buildCopilotPageContext } from '../utils/copilot-page-context';
+import { PurchaseImportService } from '../services/purchase-import.service';
+import { ProductImportService } from '../services/product-import.service';
+import { PurchaseImportOptions, PurchaseImportPreview } from '../models/purchase-import.model';
+import { ImportPreview as ProductImportPreview } from '../models/product-import.model';
 import { Supplier } from '../models/supplier';
 import { BRAND_ASSETS } from '../utils/brand-assets';
 
 @Component({
     selector: 'app-layout',
     templateUrl: './app.layout.component.html',
-    styleUrl: './app.layout.component.css'
+    styleUrl: './app.layout.component.css',
+    providers: [ConfirmationService]
 })
 export class AppLayoutComponent implements OnDestroy, OnInit {
 
@@ -97,6 +102,16 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     @ViewChild(AppTopBarComponent) appTopbar!: AppTopBarComponent;
     @ViewChild('copilotInputField') copilotInputField?: ElementRef<HTMLTextAreaElement>;
     @ViewChild('copilotThreadEl') copilotThreadEl?: ElementRef<HTMLElement>;
+    @ViewChild('copilotFileInput') copilotFileInput?: ElementRef<HTMLInputElement>;
+
+    // Chat attachment import flow (invoice → purchase, CSV/Excel → products or purchases)
+    copilotAttachment: File | null = null;
+    copilotAttachmentTarget: 'invoice' | 'purchases_csv' | 'products_csv' | null = null;
+    copilotAttachmentBusy = false;
+    copilotImportCreateSuppliers = false;
+    copilotImportCreateProducts = false;
+    copilotPurchasePreview: PurchaseImportPreview | null = null;
+    copilotProductPreview: ProductImportPreview | null = null;
 
     isPosRoute: boolean = false;
     maintenanceStatus: MaintenanceStatus | null = null;
@@ -128,8 +143,14 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     readonly copilotHistoryStorageKey = 'ims.aiCopilot.history.v1';
     readonly copilotModeStorageKey = 'ims.aiCopilot.mode.v1';
     readonly copilotWidthStorageKey = 'ims.aiCopilot.width.v1';
+    /** Current user id/username — used to scope per-user localStorage so chats don't leak between users on the same browser. */
+    private copilotUserId = 'default';
     copilotMode: 'simple' | 'advanced' = 'simple';
     copilotPendingPrompt: string | null = null;
+    /** Key of the user turn currently being edited inline, or null when no message is being edited. */
+    copilotEditingTurnKey: string | null = null;
+    /** Working copy of the message text while an inline edit is in progress. */
+    copilotEditDraft = '';
     copilotExpanded = false;
     copilotActionLoading = false;
     private copilotActionDoneKeys = new Set<string>();
@@ -144,12 +165,15 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         { key: 'ai_copilot_prompt_stockout', icon: 'pi-exclamation-circle' },
         { key: 'ai_copilot_prompt_reorder', icon: 'pi-shopping-cart' },
         { key: 'ai_copilot_prompt_risk', icon: 'pi-chart-line' },
+        { key: 'ai_copilot_prompt_trends', icon: 'pi-lightbulb' },
+        { key: 'ai_copilot_prompt_season', icon: 'pi-calendar' },
     ];
 
     constructor(public layoutService: LayoutService,
         public renderer: Renderer2,
         public router: Router,
         private translate: TranslateService,
+        private confirmationService: ConfirmationService,
         public keycloakService: KeycloakService,
         private cashRegisterService: CashRegisterService,
         private messageService: MessageService,
@@ -161,6 +185,8 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         private aiIntegrationService: AiIntegrationService,
         private sessionAuditService: SessionAuditService,
         private tourService: TourService,
+        private purchaseImportService: PurchaseImportService,
+        private productImportService: ProductImportService,
     ) {
 
         // Detect POS routes to hide sidebar/topbar
@@ -590,6 +616,13 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     }
 
     private async setUserRoles() {
+        // Capture the current user so per-user localStorage keys (e.g. NadiPilot chat) stay isolated.
+        try {
+            const profile = await this.keycloakService.loadUserProfile();
+            this.copilotUserId = profile.username || profile.id || 'default';
+        } catch {
+            this.copilotUserId = 'default';
+        }
         this.userRoles = await this.keycloakService.getUserRoles();
         this.isAdmin = this.userRoles.includes('ADMIN');
         this.isVendor = this.userRoles.includes('VENDOR');
@@ -1192,8 +1225,204 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             firstName: 'first_name', lastName: 'last_name', companyName: 'company_name',
             email: 'email', phoneNumber: 'phone_number', city: 'city',
             name: 'name', amount: 'amount', purpose: 'purpose',
+            customer: 'customer', order: 'order', documentType: 'ai_copilot_field_document_type',
+            category: 'category', description: 'description', sellingPrice: 'selling_price',
         };
         return map[field] || field;
+    }
+
+    removeProposalLine(action: NadiPilotProposedActionDTO, index: number): void {
+        if (action?.lines && index >= 0 && index < action.lines.length) {
+            action.lines.splice(index, 1);
+        }
+    }
+
+    // ---- Chat attachment import flow ----
+
+    /** Whether this user's roles allow any chat-attachment import at all (shows the paperclip). */
+    get copilotAttachmentTargetsAvailable(): boolean {
+        return this.isAdmin || this.isWarehouseman || this.isVendor;
+    }
+
+    /** Import targets available for the attached file, filtered by file kind and user role. */
+    get copilotAttachmentTargets(): Array<'invoice' | 'purchases_csv' | 'products_csv'> {
+        if (!this.copilotAttachment) {
+            return [];
+        }
+        const name = this.copilotAttachment.name.toLowerCase();
+        const isDocument = /\.(pdf|png|jpe?g)$/.test(name);
+        const isSheet = /\.(csv|xlsx|xls)$/.test(name);
+        const targets: Array<'invoice' | 'purchases_csv' | 'products_csv'> = [];
+        if (isDocument && (this.isAdmin || this.isWarehouseman || this.isVendor)) {
+            targets.push('invoice');
+        }
+        if (isSheet) {
+            if (this.isAdmin || this.isWarehouseman || this.isVendor) {
+                targets.push('purchases_csv');
+            }
+            if (this.isAdmin || this.isWarehouseman) {
+                targets.push('products_csv');
+            }
+        }
+        return targets;
+    }
+
+    onCopilotAttachClick(): void {
+        if (this.copilotAttachmentBusy) {
+            return;
+        }
+        this.copilotFileInput?.nativeElement?.click();
+    }
+
+    onCopilotFileSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const file = input?.files && input.files.length ? input.files[0] : null;
+        if (input) {
+            input.value = '';
+        }
+        if (!file) {
+            return;
+        }
+        this.copilotAttachment = file;
+        this.copilotPurchasePreview = null;
+        this.copilotProductPreview = null;
+        this.copilotImportCreateSuppliers = false;
+        this.copilotImportCreateProducts = false;
+        const targets = this.copilotAttachmentTargets;
+        if (!targets.length) {
+            this.copilotAttachment = null;
+            this.messageService.add({
+                severity: 'warn',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: this.translate.instant('ai_copilot_attach_unsupported'),
+                life: 5000,
+            });
+            return;
+        }
+        this.copilotAttachmentTarget = targets[0];
+        this.scrollCopilotThreadToBottom();
+    }
+
+    clearCopilotAttachment(): void {
+        this.copilotAttachment = null;
+        this.copilotAttachmentTarget = null;
+        this.copilotPurchasePreview = null;
+        this.copilotProductPreview = null;
+        this.copilotAttachmentBusy = false;
+    }
+
+    setCopilotAttachmentTarget(target: 'invoice' | 'purchases_csv' | 'products_csv'): void {
+        this.copilotAttachmentTarget = target;
+        this.copilotPurchasePreview = null;
+        this.copilotProductPreview = null;
+    }
+
+    /** Shared purchase-import options from the copilot scope + inline checkboxes. */
+    private copilotPurchaseImportOptions(): PurchaseImportOptions {
+        return {
+            createMissingSuppliers: this.copilotImportCreateSuppliers,
+            createMissingProducts: this.copilotImportCreateProducts,
+            ...(this.copilotSelectedShopId != null ? { defaultShopId: this.copilotSelectedShopId } : {}),
+            ...(this.copilotSelectedWarehouseId != null ? { defaultWarehouseId: this.copilotSelectedWarehouseId } : {}),
+        };
+    }
+
+    async analyzeCopilotAttachment(): Promise<void> {
+        if (!this.copilotAttachment || !this.copilotAttachmentTarget || this.copilotAttachmentBusy) {
+            return;
+        }
+        this.copilotAttachmentBusy = true;
+        try {
+            if (this.copilotAttachmentTarget === 'invoice') {
+                this.copilotPurchasePreview = await firstValueFrom(
+                    await this.purchaseImportService.previewParsedInvoice(this.copilotAttachment, {}, this.copilotPurchaseImportOptions()));
+            } else if (this.copilotAttachmentTarget === 'purchases_csv') {
+                this.copilotPurchasePreview = await firstValueFrom(
+                    await this.purchaseImportService.previewImport(this.copilotAttachment, 10, this.copilotPurchaseImportOptions()));
+            } else {
+                this.copilotProductPreview = await firstValueFrom(
+                    this.productImportService.previewImport(this.copilotAttachment, 10, {
+                        ...(this.copilotSelectedWarehouseId != null ? { defaultWarehouseId: this.copilotSelectedWarehouseId } : {}),
+                    }));
+            }
+            this.scrollCopilotThreadToBottom();
+        } catch (error: any) {
+            this.messageService.add({
+                severity: 'error',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: error?.error?.message || this.translate.instant('ai_copilot_attach_analyze_failed'),
+                life: 6000,
+            });
+        } finally {
+            this.copilotAttachmentBusy = false;
+        }
+    }
+
+    /** True when the analyzed attachment has something importable. */
+    get canConfirmCopilotImport(): boolean {
+        if (this.copilotPurchasePreview) {
+            return (this.copilotPurchasePreview.estimatedPurchases || 0) > 0;
+        }
+        if (this.copilotProductPreview) {
+            return ((this.copilotProductPreview.estimatedCreates || 0) + (this.copilotProductPreview.estimatedUpdates || 0)) > 0;
+        }
+        return false;
+    }
+
+    async confirmCopilotAttachmentImport(): Promise<void> {
+        if (!this.copilotAttachment || !this.copilotAttachmentTarget || this.copilotAttachmentBusy) {
+            return;
+        }
+        this.copilotAttachmentBusy = true;
+        try {
+            let detail = '';
+            if (this.copilotAttachmentTarget === 'invoice') {
+                const res = await firstValueFrom(
+                    await this.purchaseImportService.importFromInvoice(this.copilotAttachment, {}, this.copilotPurchaseImportOptions()));
+                detail = this.translate.instant('ai_copilot_attach_purchases_imported',
+                    { purchases: res.purchasesCreated, items: res.itemsCreated });
+            } else if (this.copilotAttachmentTarget === 'purchases_csv') {
+                const res = await firstValueFrom(
+                    await this.purchaseImportService.executeImport(this.copilotAttachment, this.copilotPurchaseImportOptions()));
+                detail = this.translate.instant('ai_copilot_attach_purchases_imported',
+                    { purchases: res.purchasesCreated, items: res.itemsCreated });
+            } else {
+                const res = await firstValueFrom(
+                    this.productImportService.executeImport(this.copilotAttachment, {
+                        ...(this.copilotSelectedWarehouseId != null ? { defaultWarehouseId: this.copilotSelectedWarehouseId } : {}),
+                    }));
+                detail = this.translate.instant('ai_copilot_attach_products_imported',
+                    { created: res.created, updated: res.updated });
+            }
+            this.messageService.add({
+                severity: 'success',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail,
+                life: 6000,
+            });
+            this.clearCopilotAttachment();
+        } catch (error: any) {
+            this.messageService.add({
+                severity: 'error',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: error?.error?.message || this.translate.instant('ai_copilot_action_failed'),
+                life: 6000,
+            });
+        } finally {
+            this.copilotAttachmentBusy = false;
+        }
+    }
+
+    /** Hands the file flow off to the full import wizard (product mapping, per-line review, options). */
+    openFullImportScreen(): void {
+        const target = this.copilotAttachmentTarget;
+        this.clearCopilotAttachment();
+        this.closeCopilotPanel(false);
+        if (target === 'products_csv') {
+            this.router.navigate(['/inventory/products'], { queryParams: { import: 1 } });
+        } else {
+            this.router.navigate(['/purchases/purchases'], { queryParams: { import: 1 } });
+        }
     }
 
     proposalTitle(action: NadiPilotProposedActionDTO | null | undefined): string {
@@ -1204,12 +1433,15 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             : action?.type === 'create_expense' ? 'ai_copilot_create_expense_title'
                 : action?.type === 'create_order' ? 'ai_copilot_create_order_title'
                     : action?.type === 'create_purchase' ? 'ai_copilot_create_purchase_title'
-                        : 'ai_copilot_create_customer_title';
+                        : action?.type === 'compose_order' ? 'ai_copilot_compose_order_title'
+                            : action?.type === 'generate_document' ? 'ai_copilot_generate_document_title'
+                                : action?.type === 'create_product' ? 'ai_copilot_create_product_title'
+                                    : 'ai_copilot_create_customer_title';
         return this.translate.instant(key);
     }
 
     isPrepareAction(action: NadiPilotProposedActionDTO | null | undefined): boolean {
-        return action?.type === 'create_order' || action?.type === 'create_purchase';
+        return action?.type === 'create_order' || action?.type === 'create_purchase' || action?.type === 'create_product';
     }
 
     proposalConfirmLabel(action: NadiPilotProposedActionDTO | null | undefined): string {
@@ -1218,6 +1450,15 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         }
         if (action?.type === 'create_purchase') {
             return this.translate.instant('ai_copilot_action_prepare_purchase');
+        }
+        if (action?.type === 'create_product') {
+            return this.translate.instant('ai_copilot_action_prepare_product');
+        }
+        if (action?.type === 'compose_order') {
+            return this.translate.instant('ai_copilot_action_create_order');
+        }
+        if (action?.type === 'generate_document') {
+            return this.translate.instant('ai_copilot_action_generate_document');
         }
         return this.translate.instant('ai_copilot_action_confirm_create');
     }
@@ -1235,12 +1476,28 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (!action) {
             return;
         }
-        // create_order / create_purchase are "prepare + open the create screen" — navigate, no DB write here.
-        if (action.type === 'create_order' || action.type === 'create_purchase') {
+        // create_order / create_purchase / create_product are "prepare + open the create screen" — navigate, no DB write here.
+        if (action.type === 'create_order' || action.type === 'create_purchase' || action.type === 'create_product') {
             const f = action.fields || {};
             this.copilotActionDoneKeys.add(this.getCopilotHistoryKey(turn));
             this.closeCopilotPanel(false);
-            if (action.type === 'create_order') {
+            if (action.type === 'create_product') {
+                this.router.navigate(['/inventory/products'], {
+                    queryParams: {
+                        newProduct: 1,
+                        ...(f['name'] ? { name: f['name'] } : {}),
+                        ...(f['category'] ? { category: f['category'] } : {}),
+                        ...(f['description'] ? { description: f['description'] } : {}),
+                        ...(f['sellingPrice'] ? { sellingPrice: f['sellingPrice'] } : {}),
+                    },
+                });
+                this.messageService.add({
+                    severity: 'info',
+                    summary: this.translate.instant('ai_copilot_title'),
+                    detail: this.translate.instant('ai_copilot_product_prepared'),
+                    life: 4000,
+                });
+            } else if (action.type === 'create_order') {
                 this.router.navigate(['/sales/orders'], {
                     queryParams: { newOrder: 1, ...(f['customer'] ? { customer: f['customer'] } : {}) },
                 });
@@ -1285,6 +1542,46 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
                     ...(this.copilotSelectedShopId != null ? { shopId: this.copilotSelectedShopId } : {}),
                 }));
                 detail = this.translate.instant('ai_copilot_expense_created', { ref: res.reference });
+            } else if (action.type === 'compose_order') {
+                const lines = (action.lines || [])
+                    .map(l => ({ product: (l.product || '').trim(), quantity: Number(l.quantity) }))
+                    .filter(l => !!l.product && Number.isFinite(l.quantity) && l.quantity > 0);
+                if (!lines.length) {
+                    this.messageService.add({
+                        severity: 'warn',
+                        summary: this.translate.instant('ai_copilot_title'),
+                        detail: this.translate.instant('ai_copilot_order_lines_required'),
+                        life: 5000,
+                    });
+                    return;
+                }
+                const res = await firstValueFrom(this.aiIntegrationService.composeNadiPilotOrder({
+                    customer: f['customer'],
+                    ...(f['documentType']?.trim() ? { documentType: f['documentType'].trim() } : {}),
+                    ...(this.copilotSelectedShopId != null ? { shopId: this.copilotSelectedShopId } : {}),
+                    ...(this.copilotSelectedWarehouseId != null ? { warehouseId: this.copilotSelectedWarehouseId } : {}),
+                    lines,
+                }));
+                detail = this.translate.instant('ai_copilot_order_created', { ref: res.reference });
+                if (res.fileUrl) {
+                    window.open(res.fileUrl, '_blank');
+                } else if (res.documentError) {
+                    this.messageService.add({
+                        severity: 'warn',
+                        summary: this.translate.instant('ai_copilot_title'),
+                        detail: this.translate.instant('ai_copilot_document_failed', { reason: res.documentError }),
+                        life: 8000,
+                    });
+                }
+            } else if (action.type === 'generate_document') {
+                const res = await firstValueFrom(this.aiIntegrationService.generateNadiPilotDocument({
+                    order: f['order'] || '',
+                    documentType: f['documentType'] || '',
+                }));
+                detail = this.translate.instant('ai_copilot_document_generated', { number: res.documentNumber });
+                if (res.fileUrl) {
+                    window.open(res.fileUrl, '_blank');
+                }
             } else {
                 return;
             }
@@ -1317,6 +1614,10 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             case 'order_return': return 'pi-replay';
             case 'product': return 'pi-box';
             case 'kpi': return 'pi-chart-bar';
+            case 'opportunity': return 'pi-lightbulb';
+            case 'season': return 'pi-calendar';
+            case 'basket': return 'pi-link';
+            case 'pricing': return 'pi-tag';
             default: return 'pi-info-circle';
         }
     }
@@ -1480,6 +1781,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     }
 
     clearCopilotHistory(): void {
+        this.cancelCopilotEdit();
         this.copilotHistory = [];
         this.persistCopilotHistory();
     }
@@ -1487,6 +1789,182 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     /** Stable key for a conversation turn (used to track which evidence sections are expanded). */
     getCopilotHistoryKey(item: { prompt: string; at: string }): string {
         return `${item.at}::${item.prompt}`;
+    }
+
+    // --- Per-message actions (copy / edit / resend / regenerate) ---
+
+    /** Index of a thread turn inside the newest-first copilotHistory, or -1 if not found. */
+    private copilotTurnIndex(turn: { prompt: string; at: string }): number {
+        const key = this.getCopilotHistoryKey(turn);
+        return this.copilotHistory.findIndex(h => this.getCopilotHistoryKey(h) === key);
+    }
+
+    /** Copy a user prompt to the clipboard. */
+    copyCopilotPrompt(turn: { prompt: string }): void {
+        this.copyCopilotMessageText(turn?.prompt);
+    }
+
+    /** Copy an assistant answer to the clipboard. */
+    copyCopilotAnswer(turn: { response?: NadiPilotResponseDTO | null }): void {
+        this.copyCopilotMessageText(turn?.response?.answer);
+    }
+
+    private async copyCopilotMessageText(text: string | null | undefined): Promise<void> {
+        const value = (text || '').trim();
+        if (!value) {
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(value);
+            this.messageService.add({
+                severity: 'success',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: this.translate.instant('ai_copilot_msg_copied'),
+                life: 2000
+            });
+        } catch {
+            this.messageService.add({
+                severity: 'warn',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: this.translate.instant('ai_copilot_msg_copy_failed'),
+                life: 3000
+            });
+        }
+    }
+
+    /** True when the given user turn is currently being edited inline. */
+    isCopilotEditing(turn: { prompt: string; at: string }): boolean {
+        return this.copilotEditingTurnKey != null
+            && this.copilotEditingTurnKey === this.getCopilotHistoryKey(turn);
+    }
+
+    /** Begin inline editing of a user message. */
+    startCopilotEdit(turn: { prompt: string; at: string }): void {
+        if (this.copilotLoading) {
+            return;
+        }
+        this.copilotEditingTurnKey = this.getCopilotHistoryKey(turn);
+        this.copilotEditDraft = turn?.prompt || '';
+    }
+
+    /** Discard the inline edit without sending. */
+    cancelCopilotEdit(): void {
+        this.copilotEditingTurnKey = null;
+        this.copilotEditDraft = '';
+    }
+
+    /**
+     * Save an inline edit: drop this turn and everything after it (like modern copilots), then
+     * re-ask with the edited text so the conversation regenerates from that point.
+     */
+    submitCopilotEdit(turn: { prompt: string; at: string }): void {
+        if (this.copilotLoading) {
+            return;
+        }
+        const message = (this.copilotEditDraft || '').trim();
+        if (!message) {
+            return;
+        }
+        this.truncateCopilotHistoryFrom(turn);
+        this.cancelCopilotEdit();
+        this.copilotPrompt = message;
+        this.askAiCopilot();
+    }
+
+    onCopilotEditKeydown(event: KeyboardEvent, turn: { prompt: string; at: string }): void {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.submitCopilotEdit(turn);
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            this.cancelCopilotEdit();
+        }
+    }
+
+    /** Resend the same user message as a new turn (duplicate). */
+    resendCopilotTurn(turn: { prompt: string; at: string }): void {
+        if (this.copilotLoading) {
+            return;
+        }
+        const message = (turn?.prompt || '').trim();
+        if (!message) {
+            return;
+        }
+        this.copilotPrompt = message;
+        this.askAiCopilot();
+    }
+
+    /** Regenerate the assistant reply for a turn: drop it and everything after, then re-ask. */
+    regenerateCopilotTurn(turn: { prompt: string; at: string }): void {
+        if (this.copilotLoading) {
+            return;
+        }
+        const message = (turn?.prompt || '').trim();
+        if (!message) {
+            return;
+        }
+        this.truncateCopilotHistoryFrom(turn);
+        this.copilotPrompt = message;
+        this.askAiCopilot();
+    }
+
+    /** Ask for confirmation (anchored popup) before removing a conversation turn. */
+    confirmDeleteCopilotTurn(event: Event, turn: { prompt: string; at: string }): void {
+        if (this.copilotLoading) {
+            return;
+        }
+        this.confirmationService.confirm({
+            key: 'copilotMsgDelete',
+            target: event.currentTarget as EventTarget,
+            message: this.translate.instant('ai_copilot_msg_delete_confirm'),
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: this.translate.instant('ai_copilot_msg_delete'),
+            rejectLabel: this.translate.instant('ai_copilot_msg_edit_cancel'),
+            acceptButtonStyleClass: 'p-button-danger p-button-sm',
+            rejectButtonStyleClass: 'p-button-text p-button-sm',
+            accept: () => this.deleteCopilotTurn(turn)
+        });
+    }
+
+    /** Delete a single conversation turn (user prompt + its assistant reply) from the thread. */
+    deleteCopilotTurn(turn: { prompt: string; at: string }): void {
+        if (this.copilotLoading) {
+            return;
+        }
+        const idx = this.copilotTurnIndex(turn);
+        if (idx < 0) {
+            return;
+        }
+        if (this.isCopilotEditing(turn)) {
+            this.cancelCopilotEdit();
+        }
+        this.copilotHistory = [
+            ...this.copilotHistory.slice(0, idx),
+            ...this.copilotHistory.slice(idx + 1)
+        ];
+        this.persistCopilotHistory();
+    }
+
+    /** Remove the given turn and every turn newer than it (history is newest-first). */
+    private truncateCopilotHistoryFrom(turn: { prompt: string; at: string }): void {
+        const idx = this.copilotTurnIndex(turn);
+        if (idx >= 0) {
+            this.copilotHistory = this.copilotHistory.slice(idx + 1);
+            this.persistCopilotHistory();
+        }
+    }
+
+    /** Admin shortcut from the rate-limit notice: open the AI provider settings page. */
+    openAiProviderSettings(): void {
+        this.closeCopilotPanel(false);
+        this.router.navigateByUrl('/administration/settings/ai').catch(() => {
+            this.messageService.add({
+                severity: 'warn',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: '/administration/settings/ai',
+                life: 3000
+            });
+        });
     }
 
     navigateFromCopilot(nav: NadiPilotNavigationDTO): void {
@@ -1761,9 +2239,20 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             && action.quantity > 0;
     }
 
+    /** Per-user localStorage key so one user's NadiPilot chat can't leak to another on the same browser. */
+    private copilotScopedKey(base: string): string {
+        return `${base}.${this.copilotUserId}`;
+    }
+
     private loadCopilotHistory(): void {
+        // Purge the legacy shared (non-user-scoped) key that leaked chats across users.
         try {
-            const raw = localStorage.getItem(this.copilotHistoryStorageKey);
+            localStorage.removeItem(this.copilotHistoryStorageKey);
+        } catch {
+            // ignore
+        }
+        try {
+            const raw = localStorage.getItem(this.copilotScopedKey(this.copilotHistoryStorageKey));
             if (!raw) {
                 this.copilotHistory = [];
                 return;
@@ -1781,7 +2270,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
 
     private persistCopilotHistory(): void {
         try {
-            localStorage.setItem(this.copilotHistoryStorageKey, JSON.stringify(this.copilotHistory.slice(0, 12)));
+            localStorage.setItem(this.copilotScopedKey(this.copilotHistoryStorageKey), JSON.stringify(this.copilotHistory.slice(0, 12)));
         } catch {
             // No-op: storage may be unavailable in restricted environments.
         }

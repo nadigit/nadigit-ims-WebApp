@@ -464,7 +464,7 @@
 												{{item.product.description}}
 											</div>
 										</td>
-										<td>{{item.product?.reference || 'N/A'}}</td>
+										<td><span class="reference-badge">{{item.product?.reference || 'N/A'}}</span></td>
 										<td class="text-center">
 											<p-tag [value]="formatItemQuantity(item)" severity="info"></p-tag>
 										</td>

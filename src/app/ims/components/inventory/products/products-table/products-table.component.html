@@ -290,7 +290,7 @@
                       | translate }}</span>
                   </span>
                 </div>
-                <small class="text-muted">{{ 'ref' | translate }}: {{ product.reference || '?' }}</small>
+                <span class="reference-badge">{{ product.reference || '?' }}</span>
                 <!-- Attributes -->
                 <div *ngIf="product.attributes?.length" class="mt-2 flex flex-wrap gap-1">
                   <p-tag *ngFor="let attr of product.attributes" [value]="attr.attributeName + ': ' + attr.value"
@@ -557,7 +557,7 @@
         <div class="text-center mb-3">
           <h4 class="font-bold mb-1 text-overflow-ellipsis overflow-hidden white-space-nowrap">{{product.name || 'N/A'}}
           </h4>
-          <small class="text-muted">{{product.reference || '?'}}</small>
+          <span class="reference-badge">{{product.reference || '?'}}</span>
           <!-- Valid Expiration Info (Products only - shown below reference) -->
           <div *ngIf="isProduct(product) && showValidIndicator(product)" class="mt-1">
             <span class="text-xs text-green-600">

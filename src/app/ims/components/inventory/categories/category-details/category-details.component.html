@@ -280,13 +280,13 @@
                     <!-- Products Section -->
                     <div *ngIf="!loadingCategoryDetails" class="detail-card">
                         <div class="card-header products-header">
-                            <div class="flex flex-column gap-2 align-items-start">
-                                <div class="flex align-items-center gap-2">
-                                    <i class="pi pi-list"></i>
-                                    <span>{{ 'products_list' | translate }}</span>
-                                </div>
-                                <p-message *ngIf="!isAdmin" severity="info" [text]="'category_products_scope_hint' | translate"
-                                    styleClass="w-full" [closable]="false"></p-message>
+                            <div class="flex align-items-center gap-2">
+                                <i class="pi pi-list"></i>
+                                <span>{{ 'products_list' | translate }}</span>
+                                <i *ngIf="!isAdmin" class="pi pi-info-circle ims-scope-hint-icon"
+                                    [pTooltip]="'category_products_scope_hint' | translate"
+                                    tooltipPosition="top"
+                                    [attr.aria-label]="'category_products_scope_hint' | translate"></i>
                             </div>
                             <div class="products-filters">
                                 <span class="p-input-icon-left">

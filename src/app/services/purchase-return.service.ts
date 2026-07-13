@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
 import { Observable } from 'rxjs';
@@ -33,10 +33,20 @@ export class PurchaseReturnService {
     return this.http.put(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, purchaseReturn, { headers: headers });
   }
 
-  deleteReturn(id: any) {
+  deleteReturn(id: any, force: boolean = false) {
     this.loadToken();
-    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Deleted purchase return');
-    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers });
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), force ? 'Force deleted purchase return' : 'Deleted purchase return');
+    let params = new HttpParams();
+    if (force) {
+      params = params.set('force', 'true');
+    }
+    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id, { headers: headers, params });
+  }
+
+  getReturnDeleteImpact(id: any) {
+    this.loadToken();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + id + '/delete-impact', { headers });
   }
 
   getReturns(): Observable<any> {

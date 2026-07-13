@@ -188,8 +188,9 @@
 </div>
 
 <p-table
-  *ngIf="(!isInitialLoad || orders.length) && (!isLoading || orders.length)"
+  [hidden]="(isLoading || isInitialLoad) && !orders.length"
   #dt [value]="orders" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
+  [sortField]="'orderDate'" [sortOrder]="-1"
   [rowsPerPageOptions]="rowsPerPageOptions" [paginatorDropdownAppendTo]="'body'" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords"
   [loading]="isLoading && orders.length > 0" [showCurrentPageReport]="true" (selectionChange)="onSelectionChange($event)"
   currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
@@ -248,7 +249,7 @@
 
       <td style="min-width: 8rem;">
         <span class="p-column-title">{{ 'order_reference' | translate }}</span>
-        #{{ order.reference ? order.reference : 'N/A'}}
+        <span class="reference-badge">#{{ order.reference ? order.reference : 'N/A'}}</span>
         <span *ngIf="isReturnedStatus(order.orderStatus)" class="ml-2"
           [pTooltip]="getReturnTooltip(order.orderStatus) | translate" tooltipPosition="top">
           <i class="pi pi-undo" [ngClass]="{

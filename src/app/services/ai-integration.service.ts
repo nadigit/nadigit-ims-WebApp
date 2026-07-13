@@ -45,6 +45,44 @@ export interface ForecastResponseDTO {
   narrative?: string;
 }
 
+export interface ProductMovementItemDTO {
+  productId: number;
+  productReference: string;
+  productName: string;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
+  categoryName?: string | null;
+  historyDays: number;
+  unitsSold: number;
+  avgDailyDemand: number;
+  recentDailyDemand: number;
+  currentStock: number;
+  daysSinceLastSale?: number | null;
+  daysOfInventory?: number | null;
+  sellThroughRate: number;
+  stockValue: number;
+  grossMarginRate?: number | null;
+  movementBand: string;
+  recommendedAction: string;
+  priorityScore: number;
+  expiringSoon: boolean;
+  daysUntilExpiration?: number | null;
+  reason: string;
+}
+
+export interface ProductMovementResponseDTO {
+  historyDays: number;
+  shopId?: number | null;
+  warehouseId?: number | null;
+  generatedItemsCount: number;
+  generatedAt: string;
+  modelVersion: string;
+  snapshotDate?: string | null;
+  bandCounts: { [band: string]: number };
+  items: ProductMovementItemDTO[];
+  narrative?: string;
+}
+
 export interface NadiPilotMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -85,10 +123,16 @@ export interface NadiPilotCardDTO {
   navigation?: NadiPilotNavigationDTO | null;
 }
 
+export interface NadiPilotProposedLineDTO {
+  product: string;
+  quantity: number;
+}
+
 export interface NadiPilotProposedActionDTO {
   type: string;
   summary?: string;
   fields?: { [key: string]: string };
+  lines?: NadiPilotProposedLineDTO[];
 }
 
 export interface NadiPilotBriefingItemDTO {
@@ -142,6 +186,14 @@ export interface NadiPilotResponseDTO {
   navigationSuggestions?: NadiPilotNavigationDTO[];
   cards?: NadiPilotCardDTO[];
   proposedAction?: NadiPilotProposedActionDTO | null;
+  aiNotice?: NadiPilotNoticeDTO | null;
+}
+
+/** Non-answer status surfaced to the chat (e.g. the AI model is temporarily rate-limited). */
+export interface NadiPilotNoticeDTO {
+  type: string;
+  message: string;
+  retryAfterSeconds?: number | null;
 }
 
 export interface NadiPilotDraftReorderRequest {
@@ -178,12 +230,16 @@ export interface NadiPilotDraftReorderResponse {
 export class AiIntegrationService {
   private readonly path = '/api/ai/test-connection';
   private readonly forecastPath = '/api/ai/forecasting/items';
+  private readonly movementSnapshotPath = '/api/ai/movement/slow-movers';
+  private readonly movementAnalyzePath = '/api/ai/movement/analyze';
   private readonly copilotPath = '/api/ai/copilot/ask';
   private readonly copilotStreamPath = '/api/ai/copilot/ask/stream';
   private readonly copilotBriefingPath = '/api/ai/copilot/briefing';
   private readonly copilotCreateCustomerPath = '/api/ai/copilot/actions/create-customer';
   private readonly copilotCreateSupplierPath = '/api/ai/copilot/actions/create-supplier';
   private readonly copilotCreateExpensePath = '/api/ai/copilot/actions/create-expense';
+  private readonly copilotComposeOrderPath = '/api/ai/copilot/actions/compose-order';
+  private readonly copilotGenerateDocumentPath = '/api/ai/copilot/actions/generate-document';
   private readonly copilotDraftReorderPath = '/api/ai/copilot/actions/draft-reorder';
   private readonly copilotDraftReorderBatchPath = '/api/ai/copilot/actions/draft-reorder-batch';
   private readonly apiProtocol: string = (window as any).__env?.apiProtocol || 'http';
@@ -202,6 +258,14 @@ export class AiIntegrationService {
 
   private get forecastUrl(): string {
     return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.forecastPath}`;
+  }
+
+  private get movementSnapshotUrl(): string {
+    return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.movementSnapshotPath}`;
+  }
+
+  private get movementAnalyzeUrl(): string {
+    return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.movementAnalyzePath}`;
   }
 
   private get copilotUrl(): string {
@@ -247,6 +311,20 @@ export class AiIntegrationService {
     );
   }
 
+  /**
+   * Verifies the configured market-trends provider responds (ADMIN + Enterprise license).
+   */
+  testTrendsConnection(): Observable<AiLlmTestResult> {
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}/api/trends/test-connection`;
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.post<AiLlmTestResult>(url, {}, {
+          headers: withAudit(h, 'Tested market-trends provider connection'),
+        }),
+      ),
+    );
+  }
+
   getForecastItems(params: {
     historyDays?: number;
     horizonDays?: number;
@@ -266,6 +344,33 @@ export class AiIntegrationService {
             ...(params.shopId != null ? { shopId: String(params.shopId) } : {}),
             ...(params.warehouseId != null ? { warehouseId: String(params.warehouseId) } : {}),
             ...(params.withNarrative != null ? { withNarrative: String(params.withNarrative) } : {}),
+          },
+        }),
+      ),
+    );
+  }
+
+  /**
+   * Product movement / slow-dead-stock recommendations. Reads the fast nightly snapshot by default;
+   * switches to a live computation when a shop or custom history window is requested.
+   */
+  getProductMovement(params: {
+    limit?: number;
+    concernsOnly?: boolean;
+    shopId?: number;
+    historyDays?: number;
+  }): Observable<ProductMovementResponseDTO> {
+    const useLive = params.shopId != null || params.historyDays != null;
+    const url = useLive ? this.movementAnalyzeUrl : this.movementSnapshotUrl;
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.get<ProductMovementResponseDTO>(url, {
+          headers: withAudit(h, 'Viewed product movement report'),
+          params: {
+            ...(params.limit != null ? { limit: String(params.limit) } : {}),
+            ...(params.concernsOnly != null ? { concernsOnly: String(params.concernsOnly) } : {}),
+            ...(useLive && params.shopId != null ? { shopId: String(params.shopId) } : {}),
+            ...(useLive && params.historyDays != null ? { historyDays: String(params.historyDays) } : {}),
           },
         }),
       ),
@@ -415,6 +520,43 @@ export class AiIntegrationService {
       switchMap(h =>
         this.http.post<{ expenseId: number; reference: string; route: string }>(url, payload, {
           headers: withAudit(h, 'Created expense from AI copilot'),
+        }),
+      ),
+    );
+  }
+
+  composeNadiPilotOrder(payload: {
+    customer?: string; shopId?: number; warehouseId?: number; documentType?: string;
+    lines: { product: string; quantity: number }[];
+  }): Observable<{
+    orderId: number; reference: string; totalAmount?: number; route: string;
+    documentId?: number; documentNumber?: string; documentType?: string; fileUrl?: string; documentError?: string;
+  }> {
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotComposeOrderPath}`;
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.post<{
+          orderId: number; reference: string; totalAmount?: number; route: string;
+          documentId?: number; documentNumber?: string; documentType?: string; fileUrl?: string; documentError?: string;
+        }>(url, payload, {
+          headers: withAudit(h, 'Created order from AI copilot'),
+        }),
+      ),
+    );
+  }
+
+  generateNadiPilotDocument(payload: { order: string; documentType: string }): Observable<{
+    documentId: number; documentNumber: string; documentType: string;
+    orderId: number; orderReference: string; fileUrl?: string; route: string;
+  }> {
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.copilotGenerateDocumentPath}`;
+    return from(this.getHeaders()).pipe(
+      switchMap(h =>
+        this.http.post<{
+          documentId: number; documentNumber: string; documentType: string;
+          orderId: number; orderReference: string; fileUrl?: string; route: string;
+        }>(url, payload, {
+          headers: withAudit(h, 'Generated financial document from AI copilot'),
         }),
       ),
     );

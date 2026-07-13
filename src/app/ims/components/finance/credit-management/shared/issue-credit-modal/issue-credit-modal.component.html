@@ -1,82 +1,115 @@
-<p-dialog [(visible)]="visible" 
-          [modal]="true" 
-          [style]="{width: '500px'}"
+<p-dialog [(visible)]="visible"
+          [modal]="true"
+          [style]="{width: 'min(92vw, 520px)'}"
+          [breakpoints]="{'640px': '95vw'}"
           [header]="'issue_credit' | translate"
+          [draggable]="false" [resizable]="false"
+          styleClass="ims-form-dialog-shell"
+          class="p-fluid"
           (onHide)="close()"
           [closable]="true">
     <ng-template pTemplate="content">
-        <div class="p-fluid">
-            <div class="field">
-                <label for="amount">
-                    {{ 'amount' | translate }} <span class="required-asterisk">*</span>
-                </label>
-                <p-inputNumber 
-                    [(ngModel)]="amount" 
-                    [min]="0.01" 
-                    [step]="0.01"
-                    mode="currency" 
-                    [currency]="currency"
-                    [ngClass]="{'ng-invalid ng-dirty': submitted && (!amount || amount <= 0)}"
-                    styleClass="w-full">
-                </p-inputNumber>
-                <small class="ng-dirty ng-invalid" *ngIf="submitted && (!amount || amount <= 0)">
-                    {{ 'amount_must_be_positive' | translate }}
-                </small>
-                <div class="mt-2 text-sm text-500" *ngIf="creditAccount">
-                    <div>{{ 'current_balance' | translate }}: {{ creditAccount.creditBalance | currency:currency:'symbol':'1.2-2' }}</div>
-                    <div *ngIf="creditAccount.creditLimit && creditAccount.creditLimit > 0">
-                        {{ 'credit_limit' | translate }}: {{ creditAccount.creditLimit | currency:currency:'symbol':'1.2-2' }}
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--success">
+                            <i class="pi pi-plus-circle"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'credit_account' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12">
+                            <label for="amount" class="ims-form-label">
+                                {{ 'amount' | translate }} <span class="required-asterisk">*</span>
+                            </label>
+                            <p-inputNumber
+                                inputId="amount"
+                                [(ngModel)]="amount"
+                                [min]="0.01"
+                                [step]="0.01"
+                                mode="currency"
+                                [currency]="currency"
+                                [ngClass]="{'ng-invalid ng-dirty': submitted && (!amount || amount <= 0)}"
+                                styleClass="w-full">
+                            </p-inputNumber>
+                            <small class="p-error" *ngIf="submitted && (!amount || amount <= 0)">
+                                {{ 'amount_must_be_positive' | translate }}
+                            </small>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="description" class="ims-form-label">{{ 'description' | translate }}</label>
+                            <textarea
+                                pInputTextarea
+                                id="description"
+                                [(ngModel)]="description"
+                                rows="3"
+                                [autoResize]="true"
+                                placeholder="{{ 'enter_description_optional' | translate }}">
+                            </textarea>
+                        </div>
+
+                        <div class="field col-12">
+                            <label for="expirationDate" class="ims-form-label">
+                                {{ 'expiration_date' | translate }}
+                                <span class="ims-form-hint ims-form-hint--inline">({{ 'optional' | translate }})</span>
+                            </label>
+                            <p-calendar
+                                inputId="expirationDate"
+                                [(ngModel)]="expirationDate"
+                                [showIcon]="true"
+                                dateFormat="dd/mm/yy"
+                                [minDate]="minDate"
+                                [maxDate]="getMaxDate()"
+                                [showOnFocus]="false"
+                                placeholder="{{ 'select_expiration_date' | translate }}"
+                                appendTo="body">
+                            </p-calendar>
+                            <small class="ims-form-hint">{{ 'expiration_date_hint' | translate }}</small>
+                        </div>
                     </div>
-                    <div *ngIf="creditAccount.creditLimit && creditAccount.creditLimit > 0 && amount">
-                        {{ 'new_balance' | translate }}: {{ ((creditAccount.creditBalance || 0) + amount) | currency:currency:'symbol':'1.2-2' }}
+                </section>
+
+                <div class="ims-form-callout" *ngIf="creditAccount">
+                    <i class="pi pi-info-circle"></i>
+                    <div>
+                        <div>{{ 'current_balance' | translate }}:
+                            <span class="font-semibold">{{ creditAccount.creditBalance | currency:currency:'symbol':'1.2-2' }}</span>
+                        </div>
+                        <div *ngIf="creditAccount.creditLimit && creditAccount.creditLimit > 0">
+                            {{ 'credit_limit' | translate }}:
+                            <span class="font-semibold">{{ creditAccount.creditLimit | currency:currency:'symbol':'1.2-2' }}</span>
+                        </div>
+                        <div *ngIf="amount">
+                            {{ 'new_balance' | translate }}:
+                            <span class="font-semibold">{{ ((creditAccount.creditBalance || 0) + amount) | currency:currency:'symbol':'1.2-2' }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="field">
-                <label for="description">{{ 'description' | translate }}</label>
-                <textarea 
-                    pInputTextarea 
-                    [(ngModel)]="description" 
-                    rows="3"
-                    [autoResize]="true"
-                    placeholder="{{ 'enter_description_optional' | translate }}">
-                </textarea>
-            </div>
-
-            <div class="field">
-                <label for="expirationDate">{{ 'expiration_date' | translate }} ({{ 'optional' | translate }})</label>
-                <p-calendar 
-                    [(ngModel)]="expirationDate" 
-                    [showIcon]="true"
-                    dateFormat="dd/mm/yy"
-                    [minDate]="minDate"
-                    [maxDate]="getMaxDate()"
-                    [showOnFocus]="false"
-                    placeholder="{{ 'select_expiration_date' | translate }}"
-                    appendTo="body">
-                </p-calendar>
-                <small class="text-500">{{ 'expiration_date_hint' | translate }}</small>
+            <div class="ims-form-required-note">
+                <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
             </div>
         </div>
     </ng-template>
 
     <ng-template pTemplate="footer">
-        <button pButton 
-                type="button" 
-                label="{{ 'cancel_button' | translate }}" 
+        <button pButton
+                type="button"
+                label="{{ 'cancel_button' | translate }}"
                 icon="pi pi-times"
-                class="p-button-text" 
+                class="p-button-text"
                 (click)="close()"
                 [disabled]="isSaving"></button>
-        <button pButton 
-                type="button" 
-                label="{{ 'issue_credit' | translate }}" 
+        <button pButton
+                type="button"
+                label="{{ 'issue_credit' | translate }}"
                 icon="pi pi-check"
-                class="p-button-success" 
+                class="p-button-success"
                 (click)="saveCredit()"
                 [loading]="isSaving"
                 [disabled]="isSaving"></button>
     </ng-template>
 </p-dialog>
-

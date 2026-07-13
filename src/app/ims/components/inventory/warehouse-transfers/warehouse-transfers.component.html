@@ -159,7 +159,7 @@
             </div>
 
             <p-table
-                *ngIf="(!isInitialLoad || transfers.length) && (!isLoading || transfers.length)"
+                [hidden]="(isLoading || isInitialLoad) && !transfers.length"
                 #dt 
                 [value]="transfers" 
                 [lazy]="true"
@@ -207,7 +207,7 @@
                         class="cursor-pointer">
                         <td>
                             <span class="p-column-title">{{ 'reference' | translate }}</span>
-                            <strong class="text-primary">#{{ transfer.reference }}</strong>
+                            <span class="reference-badge">#{{ transfer.reference }}</span>
                         </td>
                         <td>
                             <span class="p-column-title">{{ 'source_warehouse' | translate }}</span>

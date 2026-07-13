@@ -38,6 +38,7 @@ import { TabViewModule } from 'primeng/tabview';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { DividerModule } from 'primeng/divider';
 import { PurchaseReturnDetailsPageComponent } from './purchase-return-details-page/purchase-return-details-page.component';
+import { PurchaseReturnDeleteDialogComponent } from './purchase-return-delete-dialog/purchase-return-delete-dialog.component';
 
 @NgModule({
     imports: [
@@ -78,7 +79,7 @@ import { PurchaseReturnDetailsPageComponent } from './purchase-return-details-pa
         SharedModule,
         DividerModule
     ],
-    declarations: [PurchaseReturnsComponent, FilterProductsPipe, PurchaseReturnDetailsPageComponent],
+    declarations: [PurchaseReturnsComponent, FilterProductsPipe, PurchaseReturnDetailsPageComponent, PurchaseReturnDeleteDialogComponent],
     providers: [ReportingService]
 })
 export class PurchaseReturnsModule { }
