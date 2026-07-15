@@ -55,6 +55,10 @@ export interface POSCartItemDTO {
   measureUnit?: string;
   stockTrackingMode?: string;
   notes?: string;
+  /** Product category id (used to resolve applicable line option sets). */
+  categoryId?: number | null;
+  /** Comma-separated line_option ids selected for this line (Capability A); null = defaults. */
+  selectedOptionIds?: string | null;
 }
 
 export type POSCartStatus = 'ACTIVE' | 'HOLD' | 'COMPLETED' | 'CANCELLED';

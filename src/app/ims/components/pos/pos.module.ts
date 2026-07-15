@@ -31,6 +31,7 @@ import { DividerModule } from 'primeng/divider';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { InventorySharedModule } from '../inventory/shared/inventory-shared.module';
+import { LineOptionSetsUiModule } from '../finance/line-option-sets/line-option-sets-ui.module';
 
 
 @NgModule({
@@ -70,6 +71,7 @@ import { InventorySharedModule } from '../inventory/shared/inventory-shared.modu
     SelectButtonModule,
     ZXingScannerModule,
     InventorySharedModule,
+    LineOptionSetsUiModule,
   ]
 })
 export class PosModule { }

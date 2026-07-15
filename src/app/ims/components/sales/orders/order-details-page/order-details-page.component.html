@@ -611,10 +611,14 @@
                                                         (click)="viewProductDetails(orderItem?.product)"
                                                         style="cursor: pointer;" />
                                                     <div class="product-info">
-                                                        <span class="product-name" 
+                                                        <span class="product-name"
                                                             (click)="viewProductDetails(orderItem?.product)"
                                                             style="cursor: pointer;">{{ orderItem?.product?.name || 'N/A' }}</span>
                                                         <span class="product-category">{{ orderItem?.product?.category?.categoryName }}</span>
+                                                        <div *ngIf="orderItem?.selectedOptions?.length" class="flex flex-wrap gap-1 mt-1">
+                                                            <p-tag *ngFor="let option of orderItem.selectedOptions"
+                                                                [value]="option.label || option.code" severity="info" styleClass="text-xs"></p-tag>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -628,7 +632,17 @@
                                                 {{ orderItem?.pricePerUnit | number:'1.2-2' }} {{ currency }}
                                                 <small *ngIf="orderItem?.product?.measureUnit" class="text-500 block">/ {{ getUnitPriceLabel(orderItem) | translate }}</small>
                                             </td>
-                                            <td>{{ (orderItem?.lineNetAmount ?? ((orderItem?.quantity || 0) * (orderItem?.pricePerUnit || 0))) | number:'1.2-2' }} {{ currency }}</td>
+                                            <td>
+                                                {{ (orderItem?.lineNetAmount ?? ((orderItem?.quantity || 0) * (orderItem?.pricePerUnit || 0))) | number:'1.2-2' }} {{ currency }}
+                                                <ng-container *ngIf="orderItem?.adjustments?.length">
+                                                    <small *ngFor="let adjustment of orderItem.adjustments"
+                                                        class="block text-500"
+                                                        [class.text-orange-600]="adjustment.amount < 0">
+                                                        {{ adjustment.label || adjustment.ruleCode }}:
+                                                        {{ adjustment.amount > 0 ? '+' : '' }}{{ adjustment.amount | number:'1.2-2' }} {{ currency }}
+                                                    </small>
+                                                </ng-container>
+                                            </td>
                                             <td>{{ (orderItem?.lineTaxAmount || 0) | number:'1.2-2' }} {{ currency }}</td>
                                             <td>{{ formatTaxRate(orderItem?.taxRateUsed) }}</td>
                                             <td class="font-bold text-primary">{{ getLineGrossAmount(orderItem) | number:'1.2-2' }} {{ currency }}</td>

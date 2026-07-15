@@ -1,0 +1,50 @@
+<p-toast></p-toast>
+<p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
+
+<div class="line-option-attach">
+  <div *ngIf="loading" class="flex align-items-center gap-2 text-600 text-sm py-2">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>{{ 'loading' | translate }}</span>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <p *ngIf="!sets.length" class="text-600 text-sm mt-0 mb-2">
+      {{ 'line_option_sets_attach_empty' | translate }}
+    </p>
+
+    <div class="line-option-attach__row" *ngFor="let set of sets">
+      <div class="line-option-attach__info">
+        <span class="font-medium text-900">{{ set.label }}</span>
+        <small>
+          <span class="reference-badge">{{ set.code }}</span>
+          <span class="text-600 ml-2">{{ modeDisplay(set) }} · {{ set.options?.length || 0 }} {{ 'line_option_set_options_count' | translate | lowercase }}</span>
+        </small>
+      </div>
+      <div class="flex gap-1" *ngIf="isAdmin">
+        <button pButton pRipple type="button" icon="pi pi-pencil"
+          class="p-button-rounded p-button-text p-button-primary p-button-sm"
+          (click)="openEdit(set)" [pTooltip]="'edit' | translate"></button>
+        <button pButton pRipple type="button" icon="pi pi-times"
+          class="p-button-rounded p-button-text p-button-danger p-button-sm"
+          (click)="confirmDetach(set)" [pTooltip]="'line_option_sets_detach' | translate"></button>
+      </div>
+    </div>
+  </ng-container>
+
+  <div class="flex align-items-center gap-3 mt-2 flex-wrap">
+    <button *ngIf="isAdmin" pButton pRipple type="button" icon="pi pi-plus"
+      [label]="'line_option_sets_attach_new' | translate"
+      class="p-button-sm p-button-outlined" (click)="openCreate()"></button>
+    <a routerLink="/finance/line-option-sets" class="text-sm">
+      {{ 'line_option_sets_manage_link' | translate }}
+    </a>
+  </div>
+</div>
+
+<app-line-option-set-dialog
+  [(visible)]="dialogVisible"
+  [set]="editingSet"
+  [lockProductId]="productId"
+  [lockCategoryId]="categoryId"
+  (saved)="onSaved()">
+</app-line-option-set-dialog>

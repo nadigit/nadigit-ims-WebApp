@@ -1,0 +1,102 @@
+<p-toast></p-toast>
+<p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
+
+<div class="line-option-sets-page" [class.line-option-sets-page--embedded]="embedded" *ngIf="!isLoading; else loadingTpl">
+  <!-- Page header (standalone route only) -->
+  <div class="mb-4" *ngIf="!embedded">
+    <h2 class="m-0 text-900">{{ 'line_option_sets_page_title' | translate }}</h2>
+    <p class="text-600 mt-2 mb-0">{{ 'line_option_sets_intro' | translate }}</p>
+  </div>
+  <p *ngIf="!isAdmin" class="text-600 mb-3" [class.text-sm]="embedded">{{ 'line_option_sets_readonly_hint' | translate }}</p>
+
+  <!-- Action Buttons -->
+  <div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="isAdmin">
+    <button pButton pRipple
+      label="{{ 'new_button' | translate }}"
+      icon="pi pi-plus"
+      class="p-button-success"
+      (click)="openCreate()"
+      pTooltip="{{ 'line_option_sets_add' | translate }}"></button>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+    <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+      <i class="pi pi-search"></i>
+      <input type="text" pInputText
+        [placeholder]="'search_label' | translate"
+        (input)="dt.filterGlobal($event.target.value, 'contains')" class="w-full" />
+    </span>
+  </div>
+
+  <p-table #dt [value]="sets" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.lineOptionSets, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
+    (onPage)="pageSizeService.onPage(TablePageSizeKeys.lineOptionSets, [20, 50, 100], $event)"
+    dataKey="lineOptionSetId" [rowHover]="true"
+    [globalFilterFields]="['code','label','productName','productReference','categoryName']"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+    styleClass="p-datatable-gridlines">
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="code">{{ 'line_option_set_code' | translate }} <p-sortIcon field="code"></p-sortIcon></th>
+        <th pSortableColumn="label">{{ 'line_option_set_label' | translate }} <p-sortIcon field="label"></p-sortIcon></th>
+        <th>{{ 'line_option_set_scope' | translate }}</th>
+        <th pSortableColumn="selectionMode">{{ 'line_option_set_selection_mode' | translate }} <p-sortIcon field="selectionMode"></p-sortIcon></th>
+        <th class="text-right">{{ 'line_option_set_options_count' | translate }}</th>
+        <th class="text-center" pSortableColumn="active">{{ 'line_option_set_active' | translate }} <p-sortIcon field="active"></p-sortIcon></th>
+        <th *ngIf="isAdmin">{{ 'actions' | translate }}</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-row>
+      <tr>
+        <td><span class="font-semibold">{{ row.code }}</span></td>
+        <td>{{ row.label }}</td>
+        <td>
+          <div *ngIf="row.productId" class="flex flex-column">
+            <span class="font-medium text-900">{{ row.productName || ('#' + row.productId) }}</span>
+            <small *ngIf="row.productReference"><span class="reference-badge">{{ row.productReference }}</span></small>
+          </div>
+          <span *ngIf="!row.productId && row.categoryId">{{ row.categoryName || ('#' + row.categoryId) }}</span>
+          <span *ngIf="!row.productId && !row.categoryId" class="text-500">{{ 'line_option_set_scope_global' | translate }}</span>
+        </td>
+        <td>{{ modeDisplay(row) }}</td>
+        <td class="text-right">{{ optionCount(row) }}</td>
+        <td class="text-center">
+          <p-tag [severity]="row.active ? 'success' : 'secondary'" [value]="row.active ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
+        </td>
+        <td *ngIf="isAdmin">
+          <div class="flex gap-1">
+            <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
+              (click)="openEdit(row)" [pTooltip]="'edit' | translate"></button>
+            <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+              (click)="confirmDelete(row)" [pTooltip]="'delete' | translate"></button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td [attr.colspan]="isAdmin ? 7 : 6" class="text-center py-4">
+          <div class="flex flex-column align-items-center justify-content-center py-5">
+            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">
+            <p class="mt-3 text-gray-600 font-medium text-lg">{{ 'no_data_found' | translate }}</p>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<ng-template #loadingTpl>
+  <div class="ims-loading-panel ims-loading-panel--section">
+    <div class="ims-loading-panel__inner">
+      <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+    </div>
+  </div>
+</ng-template>
+
+<app-line-option-set-dialog
+  [(visible)]="dialogVisible"
+  [set]="editingSet"
+  (saved)="onSaved()">
+</app-line-option-set-dialog>

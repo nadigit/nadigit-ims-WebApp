@@ -1,0 +1,45 @@
+<p-dialog
+  [(visible)]="visible"
+  [modal]="true"
+  [style]="{ width: 'min(94vw, 520px)' }"
+  [breakpoints]="{'640px': '95vw'}"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="ims-form-dialog-shell"
+  (onHide)="hideDialog()">
+  <ng-template pTemplate="header">
+    <div class="flex flex-column">
+      <span class="text-lg font-semibold">{{ 'line_option_picker_title' | translate }}</span>
+      <small *ngIf="productName" class="text-600">{{ productName }}</small>
+    </div>
+  </ng-template>
+  <ng-template pTemplate="content">
+    <div class="line-option-picker">
+      <div class="line-option-picker__set" *ngFor="let set of sets">
+        <div class="line-option-picker__set-head">
+          <span class="font-semibold text-900">{{ set.label }}</span>
+          <small class="text-600">{{ constraintHint(set) }}</small>
+        </div>
+        <div class="line-option-picker__options">
+          <div class="line-option-picker__option"
+            *ngFor="let option of activeLineOptions(set)"
+            [class.line-option-picker__option--selected]="isSelected(option.lineOptionId)"
+            (click)="toggle(set, option.lineOptionId)">
+            <p-checkbox [binary]="true" [ngModel]="isSelected(option.lineOptionId)"
+              (onChange)="$event.originalEvent?.stopPropagation()" [readonly]="true"></p-checkbox>
+            <span class="line-option-picker__option-label">{{ option.label }}</span>
+            <i *ngIf="option.suppressesAdjustments" class="pi pi-star-fill line-option-picker__premium"
+              [pTooltip]="'line_option_premium_tooltip' | translate" tooltipPosition="top"></i>
+          </div>
+        </div>
+      </div>
+      <small class="p-error block mt-2" *ngIf="violation">{{ violationMessage() }}</small>
+    </div>
+  </ng-template>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple [label]="'cancel' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="hideDialog()"></button>
+    <button pButton pRipple [label]="'line_option_picker_apply' | translate" icon="pi pi-check"
+      class="p-button-primary" (click)="onApply()"></button>
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,337 @@
+<p-toast></p-toast>
+<p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
+
+<div class="line-price-rules-page" [class.line-price-rules-page--embedded]="embedded" *ngIf="!isLoading; else loadingTpl">
+  <!-- Page header (standalone route only) -->
+  <div class="mb-4" *ngIf="!embedded">
+    <h2 class="m-0 text-900">{{ 'line_price_rules_page_title' | translate }}</h2>
+    <p class="text-600 mt-2 mb-0">{{ 'line_price_rules_intro' | translate }}</p>
+  </div>
+  <p *ngIf="!isAdmin" class="text-600 mb-3" [class.text-sm]="embedded">{{ 'line_price_rules_readonly_hint' | translate }}</p>
+
+  <!-- Engine disabled: rules are inert until sales.pricing.rules.mode = RULES -->
+  <div *ngIf="!rulesModeActive" class="rules-mode-banner mb-4 p-3 border-round flex align-items-start gap-2">
+    <i class="pi pi-info-circle mt-1"></i>
+    <span>{{ 'line_price_rules_mode_off_banner' | translate }}</span>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="isAdmin">
+    <button pButton pRipple
+      label="{{ 'new_button' | translate }}"
+      icon="pi pi-plus"
+      class="p-button-success"
+      (click)="openCreate()"
+      pTooltip="{{ 'line_price_rules_add' | translate }}"></button>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+    <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+      <i class="pi pi-search"></i>
+      <input type="text" pInputText
+        [placeholder]="'search_label' | translate"
+        (input)="dt.filterGlobal($event.target.value, 'contains')" class="w-full" />
+    </span>
+  </div>
+
+  <p-table #dt [value]="rules" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.linePriceRules, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
+    (onPage)="pageSizeService.onPage(TablePageSizeKeys.linePriceRules, [20, 50, 100], $event)"
+    dataKey="linePriceRuleId" [rowHover]="true"
+    [globalFilterFields]="['code','label','productName','productReference','categoryName','conditionOptionCode','attributeName']"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
+    styleClass="p-datatable-gridlines">
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="code">{{ 'line_price_rule_code' | translate }} <p-sortIcon field="code"></p-sortIcon></th>
+        <th pSortableColumn="label">{{ 'line_price_rule_label' | translate }} <p-sortIcon field="label"></p-sortIcon></th>
+        <th>{{ 'line_price_rule_scope' | translate }}</th>
+        <th>{{ 'line_price_rule_condition' | translate }}</th>
+        <th>{{ 'line_price_rule_adjustment' | translate }}</th>
+        <th class="text-right" pSortableColumn="priority">{{ 'line_price_rule_priority' | translate }} <p-sortIcon field="priority"></p-sortIcon></th>
+        <th>{{ 'line_price_rule_effective' | translate }}</th>
+        <th class="text-center" pSortableColumn="active">{{ 'line_price_rule_active' | translate }} <p-sortIcon field="active"></p-sortIcon></th>
+        <th *ngIf="isAdmin">{{ 'actions' | translate }}</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-row>
+      <tr>
+        <td><span class="font-semibold">{{ row.code }}</span></td>
+        <td>{{ row.label }}</td>
+        <td>
+          <div *ngIf="row.productId" class="flex flex-column">
+            <span class="font-medium text-900">{{ row.productName || ('#' + row.productId) }}</span>
+            <small *ngIf="row.productReference"><span class="reference-badge">{{ row.productReference }}</span></small>
+          </div>
+          <span *ngIf="!row.productId && row.categoryId">{{ row.categoryName || ('#' + row.categoryId) }}</span>
+          <span *ngIf="!row.productId && !row.categoryId" class="text-500">{{ 'line_option_set_scope_global' | translate }}</span>
+        </td>
+        <td>{{ conditionDisplay(row) }}</td>
+        <td>{{ adjustmentDisplay(row) }}</td>
+        <td class="text-right">{{ row.priority }}</td>
+        <td>{{ windowDisplay(row) }}</td>
+        <td class="text-center">
+          <p-tag [severity]="row.active ? 'success' : 'secondary'" [value]="row.active ? ('enabled' | translate) : ('disabled' | translate)"></p-tag>
+        </td>
+        <td *ngIf="isAdmin">
+          <div class="flex gap-1">
+            <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
+              (click)="openEdit(row)" [pTooltip]="'edit' | translate"></button>
+            <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+              (click)="confirmDelete(row)" [pTooltip]="'delete' | translate"></button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td [attr.colspan]="isAdmin ? 9 : 8" class="text-center py-4">
+          <div class="flex flex-column align-items-center justify-content-center py-5">
+            <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 250px; opacity: 0.6;">
+            <p class="mt-3 text-gray-600 font-medium text-lg">{{ 'no_data_found' | translate }}</p>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<ng-template #loadingTpl>
+  <div class="ims-loading-panel ims-loading-panel--section">
+    <div class="ims-loading-panel__inner">
+      <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+    </div>
+  </div>
+</ng-template>
+
+<p-dialog
+  [(visible)]="dialogVisible"
+  [header]="(isEdit ? 'line_price_rules_edit' : 'line_price_rules_add') | translate"
+  [modal]="true"
+  [style]="{ width: 'min(94vw, 640px)' }"
+  [breakpoints]="{'640px': '95vw'}"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="ims-form-dialog-shell"
+  class="p-fluid"
+  (onHide)="hideDialog()">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <!-- Rule definition -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+              <i class="pi pi-info-circle"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'basic_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lprCode" class="ims-form-label">
+                  {{ 'line_price_rule_code' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="lprCode" pInputText class="w-full" [(ngModel)]="form.code"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !form.code?.trim()}" />
+                <small class="p-error" *ngIf="submitted && !form.code?.trim()">
+                  {{ 'line_price_rule_code' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+              <div class="field">
+                <label for="lprLabel" class="ims-form-label">
+                  {{ 'line_price_rule_label' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="lprLabel" pInputText class="w-full" [(ngModel)]="form.label"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !form.label?.trim()}" />
+                <small class="p-error" *ngIf="submitted && !form.label?.trim()">
+                  {{ 'line_price_rule_label' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lprDocType" class="ims-form-label">{{ 'line_price_rule_document_type' | translate }}</label>
+                <p-dropdown inputId="lprDocType" [options]="documentTypeOptions" [(ngModel)]="form.documentType"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+              <div class="field">
+                <label for="lprPriority" class="ims-form-label">{{ 'line_price_rule_priority' | translate }}</label>
+                <p-inputNumber inputId="lprPriority" [(ngModel)]="form.priority" [min]="0"
+                  [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+              </div>
+            </div>
+            <div class="ims-form-checkbox-row">
+              <p-checkbox [(ngModel)]="form.active" [binary]="true" inputId="lprActive"></p-checkbox>
+              <label for="lprActive" class="ims-form-label ims-form-label--inline">{{ 'line_price_rule_active' | translate }}</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Condition -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+              <i class="pi pi-filter"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'line_price_rule_condition' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lprCondition" class="ims-form-label">{{ 'line_price_rule_condition_kind' | translate }}</label>
+                <p-dropdown inputId="lprCondition" [options]="conditionKindOptions" [(ngModel)]="form.conditionKind"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+              <div class="field" *ngIf="optionCondition">
+                <label for="lprOptionCode" class="ims-form-label">
+                  {{ 'line_price_rule_condition_option_code' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="lprOptionCode" pInputText class="w-full" [(ngModel)]="form.conditionOptionCode"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && optionCondition && !form.conditionOptionCode?.trim()}" />
+                <small class="p-error" *ngIf="submitted && optionCondition && !form.conditionOptionCode?.trim()">
+                  {{ 'line_price_rule_condition_option_code' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+            </div>
+            <p class="text-600 text-sm m-0">{{ 'line_price_rule_condition_hint' | translate }}</p>
+          </div>
+        </section>
+
+        <!-- Adjustment -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+              <i class="pi pi-percentage"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'line_price_rule_adjustment' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lprKind" class="ims-form-label">{{ 'line_price_rule_adjustment_kind' | translate }}</label>
+                <p-dropdown inputId="lprKind" [options]="adjustmentKindOptions" [(ngModel)]="form.adjustmentKind"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+              <div class="field">
+                <label for="lprBasis" class="ims-form-label">{{ 'line_price_rule_basis' | translate }}</label>
+                <p-dropdown inputId="lprBasis" [options]="basisOptions" [(ngModel)]="form.basis"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lprSource" class="ims-form-label">{{ 'line_price_rule_amount_source' | translate }}</label>
+                <p-dropdown inputId="lprSource" [options]="amountSourceOptions" [(ngModel)]="form.amountSource"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+              <div class="field" *ngIf="literalSource">
+                <label for="lprAmount" class="ims-form-label">
+                  {{ 'line_price_rule_amount' | translate }} <span class="required-asterisk">*</span>
+                  <span class="ims-form-hint ims-form-hint--inline" *ngIf="form.basis === 'PERCENT_OF_LINE'">(%)</span>
+                </label>
+                <p-inputNumber inputId="lprAmount" [(ngModel)]="form.amount" mode="decimal"
+                  [minFractionDigits]="0" [maxFractionDigits]="4" [min]="0"
+                  styleClass="w-full"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && literalSource && (form.amount == null || form.amount < 0)}"></p-inputNumber>
+                <small class="p-error" *ngIf="submitted && literalSource && (form.amount == null || form.amount < 0)">
+                  {{ 'line_price_rule_amount' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+              <div class="field" *ngIf="!literalSource">
+                <label for="lprAttribute" class="ims-form-label">
+                  {{ 'line_price_rule_attribute_name' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="lprAttribute" pInputText class="w-full" [(ngModel)]="form.attributeName"
+                  placeholder="entrails_price"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !literalSource && !form.attributeName?.trim()}" />
+                <small class="p-error" *ngIf="submitted && !literalSource && !form.attributeName?.trim()">
+                  {{ 'line_price_rule_attribute_name' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+            </div>
+            <p class="text-600 text-sm m-0">{{ 'line_price_rule_adjustment_hint' | translate }}</p>
+          </div>
+        </section>
+
+        <!-- Scope & effective window -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+              <i class="pi pi-sliders-h"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'additional_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lprCategory" class="ims-form-label">{{ 'line_option_set_category' | translate }}</label>
+                <p-dropdown
+                  inputId="lprCategory"
+                  [options]="categoryOptions"
+                  [(ngModel)]="form.categoryId"
+                  (onChange)="onCategoryPicked()"
+                  optionLabel="label"
+                  optionValue="value"
+                  [showClear]="true"
+                  appendTo="body"
+                  styleClass="w-full">
+                </p-dropdown>
+              </div>
+              <div class="field">
+                <label for="lprProduct" class="ims-form-label">{{ 'line_option_set_product' | translate }}</label>
+                <p-autoComplete
+                  inputId="lprProduct"
+                  [(ngModel)]="selectedProduct"
+                  [suggestions]="productSuggestions"
+                  [loading]="productSuggestionsLoading"
+                  (completeMethod)="searchProducts($event)"
+                  (onSelect)="onProductPicked()"
+                  field="name"
+                  [forceSelection]="true"
+                  [dropdown]="true"
+                  [showClear]="true"
+                  appendTo="body"
+                  styleClass="w-full"
+                  [placeholder]="'search_products' | translate">
+                  <ng-template let-product pTemplate="item">
+                    <div class="flex flex-column">
+                      <span class="font-medium">{{ product.name }}</span>
+                      <small *ngIf="product.reference"><span class="reference-badge">{{ product.reference }}</span></small>
+                    </div>
+                  </ng-template>
+                </p-autoComplete>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lprValidFrom" class="ims-form-label">{{ 'tax_rule_valid_from' | translate }}</label>
+                <p-calendar inputId="lprValidFrom" [(ngModel)]="validFromDate" dateFormat="yy-mm-dd"
+                  [showIcon]="true" [showClear]="true" appendTo="body" styleClass="w-full"
+                  [placeholder]="'tax_rule_valid_from_placeholder' | translate"></p-calendar>
+              </div>
+              <div class="field">
+                <label for="lprValidTo" class="ims-form-label">{{ 'tax_rule_valid_to' | translate }}</label>
+                <p-calendar inputId="lprValidTo" [(ngModel)]="validToDate" dateFormat="yy-mm-dd"
+                  [showIcon]="true" [showClear]="true" appendTo="body" styleClass="w-full"
+                  [placeholder]="'tax_rule_valid_to_placeholder' | translate"></p-calendar>
+              </div>
+            </div>
+            <p class="text-600 text-sm m-0">{{ 'line_price_rule_scope_hint' | translate }}</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
+    </div>
+  </ng-template>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple [label]="'cancel' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="hideDialog()"></button>
+    <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
+      class="p-button-primary" (click)="save()"></button>
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,206 @@
+<p-dialog
+  [(visible)]="visible"
+  [header]="(isEdit ? 'line_option_sets_edit' : 'line_option_sets_add') | translate"
+  [modal]="true"
+  [style]="{ width: 'min(94vw, 760px)' }"
+  [breakpoints]="{'640px': '95vw'}"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="ims-form-dialog-shell"
+  class="p-fluid"
+  (onHide)="hideDialog()">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <!-- Set definition -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+              <i class="pi pi-info-circle"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'basic_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lineOptionSetCode" class="ims-form-label">
+                  {{ 'line_option_set_code' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="lineOptionSetCode" pInputText class="w-full" [(ngModel)]="form.code"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !form.code?.trim()}" />
+                <small class="p-error" *ngIf="submitted && !form.code?.trim()">
+                  {{ 'line_option_set_code' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+              <div class="field">
+                <label for="lineOptionSetLabel" class="ims-form-label">
+                  {{ 'line_option_set_label' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="lineOptionSetLabel" pInputText class="w-full" [(ngModel)]="form.label"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !form.label?.trim()}" />
+                <small class="p-error" *ngIf="submitted && !form.label?.trim()">
+                  {{ 'line_option_set_label' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lineOptionSetMode" class="ims-form-label">{{ 'line_option_set_selection_mode' | translate }}</label>
+                <p-dropdown inputId="lineOptionSetMode" [options]="selectionModeOptions" [(ngModel)]="form.selectionMode"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+              <div class="field">
+                <label for="lineOptionSetMin" class="ims-form-label">{{ 'line_option_set_min_select' | translate }}</label>
+                <p-inputNumber inputId="lineOptionSetMin" [(ngModel)]="form.minSelect" [min]="0"
+                  [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+              </div>
+              <div class="field">
+                <label for="lineOptionSetMax" class="ims-form-label">{{ 'line_option_set_max_select' | translate }}</label>
+                <p-inputNumber inputId="lineOptionSetMax" [(ngModel)]="form.maxSelect" [min]="1"
+                  [useGrouping]="false" styleClass="w-full"
+                  [placeholder]="'line_option_set_max_select_placeholder' | translate"></p-inputNumber>
+                <small class="p-error" *ngIf="submitted && maxSelectInvalid">
+                  {{ 'line_option_set_max_select_invalid' | translate }}
+                </small>
+              </div>
+            </div>
+            <div class="ims-form-checkbox-row">
+              <p-checkbox [(ngModel)]="form.active" [binary]="true" inputId="lineOptionSetActive"></p-checkbox>
+              <label for="lineOptionSetActive" class="ims-form-label ims-form-label--inline">{{ 'line_option_set_active' | translate }}</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Scope (hidden when pinned to a product/category by the embedded control) -->
+        <section class="ims-form-section" *ngIf="!scopeLocked">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+              <i class="pi pi-sliders-h"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'line_option_set_scope' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="lineOptionSetProduct" class="ims-form-label">{{ 'line_option_set_product' | translate }}</label>
+                <p-autoComplete
+                  inputId="lineOptionSetProduct"
+                  [(ngModel)]="selectedProduct"
+                  [suggestions]="productSuggestions"
+                  [loading]="productSuggestionsLoading"
+                  (completeMethod)="searchProducts($event)"
+                  (onSelect)="onProductPicked()"
+                  field="name"
+                  [forceSelection]="true"
+                  [dropdown]="true"
+                  [showClear]="true"
+                  appendTo="body"
+                  styleClass="w-full"
+                  [placeholder]="'search_products' | translate">
+                  <ng-template let-product pTemplate="item">
+                    <div class="flex flex-column">
+                      <span class="font-medium">{{ product.name }}</span>
+                      <small *ngIf="product.reference"><span class="reference-badge">{{ product.reference }}</span></small>
+                    </div>
+                  </ng-template>
+                </p-autoComplete>
+              </div>
+              <div class="field">
+                <label for="lineOptionSetCategory" class="ims-form-label">{{ 'line_option_set_category' | translate }}</label>
+                <p-dropdown
+                  inputId="lineOptionSetCategory"
+                  [options]="categoryOptions"
+                  [(ngModel)]="form.categoryId"
+                  (onChange)="onCategoryPicked()"
+                  optionLabel="label"
+                  optionValue="value"
+                  [showClear]="true"
+                  appendTo="body"
+                  styleClass="w-full">
+                </p-dropdown>
+              </div>
+            </div>
+            <p class="text-600 text-sm m-0">{{ 'line_option_set_scope_hint' | translate }}</p>
+          </div>
+        </section>
+
+        <!-- Options sub-list -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+              <i class="pi pi-list"></i>
+            </div>
+            <h3 class="ims-form-section__title">{{ 'line_option_set_options_title' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <p *ngIf="!options.length" class="text-600 text-sm m-0">{{ 'line_option_set_no_options_hint' | translate }}</p>
+            <div class="line-option-rows" *ngIf="options.length">
+              <div class="line-option-row line-option-row--head">
+                <span>{{ 'line_option_code' | translate }}</span>
+                <span>{{ 'line_option_label' | translate }}</span>
+                <span class="text-center">{{ 'line_option_sort_order' | translate }}</span>
+                <span class="text-center">{{ 'line_option_default_selected' | translate }}</span>
+                <span class="text-center">
+                  {{ 'line_option_premium' | translate }}
+                  <i class="pi pi-question-circle ml-1 text-500"
+                    [pTooltip]="'line_option_premium_tooltip' | translate" tooltipPosition="top"></i>
+                </span>
+                <span class="text-center">{{ 'line_option_active' | translate }}</span>
+                <span></span>
+              </div>
+              <div class="line-option-row" *ngFor="let option of options; let i = index">
+                <div>
+                  <input pInputText class="w-full" [(ngModel)]="option.code"
+                    [ngClass]="{'ng-invalid ng-dirty': submitted && (!option.code?.trim() || optionCodeDuplicated(i))}" />
+                  <small class="p-error" *ngIf="submitted && optionCodeDuplicated(i)">
+                    {{ 'line_option_code_duplicate' | translate }}
+                  </small>
+                </div>
+                <div>
+                  <input pInputText class="w-full" [(ngModel)]="option.label"
+                    [ngClass]="{'ng-invalid ng-dirty': submitted && !option.label?.trim()}" />
+                </div>
+                <div class="text-center">
+                  <p-inputNumber [(ngModel)]="option.sortOrder" [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+                </div>
+                <div class="text-center">
+                  <p-checkbox [(ngModel)]="option.defaultSelected" [binary]="true"></p-checkbox>
+                </div>
+                <div class="text-center">
+                  <p-checkbox [(ngModel)]="option.suppressesAdjustments" [binary]="true"
+                    [pTooltip]="'line_option_premium_tooltip' | translate" tooltipPosition="top"></p-checkbox>
+                </div>
+                <div class="text-center">
+                  <p-checkbox [(ngModel)]="option.active" [binary]="true"></p-checkbox>
+                </div>
+                <div class="text-center">
+                  <button pButton pRipple type="button" icon="pi pi-trash"
+                    class="p-button-rounded p-button-text p-button-danger"
+                    (click)="removeOption(i)" [pTooltip]="'delete' | translate"></button>
+                </div>
+              </div>
+            </div>
+            <small class="p-error" *ngIf="submitted && options.length && optionsHaveMissingFields">
+              {{ 'line_option_fields_required' | translate }}
+            </small>
+            <div>
+              <button pButton pRipple type="button" icon="pi pi-plus"
+                [label]="'line_option_add' | translate"
+                class="p-button-sm p-button-outlined" (click)="addOption()"></button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
+    </div>
+  </ng-template>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple [label]="'cancel' | translate" icon="pi pi-times"
+      class="p-button-text" (click)="hideDialog()" [disabled]="saving"></button>
+    <button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check"
+      class="p-button-primary" (click)="save()" [loading]="saving"></button>
+  </ng-template>
+</p-dialog>

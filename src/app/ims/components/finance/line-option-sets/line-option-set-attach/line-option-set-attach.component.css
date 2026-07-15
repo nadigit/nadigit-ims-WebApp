@@ -1,0 +1,17 @@
+.line-option-attach__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+}
+
+.line-option-attach__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}

@@ -72,6 +72,13 @@ import {
   persistTablePageSizeFromLazyEvent,
   TablePageSizeKeys,
 } from 'src/app/utils/table-page-size.storage';
+import { LineOptionSet } from 'src/app/models/line-option-set';
+import { LineOptionSetService } from 'src/app/services/line-option-set.service';
+import {
+  defaultLineOptionIds,
+  selectedLineOptionLabels,
+  validateLineOptionSelection,
+} from 'src/app/utils/line-option-selection.util';
 
 interface EventItem {
   status?: string;
@@ -194,6 +201,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   sourceProducts: Product[] = [];
 
   targetProducts: Product[] = [];
+
+  /** Line options picker (Capability A): line currently being edited in the picker dialog. */
+  lineOptionPickerVisible = false;
+  lineOptionPickerProduct: Product | null = null;
 
   orderItems: OrderItem[] = [];
 
@@ -471,6 +482,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     public activityProfileService: ActivityProfileService,
     private locationService: LocationService,
     private taxRuleService: TaxRuleService,
+    private lineOptionSetService: LineOptionSetService,
   ) {
     this.loadTaxRate();
 
@@ -1886,6 +1898,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       item.product.orderItemQuantity = displayQty;
       item.product.orderItemPricePerUnit = item.pricePerUnit;
       item.product['orderItemPricePerUnitManual'] = true;
+      // Restore persisted line option selections, then load the applicable sets for the picker.
+      (item.product as any).lineOptionSelectedIds = (item.selectedOptions || [])
+        .map((selection) => selection.lineOptionId)
+        .filter((id): id is number => id != null);
+      void this.loadLineOptionsForLine(item.product, true);
     });
     this.showPaymentSection = false;
     await this.onGetProductsCategories();
@@ -2137,6 +2154,17 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       });
       return;
     }
+    const optionInvalidLine = this.targetProducts.find((p) => this.lineOptionsInvalid(p));
+    if (optionInvalidLine) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('line_options_selection_required', { product: optionInvalidLine.name }),
+        life: 4500,
+      });
+      this.openLineOptionsPicker(optionInvalidLine);
+      return;
+    }
     if (this.isAdmin) {
       const selectedWarehouseId = this.getSelectedOrderWarehouseId();
       const hasMismatchedWarehouse = this.targetProducts.some(
@@ -2154,13 +2182,18 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     }
 
     // Prepare Order Items
-    const orderItems: OrderItem[] = this.targetProducts.map((product) =>
-      buildOrderItemPayload(
+    const orderItems: OrderItem[] = this.targetProducts.map((product) => {
+      const item = buildOrderItemPayload(
         product,
         product['orderItemQuantity'] ?? this.defaultLineQuantity(product),
         this.getOrderItemPricePerUnitForPayload(product)
-      )
-    );
+      );
+      const selectedOptions = this.lineOptionSelectionsPayload(product);
+      if (selectedOptions) {
+        item.selectedOptions = selectedOptions;
+      }
+      return item;
+    });
 
     // ⚠️ REMOVED: Credit limit validation before order creation
     // The backend will now handle this properly when payments are included
@@ -4572,6 +4605,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       };
 
       this.targetProducts = [...this.targetProducts, productToAdd];
+      void this.loadLineOptionsForLine(productToAdd);
 
       this.messageService.add({
         severity: 'success',
@@ -4631,6 +4665,78 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.cdr.detectChanges();
   }
 
+
+  // -------------------------------------------------------------------------
+  // Sale-line options (Capability A): applicable sets are loaded per line, the
+  // sets' defaults are auto-selected, and the picker dialog edits the choice.
+  // -------------------------------------------------------------------------
+
+  /** Loads applicable option sets for a line; keeps an existing selection when restoring an edit. */
+  async loadLineOptionsForLine(product: Product, preserveSelection = false): Promise<void> {
+    if (!product?.productId) return;
+    try {
+      const sets = await this.lineOptionSetService.applicableFor(
+        product.productId,
+        product.category?.categoryId ?? null
+      );
+      (product as any).lineOptionSets = sets;
+      if (!sets.length) {
+        (product as any).lineOptionSelectedIds = [];
+      } else if (!preserveSelection || !Array.isArray((product as any).lineOptionSelectedIds)) {
+        (product as any).lineOptionSelectedIds = defaultLineOptionIds(sets);
+      }
+    } catch (e) {
+      console.error('Error loading line options:', e);
+      (product as any).lineOptionSets = [];
+    }
+    this.cdr.detectChanges();
+  }
+
+  hasLineOptions(product: Product): boolean {
+    return !!(product as any)?.lineOptionSets?.length;
+  }
+
+  lineOptionSummary(product: Product): string[] {
+    return selectedLineOptionLabels(
+      (product as any)?.lineOptionSets || [],
+      (product as any)?.lineOptionSelectedIds || []
+    );
+  }
+
+  lineOptionsInvalid(product: Product): boolean {
+    const sets: LineOptionSet[] = (product as any)?.lineOptionSets || [];
+    if (!sets.length) return false;
+    return validateLineOptionSelection(sets, (product as any)?.lineOptionSelectedIds || []) != null;
+  }
+
+  openLineOptionsPicker(product: Product): void {
+    this.lineOptionPickerProduct = product;
+    this.lineOptionPickerVisible = true;
+  }
+
+  get lineOptionPickerSets(): LineOptionSet[] {
+    return (this.lineOptionPickerProduct as any)?.lineOptionSets || [];
+  }
+
+  get lineOptionPickerSelectedIds(): number[] {
+    return (this.lineOptionPickerProduct as any)?.lineOptionSelectedIds || [];
+  }
+
+  onLineOptionsApplied(ids: number[]): void {
+    if (this.lineOptionPickerProduct) {
+      (this.lineOptionPickerProduct as any).lineOptionSelectedIds = ids;
+      this.targetProducts = [...this.targetProducts];
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Payload shape for `OrderItem.selectedOptions` from a line's picker state. */
+  private lineOptionSelectionsPayload(product: Product): { lineOptionId: number }[] | undefined {
+    const sets: LineOptionSet[] = (product as any)?.lineOptionSets || [];
+    const ids: number[] = (product as any)?.lineOptionSelectedIds || [];
+    if (!sets.length || !ids.length) return undefined;
+    return ids.map(id => ({ lineOptionId: id }));
+  }
 
   removeProductFromOrder(product: Product): void {
     this.targetProducts = this.targetProducts.filter(p => p.productId !== product.productId);

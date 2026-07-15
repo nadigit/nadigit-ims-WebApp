@@ -1,0 +1,7 @@
+.line-option-sets-page {
+  max-width: 1400px;
+}
+
+.line-option-sets-page--embedded {
+  max-width: none;
+}

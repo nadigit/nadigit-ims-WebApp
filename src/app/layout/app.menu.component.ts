@@ -489,6 +489,20 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'],
         licenseFeature: 'FINANCIAL_DOCUMENTS',
       },
+      {
+        label: translations['line_option_sets_menu_title'],
+        icon: 'pi pi-fw pi-sliders-h',
+        routerLink: ['/finance/line-option-sets'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN'],
+      },
+      {
+        label: translations['line_price_rules_menu_title'],
+        icon: 'pi pi-fw pi-percentage',
+        routerLink: ['/finance/line-price-rules'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN'],
+      },
     ];
 
     const administrationItems = [

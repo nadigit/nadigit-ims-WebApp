@@ -152,7 +152,7 @@ export class PosService {
     return this.http.get<POSCartDTO>(`${this.getBaseUrl()}carts/active`, { headers, params });
   }
 
-  async addItemToCart(cartId: number, productId: number, quantity: number, priceOverride?: number): Promise<Observable<POSCartDTO>> {
+  async addItemToCart(cartId: number, productId: number, quantity: number, priceOverride?: number, selectedOptionIds?: string): Promise<Observable<POSCartDTO>> {
     const headers = await this.getHeaders();
     let params = new HttpParams()
       .set('productId', productId.toString())
@@ -160,6 +160,9 @@ export class PosService {
 
     if (priceOverride !== undefined) {
       params = params.set('priceOverride', priceOverride.toString());
+    }
+    if (selectedOptionIds !== undefined) {
+      params = params.set('selectedOptionIds', selectedOptionIds);
     }
 
     return this.http.post<POSCartDTO>(`${this.getBaseUrl()}carts/${cartId}/items`, {}, { headers, params }).pipe(
@@ -178,7 +181,7 @@ export class PosService {
     );
   }
 
-  async updateCartItem(cartItemId: number, quantity?: number, priceOverride?: number): Promise<Observable<POSCartDTO>> {
+  async updateCartItem(cartItemId: number, quantity?: number, priceOverride?: number, selectedOptionIds?: string): Promise<Observable<POSCartDTO>> {
     const headers = await this.getHeaders();
     let params = new HttpParams();
 
@@ -187,6 +190,9 @@ export class PosService {
     }
     if (priceOverride !== undefined) {
       params = params.set('priceOverride', priceOverride.toString());
+    }
+    if (selectedOptionIds !== undefined) {
+      params = params.set('selectedOptionIds', selectedOptionIds);
     }
 
     return this.http.put<POSCartDTO>(`${this.getBaseUrl()}carts/items/${cartItemId}`, {}, { headers, params }).pipe(

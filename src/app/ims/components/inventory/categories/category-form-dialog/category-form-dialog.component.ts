@@ -60,6 +60,11 @@ export class CategoryFormDialogComponent implements OnInit, OnChanges {
     return this.vatFeatureReady && this.isAdmin && this.config?.mode === 'edit' && !!this.config?.category?.categoryId;
   }
 
+  /** Sale line option sets can only be attached once the category exists (edit mode, admin). */
+  get showLineOptionSets(): boolean {
+    return this.isAdmin && this.config?.mode === 'edit' && !!this.config?.category?.categoryId;
+  }
+
   private async initVatFeature(): Promise<void> {
     try {
       const roles = await this.keycloak.getUserRoles();

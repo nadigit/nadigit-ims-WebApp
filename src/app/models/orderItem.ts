@@ -1,3 +1,4 @@
+import { OrderItemOptionSelection } from "./line-option-set";
 import { Order } from "./order";
 import { Product } from "./product";
 
@@ -18,7 +19,25 @@ export class OrderItem {
   lineGrossAmount?: number;
   /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
   taxRateUsed?: number;
-  
+  /** Fraction of a unit represented by this line (e.g. 0.5 = half a carcass); default 1.0. */
+  portionFraction?: number;
+  /** Line options selected at sale time (Capability A of configurable sale pricing). */
+  selectedOptions?: OrderItemOptionSelection[];
+  /** Signed total of conditional line price adjustments (Capability B); negative = deduction. */
+  lineAdjustmentsTotal?: number;
+  /** Goods base after adjustments (read-only, backend-computed). */
+  adjustedSubTotal?: number;
+  /** Per-rule adjustment breakdown (read-only). */
+  adjustments?: OrderItemAdjustment[];
+}
+
+/** Mirrors backend `OrderItemAdjustment` (Capability B breakdown row). */
+export interface OrderItemAdjustment {
+  orderItemAdjustmentId?: number;
+  ruleCode?: string;
+  label?: string;
+  amount?: number;
+
   // ⚠️ NEW FIELDS for cost and profit calculation
   costPerUnit?: number;      // Cost per unit (from batches or price history)
   totalCost?: number;        // Total cost for this item (costPerUnit × quantity)

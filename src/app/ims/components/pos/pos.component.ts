@@ -35,6 +35,9 @@ import {
 } from 'src/app/models/product-family';
 import { Product } from 'src/app/models/product';
 import { getProductVariantSummary } from 'src/app/shared/variant-summary.utils';
+import { LineOptionSet } from 'src/app/models/line-option-set';
+import { LineOptionSetService } from 'src/app/services/line-option-set.service';
+import { selectedLineOptionLabels } from 'src/app/utils/line-option-selection.util';
 import {
   cartItemAsProduct,
   computeCartItemSubtotal,
@@ -361,6 +364,7 @@ export class PosComponent implements OnInit, OnDestroy {
     private productFamilyService: ProductFamilyService,
     private financialDocService: FinancialDocumentsService,
     private cashRegisterService: CashRegisterService,
+    private lineOptionSetService: LineOptionSetService,
   ) { }
 
   openProfileSettings(): void {
@@ -4938,6 +4942,103 @@ export class PosComponent implements OnInit, OnDestroy {
 
   addToCart(product: any) {
     this.addProductToCart(product, 1);
+  }
+
+  // ========== Sale-line options on cart lines (Capability A) ==========
+
+  lineOptionPickerVisible = false;
+  lineOptionPickerItem: POSCartItemDTO | null = null;
+  /** Applicable option sets per product id (lazy-loaded, cached for the session). */
+  private lineOptionSetsByProduct = new Map<number, LineOptionSet[]>();
+  private lineOptionSetRequests = new Set<number>();
+
+  private parseSelectedOptionIds(item: POSCartItemDTO | null): number[] {
+    const csv = item?.selectedOptionIds;
+    if (!csv) return [];
+    return csv
+      .split(',')
+      .map((token) => Number(token.trim()))
+      .filter((id) => Number.isFinite(id) && id > 0);
+  }
+
+  /** Lazily fetches the applicable sets for a cart line's product (guarded, once per product). */
+  private requestLineOptionSets(item: POSCartItemDTO): void {
+    const productId = item?.productId;
+    if (!productId || this.lineOptionSetRequests.has(productId) || !this.isOnline) {
+      return;
+    }
+    this.lineOptionSetRequests.add(productId);
+    void this.lineOptionSetService
+      .applicableFor(productId, item.categoryId ?? null)
+      .then((sets) => {
+        this.lineOptionSetsByProduct.set(productId, sets);
+        if (sets.length) {
+          this.cdr.detectChanges();
+        }
+      })
+      .catch((e) => {
+        console.error('Error loading line option sets:', e);
+        this.lineOptionSetsByProduct.set(productId, []);
+      });
+  }
+
+  cartLineHasOptions(item: POSCartItemDTO): boolean {
+    const sets = this.lineOptionSetsByProduct.get(item?.productId);
+    if (sets === undefined) {
+      this.requestLineOptionSets(item);
+      return false;
+    }
+    return sets.length > 0;
+  }
+
+  cartLineOptionLabels(item: POSCartItemDTO): string[] {
+    const sets = this.lineOptionSetsByProduct.get(item?.productId) || [];
+    return selectedLineOptionLabels(sets, this.parseSelectedOptionIds(item));
+  }
+
+  openCartLineOptions(item: POSCartItemDTO): void {
+    this.lineOptionPickerItem = item;
+    this.lineOptionPickerVisible = true;
+  }
+
+  get cartLineOptionPickerSets(): LineOptionSet[] {
+    return this.lineOptionPickerItem
+      ? this.lineOptionSetsByProduct.get(this.lineOptionPickerItem.productId) || []
+      : [];
+  }
+
+  get cartLineOptionPickerSelectedIds(): number[] {
+    return this.parseSelectedOptionIds(this.lineOptionPickerItem);
+  }
+
+  async onCartLineOptionsApplied(ids: number[]): Promise<void> {
+    const item = this.lineOptionPickerItem;
+    if (!item?.cartItemId || !this.cart) {
+      return;
+    }
+    this.cartSaving = true;
+    try {
+      const updated$ = await this.posService.updateCartItem(
+        item.cartItemId,
+        undefined,
+        undefined,
+        ids.join(',')
+      );
+      this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
+      this.updateCartTracking();
+      this.saveToLocalStorage();
+      this.cdr.detectChanges();
+    } catch (error: any) {
+      console.error('Error updating cart line options:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: error?.error?.message || error?.message || this.translate.instant('error_occurred'),
+        life: 5000
+      });
+    } finally {
+      this.cartSaving = false;
+    }
   }
 
   getCartLineDisplayQuantity(item: POSCartItemDTO): number {

@@ -32,6 +32,7 @@ import { SupplierDeleteDialogComponent } from '../../purchases/suppliers/supplie
 import { VariantProductPickerComponent } from './variant-product-picker/variant-product-picker.component';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { MessageModule } from 'primeng/message';
+import { LineOptionSetsUiModule } from '../../finance/line-option-sets/line-option-sets-ui.module';
 
 @NgModule({
   declarations: [
@@ -65,6 +66,7 @@ import { MessageModule } from 'primeng/message';
     ProgressSpinnerModule,
     AutoCompleteModule,
     MessageModule,
+    LineOptionSetsUiModule,
   ],
   exports: [
     WarehouseFormDialogComponent,

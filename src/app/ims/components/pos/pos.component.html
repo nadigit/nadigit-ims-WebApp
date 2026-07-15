@@ -853,6 +853,19 @@
                 </p-tag>
                 <span class="text-500 text-sm">{{ formatCartLineQuantity(item) }} / {{ getCartLineDisplayStock(item) }} {{ 'available' | translate }}</span>
               </div>
+              <!-- Sale-line options (Capability A) -->
+              <div *ngIf="cartLineHasOptions(item)" class="flex align-items-center flex-wrap gap-1 mt-1">
+                <p-tag *ngFor="let label of cartLineOptionLabels(item)"
+                  [value]="label" severity="info" styleClass="text-xs"></p-tag>
+                <button
+                  pButton
+                  icon="pi pi-sliders-h"
+                  class="p-button-rounded p-button-text p-button-sm"
+                  (click)="openCartLineOptions(item)"
+                  [pTooltip]="'line_option_picker_title' | translate"
+                  tooltipPosition="top">
+                </button>
+              </div>
             </div>
             <div class="pos-cart-item-quantity">
               <div class="flex align-items-center gap-1">
@@ -2137,3 +2150,11 @@
     </div>
   </div>
 </ng-template>
+<!-- Sale-line options picker (Capability A) -->
+<app-line-option-picker-dialog
+  [(visible)]="lineOptionPickerVisible"
+  [sets]="cartLineOptionPickerSets"
+  [selectedIds]="cartLineOptionPickerSelectedIds"
+  [productName]="lineOptionPickerItem?.productName || null"
+  (apply)="onCartLineOptionsApplied($event)">
+</app-line-option-picker-dialog>

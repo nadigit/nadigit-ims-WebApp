@@ -49,6 +49,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { StepsModule } from 'primeng/steps';
 import { InventorySharedModule } from '../../inventory/shared/inventory-shared.module';
 import { ShopFormDialogModule } from '../../inventory/shops/shop-form-dialog/shop-form-dialog.module';
+import { LineOptionSetsUiModule } from '../../finance/line-option-sets/line-option-sets-ui.module';
 @NgModule({
     imports: [
         CommonModule,
@@ -94,7 +95,8 @@ import { ShopFormDialogModule } from '../../inventory/shops/shop-form-dialog/sho
         CheckboxModule,
         StepsModule,
         InventorySharedModule,
-        ShopFormDialogModule
+        ShopFormDialogModule,
+        LineOptionSetsUiModule
     ],
     declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent, OrderDeleteDialogComponent],
     providers: [ReportingService]

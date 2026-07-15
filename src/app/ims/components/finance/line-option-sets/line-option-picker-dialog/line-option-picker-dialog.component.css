@@ -1,0 +1,47 @@
+.line-option-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.line-option-picker__set-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.line-option-picker__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.line-option-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.line-option-picker__option:hover {
+  background: var(--surface-hover);
+}
+
+.line-option-picker__option--selected {
+  border-color: var(--primary-color);
+  background: var(--highlight-bg, var(--surface-hover));
+}
+
+.line-option-picker__option-label {
+  flex: 1;
+}
+
+.line-option-picker__premium {
+  color: var(--yellow-500, #eab308);
+  font-size: 0.85rem;
+}

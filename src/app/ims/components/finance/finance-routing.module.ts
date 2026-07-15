@@ -14,6 +14,8 @@ import { LicenseFeatureGuard } from 'src/app/guards/license-feature.guard';
         { path: 'credit-management', loadChildren: () => import('./credit-management/credit-management.module').then(m => m.CreditManagementModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','VENDOR'], licenseFeature: 'CUSTOMER_CREDITS'}},
         { path: 'treasury', loadChildren: () => import('./treasury/treasury.module').then(m => m.TreasuryModule), canActivate:[AuthGuard], data : { roles:['ADMIN','VENDOR','ACCOUNTANT','AUDITOR']} },
         { path: 'tax-rules', loadChildren: () => import('./tax-rules/tax-rules.module').then(m => m.TaxRulesModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR'], licenseFeature: 'TAX_RULE_ENGINE'}},
+        { path: 'line-option-sets', loadChildren: () => import('./line-option-sets/line-option-sets.module').then(m => m.LineOptionSetsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR'] }},
+        { path: 'line-price-rules', loadChildren: () => import('./line-price-rules/line-price-rules.module').then(m => m.LinePriceRulesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR'] }},
         { path: '**', redirectTo: '/notfound' }
     ])],
     exports: [RouterModule]

@@ -105,6 +105,19 @@
                     </div>
                 </section>
 
+                <!-- Sale line option sets (admin, edit mode only) -->
+                <section class="ims-form-section" *ngIf="showLineOptionSets">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                            <i class="pi pi-list"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'line_option_sets_attach_title' | translate }}</h3>
+                    </header>
+                    <div class="ims-form-section__body">
+                        <small class="ims-form-hint">{{ 'line_option_sets_attach_category_hint' | translate }}</small>
+                        <app-line-option-set-attach [categoryId]="config.category.categoryId!"></app-line-option-set-attach>
+                    </div>
+                </section>
 
             </div>
 

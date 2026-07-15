@@ -1003,6 +1003,20 @@
 						</div>
 							</div>
 						</section>
+
+						<!-- Sale line option sets (admin, saved products only) -->
+						<section class="ims-form-section" *ngIf="isAdmin && localProduct?.productId">
+							<header class="ims-form-section__header">
+								<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+									<i class="pi pi-list"></i>
+								</div>
+								<h3 class="ims-form-section__title">{{ 'line_option_sets_attach_title' | translate }}</h3>
+							</header>
+							<div class="ims-form-section__body ims-form-section__body--stack">
+								<small class="ims-form-hint">{{ 'line_option_sets_attach_product_hint' | translate }}</small>
+								<app-line-option-set-attach [productId]="localProduct.productId"></app-line-option-set-attach>
+							</div>
+						</section>
 					</div>
 				</div>
 			</div>

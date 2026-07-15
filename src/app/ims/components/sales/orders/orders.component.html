@@ -432,6 +432,18 @@
 																		<i class="pi pi-exclamation-circle mr-1"></i>
 																		{{ 'profile_mode_fashion_order_variant_required' | translate }}
 																	</small>
+																	<div *ngIf="hasLineOptions(product)" class="flex align-items-center flex-wrap gap-1 mt-1">
+																		<p-tag *ngFor="let label of lineOptionSummary(product)" [value]="label" severity="info" styleClass="text-xs"></p-tag>
+																		<button pButton pRipple type="button" icon="pi pi-sliders-h"
+																			class="p-button-rounded p-button-text p-button-sm"
+																			(click)="openLineOptionsPicker(product)"
+																			pTooltip="{{ 'line_option_picker_title' | translate }}" tooltipPosition="top"></button>
+																		<small *ngIf="lineOptionsInvalid(product)"
+																			class="order-line-product__hint order-line-product__hint--error">
+																			<i class="pi pi-exclamation-circle mr-1"></i>
+																			{{ 'line_options_selection_incomplete' | translate }}
+																		</small>
+																	</div>
 																</div>
 															</div>
 														</td>
@@ -1437,3 +1449,11 @@
 
 	</div>
 </div>
+<!-- Sale-line options picker (Capability A) -->
+<app-line-option-picker-dialog
+	[(visible)]="lineOptionPickerVisible"
+	[sets]="lineOptionPickerSets"
+	[selectedIds]="lineOptionPickerSelectedIds"
+	[productName]="lineOptionPickerProduct?.name || null"
+	(apply)="onLineOptionsApplied($event)">
+</app-line-option-picker-dialog>

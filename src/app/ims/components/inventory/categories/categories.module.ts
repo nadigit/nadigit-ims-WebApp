@@ -35,6 +35,7 @@ import { ChartModule } from 'primeng/chart';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { InventorySharedModule } from '../shared/inventory-shared.module';
 import { ImageUploadComponent } from 'src/app/shared/components/image-upload/image-upload.component';
+import { LineOptionSetsUiModule } from '../../finance/line-option-sets/line-option-sets-ui.module';
 
 
 
@@ -71,7 +72,8 @@ import { ImageUploadComponent } from 'src/app/shared/components/image-upload/ima
         ChartModule,
         SharedModule,
         InventorySharedModule,
-        ImageUploadComponent
+        ImageUploadComponent,
+        LineOptionSetsUiModule
     ],
     declarations: [CategoriesComponent, CategoryDetailsComponent, CategoryFormDialogComponent],
     providers: [ReportingService],
