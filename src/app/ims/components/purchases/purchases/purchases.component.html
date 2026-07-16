@@ -913,6 +913,17 @@
                                                         class="w-full"
                                                         [ngClass]="{'ng-invalid ng-dirty': submitted && isProductLineBatchExpiryInvalid(product)}" />
                                                 </div>
+                                                <div class="purchase-line-batch__field" *ngIf="linePricingRulesEnabled">
+                                                    <label class="ims-form-label">
+                                                        {{ 'purchase_item_companion_value' | translate }}
+                                                        <i class="pi pi-question-circle text-500 ml-1"
+                                                            [pTooltip]="'purchase_item_companion_value_hint' | translate" tooltipPosition="top"></i>
+                                                    </label>
+                                                    <p-inputNumber [(ngModel)]="product.purchaseItemCompanionValue"
+                                                        mode="decimal" [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0"
+                                                        [placeholder]="'purchase_item_companion_value_placeholder' | translate"
+                                                        styleClass="w-full"></p-inputNumber>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>

@@ -163,6 +163,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   /** True when tax.calculation.mode = RULES (per-line tax rule engine active). */
   taxRulesMode: boolean = false;
+  /** True when sales.pricing.rules.mode = RULES — gates the per-batch companion value input (§8.5). */
+  linePricingRulesEnabled: boolean = false;
   private taxResolveSignature = '';
   private taxResolveSeq = 0;
 
@@ -632,6 +634,18 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     } catch {
       this.taxRulesMode = false;
     }
+    // §8.5: show the per-batch companion value (entrails) input only when the line
+    // pricing rules engine is on — it is the only consumer of that value.
+    try {
+      (await this.configService.getConfiguration('sales.pricing.rules.mode')).subscribe({
+        next: (cfg: any) => {
+          this.linePricingRulesEnabled = String(cfg?.value || 'OFF').toUpperCase() === 'RULES';
+        },
+        error: () => (this.linePricingRulesEnabled = false)
+      });
+    } catch {
+      this.linePricingRulesEnabled = false;
+    }
   }
 
   ngAfterViewInit() {
@@ -1071,6 +1085,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           purchaseItemPricePerUnit: item.buyingPrice,
           purchaseItemExpirationDate: expirationDate,
           purchaseItemBatchNumber: item.batchNumber || null,
+          purchaseItemCompanionValue: item.companionValue ?? null,
         },
         quantityPurchased: item.quantityPurchased,
         displayQuantity: displayQty,
@@ -1095,6 +1110,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       item.product.purchaseItemPricePerUnit = item.buyingPrice;
       item.product['purchaseItemExpirationDate'] = item.expirationDate || null;
       item.product['purchaseItemBatchNumber'] = item.batchNumber || null;
+      item.product['purchaseItemCompanionValue'] = item.companionValue ?? null;
     });
 
     console.log(this.purchase);
@@ -1360,6 +1376,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           {
             expirationDate,
             batchNumber: product['purchaseItemBatchNumber'] ? String(product['purchaseItemBatchNumber']).trim() : null,
+            companionValue: product['purchaseItemCompanionValue'] != null ? Number(product['purchaseItemCompanionValue']) : null,
           }
         );
       });
@@ -1376,6 +1393,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
         delete purchaseItem.product['purchaseItemPricePerUnit'];
         delete purchaseItem.product['purchaseItemExpirationDate'];
         delete purchaseItem.product['purchaseItemBatchNumber'];
+        delete purchaseItem.product['purchaseItemCompanionValue'];
       });
 
       newPurchase.taxEnabled = this.taxEnabled;
