@@ -7,7 +7,7 @@ export type LinePriceConditionKind =
   | 'WHEN_OPTION_ABSENT';
 export type LineAdjustmentKind = 'DEDUCTION' | 'SURCHARGE';
 export type LineAdjustmentBasis = 'FLAT' | 'PER_DISPLAY_UNIT' | 'PER_PORTION_FRACTION' | 'PERCENT_OF_LINE';
-export type LineAdjustmentAmountSource = 'LITERAL' | 'PRODUCT_ATTRIBUTE';
+export type LineAdjustmentAmountSource = 'LITERAL' | 'PRODUCT_ATTRIBUTE' | 'CONSUMED_BATCH_VALUE';
 
 export interface LinePriceRule {
   linePriceRuleId?: number;

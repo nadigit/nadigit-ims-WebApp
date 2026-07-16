@@ -239,16 +239,20 @@
                   {{ 'line_price_rule_amount' | translate }} {{ 'is_required_label' | translate }}
                 </small>
               </div>
-              <div class="field" *ngIf="!literalSource">
+              <div class="field" *ngIf="attributeSource">
                 <label for="lprAttribute" class="ims-form-label">
                   {{ 'line_price_rule_attribute_name' | translate }} <span class="required-asterisk">*</span>
                 </label>
                 <input id="lprAttribute" pInputText class="w-full" [(ngModel)]="form.attributeName"
                   placeholder="entrails_price"
-                  [ngClass]="{'ng-invalid ng-dirty': submitted && !literalSource && !form.attributeName?.trim()}" />
-                <small class="p-error" *ngIf="submitted && !literalSource && !form.attributeName?.trim()">
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && attributeSource && !form.attributeName?.trim()}" />
+                <small class="p-error" *ngIf="submitted && attributeSource && !form.attributeName?.trim()">
                   {{ 'line_price_rule_attribute_name' | translate }} {{ 'is_required_label' | translate }}
                 </small>
+              </div>
+              <div class="field" *ngIf="batchValueSource">
+                <label class="ims-form-label">{{ 'line_price_rule_amount' | translate }}</label>
+                <small class="ims-form-hint block">{{ 'line_price_rule_batch_value_hint' | translate }}</small>
               </div>
             </div>
             <p class="text-600 text-sm m-0">{{ 'line_price_rule_adjustment_hint' | translate }}</p>

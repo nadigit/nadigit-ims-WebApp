@@ -130,7 +130,8 @@ export class LinePriceRulesComponent implements OnInit, OnDestroy {
     ];
     this.amountSourceOptions = [
       { label: this.translate.instant('line_price_rule_source_literal'), value: 'LITERAL' },
-      { label: this.translate.instant('line_price_rule_source_product_attribute'), value: 'PRODUCT_ATTRIBUTE' }
+      { label: this.translate.instant('line_price_rule_source_product_attribute'), value: 'PRODUCT_ATTRIBUTE' },
+      { label: this.translate.instant('line_price_rule_source_consumed_batch_value'), value: 'CONSUMED_BATCH_VALUE' }
     ];
   }
 
@@ -263,9 +264,11 @@ export class LinePriceRulesComponent implements OnInit, OnDestroy {
     const basis = this.basisOptions.find(o => o.value === rule.basis)?.label || rule.basis || '';
     const amount = rule.amountSource === 'PRODUCT_ATTRIBUTE'
       ? `@${rule.attributeName || '?'}`
-      : rule.basis === 'PERCENT_OF_LINE'
-        ? `${rule.amount ?? 0} %`
-        : `${rule.amount ?? 0}`;
+      : rule.amountSource === 'CONSUMED_BATCH_VALUE'
+        ? this.translate.instant('line_price_rule_source_consumed_batch_value')
+        : rule.basis === 'PERCENT_OF_LINE'
+          ? `${rule.amount ?? 0} %`
+          : `${rule.amount ?? 0}`;
     return `${kind} · ${amount} · ${basis}`;
   }
 
@@ -283,7 +286,15 @@ export class LinePriceRulesComponent implements OnInit, OnDestroy {
   }
 
   get literalSource(): boolean {
-    return this.form.amountSource !== 'PRODUCT_ATTRIBUTE';
+    return this.form.amountSource === 'LITERAL' || this.form.amountSource == null;
+  }
+
+  get attributeSource(): boolean {
+    return this.form.amountSource === 'PRODUCT_ATTRIBUTE';
+  }
+
+  get batchValueSource(): boolean {
+    return this.form.amountSource === 'CONSUMED_BATCH_VALUE';
   }
 
   openCreate(): void {
@@ -351,7 +362,7 @@ export class LinePriceRulesComponent implements OnInit, OnDestroy {
     if (!this.form.code?.trim() || !this.form.label?.trim()) return;
     if (this.optionCondition && !this.form.conditionOptionCode?.trim()) return;
     if (this.literalSource && (this.form.amount == null || this.form.amount < 0)) return;
-    if (!this.literalSource && !this.form.attributeName?.trim()) return;
+    if (this.attributeSource && !this.form.attributeName?.trim()) return;
 
     const validFrom = this.formatIsoDate(this.validFromDate);
     const validTo = this.formatIsoDate(this.validToDate);
@@ -380,8 +391,8 @@ export class LinePriceRulesComponent implements OnInit, OnDestroy {
       adjustmentKind: this.form.adjustmentKind || 'DEDUCTION',
       basis: this.form.basis || 'FLAT',
       amountSource: this.form.amountSource || 'LITERAL',
-      amount: this.form.amount != null ? Number(this.form.amount) : null,
-      attributeName: this.literalSource ? null : this.form.attributeName?.trim() || null
+      amount: this.literalSource && this.form.amount != null ? Number(this.form.amount) : null,
+      attributeName: this.attributeSource ? this.form.attributeName?.trim() || null : null
     };
 
     try {

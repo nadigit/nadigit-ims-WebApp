@@ -3319,6 +3319,8 @@
   "line_price_rule_attribute_name": "Nombre del atributo",
   "line_price_rule_adjustment_hint": "Con \"Atributo del producto\", el importe se lee del atributo numérico indicado del artículo de la línea (p. ej. entrails_price).",
   "line_price_rule_scope_hint": "Limite la regla a un artículo o a una categoría, o deje ambos vacíos para una regla global. Las fechas opcionales programan su periodo de vigencia.",
+  "line_price_rule_source_consumed_batch_value": "Valor del lote consumido",
+  "line_price_rule_batch_value_hint": "El importe se lee del valor asociado del lote (animal) consumido por la venta — p. ej. el crédito de vísceras por animal introducido en la compra. Combínelo con la escala \"Por fracción de porción\".",
   "sales.pricing.rules.mode": "Modo de reglas de precio de línea",
   "settings_sales.pricing.rules.mode_hint": "OFF desactiva los ajustes condicionales de precio de línea (predeterminado). RULES aplica las reglas de precio configuradas a cada línea de venta antes del impuesto.",
   "banks": "Bancos",

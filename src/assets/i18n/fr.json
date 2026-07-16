@@ -3334,6 +3334,8 @@
   "line_price_rule_attribute_name": "Nom de l'attribut",
   "line_price_rule_adjustment_hint": "Avec « Attribut produit », le montant est lu depuis l'attribut numérique nommé de l'article de la ligne (ex. entrails_price).",
   "line_price_rule_scope_hint": "Limitez la règle à un article ou à une catégorie, ou laissez les deux vides pour une règle globale. Les dates optionnelles planifient sa période d'effet.",
+  "line_price_rule_source_consumed_batch_value": "Valeur du lot consommé",
+  "line_price_rule_batch_value_hint": "Le montant est lu depuis la valeur compagnon du lot (animal) consommé par la vente — ex. le crédit abats par animal saisi à l'achat. À combiner avec l'échelle « Par fraction de portion ».",
   "sales.pricing.rules.mode": "Mode des règles de prix de ligne",
   "settings_sales.pricing.rules.mode_hint": "OFF désactive les ajustements conditionnels de prix de ligne (défaut). RULES applique les règles de prix configurées à chaque ligne de vente avant taxe.",
   "banks": "Banques",
