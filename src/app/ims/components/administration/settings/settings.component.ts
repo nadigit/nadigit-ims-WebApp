@@ -823,8 +823,16 @@ export class SettingsComponent implements OnInit, OnDestroy {
       }
     };
     const queryTab = this.route.snapshot.queryParamMap.get('tab');
+    // Precedence: explicit ?tab= > ?businessProfile=1 deep link > last remembered tab.
+    const wantsBusinessProfile = this.route.snapshot.queryParamMap.get('businessProfile') === '1';
     if (queryTab) {
       applyTabQuery(queryTab);
+    } else if (wantsBusinessProfile) {
+      // The activity-profile banner/prompts link here to set the business profile, which lives on
+      // the Global tab. Restoring the remembered tab would mirror it back into the URL and the
+      // queryParams subscription could re-apply it after the businessProfile handler below (they
+      // race across the awaits), landing the user on e.g. Integrations. Pin tab 0 and skip both.
+      this.activeTabIndex = 0;
     } else {
       // No ?tab= (e.g. stripped by the Keycloak login redirect) — restore the last active tab.
       let storedTab: string | null = null;
