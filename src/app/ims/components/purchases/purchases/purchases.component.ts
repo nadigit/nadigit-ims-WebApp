@@ -1751,8 +1751,11 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     ).subscribe({
       next: (res: any) => {
         console.log('Paginated purchases response:', res);
+        // Defensive: a throw here (e.g. res.page missing) would skip the isLoading=false below
+        // and hang the table spinner on an unexpected/empty response shape.
+        const content = res?.page?.content ?? [];
         // Assign the paginated purchases
-        this.purchases = res.page.content.map((p: any) => {
+        this.purchases = content.map((p: any) => {
           if (p.shop?.cashRegister?.dailyBalances) {
             delete p.shop.cashRegister.dailyBalances;
           }
@@ -1766,7 +1769,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
         });
 
         // Assign total records and summary KPIs from backend
-        this.totalRecords = res.totalPurchases;
+        this.totalRecords = res?.totalPurchases ?? 0;
         this.purchasesTotalAmount = res.totalAmount ?? 0;
         this.purchasesTotalPaid = res.totalPaid ?? 0;
         this.purchasesRemainingBalance = res.remainingBalance ?? 0;
