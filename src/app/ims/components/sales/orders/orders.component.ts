@@ -685,8 +685,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     ).subscribe({
     next: (res: any) => {
       console.log('Paginated orders response:', res);
+      // Defensive: never let an unexpected response shape throw inside next() — that would
+      // skip the isLoading/isInitialLoad resets below and hang the table spinner.
+      const content = res?.page?.content ?? [];
       // Assign the paginated orders
-      this.orders = res.page.content.map((o: any) => ({
+      this.orders = content.map((o: any) => ({
         ...o,
         orderDate: o.orderDate ? new Date(o.orderDate) : null,
         creationDate: o.creationDate ? new Date(o.creationDate) : null,
@@ -702,7 +705,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       }));
 
       // Assign totals from backend
-      this.totalRecords = res.totalOrders;
+      this.totalRecords = res?.totalOrders ?? 0;
       this.totalAmount = res.totalAmount || 0;
       this.totalPaid = res.totalPaid || 0;
       this.remainingBalance = res.remainingBalance || 0;
@@ -726,7 +729,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       }
 
       this.isLoading = false;
-      
+      // A load has completed — clear the initial-load flag regardless of how it was
+      // triggered (applyFilters/queryParam navigation don't go through onLazyLoad). Otherwise
+      // an empty result keeps isInitialLoad=true, which leaves the orders-table spinner up
+      // forever (it only clears on non-empty results). Seen on document-chain/hybrid quote/PO
+      // views, which are legitimately empty here.
+      this.isInitialLoad = false;
+
       // Trigger change detection to ensure table updates
       if (this.cdr) {
         this.cdr.detectChanges();
@@ -735,6 +744,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     error: (err: any) => {
       console.error(err);
       this.isLoading = false;
+      this.isInitialLoad = false;
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
