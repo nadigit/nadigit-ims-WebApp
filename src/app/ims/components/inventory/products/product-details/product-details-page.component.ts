@@ -22,6 +22,7 @@ import { takeUntil } from 'rxjs/operators';
 import { getMeasureUnit, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity, displayWarehouseStockQuantity, formatLineQuantity, getLineMeasureUnit, lineQuantityMin, lineQuantityStep, lineQuantityDecimals, toWriteOffStorageQuantity } from 'src/app/shared/product-utils';
 import { getExpirationInfo, formatExpirationDate, getExpirationStatus, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
 import { ProductBatch, BatchStatus } from 'src/app/models/productBatch';
+import { ProductSupplier } from 'src/app/models/product-supplier';
 import { 
   BarcodeResponseDTO, 
   BarcodeRequestDTO,
@@ -139,6 +140,16 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   // Batch Management
   batches: ProductBatch[] = [];
   batchesLoading: boolean = false;
+  /** When true, the Batches tab also lists depleted / written-off lots (qty 0 / inactive). */
+  showDepletedBatches: boolean = false;
+
+  // Approved-vendor list (multi-supplier sourcing)
+  productSuppliers: ProductSupplier[] = [];
+  productSuppliersLoading: boolean = false;
+  vendorDialogVisible: boolean = false;
+  vendorSaving: boolean = false;
+  editingVendor: ProductSupplier | null = null;
+  vendorForm: any = this.emptyVendorForm();
 
   // Write-Offs Management
   writeOffs: InventoryWriteOff[] = [];
@@ -279,6 +290,7 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
         this.loadBarcodes(),
         this.loadBatches(),
         this.loadWriteOffs(),
+        this.loadProductSuppliers(),
       ]).catch((error) => console.warn('Error loading secondary product details panels', error));
 
       this.onGetAllCategories();
@@ -559,7 +571,7 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
       const merged: ProductBatch[] = [];
       for (const pid of productIds) {
         try {
-          const response: any = await firstValueFrom(this.productService.getProductBatches(pid));
+          const response: any = await firstValueFrom(this.productService.getProductBatches(pid, this.showDepletedBatches));
           merged.push(...mapResponseToBatches(response));
         } catch (err: any) {
           if (err?.status !== 404) {
@@ -614,6 +626,186 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     } finally {
       this.batchesLoading = false;
     }
+  }
+
+  /** Toggle whether the Batches tab includes depleted / written-off lots, then reload. */
+  onToggleDepletedBatches(): void {
+    void this.loadBatches();
+  }
+
+  // ---------------------------------------------------------------------
+  // Approved-vendor list (multi-supplier sourcing)
+  // ---------------------------------------------------------------------
+
+  private emptyVendorForm(): any {
+    return {
+      supplierId: null,
+      supplierSku: '',
+      lastPurchasePrice: null,
+      leadTimeDays: null,
+      minOrderQty: null,
+      packSize: null,
+      notes: '',
+      makeDefault: false,
+      active: true,
+    };
+  }
+
+  /** True when the current user may add/edit/remove approved vendors. */
+  get canManageVendors(): boolean {
+    return !this.isAggregatedView && (this.canEdit || this.isAdmin);
+  }
+
+  /** Suppliers not yet linked to this product (for the add dialog dropdown). */
+  get availableVendorSuppliers(): Supplier[] {
+    const linked = new Set(this.productSuppliers.map(ps => ps.supplierId));
+    return (this.suppliers || []).filter(s => !linked.has(s.supplierId));
+  }
+
+  async loadProductSuppliers(): Promise<void> {
+    const pid = this.product?.productId ?? this.productId;
+    if (!pid) {
+      this.productSuppliers = [];
+      return;
+    }
+    this.productSuppliersLoading = true;
+    try {
+      this.productService.loadToken();
+      const response = await firstValueFrom(this.productService.getProductSuppliers(pid));
+      this.productSuppliers = Array.isArray(response) ? response : [];
+    } catch (error: any) {
+      // Silent on 404 (feature/endpoint not present): the panel simply shows empty.
+      if (error?.status !== 404) {
+        console.error('Error loading product suppliers:', error);
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('error_loading_product_suppliers') || 'Could not load suppliers',
+          life: 3000,
+        });
+      }
+      this.productSuppliers = [];
+    } finally {
+      this.productSuppliersLoading = false;
+    }
+  }
+
+  openAddVendorDialog(): void {
+    if (!this.canManageVendors) return;
+    this.editingVendor = null;
+    this.vendorForm = this.emptyVendorForm();
+    this.vendorDialogVisible = true;
+  }
+
+  openEditVendorDialog(row: ProductSupplier): void {
+    if (!this.canManageVendors) return;
+    this.editingVendor = row;
+    this.vendorForm = {
+      supplierId: row.supplierId,
+      supplierSku: row.supplierSku ?? '',
+      lastPurchasePrice: row.lastPurchasePrice ?? null,
+      leadTimeDays: row.leadTimeDays ?? null,
+      minOrderQty: row.minOrderQty ?? null,
+      packSize: row.packSize ?? null,
+      notes: row.notes ?? '',
+      makeDefault: !!row.defaultVendor,
+      active: row.active !== false,
+    };
+    this.vendorDialogVisible = true;
+  }
+
+  async saveVendor(): Promise<void> {
+    const pid = this.product?.productId ?? this.productId;
+    if (!pid || this.vendorSaving) return;
+
+    if (!this.editingVendor && !this.vendorForm.supplierId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('vendor_supplier_required') || 'Please select a supplier',
+        life: 3000,
+      });
+      return;
+    }
+
+    this.vendorSaving = true;
+    try {
+      if (this.editingVendor?.productSupplierId) {
+        await firstValueFrom(
+          this.productService.updateProductSupplier(pid, this.editingVendor.productSupplierId, this.vendorForm)
+        );
+      } else {
+        await firstValueFrom(this.productService.addProductSupplier(pid, this.vendorForm));
+      }
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('vendor_saved') || 'Supplier saved',
+        life: 2500,
+      });
+      this.vendorDialogVisible = false;
+      await this.loadProductSuppliers();
+      // The default vendor may have changed; refresh the product so the header reflects it.
+      await this.loadProduct();
+    } catch (error: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: error?.error?.message || error?.message || this.translate.instant('error_saving_vendor') || 'Could not save supplier',
+        life: 4000,
+      });
+    } finally {
+      this.vendorSaving = false;
+    }
+  }
+
+  async setDefaultVendor(row: ProductSupplier): Promise<void> {
+    const pid = this.product?.productId ?? this.productId;
+    if (!pid || !row.productSupplierId || row.defaultVendor || !this.canManageVendors) return;
+    try {
+      await firstValueFrom(this.productService.setDefaultProductSupplier(pid, row.productSupplierId));
+      await this.loadProductSuppliers();
+      await this.loadProduct();
+    } catch (error: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: error?.error?.message || this.translate.instant('error_saving_vendor') || 'Could not set default supplier',
+        life: 4000,
+      });
+    }
+  }
+
+  confirmRemoveVendor(row: ProductSupplier): void {
+    const pid = this.product?.productId ?? this.productId;
+    if (!pid || !row.productSupplierId || !this.canManageVendors) return;
+    this.confirmationService.confirm({
+      message: this.translate.instant('vendor_remove_confirm', { name: row.supplierName })
+        || `Remove ${row.supplierName} from this product's suppliers?`,
+      header: this.translate.instant('confirm') || 'Confirm',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        try {
+          await firstValueFrom(this.productService.removeProductSupplier(pid, row.productSupplierId!));
+          this.messageService.add({
+            severity: 'success',
+            summary: this.translate.instant('success'),
+            detail: this.translate.instant('vendor_removed') || 'Supplier removed',
+            life: 2500,
+          });
+          await this.loadProductSuppliers();
+          await this.loadProduct();
+        } catch (error: any) {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translate.instant('error'),
+            detail: error?.error?.message || this.translate.instant('error_removing_vendor') || 'Could not remove supplier',
+            life: 4000,
+          });
+        }
+      },
+    });
   }
 
   getBatchStatus(batch: ProductBatch): BatchStatus {

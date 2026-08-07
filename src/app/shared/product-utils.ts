@@ -186,10 +186,11 @@ export function getWriteOffQuantity(product: Product): number {
   return (product.quantityAvailable ?? 0) - (product.netAvailableQuantity ?? 0);
 }
 
-export function buildOrderItemPayload(product: Product, lineQuantity: number, pricePerUnit: number): OrderItem {
+export function buildOrderItemPayload(product: Product, lineQuantity: number, pricePerUnit: number, extra?: Partial<OrderItem>): OrderItem {
   const item: OrderItem = {
     product: product.productId != null ? ({ productId: product.productId } as Product) : product,
     pricePerUnit,
+    ...extra,
   };
   if (QuantityScale.isFractional(product)) {
     item.displayQuantity = lineQuantity;

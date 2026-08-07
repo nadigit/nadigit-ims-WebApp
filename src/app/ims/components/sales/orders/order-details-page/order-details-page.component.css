@@ -683,3 +683,20 @@
         display: none !important;
     }
 }
+
+/* Sale-line extra details on the order-items table (options / portion / rule adjustments) */
+.line-detail-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.line-detail-portion {
+  display: block;
+  margin-top: 0.25rem;
+}
+.line-detail-adjustments {
+  margin-top: 0.25rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--surface-border);
+}

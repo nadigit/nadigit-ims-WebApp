@@ -16,7 +16,8 @@ export enum WriteOffSourceType {
   EXPIRATION = 'EXPIRATION',
   DAMAGE_INCIDENT = 'DAMAGE_INCIDENT',
   THEFT = 'THEFT',
-  QUALITY_CONTROL = 'QUALITY_CONTROL'
+  QUALITY_CONTROL = 'QUALITY_CONTROL',
+  SHRINKAGE = 'SHRINKAGE'
 }
 
 // Request interface for creating write-offs

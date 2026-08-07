@@ -11,6 +11,9 @@ export class Notification {
     actionUrl?: string;
     referenceId?: number;
     referenceType?: string;
+    productId?: number;
+    productName?: string;
+    batchNumber?: string;
     creationDate?: Date;
     expirationDate?: Date;
 }

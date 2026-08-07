@@ -25,6 +25,8 @@ export const BRAND_ASSETS = {
   nadiPilotPrimeIcon: 'nadipilot-mark',
   siteUrl: 'https://ims.nadigit.com',
   corporateUrl: 'https://nadigit.com',
+  /** Public product documentation (Docusaurus). */
+  docsUrl: 'https://docs.ims.nadigit.com',
 } as const;
 
 /** @deprecated Use logoLight / logoDark or brandLogoForScheme */

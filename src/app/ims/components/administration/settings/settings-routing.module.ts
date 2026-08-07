@@ -7,6 +7,7 @@ import { TelegramConfigComponent } from './telegram-config/telegram-config.compo
 import { WhatsAppConfigComponent } from './whatsapp-config/whatsapp-config.component';
 import { AiIntegrationConfigComponent } from './ai-integration-config/ai-integration-config.component';
 import { TrendDataConfigComponent } from './trend-data-config/trend-data-config.component';
+import { EcommerceIntegrationsComponent } from './ecommerce-integrations/ecommerce-integrations.component';
 
 @NgModule({
 	imports: [RouterModule.forChild([
@@ -16,7 +17,8 @@ import { TrendDataConfigComponent } from './trend-data-config/trend-data-config.
 		{ path: 'telegram', component: TelegramConfigComponent },
 		{ path: 'whatsapp', component: WhatsAppConfigComponent },
 		{ path: 'ai', component: AiIntegrationConfigComponent },
-		{ path: 'trends', component: TrendDataConfigComponent }
+		{ path: 'trends', component: TrendDataConfigComponent },
+		{ path: 'integrations', component: EcommerceIntegrationsComponent }
 	])],
 	exports: [RouterModule]
 })

@@ -65,11 +65,24 @@
     </#if>
     <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
     <script type="module">
-        import { checkCookiesAndSetTimer } from "${url.resourcesPath}/js/authChecker.js";
-
-        checkCookiesAndSetTimer(
-            "${url.ssoLoginInOtherTabsUrl?no_esc}"
-        );
+        // Version-resilient auth-session check. The base keycloak.v2 theme's authChecker.js exposes
+        // different exports across Keycloak versions — checkCookiesAndSetTimer (< 25) vs checkAuthSession
+        // (>= 25). A static `import { checkCookiesAndSetTimer }` throws a hard SyntaxError on newer
+        // Keycloak (image is ":latest"). Import dynamically and call whichever function exists so the
+        // login page never errors; if neither is present, login still works, we just skip the check.
+        import("${url.resourcesPath}/js/authChecker.js")
+            .then((authChecker) => {
+                try {
+                    // Only the export this theme was written for. On newer Keycloak (>= 25) it is
+                    // absent — skip entirely rather than calling the replacement (checkAuthSession)
+                    // with an argument it doesn't get here, which triggers a reload loop. Login works
+                    // fine either way.
+                    if (typeof authChecker.checkCookiesAndSetTimer === "function") {
+                        authChecker.checkCookiesAndSetTimer("<#if url.ssoLoginInOtherTabsUrl??>${url.ssoLoginInOtherTabsUrl?no_esc}</#if>");
+                    }
+                } catch (e) { /* non-fatal */ }
+            })
+            .catch(() => { /* authChecker.js unavailable on this Keycloak version; login still works */ });
 
         const DARK_MODE_CLASS = "pf-v5-theme-dark";
         const mediaQuery =window.matchMedia("(prefers-color-scheme: dark)");

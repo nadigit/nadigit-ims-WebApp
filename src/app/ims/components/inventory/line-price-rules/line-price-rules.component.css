@@ -1,0 +1,25 @@
+.line-rules-page {
+  padding: 0.5rem 0.25rem;
+}
+
+/* "Inert until enabled" banner */
+.line-rules-banner {
+  background: var(--yellow-50, #fffbeb);
+  border: 1px solid var(--yellow-200, #fde68a);
+  color: var(--yellow-900, #78350f);
+}
+
+/* Inline hint inside the dialog (CONSUMED_BATCH_VALUE explanation) */
+.line-rules-hint {
+  background: var(--surface-ground);
+  border: 1px solid var(--surface-border);
+  color: var(--text-color-secondary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .line-rules-banner {
+    background: rgba(120, 53, 15, 0.25);
+    border-color: rgba(253, 230, 138, 0.35);
+    color: var(--yellow-200, #fde68a);
+  }
+}

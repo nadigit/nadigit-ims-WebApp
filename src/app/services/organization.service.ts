@@ -40,6 +40,30 @@ export class OrganizationService {
     return this.http.get(this.apiProtocol+'://'+this.apiHost+':'+this.apiPort + this.schema,{headers:headers});
   }
 
+  /** Organizations the current user can access (multi-org switcher / admin listing). */
+  getMyOrganizations() {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get<any[]>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/mine', { headers });
+  }
+
+  /** Members (usernames) granted access to an organization (ENTERPRISE multi-org, ADMIN only). */
+  listMembers(organizationId: number) {
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get<any[]>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/memberships?organizationId=' + organizationId, { headers });
+  }
+
+  /** Grant a user access to an organization (optionally as their default). */
+  grantMembership(username: string, organizationId: number, makeDefault: boolean = false) {
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Granted organization access to ' + username);
+    return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/memberships', { username, organizationId, makeDefault }, { headers });
+  }
+
+  /** Revoke a user's access to an organization. */
+  revokeMembership(username: string, organizationId: number) {
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Revoked organization access from ' + username);
+    return this.http.delete(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + '/memberships?username=' + encodeURIComponent(username) + '&organizationId=' + organizationId, { headers });
+  }
+
   uploadLogo(file: File): Observable<any> {
     const formData = new FormData();
     formData.append('logo', file); // Append the file to FormData

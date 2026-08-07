@@ -92,6 +92,7 @@
 									</label>
 									<p-dropdown inputId="businessActivityProfile" [options]="businessProfileOptions"
 										[(ngModel)]="selectedBusinessProfile" optionLabel="label" optionValue="value"
+										appendTo="body"
 										[placeholder]="'select' | translate" [showClear]="true" styleClass="w-full">
 									</p-dropdown>
 								</div>
@@ -270,7 +271,7 @@
 												</span>
 
 												<!-- Boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled'" class="value-text">
+												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'sales.margin.guard.strict' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled' || config.key === 'purchase.companion.value.enabled' || config.key === 'sales.portion.selection.enabled'" class="value-text">
 													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
 														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
 												</span>
@@ -322,6 +323,18 @@
 												</span>
 												<span *ngIf="config.key === 'tax.calculation.mode'" class="value-text">
 													<span class="value-number">{{ getTaxModeLabel(config.value) }}</span>
+												</span>
+
+												<!-- Sale-line margin guard / conditional pricing rules -->
+												<span *ngIf="config.key === 'sales.margin.guard.mode'" class="value-text">
+													<span class="value-number">{{ getMarginGuardModeLabel(config.value) }}</span>
+												</span>
+												<span *ngIf="config.key === 'sales.pricing.rules.mode'" class="value-text">
+													<span class="value-number">{{ getPricingRulesModeLabel(config.value) }}</span>
+												</span>
+												<span *ngIf="config.key === 'sales.margin.min.percent'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">%</span>
 												</span>
 												<span *ngIf="isAiSecretConfigKey(config.key)" class="value-text">
 													<span class="value-number">{{ getAiSecretDisplaySummary(config.value) }}</span>
@@ -399,6 +412,10 @@
 													config.key !== 'ai.integration.fallback.provider' &&
 													config.key !== 'ai.invoice.mode' &&
 													config.key !== 'tax.calculation.mode' &&
+													config.key !== 'sales.margin.guard.mode' &&
+													config.key !== 'sales.margin.min.percent' &&
+													config.key !== 'sales.margin.guard.strict' &&
+													config.key !== 'sales.pricing.rules.mode' &&
 													config.key !== 'ai.invoice.hybrid.confidence.threshold' &&
 													config.key !== 'ai.invoice.max.context.chars' &&
 													config.key !== 'ai.openai.base.url' &&
@@ -418,7 +435,8 @@
 													config.key !== 'ai.groq.api.key' &&
 													config.key !== 'ai.google.api.key' &&
 													config.key !== 'ai.openrouter.api.key' &&
-													config.key !== 'app.rate-limit.enabled'" class="value-text">
+													config.key !== 'purchase.companion.value.enabled' &&
+														config.key !== 'sales.portion.selection.enabled' && config.key !== 'app.rate-limit.enabled'" class="value-text">
 													<span class="value-number">{{ config.value }}</span>
 												</span>
 
@@ -507,7 +525,7 @@
 												</div>
 
 												<!-- Edit mode for boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled'" class="edit-field">
+												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'sales.margin.guard.strict' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled' || config.key === 'purchase.companion.value.enabled' || config.key === 'sales.portion.selection.enabled'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="booleanOptions"
 														optionLabel="label"
@@ -644,6 +662,28 @@
 														appendTo="body">
 													</p-dropdown>
 												</div>
+												<div *ngIf="config.key === 'sales.margin.guard.mode'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="marginGuardModeOptions"
+														optionLabel="label"
+														optionValue="value"
+														class="w-full"
+														appendTo="body">
+													</p-dropdown>
+												</div>
+												<div *ngIf="config.key === 'sales.pricing.rules.mode'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="pricingRulesModeOptions"
+														optionLabel="label"
+														optionValue="value"
+														class="w-full"
+														appendTo="body">
+													</p-dropdown>
+												</div>
+												<div *ngIf="config.key === 'sales.margin.min.percent'" class="edit-field">
+													<input [(ngModel)]="config.value" type="number" pInputText class="w-full" min="0" max="100" step="0.01" />
+													<span class="edit-unit">%</span>
+												</div>
 												<div *ngIf="isAiSecretConfigKey(config.key)" class="edit-field">
 													<input [(ngModel)]="config.value" type="password" pInputText class="w-full" autocomplete="off" />
 												</div>
@@ -706,6 +746,7 @@
 								'ims-icon-tile--cyan': ch.id === 'telegram',
 								'ims-icon-tile--green': ch.id === 'whatsapp',
 								'ims-icon-tile--purple': ch.id === 'ai',
+								'ims-icon-tile--blue': ch.id === 'ecommerce',
 								'ims-icon-tile--amber': ch.id === 'notifications' || ch.id === 'trends'
 							}"><i [class]="ch.icon"></i></span>
 							<span class="settings-channel-body">

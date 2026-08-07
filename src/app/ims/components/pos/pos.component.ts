@@ -49,6 +49,8 @@ import {
 } from 'src/app/shared/product-utils';
 import { QuantityScale } from 'src/app/utils/quantity-scale.util';
 import { POSCartItemDTO } from 'src/app/models/pos';
+import { LineOptionSet, LineOption } from 'src/app/models/line-option-set';
+import { LineOptionSetService } from 'src/app/services/line-option-set.service';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { PaymentValidationService } from 'src/app/services/payment-validation.service';
@@ -122,6 +124,19 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // Search / scan
   barcodeInput: string = '';
+  /**
+   * Barcode auto-submit (for keyboard-less terminals where the scanner does not
+   * append an Enter/CR suffix). A hardware scanner streams characters in a tight
+   * burst; when the burst goes quiet we submit automatically. Manual (human-speed)
+   * typing is intentionally NOT auto-submitted — it still uses Enter or the button.
+   */
+  private barcodeDebounceTimer: any = null;
+  private barcodeLastKeyTime = 0;
+  private barcodeFastKeystrokes = false;
+  /** Max gap (ms) between keystrokes that still counts as scanner-speed input. */
+  private readonly BARCODE_SCANNER_MAX_GAP_MS = 40;
+  /** Quiet period (ms) after the last keystroke before auto-submitting a scan. */
+  private readonly BARCODE_DEBOUNCE_MS = 120;
   /** Fashion / variant POS: browse styles then pick SKU variant. */
   posSellMode: 'styles' | 'sku' = 'styles';
   posStyleFamilies: ProductFamilyInventoryOverview[] = [];
@@ -154,6 +169,15 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // Checkout
   checkoutDialog: boolean = false;
+
+  // --- Sale-line options (components/cuts) on POS cart lines ---
+  /** All active option sets in the org; applicability resolved per line client-side. */
+  private allOptionSetsCache: LineOptionSet[] | null = null;
+  optionsDialogVisible = false;
+  optionsCartItem: POSCartItemDTO | null = null;
+  optionsSets: LineOptionSet[] = [];
+  optionsWorkingSelections: { [setId: number]: number[] } = {};
+  optionsSaving = false;
   receiptDialog: boolean = false;
   checkoutPayments: PaymentInfo[] = [];
   checkoutNotes: string = '';
@@ -332,6 +356,15 @@ export class PosComponent implements OnInit, OnDestroy {
   /** When true, the cashier may override a line's unit price (pricing.allow.custom.override). */
   priceOverrideAllowed: boolean = true;
 
+  /** When true, POS cart lines expose a portion selector (whole/half/quarter/...) → portionFraction. */
+  portionSelectionEnabled: boolean = false;
+  portionOptions: { label: string; value: number }[] = [
+    { label: '1', value: 1 },
+    { label: '1/2', value: 0.5 },
+    { label: '1/4', value: 0.25 },
+    { label: '1/8', value: 0.125 },
+  ];
+
   constructor(
     private posService: PosService,
     private shopService: ShopService,
@@ -346,6 +379,7 @@ export class PosComponent implements OnInit, OnDestroy {
     private translationService: TranslationService,
     private configService: AppConfigurationService,
     private taxRuleService: TaxRuleService,
+    private lineOptionSetService: LineOptionSetService,
     private posStorage: PosStorageService,
     private pwaService: PwaService,
     private keycloakService: KeycloakService,
@@ -389,6 +423,7 @@ export class PosComponent implements OnInit, OnDestroy {
     await this.loadSalesStockConfig();
     await this.loadSalesStockSoftReservationConfig();
     await this.loadPriceOverrideConfig();
+    await this.loadPortionSelectionConfig();
 
     this.configService.configurationSaved$
       .pipe(takeUntil(this.destroy$))
@@ -474,6 +509,7 @@ export class PosComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.clearSummaryFieldDebounceTimers();
+    this.clearBarcodeDebounce();
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
     }
@@ -1123,11 +1159,58 @@ export class PosComponent implements OnInit, OnDestroy {
   // ========== Search & scan ==========
 
   onBarcodeEnter() {
+    // Any pending auto-submit is now redundant (Enter/CR arrived or button pressed).
+    this.clearBarcodeDebounce();
+    this.barcodeFastKeystrokes = false;
     const barcode = this.barcodeInput.trim();
     if (!barcode || !this.shopId) {
       return;
     }
     this.lookupByBarcode(barcode);
+  }
+
+  /**
+   * Fires on every keystroke in the barcode field. Detects a scanner burst
+   * (characters arriving faster than a human can type) and, once the burst goes
+   * quiet, submits automatically — so a keyboard-less terminal works even when the
+   * scanner is not configured to append an Enter/CR suffix.
+   */
+  onBarcodeInputChange(value: string) {
+    this.clearBarcodeDebounce();
+
+    if (!value) {
+      this.barcodeFastKeystrokes = false;
+      return;
+    }
+
+    const now = Date.now();
+    const gap = now - this.barcodeLastKeyTime;
+    this.barcodeLastKeyTime = now;
+
+    if (value.length <= 1) {
+      // First character of a new sequence — can't judge speed yet.
+      this.barcodeFastKeystrokes = false;
+    } else if (gap <= this.BARCODE_SCANNER_MAX_GAP_MS) {
+      this.barcodeFastKeystrokes = true;
+    } else {
+      // A human-speed keystroke breaks the scanner assumption.
+      this.barcodeFastKeystrokes = false;
+    }
+
+    this.barcodeDebounceTimer = setTimeout(() => {
+      this.barcodeDebounceTimer = null;
+      // Only auto-submit scanner-speed input; manual typing uses Enter or the button.
+      if (this.barcodeFastKeystrokes) {
+        this.onBarcodeEnter();
+      }
+    }, this.BARCODE_DEBOUNCE_MS);
+  }
+
+  private clearBarcodeDebounce() {
+    if (this.barcodeDebounceTimer) {
+      clearTimeout(this.barcodeDebounceTimer);
+      this.barcodeDebounceTimer = null;
+    }
   }
 
   private async lookupByBarcode(barcode: string) {
@@ -1492,6 +1575,162 @@ export class PosComponent implements OnInit, OnDestroy {
    * @param cart The cart to normalize
    * @param syncDiscountTax Whether to sync discount and tax values from cart (default: true)
    */
+  // ---------------------------------------------------------------------
+  // Sale-line options (components/cuts) on POS cart lines
+  // ---------------------------------------------------------------------
+
+  /** Fetch every active option set once (cached); applicability resolved per line. */
+  private async ensurePosOptionSetsLoaded(items: POSCartItemDTO[]): Promise<void> {
+    if (this.allOptionSetsCache || !(items && items.length)) return;
+    try {
+      const obs = await this.lineOptionSetService.list();
+      const res = await firstValueFrom(obs);
+      this.allOptionSetsCache = (Array.isArray(res) ? res : []).filter(s => s.active !== false);
+    } catch (e: any) {
+      if (e?.status !== 404) console.warn('Could not load line option sets', e);
+      this.allOptionSetsCache = [];
+    }
+    this.cdr.detectChanges();
+  }
+
+  /** Sets applicable to a cart line: product-scoped, its category-scoped, or global (both null). */
+  getPosOptionSets(item: POSCartItemDTO): LineOptionSet[] {
+    const pid = item?.productId;
+    const cid = item?.categoryId ?? null;
+    return (this.allOptionSetsCache || []).filter(s =>
+      (s.productId != null && s.productId === pid) ||
+      (s.categoryId != null && cid != null && s.categoryId === cid) ||
+      (s.productId == null && s.categoryId == null)
+    );
+  }
+
+  hasCartLineOptions(item: POSCartItemDTO): boolean {
+    return this.getPosOptionSets(item).length > 0;
+  }
+
+  private parseCsvIds(csv: string | null | undefined): number[] {
+    if (!csv) return [];
+    return csv.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
+  }
+
+  cartLineOptionCount(item: POSCartItemDTO): number {
+    return this.parseCsvIds(item.selectedOptionIds).length;
+  }
+
+  cartLineOptionLabels(item: POSCartItemDTO): string[] {
+    const ids = this.parseCsvIds(item.selectedOptionIds);
+    if (!ids.length) return [];
+    const labels: string[] = [];
+    for (const set of this.getPosOptionSets(item)) {
+      for (const opt of (set.options || [])) {
+        if (opt.lineOptionId != null && ids.includes(opt.lineOptionId)) {
+          labels.push(opt.label || opt.code || '');
+        }
+      }
+    }
+    return labels;
+  }
+
+  openCartOptions(item: POSCartItemDTO): void {
+    this.optionsCartItem = item;
+    this.optionsSets = this.getPosOptionSets(item);
+    // Group the line's current CSV selection into per-set arrays.
+    const ids = this.parseCsvIds(item.selectedOptionIds);
+    const selections: { [setId: number]: number[] } = {};
+    for (const set of this.optionsSets) {
+      const setOptionIds = (set.options || []).map(o => o.lineOptionId as number);
+      selections[set.lineOptionSetId as number] = ids.filter(id => setOptionIds.includes(id));
+    }
+    this.optionsWorkingSelections = selections;
+    this.optionsDialogVisible = true;
+  }
+
+  closeCartOptions(): void {
+    this.optionsDialogVisible = false;
+    this.optionsCartItem = null;
+    this.optionsSets = [];
+    this.optionsWorkingSelections = {};
+  }
+
+  private workingSelFor(setId: number): number[] {
+    return this.optionsWorkingSelections[setId] || (this.optionsWorkingSelections[setId] = []);
+  }
+
+  isWorkingSelected(set: LineOptionSet, option: LineOption): boolean {
+    return this.workingSelFor(set.lineOptionSetId as number).includes(option.lineOptionId as number);
+  }
+
+  toggleWorkingOption(set: LineOptionSet, option: LineOption): void {
+    const setId = set.lineOptionSetId as number;
+    const optId = option.lineOptionId as number;
+    const current = this.workingSelFor(setId);
+    const idx = current.indexOf(optId);
+    if (set.selectionMode === 'SINGLE') {
+      this.optionsWorkingSelections[setId] = idx > -1 && (set.minSelect || 0) === 0 ? [] : [optId];
+      return;
+    }
+    if (idx > -1) {
+      current.splice(idx, 1);
+    } else {
+      if (set.maxSelect != null && current.length >= set.maxSelect) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('line_option_max_reached', { max: set.maxSelect }),
+          life: 3000,
+        });
+        return;
+      }
+      current.push(optId);
+    }
+  }
+
+  workingSelectionValid(): boolean {
+    for (const set of this.optionsSets) {
+      const count = this.workingSelFor(set.lineOptionSetId as number).length;
+      if (count < (set.minSelect || 0)) return false;
+      if (set.maxSelect != null && count > set.maxSelect) return false;
+    }
+    return true;
+  }
+
+  async saveCartOptions(): Promise<void> {
+    if (!this.optionsCartItem || !this.cart || this.optionsSaving) return;
+    if (!this.workingSelectionValid()) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('line_options_line_invalid'),
+        life: 3500,
+      });
+      return;
+    }
+    const ids: number[] = [];
+    for (const arr of Object.values(this.optionsWorkingSelections) as any[]) {
+      if (Array.isArray(arr)) ids.push(...(arr as number[]));
+    }
+    const csv = ids.join(',');
+    this.optionsSaving = true;
+    try {
+      const updated$ = await this.posService.updateCartItem(
+        this.optionsCartItem.cartItemId, undefined, undefined, csv);
+      this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
+      this.updateCartTracking();
+      this.saveToLocalStorage();
+      this.closeCartOptions();
+    } catch (e: any) {
+      console.error('Failed to update cart line options', e);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: e?.error?.message || this.translate.instant('line_options_error_save'),
+        life: 4000,
+      });
+    } finally {
+      this.optionsSaving = false;
+    }
+  }
+
   private normalizeCartItems(cart: POSCartDTO | null, syncDiscountTax: boolean = true): POSCartDTO | null {
     if (!cart) {
       return cart;
@@ -1539,6 +1778,9 @@ export class PosComponent implements OnInit, OnDestroy {
         priceOverride: manualOverride ?? item.priceOverride,
       };
     });
+
+    // Preload option sets for the products on the cart so the per-line options control can show.
+    void this.ensurePosOptionSetsLoaded(cart.items);
 
     // Always recalculate subtotal from items
     cart.subtotal = cart.items.reduce((sum, item) => {
@@ -1607,10 +1849,12 @@ export class PosComponent implements OnInit, OnDestroy {
       stockTrackingMode: product.stockTrackingMode,
       measureUnit: product.measureUnit,
     } as Product;
+    // Services carry no stock and are always sellable — skip all stock validation for them.
+    const isServiceProduct = product.productType === 'SERVICE';
     const netAvailable = QuantityScale.isFractional(productMeta)
       ? (product.displayQuantityAvailable ?? QuantityScale.toDisplayQuantity(productMeta, product.quantityAvailable || 0))
       : (product.quantityAvailable || 0);
-    if (netAvailable <= 0) {
+    if (!isServiceProduct && netAvailable <= 0) {
       this.messageService.add({
         severity: 'warn',
         summary: this.translate.instant('warning'),
@@ -1619,10 +1863,10 @@ export class PosComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    
+
     // With soft reservations, client qty may not reflect others' holds — let the API enforce when online.
     const skipClientMaxQty =
-      this.salesStockSoftReservationEnabled && this.isOnline;
+      isServiceProduct || (this.salesStockSoftReservationEnabled && this.isOnline);
     if (!skipClientMaxQty && quantity > netAvailable) {
       this.messageService.add({
         severity: 'warn',
@@ -5286,6 +5530,50 @@ export class PosComponent implements OnInit, OnDestroy {
     } catch (e) {
       console.warn('Could not load price override configuration for POS, defaulting to allowed', e);
       this.priceOverrideAllowed = true;
+    }
+  }
+
+  /** Opt-in per tenant: expose the portion selector on POS cart lines. */
+  async loadPortionSelectionConfig() {
+    try {
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('sales.portion.selection.enabled')
+      );
+      this.portionSelectionEnabled = config?.value === 'true' || config?.value === true;
+    } catch {
+      this.portionSelectionEnabled = false;
+    }
+  }
+
+  /** Human label for a portion fraction (1 → "1", 0.5 → "1/2", ...). */
+  portionLabel(fraction: number | null | undefined): string {
+    if (fraction == null) return '';
+    const map: { [k: string]: string } = { '1': '1', '0.5': '1/2', '0.25': '1/4', '0.125': '1/8' };
+    return map[String(fraction)] || String(fraction);
+  }
+
+  /** Current portion fraction for a cart line (defaults to whole = 1). */
+  getCartLinePortion(item: POSCartItemDTO): number {
+    const v = Number(item?.portionFraction);
+    return isNaN(v) || v <= 0 ? 1 : v;
+  }
+
+  /** Persist a new portion fraction on the cart line; refreshes totals from the server response. */
+  async setCartLinePortion(item: POSCartItemDTO, fraction: number): Promise<void> {
+    if (!item?.cartItemId || !this.isOnline) return;
+    try {
+      const updated$ = await this.posService.updateCartItem(item.cartItemId, undefined, undefined, undefined, fraction);
+      this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
+      this.updateCartTracking();
+      this.saveToLocalStorage();
+    } catch (e: any) {
+      console.error('Failed to update cart line portion', e);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: e?.error?.message || this.translate.instant('error'),
+        life: 3000,
+      });
     }
   }
 

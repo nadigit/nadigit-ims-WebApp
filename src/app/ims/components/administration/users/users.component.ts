@@ -41,6 +41,16 @@ export class UsersComponent implements OnInit {
 
   deleteRolesDialog: boolean = false;
 
+  // Admin account controls (reset password / enable-disable)
+  resetPasswordDialog: boolean = false;
+  resetPasswordValue: string = '';
+  resetPasswordTemporary: boolean = false;
+  resetPasswordSubmitted: boolean = false;
+  resetPasswordSaving: boolean = false;
+
+  toggleStatusDialog: boolean = false;
+  statusSaving: boolean = false;
+
   users: User[] = [];
 
   user: User = {};
@@ -354,6 +364,93 @@ export class UsersComponent implements OnInit {
   deleteUser(user: User) {
     this.deleteUserDialog = true;
     this.user = { ...user };
+  }
+
+  // --- Admin account controls ---------------------------------------------
+
+  openResetPassword(user: User) {
+    this.user = { ...user };
+    this.resetPasswordValue = '';
+    this.resetPasswordTemporary = false;
+    this.resetPasswordSubmitted = false;
+    this.resetPasswordDialog = true;
+  }
+
+  async confirmResetPassword() {
+    this.resetPasswordSubmitted = true;
+    if (!this.resetPasswordValue || !this.user?.id) {
+      return;
+    }
+    this.resetPasswordSaving = true;
+    const credential = {
+      type: 'password',
+      value: this.resetPasswordValue,
+      temporary: this.resetPasswordTemporary
+    };
+    try {
+      await this.authService.changePassword(this.user.id, credential).toPromise();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('password_reset_success'),
+        life: 3000
+      });
+      this.resetPasswordDialog = false;
+      this.resetPasswordValue = '';
+    } catch (error) {
+      console.log(error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_resetting_password'),
+        life: 3000
+      });
+    } finally {
+      this.resetPasswordSaving = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  openToggleStatus(user: User) {
+    this.user = { ...user };
+    this.toggleStatusDialog = true;
+  }
+
+  async confirmToggleStatus() {
+    const targetId = this.user?.id;
+    if (!targetId) {
+      return;
+    }
+    this.statusSaving = true;
+    try {
+      // The list view is a brief representation (no attributes); fetch the full
+      // user first so toggling `enabled` doesn't wipe shop/warehouse/POS attributes.
+      const full: any = await this.authService.getUser(targetId).toPromise();
+      const fullUser = Array.isArray(full) ? full[0] : full;
+      const newEnabled = !fullUser.enabled;
+      fullUser.enabled = newEnabled;
+      delete fullUser.credentials; // never resend credentials on update
+      await this.authService.updateUser(targetId, fullUser).toPromise();
+      await this.onGetAllUsers();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant(newEnabled ? 'user_enabled' : 'user_disabled'),
+        life: 3000
+      });
+      this.toggleStatusDialog = false;
+    } catch (error) {
+      console.log(error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_updating_status'),
+        life: 3000
+      });
+    } finally {
+      this.statusSaving = false;
+      this.cdr.detectChanges();
+    }
   }
 
   editRole(appRole: Role) {
@@ -849,10 +946,16 @@ export class UsersComponent implements OnInit {
           throw new Error("Failed to update user role mapping");
         }
       } else {
-        this.userCredential.temporary = false;
-        this.userCredential.type = "password";
-        this.user.credentials.push(this.userCredential);
-        console.log(this.userCredential)
+        // Capture the password now: saveUser() resets this.userCredential right after
+        // it invokes us (without awaiting), so read it before the first await.
+        const newPassword = this.userCredential?.value;
+
+        // Create the user WITHOUT an embedded credential. Passwords embedded in the
+        // Keycloak user-creation payload are unreliable — Keycloak can silently drop
+        // the credential (e.g. when declarative User Profile rejects unmanaged
+        // attributes), leaving the account with no usable password. We set it via the
+        // dedicated reset-password endpoint below instead (same path the KC admin uses).
+        this.user.credentials = [];
         // Add the user
         console.log(user)
         const addedUser = await this.addUser(user);
@@ -869,6 +972,11 @@ export class UsersComponent implements OnInit {
           throw new Error("Failed to retrieve the ID of the newly added user");
         }
 
+        // Set the password via reset-password so the credential is guaranteed to stick.
+        const passwordSet = await this.setUserPassword(user.id, newPassword);
+        if (!passwordSet) {
+          throw new Error("Failed to set user password");
+        }
       }
 
       // Step 3: Update user role mapping (not available in STARTER).
@@ -936,6 +1044,23 @@ export class UsersComponent implements OnInit {
       if (this.isLicenseUpgradeError(error)) {
         this.showUpgradeCta('Starter plan allows one admin user only. Upgrade to create more users.');
       }
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_creating_user'),
+        life: 3000
+      });
+      return false;
+    }
+  }
+
+  async setUserPassword(id: any, password: string): Promise<boolean> {
+    try {
+      const credential = { type: 'password', value: password, temporary: false };
+      await this.authService.changePassword(id, credential).toPromise();
+      return true;
+    } catch (error) {
+      console.log(error);
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),

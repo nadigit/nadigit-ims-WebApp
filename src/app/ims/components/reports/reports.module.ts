@@ -29,6 +29,7 @@ import { ForecastingReportComponent } from './forecasting-report/forecasting-rep
 import { ProductMovementReportComponent } from './product-movement-report/product-movement-report.component';
 import { TopSellingProductsReportComponent } from './top-selling-products-report/top-selling-products-report.component';
 import { VatDeclarationReportComponent } from './vat-declaration-report/vat-declaration-report.component';
+import { BatchExpiryReportComponent } from './batch-expiry-report/batch-expiry-report.component';
 import { InventoryStatusComponent } from 'src/app/shared/components/inventory-status/inventory-status.component';
 
 @NgModule({
@@ -42,7 +43,8 @@ import { InventoryStatusComponent } from 'src/app/shared/components/inventory-st
     ForecastingReportComponent,
     ProductMovementReportComponent,
     TopSellingProductsReportComponent,
-    VatDeclarationReportComponent
+    VatDeclarationReportComponent,
+    BatchExpiryReportComponent
   ],
   imports: [
     CommonModule,

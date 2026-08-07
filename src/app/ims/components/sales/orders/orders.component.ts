@@ -9,6 +9,8 @@ import { CustomerService } from 'src/app/services/customer.service';
 import { Customer } from 'src/app/models/customer';
 import { Order } from 'src/app/models/order';
 import { OrderItem } from 'src/app/models/orderItem';
+import { LineOptionSet, LineOption } from 'src/app/models/line-option-set';
+import { LineOptionSetService } from 'src/app/services/line-option-set.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -197,6 +199,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   orderItems: OrderItem[] = [];
 
+  // --- Sale-line options (components/cuts) ---
+  /** All active option sets in the org, fetched once. Applicability (product/category/global) is
+   *  resolved client-side because the backend's per-product endpoint returns product-scoped only. */
+  private allOptionSetsCache: LineOptionSet[] | null = null;
+  optionsDialogVisible = false;
+  optionsLine: any = null;
+
   expandedRows: { [key: string]: boolean } = {}; // Keep track of expanded rows
 
   exportColumns!: ExportColumn[];
@@ -342,6 +351,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   // Price override configuration
   priceOverrideAllowed: boolean = true; // Default to true, will be loaded from config
 
+  /** When true, sale lines expose a portion selector (whole/half/quarter/...) → OrderItem.portionFraction. */
+  portionSelectionEnabled: boolean = false;
+  portionOptions: { label: string; value: number }[] = [
+    { label: '1', value: 1 },
+    { label: '1/2', value: 0.5 },
+    { label: '1/4', value: 0.25 },
+    { label: '1/8', value: 0.125 },
+  ];
+
   /** When false, UI shows net sellable qty (approved write-offs excluded); matches default backend. */
   salesStockIncludesApprovedWriteoffQty: boolean = false;
 
@@ -471,6 +489,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     public activityProfileService: ActivityProfileService,
     private locationService: LocationService,
     private taxRuleService: TaxRuleService,
+    private lineOptionSetService: LineOptionSetService,
   ) {
     this.loadTaxRate();
 
@@ -589,6 +608,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.loadPriceOverrideConfig(),
       this.loadSalesStockConfig(),
       this.loadSalesStockSoftReservationConfig(),
+      this.loadPortionSelectionConfig(),
     ]);
 
     // Initialize table columns and statuses
@@ -1122,6 +1142,27 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       console.warn('Could not load price override configuration, defaulting to true:', error);
       this.priceOverrideAllowed = true; // Default to true if config not found
     }
+  }
+
+  /** Opt-in per tenant: expose the portion selector on sale lines (butchery / divisible goods). */
+  async loadPortionSelectionConfig() {
+    try {
+      const config$ = await this.configService.getConfiguration('sales.portion.selection.enabled');
+      const config = await firstValueFrom(config$);
+      this.portionSelectionEnabled = config?.value === 'true' || config?.value === true;
+    } catch {
+      this.portionSelectionEnabled = false;
+    }
+  }
+
+  /** Portion fraction for a line (defaults to whole = 1). */
+  getLinePortionFraction(product: any): number {
+    const v = Number(product?.['orderItemPortionFraction']);
+    return isNaN(v) || v <= 0 ? 1 : v;
+  }
+
+  setLinePortionFraction(product: any, fraction: number): void {
+    product['orderItemPortionFraction'] = fraction;
   }
 
   async loadSalesStockConfig() {
@@ -1886,6 +1927,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       item.product.orderItemQuantity = displayQty;
       item.product.orderItemPricePerUnit = item.pricePerUnit;
       item.product['orderItemPricePerUnitManual'] = true;
+      item.product['orderItemPortionFraction'] = item.portionFraction ?? 1;
+      // Restore previously-selected sale-line options so they round-trip on edit.
+      const savedOptionIds = (item.selectedOptions || [])
+        .map(o => o.lineOptionId)
+        .filter((id): id is number => id != null);
+      if (savedOptionIds.length) {
+        (item.product as any)['__pendingSelectedOptionIds'] = savedOptionIds;
+      }
+      void this.loadOptionSetsForLine(item.product, true);
     });
     this.showPaymentSection = false;
     await this.onGetProductsCategories();
@@ -2137,10 +2187,22 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       });
       return;
     }
+    if (!this.allLinesOptionsValid()) {
+      const bad = this.targetProducts.find(p => !this.lineOptionsValid(p));
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('line_options_required_for_line', { product: bad?.name || '' }),
+        life: 4500,
+      });
+      return;
+    }
     if (this.isAdmin) {
       const selectedWarehouseId = this.getSelectedOrderWarehouseId();
       const hasMismatchedWarehouse = this.targetProducts.some(
-        p => selectedWarehouseId != null && Number((p.warehouse as any)?.warehouseId) !== Number(selectedWarehouseId)
+        p => p.productType !== 'SERVICE' &&
+          selectedWarehouseId != null &&
+          Number((p.warehouse as any)?.warehouseId) !== Number(selectedWarehouseId)
       );
       if (hasMismatchedWarehouse) {
         this.messageService.add({
@@ -2158,7 +2220,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       buildOrderItemPayload(
         product,
         product['orderItemQuantity'] ?? this.defaultLineQuantity(product),
-        this.getOrderItemPricePerUnitForPayload(product)
+        this.getOrderItemPricePerUnitForPayload(product),
+        {
+          selectedOptions: this.buildSelectedOptionsPayload(product),
+          portionFraction: this.getLinePortionFraction(product),
+        }
       )
     );
 
@@ -2308,58 +2374,55 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
     } catch (error: any) {
       console.error('Error in saveOrder:', error);
-      
-      // Check for user-friendly message from service (write-off errors)
-      let errorMessage: string = '';
-      if (error?.userFriendlyMessage) {
-        errorMessage = error.userFriendlyMessage;
-      } else if (error?.error?.message) {
-        errorMessage = error.error.message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      } else {
-        errorMessage = this.translate.instant('error_occurred');
-      }
-
-      // Check if error is related to insufficient stock with write-offs
-      const isStockError = error?.error?.code === 'insufficient_stock' || 
-                          errorMessage.toLowerCase().includes('insufficient stock') ||
-                          errorMessage.toLowerCase().includes('net available quantity') ||
-                          errorMessage.toLowerCase().includes('written off') ||
-                          errorMessage.toLowerCase().includes('reservation');
-
-      // Check if error is related to credit limit exceeded
-      const isCreditLimitError = errorMessage.toLowerCase().includes('exceeds credit limit') || 
-                                  errorMessage.toLowerCase().includes('credit limit exceeded');
-
-      if (isStockError) {
-        // Display as warning for stock errors (with write-off info)
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('insufficient_stock_title'),
-          detail: errorMessage,
-          life: 5000,
-        });
-      } else if (isCreditLimitError) {
-        // Display as warning instead of error for credit limit exceeded
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: errorMessage,
-          life: 5000,
-        });
-      } else {
-        // Display as error for other errors
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: errorMessage,
-          life: 3000,
-        });
-      }
+      this.showOrderSaveError(error);
     }
+  }
+
+  /**
+   * Surface an order-save failure with the right severity. Business-rule / validation / permission
+   * violations come back as 4xx with a human message (the backend's controls) — show those as a
+   * warning the user can act on. Genuine server failures (5xx) or messageless errors show a clean
+   * generic error instead of leaking "Internal Server Error".
+   */
+  private showOrderSaveError(error: any): void {
+    const status: number = Number(error?.status ?? error?.error?.status ?? 0);
+    // Prefer the backend's structured detail; avoid the noisy HttpErrorResponse.message string.
+    const detail: string =
+      error?.userFriendlyMessage ||
+      error?.error?.message ||
+      (typeof error?.error === 'string' ? error.error : '') ||
+      '';
+
+    // Unexpected server failure, or nothing meaningful to show → clean generic error.
+    if (status >= 500 || status === 0 || !detail) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('order_save_unexpected_error'),
+        life: 4000,
+      });
+      return;
+    }
+
+    // 4xx: a control the user can understand and fix → warning with the backend's own message.
+    const low = detail.toLowerCase();
+    const isStock =
+      error?.error?.code === 'insufficient_stock' ||
+      error?.error?.error === 'Insufficient Stock' ||
+      low.includes('insufficient stock') ||
+      low.includes('net available') ||
+      low.includes('written off') ||
+      low.includes('reservation');
+    const summary = isStock
+      ? this.translate.instant('insufficient_stock_title')
+      : this.translate.instant('warning');
+
+    this.messageService.add({
+      severity: 'warn',
+      summary,
+      detail,
+      life: 6000,
+    });
   }
 
   async validatePayment(): Promise<boolean> {
@@ -3055,7 +3118,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           if (!selectedWarehouseId) {
             mappedProducts = [];
           } else {
+            // Services have no warehouse (globally sellable) — keep them alongside
+            // this warehouse's physical stock.
             mappedProducts = mappedProducts.filter((p: Product) =>
+              p.productType === 'SERVICE' ||
               Number((p.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)
             );
           }
@@ -3118,7 +3184,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       .subscribe({
         next: (response: any) => {
           this.quickProducts = response.filter((product: Product) =>
-            !this.isAdmin || Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)
+            !this.isAdmin ||
+            product.productType === 'SERVICE' ||
+            Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId)
           );
           console.log(this.quickProducts);
           this.cdr.markForCheck();
@@ -3801,6 +3869,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           product.orderItemPricePerUnit = item.sellingPrice;
           product.orderItemPricePerUnitManual = false;
           product.orderItemQuantity = this.defaultLineQuantity(product);
+          void this.loadOptionSetsForLine(product);
         }
       });
     });
@@ -3834,6 +3903,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.targetProducts.push(newProduct);
       this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
       this.orderItems.push(newProduct);
+      void this.loadOptionSetsForLine(newProduct);
       this.messageService.add({
         severity: 'success',
         summary: this.translate.instant('success'),
@@ -3853,6 +3923,186 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.scheduleSyncCheckoutReservations();
       this.cdr.detectChanges();
     }
+  }
+
+  // ---------------------------------------------------------------------
+  // Sale-line options (components/cuts) — pick options on an order line
+  // ---------------------------------------------------------------------
+
+  /**
+   * Load the option sets applicable to a line's product and seed default selections. Purely
+   * additive: products without option sets simply get an empty list and no options control shows.
+   */
+  /** Fetch every active option set once; applicability is resolved per line client-side. */
+  private async getAllOptionSets(): Promise<LineOptionSet[]> {
+    if (this.allOptionSetsCache) return this.allOptionSetsCache;
+    try {
+      const obs = await this.lineOptionSetService.list();
+      const res = await firstValueFrom(obs);
+      this.allOptionSetsCache = (Array.isArray(res) ? res : []).filter(s => s.active !== false);
+    } catch (e: any) {
+      if (e?.status !== 404) console.warn('Could not load line option sets', e);
+      this.allOptionSetsCache = [];
+    }
+    return this.allOptionSetsCache;
+  }
+
+  /** Sets applicable to a product: product-scoped, its category-scoped, or global (both null). */
+  private applicableOptionSets(product: any): LineOptionSet[] {
+    const pid = product?.productId;
+    const cid = product?.category?.categoryId ?? product?.categoryId ?? null;
+    return (this.allOptionSetsCache || []).filter(s =>
+      (s.productId != null && s.productId === pid) ||
+      (s.categoryId != null && cid != null && s.categoryId === cid) ||
+      (s.productId == null && s.categoryId == null)
+    );
+  }
+
+  async loadOptionSetsForLine(product: any, preserveSelections = false): Promise<void> {
+    const pid = product?.productId;
+    if (!pid) return;
+    try {
+      await this.getAllOptionSets();
+      const sets = this.applicableOptionSets(product);
+      product['lineOptionSets'] = sets;
+      if (!preserveSelections || !product['lineOptionSelections']) {
+        // On edit, distribute previously-saved option ids into their sets; otherwise seed defaults.
+        const pending: number[] | undefined = product['__pendingSelectedOptionIds'];
+        const selections: { [setId: number]: number[] } = {};
+        for (const set of sets) {
+          const setId = set.lineOptionSetId as number;
+          const setOptionIds = (set.options || []).map(o => o.lineOptionId as number);
+          if (pending && pending.length) {
+            selections[setId] = pending.filter(id => setOptionIds.includes(id));
+          } else {
+            const defaults = (set.options || [])
+              .filter(o => o.active !== false && o.defaultSelected && o.lineOptionId != null)
+              .map(o => o.lineOptionId as number);
+            selections[setId] = set.selectionMode === 'SINGLE' ? defaults.slice(0, 1) : defaults;
+          }
+        }
+        product['lineOptionSelections'] = selections;
+        delete product['__pendingSelectedOptionIds'];
+      }
+      this.cdr.detectChanges();
+    } catch (e: any) {
+      // Endpoint absent (older backend) or transient error: behave as before (no options control).
+      if (e?.status !== 404) {
+        console.warn('Could not load line option sets for product', pid, e);
+      }
+      product['lineOptionSets'] = [];
+    }
+  }
+
+  hasLineOptions(product: any): boolean {
+    return Array.isArray(product?.['lineOptionSets']) && product['lineOptionSets'].length > 0;
+  }
+
+  getLineOptionSets(product: any): LineOptionSet[] {
+    return product?.['lineOptionSets'] || [];
+  }
+
+  private selectionsFor(product: any, setId: number): number[] {
+    const sel = product['lineOptionSelections'] || (product['lineOptionSelections'] = {});
+    return sel[setId] || (sel[setId] = []);
+  }
+
+  isOptionSelected(product: any, set: LineOptionSet, option: LineOption): boolean {
+    return this.selectionsFor(product, set.lineOptionSetId as number).includes(option.lineOptionId as number);
+  }
+
+  toggleOption(product: any, set: LineOptionSet, option: LineOption): void {
+    const setId = set.lineOptionSetId as number;
+    const optId = option.lineOptionId as number;
+    const current = this.selectionsFor(product, setId);
+    const idx = current.indexOf(optId);
+    if (set.selectionMode === 'SINGLE') {
+      // Radio behaviour: selecting replaces; clicking the selected one clears it only if min allows.
+      if (idx > -1) {
+        product['lineOptionSelections'][setId] = (set.minSelect || 0) > 0 ? [optId] : [];
+      } else {
+        product['lineOptionSelections'][setId] = [optId];
+      }
+      return;
+    }
+    // MULTI: toggle, respecting maxSelect
+    if (idx > -1) {
+      current.splice(idx, 1);
+    } else {
+      if (set.maxSelect != null && current.length >= set.maxSelect) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.translate.instant('warning'),
+          detail: this.translate.instant('line_option_max_reached', { max: set.maxSelect }),
+          life: 3000,
+        });
+        return;
+      }
+      current.push(optId);
+    }
+  }
+
+  /** Total selected options on a line (badge count). */
+  lineOptionsCount(product: any): number {
+    const sel = product?.['lineOptionSelections'];
+    if (!sel) return 0;
+    let total = 0;
+    for (const arr of Object.values(sel) as any[]) {
+      if (Array.isArray(arr)) total += arr.length;
+    }
+    return total;
+  }
+
+  /** Labels of selected options on a line, for the chips summary. */
+  lineOptionsSummary(product: any): string[] {
+    const labels: string[] = [];
+    for (const set of this.getLineOptionSets(product)) {
+      const chosen = this.selectionsFor(product, set.lineOptionSetId as number);
+      for (const opt of (set.options || [])) {
+        if (opt.lineOptionId != null && chosen.includes(opt.lineOptionId)) {
+          labels.push(opt.label || opt.code || '');
+        }
+      }
+    }
+    return labels;
+  }
+
+  /** True when every set on the line satisfies its min/max selection constraints. */
+  lineOptionsValid(product: any): boolean {
+    for (const set of this.getLineOptionSets(product)) {
+      const count = this.selectionsFor(product, set.lineOptionSetId as number).length;
+      if (count < (set.minSelect || 0)) return false;
+      if (set.maxSelect != null && count > set.maxSelect) return false;
+    }
+    return true;
+  }
+
+  private allLinesOptionsValid(): boolean {
+    return (this.targetProducts || []).every(p => this.lineOptionsValid(p));
+  }
+
+  openLineOptionsDialog(product: any): void {
+    this.optionsLine = product;
+    if (!product['lineOptionSets']) {
+      void this.loadOptionSetsForLine(product, true);
+    }
+    this.optionsDialogVisible = true;
+  }
+
+  closeLineOptionsDialog(): void {
+    this.optionsDialogVisible = false;
+    this.optionsLine = null;
+  }
+
+  /** Flatten a line's selections to the backend wire format: [{ lineOptionId }]. */
+  private buildSelectedOptionsPayload(product: any): { lineOptionId: number }[] {
+    const sel = product?.['lineOptionSelections'];
+    if (!sel) return [];
+    const ids: number[] = [];
+    for (const arr of Object.values(sel) as any[]) {
+      if (Array.isArray(arr)) ids.push(...(arr as number[]));
+    }
+    return ids.map(id => ({ lineOptionId: id }));
   }
 
 
@@ -4380,7 +4630,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     );
 
     return products.filter(product =>
-      (!this.isAdmin || (selectedWarehouseId != null && Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId))) &&
+      (!this.isAdmin ||
+        product?.productType === 'SERVICE' ||
+        (selectedWarehouseId != null && Number((product.warehouse as any)?.warehouseId) === Number(selectedWarehouseId))) &&
       (product?.productType === 'SERVICE' || (this.getAvailableQuantity(product) > 0)) &&
       !selectedProductIds.has(product.productId)
     );
@@ -4572,6 +4824,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       };
 
       this.targetProducts = [...this.targetProducts, productToAdd];
+      void this.loadOptionSetsForLine(productToAdd);
 
       this.messageService.add({
         severity: 'success',
@@ -4699,9 +4952,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
    */
   async updateProductPriceForQuantity(product: Product): Promise<void> {
     if (!product.productId) return;
-    
-    const quantity = product.orderItemQuantity || this.defaultLineQuantity(product);
-    
+
+    // The pricing API resolves per storage-unit quantity (an int, like order-save does). For
+    // fractional/weight products the line holds a display value (e.g. 0.013 kg), so convert to
+    // storage units before calling — otherwise the backend rejects the fractional int param (400).
+    const displayQty = (product.orderItemQuantity ?? this.defaultLineQuantity(product)) as number;
+    const quantity = QuantityScale.isFractional(product)
+      ? QuantityScale.toStorageQuantity(product, displayQty)
+      : displayQty;
+
     // If customer pricing is available, try to get price for this quantity
     if (this.order.customer?.customerId) {
       const pricingResult = await this.getProductPriceForQuantity(product.productId, quantity);

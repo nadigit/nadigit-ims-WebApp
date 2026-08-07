@@ -1,0 +1,40 @@
+.line-options-page {
+  padding: 0.5rem 0.25rem;
+}
+
+/* Inline options editor grid: code | label | sort | default | suppresses | active | remove */
+.options-editor {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+.options-editor__row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.6fr 5rem 4rem 5rem 4rem 3rem;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.options-editor__row:last-child {
+  border-bottom: none;
+}
+
+.options-editor__row--head {
+  background: var(--surface-ground);
+}
+
+.options-editor__num {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .options-editor__row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .options-editor__row--head {
+    display: none;
+  }
+}

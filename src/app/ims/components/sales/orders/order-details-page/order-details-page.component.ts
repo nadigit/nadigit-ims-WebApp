@@ -694,6 +694,13 @@ export class OrderDetailsPageComponent implements OnInit, OnDestroy {
     return this.order?.totalCost != null && this.order?.totalCost !== undefined;
   }
 
+  /** Human label for a portion fraction (1 → "1", 0.5 → "1/2", ...). */
+  portionLabel(fraction: number | null | undefined): string {
+    if (fraction == null) return '';
+    const map: { [k: string]: string } = { '1': '1', '0.5': '1/2', '0.25': '1/4', '0.125': '1/8' };
+    return map[String(fraction)] || String(fraction);
+  }
+
   allowCancelOrder(): boolean {
     return this.order?.orderStatus === 'Ordered';
   }

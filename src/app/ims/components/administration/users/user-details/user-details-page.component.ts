@@ -49,6 +49,14 @@ export class UserDetailsPageComponent implements OnInit {
   userEvents: KeycloakEvent[] = [];
   eventsLoading: boolean = false;
 
+  // Admin account controls (reset password / enable-disable)
+  resetPasswordDialog: boolean = false;
+  resetPasswordValue: string = '';
+  resetPasswordTemporary: boolean = false;
+  resetPasswordSubmitted: boolean = false;
+  resetPasswordSaving: boolean = false;
+  statusSaving: boolean = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -261,6 +269,90 @@ export class UserDetailsPageComponent implements OnInit {
         });
       }
     });
+  }
+
+  // --- Admin account controls ---------------------------------------------
+
+  openResetPassword(): void {
+    if (!this.canEdit || !this.user) return;
+    this.resetPasswordValue = '';
+    this.resetPasswordTemporary = false;
+    this.resetPasswordSubmitted = false;
+    this.resetPasswordDialog = true;
+  }
+
+  async confirmResetPassword(): Promise<void> {
+    this.resetPasswordSubmitted = true;
+    if (!this.resetPasswordValue || !this.user) return;
+    this.resetPasswordSaving = true;
+    const credential = {
+      type: 'password',
+      value: this.resetPasswordValue,
+      temporary: this.resetPasswordTemporary
+    };
+    try {
+      await firstValueFrom(this.authService.changePassword(this.userId, credential));
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('password_reset_success'),
+        life: 3000
+      });
+      this.resetPasswordDialog = false;
+      this.resetPasswordValue = '';
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_resetting_password'),
+        life: 3000
+      });
+    } finally {
+      this.resetPasswordSaving = false;
+    }
+  }
+
+  toggleStatus(): void {
+    if (!this.canEdit || !this.user) return;
+    const enabling = !this.user.enabled;
+    this.confirmationService.confirm({
+      message: this.translate.instant(enabling ? 'enable_user_confirm' : 'disable_user_confirm'),
+      header: this.translate.instant('confirm_label'),
+      icon: 'pi pi-exclamation-triangle',
+      accept: async () => {
+        await this.applyStatus(enabling);
+      }
+    });
+  }
+
+  private async applyStatus(enabled: boolean): Promise<void> {
+    if (!this.user) return;
+    this.statusSaving = true;
+    try {
+      // this.user is the full representation from getUser(), so it carries attributes;
+      // send it back with only `enabled` changed. Never resend credentials on update.
+      const payload: any = { ...this.user, enabled };
+      delete payload.credentials;
+      await firstValueFrom(this.authService.updateUser(this.userId, payload));
+      await this.loadUser();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant(enabled ? 'user_enabled' : 'user_disabled'),
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error updating account status:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_updating_status'),
+        life: 3000
+      });
+    } finally {
+      this.statusSaving = false;
+    }
   }
 
   getStatusSeverity(enabled: boolean | undefined): string {

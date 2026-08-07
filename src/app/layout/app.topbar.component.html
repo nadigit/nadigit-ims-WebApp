@@ -14,6 +14,20 @@
 
     <div #topbarmenu class="layout-topbar-menu"
         [ngClass]="{'layout-topbar-menu-mobile-active': layoutService.state.profileSidebarVisible}">
+
+        <!-- Organization switcher (ENTERPRISE multi-organization only) -->
+        <button *ngIf="orgSwitcherVisible" type="button"
+            class="p-link layout-topbar-button org-switcher-button"
+            (click)="orgMenu.toggle($event)"
+            pTooltip="{{ 'switch_organization' | translate }}"
+            [attr.aria-label]="'switch_organization' | translate">
+            <i class="pi pi-building"></i>
+            <span class="org-switcher-name">{{ activeOrganizationName }}</span>
+            <i class="pi pi-angle-down org-switcher-caret"></i>
+        </button>
+        <p-tieredMenu #orgMenu [model]="orgMenuItems" [popup]="true" appendTo="body"
+            styleClass="org-switcher-menu"></p-tieredMenu>
+
         <!-- <button class="p-link layout-topbar-button">
             <i class="pi pi-calendar"></i>
             <span>Calendar</span>
@@ -379,7 +393,7 @@
                 </div>
             </div>
 
-            <div *ngIf="selectedNotification.referenceId" class="notification-details-panel">
+            <div *ngIf="selectedNotification.referenceId || selectedNotification.productId" class="notification-details-panel">
                 <div class="notification-details-panel__head">
                     <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--teal" aria-hidden="true">
                         <i class="pi pi-link"></i>
@@ -387,14 +401,32 @@
                     <h4 class="notification-details-panel__title m-0">{{ 'reference_information' | translate }}</h4>
                 </div>
                 <div class="notification-details-grid">
-                    <div class="notification-details-field">
-                        <span class="notification-details-field__label">{{ 'reference_id' | translate }}</span>
-                        <span class="notification-details-field__value">{{ selectedNotification.referenceId }}</span>
+                    <!-- Product context (batch/expiry alerts) — show and link the owning product
+                         instead of a meaningless raw reference id. -->
+                    <div class="notification-details-field" *ngIf="selectedNotification.productName">
+                        <span class="notification-details-field__label">{{ 'product' | translate }}</span>
+                        <a class="notification-details-field__value notification-details-link"
+                            role="button" tabindex="0"
+                            (click)="goToProduct(selectedNotification)"
+                            (keyup.enter)="goToProduct(selectedNotification)">
+                            <i class="pi pi-box mr-1"></i>{{ selectedNotification.productName }}
+                        </a>
                     </div>
-                    <div class="notification-details-field">
-                        <span class="notification-details-field__label">{{ 'reference_type' | translate }}</span>
-                        <span class="notification-details-field__value">{{ selectedNotification.referenceType | translate }}</span>
+                    <div class="notification-details-field" *ngIf="selectedNotification.batchNumber">
+                        <span class="notification-details-field__label">{{ 'batch_number' | translate }}</span>
+                        <span class="notification-details-field__value">{{ selectedNotification.batchNumber }}</span>
                     </div>
+                    <!-- Fallback: raw reference when there is no resolved product context. -->
+                    <ng-container *ngIf="!selectedNotification.productName">
+                        <div class="notification-details-field" *ngIf="selectedNotification.referenceId">
+                            <span class="notification-details-field__label">{{ 'reference_id' | translate }}</span>
+                            <span class="notification-details-field__value">{{ selectedNotification.referenceId }}</span>
+                        </div>
+                        <div class="notification-details-field" *ngIf="selectedNotification.referenceType">
+                            <span class="notification-details-field__label">{{ 'reference_type' | translate }}</span>
+                            <span class="notification-details-field__value">{{ selectedNotification.referenceType | translate }}</span>
+                        </div>
+                    </ng-container>
                 </div>
             </div>
 

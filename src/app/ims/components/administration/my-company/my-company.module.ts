@@ -20,6 +20,8 @@ import { ImageModule } from 'primeng/image';
 import { TooltipModule } from 'primeng/tooltip';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { CardModule } from 'primeng/card';
+import { TableModule } from 'primeng/table';
+import { CheckboxModule } from 'primeng/checkbox';
 
 @NgModule({
     imports: [
@@ -41,7 +43,9 @@ import { CardModule } from 'primeng/card';
         ImageModule,
         TooltipModule,
         SharedModule,
-        CardModule
+        CardModule,
+        TableModule,
+        CheckboxModule
     ],
     schemas: [
         CUSTOM_ELEMENTS_SCHEMA,

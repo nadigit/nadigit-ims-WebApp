@@ -258,7 +258,8 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
         { label: translations['write_off_source_type_expiration'] || 'EXPIRATION', value: 'EXPIRATION' },
         { label: translations['write_off_source_type_damage_incident'] || 'DAMAGE_INCIDENT', value: 'DAMAGE_INCIDENT' },
         { label: translations['write_off_source_type_theft'] || 'THEFT', value: 'THEFT' },
-        { label: translations['write_off_source_type_quality_control'] || 'QUALITY_CONTROL', value: 'QUALITY_CONTROL' }
+        { label: translations['write_off_source_type_quality_control'] || 'QUALITY_CONTROL', value: 'QUALITY_CONTROL' },
+        { label: translations['write_off_source_type_shrinkage'] || 'SHRINKAGE', value: 'SHRINKAGE' }
       ];
     });
   }

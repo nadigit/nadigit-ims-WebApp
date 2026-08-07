@@ -53,12 +53,23 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-pencil" 
-                            [label]="'edit' | translate" 
+                        <button pButton pRipple icon="pi pi-pencil"
+                            [label]="'edit' | translate"
                             *ngIf="canEdit"
                             class="p-button-primary"
                             (click)="editUser()"></button>
-                        <button pButton pRipple icon="pi pi-trash" 
+                        <button pButton pRipple icon="pi pi-key"
+                            [label]="'reset_password' | translate"
+                            *ngIf="canEdit"
+                            class="p-button-help p-button-outlined"
+                            (click)="openResetPassword()"></button>
+                        <button pButton pRipple [icon]="user.enabled ? 'pi pi-ban' : 'pi pi-check-circle'"
+                            [label]="(user.enabled ? 'disable_account' : 'enable_account') | translate"
+                            *ngIf="canEdit"
+                            [ngClass]="user.enabled ? 'p-button-warning p-button-outlined' : 'p-button-success'"
+                            [disabled]="statusSaving"
+                            (click)="toggleStatus()"></button>
+                        <button pButton pRipple icon="pi pi-trash"
                             *ngIf="canDelete"
                             class="p-button-danger p-button-outlined"
                             [pTooltip]="'delete_user' | translate"
@@ -329,16 +340,49 @@
 </div>
 
 <!-- User Form Dialog -->
-<p-dialog [(visible)]="userDialog" 
+<p-dialog [(visible)]="userDialog"
     [style]="{width: '90vw', maxWidth: '800px'}"
     [header]="'edit_user' | translate"
-    [modal]="true" 
-    [draggable]="false" 
+    [modal]="true"
+    [draggable]="false"
     [resizable]="false"
     styleClass="p-fluid user-dialog">
     <ng-template pTemplate="content">
         <!-- User form will be handled by the parent component's form logic -->
         <p>{{ 'user_form_loading' | translate }}</p>
+    </ng-template>
+</p-dialog>
+
+<!-- Reset Password Dialog -->
+<p-dialog [(visible)]="resetPasswordDialog" header="{{'reset_password_title' | translate}}" [modal]="true"
+    [style]="{width:'460px'}" [draggable]="false" [resizable]="false" class="p-fluid">
+    <div class="field mb-3" *ngIf="user">
+        <span>{{ 'reset_password_for' | translate }} <b>{{ user.username }}</b></span>
+    </div>
+    <div class="field mb-2">
+        <label for="resetPwd" class="ims-form-label">
+            {{ 'new_password' | translate }} <span class="required-asterisk">*</span>
+        </label>
+        <div class="p-inputgroup">
+            <span class="p-inputgroup-addon"><i class="pi pi-lock"></i></span>
+            <input type="password" pInputText id="resetPwd" name="resetPwd" ngDefaultControl
+                [(ngModel)]="resetPasswordValue" required
+                [ngClass]="{'ng-invalid ng-dirty': resetPasswordSubmitted && !resetPasswordValue}" />
+        </div>
+        <small class="p-error" *ngIf="resetPasswordSubmitted && !resetPasswordValue">
+            {{ 'new_password' | translate }} {{ 'is_required_label' | translate }}
+        </small>
+    </div>
+    <div class="field-checkbox mt-3 mb-1">
+        <p-checkbox [(ngModel)]="resetPasswordTemporary" [binary]="true" inputId="reqChange"></p-checkbox>
+        <label for="reqChange" class="ml-2">{{ 'require_password_change' | translate }}</label>
+    </div>
+    <small class="text-500">{{ 'require_password_change_hint' | translate }}</small>
+    <ng-template pTemplate="footer">
+        <button pButton pRipple icon="pi pi-times" class="p-button-text" label="{{'cancel_button' | translate}}"
+            (click)="resetPasswordDialog = false"></button>
+        <button pButton pRipple icon="pi pi-check" class="p-button-primary" label="{{'reset_password' | translate}}"
+            (click)="confirmResetPassword()" [disabled]="resetPasswordSaving"></button>
     </ng-template>
 </p-dialog>
 

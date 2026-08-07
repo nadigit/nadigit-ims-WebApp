@@ -16,6 +16,8 @@ import { ActionReminderService } from '../services/action-reminder.service';
 import { SessionAuditService } from '../services/session-audit.service';
 import { TourService } from '../services/tour.service';
 import { BRAND_ASSETS } from '../utils/brand-assets';
+import { OrganizationContextService, OrganizationAccess } from '../services/organization-context.service';
+import { LicenseCapabilitiesService } from '../services/license-capabilities.service';
 
 
 @Component({
@@ -71,6 +73,10 @@ export class AppTopBarComponent implements OnInit {
   canUseCopilot: boolean = false;
   adminActionReminderCount = 0;
 
+  // Multi-organization switcher (ENTERPRISE only; hidden otherwise)
+  organizations: OrganizationAccess[] = [];
+  orgMenuItems: MenuItem[] = [];
+
   @ViewChild('menubutton') menuButton!: ElementRef;
 
   @ViewChild('topbarmenubutton') topbarMenuButton!: ElementRef;
@@ -90,7 +96,9 @@ export class AppTopBarComponent implements OnInit {
     private actionReminderService: ActionReminderService,
     private router: Router,
     private sessionAuditService: SessionAuditService,
-    private tourService: TourService) {
+    private tourService: TourService,
+    private organizationContext: OrganizationContextService,
+    private licenseCapabilities: LicenseCapabilitiesService) {
 
   }
   async ngOnInit(): Promise<void> {
@@ -136,6 +144,51 @@ export class AppTopBarComponent implements OnInit {
     this.filteredRecentNotifications = [];
     this.filteredOlderNotifications = [];
     this.filteredPriorityNotifications = [];
+
+    this.initOrganizationSwitcher();
+  }
+
+  /**
+   * Loads the organizations the user can access, but only on ENTERPRISE (MULTI_ORGANIZATION)
+   * deployments — on every other tier the switcher stays hidden and no request is made.
+   */
+  private async initOrganizationSwitcher(): Promise<void> {
+    try {
+      await this.licenseCapabilities.ensureLoaded();
+      if (!this.licenseCapabilities.isFeatureEnabled('MULTI_ORGANIZATION')) {
+        return;
+      }
+      this.organizations = await this.organizationContext.load();
+      this.buildOrgMenuItems();
+    } catch (e) {
+      // Never let the switcher break the topbar; it simply stays hidden.
+      console.debug('Organization switcher unavailable:', e);
+    }
+  }
+
+  private buildOrgMenuItems(): void {
+    const activeId = this.organizationContext.getActiveOrganizationId();
+    this.orgMenuItems = this.organizations.map((org) => ({
+      label: org.organizationName,
+      icon: org.organizationId === activeId ? 'pi pi-check' : 'pi pi-building',
+      styleClass: org.organizationId === activeId ? 'org-switch-item--active' : undefined,
+      command: () => this.switchOrganization(org.organizationId),
+    }));
+  }
+
+  /** True only when the enterprise multi-org feature is on and more than one org is accessible. */
+  get orgSwitcherVisible(): boolean {
+    return this.organizations.length > 1;
+  }
+
+  get activeOrganizationName(): string {
+    const activeId = this.organizationContext.getActiveOrganizationId();
+    const active = this.organizations.find((o) => o.organizationId === activeId);
+    return active?.organizationName || this.translate.instant('organization');
+  }
+
+  switchOrganization(organizationId: number): void {
+    this.organizationContext.setActive(organizationId);
   }
 
   onCopilotTopbarClick(): void {
@@ -165,6 +218,12 @@ export class AppTopBarComponent implements OnInit {
         label: translations['take_a_tour'],
         icon: 'pi pi-fw pi-compass',
         command: () => this.tourService.startWelcomeTour(true)
+      },
+      {
+        label: translations['documentation'],
+        icon: 'pi pi-fw pi-book',
+        url: this.brandAssets.docsUrl,
+        target: '_blank'
       },
       {
         label: translations['logout'],
@@ -453,6 +512,7 @@ export class AppTopBarComponent implements OnInit {
       'write-off created': 'write_off_created_notification',
       'write-off approved': 'write_off_approved_notification',
       'write-off rejected': 'write_off_rejected_notification',
+      'pending write-offs': 'write_off_pending_notification',
       'credit account created': 'credit_account_created_notification'
     };
 
@@ -466,6 +526,9 @@ export class AppTopBarComponent implements OnInit {
         return 'product_expiring_soon_notification';
       }
       if (titleLower.includes('write-off') || titleLower.includes('writeoff')) {
+        if (titleLower.includes('pending')) {
+          return 'write_off_pending_notification';
+        }
         if (titleLower.includes('created')) {
           return 'write_off_created_notification';
         }
@@ -676,6 +739,18 @@ export class AppTopBarComponent implements OnInit {
     // Handle write-off created notification
     const titleLower = notification.title?.toLowerCase() || '';
     if (titleLower.includes('write-off') || titleLower.includes('writeoff')) {
+      if (titleLower.includes('pending')) {
+        // Backend format: "There are 5 write-offs pending approval." / "There is 1 write-off pending approval."
+        const countMatch = notification.message?.match(/(\d+)\s+write-offs?\s+pending/i);
+        const count = countMatch ? parseInt(countMatch[1], 10) : 0;
+        return this.translate.instant(
+          count === 1
+            ? 'write_off_pending_notification_message_singular'
+            : 'write_off_pending_notification_message',
+          { count }
+        );
+      }
+
       if (titleLower.includes('created')) {
         // Backend format: "Write-off WOF-2026-00001 created for 5 units of Product Name (Condition: DAMAGED, Cost: $100.00). Pending approval."
         const regex = /Write-off\s+([A-Z0-9-]+)\s+created for\s+(\d+)\s+units? of\s+(.+?)\s+\(Condition:\s*(.+?),\s*Cost:\s*\$([0-9.]+)[^)]*\)\.\s*(.+)/i;
@@ -879,6 +954,18 @@ export class AppTopBarComponent implements OnInit {
     this.selectedNotification = null;
   }
 
+  /** Open the product a notification refers to (e.g. the owner of an expired batch). */
+  goToProduct(notification: any) {
+    const productId = notification?.productId;
+    if (productId == null) {
+      return;
+    }
+    this.router.navigateByUrl('/inventory/products/' + productId);
+    this.notificationVisible = false;
+    this.notificationDialogVisible = false;
+    this.selectedNotification = null;
+  }
+
   private getNotificationReferenceType(notification: Notification): string {
     return (notification.referenceType || notification.entity || '').trim().toUpperCase();
   }
@@ -940,6 +1027,17 @@ export class AppTopBarComponent implements OnInit {
       return `/finance/payments/sales/${id}`;
     }
 
+    // Reference types whose referenceId is NOT a directly-routable entity id
+    // (e.g. BATCH/LOT: referenceId is the batch id, but the actionable target is
+    // the owning product). These carry the real destination in `actionUrl`
+    // (`/inventory/products/<productId>`), so fall through to it rather than
+    // building a `/inventory/products/<batchId>` URL that points at the wrong
+    // (or a non-existent) product.
+    const deferToActionUrl = new Set(['BATCH', 'LOT', 'PRODUCT_BATCH', 'STOCK_BATCH']);
+    if (deferToActionUrl.has(referenceType)) {
+      return null;
+    }
+
     return routes[referenceType] || null;
   }
 
@@ -948,6 +1046,12 @@ export class AppTopBarComponent implements OnInit {
     if (!url) {
       return null;
     }
+
+    // Backend action URLs are emitted with a legacy '/webconsole' app-base
+    // prefix that is not part of the Angular route table, so navigating to them
+    // verbatim 404s. Strip it so the underlying route (e.g. the batch's owning
+    // product at /inventory/products/<productId>) resolves correctly.
+    url = url.replace(/^\/webconsole(?=\/|$)/, '') || '/';
 
     const qIndex = url.indexOf('?');
     let pathOnly = (qIndex >= 0 ? url.slice(0, qIndex) : url).replace(/\/+$/, '') || '/';

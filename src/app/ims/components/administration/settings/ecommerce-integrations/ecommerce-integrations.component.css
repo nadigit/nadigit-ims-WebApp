@@ -1,0 +1,16 @@
+/* Page shell and cards come from the global detail-hero.scss + integration-pages.scss
+   (same as the other Settings > Integrations pages). Only bundle-field specifics live here. */
+.ecom-bundle-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.font-mono {
+	font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+}
+
+:host ::ng-deep .ecom-bundle-field input[readonly] {
+	background: var(--surface-50);
+	cursor: text;
+}

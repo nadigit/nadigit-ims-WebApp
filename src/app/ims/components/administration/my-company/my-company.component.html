@@ -366,6 +366,37 @@
 				</div>
 			</p-tabPanel>
 
+			<!-- Organizations & access (ENTERPRISE multi-organization only) -->
+			<p-tabPanel *ngIf="multiOrgEnabled">
+				<ng-template pTemplate="header">
+					<i class="pi pi-building mr-2"></i>
+					<span>{{ 'organizations_access' | translate }}</span>
+				</ng-template>
+				<div class="mt-3">
+					<div class="detail-card">
+						<div class="card-header flex align-items-center justify-content-between">
+							<span class="flex align-items-center gap-2"><i class="pi pi-building"></i><span>{{ 'organizations' | translate }}</span></span>
+							<button pButton pRipple icon="pi pi-plus" label="{{ 'new_organization' | translate }}" class="p-button-sm" (click)="openNewOrganization()"></button>
+						</div>
+						<div class="card-body">
+							<p-table [value]="organizations" styleClass="p-datatable-sm" [rowHover]="true">
+								<ng-template pTemplate="header"><tr><th>{{ 'organization' | translate }}</th><th style="width:12rem;text-align:right;">{{ 'actions' | translate }}</th></tr></ng-template>
+								<ng-template pTemplate="body" let-org>
+									<tr>
+										<td><span class="flex align-items-center gap-2"><i class="pi pi-building text-500"></i><span class="font-medium">{{ org.organizationName }}</span><span *ngIf="org.organizationId === activeOrganizationId" class="reference-badge">{{ 'active' | translate }}</span></span></td>
+										<td style="text-align:right;">
+											<button pButton pRipple icon="pi pi-users" class="p-button-text p-button-rounded p-button-sm" [pTooltip]="'manage_access' | translate" tooltipPosition="bottom" (click)="openMembersDialog(org)"></button>
+											<button pButton pRipple icon="pi pi-sign-in" class="p-button-text p-button-rounded p-button-sm" [disabled]="org.organizationId === activeOrganizationId" [pTooltip]="'switch_organization' | translate" tooltipPosition="bottom" (click)="switchToOrganization(org)"></button>
+										</td>
+									</tr>
+								</ng-template>
+								<ng-template pTemplate="emptymessage"><tr><td colspan="2" class="text-center text-500 p-3">{{ 'no_records_found' | translate }}</td></tr></ng-template>
+							</p-table>
+						</div>
+					</div>
+				</div>
+			</p-tabPanel>
+
 		</p-tabView>
 	</div>
 
@@ -759,3 +790,51 @@
           </div>
         </ng-template>
       </p-dialog>
+
+      <!-- Manage organization access (ENTERPRISE multi-organization) -->
+      <p-dialog [(visible)]="membersDialog" [style]="{ width: '520px' }" [modal]="true"
+        [draggable]="false" [resizable]="false" styleClass="p-fluid"
+        header="{{ ('manage_access' | translate) }}{{ membershipOrg ? ' — ' + membershipOrg.organizationName : '' }}">
+        <ng-template pTemplate="content">
+          <div class="flex justify-content-center py-4" *ngIf="membersLoading">
+            <p-progressSpinner styleClass="ims-spinner--sm" ariaLabel="loading"></p-progressSpinner>
+          </div>
+          <div *ngIf="!membersLoading">
+            <div class="field">
+              <label class="font-medium">{{ 'grant_access_to_user' | translate }}</label>
+              <div class="flex align-items-center gap-2 mt-2">
+                <p-dropdown [options]="grantableUsers" [(ngModel)]="selectedUsername" optionValue="username"
+                  optionLabel="username" [filter]="true" filterBy="username,email"
+                  placeholder="{{ 'select_user' | translate }}" [style]="{ flex: '1 1 auto' }" appendTo="body">
+                  <ng-template let-u pTemplate="item">
+                    <div class="flex flex-column"><span>{{ u.username }}</span>
+                      <small class="text-500" *ngIf="u.email">{{ u.email }}</small></div>
+                  </ng-template>
+                </p-dropdown>
+                <button pButton pRipple icon="pi pi-check" label="{{ 'grant' | translate }}"
+                  [disabled]="!selectedUsername" (click)="grantAccess()"></button>
+              </div>
+              <div class="flex align-items-center gap-2 mt-2">
+                <p-checkbox [(ngModel)]="makeDefaultMembership" [binary]="true" inputId="makeDefaultOrg"></p-checkbox>
+                <label for="makeDefaultOrg" class="text-500 text-sm">{{ 'set_as_default_organization' | translate }}</label>
+              </div>
+            </div>
+            <hr class="my-3" />
+            <label class="font-medium">{{ 'users_with_access' | translate }}</label>
+            <ul class="list-none p-0 m-0 mt-2">
+              <li *ngFor="let m of members" class="flex align-items-center justify-content-between py-2 border-bottom-1 surface-border">
+                <span class="flex align-items-center gap-2"><i class="pi pi-user text-500"></i><span>{{ m.username }}</span>
+                  <span *ngIf="m.default" class="reference-badge">{{ 'default' | translate }}</span></span>
+                <button pButton pRipple icon="pi pi-times" class="p-button-text p-button-rounded p-button-danger p-button-sm"
+                  [pTooltip]="'revoke' | translate" tooltipPosition="left" (click)="revokeAccess(m.username)"></button>
+              </li>
+              <li *ngIf="members.length === 0" class="text-500 text-sm py-2">{{ 'no_explicit_members_hint' | translate }}</li>
+            </ul>
+          </div>
+        </ng-template>
+        <ng-template pTemplate="footer">
+          <button pButton pRipple label="{{ 'close' | translate }}" icon="pi pi-times"
+            class="p-button-text" (click)="membersDialog=false"></button>
+        </ng-template>
+      </p-dialog>
+

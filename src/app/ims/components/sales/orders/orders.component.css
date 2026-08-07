@@ -644,3 +644,60 @@
   vertical-align: middle;
   padding: 0.625rem 0.75rem;
 }
+/* Sale-line options (components/cuts) */
+.order-line-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+.order-line-options__chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.line-options-picker__set + .line-options-picker__set {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-border);
+}
+.line-options-picker__set-head {
+  margin-bottom: 0.5rem;
+}
+.line-options-picker__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.line-options-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.line-options-picker__option:hover {
+  background: var(--surface-hover);
+}
+.line-options-picker__option--on {
+  border-color: var(--primary-color);
+  background: var(--highlight-bg, rgba(59, 130, 246, 0.08));
+}
+
+/* Portion selector (whole / half / quarter / ...) on order lines */
+.order-line-portion {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  flex-wrap: wrap;
+}
+.order-line-portion__btns .p-button {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
+}

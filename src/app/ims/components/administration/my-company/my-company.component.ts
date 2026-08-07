@@ -10,6 +10,9 @@ import { Organization } from 'src/app/models/organization';
 import { LocationService } from 'src/app/services/location.service';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
+import { AuthenticationService } from 'src/app/services/authentication.service';
+import { OrganizationContextService, OrganizationAccess } from 'src/app/services/organization-context.service';
 
 @Component({
   templateUrl: './my-company.component.html',
@@ -45,6 +48,20 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
   activityProfileLabelKey = 'business_activity_profile_not_set';
   private activityProfileSub?: Subscription;
 
+  // Multi-organization (ENTERPRISE) management — hidden on every other tier.
+  multiOrgEnabled: boolean = false;
+  organizations: OrganizationAccess[] = [];
+  activeOrganizationId: number | null = null;
+  isNewOrganization: boolean = false;
+
+  membersDialog: boolean = false;
+  membershipOrg: OrganizationAccess | null = null;
+  members: any[] = [];
+  keycloakUsers: any[] = [];
+  selectedUsername: string | null = null;
+  makeDefaultMembership: boolean = false;
+  membersLoading: boolean = false;
+
   constructor(
     private router: Router,
     private location: Location,
@@ -54,6 +71,9 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
     private locationService: LocationService,
     private translateService: TranslationService,
     public activityProfileService: ActivityProfileService,
+    private licenseCapabilities: LicenseCapabilitiesService,
+    private authenticationService: AuthenticationService,
+    private organizationContext: OrganizationContextService,
   ) { }
 
   ngOnDestroy(): void {
@@ -92,6 +112,124 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
       { label: 'Français', value: 'fr' },
       { label: 'Español', value: 'es' }
     ];
+
+    this.initMultiOrganization();
+  }
+
+  /**
+   * On ENTERPRISE (MULTI_ORGANIZATION) deployments, load the list of organizations so the admin can
+   * create additional companies and manage who can access each. Inert on every other tier.
+   */
+  private async initMultiOrganization(): Promise<void> {
+    try {
+      await this.licenseCapabilities.ensureLoaded();
+      this.multiOrgEnabled = this.licenseCapabilities.isFeatureEnabled('MULTI_ORGANIZATION');
+      if (!this.multiOrgEnabled) {
+        return;
+      }
+      this.activeOrganizationId = this.organizationContext.getActiveOrganizationId();
+      await this.reloadOrganizationsList();
+    } catch {
+      this.multiOrgEnabled = false;
+    }
+  }
+
+  private async reloadOrganizationsList(): Promise<void> {
+    try {
+      this.organizations = (await firstValueFrom(this.organizationService.getMyOrganizations())) || [];
+    } catch {
+      this.organizations = [];
+    }
+  }
+
+  /** Open the shared org dialog with a blank organization to create an additional company. */
+  openNewOrganization(): void {
+    this.organization = { defaultLocale: 'en' };
+    this.selectedCountry = null;
+    this.states = null;
+    this.isNewOrganization = true;
+    this.submitted = false;
+    this.clearImage();
+    this.organizationDialog = true;
+  }
+
+  switchToOrganization(org: OrganizationAccess): void {
+    this.organizationContext.setActive(org.organizationId);
+  }
+
+  async openMembersDialog(org: OrganizationAccess): Promise<void> {
+    this.membershipOrg = org;
+    this.selectedUsername = null;
+    this.makeDefaultMembership = false;
+    this.membersDialog = true;
+    this.membersLoading = true;
+    try {
+      if (this.keycloakUsers.length === 0) {
+        this.keycloakUsers = (await firstValueFrom(this.authenticationService.getUsers() as any)) || [];
+      }
+      await this.loadMembers(org.organizationId);
+    } catch (e) {
+      console.error('Error loading organization members:', e);
+      this.messageService.add({
+        severity: 'error', summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_loading_organization_members'), life: 3000
+      });
+    } finally {
+      this.membersLoading = false;
+    }
+  }
+
+  private async loadMembers(organizationId: number): Promise<void> {
+    this.members = (await firstValueFrom(this.organizationService.listMembers(organizationId))) || [];
+  }
+
+  async grantAccess(): Promise<void> {
+    if (!this.membershipOrg || !this.selectedUsername) {
+      return;
+    }
+    try {
+      await firstValueFrom(this.organizationService.grantMembership(
+        this.selectedUsername, this.membershipOrg.organizationId, this.makeDefaultMembership));
+      this.messageService.add({
+        severity: 'success', summary: this.translate.instant('successful'),
+        detail: this.translate.instant('organization_access_granted'), life: 3000
+      });
+      this.selectedUsername = null;
+      this.makeDefaultMembership = false;
+      await this.loadMembers(this.membershipOrg.organizationId);
+    } catch (e) {
+      console.error('Error granting organization access:', e);
+      this.messageService.add({
+        severity: 'error', summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_granting_organization_access'), life: 3000
+      });
+    }
+  }
+
+  async revokeAccess(username: string): Promise<void> {
+    if (!this.membershipOrg) {
+      return;
+    }
+    try {
+      await firstValueFrom(this.organizationService.revokeMembership(username, this.membershipOrg.organizationId));
+      this.messageService.add({
+        severity: 'success', summary: this.translate.instant('successful'),
+        detail: this.translate.instant('organization_access_revoked'), life: 3000
+      });
+      await this.loadMembers(this.membershipOrg.organizationId);
+    } catch (e) {
+      console.error('Error revoking organization access:', e);
+      this.messageService.add({
+        severity: 'error', summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_revoking_organization_access'), life: 3000
+      });
+    }
+  }
+
+  /** Users not already members, for the grant dropdown. */
+  get grantableUsers(): any[] {
+    const existing = new Set(this.members.map(m => (m.username || '').toLowerCase()));
+    return (this.keycloakUsers || []).filter(u => u.username && !existing.has(String(u.username).toLowerCase()));
   }
 
   private syncActivityProfileLabel(): void {
@@ -167,6 +305,7 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
   async openOrganizationDialog(event: any): Promise<void> {
     if (event.node.data.title === 'Organization') {
       this.submitted = false;
+      this.isNewOrganization = false;
   
       // preload states from existing country
       if (this.organization.country) {
@@ -240,6 +379,17 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
       }
       this.submitted = false;
       this.organizationDialog = false;
+      const wasNew = this.isNewOrganization;
+      this.isNewOrganization = false;
+      if (wasNew && this.multiOrgEnabled) {
+        // A newly created company won't be the active one yet; refresh the list and keep showing
+        // the current org. The admin can switch to the new company from here or the topbar.
+        await this.reloadOrganizationsList();
+        this.messageService.add({
+          severity: 'success', summary: this.translate.instant('successful'),
+          detail: this.translate.instant('organization_added'), life: 3000
+        });
+      }
       this.loadOrganization();
     } catch (error) {
       console.error('Error while saving organization:', error);

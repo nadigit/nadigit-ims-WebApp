@@ -18,4 +18,6 @@ export class PurchaseItem {
   taxRateUsed?: number;
   expirationDate?: string | null; // Optional expiration date for this batch/lot (ISO date string)
   batchNumber?: string | null; // Optional batch number for this purchase item
+  /** Optional per-batch companion value (a by-product credit captured at intake, e.g. offal/entrails). */
+  companionValue?: number | null;
 }

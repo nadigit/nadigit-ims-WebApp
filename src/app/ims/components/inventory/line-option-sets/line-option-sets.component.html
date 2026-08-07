@@ -1,0 +1,285 @@
+<div class="grid">
+  <div class="col-12">
+    <!-- Page header (outside the card, matching other list pages) -->
+    <div class="mb-4">
+      <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+        <div>
+          <h2 class="m-0 text-900">{{ 'line_options_page_title' | translate }}</h2>
+          <p class="text-600 mt-2 mb-0">{{ 'line_options_intro' | translate }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card px-6 py-6">
+      <p-toast></p-toast>
+      <p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
+
+      <p *ngIf="!isAdmin" class="text-600 mb-3">{{ 'line_options_readonly_hint' | translate }}</p>
+
+      <!-- Action buttons -->
+      <div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="isAdmin">
+        <button pButton pRipple
+          label="{{ 'new_button' | translate }}"
+          icon="pi pi-plus"
+          class="p-button-success"
+          (click)="openCreate()"
+          pTooltip="{{ 'line_options_add' | translate }}"></button>
+      </div>
+
+      <!-- Filters bar -->
+      <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
+        <span class="p-input-icon-left flex-1" style="min-width: 200px; max-width: 300px;">
+          <i class="pi pi-search"></i>
+          <input type="text" pInputText
+            [placeholder]="'search_label' | translate"
+            (input)="onGlobalFilter($event)" class="w-full" />
+        </span>
+      </div>
+
+      <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+        </div>
+      </div>
+
+      <p-table #dt *ngIf="!isLoading" [value]="sets" dataKey="lineOptionSetId"
+        styleClass="p-datatable-gridlines" responsiveLayout="scroll" [rowHover]="true"
+        [paginator]="sets.length > 10"
+        [rows]="pageSizeService.get(TablePageSizeKeys.lineOptionSets, [10,25,50])"
+        [rowsPerPageOptions]="[10,25,50]" [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first} / {last} ({totalRecords} {{ 'table_records' | translate }})"
+        [globalFilterFields]="['code','label','productName','categoryName']">
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="code">{{ 'line_option_code' | translate }} <p-sortIcon field="code"></p-sortIcon></th>
+            <th pSortableColumn="label">{{ 'line_option_label' | translate }} <p-sortIcon field="label"></p-sortIcon></th>
+            <th>{{ 'line_option_scope' | translate }}</th>
+            <th>{{ 'line_option_selection_mode' | translate }}</th>
+            <th class="text-center">{{ 'line_option_options_count' | translate }}</th>
+            <th class="text-center">{{ 'active' | translate }}</th>
+            <th *ngIf="isAdmin" style="width: 8rem;">{{ 'actions' | translate }}</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-set>
+          <tr>
+            <td style="min-width: 8rem;">
+              <span class="p-column-title">{{ 'line_option_code' | translate }}</span>
+              <span class="reference-badge">{{ set.code }}</span>
+            </td>
+            <td style="min-width: 10rem;" class="font-medium text-900">
+              <span class="p-column-title">{{ 'line_option_label' | translate }}</span>
+              {{ set.label }}
+            </td>
+            <td style="min-width: 10rem;" class="text-600">
+              <span class="p-column-title">{{ 'line_option_scope' | translate }}</span>
+              {{ scopeDisplay(set) }}
+            </td>
+            <td style="min-width: 9rem;">
+              <span class="p-column-title">{{ 'line_option_selection_mode' | translate }}</span>
+              <p-tag [value]="(set.selectionMode === 'SINGLE' ? 'line_option_mode_single' : 'line_option_mode_multi') | translate"
+                [severity]="set.selectionMode === 'SINGLE' ? 'info' : 'warning'"></p-tag>
+              <span class="text-500 text-sm ml-2" *ngIf="set.minSelect || set.maxSelect != null">
+                ({{ set.minSelect || 0 }}–{{ set.maxSelect != null ? set.maxSelect : '∞' }})
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="p-column-title">{{ 'line_option_options_count' | translate }}</span>
+              {{ activeOptionCount(set) }}
+            </td>
+            <td class="text-center">
+              <span class="p-column-title">{{ 'active' | translate }}</span>
+              <p-tag [value]="(set.active ? 'enabled' : 'disabled') | translate"
+                [severity]="set.active ? 'success' : 'danger'"></p-tag>
+            </td>
+            <td *ngIf="isAdmin">
+              <div class="flex gap-1">
+                <button pButton pRipple type="button" icon="pi pi-pencil"
+                  class="p-button-rounded p-button-text p-button-primary"
+                  [pTooltip]="'edit' | translate" tooltipPosition="top"
+                  (click)="openEdit(set)"></button>
+                <button pButton pRipple type="button" icon="pi pi-trash"
+                  class="p-button-rounded p-button-text p-button-danger"
+                  [pTooltip]="'delete_button' | translate" tooltipPosition="top"
+                  (click)="confirmDelete(set)"></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="isAdmin ? 7 : 6" class="text-center p-4">
+              <div class="flex flex-column align-items-center justify-content-center py-4">
+                <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                <p class="mt-2 text-gray-600 font-medium">{{ 'line_options_empty' | translate }}</p>
+                <button pButton type="button" icon="pi pi-plus" class="p-button-sm mt-2"
+                  label="{{ 'line_options_add' | translate }}"
+                  *ngIf="isAdmin" (click)="openCreate()"></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>
+
+<!-- Create / edit dialog -->
+<p-dialog [(visible)]="dialogVisible"
+  [header]="(isEdit ? 'line_options_edit' : 'line_options_add') | translate"
+  [modal]="true" [style]="{ width: 'min(94vw, 780px)' }" [breakpoints]="{'640px': '95vw'}"
+  [draggable]="false" [resizable]="false"
+  styleClass="ims-form-dialog-shell" class="p-fluid" (onHide)="hideDialog()">
+  <ng-template pTemplate="content">
+    <div class="ims-form-layout">
+      <div class="ims-form-fields">
+        <!-- Basic information -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue"><i class="pi pi-info-circle"></i></div>
+            <h3 class="ims-form-section__title">{{ 'basic_information' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="loCode" class="ims-form-label">
+                  {{ 'line_option_code' | translate }} <span class="required-asterisk" *ngIf="!isEdit">*</span>
+                </label>
+                <input id="loCode" pInputText class="w-full" [(ngModel)]="form.code" [disabled]="isEdit"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !form.code?.trim()}"
+                  placeholder="{{ 'line_option_code_placeholder' | translate }}" />
+                <small class="p-error" *ngIf="submitted && !isEdit && !form.code?.trim()">
+                  {{ 'line_option_code' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+              <div class="field">
+                <label for="loLabel" class="ims-form-label">
+                  {{ 'line_option_label' | translate }} <span class="required-asterisk">*</span>
+                </label>
+                <input id="loLabel" pInputText class="w-full" [(ngModel)]="form.label"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !form.label?.trim()}"
+                  placeholder="{{ 'line_option_label_placeholder' | translate }}" />
+                <small class="p-error" *ngIf="submitted && !form.label?.trim()">
+                  {{ 'line_option_label' | translate }} {{ 'is_required_label' | translate }}
+                </small>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="loMode" class="ims-form-label">{{ 'line_option_selection_mode' | translate }}</label>
+                <p-dropdown inputId="loMode" [options]="selectionModeOptions" [(ngModel)]="form.selectionMode"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+              <div class="field">
+                <label for="loMin" class="ims-form-label">{{ 'line_option_min_select' | translate }}</label>
+                <p-inputNumber inputId="loMin" [(ngModel)]="form.minSelect" [min]="0" [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+              </div>
+            </div>
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="loMax" class="ims-form-label">{{ 'line_option_max_select' | translate }}</label>
+                <p-inputNumber inputId="loMax" [(ngModel)]="form.maxSelect" [min]="1" [useGrouping]="false"
+                  styleClass="w-full" placeholder="{{ 'line_option_unlimited' | translate }}"></p-inputNumber>
+              </div>
+              <div class="field"></div>
+            </div>
+            <div class="ims-form-checkbox-row">
+              <p-checkbox [(ngModel)]="form.active" [binary]="true" inputId="loActive"></p-checkbox>
+              <label for="loActive" class="ims-form-label ims-form-label--inline">{{ 'active' | translate }}</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Scope -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan"><i class="pi pi-sliders-h"></i></div>
+            <h3 class="ims-form-section__title">{{ 'line_option_scope' | translate }}</h3>
+          </header>
+          <div class="ims-form-section__body ims-form-section__body--stack">
+            <div class="ims-form-row">
+              <div class="field">
+                <label for="loScope" class="ims-form-label">{{ 'line_option_scope' | translate }}</label>
+                <p-dropdown inputId="loScope" [options]="scopeTypeOptions" [(ngModel)]="scopeType"
+                  optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+              <div class="field" *ngIf="scopeType === 'PRODUCT'">
+                <label for="loProduct" class="ims-form-label">{{ 'line_option_scope_product' | translate }}</label>
+                <p-autoComplete inputId="loProduct" [(ngModel)]="selectedProduct" [suggestions]="productSuggestions"
+                  [loading]="productSuggestionsLoading" (completeMethod)="searchProducts($event)"
+                  field="name" [forceSelection]="true" [dropdown]="true" [showClear]="true" appendTo="body"
+                  styleClass="w-full" [placeholder]="'search_products' | translate">
+                  <ng-template let-product pTemplate="item">
+                    <div class="flex flex-column">
+                      <span class="font-medium">{{ product.name }}</span>
+                      <small *ngIf="product.reference"><span class="reference-badge">{{ product.reference }}</span></small>
+                    </div>
+                  </ng-template>
+                </p-autoComplete>
+              </div>
+              <div class="field" *ngIf="scopeType === 'CATEGORY'">
+                <label for="loCategory" class="ims-form-label">{{ 'line_option_scope_category' | translate }}</label>
+                <p-dropdown inputId="loCategory" [options]="categoryOptions" [(ngModel)]="form.categoryId"
+                  optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [showClear]="true"
+                  appendTo="body" styleClass="w-full"></p-dropdown>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Options -->
+        <section class="ims-form-section">
+          <header class="ims-form-section__header">
+            <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green"><i class="pi pi-list"></i></div>
+            <h3 class="ims-form-section__title">{{ 'line_option_options' | translate }}</h3>
+            <button pButton type="button" icon="pi pi-plus" class="ml-auto p-button-sm p-button-outlined"
+              label="{{ 'line_option_add_option' | translate }}" (click)="addOption()"></button>
+          </header>
+          <div class="ims-form-section__body">
+            <p class="text-500 text-sm mt-0 mb-3">{{ 'line_option_options_hint' | translate }}</p>
+            <div class="options-editor">
+              <div class="options-editor__row options-editor__row--head text-600 text-sm font-medium">
+                <span>{{ 'line_option_code' | translate }}</span>
+                <span>{{ 'line_option_label' | translate }}</span>
+                <span class="text-center">{{ 'line_option_sort_order' | translate }}</span>
+                <span class="text-center">{{ 'line_option_default' | translate }}</span>
+                <span class="text-center">{{ 'line_option_suppresses' | translate }}</span>
+                <span class="text-center">{{ 'active' | translate }}</span>
+                <span></span>
+              </div>
+              <div class="options-editor__row" *ngFor="let opt of form.options; let i = index">
+                <input pInputText type="text" [(ngModel)]="opt.code"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !opt.code?.trim()}" />
+                <input pInputText type="text" [(ngModel)]="opt.label"
+                  [ngClass]="{'ng-invalid ng-dirty': submitted && !opt.label?.trim()}" />
+                <p-inputNumber [(ngModel)]="opt.sortOrder" [min]="0" [useGrouping]="false" styleClass="options-editor__num"></p-inputNumber>
+                <div class="text-center"><p-checkbox [(ngModel)]="opt.defaultSelected" [binary]="true"></p-checkbox></div>
+                <div class="text-center">
+                  <p-checkbox [(ngModel)]="opt.suppressesAdjustments" [binary]="true"
+                    [pTooltip]="'line_option_suppresses_hint' | translate" tooltipPosition="top"></p-checkbox>
+                </div>
+                <div class="text-center"><p-checkbox [(ngModel)]="opt.active" [binary]="true"></p-checkbox></div>
+                <button pButton type="button" icon="pi pi-trash"
+                  class="p-button-text p-button-sm p-button-rounded p-button-danger"
+                  (click)="removeOption(i)"></button>
+              </div>
+              <div *ngIf="!form.options?.length" class="text-500 text-sm text-center py-3">
+                {{ 'line_option_no_options' | translate }}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ims-form-required-note">
+        <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <button pButton pRipple type="button" class="p-button-text" [label]="'cancel' | translate"
+      icon="pi pi-times" (click)="hideDialog()" [disabled]="saving"></button>
+    <button pButton pRipple type="button" class="p-button-primary" [label]="'save_button' | translate"
+      icon="pi pi-check" (click)="save()" [loading]="saving"></button>
+  </ng-template>
+</p-dialog>

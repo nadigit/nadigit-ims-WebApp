@@ -1,0 +1,350 @@
+<div class="integration-config-page ecommerce-integrations-page">
+	<p-toast></p-toast>
+	<p-confirmDialog [style]="{ width: '32rem' }"></p-confirmDialog>
+
+	<!-- Hero Header Section -->
+	<div class="detail-page-hero-shell">
+		<div class="hero-background"></div>
+		<div class="hero-content">
+			<div class="flex align-items-center gap-2 mb-3">
+				<button pButton pRipple icon="pi pi-arrow-left"
+					class="p-button-text p-button-rounded p-button-plain back-button"
+					[pTooltip]="'back' | translate" tooltipPosition="bottom" (click)="goBack()"></button>
+				<span class="text-500 text-sm">{{ 'administration' | translate }}</span>
+				<i class="pi pi-angle-right text-400 text-sm"></i>
+				<span class="text-700 text-sm font-medium">{{ 'global_settings' | translate }}</span>
+				<i class="pi pi-angle-right text-400 text-sm"></i>
+				<span class="text-700 text-sm font-medium">{{ 'ecommerce_integrations_title' | translate }}</span>
+			</div>
+
+			<div class="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-4">
+				<div class="flex align-items-center gap-4">
+					<div class="ims-icon-tile ims-icon-tile--hero ims-icon-tile--purple" aria-hidden="true">
+						<i class="pi pi-shopping-cart"></i>
+					</div>
+					<div>
+						<h1 class="m-0 text-900 mb-2">{{ 'ecommerce_integrations_title' | translate }}</h1>
+						<p class="text-600 m-0 line-height-3">{{ 'ecommerce_integrations_subtitle' | translate }}</p>
+						<div class="integration-status-chips mt-3" *ngIf="licensed && !isLoading">
+							<p-tag [severity]="rows.length > 0 ? 'success' : 'warning'" [rounded]="true"
+								[value]="('ecommerce_integrations_connected' | translate) + ': ' + rows.length"></p-tag>
+						</div>
+					</div>
+				</div>
+
+				<div class="detail-page-actions flex flex-column align-items-stretch md:align-items-end gap-2"
+					*ngIf="licensed">
+					<button pButton pRipple icon="pi pi-plus" [label]="'ecommerce_integration_new' | translate"
+						class="p-button-success" (click)="openNew()"></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Not licensed -->
+	<div class="integration-form" *ngIf="!licensed">
+		<div class="detail-card">
+			<div class="card-body">
+				<div class="flex flex-column align-items-center text-center gap-3 py-4">
+					<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--amber"><i class="pi pi-lock"></i></div>
+					<p class="text-700 m-0 line-height-3 max-w-30rem">{{ 'ecommerce_integrations_not_in_plan' | translate }}</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Loading State -->
+	<div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="licensed && isLoading">
+		<div class="ims-loading-panel__inner">
+			<p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+		</div>
+	</div>
+
+	<div class="integration-form" *ngIf="licensed && !isLoading">
+		<div class="detail-card">
+			<div class="card-header card-header--split">
+				<div class="flex align-items-center gap-2">
+					<i class="pi pi-sitemap"></i>
+					<span>{{ 'ecommerce_integrations_connected' | translate }}</span>
+				</div>
+				<p-tag [value]="rows.length.toString()" [rounded]="true"
+					[severity]="rows.length > 0 ? 'success' : 'warning'"></p-tag>
+			</div>
+			<div class="card-body">
+
+			<p class="text-600 text-sm m-0 mb-3 line-height-3">{{ 'ecommerce_integrations_intro' | translate }}</p>
+
+			<!-- Table -->
+			<p-table [value]="rows" dataKey="integrationId" [responsive]="true"
+				styleClass="p-datatable-gridlines">
+				<ng-template pTemplate="header">
+					<tr>
+						<th>{{ 'ecommerce_integration_name' | translate }}</th>
+						<th>{{ 'ecommerce_integration_platform' | translate }}</th>
+						<th>{{ 'ecommerce_integration_binding' | translate }}</th>
+						<th>{{ 'status' | translate }}</th>
+						<th>{{ 'ecommerce_integration_last_sync' | translate }}</th>
+						<th style="width: 12rem">{{ 'actions' | translate }}</th>
+					</tr>
+				</ng-template>
+
+				<ng-template pTemplate="body" let-row>
+					<tr>
+						<td>
+							<div class="flex flex-column">
+								<span class="font-semibold text-900">{{ row.name }}</span>
+								<a *ngIf="row.storefrontUrl" [href]="row.storefrontUrl" target="_blank" rel="noopener"
+									class="text-xs text-primary mt-1 white-space-nowrap overflow-hidden text-overflow-ellipsis"
+									style="max-width: 16rem">{{ row.storefrontUrl }}</a>
+							</div>
+						</td>
+						<td><span class="reference-badge">{{ platformLabel(row.platform) }}</span></td>
+						<td>
+							<div class="flex flex-column text-sm text-700 gap-1">
+								<span><i class="pi pi-warehouse mr-1 text-500"></i>{{ warehouseLabel(row.warehouseId) }}</span>
+								<span><i class="pi pi-shop mr-1 text-500"></i>{{ shopLabel(row.shopId) }}</span>
+							</div>
+						</td>
+						<td>
+							<div class="flex flex-column gap-1 align-items-start">
+								<p-tag [value]="(row.enabled ? 'enabled' : 'disabled') | translate"
+									[severity]="row.enabled ? 'success' : 'danger'"></p-tag>
+								<p-tag *ngIf="row.keycloakClientId"
+									[value]="'ecommerce_integration_provisioned' | translate" severity="info"
+									icon="pi pi-key"></p-tag>
+								<p-tag *ngIf="!row.keycloakClientId"
+									[value]="'ecommerce_integration_not_provisioned' | translate" severity="warning"></p-tag>
+							</div>
+						</td>
+						<td>
+							<div class="flex flex-column gap-2 text-sm" *ngIf="row.health as h; else noHealth">
+								<div class="flex align-items-center gap-2">
+									<i class="pi pi-arrow-down-left text-500" [pTooltip]="'ecommerce_sync_inbound' | translate"></i>
+									<ng-container *ngIf="h.lastInbound as ls; else dash">
+										<p-tag [value]="ls.status" [severity]="statusSeverity(ls.status)"></p-tag>
+										<span class="text-600">{{ ls.at | date:'short' }}</span>
+									</ng-container>
+								</div>
+								<div class="flex align-items-center gap-2">
+									<i class="pi pi-arrow-up-right text-500" [pTooltip]="'ecommerce_sync_outbound' | translate"></i>
+									<ng-container *ngIf="h.lastOutbound as ls; else dash">
+										<p-tag [value]="ls.status" [severity]="statusSeverity(ls.status)"></p-tag>
+										<span class="text-600">{{ ls.at | date:'short' }}</span>
+									</ng-container>
+								</div>
+							</div>
+							<ng-template #noHealth><span class="text-400">—</span></ng-template>
+							<ng-template #dash><span class="text-400">{{ 'ecommerce_sync_never' | translate }}</span></ng-template>
+						</td>
+						<td>
+							<div class="flex gap-1 flex-wrap">
+								<button pButton pRipple icon="pi pi-bolt" class="p-button-rounded p-button-text p-button-secondary"
+									[pTooltip]="'ecommerce_integration_test' | translate" tooltipPosition="top"
+									[loading]="row.testing" (click)="testConnection(row)"></button>
+								<button pButton pRipple icon="pi pi-key" class="p-button-rounded p-button-text p-button-primary"
+									[pTooltip]="(canProvision(row) ? 'ecommerce_integration_provision' : 'error.ecommerce.integration_needs_warehouse_shop') | translate"
+									tooltipPosition="top" [disabled]="!canProvision(row) || provisioning"
+									(click)="provision(row)"></button>
+								<button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-text p-button-primary"
+									[pTooltip]="'edit' | translate" tooltipPosition="top" (click)="openEdit(row)"></button>
+								<button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger"
+									[pTooltip]="'delete' | translate" tooltipPosition="top" (click)="confirmDelete(row)"></button>
+							</div>
+						</td>
+					</tr>
+				</ng-template>
+
+				<ng-template pTemplate="emptymessage">
+					<tr>
+						<td colspan="6">
+							<div class="flex flex-column align-items-center justify-content-center py-6 gap-3">
+								<div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--neutral"><i class="pi pi-shopping-cart"></i></div>
+								<p class="text-600 font-medium m-0">{{ 'ecommerce_integrations_empty' | translate }}</p>
+								<button pButton pRipple icon="pi pi-plus" [label]="'ecommerce_integration_new' | translate"
+									class="p-button-success p-button-sm" (click)="openNew()"></button>
+							</div>
+						</td>
+					</tr>
+				</ng-template>
+			</p-table>
+
+			<p class="text-500 text-xs mt-3 mb-0" *ngIf="rows.length && rows[0].health?.syncMetricsGlobal">
+				<i class="pi pi-info-circle mr-1"></i>{{ 'ecommerce_sync_metrics_global_note' | translate }}
+			</p>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Create / Edit dialog -->
+<p-dialog [(visible)]="dialog" [style]="{ width: 'min(92vw, 640px)' }"
+	[breakpoints]="{ '960px': '90vw', '640px': '95vw' }" [modal]="true" [draggable]="false"
+	[resizable]="false" styleClass="ims-form-dialog-shell" class="p-fluid"
+	[header]="(editing.integrationId ? 'ecommerce_integration_edit' : 'ecommerce_integration_new') | translate">
+	<ng-template pTemplate="content">
+		<div class="ims-form-layout">
+			<div class="ims-form-fields">
+
+				<!-- Store connection -->
+				<section class="ims-form-section">
+					<header class="ims-form-section__header">
+						<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--purple">
+							<i class="pi pi-shopping-cart"></i>
+						</div>
+						<h3 class="ims-form-section__title">{{ 'ecommerce_integration_section_connection' | translate }}</h3>
+					</header>
+					<div class="ims-form-section__body ims-form-section__body--stack">
+						<div class="ims-form-row">
+							<div class="field">
+								<label class="ims-form-label">{{ 'ecommerce_integration_platform' | translate }} <span class="required-asterisk">*</span></label>
+								<p-dropdown [options]="platformOptions" [(ngModel)]="editing.platform" optionLabel="label"
+									optionValue="value" appendTo="body" styleClass="w-full"></p-dropdown>
+							</div>
+							<div class="field">
+								<label class="ims-form-label">{{ 'ecommerce_integration_name' | translate }} <span class="required-asterisk">*</span></label>
+								<div class="p-inputgroup">
+									<span class="p-inputgroup-addon"><i class="pi pi-tag"></i></span>
+									<input type="text" pInputText [(ngModel)]="editing.name"
+										[ngClass]="{ 'ng-invalid ng-dirty': submitted && !editing.name?.trim() }"
+										[placeholder]="'ecommerce_integration_name_ph' | translate" />
+								</div>
+								<small *ngIf="submitted && !editing.name?.trim()" class="p-error">{{ 'is_required_label' | translate }}</small>
+							</div>
+						</div>
+
+						<div class="field">
+							<label class="ims-form-label">{{ 'ecommerce_integration_storefront_url' | translate }}</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon"><i class="pi pi-globe"></i></span>
+								<input type="url" pInputText [(ngModel)]="editing.storefrontUrl"
+									placeholder="https://store.example.com" />
+							</div>
+							<small class="ims-form-hint">{{ 'ecommerce_integration_storefront_url_hint' | translate }}</small>
+						</div>
+					</div>
+				</section>
+
+				<!-- Warehouse & shop binding -->
+				<section class="ims-form-section">
+					<header class="ims-form-section__header">
+						<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+							<i class="pi pi-sitemap"></i>
+						</div>
+						<div class="ims-form-section__header-text">
+							<h3 class="ims-form-section__title">{{ 'ecommerce_integration_section_binding' | translate }}</h3>
+							<p class="ims-form-section__subtitle">{{ 'ecommerce_integration_binding_hint' | translate }}</p>
+						</div>
+					</header>
+					<div class="ims-form-section__body ims-form-section__body--stack">
+						<div class="ims-form-row">
+							<div class="field">
+								<label class="ims-form-label">{{ 'warehouse' | translate }}</label>
+								<p-dropdown [options]="warehouseOptions" [(ngModel)]="editing.warehouseId" optionLabel="label"
+									optionValue="value" appendTo="body" [showClear]="true" styleClass="w-full"
+									[placeholder]="'select' | translate"></p-dropdown>
+							</div>
+							<div class="field">
+								<label class="ims-form-label">{{ 'shop' | translate }}</label>
+								<p-dropdown [options]="shopOptions" [(ngModel)]="editing.shopId" optionLabel="label"
+									optionValue="value" appendTo="body" [showClear]="true" styleClass="w-full"
+									[placeholder]="'select' | translate"></p-dropdown>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<!-- Webhook & security -->
+				<section class="ims-form-section">
+					<header class="ims-form-section__header">
+						<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+							<i class="pi pi-shield"></i>
+						</div>
+						<h3 class="ims-form-section__title">{{ 'ecommerce_integration_section_webhook' | translate }}</h3>
+					</header>
+					<div class="ims-form-section__body ims-form-section__body--stack">
+						<div class="field">
+							<label class="ims-form-label">{{ 'ecommerce_integration_webhook_path' | translate }}</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon"><i class="pi pi-link"></i></span>
+								<input type="text" pInputText [(ngModel)]="editing.webhookPath"
+									placeholder="/api/erp/webhook/product" />
+							</div>
+							<small class="ims-form-hint">{{ 'ecommerce_integration_webhook_path_hint' | translate }}</small>
+						</div>
+
+						<div class="field">
+							<label class="ims-form-label">{{ 'ecommerce_integration_hmac_secret' | translate }}</label>
+							<div class="p-inputgroup">
+								<span class="p-inputgroup-addon"><i class="pi pi-key"></i></span>
+								<input type="password" pInputText [(ngModel)]="hmacSecretInput" autocomplete="off"
+									[placeholder]="(editing.hmacSecretConfigured ? 'ecommerce_integration_hmac_set' : 'ecommerce_integration_hmac_ph') | translate" />
+							</div>
+							<small class="ims-form-hint">{{ 'ecommerce_integration_hmac_hint' | translate }}</small>
+						</div>
+
+						<div class="ims-form-checkbox-row">
+							<p-inputSwitch [(ngModel)]="editing.enabled" inputId="ecomEnabled"></p-inputSwitch>
+							<label for="ecomEnabled" class="ims-form-label ims-form-label--inline">{{ 'ecommerce_integration_enabled' | translate }}</label>
+						</div>
+					</div>
+				</section>
+			</div>
+
+			<div class="ims-form-required-note">
+				<small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+			</div>
+		</div>
+	</ng-template>
+	<ng-template pTemplate="footer">
+		<div class="flex justify-content-between align-items-center w-full">
+			<button pButton pRipple [label]="'cancel_button' | translate" icon="pi pi-times" class="p-button-text"
+				(click)="hideDialog()"></button>
+			<button pButton pRipple [label]="'save_button' | translate" icon="pi pi-check" class="p-button-primary"
+				[loading]="saving" (click)="save()"></button>
+		</div>
+	</ng-template>
+</p-dialog>
+
+<!-- Provision bundle dialog -->
+<p-dialog [(visible)]="bundleDialog" [style]="{ width: 'min(92vw, 680px)' }" [modal]="true" [draggable]="false"
+	[resizable]="false" [header]="'ecommerce_integration_bundle_title' | translate">
+	<ng-template pTemplate="content">
+		<div class="flex flex-column gap-3" *ngIf="bundle">
+			<div class="flex align-items-start gap-2 surface-100 border-round p-3">
+				<i class="pi pi-check-circle text-green-600 mt-1"></i>
+				<div>
+					<p class="m-0 font-semibold text-900">{{ 'ecommerce_integration_bundle_ready' | translate: { name: bundleForName } }}</p>
+					<p class="m-0 mt-1 text-600 text-sm line-height-3">{{ 'ecommerce_integration_bundle_hint' | translate }}</p>
+				</div>
+			</div>
+
+			<div class="ecom-bundle-field" *ngFor="let f of [
+				{ key: 'ecommerce_bundle_backend_url', val: bundle.backend_url },
+				{ key: 'ecommerce_bundle_token_url', val: bundle.keycloak_token_url },
+				{ key: 'ecommerce_bundle_client_id', val: bundle.keycloak_client_id },
+				{ key: 'ecommerce_bundle_client_secret', val: bundle.keycloak_client_secret },
+				{ key: 'ecommerce_bundle_webhook_secret', val: bundle.webhook_secret }
+			]">
+				<label class="text-xs font-semibold text-600 uppercase">{{ f.key | translate }}</label>
+				<div class="flex align-items-center gap-2">
+					<input type="text" pInputText [value]="f.val" readonly class="w-full font-mono text-sm" />
+					<button pButton pRipple icon="pi pi-copy" class="p-button-text p-button-rounded flex-shrink-0"
+						[pTooltip]="'copy' | translate" (click)="copy(f.val)"></button>
+				</div>
+			</div>
+
+			<div class="surface-50 border-round p-3 border-left-3 border-yellow-500">
+				<p class="m-0 text-sm text-700 line-height-3">
+					<i class="pi pi-exclamation-triangle text-yellow-600 mr-1"></i>
+					{{ 'ecommerce_integration_bundle_secret_warning' | translate }}
+				</p>
+			</div>
+		</div>
+	</ng-template>
+	<ng-template pTemplate="footer">
+		<button pButton pRipple [label]="'ecommerce_integration_bundle_copy_json' | translate" icon="pi pi-copy"
+			class="p-button-text" (click)="copyBundleJson()"></button>
+		<button pButton pRipple [label]="'close' | translate" icon="pi pi-check" class="p-button-primary"
+			(click)="bundleDialog = false"></button>
+	</ng-template>
+</p-dialog>

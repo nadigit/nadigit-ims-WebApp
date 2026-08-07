@@ -99,6 +99,89 @@
   background: var(--surface-hover) !important;
 }
 
+// ---------------------------------------------------------------------------
+// Hero status chips — the small p-tag(s) beside the title (details pages) or
+// inside `.integration-status-chips` (integration/config pages). PrimeNG
+// renders them as solid, fully-rounded pills, which read as stretched ovals
+// for longer labels (e.g. "Destinataires Actuels: 0"). Restyle them app-wide
+// as compact, soft-tinted badges so every hero looks consistent and refined.
+// Scoped to `.hero-content` so only header chips are affected, not table tags.
+// ---------------------------------------------------------------------------
+.hero-content .p-tag {
+  border-radius: 8px !important;
+  padding: 0.3rem 0.6rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+// Soft-tinted severity variants (light theme): same-hue tint, subtle border,
+// strong text — the modern "label" look instead of a saturated solid block.
+.hero-content .p-tag.p-tag-success {
+  background: color-mix(in srgb, var(--brand-success) 12%, var(--surface-card)) !important;
+  border-color: color-mix(in srgb, var(--brand-success) 30%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-success) 72%, #000) !important;
+}
+
+.hero-content .p-tag.p-tag-info {
+  background: color-mix(in srgb, var(--brand-info) 12%, var(--surface-card)) !important;
+  border-color: color-mix(in srgb, var(--brand-info) 30%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-info) 72%, #000) !important;
+}
+
+.hero-content .p-tag.p-tag-warning {
+  background: color-mix(in srgb, var(--brand-premium) 16%, var(--surface-card)) !important;
+  border-color: color-mix(in srgb, var(--brand-premium) 34%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-premium) 82%, #000) !important;
+}
+
+.hero-content .p-tag.p-tag-danger {
+  background: color-mix(in srgb, var(--brand-danger) 12%, var(--surface-card)) !important;
+  border-color: color-mix(in srgb, var(--brand-danger) 30%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-danger) 72%, #000) !important;
+}
+
+// Default / secondary (no severity class) — neutral surface chip.
+.hero-content .p-tag:not(.p-tag-success):not(.p-tag-info):not(.p-tag-warning):not(.p-tag-danger) {
+  background: var(--surface-ground) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-color-secondary) !important;
+}
+
+// Dark theme — translucent tints over the dark surface, lighter text.
+.layout-theme-dark .hero-content .p-tag.p-tag-success {
+  background: color-mix(in srgb, var(--brand-success) 22%, transparent) !important;
+  border-color: color-mix(in srgb, var(--brand-success) 42%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-success) 58%, #fff) !important;
+}
+
+.layout-theme-dark .hero-content .p-tag.p-tag-info {
+  background: color-mix(in srgb, var(--brand-info) 22%, transparent) !important;
+  border-color: color-mix(in srgb, var(--brand-info) 42%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-info) 58%, #fff) !important;
+}
+
+.layout-theme-dark .hero-content .p-tag.p-tag-warning {
+  background: color-mix(in srgb, var(--brand-premium) 24%, transparent) !important;
+  border-color: color-mix(in srgb, var(--brand-premium) 44%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-premium) 64%, #fff) !important;
+}
+
+.layout-theme-dark .hero-content .p-tag.p-tag-danger {
+  background: color-mix(in srgb, var(--brand-danger) 22%, transparent) !important;
+  border-color: color-mix(in srgb, var(--brand-danger) 42%, transparent) !important;
+  color: color-mix(in srgb, var(--brand-danger) 58%, #fff) !important;
+}
+
+.layout-theme-dark .hero-content .p-tag:not(.p-tag-success):not(.p-tag-info):not(.p-tag-warning):not(.p-tag-danger) {
+  background: color-mix(in srgb, var(--text-color) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--text-color) 18%, transparent) !important;
+  color: var(--text-color-secondary) !important;
+}
+
 .backups-container {
   display: flex;
   flex-direction: column;

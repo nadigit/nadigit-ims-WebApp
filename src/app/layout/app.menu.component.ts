@@ -114,12 +114,33 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         roles: ['WAREHOUSEMAN', 'ADMIN'],
       },
       {
-        label: translations['pricing_menu_title'] || translations['pricing'] || 'Pricing',
-        icon: 'pi pi-fw pi-tags',
-        routerLink: ['/inventory/pricing'],
-        routerLinkActiveOptions: { exact: false },
-        roles: ['ADMIN'],
-        licenseFeature: 'PRICING',
+        label: translations['menu_advanced_group'] || 'Advanced',
+        icon: 'pi pi-fw pi-cog',
+        items: [
+          {
+            label: translations['pricing_menu_title'] || translations['pricing'] || 'Pricing',
+            icon: 'pi pi-fw pi-tags',
+            routerLink: ['/inventory/pricing'],
+            routerLinkActiveOptions: { exact: false },
+            roles: ['ADMIN'],
+            licenseFeature: 'PRICING',
+          },
+          {
+            label: translations['line_options_menu_title'] || translations['line_options_page_title'] || 'Line Options',
+            icon: 'pi pi-fw pi-sliders-h',
+            routerLink: ['/inventory/line-options'],
+            routerLinkActiveOptions: { exact: false },
+            roles: ['ADMIN', 'WAREHOUSEMAN'],
+          },
+          {
+            label: translations['line_rules_menu_title'] || translations['line_rules_page_title'] || 'Line Price Rules',
+            icon: 'pi pi-fw pi-percentage',
+            routerLink: ['/inventory/line-price-rules'],
+            routerLinkActiveOptions: { exact: false },
+            roles: ['ADMIN', 'WAREHOUSEMAN'],
+          },
+        ],
+        roles: ['ADMIN', 'WAREHOUSEMAN'],
       },
       {
         label: translations['warehouse_transfers_menu_title'],
@@ -346,6 +367,14 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         routerLinkActiveOptions: { exact: false },
         roles: ['ADMIN'],
         licenseFeature: 'REPORTS_AND_ANALYTICS',
+      },
+      {
+        label: translations['batch_expiry_menu_title'],
+        icon: 'pi pi-fw pi-clock',
+        routerLink: ['/reports/batch-expiry'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN'],
+        licenseFeature: 'BATCH_MANAGEMENT',
       },
     ];
 

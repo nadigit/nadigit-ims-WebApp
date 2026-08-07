@@ -2357,6 +2357,31 @@ html:has(.pos-fullscreen) {
 /* Chat attachment import workspace */
 .copilot-file-input { display: none; }
 .copilot-attach-btn { flex: 0 0 auto; }
+
+/* Voice dictation mic button */
+.copilot-mic-btn.p-button {
+  flex: 0 0 auto;
+  width: 2.3rem;
+  min-width: 2.3rem;
+  height: 2.3rem;
+  min-height: 2.3rem;
+  padding: 0;
+  border-radius: 50%;
+  align-self: flex-end;
+}
+.copilot-mic-btn.p-button.listening {
+  color: #fff !important;
+  background: var(--red-500, #ef4444) !important;
+  animation: copilot-mic-pulse 1.4s ease-in-out infinite;
+}
+@keyframes copilot-mic-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red-500, #ef4444) 55%, transparent); }
+  70%  { box-shadow: 0 0 0 7px color-mix(in srgb, var(--red-500, #ef4444) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red-500, #ef4444) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .copilot-mic-btn.p-button.listening { animation: none; }
+}
 .copilot-attachment {
   margin-bottom: 0.55rem;
   border: 1px dashed color-mix(in srgb, var(--primary-color) 35%, var(--surface-border));

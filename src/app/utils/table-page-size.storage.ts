@@ -34,6 +34,8 @@ export const TablePageSizeKeys = {
   backupsHistory: 'backups-history',
   auditLog: 'audit-log',
   taxRules: 'tax-rules',
+  lineOptionSets: 'line-option-sets',
+  linePriceRules: 'line-price-rules',
   creditAccounts: 'credit-accounts',
   customerDetailsPriceOverrides: 'customer-details-price-overrides',
   customerDetailsOrders: 'customer-details-orders',

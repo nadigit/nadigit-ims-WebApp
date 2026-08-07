@@ -399,16 +399,28 @@
           </button>
         </div>
         <div class="pos-barcode-input">
-          <input
-            #barcodeInputRef
-            type="text"
-            pInputText
-            [(ngModel)]="barcodeInput"
-            (keyup.enter)="onBarcodeEnter()"
-            [placeholder]="'scan_barcode_or_type' | translate"
-            [disabled]="isLocked"
-            class="w-full text-center text-xl"
-            style="letter-spacing: 2px">
+          <div class="flex align-items-stretch gap-2">
+            <input
+              #barcodeInputRef
+              type="text"
+              pInputText
+              [(ngModel)]="barcodeInput"
+              (ngModelChange)="onBarcodeInputChange($event)"
+              (keyup.enter)="onBarcodeEnter()"
+              [placeholder]="'scan_barcode_or_type' | translate"
+              [disabled]="isLocked"
+              class="flex-1 text-center text-xl"
+              style="letter-spacing: 2px">
+            <button
+              pButton
+              type="button"
+              icon="pi pi-search"
+              class="p-button-lg flex-shrink-0"
+              (click)="onBarcodeEnter()"
+              [disabled]="isLocked || !barcodeInput"
+              [pTooltip]="'search' | translate">
+            </button>
+          </div>
           <div class="pos-scanner-feedback mt-2" *ngIf="lastScanResult">
             <p-message severity="success" [text]="lastScanResult"></p-message>
           </div>
@@ -853,6 +865,25 @@
                 </p-tag>
                 <span class="text-500 text-sm">{{ formatCartLineQuantity(item) }} / {{ getCartLineDisplayStock(item) }} {{ 'available' | translate }}</span>
               </div>
+              <!-- Sale-line options (components/cuts) -->
+              <div class="pos-cart-item-options" *ngIf="hasCartLineOptions(item)">
+                <button pButton type="button"
+                  class="p-button-sm p-button-text pos-cart-options-btn"
+                  icon="pi pi-sliders-h"
+                  [label]="cartLineOptionCount(item) > 0 ? (('line_option_options' | translate) + ' (' + cartLineOptionCount(item) + ')') : ('line_option_add_option' | translate)"
+                  (click)="openCartOptions(item); $event.stopPropagation()"></button>
+                <span class="pos-cart-options-chips" *ngIf="cartLineOptionCount(item) > 0">
+                  <p-tag *ngFor="let lbl of cartLineOptionLabels(item)" [value]="lbl" severity="info" styleClass="text-xs"></p-tag>
+                </span>
+              </div>
+              <!-- Portion selector (whole / half / quarter / eighth) -->
+              <div class="pos-cart-item-portion" *ngIf="portionSelectionEnabled" (click)="$event.stopPropagation()">
+                <span class="text-500 text-sm mr-1">{{ 'portion' | translate }}:</span>
+                <p-selectButton [options]="portionOptions" [ngModel]="getCartLinePortion(item)"
+                  (onChange)="setCartLinePortion(item, $event.value)" [ngModelOptions]="{ standalone: true }"
+                  optionLabel="label" optionValue="value" [allowEmpty]="false"
+                  styleClass="pos-portion-btns"></p-selectButton>
+              </div>
             </div>
             <div class="pos-cart-item-quantity">
               <div class="flex align-items-center gap-1">
@@ -1295,6 +1326,12 @@
                 <span class="text-600">•</span>
                 <span class="text-600">{{ formatCurrency(item.pricePerUnit) }}</span>
               </div>
+              <div class="flex flex-wrap align-items-center gap-1 mt-1" *ngIf="cartLineOptionLabels(item).length">
+                <p-tag *ngFor="let lbl of cartLineOptionLabels(item)" [value]="lbl" severity="info" styleClass="text-xs"></p-tag>
+              </div>
+              <small class="text-600 block mt-1" *ngIf="item.portionFraction != null && item.portionFraction !== 1">
+                {{ 'portion' | translate }}: {{ portionLabel(item.portionFraction) }}
+              </small>
             </div>
             <div class="text-right">
               <div class="font-bold text-lg">{{ formatCurrency(item.subtotal) }}</div>
@@ -2137,3 +2174,41 @@
     </div>
   </div>
 </ng-template>
+<!-- Sale-line options picker (POS) -->
+<p-dialog [(visible)]="optionsDialogVisible"
+  [header]="(optionsCartItem?.productName || '') + ' — ' + ('line_option_options' | translate)"
+  [modal]="true" [style]="{ width: 'min(94vw, 560px)' }" [breakpoints]="{'640px': '95vw'}"
+  [draggable]="false" [resizable]="false" (onHide)="closeCartOptions()">
+  <div class="line-options-picker" *ngIf="optionsCartItem">
+    <div class="line-options-picker__set" *ngFor="let set of optionsSets">
+      <div class="line-options-picker__set-head">
+        <span class="font-semibold text-900">{{ set.label }}</span>
+        <span class="text-500 text-sm ml-2">
+          {{ (set.selectionMode === 'SINGLE' ? 'line_option_mode_single' : 'line_option_mode_multi') | translate }}
+          <ng-container *ngIf="set.minSelect || set.maxSelect != null">
+&middot; {{ set.minSelect || 0 }}&ndash;{{ set.maxSelect != null ? set.maxSelect : '∞' }}
+          </ng-container>
+        </span>
+      </div>
+      <div class="line-options-picker__options">
+        <ng-container *ngFor="let opt of set.options">
+          <div class="line-options-picker__option" *ngIf="opt.active !== false"
+            [class.line-options-picker__option--on]="isWorkingSelected(set, opt)"
+            (click)="toggleWorkingOption(set, opt)">
+            <i class="pi" [ngClass]="isWorkingSelected(set, opt) ? 'pi-check-circle text-primary' : 'pi-circle text-400'"></i>
+            <span>{{ opt.label }}</span>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+    <div *ngIf="!optionsSets.length" class="text-500 text-sm text-center py-3">
+      {{ 'line_options_none_for_product' | translate }}
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton type="button" class="p-button-text" [label]="'cancel' | translate"
+      icon="pi pi-times" (click)="closeCartOptions()" [disabled]="optionsSaving"></button>
+    <button pButton type="button" class="p-button-primary" [label]="'save_button' | translate"
+      icon="pi pi-check" (click)="saveCartOptions()" [loading]="optionsSaving"></button>
+  </ng-template>
+</p-dialog>

@@ -788,6 +788,15 @@
                         <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
                     </div>
 
+                    <!-- Include depleted / written-off lots (e.g. expired batches already consumed by a write-off) -->
+                    <div *ngIf="!batchesLoading" class="flex justify-content-end mb-3">
+                        <div class="ims-form-checkbox-row">
+                            <p-checkbox [(ngModel)]="showDepletedBatches" [binary]="true" inputId="showDepletedBatches"
+                                (onChange)="onToggleDepletedBatches()"></p-checkbox>
+                            <label for="showDepletedBatches" class="ims-form-label ims-form-label--inline">{{ 'batch_include_depleted' | translate }}</label>
+                        </div>
+                    </div>
+
                     <div *ngIf="!batchesLoading && batches.length > 0">
                         <div class="detail-card">
                             <div class="card-header">
@@ -968,8 +977,121 @@
                                 <div class="flex flex-column align-items-center justify-content-center py-5">
                                     <i class="pi pi-box text-5xl text-300 mb-3"></i>
                                     <p class="text-600 font-medium">{{ 'no_batches' | translate }}</p>
-                                    <p class="text-500 text-sm mt-2">{{ 'no_batches_description' | translate }}</p>
+                                    <p class="text-500 text-sm mt-2">{{ (showDepletedBatches ? 'no_batches_description' : 'batch_no_onhand_hint') | translate }}</p>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Approved suppliers (multi-supplier sourcing) -->
+            <p-tabPanel *ngIf="isProduct(product)">
+                <ng-template pTemplate="header">
+                    <i class="pi pi-truck mr-2"></i>
+                    <span>{{ 'approved_suppliers' | translate }}</span>
+                    <p-badge [value]="productSuppliers.length.toString()" class="ml-2" *ngIf="productSuppliers.length > 0" severity="info"></p-badge>
+                </ng-template>
+
+                <div class="mt-3">
+                    <div class="ims-section-loading" *ngIf="productSuppliersLoading">
+                        <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+                    </div>
+
+                    <div *ngIf="!productSuppliersLoading">
+                        <div class="detail-card">
+                            <div class="card-header flex justify-content-between align-items-center">
+                                <div class="flex align-items-center gap-2">
+                                    <i class="pi pi-truck"></i>
+                                    <span>{{ 'approved_suppliers' | translate }}</span>
+                                </div>
+                                <button pButton type="button" icon="pi pi-plus"
+                                    class="p-button-sm"
+                                    label="{{ 'add_supplier' | translate }}"
+                                    *ngIf="canManageVendors"
+                                    [disabled]="availableVendorSuppliers.length === 0"
+                                    (click)="openAddVendorDialog()"></button>
+                            </div>
+
+                            <div class="card-body" style="padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--surface-border);">
+                                <p class="m-0 text-500 text-sm">{{ 'approved_suppliers_hint' | translate }}</p>
+                            </div>
+
+                            <div class="card-body p-0">
+                                <p-table [value]="productSuppliers" responsiveLayout="scroll"
+                                    styleClass="p-datatable-sm p-datatable-striped">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th>{{ 'supplier' | translate }}</th>
+                                            <th>{{ 'supplier_sku' | translate }}</th>
+                                            <th *ngIf="isAdmin">{{ 'last_purchase_price' | translate }}</th>
+                                            <th>{{ 'lead_time_days' | translate }}</th>
+                                            <th>{{ 'min_order_qty' | translate }}</th>
+                                            <th>{{ 'pack_size' | translate }}</th>
+                                            <th>{{ 'status' | translate }}</th>
+                                            <th *ngIf="canManageVendors" style="width: 1%; white-space: nowrap;"></th>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="body" let-row>
+                                        <tr>
+                                            <td>
+                                                <div class="flex align-items-center gap-2">
+                                                    <span class="font-semibold text-900">{{ row.supplierName }}</span>
+                                                    <p-tag *ngIf="row.defaultVendor"
+                                                        [value]="'default_vendor' | translate"
+                                                        severity="success" icon="pi pi-star-fill"
+                                                        styleClass="text-xs"></p-tag>
+                                                </div>
+                                            </td>
+                                            <td><span class="text-600">{{ row.supplierSku || '-' }}</span></td>
+                                            <td *ngIf="isAdmin">
+                                                <span [ngClass]="{ 'text-600': row.lastPurchasePrice != null, 'text-400': row.lastPurchasePrice == null }">
+                                                    {{ row.lastPurchasePrice != null ? formatCurrency(row.lastPurchasePrice) : '-' }}
+                                                </span>
+                                            </td>
+                                            <td><span class="text-600">{{ row.leadTimeDays != null ? row.leadTimeDays : '-' }}</span></td>
+                                            <td><span class="text-600">{{ row.minOrderQty != null ? row.minOrderQty : '-' }}</span></td>
+                                            <td><span class="text-600">{{ row.packSize != null ? row.packSize : '-' }}</span></td>
+                                            <td>
+                                                <p-tag [value]="row.active ? ('active' | translate) : ('inactive' | translate)"
+                                                    [severity]="row.active ? 'success' : 'secondary'"
+                                                    [icon]="row.active ? 'pi pi-check-circle' : 'pi pi-ban'"></p-tag>
+                                            </td>
+                                            <td *ngIf="canManageVendors" style="white-space: nowrap;">
+                                                <button pButton type="button" icon="pi pi-star"
+                                                    class="p-button-text p-button-sm p-button-rounded"
+                                                    [pTooltip]="'set_as_default' | translate" tooltipPosition="top"
+                                                    *ngIf="!row.defaultVendor && row.active"
+                                                    (click)="setDefaultVendor(row)"></button>
+                                                <button pButton type="button" icon="pi pi-pencil"
+                                                    class="p-button-text p-button-sm p-button-rounded"
+                                                    [pTooltip]="'edit' | translate" tooltipPosition="top"
+                                                    (click)="openEditVendorDialog(row)"></button>
+                                                <button pButton type="button" icon="pi pi-trash"
+                                                    class="p-button-text p-button-sm p-button-rounded p-button-danger"
+                                                    [pTooltip]="'remove' | translate" tooltipPosition="top"
+                                                    (click)="confirmRemoveVendor(row)"></button>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+
+                                    <ng-template pTemplate="emptymessage">
+                                        <tr>
+                                            <td [attr.colspan]="(isAdmin ? 7 : 6) + (canManageVendors ? 1 : 0)" class="text-center p-4">
+                                                <div class="flex flex-column align-items-center justify-content-center py-4">
+                                                    <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
+                                                    <p class="mt-2 text-gray-600 font-medium">{{ 'no_approved_suppliers' | translate }}</p>
+                                                    <button pButton type="button" icon="pi pi-plus"
+                                                        class="p-button-sm mt-2"
+                                                        label="{{ 'add_supplier' | translate }}"
+                                                        *ngIf="canManageVendors && availableVendorSuppliers.length > 0"
+                                                        (click)="openAddVendorDialog()"></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
                             </div>
                         </div>
                     </div>
@@ -1498,6 +1620,120 @@
                 [disabled]="!canAdjustStock() || isAdjustingStock"
                 [loading]="isAdjustingStock">
             </button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Add / edit approved supplier -->
+<p-dialog [(visible)]="vendorDialogVisible"
+    [header]="(editingVendor ? 'edit_supplier' : 'add_supplier') | translate"
+    [modal]="true" [style]="{ width: 'min(92vw, 560px)' }" [breakpoints]="{ '960px': '90vw', '640px': '95vw' }"
+    [draggable]="false" [resizable]="false" styleClass="ims-form-dialog-shell" class="p-fluid">
+    <ng-template pTemplate="content">
+        <div class="ims-form-layout">
+            <div class="ims-form-fields">
+
+                <!-- Supplier -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                            <i class="pi pi-truck"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'product_supplier_section_details' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12" *ngIf="!editingVendor">
+                            <label class="ims-form-label">{{ 'supplier' | translate }} <span class="required-asterisk">*</span></label>
+                            <p-dropdown [options]="availableVendorSuppliers" optionLabel="name" optionValue="supplierId"
+                                [(ngModel)]="vendorForm.supplierId" [filter]="true" filterBy="name" appendTo="body"
+                                styleClass="w-full" placeholder="{{ 'select_supplier' | translate }}"></p-dropdown>
+                        </div>
+                        <div class="field col-12" *ngIf="editingVendor">
+                            <label class="ims-form-label">{{ 'supplier' | translate }}</label>
+                            <div class="text-900 font-semibold pt-1">{{ editingVendor.supplierName }}</div>
+                        </div>
+
+                        <div class="field col-12">
+                            <label class="ims-form-label">{{ 'supplier_sku' | translate }}</label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon"><i class="pi pi-hashtag"></i></span>
+                                <input pInputText type="text" [(ngModel)]="vendorForm.supplierSku" />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Purchasing terms -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan">
+                            <i class="pi pi-sliders-h"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'product_supplier_section_terms' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                        <div class="field col-12 md:col-6">
+                            <label class="ims-form-label">{{ 'last_purchase_price' | translate }}</label>
+                            <p-inputNumber [(ngModel)]="vendorForm.lastPurchasePrice" mode="decimal" [minFractionDigits]="0" [maxFractionDigits]="2" [min]="0" styleClass="w-full"></p-inputNumber>
+                        </div>
+                        <div class="field col-12 md:col-6">
+                            <label class="ims-form-label">{{ 'lead_time_days' | translate }}</label>
+                            <p-inputNumber [(ngModel)]="vendorForm.leadTimeDays" [min]="0" [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+                        </div>
+                        <div class="field col-12 md:col-6">
+                            <label class="ims-form-label">{{ 'min_order_qty' | translate }}</label>
+                            <p-inputNumber [(ngModel)]="vendorForm.minOrderQty" [min]="0" [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+                        </div>
+                        <div class="field col-12 md:col-6">
+                            <label class="ims-form-label">{{ 'pack_size' | translate }}</label>
+                            <p-inputNumber [(ngModel)]="vendorForm.packSize" [min]="0" [useGrouping]="false" styleClass="w-full"></p-inputNumber>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Options -->
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
+                            <i class="pi pi-cog"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'product_supplier_section_options' | translate }}</h3>
+                    </header>
+                    <div class="ims-form-section__body ims-form-section__body--stack">
+                        <div class="field">
+                            <label class="ims-form-label">{{ 'notes' | translate }}</label>
+                            <div class="p-inputgroup">
+                                <span class="p-inputgroup-addon"><i class="pi pi-align-left"></i></span>
+                                <input pInputText type="text" [(ngModel)]="vendorForm.notes" />
+                            </div>
+                        </div>
+
+                        <div class="ims-form-checkbox-row">
+                            <p-checkbox [(ngModel)]="vendorForm.makeDefault" [binary]="true" inputId="vendorMakeDefault"></p-checkbox>
+                            <label for="vendorMakeDefault" class="ims-form-label ims-form-label--inline">{{ 'set_as_default_supplier' | translate }}</label>
+                        </div>
+                        <div class="ims-form-checkbox-row" *ngIf="editingVendor">
+                            <p-checkbox [(ngModel)]="vendorForm.active" [binary]="true" inputId="vendorActive"></p-checkbox>
+                            <label for="vendorActive" class="ims-form-label ims-form-label--inline">{{ 'active' | translate }}</label>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="ims-form-required-note" *ngIf="!editingVendor">
+                <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template pTemplate="footer">
+        <div class="flex justify-content-between align-items-center w-full">
+            <button pButton type="button" class="p-button-text" [label]="'cancel' | translate"
+                icon="pi pi-times" (click)="vendorDialogVisible = false" [disabled]="vendorSaving"></button>
+            <button pButton type="button" class="p-button-primary" [label]="'save' | translate"
+                icon="pi pi-check" (click)="saveVendor()"
+                [disabled]="vendorSaving || (!editingVendor && !vendorForm.supplierId)"
+                [loading]="vendorSaving"></button>
         </div>
     </ng-template>
 </p-dialog>

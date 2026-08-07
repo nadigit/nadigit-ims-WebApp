@@ -163,6 +163,9 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   /** True when tax.calculation.mode = RULES (per-line tax rule engine active). */
   taxRulesMode: boolean = false;
+
+  /** When true, purchase lines expose the optional per-batch companion value (by-product credit). */
+  companionValueCaptureEnabled: boolean = false;
   private taxResolveSignature = '';
   private taxResolveSeq = 0;
 
@@ -632,6 +635,15 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     } catch {
       this.taxRulesMode = false;
     }
+    // Generic, opt-in per tenant: expose the per-line companion value (by-product credit) at intake.
+    try {
+      (await this.configService.getConfigurationValueAsBoolean('purchase.companion.value.enabled')).subscribe({
+        next: (enabled: boolean) => (this.companionValueCaptureEnabled = !!enabled),
+        error: () => (this.companionValueCaptureEnabled = false)
+      });
+    } catch {
+      this.companionValueCaptureEnabled = false;
+    }
   }
 
   ngAfterViewInit() {
@@ -696,6 +708,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           // Add the orderItemPricePerUnit field and assign the value of sellingPrice from the item
           product.purchaseItemPricePerUnit = item.buyingPrice;
           product.purchaseItemQuantity = defaultLineQuantity(product);
+          // Override with the selected supplier's approved-vendor price when available.
+          void this.applyVendorPriceToLine(product);
         }
       });
     });
@@ -730,6 +744,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
         p => p.productId !== product.productId
       );
       this.purchaseItems.push(newProduct); // Update orderItems for ngModel binding
+      void this.applyVendorPriceToLine(newProduct); // Prefer the supplier's approved-vendor price
       this.cdr.detectChanges(); // Trigger change detection
     } else {
       existingProduct.purchaseItemQuantity += lineQuantityStep(existingProduct);
@@ -748,6 +763,73 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       this.loadPurchasePickerProductsGrid();
     }
     this.cdr.detectChanges();
+  }
+
+  // ---------------------------------------------------------------------
+  // Approved-vendor price pre-fill (multi-supplier sourcing)
+  // ---------------------------------------------------------------------
+  // When the purchase's supplier is set, a product line's unit price is pre-filled from that
+  // supplier's approved-vendor "last purchase price" (if recorded), instead of the product's
+  // generic buying price. Purely additive: with no vendor data or no supplier selected, the
+  // existing behavior (product.buyingPrice) is preserved untouched, and any price the user has
+  // manually changed is never overwritten.
+  private vendorPriceCache = new Map<string, number | null>();
+
+  /** Resolve the approved-vendor last price for (supplier, product), cached. Null if none. */
+  private async resolveVendorUnitPrice(supplierId: number, productId: number): Promise<number | null> {
+    const key = `${supplierId}:${productId}`;
+    if (this.vendorPriceCache.has(key)) {
+      return this.vendorPriceCache.get(key) ?? null;
+    }
+    try {
+      this.productService.loadToken();
+      const rows: any[] = await firstValueFrom(this.productService.getProductSuppliers(productId));
+      const match = (Array.isArray(rows) ? rows : [])
+        .find(r => r.supplierId === supplierId && r.active !== false && r.lastPurchasePrice != null);
+      const price = match ? Number(match.lastPurchasePrice) : null;
+      this.vendorPriceCache.set(key, price);
+      return price;
+    } catch {
+      // Endpoint absent (older backend) or transient error: behave as before (no pre-fill).
+      this.vendorPriceCache.set(key, null);
+      return null;
+    }
+  }
+
+  /** True when the line's price is still the auto-filled value (i.e. user hasn't customized it). */
+  private isLinePriceUntouched(line: any): boolean {
+    const p = line.purchaseItemPricePerUnit;
+    if (p == null || p === '') return true;
+    if (line._autoPrice != null && Number(p) === Number(line._autoPrice)) return true;
+    if (line.buyingPrice != null && Number(p) === Number(line.buyingPrice)) return true;
+    return false;
+  }
+
+  /** Pre-fill one line's price from the current purchase supplier's approved-vendor price. */
+  private async applyVendorPriceToLine(line: any): Promise<void> {
+    const supplierId = this.purchase?.supplier?.supplierId;
+    if (!supplierId || !line?.productId) return;
+    if (!this.isLinePriceUntouched(line)) return; // never clobber a manual entry
+    const price = await this.resolveVendorUnitPrice(supplierId, line.productId);
+    if (price == null) return;
+    line.purchaseItemPricePerUnit = price;
+    line._autoPrice = price;
+    line.vendorPricePrefilled = true;
+    this.cdr.detectChanges();
+  }
+
+  /** Re-apply vendor pricing to all current lines when the purchase supplier changes. */
+  onPurchaseSupplierChange(): void {
+    const supplierId = this.purchase?.supplier?.supplierId;
+    if (!supplierId || !this.targetProducts?.length) return;
+    this.targetProducts.forEach(line => {
+      // Clear the "prefilled" badge for lines the user has since customized.
+      if (!this.isLinePriceUntouched(line)) {
+        (line as any).vendorPricePrefilled = false;
+        return;
+      }
+      void this.applyVendorPriceToLine(line);
+    });
   }
 
   searchProductByBarcode(barcode: string): Product | undefined {
@@ -1071,6 +1153,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           purchaseItemPricePerUnit: item.buyingPrice,
           purchaseItemExpirationDate: expirationDate,
           purchaseItemBatchNumber: item.batchNumber || null,
+          purchaseItemCompanionValue: item.companionValue ?? null,
         },
         quantityPurchased: item.quantityPurchased,
         displayQuantity: displayQty,
@@ -1095,6 +1178,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       item.product.purchaseItemPricePerUnit = item.buyingPrice;
       item.product['purchaseItemExpirationDate'] = item.expirationDate || null;
       item.product['purchaseItemBatchNumber'] = item.batchNumber || null;
+      item.product['purchaseItemCompanionValue'] = item.companionValue ?? null;
     });
 
     console.log(this.purchase);
@@ -1206,6 +1290,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     const match = list.find((s: any) => (s.name || '').toLowerCase().includes(wanted));
     if (match) {
       this.purchase.supplier = match;
+      this.onPurchaseSupplierChange();
     }
   }
 
@@ -1353,6 +1438,12 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           }
         }
 
+        const companionRaw = product['purchaseItemCompanionValue'];
+        const companionValue =
+          companionRaw != null && companionRaw !== '' && !Number.isNaN(Number(companionRaw))
+            ? Number(companionRaw)
+            : null;
+
         return buildPurchaseItemPayload(
           product,
           product['purchaseItemQuantity'],
@@ -1360,6 +1451,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           {
             expirationDate,
             batchNumber: product['purchaseItemBatchNumber'] ? String(product['purchaseItemBatchNumber']).trim() : null,
+            companionValue,
           }
         );
       });
@@ -1376,6 +1468,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
         delete purchaseItem.product['purchaseItemPricePerUnit'];
         delete purchaseItem.product['purchaseItemExpirationDate'];
         delete purchaseItem.product['purchaseItemBatchNumber'];
+        delete purchaseItem.product['purchaseItemCompanionValue'];
       });
 
       newPurchase.taxEnabled = this.taxEnabled;
@@ -1590,6 +1683,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       this.hasSingleSupplier = Array.isArray(this.suppliers) && this.suppliers.length === 1;
       if (this.hasSingleSupplier && !this.purchase.supplier) {
         this.purchase.supplier = this.suppliers[0];
+        this.onPurchaseSupplierChange();
       }
     } catch (err: any) {
       this.messageService.add({

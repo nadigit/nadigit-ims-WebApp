@@ -432,6 +432,28 @@
 																		<i class="pi pi-exclamation-circle mr-1"></i>
 																		{{ 'profile_mode_fashion_order_variant_required' | translate }}
 																	</small>
+																	<!-- Sale-line options (components/cuts) -->
+																	<div class="order-line-options" *ngIf="hasLineOptions(product)">
+																		<button pButton pRipple type="button"
+																			class="p-button-sm p-button-outlined order-line-options__btn"
+																			icon="pi pi-sliders-h"
+																			[label]="lineOptionsCount(product) > 0 ? (('line_option_options' | translate) + ' (' + lineOptionsCount(product) + ')') : ('line_option_add_option' | translate)"
+																			(click)="openLineOptionsDialog(product)"></button>
+																		<span class="order-line-options__chips" *ngIf="lineOptionsCount(product) > 0">
+																			<p-tag *ngFor="let lbl of lineOptionsSummary(product)" [value]="lbl" severity="info" styleClass="text-xs"></p-tag>
+																		</span>
+																		<small class="order-line-product__hint order-line-product__hint--error" *ngIf="submitted && !lineOptionsValid(product)">
+																			<i class="pi pi-exclamation-circle mr-1"></i>{{ 'line_options_line_invalid' | translate }}
+																		</small>
+																	</div>
+																	<!-- Portion selector (whole / half / quarter / eighth) -->
+																	<div class="order-line-portion" *ngIf="portionSelectionEnabled">
+																		<span class="order-line-product__hint mr-1">{{ 'portion' | translate }}:</span>
+																		<p-selectButton [options]="portionOptions" [ngModel]="getLinePortionFraction(product)"
+																			(onChange)="setLinePortionFraction(product, $event.value)" [ngModelOptions]="{ standalone: true }"
+																			optionLabel="label" optionValue="value" [allowEmpty]="false"
+																			styleClass="order-line-portion__btns"></p-selectButton>
+																	</div>
 																</div>
 															</div>
 														</td>
@@ -1437,3 +1459,40 @@
 
 	</div>
 </div>
+
+<!-- Sale-line options picker -->
+<p-dialog [(visible)]="optionsDialogVisible"
+  [header]="(optionsLine?.name || '') + ' — ' + ('line_option_options' | translate)"
+  [modal]="true" [style]="{ width: 'min(94vw, 560px)' }" [breakpoints]="{'640px': '95vw'}"
+  [draggable]="false" [resizable]="false" (onHide)="closeLineOptionsDialog()">
+  <div *ngIf="optionsLine" class="line-options-picker">
+    <div class="line-options-picker__set" *ngFor="let set of getLineOptionSets(optionsLine)">
+      <div class="line-options-picker__set-head">
+        <span class="font-semibold text-900">{{ set.label }}</span>
+        <span class="text-500 text-sm ml-2">
+          {{ (set.selectionMode === 'SINGLE' ? 'line_option_mode_single' : 'line_option_mode_multi') | translate }}
+          <ng-container *ngIf="set.minSelect || set.maxSelect != null">
+            · {{ set.minSelect || 0 }}–{{ set.maxSelect != null ? set.maxSelect : '∞' }}
+          </ng-container>
+        </span>
+      </div>
+      <div class="line-options-picker__options">
+        <ng-container *ngFor="let opt of set.options">
+          <div class="line-options-picker__option" *ngIf="opt.active !== false"
+            [class.line-options-picker__option--on]="isOptionSelected(optionsLine, set, opt)"
+            (click)="toggleOption(optionsLine, set, opt)">
+            <i class="pi" [ngClass]="isOptionSelected(optionsLine, set, opt) ? 'pi-check-circle text-primary' : 'pi-circle text-400'"></i>
+            <span>{{ opt.label }}</span>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+    <div *ngIf="!getLineOptionSets(optionsLine).length" class="text-500 text-sm text-center py-3">
+      {{ 'line_options_none_for_product' | translate }}
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple type="button" class="p-button-primary" [label]="'done' | translate"
+      icon="pi pi-check" (click)="closeLineOptionsDialog()"></button>
+  </ng-template>
+</p-dialog>

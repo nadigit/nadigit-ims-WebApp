@@ -611,10 +611,37 @@
                                                         (click)="viewProductDetails(orderItem?.product)"
                                                         style="cursor: pointer;" />
                                                     <div class="product-info">
-                                                        <span class="product-name" 
+                                                        <span class="product-name"
                                                             (click)="viewProductDetails(orderItem?.product)"
                                                             style="cursor: pointer;">{{ orderItem?.product?.name || 'N/A' }}</span>
                                                         <span class="product-category">{{ orderItem?.product?.category?.categoryName }}</span>
+
+                                                        <!-- Selected components / line options (cuts) -->
+                                                        <div class="line-detail-options" *ngIf="orderItem?.selectedOptions?.length">
+                                                            <p-tag *ngFor="let opt of orderItem.selectedOptions"
+                                                                [value]="opt.label || opt.code" severity="info"
+                                                                styleClass="text-xs"></p-tag>
+                                                        </div>
+
+                                                        <!-- Portion sold (whole / half / ...) -->
+                                                        <small class="line-detail-portion text-600"
+                                                            *ngIf="orderItem?.portionFraction != null && orderItem.portionFraction !== 1">
+                                                            <i class="pi pi-chart-pie mr-1"></i>{{ 'portion' | translate }}: {{ portionLabel(orderItem.portionFraction) }}
+                                                        </small>
+
+                                                        <!-- Price-rule adjustments (deductions / surcharges) -->
+                                                        <div class="line-detail-adjustments" *ngIf="orderItem?.adjustments?.length">
+                                                            <small *ngFor="let adj of orderItem.adjustments" class="block"
+                                                                [ngClass]="adj.amount < 0 ? 'text-green-600' : 'text-orange-600'">
+                                                                {{ adj.label || adj.ruleCode }}:
+                                                                {{ adj.amount | number:'1.2-2' }} {{ currency }}
+                                                            </small>
+                                                            <small class="block text-500"
+                                                                *ngIf="orderItem?.subTotal != null && orderItem?.adjustedSubTotal != null">
+                                                                {{ 'subtotal' | translate }}: {{ orderItem.subTotal | number:'1.2-2' }} {{ currency }}
+                                                                → {{ orderItem.adjustedSubTotal | number:'1.2-2' }} {{ currency }}
+                                                            </small>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>

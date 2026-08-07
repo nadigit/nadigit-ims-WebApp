@@ -131,6 +131,13 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     pendingDowngradeAction: 'offline' | 'registration' | null = null;
     copilotPrompt = '';
     copilotLoading = false;
+
+    // Voice dictation (Web Speech API) — lets the user speak into the composer.
+    copilotVoiceSupported = typeof window !== 'undefined'
+        && (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
+    copilotListening = false;
+    private copilotRecognition: any = null;
+    private copilotVoiceBaseText = '';
     copilotResponse: NadiPilotResponseDTO | null = null;
     copilotHistory: Array<{ prompt: string; response: NadiPilotResponseDTO; at: string }> = [];
     copilotSelectedShopId: number | null = null;
@@ -165,7 +172,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         { key: 'ai_copilot_prompt_stockout', icon: 'pi-exclamation-circle' },
         { key: 'ai_copilot_prompt_reorder', icon: 'pi-shopping-cart' },
         { key: 'ai_copilot_prompt_risk', icon: 'pi-chart-line' },
-        { key: 'ai_copilot_prompt_trends', icon: 'pi-lightbulb' },
+        { key: 'ai_copilot_prompt_trends', icon: 'pi-star' },
         { key: 'ai_copilot_prompt_season', icon: 'pi-calendar' },
     ];
 
@@ -591,6 +598,10 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (this.copilotToggleSubscription) {
             this.copilotToggleSubscription.unsubscribe();
         }
+        if (this.copilotRecognition) {
+            try { this.copilotRecognition.abort(); } catch { /* ignore */ }
+            this.copilotRecognition = null;
+        }
     }
 
     async login() {
@@ -924,6 +935,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (normalized.includes('user')) {
             return this.translate.instant('users_menu_title');
         }
+        if (normalized.includes('organization')) {
+            return this.translate.instant('organizations');
+        }
         return resource;
     }
 
@@ -938,6 +952,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         if (normalized.includes('user')) {
             return this.translate.instant('license_downgrade_action_users');
         }
+        if (normalized.includes('organization')) {
+            return this.translate.instant('license_downgrade_action_organizations');
+        }
         return this.translate.instant('view_details');
     }
 
@@ -951,6 +968,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         }
         if (normalized.includes('user')) {
             return this.translate.instant('license_downgrade_action_hint_users');
+        }
+        if (normalized.includes('organization')) {
+            return this.translate.instant('license_downgrade_action_hint_organizations');
         }
         return '';
     }
@@ -978,6 +998,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         }
         if (normalized.includes('user')) {
             return ['/administration/users'];
+        }
+        if (normalized.includes('organization')) {
+            return ['/administration/my-company'];
         }
         return null;
     }
@@ -1093,6 +1116,10 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     }
 
     async askAiCopilot(): Promise<void> {
+        // Stop any active dictation so its final transcript is committed before we send.
+        if (this.copilotListening) {
+            this.stopCopilotDictation();
+        }
         const message = (this.copilotPrompt || '').trim();
         if (!message) {
             this.messageService.add({
@@ -1209,6 +1236,119 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             event.preventDefault();
             this.askAiCopilot();
         }
+    }
+
+    /** Toggle voice dictation into the composer using the browser's Web Speech API. */
+    toggleCopilotDictation(): void {
+        if (this.copilotListening) {
+            this.stopCopilotDictation();
+        } else {
+            this.startCopilotDictation();
+        }
+    }
+
+    private startCopilotDictation(): void {
+        if (!this.copilotVoiceSupported || this.copilotListening) {
+            return;
+        }
+        const SpeechRecognitionImpl: any = (window as any).SpeechRecognition
+            || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognitionImpl) {
+            return;
+        }
+
+        const recognition = new SpeechRecognitionImpl();
+        recognition.lang = this.copilotVoiceLocale();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        // Keep whatever was already typed so dictation appends rather than replaces.
+        this.copilotVoiceBaseText = this.copilotPrompt || '';
+
+        recognition.onresult = (event: any) => {
+            let finalText = '';
+            let interimText = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0]?.transcript ?? '';
+                if (event.results[i].isFinal) {
+                    finalText += transcript;
+                } else {
+                    interimText += transcript;
+                }
+            }
+            if (finalText) {
+                this.copilotVoiceBaseText = this.appendSpokenText(this.copilotVoiceBaseText, finalText);
+            }
+            this.copilotPrompt = interimText
+                ? this.appendSpokenText(this.copilotVoiceBaseText, interimText)
+                : this.copilotVoiceBaseText;
+        };
+
+        recognition.onerror = (event: any) => {
+            const err = event?.error;
+            if (err === 'no-speech' || err === 'aborted') {
+                return; // benign — user paused or stopped manually
+            }
+            const detailKey = (err === 'not-allowed' || err === 'service-not-allowed')
+                ? 'ai_copilot_voice_denied'
+                : 'ai_copilot_voice_error';
+            this.messageService.add({
+                severity: 'warn',
+                summary: this.translate.instant('ai_copilot_title'),
+                detail: this.translate.instant(detailKey),
+                life: 4000
+            });
+        };
+
+        recognition.onend = () => {
+            this.copilotListening = false;
+            this.copilotRecognition = null;
+            // Drop any trailing interim text that never finalized.
+            this.copilotPrompt = this.copilotVoiceBaseText;
+            setTimeout(() => this.copilotInputField?.nativeElement?.focus(), 0);
+        };
+
+        try {
+            recognition.start();
+            this.copilotRecognition = recognition;
+            this.copilotListening = true;
+        } catch {
+            this.copilotListening = false;
+            this.copilotRecognition = null;
+        }
+    }
+
+    private stopCopilotDictation(): void {
+        if (!this.copilotRecognition) {
+            this.copilotListening = false;
+            return;
+        }
+        try {
+            this.copilotRecognition.stop();
+        } catch {
+            /* ignore — onend still resets state */
+        }
+    }
+
+    /** Join dictated text onto existing text with a single separating space when needed. */
+    private appendSpokenText(base: string, addition: string): string {
+        const trimmedAddition = addition.replace(/^\s+/, '');
+        if (!base) {
+            return trimmedAddition;
+        }
+        return /\s$/.test(base) ? base + trimmedAddition : base + ' ' + trimmedAddition;
+    }
+
+    /** Map the active UI language to a BCP-47 locale for speech recognition. */
+    private copilotVoiceLocale(): string {
+        const map: { [k: string]: string } = {
+            en: 'en-US',
+            fr: 'fr-FR',
+            es: 'es-ES',
+            ar: 'ar-SA'
+        };
+        const lang = (this.translate.currentLang || this.translate.defaultLang || 'en').slice(0, 2).toLowerCase();
+        return map[lang] || 'en-US';
     }
 
     toggleCopilotExpanded(): void {
@@ -1614,7 +1754,7 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
             case 'order_return': return 'pi-replay';
             case 'product': return 'pi-box';
             case 'kpi': return 'pi-chart-bar';
-            case 'opportunity': return 'pi-lightbulb';
+            case 'opportunity': return 'pi-star';
             case 'season': return 'pi-calendar';
             case 'basket': return 'pi-link';
             case 'pricing': return 'pi-tag';
@@ -2355,6 +2495,9 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     }
 
     closeCopilotPanel(restoreFocus = true): void {
+        if (this.copilotListening) {
+            this.stopCopilotDictation();
+        }
         this.isCopilotOpen = false;
         this.syncCopilotUiState();
         if (restoreFocus) {

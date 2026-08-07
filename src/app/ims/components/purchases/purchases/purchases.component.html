@@ -584,6 +584,7 @@
                                         <p-dropdown appendTo="body" [(ngModel)]="purchase.supplier" name="supplier"
                                             inputId="supplier" ngDefaultControl optionLabel="name" [options]="suppliers"
                                             dataKey="supplierId"
+                                            (onChange)="onPurchaseSupplierChange()"
                                             [filter]="true" filterBy="name" placeholder="{{ 'select_supplier_option' | translate }}"
                                             required styleClass="w-full"
                                             [ngClass]="{'ng-invalid ng-dirty' : submitted && !purchase.supplier}">
@@ -841,8 +842,13 @@
                                                 mode="decimal" [min]="0.01" [step]="0.01"
                                                 [minFractionDigits]="0" [maxFractionDigits]="2"
                                                 styleClass="w-full"
+                                                (onInput)="product.vendorPricePrefilled = false"
                                                 [ngClass]="{'ng-invalid ng-dirty' : submitted && !product.purchaseItemPricePerUnit}">
                                             </p-inputNumber>
+                                            <i *ngIf="product.vendorPricePrefilled"
+                                                class="pi pi-tag text-green-500 text-xs ml-1 cursor-pointer"
+                                                [pTooltip]="'vendor_price_prefilled_tooltip' | translate: { supplier: purchase?.supplier?.name }"
+                                                tooltipPosition="top"></i>
                                         </div>
                                     </td>
                                     <td class="col-qty" [attr.data-label]="'quantity' | translate">
@@ -912,6 +918,20 @@
                                                         [placeholder]="'batch_number' | translate"
                                                         class="w-full"
                                                         [ngClass]="{'ng-invalid ng-dirty': submitted && isProductLineBatchExpiryInvalid(product)}" />
+                                                </div>
+                                                <div class="purchase-line-batch__field" *ngIf="companionValueCaptureEnabled">
+                                                    <label class="ims-form-label">
+                                                        {{ 'companion_value' | translate }}
+                                                        <i class="pi pi-info-circle text-500 text-xs ml-1"
+                                                            [pTooltip]="'companion_value_hint' | translate"
+                                                            tooltipPosition="top"></i>
+                                                    </label>
+                                                    <p-inputNumber [(ngModel)]="product.purchaseItemCompanionValue"
+                                                        mode="decimal" [min]="0"
+                                                        [minFractionDigits]="0" [maxFractionDigits]="2"
+                                                        [placeholder]="'companion_value' | translate"
+                                                        styleClass="w-full">
+                                                    </p-inputNumber>
                                                 </div>
                                             </div>
                                         </div>

@@ -37,6 +37,7 @@ export interface POSProductDTO {
   stockTrackingMode?: string;
   quantityPrecision?: number;
   active?: boolean;
+  productType?: string; // 'PRODUCT' | 'SERVICE' — services have no stock and are always sellable
 }
 
 export interface POSCartItemDTO {
@@ -55,6 +56,11 @@ export interface POSCartItemDTO {
   measureUnit?: string;
   stockTrackingMode?: string;
   notes?: string;
+  categoryId?: number;
+  /** CSV of selected line_option ids (components/cuts) on this cart line. */
+  selectedOptionIds?: string;
+  /** Portion of a divisible unit sold (1 = whole, 0.5 = half, ...). */
+  portionFraction?: number;
 }
 
 export type POSCartStatus = 'ACTIVE' | 'HOLD' | 'COMPLETED' | 'CANCELLED';

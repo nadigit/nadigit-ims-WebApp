@@ -41,7 +41,7 @@ type AppConfigCategoryId =
   | 'system'
   | 'other';
 
-type SettingsChannelId = 'email' | 'telegram' | 'whatsapp' | 'ai' | 'trends' | 'notifications';
+type SettingsChannelId = 'email' | 'telegram' | 'whatsapp' | 'ai' | 'trends' | 'notifications' | 'ecommerce';
 
 interface AppConfigSection {
   id: AppConfigCategoryId;
@@ -81,6 +81,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
   aiProviderOptions: { label: string; value: string }[] = [];
   aiInvoiceModeOptions: { label: string; value: string }[] = [];
   taxModeOptions: { label: string; value: string }[] = [];
+  marginGuardModeOptions: { label: string; value: string }[] = [];
+  pricingRulesModeOptions: { label: string; value: string }[] = [];
   /** 0 = global parameters, 1 = integrations, 2 = banks, 3 = tax rules */
   activeTabIndex = 0;
 
@@ -128,6 +130,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     'sales.stock.include.approved.writeoff.quantity',
     'sales.stock.soft.reservation.enabled',
     'sales.stock.soft.reservation.ttl.minutes',
+    'sales.margin.guard.strict',
     'pricing.allow.custom.override',
     'cash.register.auto.schedule.enabled',
     'pos.credit.order.auto.delivered',
@@ -223,6 +226,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     { id: 'whatsapp', icon: 'pi pi-phone', titleKey: 'whatsapp_configuration', descKey: 'whatsapp_configuration_card_hint' },
     { id: 'ai', icon: 'pi pi-bolt', titleKey: 'ai_integration_configuration', descKey: 'ai_integration_configuration_card_hint' },
     { id: 'trends', icon: 'pi pi-chart-line', titleKey: 'trends_integration_title', descKey: 'trends_integration_card_hint' },
+    { id: 'ecommerce', icon: 'pi pi-shopping-cart', titleKey: 'ecommerce_integrations_title', descKey: 'ecommerce_integrations_card_hint' },
     { id: 'notifications', icon: 'pi pi-bell', titleKey: 'notification_recipients', descKey: 'notification_recipients_description' },
   ];
 
@@ -415,6 +419,18 @@ export class SettingsComponent implements OnInit, OnDestroy {
     return opt ? opt.label : (value || '');
   }
 
+  getMarginGuardModeLabel(value: string): string {
+    const v = (value || '').toUpperCase();
+    const opt = this.marginGuardModeOptions.find(o => o.value === v);
+    return opt ? opt.label : (value || '');
+  }
+
+  getPricingRulesModeLabel(value: string): string {
+    const v = (value || '').toUpperCase();
+    const opt = this.pricingRulesModeOptions.find(o => o.value === v);
+    return opt ? opt.label : (value || '');
+  }
+
   private async maybeRefreshProcessMode(key: string | undefined): Promise<void> {
     if (key === 'sales.process.mode' || key === 'purchase.process.mode' || key === 'sales.pos.enabled') {
       await this.processModeService.refresh();
@@ -461,6 +477,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
         break;
       case 'trends':
         this.navigateToTrendsConfig();
+        break;
+      case 'ecommerce':
+        void this.router.navigate(['/administration/settings/integrations']);
         break;
       case 'notifications':
         this.navigateToNotificationRecipients();
@@ -611,6 +630,15 @@ export class SettingsComponent implements OnInit, OnDestroy {
     if (k === 'tax.calculation.mode') {
       return this.getTaxModeLabel(String(v));
     }
+    if (k === 'sales.margin.guard.mode') {
+      return this.getMarginGuardModeLabel(String(v));
+    }
+    if (k === 'sales.pricing.rules.mode') {
+      return this.getPricingRulesModeLabel(String(v));
+    }
+    if (k === 'sales.margin.min.percent') {
+      return `${v} %`;
+    }
     if (k === 'cashRegDefaultOpeningBalance') {
       return `${v} ${this.appConfigCurrency?.value ?? ''}`.trim();
     }
@@ -637,6 +665,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       k === 'warehouse.transfer.auto.apply' ||
       k === 'sales.stock.include.approved.writeoff.quantity' ||
       k === 'sales.stock.soft.reservation.enabled' ||
+      k === 'sales.margin.guard.strict' ||
       k === 'pricing.allow.custom.override' ||
       k === 'pricing.tax.inclusive' ||
       k === 'order.backoffice.auto.status.enabled' ||
@@ -908,6 +937,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.taxModeOptions = [
       { label: this.translate.instant('tax_mode_GLOBAL'), value: 'GLOBAL' },
       { label: this.translate.instant('tax_mode_RULES'), value: 'RULES' },
+    ];
+
+    this.marginGuardModeOptions = [
+      { label: this.translate.instant('margin_guard_mode_OFF'), value: 'OFF' },
+      { label: this.translate.instant('margin_guard_mode_WARN'), value: 'WARN' },
+      { label: this.translate.instant('margin_guard_mode_BLOCK'), value: 'BLOCK' },
+    ];
+
+    this.pricingRulesModeOptions = [
+      { label: this.translate.instant('pricing_rules_mode_OFF'), value: 'OFF' },
+      { label: this.translate.instant('pricing_rules_mode_RULES'), value: 'RULES' },
     ];
 
     this.loadParameterUiPreferences();

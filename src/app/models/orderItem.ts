@@ -18,7 +18,16 @@ export class OrderItem {
   lineGrossAmount?: number;
   /** Decimal snapshot used by backend (e.g. 0.2 for 20%). */
   taxRateUsed?: number;
-  
+
+  /** Selected sale-line options (components/cuts). Flat wire format: [{ lineOptionId }]. */
+  selectedOptions?: { lineOptionId: number; code?: string; label?: string }[];
+  /** Portion of a divisible unit sold (1 = whole, 0.5 = half, ...); scales PER_PORTION_FRACTION rules. */
+  portionFraction?: number;
+  /** Read-only: goods amount after line adjustments (rules), and the applied adjustments. */
+  adjustedSubTotal?: number;
+  lineAdjustmentsTotal?: number;
+  adjustments?: { orderItemAdjustmentId?: number; ruleCode?: string; label?: string; amount: number }[];
+
   // ⚠️ NEW FIELDS for cost and profit calculation
   costPerUnit?: number;      // Cost per unit (from batches or price history)
   totalCost?: number;        // Total cost for this item (costPerUnit × quantity)

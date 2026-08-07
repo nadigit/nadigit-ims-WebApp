@@ -1,0 +1,120 @@
+<div class="grid">
+  <div class="col-12">
+    <div class="card px-6 py-6">
+      <div class="mb-4">
+        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+          <div>
+            <h2 class="m-0 text-900">{{ 'batch_expiry_title' | translate }}</h2>
+            <p class="text-600 mt-2 mb-0">{{ 'batch_expiry_subtitle' | translate }}</p>
+          </div>
+          <div class="ims-export-actions flex align-items-center gap-2 flex-wrap">
+            <button pButton type="button" icon="pi pi-sync" class="p-button-text"
+              [pTooltip]="'refresh' | translate" tooltipPosition="bottom"
+              [disabled]="isLoading || !available" (click)="load()"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Not available (feature not in plan) -->
+      <p-message *ngIf="!available" severity="warn" styleClass="w-full mb-3"
+        [text]="'batch_expiry_not_in_plan' | translate"></p-message>
+
+      <ng-container *ngIf="available">
+        <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">
+          <div class="flex flex-column" style="min-width: 12rem; max-width: 16rem">
+            <label class="reports-filter-label">
+              <i class="pi pi-filter mr-2 text-primary"></i>{{ 'status' | translate }}
+            </label>
+            <p-dropdown [options]="statusOptions" [(ngModel)]="status" optionValue="value"
+              appendTo="body" styleClass="w-full" (onChange)="onFilterChange()">
+              <ng-template pTemplate="selectedItem" let-opt>{{ opt.label | translate }}</ng-template>
+              <ng-template pTemplate="item" let-opt>{{ opt.label | translate }}</ng-template>
+            </p-dropdown>
+          </div>
+          <div class="flex flex-column" style="min-width: 10rem; max-width: 12rem" *ngIf="status !== 'expired'">
+            <label class="reports-filter-label">
+              <i class="pi pi-history mr-2 text-primary"></i>{{ 'batch_expiry_window_days' | translate }}
+            </label>
+            <p-inputNumber [(ngModel)]="warningDays" [min]="1" [max]="365" [showButtons]="true"
+              [useGrouping]="false" (onBlur)="onFilterChange()"></p-inputNumber>
+          </div>
+          <div class="flex flex-column" style="min-width: 10rem; max-width: 13rem" *ngIf="status !== 'expiring_soon'">
+            <label class="reports-filter-label">
+              <i class="pi pi-clock mr-2 text-primary"></i>{{ 'batch_expiry_lookback_days' | translate }}
+            </label>
+            <p-inputNumber [(ngModel)]="expiredLookbackDays" [min]="1" [max]="1095" [showButtons]="true"
+              [useGrouping]="false" (onBlur)="onFilterChange()"></p-inputNumber>
+          </div>
+          <div class="flex align-items-center gap-2 ml-auto" *ngIf="!isLoading">
+            <p-tag severity="danger" [value]="('expired' | translate) + ': ' + expiredCount"></p-tag>
+            <p-tag severity="warning" [value]="('expiring_soon' | translate) + ': ' + expiringSoonCount"></p-tag>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="flex justify-content-center py-6" *ngIf="isLoading">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+        </div>
+
+        <!-- Table -->
+        <p-table *ngIf="!isLoading" [value]="rows" dataKey="batchId" [responsive]="true"
+          styleClass="p-datatable-gridlines p-datatable-striped"
+          [paginator]="rows.length > 15" [rows]="15" [rowsPerPageOptions]="[15, 30, 50]">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>{{ 'product' | translate }}</th>
+              <th>{{ 'batch_number' | translate }}</th>
+              <th>{{ 'warehouse' | translate }}</th>
+              <th>{{ 'batch_quantity' | translate }}</th>
+              <th>{{ 'batch_expiration_date' | translate }}</th>
+              <th>{{ 'status' | translate }}</th>
+              <th style="width: 5rem">{{ 'actions' | translate }}</th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-row>
+            <tr>
+              <td>
+                <a class="font-semibold text-primary cursor-pointer" (click)="openProduct(row)">{{ row.productName }}</a>
+              </td>
+              <td><span class="reference-badge">{{ row.batchNumber || '—' }}</span></td>
+              <td><span class="text-700">{{ row.warehouseName || '—' }}</span></td>
+              <td>
+                <span class="font-semibold text-900">{{ row.quantityAvailable }}</span>
+                <p-tag *ngIf="row.quantityAvailable === 0" class="ml-2" severity="secondary"
+                  [value]="'batch_expiry_depleted' | translate" styleClass="text-xs"></p-tag>
+              </td>
+              <td>
+                <div class="flex flex-column gap-1">
+                  <span>{{ row.expirationDate | date:'mediumDate' }}</span>
+                  <span class="text-xs text-500">{{ daysLabel(row) }}</span>
+                </div>
+              </td>
+              <td>
+                <p-tag [value]="statusLabel(row.status)" [severity]="statusSeverity(row.status)"
+                  [icon]="row.status === 'EXPIRED' ? 'pi pi-times-circle' : 'pi pi-exclamation-triangle'"></p-tag>
+              </td>
+              <td>
+                <button pButton type="button" icon="pi pi-arrow-right"
+                  class="p-button-rounded p-button-text p-button-primary"
+                  [pTooltip]="'batch_expiry_open_product' | translate" tooltipPosition="top"
+                  (click)="openProduct(row)"></button>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="7">
+                <div class="flex flex-column align-items-center justify-content-center py-6 gap-3">
+                  <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green"><i class="pi pi-check-circle"></i></div>
+                  <p class="text-600 font-medium m-0">{{ 'batch_expiry_empty' | translate }}</p>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </ng-container>
+    </div>
+  </div>
+</div>

@@ -586,6 +586,19 @@
         tooltipPosition="top"
         [disabled]="copilotLoading || copilotAttachmentBusy"
         (click)="onCopilotAttachClick()"></button>
+      <button
+        *ngIf="copilotVoiceSupported"
+        pButton
+        type="button"
+        [icon]="copilotListening ? 'pi pi-stop-circle' : 'pi pi-microphone'"
+        class="copilot-mic-btn p-button-rounded p-button-text"
+        [class.listening]="copilotListening"
+        [attr.aria-label]="(copilotListening ? 'ai_copilot_voice_stop' : 'ai_copilot_voice_start') | translate"
+        [attr.aria-pressed]="copilotListening"
+        [pTooltip]="(copilotListening ? 'ai_copilot_voice_stop' : 'ai_copilot_voice_start') | translate"
+        tooltipPosition="top"
+        [disabled]="copilotLoading"
+        (click)="toggleCopilotDictation()"></button>
       <textarea
         #copilotInputField
         pInputTextarea
@@ -593,7 +606,7 @@
         rows="1"
         class="w-full copilot-prompt-textarea"
         [(ngModel)]="copilotPrompt"
-        [placeholder]="'ai_copilot_placeholder' | translate"
+        [placeholder]="(copilotListening ? 'ai_copilot_voice_listening' : 'ai_copilot_placeholder') | translate"
         (keydown)="onCopilotComposerKeydown($event)"></textarea>
       <button
         pButton
@@ -786,7 +799,7 @@
         </div>
 
         <div class="system-info-plan-card__actions">
-          <a pButton pRipple [href]="brandAssets.siteUrl" target="_blank" rel="noopener" class="p-button-sm p-button-outlined"
+          <a pButton pRipple [href]="brandAssets.docsUrl" target="_blank" rel="noopener" class="p-button-sm p-button-outlined"
             icon="pi pi-book" [label]="'documentation' | translate"></a>
           <a pButton pRipple [href]="brandAssets.corporateUrl + '/contact-us'" target="_blank" rel="noopener"
             class="p-button-sm system-info-feedback-btn" icon="pi pi-send" [label]="'feedback' | translate"></a>
@@ -996,11 +1009,11 @@
 
     <div class="system-info-footer">
       <div class="system-info-footer__links">
-        <a [href]="brandAssets.siteUrl" target="_blank" rel="noopener" class="system-info-footer__link">
+        <a [href]="brandAssets.docsUrl" target="_blank" rel="noopener" class="system-info-footer__link">
           <i class="pi pi-book"></i>
           <span>{{ 'documentation' | translate }}</span>
         </a>
-        <a [href]="brandAssets.siteUrl" target="_blank" rel="noopener" class="system-info-footer__link">
+        <a [href]="brandAssets.docsUrl" target="_blank" rel="noopener" class="system-info-footer__link">
           <i class="pi pi-question-circle"></i>
           <span>{{ 'help_center' | translate }}</span>
         </a>

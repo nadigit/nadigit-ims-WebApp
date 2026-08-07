@@ -23,6 +23,19 @@ export class ProductService {
     this.jwt = this.keycloakService.getToken();
   }
 
+  /** Global batch-expiry overview: expired / expiring-soon lots across all products. */
+  getBatchExpiryOverview(status: string = 'all', warningDays: number = 30, expiredLookbackDays: number = 90) {
+    const headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    const params = new HttpParams()
+      .set('status', status)
+      .set('warningDays', String(warningDays))
+      .set('expiredLookbackDays', String(expiredLookbackDays));
+    return this.http.get<any[]>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}batches/expiry`,
+      { headers, params }
+    );
+  }
+
   saveProduct(data: any) {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), auditSaveAction('product', data, 'productId', 'reference'));
     return this.http.post(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, data, { headers: headers })
@@ -371,10 +384,11 @@ export class ProductService {
    * @param productId Product ID
    * @returns Observable with array of ProductBatch
    */
-  getProductBatches(productId: number) {
+  getProductBatches(productId: number, includeInactive: boolean = false) {
     this.loadToken();
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
-    return this.http.get(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/batches`, { headers });
+    const params = new HttpParams().set('includeInactive', String(includeInactive));
+    return this.http.get(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/batches`, { headers, params });
   }
 
   /**
@@ -463,6 +477,39 @@ export class ProductService {
     const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
     const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}aggregated/${encodeURIComponent(reference)}`;
     return this.http.get(url, { headers });
+  }
+
+  // ---- Approved-vendor list (multi-supplier sourcing) ----
+  // A product may be sourced from several suppliers. product.supplier remains the default vendor;
+  // these endpoints manage the full approved-vendor list without disturbing existing behavior.
+  getProductSuppliers(productId: number) {
+    this.loadToken();
+    let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt });
+    return this.http.get<any[]>(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/suppliers`, { headers });
+  }
+
+  addProductSupplier(productId: number, body: any) {
+    this.loadToken();
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Added product supplier');
+    return this.http.post<any>(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/suppliers`, body, { headers });
+  }
+
+  updateProductSupplier(productId: number, productSupplierId: number, body: any) {
+    this.loadToken();
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Updated product supplier');
+    return this.http.put<any>(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/suppliers/${productSupplierId}`, body, { headers });
+  }
+
+  setDefaultProductSupplier(productId: number, productSupplierId: number) {
+    this.loadToken();
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Set default product supplier');
+    return this.http.put<any>(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/suppliers/${productSupplierId}/default`, {}, { headers });
+  }
+
+  removeProductSupplier(productId: number, productSupplierId: number) {
+    this.loadToken();
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Removed product supplier');
+    return this.http.delete(`${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${productId}/suppliers/${productSupplierId}`, { headers });
   }
 
 }

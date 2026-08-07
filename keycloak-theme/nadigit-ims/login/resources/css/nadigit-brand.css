@@ -23,6 +23,17 @@ html.login-pf {
   background-size: cover !important;
 }
 
+/* The theme was designed for PatternFly v5's white login card (dark text on white). On newer
+   Keycloak the v5 vendor stylesheet (theme.properties: stylesCommon) may not load, leaving the
+   card on a dark default surface — so the dark text becomes unreadable. Force the intended light
+   surface here so it holds regardless of the base PatternFly version. */
+.pf-v5-c-login__main,
+.pf-v5-c-login__main-header,
+.pf-v5-c-login__main-body,
+.pf-v5-c-login__main-footer {
+  background-color: #ffffff !important;
+}
+
 .pf-v5-c-login__main {
   position: relative;
   border-radius: var(--nadigit-card-radius);
@@ -64,6 +75,94 @@ html.login-pf {
 .pf-v5-c-form-control:focus {
   border-color: var(--nadigit-saas);
   box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.18);
+}
+
+/* Self-contained input styling: the base PatternFly stylesheet (which gives .pf-v5-c-form-control
+   its border/padding/height) may not apply on this Keycloak/PatternFly version, leaving the fields
+   invisible. Style the actual inputs directly so text/email/password fields are always visible and
+   on-brand, independent of the base. */
+.pf-v5-c-login__main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]) {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--nadigit-border);
+  border-radius: 10px;
+  background-color: #fff;
+  color: var(--nadigit-text);
+  font: inherit;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  appearance: none;
+}
+
+.pf-v5-c-login__main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):focus {
+  border-color: var(--nadigit-saas);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.18);
+}
+
+/* Password field: render the input + reveal (eye) button as ONE unified control. The border,
+   radius and focus ring live on the .pf-v5-c-input-group container; the input and button inside
+   are made borderless/transparent — so there is no seam or gap, and the focus ring wraps the whole
+   field cleanly (fixes the split appearance on focus). */
+.pf-v5-c-login__main .pf-v5-c-input-group {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 2.75rem;
+  gap: 0;
+  border: 1px solid var(--nadigit-border);
+  border-radius: 10px;
+  background-color: #fff;
+  overflow: hidden;
+}
+.pf-v5-c-login__main .pf-v5-c-input-group:focus-within {
+  border-color: var(--nadigit-saas);
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.18);
+}
+.pf-v5-c-login__main .pf-v5-c-input-group__item {
+  display: flex;
+  margin: 0;
+  background: transparent;
+  border: 0 !important;
+}
+.pf-v5-c-login__main .pf-v5-c-input-group__item.pf-m-fill {
+  flex: 1 1 auto;
+}
+.pf-v5-c-login__main .pf-v5-c-input-group input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 2.6rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent;
+}
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 0.9rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--nadigit-text-secondary);
+  cursor: pointer;
+}
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-button:hover {
+  color: var(--nadigit-saas);
+}
+
+/* Spacing between form groups (base PatternFly margins may be absent). */
+.pf-v5-c-login__main .pf-v5-c-form__group,
+.pf-v5-c-login__main .pf-v5-c-form-control + *,
+.pf-v5-c-login__main label {
+  margin-bottom: 0.35rem;
+}
+.pf-v5-c-login__main .pf-v5-c-form__group {
+  margin-bottom: 1.1rem;
 }
 
 .pf-v5-c-button.pf-m-primary {
@@ -118,4 +217,115 @@ html.login-pf {
   #kc-header-wrapper {
     max-width: 100%;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Additional self-contained styling (resilient to the base PatternFly CSS not
+   loading on newer Keycloak). Keeps the login on-brand on quay.io/keycloak:latest.
+   --------------------------------------------------------------------------- */
+
+/* Alerts (login error / info messages) — must stay readable without the base CSS. */
+.pf-v5-c-login__main .pf-v5-c-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.pf-v5-c-login__main .pf-v5-c-alert.pf-m-danger  { background-color: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+.pf-v5-c-login__main .pf-v5-c-alert.pf-m-warning { background-color: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.pf-v5-c-login__main .pf-v5-c-alert.pf-m-success { background-color: #f0fdf4; border-color: #86efac; color: #15803d; }
+.pf-v5-c-login__main .pf-v5-c-alert.pf-m-info    { background-color: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+.pf-v5-c-login__main .pf-v5-c-alert .pf-v5-c-alert__title { font-weight: 500; }
+
+/* Primary button: block width + comfortable height even without the base CSS. */
+.pf-v5-c-login__main .pf-v5-c-button.pf-m-primary {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.6rem 1rem;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Remember-me checkbox + label alignment. */
+.pf-v5-c-login__main .pf-v5-c-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pf-v5-c-login__main .pf-v5-c-check__input { width: 1rem; height: 1rem; margin: 0; }
+.pf-v5-c-login__main .pf-v5-c-check__label { color: var(--nadigit-text-secondary); font-size: 0.9rem; }
+
+/* Links (forgot password / register). */
+.pf-v5-c-login__main a { color: var(--nadigit-saas); text-decoration: none; }
+.pf-v5-c-login__main a:hover { text-decoration: underline; }
+
+/* Username (and any standalone form control): kill PatternFly's bottom-line pseudo-element (the
+   stray "underline") and, when the control is a wrapper around the input, put the border on the
+   wrapper with a borderless input inside — one clean rounded field with a wrapping focus ring,
+   identical to the password field. */
+.pf-v5-c-login__main .pf-v5-c-form-control::after,
+.pf-v5-c-login__main .pf-v5-c-form-control::before {
+  display: none !important;
+  content: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-login__main span.pf-v5-c-form-control,
+.pf-v5-c-login__main div.pf-v5-c-form-control {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--nadigit-border);
+  border-radius: 10px;
+  background-color: #fff;
+  overflow: hidden;
+}
+.pf-v5-c-login__main span.pf-v5-c-form-control:focus-within,
+.pf-v5-c-login__main div.pf-v5-c-form-control:focus-within {
+  border-color: var(--nadigit-saas);
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.18);
+}
+.pf-v5-c-login__main .pf-v5-c-form-control > input {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: auto !important;
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+/* Inside the password input-group the group already carries the border — keep any nested
+   form-control wrapper borderless so it doesn't double up. */
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-form-control {
+  display: flex !important;
+  align-items: center !important;
+  flex: 1 1 auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 0.85rem !important;
+  min-height: auto !important;
+}
+/* Both input-group items fill the group height so the field is a consistent 2.75rem. */
+.pf-v5-c-login__main .pf-v5-c-input-group__item { align-items: stretch; }
+.pf-v5-c-login__main .pf-v5-c-input-group input,
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-button { align-self: stretch; }
+
+/* Kill the control button's PatternFly bottom-line pseudo-element (the small line under the eye icon). */
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-button::after,
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-button::before {
+  display: none !important;
+  content: none !important;
+  border: 0 !important;
 }
