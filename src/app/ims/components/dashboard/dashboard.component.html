@@ -106,7 +106,7 @@
             <i class="pi pi-bolt text-primary text-xl"></i>
             <h3 class="m-0 text-900">{{ 'quick_actions' | translate }}</h3>
         </div>
-        <div class="grid">
+        <div class="grid qa-grid">
             <!-- New Order -->
             <div class="col-6 sm:col-4 md:col-3 lg:col-2 xl:col-2" *ngIf="isAdmin || isVendor">
                 <div class="quick-action-card p-3 border-round-lg cursor-pointer hover:shadow-3 transition-duration-150"
@@ -306,17 +306,73 @@
             </div>
         </div>
 
+        <!-- Command-center headline: NadiPilot briefing + hero metric (the "first look" moment) -->
+        <div class="cc-stage" *ngIf="overview as ov">
+            <div class="cc-briefing" *ngIf="displayBriefingSegments.length">
+                <div class="cc-briefing__avatar" aria-hidden="true">
+                    <i class="pi nadipilot-mark"></i>
+                </div>
+                <div class="cc-briefing__body">
+                    <span class="cc-briefing__tag">
+                        {{ 'dashboard_briefing' | translate }}
+                        <i class="pi pi-spin pi-spinner cc-briefing__spin" *ngIf="aiBriefingLoading"></i>
+                    </span>
+                    <p class="cc-briefing__headline m-0" *ngIf="briefingHeadline">{{ briefingHeadline }}</p>
+                    <p class="cc-briefing__text m-0">
+                        <span *ngFor="let seg of displayBriefingSegments"
+                            class="cc-seg" [ngClass]="['cc-seg--' + seg.kind, seg.route ? 'cc-seg--link' : '']"
+                            (click)="goToBriefing(seg.route)">{{ seg.text }}</span>
+                    </p>
+                </div>
+                <button pButton pRipple type="button"
+                    class="cc-ask-btn p-button-sm"
+                    icon="pi nadipilot-mark"
+                    [label]="'dashboard_ask_nadipilot' | translate"
+                    (click)="openNadiPilot()"></button>
+            </div>
+
+            <div class="cc-hero-row">
+                <div class="cc-hero">
+                    <svg class="cc-hero__spark" viewBox="0 0 100 32" preserveAspectRatio="none"
+                        aria-hidden="true" *ngIf="heroSparkPoints">
+                        <defs>
+                            <linearGradient id="ccHeroFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#16C784" stop-opacity="0.35"></stop>
+                                <stop offset="100%" stop-color="#16C784" stop-opacity="0"></stop>
+                            </linearGradient>
+                        </defs>
+                        <polygon [attr.points]="heroSparkAreaPoints" fill="url(#ccHeroFill)"></polygon>
+                        <polyline [attr.points]="heroSparkPoints" fill="none" stroke="#16C784"
+                            stroke-width="1.4" vector-effect="non-scaling-stroke"></polyline>
+                    </svg>
+                    <div class="cc-hero__label">{{ 'net_profit' | translate }} · {{ 'dashboard_command_center' | translate }}</div>
+                    <div class="cc-hero__value">{{ animatedHero | currency:currency:'symbol':'1.0-0' }}</div>
+                    <div class="cc-hero__delta" *ngIf="heroDeltaText"
+                        [ngClass]="heroDeltaPositive ? 'is-up' : 'is-down'">
+                        <i class="pi" [ngClass]="heroDeltaPositive ? 'pi-arrow-up' : 'pi-arrow-down'"></i>
+                        {{ heroDeltaText }}
+                    </div>
+                    <div class="cc-hero__sub">
+                        {{ 'revenue' | translate }} {{ ov.profit.totalRevenue | currency:currency:'symbol':'1.0-0' }}
+                        · {{ 'gross_margin' | translate }} {{ formatPercentCapped(grossMarginPercent) }}
+                        · {{ ov.salesSummary.completedOrderCount }} {{ 'completed_orders' | translate }}
+                    </div>
+                </div>
+
+                <div class="cc-mini">
+                    <span class="cc-mini__label">{{ 'stock_value' | translate }}</span>
+                    <span class="cc-mini__value">{{ ov.inventory.estimatedStockValue | currency:currency:'symbol':'1.0-0' }}</span>
+                    <span class="cc-mini__foot">{{ ov.inventory.activeSkuCount }} {{ 'products' | translate }}</span>
+                </div>
+                <div class="cc-mini">
+                    <span class="cc-mini__label">{{ 'unpaid_receivables' | translate }}</span>
+                    <span class="cc-mini__value cc-mini__value--warn">{{ ov.salesSummary.totalOutstandingAmount | currency:currency:'symbol':'1.0-0' }}</span>
+                    <span class="cc-mini__foot">{{ ov.salesSummary.unpaidOrderCount }} {{ 'unpaid_orders' | translate }}</span>
+                </div>
+            </div>
+        </div>
+
         <div class="grid" *ngIf="overview as ov">
-            <div class="col-6 sm:col-4 xl:col-3">
-                <app-kpi-card [label]="'revenue' | translate" tone="amber" icon="pi pi-dollar"
-                    [value]="ov.profit.totalRevenue | currency:currency:'symbol':'1.0-0'"
-                    [deltaPercent]="revenueDeltaPercent" [sparkline]="revenueSparkline"></app-kpi-card>
-            </div>
-            <div class="col-6 sm:col-4 xl:col-3">
-                <app-kpi-card [label]="'net_profit' | translate" tone="success" icon="pi pi-wallet"
-                    [value]="ov.profit.netProfit | currency:currency:'symbol':'1.0-0'"
-                    [deltaPercent]="netProfitDeltaPercent" [sparkline]="netProfitSparkline"></app-kpi-card>
-            </div>
             <div class="col-6 sm:col-4 xl:col-3">
                 <app-kpi-card [label]="'gross_margin' | translate" tone="teal" icon="pi pi-percentage"
                     [value]="formatPercentCapped(grossMarginPercent)"
@@ -327,20 +383,9 @@
                     [value]="ov.salesSummary.averageOrderValue | currency:currency:'symbol':'1.0-0'"></app-kpi-card>
             </div>
             <div class="col-6 sm:col-4 xl:col-3">
-                <app-kpi-card [label]="'unpaid_receivables' | translate" tone="primary" icon="pi pi-arrow-circle-down"
-                    [value]="ov.salesSummary.totalOutstandingAmount | currency:currency:'symbol':'1.0-0'"
-                    [higherIsBetter]="false"
-                    [footnote]="ov.salesSummary.unpaidOrderCount + ' ' + ('unpaid_orders' | translate)"></app-kpi-card>
-            </div>
-            <div class="col-6 sm:col-4 xl:col-3">
                 <app-kpi-card [label]="'unpaid_payables' | translate" tone="orange" icon="pi pi-arrow-circle-up"
                     [value]="ov.purchaseSummary.totalOutstandingPurchaseAmount | currency:currency:'symbol':'1.0-0'"
                     [higherIsBetter]="false"></app-kpi-card>
-            </div>
-            <div class="col-6 sm:col-4 xl:col-3">
-                <app-kpi-card [label]="'stock_value' | translate" tone="blue" icon="pi pi-building"
-                    [value]="ov.inventory.estimatedStockValue | currency:currency:'symbol':'1.0-0'"
-                    [footnote]="ov.inventory.activeSkuCount + ' ' + ('products' | translate)"></app-kpi-card>
             </div>
             <div class="col-6 sm:col-4 xl:col-3">
                 <app-kpi-card [label]="'completed_orders' | translate" tone="purple" icon="pi pi-shopping-cart"
@@ -501,62 +546,36 @@
             [value]="formatNumber(canceledOrders?.length || 0)"></app-kpi-card>
     </div>
 
-    <!-- Alert Center - Admin Only -->
+    <!-- À traiter en priorité — concept panel (severity chips + colored rails), admin only -->
     <div class="col-12 lg:col-4" *ngIf="isAdmin && criticalAlerts.length > 0">
-        <p-card styleClass="shadow-2 border-round-lg h-full alert-center-card">
+        <p-card styleClass="shadow-2 border-round-lg h-full priority-panel">
             <ng-template pTemplate="header">
-                <div class="flex align-items-center gap-3 p-3 alert-header">
-                    <div class="alert-icon-wrapper">
-                        <i class="pi pi-bell text-primary text-xl"></i>
+                <div class="flex align-items-center justify-content-between gap-2 p-3">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-exclamation-triangle text-primary text-xl"></i>
+                        <h5 class="m-0 text-900">{{ 'dashboard_priorities_title' | translate }}</h5>
                     </div>
-                    <div class="flex-1">
-                        <h5 class="m-0 text-900">{{ 'alert_center' | translate }}</h5>
-                        <p class="m-0 text-500 text-sm mt-1">{{ 'alert_center_subtitle' | translate }}</p>
-                    </div>
-                    <p-badge [value]="criticalAlerts.length" severity="danger" [style]="{'min-width': '2rem', 'height': '2rem', 'display': 'flex', 'align-items': 'center', 'justify-content': 'center'}"></p-badge>
+                    <span class="priority-panel__count">{{ criticalAlerts.length }} {{ 'dashboard_priorities_signals' | translate }}</span>
                 </div>
             </ng-template>
-            <div class="alert-list">
-                <div *ngFor="let alert of criticalAlerts; let i = index" 
-                    class="alert-item"
-                    [routerLink]="alert.action"
-                    [ngClass]="{
-                        'alert-error': alert.severity === 'error',
-                        'alert-warning': alert.severity === 'warn',
-                        'alert-info': alert.severity === 'info'
-                    }">
-                    <div class="flex align-items-start gap-3">
-                        <div class="alert-icon" [ngClass]="{
-                            'alert-icon-error': alert.severity === 'error',
-                            'alert-icon-warning': alert.severity === 'warn',
-                            'alert-icon-info': alert.severity === 'info'
-                        }">
-                            <i [class]="'pi ' + alert.icon"></i>
-                        </div>
-                        <div class="flex-1 alert-content">
-                            <div class="alert-message text-900 font-medium">
-                                <span *ngIf="alert.count !== undefined">
-                                    {{ alert.translationKey | translate: {count: alert.count} }}
-                                </span>
-                                <span *ngIf="alert.percentage !== undefined">
-                                    {{ alert.translationKey | translate: {percentage: alert.percentage} }}
-                                </span>
-                                <span *ngIf="alert.count === undefined && alert.percentage === undefined">
-                                    {{ alert.translationKey | translate }}
-                                </span>
-                            </div>
-                            <div class="flex align-items-center gap-2 mt-2">
-                                <span class="text-500 text-xs">{{ 'view_details' | translate }}</span>
-                                <i class="pi pi-arrow-right text-500 text-xs"></i>
-                            </div>
-                        </div>
-                    </div>
+            <div class="priority-list">
+                <div *ngFor="let alert of criticalAlerts"
+                    class="priority-item"
+                    [ngClass]="'priority-item--' + alert.severity"
+                    [routerLink]="alert.action">
+                    <span class="priority-badge" [ngClass]="'priority-badge--' + alert.severity">{{ alert.badgeKey | translate }}</span>
+                    <span class="priority-text">
+                        <ng-container *ngIf="alert.count !== undefined">{{ alert.translationKey | translate: {count: alert.count} }}</ng-container>
+                        <ng-container *ngIf="alert.percentage !== undefined">{{ alert.translationKey | translate: {percentage: alert.percentage} }}</ng-container>
+                        <ng-container *ngIf="alert.count === undefined && alert.percentage === undefined">{{ alert.translationKey | translate }}</ng-container>
+                    </span>
+                    <i class="pi pi-arrow-right priority-arrow" aria-hidden="true"></i>
                 </div>
             </div>
-            <ng-template pTemplate="footer" *ngIf="criticalAlerts.length > 0">
-                <div class="p-3 border-top-1 surface-border">
-                    <button pButton pRipple 
-                        [label]="'view_all_alerts' | translate" 
+            <ng-template pTemplate="footer">
+                <div class="p-3">
+                    <button pButton pRipple
+                        [label]="'view_all_alerts' | translate"
                         icon="pi pi-external-link"
                         class="p-button-text p-button-sm w-full"
                         [routerLink]="'/inventory/products'">
@@ -846,13 +865,6 @@
                         <i class="pi pi-chart-line text-primary text-xl"></i>
                         <h5 class="m-0">{{'dashboard_sales_overview_header' | translate}}</h5>
                     </div>
-                    <button *ngIf="!chartDataReady" 
-                            pButton pRipple 
-                            label="{{ 'load_chart' | translate }}" 
-                            icon="pi pi-refresh"
-                            class="p-button-text p-button-sm"
-                            (click)="loadChartOnDemand()"
-                            [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
             <div class="p-3 dashboard-chart-body dashboard-chart-body--line" [ngClass]="{'dashboard-chart-body--active': salesChartActive}" [ngStyle]="{'position': 'relative'}">
@@ -1003,13 +1015,6 @@
                         <i class="pi pi-chart-pie text-primary text-xl"></i>
                         <h5 class="m-0">{{'dashboard_inventory_overview_header' | translate}}</h5>
                     </div>
-                    <button *ngIf="!pieDataReady" 
-                            pButton pRipple 
-                            label="{{ 'load_chart' | translate }}" 
-                            icon="pi pi-refresh"
-                            class="p-button-text p-button-sm"
-                            (click)="loadChartOnDemand()"
-                            [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
             <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': pieChartActive}" [ngStyle]="{'position': 'relative'}">
@@ -1057,13 +1062,6 @@
                         <i class="pi pi-chart-line text-primary text-xl"></i>
                         <h5 class="m-0">{{'dashboard_sales_overview_header' | translate}}</h5>
                     </div>
-                    <button *ngIf="!chartDataReady" 
-                            pButton pRipple 
-                            label="{{ 'load_chart' | translate }}" 
-                            icon="pi pi-refresh"
-                            class="p-button-text p-button-sm"
-                            (click)="loadChartOnDemand()"
-                            [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
             <div class="p-3 dashboard-chart-body dashboard-chart-body--line" [ngClass]="{'dashboard-chart-body--active': salesChartActive}" [ngStyle]="{'position': 'relative'}">
@@ -1122,13 +1120,6 @@
                         <i class="pi pi-chart-pie text-primary text-xl"></i>
                         <h5 class="m-0">{{'dashboard_inventory_overview_header' | translate}}</h5>
                     </div>
-                    <button *ngIf="!pieDataReady" 
-                            pButton pRipple 
-                            label="{{ 'load_chart' | translate }}" 
-                            icon="pi pi-refresh"
-                            class="p-button-text p-button-sm"
-                            (click)="loadChartOnDemand()"
-                            [disabled]="chartsInitialized"></button>
                 </div>
             </ng-template>
             <div class="p-3 dashboard-chart-body" [ngClass]="{'dashboard-chart-body--active': pieChartActive}" [ngStyle]="{'position': 'relative'}">

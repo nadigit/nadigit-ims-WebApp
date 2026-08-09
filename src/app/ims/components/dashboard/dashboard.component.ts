@@ -24,6 +24,7 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { DashboardService, DashboardOverview } from 'src/app/services/dashboard.service';
 import { AnalysisService, ProfitAnalysis, ProfitPeriod } from 'src/app/services/analysis.service';
+import { AiIntegrationService, NadiPilotBriefingDTO } from 'src/app/services/ai-integration.service';
 import {
   BRAND_COLORS,
   getBrandCssColors,
@@ -109,6 +110,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Admin command-center overview (accurate, backend-aggregated)
   overview?: DashboardOverview;
   overviewLoading = false;
+
+  // NadiPilot AI briefing (replaces the rule-based summary once it arrives; falls back on failure)
+  aiBriefing?: NadiPilotBriefingDTO;
+  aiBriefingLoading = false;
   selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
   readonly ProfitPeriod = ProfitPeriod;
   periodOptions: { label: string; value: ProfitPeriod }[] = [];
@@ -194,7 +199,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private router: Router,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
     private dashboardService: DashboardService,
-    private analysisService: AnalysisService
+    private analysisService: AnalysisService,
+    private aiService: AiIntegrationService
   ) {
     this.subscription = this.layoutService.configUpdate$
       .pipe(debounceTime(25))
@@ -261,6 +267,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.isLoading = false;
       this.cdr.markForCheck();
 
+      // Auto-draw the Sales Overview + Inventory charts. Kicking this off in the same tick that
+      // reveals the dashboard flips chartsInitialized=true before the first render, so the old
+      // "Load Chart" button never shows — the chart loads itself (spinner → chart). loadChartOnDemand
+      // fetches its own (cached) data and is internally staggered, so it stays off the render path.
+      this.loadChartOnDemand();
+
       // Load secondary data after initial render (non-blocking)
       this.loadSecondaryData();
 
@@ -289,6 +301,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+
+    if (this.heroAnimHandle) {
+      cancelAnimationFrame(this.heroAnimHandle);
+      this.heroAnimHandle = null;
+    }
 
     // Clear all subscriptions
     this.subscriptions.forEach(sub => sub.unsubscribe());
@@ -460,6 +477,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.isAdmin) {
       this.buildPeriodOptions();
       this.loadOverview();
+      this.loadAiBriefing();
       this.loadAdminMetrics();
     } else if (this.isVendor) {
       this.loadVendorMetrics();
@@ -510,6 +528,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         )
       );
       this.overview = data || undefined;
+      if (this.overview) {
+        this.animateHero(this.overview.profit?.netProfit ?? 0);
+      }
     } catch (error) {
       console.error('Error loading dashboard overview:', error);
     } finally {
@@ -560,6 +581,221 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return (pct > 0 ? '> ' : '< -') + cap + '%';
     }
     return pct.toFixed(1) + '%';
+  }
+
+  // ==================== COMMAND-CENTER HEADLINE (hero + NadiPilot briefing) ====================
+
+  /** Hero figure, tweened 0 → net profit on load so the headline "lands" instead of just appearing. */
+  animatedHero = 0;
+  private heroAnimHandle: any = null;
+
+  get prefersReducedMotion(): boolean {
+    return typeof window !== 'undefined' && !!window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /** Ease the hero figure from 0 to the real value (cubic ease-out); respects reduced-motion. */
+  private animateHero(target: number): void {
+    if (this.heroAnimHandle) {
+      cancelAnimationFrame(this.heroAnimHandle);
+      this.heroAnimHandle = null;
+    }
+    if (!isFinite(target)) {
+      target = 0;
+    }
+    // Show the real value up front so the hero is correct even if rAF never fires — the browser
+    // pauses requestAnimationFrame while the tab isn't compositing (hidden/background tab). The
+    // animation below overwrites this from ~0 up once the first frame actually runs.
+    this.animatedHero = target;
+    this.cdr.markForCheck();
+    if (this.prefersReducedMotion || typeof requestAnimationFrame === 'undefined') {
+      return;
+    }
+    const duration = 1100;
+    let start: number | null = null;
+    const tick = (now: number) => {
+      if (start === null) {
+        start = now;
+      }
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      this.animatedHero = p < 1 ? target * eased : target;
+      this.cdr.markForCheck();
+      this.heroAnimHandle = p < 1 ? requestAnimationFrame(tick) : null;
+    };
+    this.heroAnimHandle = requestAnimationFrame(tick);
+  }
+
+  /** SVG polyline points for a sparkline over `data` (oldest → newest). */
+  private buildSparkPoints(data: number[], w = 100, h = 32): string | null {
+    if (!data || data.length < 2) {
+      return null;
+    }
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const step = w / (data.length - 1);
+    return data
+      .map((d, i) => `${(i * step).toFixed(1)},${(h - ((d - min) / range) * h).toFixed(1)}`)
+      .join(' ');
+  }
+
+  get heroSparkPoints(): string | null {
+    return this.buildSparkPoints(this.netProfitSparkline);
+  }
+
+  /** Same line, closed to the baseline so it can be filled as an area under the hero number. */
+  get heroSparkAreaPoints(): string | null {
+    const line = this.heroSparkPoints;
+    return line ? `0,32 ${line} 100,32` : null;
+  }
+
+  get heroDeltaText(): string {
+    const v = this.netProfitDeltaPercent;
+    if (v === null || v === undefined || !isFinite(v)) {
+      return '';
+    }
+    if (Math.abs(v) > 999) {
+      return v >= 0 ? '> +999%' : '< −999%';
+    }
+    return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  }
+
+  get heroDeltaPositive(): boolean {
+    return (this.netProfitDeltaPercent ?? 0) >= 0;
+  }
+
+  /**
+   * NadiPilot-style briefing: a few already-translated clauses, each tagged with a semantic kind so
+   * the template can color it. Composed from data the dashboard already loads (overview deltas +
+   * low/out-of-stock counts + receivables) — no extra request, and it reads like a human summary.
+   */
+  get briefingSegments(): { text: string; kind: 'up' | 'down' | 'warn' | 'key' | 'plain' }[] {
+    const segs: { text: string; kind: 'up' | 'down' | 'warn' | 'key' | 'plain' }[] = [];
+    if (!this.overview) {
+      return segs;
+    }
+
+    const npDelta = this.netProfitDeltaPercent;
+    if (npDelta !== null && npDelta !== undefined && isFinite(npDelta)) {
+      const arrow = npDelta >= 0 ? ' ↑' : ' ↓';
+      segs.push({
+        text: this.translate.instant('brief_net_profit', { delta: this.heroDeltaText + arrow }),
+        kind: npDelta >= 0 ? 'up' : 'down',
+      });
+    }
+
+    const lowCount = (this.lowStockProducts?.length || 0) + (this.outOfStockProducts?.length || 0);
+    if (lowCount > 0) {
+      segs.push({ text: this.translate.instant('brief_lowstock', { count: lowCount }), kind: 'warn' });
+    }
+
+    const receivables = this.overview.salesSummary?.totalOutstandingAmount || 0;
+    if (receivables > 0) {
+      segs.push({
+        text: this.translate.instant('brief_receivables', { amount: this.formatBriefCurrency(receivables) }),
+        kind: 'key',
+      });
+    }
+
+    if (segs.length === 0) {
+      segs.push({ text: this.translate.instant('brief_all_healthy'), kind: 'plain' });
+    }
+    return segs;
+  }
+
+  private formatBriefCurrency(value: number): string {
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: this.currency,
+        maximumFractionDigits: 0,
+      }).format(value);
+    } catch {
+      return `${this.currency} ${Math.round(value).toLocaleString()}`;
+    }
+  }
+
+  /**
+   * Fetch the real NadiPilot briefing (admin only). Best-effort and non-blocking: the rule-based
+   * {@link briefingSegments} render instantly, and if the AI is slow/unavailable/rate-limited we
+   * simply keep that fallback — the dashboard never waits on the LLM.
+   */
+  async loadAiBriefing(): Promise<void> {
+    if (!this.isAdmin) {
+      return;
+    }
+    this.aiBriefingLoading = true;
+    this.cdr.markForCheck();
+    try {
+      const dto = await firstValueFrom(
+        this.aiService.getNadiPilotBriefing().pipe(
+          timeout(20000),
+          catchError((error) => {
+            console.warn('NadiPilot briefing unavailable — using rule-based summary.', error);
+            return of(undefined as unknown as NadiPilotBriefingDTO);
+          })
+        )
+      );
+      this.aiBriefing = dto && Array.isArray(dto.items) && dto.items.length ? dto : undefined;
+    } catch (error) {
+      console.warn('NadiPilot briefing failed — using rule-based summary.', error);
+    } finally {
+      this.aiBriefingLoading = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private severityToKind(severity: string): 'up' | 'down' | 'warn' | 'key' | 'plain' {
+    switch ((severity || '').toLowerCase()) {
+      case 'positive':
+        return 'up';
+      case 'critical':
+      case 'danger':
+        return 'down';
+      case 'warning':
+        return 'warn';
+      case 'info':
+        return 'key';
+      default:
+        return 'plain';
+    }
+  }
+
+  /** Optional AI headline sentence shown above the briefing clauses. */
+  get briefingHeadline(): string | null {
+    const h = this.aiBriefing?.headline?.trim();
+    return h ? h : null;
+  }
+
+  /** The clauses actually rendered: NadiPilot items when available, else the rule-based fallback. */
+  get displayBriefingSegments(): { text: string; kind: 'up' | 'down' | 'warn' | 'key' | 'plain'; route?: string }[] {
+    const items = this.aiBriefing?.items;
+    if (items && items.length) {
+      return items.map((it) => ({
+        text: it.text,
+        kind: this.severityToKind(it.severity),
+        route: it.navigation?.route || undefined,
+      }));
+    }
+    return this.briefingSegments;
+  }
+
+  /** Navigate from a clickable briefing clause (defensively strips a stale /webconsole prefix). */
+  goToBriefing(route?: string): void {
+    if (!route) {
+      return;
+    }
+    const clean = route.replace(/^\/?webconsole/, '');
+    this.router.navigate([clean.startsWith('/') ? clean : '/' + clean]);
+  }
+
+  /** Open the NadiPilot copilot panel (same launcher the topbar uses). Only opens — never toggles
+   * an already-open panel shut. */
+  openNadiPilot(): void {
+    if (!this.layoutService.copilotPanelOpen()) {
+      this.layoutService.requestCopilotToggle();
+    }
   }
 
   /** Top customers in the legacy template shape, sourced from the accurate overview endpoint. */
@@ -1570,8 +1806,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       await this.loadTodayMetrics();
       this.loadSecondaryData();
       this.loadAnalyticsData();
+      this.loadChartOnDemand(); // re-draw charts automatically (refresh reset chartsInitialized)
       if (this.isAdmin) {
         this.loadOverview();
+        this.loadAiBriefing();
         this.loadAdminMetrics();
       } else if (this.isVendor) {
         this.loadVendorMetrics();
@@ -1754,6 +1992,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         type: 'error',
         icon: 'pi-exclamation-triangle',
         translationKey: 'alert_out_of_stock_with_orders',
+        badgeKey: 'priority_badge_stockout',
         count: outOfStockWithOrders.length,
         action: '/inventory/products',
         severity: 'error',
@@ -1767,6 +2006,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         type: 'warning',
         icon: 'pi-exclamation-circle',
         translationKey: 'alert_low_stock_products',
+        badgeKey: 'priority_badge_lowstock',
         count: this.lowStockProducts.length,
         action: '/inventory/products',
         severity: 'warn',
@@ -1780,6 +2020,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         type: 'warning',
         icon: 'pi-clock',
         translationKey: 'alert_overdue_transfers',
+        badgeKey: 'priority_badge_transfers',
         count: this.overdueTransfers,
         action: '/inventory/warehouse-transfers',
         severity: 'warn',
@@ -1796,6 +2037,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         type: 'info',
         icon: 'pi-dollar',
         translationKey: 'alert_high_unpaid_receivables',
+        badgeKey: 'priority_badge_receivables',
         percentage: percentage,
         action: '/finance/payments',
         severity: 'info',
@@ -1812,6 +2054,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         type: 'warning',
         icon: 'pi-ban',
         translationKey: 'alert_high_cancellation_rate',
+        badgeKey: 'priority_badge_cancellations',
         percentage: cancellationRate.toFixed(1),
         action: '/sales/orders',
         severity: 'warn',

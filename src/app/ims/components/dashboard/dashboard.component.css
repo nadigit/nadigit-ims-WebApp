@@ -983,12 +983,12 @@
     .alert-list {
       .alert-item {
         padding: 0.875rem;
-        
+
         .alert-icon {
           width: 2rem;
           height: 2rem;
         }
-        
+
         .alert-content {
           .alert-message {
             font-size: 0.875rem;
@@ -998,3 +998,443 @@
     }
   }
 }
+
+/* ==================== Command-center headline: NadiPilot briefing + hero metric ==================== */
+.cc-stage {
+  --cc-navy: #0B1F4A;
+  --cc-navy2: #08183A;
+  --cc-blue: #1E5EFF;
+  --cc-cyan: #18C5D8;
+  --cc-green: #16C784;
+  --cc-gold: #F4B740;
+  --cc-red: #FF5D73;
+  --cc-ink: #FFFFFF;
+  --cc-ink3: #8298bf;
+  --cc-line: rgba(201, 212, 229, 0.14);
+  margin-bottom: 1.25rem;
+}
+
+.cc-briefing {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: linear-gradient(120deg, rgba(30, 94, 255, 0.14), rgba(24, 197, 216, 0.10));
+  border: 1px solid rgba(24, 197, 216, 0.28);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.cc-briefing__body {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+:host ::ng-deep .cc-ask-btn.p-button {
+  flex: none;
+  align-self: center;
+  white-space: nowrap;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, #1E5EFF, #18C5D8);
+  box-shadow: 0 6px 16px rgba(24, 197, 216, 0.28);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+:host ::ng-deep .cc-ask-btn.p-button:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+:host ::ng-deep .cc-ask-btn.p-button:focus-visible {
+  outline: 2px solid #18C5D8;
+  outline-offset: 2px;
+}
+
+.cc-briefing__avatar {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--cc-blue), var(--cc-cyan));
+  box-shadow: 0 6px 18px rgba(24, 197, 216, 0.32);
+}
+
+.cc-briefing__avatar i {
+  font-size: 1.35rem;
+  color: #fff;
+}
+
+.cc-briefing__tag {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--cc-cyan);
+  margin-bottom: 3px;
+}
+
+.cc-briefing__spin {
+  font-size: 10px;
+  color: var(--cc-cyan);
+  margin-left: 6px;
+}
+
+.cc-briefing__headline {
+  font-size: 14.5px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--text-color, #2a2f45);
+  margin-bottom: 4px;
+}
+
+.cc-briefing__text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-color, #495057);
+}
+
+.cc-seg--link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+
+.cc-seg--link:hover {
+  text-decoration-color: currentColor;
+}
+
+.cc-seg + .cc-seg::before {
+  content: " \00b7 ";
+  color: var(--cc-ink3);
+  font-weight: 400;
+}
+
+.cc-seg--up { color: var(--cc-green); font-weight: 600; }
+.cc-seg--down { color: var(--cc-red); font-weight: 600; }
+.cc-seg--warn { color: #C6820A; font-weight: 600; }
+.cc-seg--key { color: var(--cc-blue); font-weight: 600; }
+.cc-seg--plain { color: var(--text-color, #495057); }
+
+.cc-hero-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 991px) {
+  .cc-hero-row { grid-template-columns: 1fr; }
+}
+
+.cc-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 22px 24px;
+  color: var(--cc-ink);
+  background:
+    radial-gradient(600px 220px at 10% -20%, rgba(30, 94, 255, 0.35), transparent 60%),
+    linear-gradient(150deg, var(--cc-navy) 0%, var(--cc-navy2) 100%);
+  border: 1px solid var(--cc-line);
+}
+
+.cc-hero__spark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 46%;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.cc-hero__label {
+  position: relative;
+  font-size: 13px;
+  color: var(--cc-ink3);
+  font-weight: 500;
+}
+
+.cc-hero__value {
+  position: relative;
+  font-size: 2.9rem;
+  font-weight: 700;
+  line-height: 1.05;
+  margin-top: 6px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-hero__delta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+}
+
+.cc-hero__delta.is-up {
+  color: var(--cc-green);
+  background: rgba(22, 199, 132, 0.14);
+  border: 1px solid rgba(22, 199, 132, 0.30);
+}
+
+.cc-hero__delta.is-down {
+  color: var(--cc-red);
+  background: rgba(255, 93, 115, 0.14);
+  border: 1px solid rgba(255, 93, 115, 0.30);
+}
+
+.cc-hero__sub {
+  position: relative;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--cc-ink3);
+}
+
+.cc-mini {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 16px;
+  padding: 18px 20px;
+  color: var(--cc-ink);
+  background: linear-gradient(150deg, rgba(16, 43, 99, 0.92), rgba(8, 24, 58, 0.92));
+  border: 1px solid var(--cc-line);
+}
+
+.cc-mini__label {
+  font-size: 12.5px;
+  color: var(--cc-ink3);
+  font-weight: 500;
+}
+
+.cc-mini__value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-mini__value--warn { color: var(--cc-gold); }
+
+.cc-mini__foot {
+  font-size: 12px;
+  color: var(--cc-ink3);
+}
+
+[dir="rtl"] .cc-hero__delta i { transform: scaleX(-1); }
+
+/* ==================== Unified premium card system — ties the lower half to the hero ====================
+   Scoped to the dashboard via :host ::ng-deep (only this component has the host attribute), and higher
+   specificity than the PrimeFlex utility classes on the cards, so it wins without !important. Uses the
+   PrimeNG theme vars so it stays correct in both light and dark. */
+:host ::ng-deep .p-card {
+  border-radius: 16px;
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 1px 2px rgba(16, 43, 99, 0.04), 0 12px 30px rgba(16, 43, 99, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+:host ::ng-deep .p-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 6px rgba(16, 43, 99, 0.06), 0 20px 44px rgba(16, 43, 99, 0.12);
+}
+
+/* Crisp, consistent section headers: a hairline divider + tighter title across every card. */
+:host ::ng-deep .p-card .p-card-header > div {
+  border-bottom: 1px solid var(--surface-border);
+}
+
+:host ::ng-deep .p-card .p-card-header h5 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Keep the Alert Center's branded navy header edge-to-edge with the new radius. */
+:host ::ng-deep .alert-center-card .p-card-header {
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+
+:host ::ng-deep .alert-center-card .p-card-header > div {
+  border-bottom: none;
+}
+
+/* Quick Actions tiles: same premium surface + a real lift on hover, matching the cards. */
+.quick-action-card {
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 43, 99, 0.04);
+}
+
+.quick-action-card:hover {
+  box-shadow: 0 10px 26px rgba(16, 43, 99, 0.12);
+}
+
+.quick-action-card:hover .quick-action-icon {
+  box-shadow: 0 6px 16px rgba(30, 94, 255, 0.28);
+}
+
+/* Info rows (Quick Stats, Top Customers, Best Selling, vendor lists): defined, tappable surfaces
+   instead of flat grey blocks — a hairline border + a clear hover, consistent radius. */
+:host ::ng-deep .surface-50 {
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+:host ::ng-deep .surface-50:hover {
+  border-color: var(--primary-color);
+}
+
+/* Rank badges on the Top Customers list — brand gradient instead of flat primary. */
+:host ::ng-deep .bg-primary {
+  background: linear-gradient(135deg, #1E5EFF, #18C5D8) !important;
+}
+
+/* Quick Actions laid out as a packed action bar instead of a rigid 6-col grid that leaves a lonely
+   half-empty last row. Tiles size to their label (with a tidy min-width) and wrap naturally — on a
+   wide screen the whole set sits on one clean line. */
+:host ::ng-deep .qa-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-border) transparent;
+}
+
+:host ::ng-deep .qa-grid > [class*="col-"] {
+  width: auto;
+  max-width: none;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+:host ::ng-deep .qa-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+:host ::ng-deep .qa-grid::-webkit-scrollbar-thumb {
+  background: var(--surface-border);
+  border-radius: 3px;
+}
+
+/* Compact Quick Actions — icon + label INLINE and a smaller icon, so the row of shortcuts stays a
+   slim strip instead of a block of tall tiles. (!important overrides the PrimeFlex p-3 / flex-column
+   utilities on these tiles.) */
+.quick-action-card {
+  padding: 0.5rem 0.75rem !important;
+  min-width: 144px;
+}
+
+.quick-action-card > .flex.flex-column {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 0.6rem !important;
+}
+
+.quick-action-card .quick-action-icon.ims-icon-tile {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+}
+
+.quick-action-card .quick-action-icon.ims-icon-tile i {
+  font-size: 1rem;
+}
+
+.quick-action-card span {
+  text-align: left !important;
+  line-height: 1.2;
+}
+
+/* ==================== "À traiter en priorité" panel (concept look: severity chips + colored rails) ==================== */
+.priority-panel__count {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  white-space: nowrap;
+}
+
+.priority-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.priority-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border-left: 3px solid transparent;
+  background: var(--surface-ground, #f5f7fb);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.priority-item:hover {
+  transform: translateX(2px);
+  background: var(--surface-hover, var(--surface-ground, #eef2fb));
+}
+
+.priority-item--error { border-left-color: #FF5D73; }
+.priority-item--warn { border-left-color: #F4B740; }
+.priority-item--info { border-left-color: #18C5D8; }
+
+.priority-badge {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.priority-badge--error { background: rgba(255, 93, 115, 0.16); color: #c0334a; }
+.priority-badge--warn { background: rgba(244, 183, 64, 0.18); color: #a1710a; }
+.priority-badge--info { background: rgba(24, 197, 216, 0.16); color: #0f8c99; }
+
+.priority-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--text-color);
+  line-height: 1.35;
+}
+
+.priority-arrow {
+  flex: none;
+  color: var(--text-color-secondary);
+  font-size: 0.8rem;
+}
+
+[dir="rtl"] .priority-item {
+  border-left: none;
+  border-right: 3px solid transparent;
+}
+
+[dir="rtl"] .priority-item--error { border-right-color: #FF5D73; }
+[dir="rtl"] .priority-item--warn { border-right-color: #F4B740; }
+[dir="rtl"] .priority-item--info { border-right-color: #18C5D8; }
+[dir="rtl"] .priority-arrow { transform: scaleX(-1); }
