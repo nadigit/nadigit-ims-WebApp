@@ -60,9 +60,15 @@
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
-      opacity: 0.7;
+      opacity: 0.85;
       vector-effect: non-scaling-stroke;
     }
+  }
+
+  &__sparkline-area {
+    fill: var(--primary-color);
+    opacity: 0.1;
+    stroke: none;
   }
 
   &__foot {
@@ -79,16 +85,21 @@
     align-items: center;
     gap: 0.25rem;
     font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
 
     i {
       font-size: 0.7rem;
     }
 
     &--good {
-      color: var(--green-500, #22c55e);
+      color: #0f9d6b;
+      background: rgba(22, 199, 132, 0.14);
     }
     &--bad {
-      color: var(--red-500, #ef4444);
+      color: #d13a4e;
+      background: rgba(255, 93, 115, 0.14);
     }
   }
 

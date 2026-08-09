@@ -91,4 +91,10 @@ export class KpiCardComponent {
       })
       .join(' ');
   }
+
+  /** The line closed down to the baseline, so it can be filled as a soft area under the trend. */
+  get sparklineAreaPoints(): string | null {
+    const line = this.sparklinePoints;
+    return line ? `0,28 ${line} 100,28` : null;
+  }
 }
