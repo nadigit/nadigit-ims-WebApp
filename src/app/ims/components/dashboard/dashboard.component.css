@@ -1097,8 +1097,28 @@
 
 .cc-briefing__text {
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--text-color, #495057);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Each signal on its own line, led by a small dot in its severity color. */
+.cc-seg {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.cc-seg::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .cc-seg--link {
@@ -1111,12 +1131,6 @@
 
 .cc-seg--link:hover {
   text-decoration-color: currentColor;
-}
-
-.cc-seg + .cc-seg::before {
-  content: " \00b7 ";
-  color: var(--cc-ink3);
-  font-weight: 400;
 }
 
 .cc-seg--up { color: var(--cc-green); font-weight: 600; }
