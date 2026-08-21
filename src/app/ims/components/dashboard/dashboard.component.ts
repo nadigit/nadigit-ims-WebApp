@@ -529,7 +529,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       );
       this.overview = data || undefined;
       if (this.overview) {
-        this.animateHero(this.overview.profit?.netProfit ?? 0);
+        // Hero headline = gross profit (the operating bottom line), not net. Net profit is shown as
+        // a secondary line below, so a one-off spoilage dump can't swamp the command-center headline.
+        this.animateHero(this.overview.profit?.grossProfit ?? 0);
       }
     } catch (error) {
       console.error('Error loading dashboard overview:', error);
@@ -543,12 +545,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadOverview();
   }
 
-  /** Percentage change of current vs previous comparable window. */
+  /**
+   * Percentage change of current vs previous comparable window.
+   *
+   * A percentage is only meaningful against a positive baseline. When the previous window is zero
+   * or negative the ratio is misleading — e.g. a one-off spoilage dump made net profit read a flat
+   * "-100%" while gross margin (positive baseline) read "+100%" on the very same screen. In those
+   * cases we return null so the tile simply shows no delta arrow instead of a fabricated number.
+   */
   private pctChange(current: number, previous: number): number | null {
-    if (previous === 0) {
-      return current > 0 ? 100 : current < 0 ? -100 : 0;
+    if (!isFinite(current) || !isFinite(previous) || previous <= 0) {
+      return null;
     }
-    return ((current - previous) / Math.abs(previous)) * 100;
+    return ((current - previous) / previous) * 100;
   }
 
   get revenueDeltaPercent(): number | null {
@@ -570,6 +579,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const revenue = this.overview?.profit?.totalRevenue ?? 0;
     if (revenue <= 0) return 0;
     return (this.overview!.profit.grossProfit / revenue) * 100;
+  }
+
+  /** Gross profit for the window (revenue − COGS − refunds), before expenses & spoilage. */
+  get grossProfitAmount(): number {
+    return this.overview?.profit?.grossProfit ?? 0;
+  }
+
+  /**
+   * Spoilage / inventory write-offs charged to the window. Broken out as its own line so a one-off
+   * spoilage event (e.g. a batch of expirations) is legible instead of silently swamping net profit.
+   */
+  get spoilageAmount(): number {
+    return this.overview?.profit?.totalWriteOffs ?? 0;
+  }
+
+  get hasSpoilage(): boolean {
+    return this.spoilageAmount > 0;
+  }
+
+  /** Delta arrow for spoilage (lower is better — handled by the KPI card's higherIsBetter=false). */
+  get spoilageDeltaPercent(): number | null {
+    if (!this.overview) return null;
+    return this.pctChange(this.overview.profit.totalWriteOffs, this.overview.previous.writeOffs);
   }
 
   /** Percentage formatted for display, capped so extreme loss ratios read cleanly (e.g. "< -999%"). */
@@ -641,7 +673,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get heroSparkPoints(): string | null {
-    return this.buildSparkPoints(this.netProfitSparkline);
+    return this.buildSparkPoints(this.grossProfitSparkline);
   }
 
   /** Same line, closed to the baseline so it can be filled as an area under the hero number. */
@@ -651,7 +683,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get heroDeltaText(): string {
-    const v = this.netProfitDeltaPercent;
+    const v = this.grossProfitDeltaPercent;
     if (v === null || v === undefined || !isFinite(v)) {
       return '';
     }
@@ -662,7 +694,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get heroDeltaPositive(): boolean {
-    return (this.netProfitDeltaPercent ?? 0) >= 0;
+    return (this.grossProfitDeltaPercent ?? 0) >= 0;
+  }
+
+  /** Net profit (the true bottom line, after expenses & spoilage) — shown as the hero's secondary line. */
+  get netProfitAmount(): number {
+    return this.overview?.profit?.netProfit ?? 0;
+  }
+
+  get netProfitNegative(): boolean {
+    return this.netProfitAmount < 0;
   }
 
   /**
@@ -679,8 +720,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const npDelta = this.netProfitDeltaPercent;
     if (npDelta !== null && npDelta !== undefined && isFinite(npDelta)) {
       const arrow = npDelta >= 0 ? ' ↑' : ' ↓';
+      // Format from npDelta directly — heroDeltaText now reflects GROSS profit (the hero headline).
+      const deltaText = Math.abs(npDelta) > 999
+        ? (npDelta >= 0 ? '> +999%' : '< −999%')
+        : (npDelta >= 0 ? '+' : '') + npDelta.toFixed(1) + '%';
       segs.push({
-        text: this.translate.instant('brief_net_profit', { delta: this.heroDeltaText + arrow }),
+        text: this.translate.instant('brief_net_profit', { delta: deltaText + arrow }),
         kind: npDelta >= 0 ? 'up' : 'down',
       });
     }
@@ -690,7 +735,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       segs.push({ text: this.translate.instant('brief_lowstock', { count: lowCount }), kind: 'warn' });
     }
 
-    const receivables = this.overview.salesSummary?.totalOutstandingAmount || 0;
+    // Point-in-time AR (all open orders), not the period-scoped figure — see totalReceivables.
+    const receivables = this.overview.totalReceivables || 0;
     if (receivables > 0) {
       segs.push({
         text: this.translate.instant('brief_receivables', { amount: this.formatBriefCurrency(receivables) }),
@@ -2028,8 +2074,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
     }
 
-    // High unpaid receivables (from the accurate overview, when loaded)
-    const receivables = this.overview?.salesSummary?.totalOutstandingAmount ?? 0;
+    // High unpaid receivables (point-in-time AR across all open orders, not period-scoped)
+    const receivables = this.overview?.totalReceivables ?? 0;
     const overviewRevenue = this.overview?.profit?.totalRevenue ?? 0;
     if (overviewRevenue > 0 && receivables > overviewRevenue * 0.2) {
       const percentage = ((receivables / overviewRevenue) * 100).toFixed(1);

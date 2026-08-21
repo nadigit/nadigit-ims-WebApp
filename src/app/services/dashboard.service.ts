@@ -22,6 +22,8 @@ export interface PreviousPeriodSummary {
   endDate: string;
   totalRevenue: number;
   grossProfit: number;
+  /** Spoilage / inventory write-offs for the previous window (mirrors profit.totalWriteOffs). */
+  writeOffs: number;
   netProfit: number;
 }
 
@@ -42,6 +44,12 @@ export interface DashboardOverview {
   topProducts: TopSellingProducts;
   topCustomers: TopCustomerLine[];
   previous: PreviousPeriodSummary;
+  /** Point-in-time receivables across ALL open orders — NOT scoped by the period selector. */
+  totalReceivables: number;
+  /** Count of open (non-canceled, not fully paid) orders backing totalReceivables. */
+  openReceivableOrderCount: number;
+  /** Point-in-time payables across ALL open purchases — NOT scoped by the period selector. */
+  totalPayables: number;
 }
 
 @Injectable({

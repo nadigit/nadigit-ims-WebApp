@@ -225,17 +225,20 @@
                             </span>
                         </td>
                         
-                        <!-- Outstanding Balance -->
+                        <!-- Outstanding Balance (order-based AR, mirrors the suppliers "À payer" column) -->
                         <td style="min-width:10rem;" class="font-bold">
                             <span class="p-column-title">{{ 'outstanding_balance' | translate }}</span>
-                            <span *ngIf="getCreditInfo(customer.customerId)" 
-                                class="text-red-600">
-                                {{ getCreditInfo(customer.customerId)?.outstandingBalance | currency:currency:'symbol':'1.2-2' }}
+                            <span [ngClass]="{
+                                    'text-red-600 font-bold': ((customer.totalAmount || 0) - (customer.totalPaid || 0)) > 0,
+                                    'text-green-600': ((customer.totalAmount || 0) - (customer.totalPaid || 0)) <= 0
+                                }">
+                                {{ ((customer.totalAmount || 0) - (customer.totalPaid || 0)) | currency:currency:'symbol':'1.2-2' }}
                             </span>
-                            <span *ngIf="!getCreditInfo(customer.customerId)" 
-                                class="text-500">
-                                -
-                            </span>
+                            <ng-container *ngIf="((customer.totalAmount || 0) - (customer.totalPaid || 0)) > 0">
+                                <p-tag value="{{'due' | translate}}" severity="danger" class="ml-2"
+                                    icon="pi pi-exclamation-triangle">
+                                </p-tag>
+                            </ng-container>
                         </td>
                         
                         <!-- Overdue Balance -->

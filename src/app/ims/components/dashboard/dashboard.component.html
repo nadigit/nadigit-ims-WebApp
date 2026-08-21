@@ -345,7 +345,7 @@
                         <polyline [attr.points]="heroSparkPoints" fill="none" stroke="#16C784"
                             stroke-width="1.4" vector-effect="non-scaling-stroke"></polyline>
                     </svg>
-                    <div class="cc-hero__label">{{ 'net_profit' | translate }} · {{ 'dashboard_command_center' | translate }}</div>
+                    <div class="cc-hero__label">{{ 'gross_profit' | translate }} · {{ 'dashboard_command_center' | translate }}</div>
                     <div class="cc-hero__value">{{ animatedHero | currency:currency:'symbol':'1.0-0' }}</div>
                     <div class="cc-hero__delta" *ngIf="heroDeltaText"
                         [ngClass]="heroDeltaPositive ? 'is-up' : 'is-down'">
@@ -357,6 +357,15 @@
                         · {{ 'gross_margin' | translate }} {{ formatPercentCapped(grossMarginPercent) }}
                         · {{ ov.salesSummary.completedOrderCount }} {{ 'completed_orders' | translate }}
                     </div>
+                    <div class="cc-hero__bottomline">
+                        {{ 'net_profit' | translate }}
+                        <span [ngClass]="netProfitNegative ? 'cc-hero__net--neg' : 'cc-hero__net--pos'">
+                            {{ netProfitAmount | currency:currency:'symbol':'1.0-0' }}</span>
+                        <ng-container *ngIf="hasSpoilage">
+                            <span class="cc-hero__sub-spoilage">· {{ 'dashboard_incl_spoilage' | translate }}
+                                {{ spoilageAmount | currency:currency:'symbol':'1.0-0' }}</span>
+                        </ng-container>
+                    </div>
                 </div>
 
                 <div class="cc-mini">
@@ -366,8 +375,8 @@
                 </div>
                 <div class="cc-mini">
                     <span class="cc-mini__label">{{ 'unpaid_receivables' | translate }}</span>
-                    <span class="cc-mini__value cc-mini__value--warn">{{ ov.salesSummary.totalOutstandingAmount | currency:currency:'symbol':'1.0-0' }}</span>
-                    <span class="cc-mini__foot">{{ ov.salesSummary.unpaidOrderCount }} {{ 'unpaid_orders' | translate }}</span>
+                    <span class="cc-mini__value cc-mini__value--warn">{{ ov.totalReceivables | currency:currency:'symbol':'1.0-0' }}</span>
+                    <span class="cc-mini__foot">{{ ov.openReceivableOrderCount }} {{ 'unpaid_orders' | translate }}</span>
                 </div>
             </div>
         </div>
@@ -376,7 +385,16 @@
             <div class="col-6 sm:col-4 xl:col-3">
                 <app-kpi-card [label]="'gross_margin' | translate" tone="teal" icon="pi pi-percentage"
                     [value]="formatPercentCapped(grossMarginPercent)"
+                    [footnote]="('gross_profit' | translate) + ' ' + (grossProfitAmount | currency:currency:'symbol':'1.0-0')"
                     [deltaPercent]="grossProfitDeltaPercent" [sparkline]="grossProfitSparkline"></app-kpi-card>
+            </div>
+            <!-- Spoilage / write-offs as its own line: a one-off expiration dump legitimately hits P&L,
+                 so it is shown explicitly here rather than silently sinking the net-profit headline. -->
+            <div class="col-6 sm:col-4 xl:col-3" *ngIf="hasSpoilage">
+                <app-kpi-card [label]="'spoilage' | translate" tone="orange" icon="pi pi-trash"
+                    [value]="spoilageAmount | currency:currency:'symbol':'1.0-0'"
+                    [footnote]="'spoilage_writeoffs_hint' | translate"
+                    [deltaPercent]="spoilageDeltaPercent" [higherIsBetter]="false"></app-kpi-card>
             </div>
             <div class="col-6 sm:col-4 xl:col-3">
                 <app-kpi-card [label]="'average_order_value' | translate" tone="cyan" icon="pi pi-chart-bar"
@@ -384,7 +402,7 @@
             </div>
             <div class="col-6 sm:col-4 xl:col-3">
                 <app-kpi-card [label]="'unpaid_payables' | translate" tone="orange" icon="pi pi-arrow-circle-up"
-                    [value]="ov.purchaseSummary.totalOutstandingPurchaseAmount | currency:currency:'symbol':'1.0-0'"
+                    [value]="ov.totalPayables | currency:currency:'symbol':'1.0-0'"
                     [higherIsBetter]="false"></app-kpi-card>
             </div>
             <div class="col-6 sm:col-4 xl:col-3">
