@@ -2733,6 +2733,8 @@
   "confirm_clear_all_notifications": "Êtes-vous sûr de vouloir effacer toutes les notifications ? Cette action est irréversible.",
   "clear_all_notifications": "Effacer toutes les notifications",
   "low_stock_alert": "Alerte stock faible",
+  "dead_stock_notification": "Stock dormant",
+  "dead_stock_x_products": "{{count}} produit(s) viennent de devenir du stock dormant (aucune vente depuis plus de 90 jours).",
   "out_of_stock_alert": "Alerte rupture de stock",
   "new_order_received": "Nouvelle commande reçue",
   "system_update": "Mise à jour du système",

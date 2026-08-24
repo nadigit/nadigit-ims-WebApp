@@ -2808,6 +2808,8 @@
   "confirm_clear_all_notifications": "Are you sure you want to clear all notifications? This action cannot be undone.",
   "clear_all_notifications": "Clear All Notifications",
   "low_stock_alert": "Low Stock Alert",
+  "dead_stock_notification": "Dead Stock",
+  "dead_stock_x_products": "{{count}} product(s) just became dead stock (no sales in 90+ days).",
   "out_of_stock_alert": "Out of Stock Alert",
   "new_order_received": "New Order Received",
   "system_update": "System Update",

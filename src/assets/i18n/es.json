@@ -2719,6 +2719,8 @@
   "confirm_clear_all_notifications": "¿Estás seguro de que quieres borrar todas las notificaciones? Esta acción no se puede deshacer.",
   "clear_all_notifications": "Borrar todas las notificaciones",
   "low_stock_alert": "Alerta de bajo stock",
+  "dead_stock_notification": "Stock sin rotación",
+  "dead_stock_x_products": "{{count}} producto(s) acaban de convertirse en stock sin rotación (sin ventas desde hace más de 90 días).",
   "out_of_stock_alert": "Alerta de Artículo agotado",
   "new_order_received": "Nuevo pedido recibido",
   "system_update": "Actualización del sistema",

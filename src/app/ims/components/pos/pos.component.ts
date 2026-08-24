@@ -3529,9 +3529,8 @@ export class PosComponent implements OnInit, OnDestroy {
         this.checkoutDialog = false;
         this.receiptDialog = true;
 
-        if (this.printReceipt && this.lastReceipt?.receiptDocNumber) {
-          void this.printBackendReceiptPdf();
-        }
+        // Do NOT auto-open the print window. Printing happens only when the user clicks
+        // the print button in the receipt dialog (see printReceiptDialog()).
 
         if (this.session) {
           const newCart$ = await this.posService.createCart(this.session.sessionId);

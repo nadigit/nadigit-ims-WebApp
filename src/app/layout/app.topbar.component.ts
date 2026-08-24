@@ -502,6 +502,7 @@ export class AppTopBarComponent implements OnInit {
       'product is out of stock': 'out_of_stock_alert',
       'product expired': 'product_expired_notification',
       'product expiring soon': 'product_expiring_soon_notification',
+      'dead stock': 'dead_stock_notification',
       'order created': 'new_order_received',
       'payment received': 'payment_received',
       'purchase created': 'purchase_created',
@@ -611,6 +612,13 @@ export class AppTopBarComponent implements OnInit {
           'product_x_is_out_of_stock',
         { product: productName }
       );
+    }
+
+    // Handle dead stock (slow-moving) notification
+    // Backend message: "N product(s) just became dead stock (no sales in 90+ days)."
+    if (notification.title === 'dead stock') {
+      const count = notification.message?.match(/(\d+)\s*product/i)?.[1] || '1';
+      return this.translate.instant('dead_stock_x_products', { count });
     }
 
     // Handle purchase created notification

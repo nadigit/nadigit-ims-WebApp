@@ -2734,6 +2734,8 @@
   "confirm_clear_all_notifications": "هل أنت متأكد أنك تريد مسح جميع الإشعارات؟ لا يمكن التراجع عن هذا الإجراء.",
   "clear_all_notifications": "مسح جميع الإشعارات",
   "low_stock_alert": "تنبيه مخزون منخفض",
+  "dead_stock_notification": "مخزون راكد",
+  "dead_stock_x_products": "{{count}} منتج(ات) أصبحت مخزوناً راكداً (لا مبيعات منذ أكثر من 90 يوماً).",
   "out_of_stock_alert": "تنبيه نفاد المخزون",
   "new_order_received": "تم استلام طلب جديد",
   "system_update": "تحديث النظام",
