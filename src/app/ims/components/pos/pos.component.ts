@@ -5468,9 +5468,13 @@ export class PosComponent implements OnInit, OnDestroy {
 
     if (product && product.productId) {
       this.addToCart(product);
-      // Clear search query after selection
-      this.searchQuery = '';
-      this.searchSuggestions = [];
+      // Clear AFTER PrimeNG finishes its selection cycle. Doing it synchronously here is
+      // overwritten by the autocomplete repainting the input with the selected object,
+      // which then renders as "[object Object]". Deferring one tick resets it reliably.
+      setTimeout(() => {
+        this.searchQuery = '';
+        this.searchSuggestions = [];
+      });
     } else {
       console.error('Invalid product selected:', product);
     }

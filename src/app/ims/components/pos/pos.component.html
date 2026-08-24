@@ -556,6 +556,7 @@
             <p-autoComplete
               inputId="posProductSearchInput"
               [(ngModel)]="searchQuery"
+              field="name"
               [suggestions]="searchSuggestions"
               [loading]="productsLoading"
               (completeMethod)="onSearchChange($event)"

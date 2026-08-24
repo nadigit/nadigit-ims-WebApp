@@ -340,7 +340,7 @@
               </span>
             </div>
             <div class="mt-2" *ngIf="product.inventoryStatus">
-              <app-inventory-status [status]="product.inventoryStatus"></app-inventory-status>
+              <app-inventory-status [status]="stockStatus(product)"></app-inventory-status>
             </div>
             <div *ngIf="hasWriteOffs(product)" class="mt-1 text-xs text-orange-600">
               <small>{{ 'products_on_hand_writeoff_detail' | translate: { onHand: (product.quantityAvailable || 0), writeOff: getWriteOffQuantity(product) } }}</small>
@@ -521,7 +521,7 @@
           <div class="flex align-items-center gap-2 flex-wrap">
             <!-- Inventory Status (Products only) -->
             <app-inventory-status *ngIf="isProduct(product) && product.inventoryStatus"
-              [status]="product.inventoryStatus"></app-inventory-status>
+              [status]="stockStatus(product)"></app-inventory-status>
             <!-- Service Type Badge -->
             <p-tag *ngIf="isService(product)" [value]="'product_type_service' | translate" severity="purple"
               icon="pi pi-cog" styleClass="text-xs">

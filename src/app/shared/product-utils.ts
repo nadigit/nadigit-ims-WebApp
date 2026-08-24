@@ -63,6 +63,21 @@ export function getQuantitySeverity(quantity: number, lowStockThreshold: number)
     return 'success';
 }
 
+/**
+ * Canonical stock-status rule — mirrors the backend `InventoryStatus.classify` so the products-list
+ * badge agrees with the KPI header, the dashboard, and the NadiPilot briefing (all computed live).
+ * Derives the status from current on-hand quantity, so a product at 0 units reads OUTOFSTOCK
+ * ("rupture de stock") instead of a possibly-stale persisted status. Effective quantity is expressed
+ * in display units (kg / L / MAD for fractional and prepaid products).
+ */
+export function resolveInventoryStatus(product: Product, lowStockThreshold: number): string {
+    const qty = product?.quantityAvailable ?? 0;
+    const effective = QuantityScale.toDisplayQuantity(product, qty);
+    if (effective <= 0) return 'OUTOFSTOCK';
+    if (effective <= lowStockThreshold) return 'LOWSTOCK';
+    return 'INSTOCK';
+}
+
 
 export function getMeasureUnit(unit: string, quantity: number): string {
     if (!unit) return 'UNIT'; // fallback

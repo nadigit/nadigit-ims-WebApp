@@ -14,7 +14,7 @@ import { Warehouse } from 'src/app/models/warehouse';
 import { TranslationService } from 'src/app/services/translation.service';
 import { getPaymentMethodLabel } from 'src/app/shared/payment-utils';
 import { getExpirationStatus, getExpirationInfo, getExpirationSeverity, getExpirationIcon, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
-import { displayWarehouseStockQuantity, formatProductStockLabel, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity } from 'src/app/shared/product-utils';
+import { displayWarehouseStockQuantity, formatProductStockLabel, getAvailableQuantity, hasWriteOffs, getWriteOffQuantity, resolveInventoryStatus } from 'src/app/shared/product-utils';
 import { QuantityScale } from 'src/app/utils/quantity-scale.util';
 import { getPreferredProductImageUrl } from 'src/app/shared/product-image.utils';
 
@@ -59,6 +59,8 @@ export class ProductsTableComponent {
   @Input() getProfitClass: (product: Product) => string = () => '';
   @Input() calculateProfit: (product: Product) => number = () => 0;
   @Input() getQuantitySeverity: (quantity: number) => string = () => 'info';
+  /** Low-stock cutoff (config key lowStockThreshold); drives the live badge status. */
+  @Input() lowStockThreshold: number = 10;
   @Input() getMeasureUnit: (measureUnit: string, quantity: number) => string = () => 'UNIT';
   @Input() getAvailableQuantity: (product: Product) => number = (product) => getAvailableQuantity(product);
   @Input() hasWriteOffs: (product: Product) => boolean = (product) => hasWriteOffs(product);
@@ -278,6 +280,15 @@ export class ProductsTableComponent {
       return null;
     }
     return getExpirationInfo(product, 7);
+  }
+
+  /**
+   * Live inventory status for the badge, derived from current on-hand quantity via the canonical
+   * rule (0 units → OUTOFSTOCK/"rupture"), rather than the persisted status which a mutation path may
+   * have left stale. Keeps the badge in step with the KPI header on the same page.
+   */
+  stockStatus(product: Product): string {
+    return resolveInventoryStatus(product, this.lowStockThreshold);
   }
 
   getExpirationSeverity(status: ExpirationStatus | null): string {

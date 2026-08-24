@@ -1220,6 +1220,25 @@
   color: var(--cc-ink3);
 }
 
+/* Spoilage broken out inline so a one-off write-off dump reads as an explained deduction,
+   not a mysterious loss swamping the net-profit headline. */
+.cc-hero__sub-spoilage {
+  color: var(--cc-gold);
+  font-weight: 600;
+}
+
+/* Net profit as the hero's secondary line: gross profit is the headline, net is the true
+   bottom line shown just beneath it (green when positive, red when a spoilage dump pushes it negative). */
+.cc-hero__bottomline {
+  position: relative;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--cc-ink3);
+}
+
+.cc-hero__net--pos { color: var(--cc-green, #16C784); font-weight: 700; }
+.cc-hero__net--neg { color: var(--cc-red, #E5484D); font-weight: 700; }
+
 .cc-mini {
   display: flex;
   flex-direction: column;
@@ -1330,7 +1349,9 @@
   gap: 8px;
   margin: 0;
   overflow-x: auto;
-  padding-bottom: 4px;
+  /* overflow-x:auto also clips the Y axis, so give the hover-lift (translateY) + shadow room
+     above and below — otherwise the raised card's top edge gets cut off by the scroller. */
+  padding: 10px 2px 12px;
   scrollbar-width: thin;
   scrollbar-color: var(--surface-border) transparent;
 }
