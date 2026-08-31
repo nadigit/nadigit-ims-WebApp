@@ -2414,6 +2414,16 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       return;
     }
 
+    // The shop's drawer is closed. Only POS may open one on the user's behalf, so instead of a
+    // dead-end conflict toast, offer a route to the cash register where somebody at the till can
+    // open it with a counted float. Matched on the stable errorCode, never on translated text.
+    if (error?.error?.errorCode === 'NO_ACTIVE_CASH_SESSION') {
+      this.noCashSessionMessage = detail;
+      this.noCashSessionShopId = this.toPositiveNumber(this.order?.shop?.shopId) ?? null;
+      this.noCashSessionDialog = true;
+      return;
+    }
+
     // 4xx: a control the user can understand and fix → warning with the backend's own message.
     const low = detail.toLowerCase();
     const isStock =
@@ -2433,6 +2443,15 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       detail,
       life: 6000,
     });
+  }
+
+  /** Send the user to the shop's cash register so the drawer can be opened, then retry the order. */
+  goToCashRegister(): void {
+    this.noCashSessionDialog = false;
+    const target = this.noCashSessionShopId != null
+      ? ['/finance/treasury/cash-registers', this.noCashSessionShopId]
+      : ['/finance/treasury/cash-registers'];
+    this.router.navigate(target);
   }
 
   async validatePayment(): Promise<boolean> {
@@ -2961,6 +2980,11 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   selectedPaymentStatus: string | null = null;
   selectedCustomer: Customer | null = null;
   selectedShop: Shop | null = null;
+
+  /** Shown when a Cash order is refused because the shop's cash register has no open session. */
+  noCashSessionDialog: boolean = false;
+  noCashSessionMessage: string = '';
+  private noCashSessionShopId: number | null = null;
   orderDateFrom: Date | null = null;
   orderDateTo: Date | null = null;
 

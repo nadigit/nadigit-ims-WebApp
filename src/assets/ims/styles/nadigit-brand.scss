@@ -2717,7 +2717,15 @@ body,
 .p-button.p-button-help.p-button-text {
   background: transparent !important;
   color: var(--brand-cyan) !important;
+}
+
+.p-button.p-button-help.p-button-outlined {
   border-color: var(--brand-cyan) !important;
+}
+
+/* Text buttons stay borderless like every other severity (icon-only row actions) */
+.p-button.p-button-help.p-button-text {
+  border-color: transparent !important;
 }
 
 .p-button.p-button-help.p-button-outlined .p-button-label,
@@ -2727,7 +2735,8 @@ body,
   color: var(--brand-cyan) !important;
 }
 
-.p-button.p-button-help.p-button-outlined:enabled:hover {
+.p-button.p-button-help.p-button-outlined:enabled:hover,
+.p-button.p-button-help.p-button-text:enabled:hover {
   background: rgba(24, 197, 216, 0.08) !important;
 }
 

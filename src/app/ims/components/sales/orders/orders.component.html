@@ -1496,3 +1496,29 @@
       icon="pi pi-check" (click)="closeLineOptionsDialog()"></button>
   </ng-template>
 </p-dialog>
+
+<!-- Cash order refused because the shop's cash register has no open session.
+     Back-office may not open a drawer it has not counted, so route the user to the register. -->
+<p-dialog [(visible)]="noCashSessionDialog"
+  [header]="'no_active_session' | translate"
+  [modal]="true"
+  [style]="{ width: '460px' }"
+  [draggable]="false"
+  [resizable]="false">
+  <div class="flex flex-column gap-3">
+    <div class="flex align-items-start gap-3">
+      <i class="pi pi-exclamation-triangle text-2xl" style="color: var(--brand-premium-hover);"></i>
+      <div>
+        <p class="m-0 mb-2">{{ noCashSessionMessage }}</p>
+        <small class="text-500">{{ 'open_cash_register_then_retry' | translate }}</small>
+      </div>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton pRipple type="button" class="p-button-text p-button-secondary"
+      [label]="'cancel' | translate" (click)="noCashSessionDialog = false"></button>
+    <button pButton pRipple type="button" class="p-button-primary"
+      [label]="'open_cash_register' | translate" icon="pi pi-wallet"
+      (click)="goToCashRegister()"></button>
+  </ng-template>
+</p-dialog>

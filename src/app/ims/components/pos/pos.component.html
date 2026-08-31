@@ -1889,6 +1889,25 @@
         </p-inputNumber>
         <small class="text-500">{{ 'link_to_cash_register_session' | translate }}</small>
       </div>
+
+      <!-- Manual mode only: no drawer is open yet, so the cashier must count and declare the float. -->
+      <div class="field w-full" *ngIf="requiresOpeningAmount">
+        <label class="block text-600 mb-2 font-medium">
+          {{ 'opening_amount' | translate }}
+          <span class="text-red-500">*</span>
+        </label>
+        <p-inputNumber
+          [(ngModel)]="sessionOpeningAmount"
+          [min]="0"
+          mode="decimal"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          [placeholder]="'opening_amount' | translate"
+          styleClass="w-full"
+          [style]="{ width: '100%' }">
+        </p-inputNumber>
+        <small class="text-500">{{ 'enter_opening_balance_to_start_your_session' | translate }}</small>
+      </div>
       
       <div class="field">
         <label class="block text-600 mb-2 font-medium">

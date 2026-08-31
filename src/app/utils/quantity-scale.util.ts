@@ -64,6 +64,7 @@ export class QuantityScale {
         switch (unit) {
           case MeasureUnit.KG:
           case MeasureUnit.LITER:
+          case MeasureUnit.METER:
             return 1000;
           case MeasureUnit.G:
           case MeasureUnit.ML:
@@ -138,7 +139,7 @@ export class QuantityScale {
   static allowedMeasureUnits(mode: StockTrackingMode): MeasureUnit[] {
     switch (mode) {
       case StockTrackingMode.FRACTIONAL_PHYSICAL:
-        return [MeasureUnit.KG, MeasureUnit.G, MeasureUnit.LITER, MeasureUnit.ML];
+        return [MeasureUnit.KG, MeasureUnit.G, MeasureUnit.LITER, MeasureUnit.ML, MeasureUnit.METER];
       case StockTrackingMode.PREPAID_VALUE_POOL:
         return [MeasureUnit.CURRENCY, MeasureUnit.UNIT];
       default:

@@ -46,7 +46,11 @@ export class PosService {
 
   // =============== Session Management ===============
 
-  async startSession(shopId?: number, cashRegisterSessionId?: number): Promise<Observable<POSSessionDTO>> {
+  /**
+   * @param openingAmount counted opening float. Only used by the backend when auto-open is disabled
+   *   and no cash register session is active for the shop; ignored otherwise.
+   */
+  async startSession(shopId?: number, cashRegisterSessionId?: number, openingAmount?: number | null): Promise<Observable<POSSessionDTO>> {
     const headers = withAudit(await this.getHeaders(), 'Started POS session');
     let params = new HttpParams();
     if (shopId !== undefined && shopId !== null) {
@@ -54,6 +58,9 @@ export class PosService {
     }
     if (cashRegisterSessionId !== undefined && cashRegisterSessionId !== null) {
       params = params.set('cashRegisterSessionId', cashRegisterSessionId.toString());
+    }
+    if (openingAmount !== undefined && openingAmount !== null) {
+      params = params.set('openingAmount', openingAmount.toString());
     }
     return this.http.post<POSSessionDTO>(`${this.getBaseUrl()}sessions/start`, {}, { headers, params });
   }

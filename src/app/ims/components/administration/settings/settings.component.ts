@@ -81,6 +81,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   aiProviderOptions: { label: string; value: string }[] = [];
   aiInvoiceModeOptions: { label: string; value: string }[] = [];
   taxModeOptions: { label: string; value: string }[] = [];
+  staleSessionPolicyOptions: { label: string; value: string }[] = [];
   marginGuardModeOptions: { label: string; value: string }[] = [];
   pricingRulesModeOptions: { label: string; value: string }[] = [];
   /** 0 = global parameters, 1 = integrations, 2 = banks, 3 = tax rules */
@@ -413,6 +414,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
     return opt ? opt.label : (value || '');
   }
 
+  getStaleSessionPolicyLabel(value: string): string {
+    const v = (value || '').toUpperCase();
+    const opt = this.staleSessionPolicyOptions.find(o => o.value === v);
+    return opt ? opt.label : (value || '');
+  }
+
   getTaxModeLabel(value: string): string {
     const v = (value || '').toUpperCase();
     const opt = this.taxModeOptions.find(o => o.value === v);
@@ -629,6 +636,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
     if (k === 'tax.calculation.mode') {
       return this.getTaxModeLabel(String(v));
+    }
+    if (k === 'cash.register.stale.session.policy') {
+      return this.getStaleSessionPolicyLabel(String(v));
     }
     if (k === 'sales.margin.guard.mode') {
       return this.getMarginGuardModeLabel(String(v));
@@ -945,6 +955,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.taxModeOptions = [
       { label: this.translate.instant('tax_mode_GLOBAL'), value: 'GLOBAL' },
       { label: this.translate.instant('tax_mode_RULES'), value: 'RULES' },
+    ];
+
+    this.staleSessionPolicyOptions = [
+      { label: this.translate.instant('stale_session_policy_AUTO_CLOSE'), value: 'AUTO_CLOSE' },
+      { label: this.translate.instant('stale_session_policy_FLAG_FOR_REVIEW'), value: 'FLAG_FOR_REVIEW' },
     ];
 
     this.marginGuardModeOptions = [

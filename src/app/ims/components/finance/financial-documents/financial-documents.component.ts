@@ -135,6 +135,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   previewError: string | null = null;
   previewIframeSrc: SafeHtml | null = null;
   private previewUpdateSubject = new Subject<any>();
+  private searchChange$ = new Subject<string>();
   private destroy$ = new Subject<void>();
   private previewStyleId: string = 'financial-doc-preview-styles';
   
@@ -214,6 +215,26 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+
+    // Debounce the global search so typing does not fire one server-side
+    // query (five LIKE predicates) per keystroke.
+    this.searchChange$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((value: string) => {
+        // Drop emissions already reflected in the table (e.g. a keystroke still
+        // in flight when the user hit "clear filters").
+        if (value === (this.lastLazyLoadEvent.globalFilter ?? '')) {
+          return;
+        }
+        this.globalFilter = value;
+        this.lastLazyLoadEvent.first = 0;
+        this.lastLazyLoadEvent.globalFilter = value;
+        this.loadFinancialDocs();
+      });
 
     // Setup preview update subscription with debounce
     this.previewUpdateSubject
@@ -649,7 +670,9 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       rows,
       sortField,
       sortOrder,
-      globalFilter: event.globalFilter ?? this.globalFilter,
+      // `globalFilter` is two-way bound to the search input, so it is always the
+      // source of truth; a stale value carried on the event must never win.
+      globalFilter: this.globalFilter,
       filters: event.filters || this.lastLazyLoadEvent.filters || {}
     };
   }
@@ -667,10 +690,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   }
 
   onGlobalFilter(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    this.globalFilter = value;
-    this.lastLazyLoadEvent.first = 0;
-    this.loadFinancialDocs();
+    this.searchChange$.next((event.target as HTMLInputElement).value);
   }
 
   onFilterChange() {
@@ -725,6 +745,9 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     this.startDate = null;
     this.endDate = null;
     this.globalFilter = '';
+    // Supersede any debounced keystroke still pending so it cannot re-apply
+    // the old search term after this reset.
+    this.searchChange$.next('');
     
     this.lastLazyLoadEvent.first = 0;
     this.lastLazyLoadEvent.filters = {};

@@ -119,6 +119,7 @@
 .p-button.p-button-rounded.p-button-danger,
 .p-button.p-button-rounded.p-button-success,
 .p-button.p-button-rounded.p-button-info,
+.p-button.p-button-rounded.p-button-help,
 .p-button.p-button-rounded.p-button-secondary {
   @include ims-icon-only-button-center;
   background: transparent !important;
@@ -150,6 +151,10 @@
   color: var(--brand-info) !important;
 }
 
+.p-button.p-button-rounded.p-button-help {
+  color: var(--brand-cyan) !important;
+}
+
 .p-button.p-button-rounded.p-button-secondary {
   color: var(--brand-text-secondary) !important;
 }
@@ -177,6 +182,12 @@
 .p-button.p-button-rounded.p-button-info:enabled:hover {
   background: rgba(24, 197, 216, 0.1) !important;
   color: var(--brand-info-hover) !important;
+}
+
+.p-button.p-button-rounded.p-button-help:enabled:hover {
+  background: rgba(24, 197, 216, 0.1) !important;
+  border-color: transparent !important;
+  color: var(--brand-cyan) !important;
 }
 
 .p-button.p-button-rounded.p-button-secondary:enabled:hover {

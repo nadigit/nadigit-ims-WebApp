@@ -324,6 +324,9 @@
 												<span *ngIf="config.key === 'tax.calculation.mode'" class="value-text">
 													<span class="value-number">{{ getTaxModeLabel(config.value) }}</span>
 												</span>
+												<span *ngIf="config.key === 'cash.register.stale.session.policy'" class="value-text">
+													<span class="value-number">{{ getStaleSessionPolicyLabel(config.value) }}</span>
+												</span>
 
 												<!-- Sale-line margin guard / conditional pricing rules -->
 												<span *ngIf="config.key === 'sales.margin.guard.mode'" class="value-text">
@@ -412,6 +415,7 @@
 													config.key !== 'ai.integration.fallback.provider' &&
 													config.key !== 'ai.invoice.mode' &&
 													config.key !== 'tax.calculation.mode' &&
+													config.key !== 'cash.register.stale.session.policy' &&
 													config.key !== 'sales.margin.guard.mode' &&
 													config.key !== 'sales.margin.min.percent' &&
 													config.key !== 'sales.margin.guard.strict' &&
@@ -656,6 +660,15 @@
 												<div *ngIf="config.key === 'tax.calculation.mode'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="taxModeOptions"
+														optionLabel="label"
+														optionValue="value"
+														class="w-full"
+														appendTo="body">
+													</p-dropdown>
+												</div>
+												<div *ngIf="config.key === 'cash.register.stale.session.policy'" class="edit-field">
+													<p-dropdown [(ngModel)]="config.value"
+														[options]="staleSessionPolicyOptions"
 														optionLabel="label"
 														optionValue="value"
 														class="w-full"

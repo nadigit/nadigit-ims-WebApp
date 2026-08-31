@@ -117,6 +117,10 @@ export class PosComponent implements OnInit, OnDestroy {
   closeSessionDialog: boolean = false;
   sessionCashRegisterId: number | null = null;
   sessionNotes: string = '';
+  /** Counted opening float, asked for only when the drawer must be opened by hand. */
+  sessionOpeningAmount: number | null = null;
+  /** Mirrors cash.register.auto.open.session: when false the cashier supplies the float. */
+  cashRegisterAutoOpenEnabled: boolean = true;
   closingSessionNotes: string = '';
   reportDownloading: boolean = false;
   xReportFormatMenu: MenuItem[] = [];
@@ -424,6 +428,7 @@ export class PosComponent implements OnInit, OnDestroy {
     await this.loadSalesStockSoftReservationConfig();
     await this.loadPriceOverrideConfig();
     await this.loadPortionSelectionConfig();
+    await this.loadCashRegisterAutoOpenConfig();
 
     this.configService.configurationSaved$
       .pipe(takeUntil(this.destroy$))
@@ -4407,6 +4412,7 @@ export class PosComponent implements OnInit, OnDestroy {
     }
     this.sessionCashRegisterId = null;
     this.sessionNotes = '';
+    this.sessionOpeningAmount = null;
     await this.prefillCashRegisterSessionId();
     this.openSessionDialog = true;
   }
@@ -4450,6 +4456,17 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Manual mode with no drawer open yet: the counted float is required, not optional.
+    if (this.requiresOpeningAmount && (this.sessionOpeningAmount == null || this.sessionOpeningAmount < 0)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.translate.instant('opening_amount_required'),
+        life: 3000
+      });
+      return;
+    }
+
     this.loading = true;
     try {
       // Validate shopId for admins before starting session
@@ -4460,7 +4477,8 @@ export class PosComponent implements OnInit, OnDestroy {
 
       const started$ = await this.posService.startSession(
         this.getShopIdForApi(),
-        this.sessionCashRegisterId || undefined
+        this.sessionCashRegisterId || undefined,
+        this.requiresOpeningAmount ? this.sessionOpeningAmount : undefined
       );
       const newSession = await firstValueFrom(started$);
       
@@ -4470,6 +4488,7 @@ export class PosComponent implements OnInit, OnDestroy {
       this.openSessionDialog = false;
       this.sessionCashRegisterId = null;
       this.sessionNotes = '';
+      this.sessionOpeningAmount = null;
       
       // Create initial cart
       if (this.session) {
@@ -5534,6 +5553,30 @@ export class PosComponent implements OnInit, OnDestroy {
       console.warn('Could not load price override configuration for POS, defaulting to allowed', e);
       this.priceOverrideAllowed = true;
     }
+  }
+
+  /**
+   * When cash.register.auto.open.session is off, POS must ask the cashier for the counted opening
+   * float instead of silently opening a drawer (or refusing and sending them to another screen).
+   */
+  async loadCashRegisterAutoOpenConfig() {
+    try {
+      const config = await firstValueFrom(
+        await this.configService.getConfiguration('cash.register.auto.open.session')
+      );
+      this.cashRegisterAutoOpenEnabled = config?.value === 'true' || config?.value === true;
+    } catch (e) {
+      console.warn('Could not load cash register auto-open configuration for POS, defaulting to auto', e);
+      this.cashRegisterAutoOpenEnabled = true;
+    }
+  }
+
+  /**
+   * True when the start-session dialog must collect an opening float: manual mode and no cash
+   * register session already active for this shop.
+   */
+  get requiresOpeningAmount(): boolean {
+    return !this.cashRegisterAutoOpenEnabled && !this.sessionCashRegisterId;
   }
 
   /** Opt-in per tenant: expose the portion selector on POS cart lines. */
