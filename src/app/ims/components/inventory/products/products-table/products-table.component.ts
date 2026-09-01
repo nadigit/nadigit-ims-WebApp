@@ -1,5 +1,6 @@
-import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 import { LazyLoadEvent, MenuItem, SelectItem } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -28,7 +29,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
   templateUrl: './products-table.component.html',
   styleUrls: ['./products-table.component.css', '../products.component.css', '../../inventory.component.css']
 })
-export class ProductsTableComponent {
+export class ProductsTableComponent implements OnInit, OnDestroy {
   @ViewChild('dt') dt!: Table;
 
   @Input() products: Product[] = [];
@@ -107,6 +108,16 @@ export class ProductsTableComponent {
   items: MenuItem[] | undefined;
   sortOptions: SelectItem[] = [];
 
+  /**
+   * Search box keystrokes are debounced before hitting the backend: a barcode scanner emits a
+   * whole code in under 100ms, and one server search per character produced a burst of
+   * concurrent requests whose responses could land out of order (the broadest, slowest one
+   * last), which reset the table to the full product list right after the scanned match showed.
+   */
+  private static readonly GLOBAL_FILTER_DEBOUNCE_MS = 300;
+  private readonly globalFilterInput$ = new Subject<string>();
+  private readonly destroy$ = new Subject<void>();
+
   // Filter properties
   globalFilter: string = '';
   categoryFilters: Category[] = [];
@@ -160,6 +171,21 @@ export class ProductsTableComponent {
     ];
   }
 
+  ngOnInit(): void {
+    this.globalFilterInput$
+      .pipe(
+        debounceTime(ProductsTableComponent.GLOBAL_FILTER_DEBOUNCE_MS),
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((globalFilter) => this.onGlobalFilter.emit({ globalFilter }));
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   isService(product: Product): boolean {
     if (!product) return false;
     return product.productType === 'SERVICE';
@@ -190,14 +216,13 @@ export class ProductsTableComponent {
   }
 
   onGlobalFilterChange(event: Event) {
-    this.deactivateScanningEvent.emit();
+    // Scanning is NOT disabled here: the parent tells a scanner burst from human typing by
+    // keystroke timing. Killing it on the first character made every scan into the search box
+    // look like typing, so the scanned code never resolved to a product.
     const value = (event.target as HTMLInputElement).value.trim();
-    this.onGlobalFilter.emit({ globalFilter: value });
-    
-    // Also filter the table directly if we have the reference
-    if (this.dt) {
-      this.dt.filterGlobal(value, 'contains');
-    }
+    // The table is lazy, so filtering is done server-side by the debounced search below.
+    // Calling dt.filterGlobal() here only emitted a second onLazyLoad per keystroke.
+    this.globalFilterInput$.next(value);
   }
 
   onFilterChange() {
@@ -226,7 +251,9 @@ export class ProductsTableComponent {
     if (this.dt) {
       this.dt.clear();
     }
-    
+
+    // Supersede any pending debounced search so the cleared box also clears the backend term
+    this.globalFilterInput$.next('');
     this.applyFiltersEvent.emit({});
   }
 

@@ -902,7 +902,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   @HostListener('document:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent): void {
-    if (!this.scanning || event.ctrlKey || event.altKey || event.metaKey || this.shouldIgnoreBarcodeKeyEvent(event)) {
+    if (!this.scanning || !this.purchaseDialog || event.ctrlKey || event.altKey || event.metaKey || this.shouldIgnoreBarcodeKeyEvent(event)) {
       this.resetBarcodeBuffer();
       return;
     }

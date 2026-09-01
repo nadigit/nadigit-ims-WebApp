@@ -15,6 +15,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { ReturnItem } from 'src/app/models/returnItem';
 import { ReturnService } from 'src/app/services/return.service';
+import { BarcodeService } from 'src/app/services/barcode.service';
 import { ReturnStatus } from 'src/app/enums/return-status.enum';
 import { OrderItem } from 'src/app/models/orderItem';
 import { Customer } from 'src/app/models/customer';
@@ -192,8 +193,12 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
   barcode: string = '';
 
   scanTimeout: any;
+  private readonly barcodeIdleMs = 120;
+  private readonly barcodeMinLength = 4;
+  private lastBarcodeKeyAt = 0;
+  private barcodeLookupInProgress = false;
 
-  scanning: boolean = true;
+  scanning: boolean = false;
 
   TaxEnabledOptions: any[] = [];
 
@@ -231,6 +236,7 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
   
   constructor(private messageService: MessageService,
     private returnService: ReturnService,
+    private barcodeService: BarcodeService,
     private orderService: OrderService,
     private customerService: CustomerService,
     private cdr: ChangeDetectorRef,
@@ -410,6 +416,8 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
   hideDialog() {
     this.returnDialog = false;
     this.submitted = false;
+    this.scanning = false;
+    this.resetBarcodeBuffer();
   }
 
   initializePickList(): void {
@@ -578,6 +586,7 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.returnDialog = true;
+    this.scanning = true;
     this.selectedReturnProduct = null;
     this.refreshAvailableReturnProducts();
   }
@@ -646,6 +655,7 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
     this.onGetAllOrders();
     this.refreshAvailableReturnProducts();
     this.returnDialog = true;
+    this.scanning = true;
   }
 
   private findOrderItemForProduct(product: Product): OrderItem | undefined {
@@ -758,6 +768,8 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
 
     this.returns = [...this.returns];
     this.returnDialog = false;
+    this.scanning = false;
+    this.resetBarcodeBuffer();
     this.return = {};
   }
 
@@ -1578,7 +1590,29 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
 
 
   searchProductByBarcode(barcode: string): Product | undefined {
-    return this.sourceProducts.find((p: Product) => p.reference === barcode);
+    const code = barcode.trim().toLowerCase();
+    return this.sourceProducts.find((p: Product) => (p.reference || '').trim().toLowerCase() === code);
+  }
+
+  /**
+   * A scanned code is usually a barcode value, not the product reference, so an unmatched code is
+   * resolved through the barcode API and mapped back to the returnable products of this order.
+   */
+  private async resolveScannedSourceProduct(code: string): Promise<Product | undefined> {
+    const local = this.searchProductByBarcode(code);
+    if (local) {
+      return local;
+    }
+    try {
+      this.barcodeService.loadToken();
+      const scan = await firstValueFrom(this.barcodeService.scanBarcode(code));
+      if (scan?.found && scan.productId) {
+        return this.sourceProducts.find((p: Product) => p.productId === scan.productId);
+      }
+    } catch {
+      // scanner path: stay silent, the code simply does not resolve
+    }
+    return undefined;
   }
 
   // Check if a key is a valid alphanumeric character
@@ -1587,45 +1621,79 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
     return isAlphaNum;
   }
 
-  processBarcode(): void {
-    if (this.barcode) {
-      const product = this.searchProductByBarcode(this.barcode);
+  async processBarcode(force = false): Promise<void> {
+    const code = (this.barcode || '').trim();
+    this.resetBarcodeBuffer();
+
+    if ((!force && code.length < this.barcodeMinLength) || !code || this.barcodeLookupInProgress) {
+      return;
+    }
+
+    this.barcodeLookupInProgress = true;
+    try {
+      const product = await this.resolveScannedSourceProduct(code);
       if (product) {
-        console.log("Product found: ", product);
-        // Move the product to target using the new method
         this.moveProductToTarget(product);
-      } else {
-        console.log(`Product does not exist in stock for barcode: ${this.barcode}`);
       }
-      this.barcode = ''; // Clear the barcode buffer after processing
+    } finally {
+      this.barcodeLookupInProgress = false;
     }
   }
 
+  private resetBarcodeBuffer(): void {
+    this.barcode = '';
+    this.lastBarcodeKeyAt = 0;
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+      this.scanTimeout = null;
+    }
+  }
+
+  /** Never capture keystrokes that are being typed into a field — only a scanner burst. */
+  private shouldIgnoreBarcodeKeyEvent(event: KeyboardEvent): boolean {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return false;
+    }
+    return !!target.closest(
+      'input, textarea, select, [contenteditable="true"], .p-inputnumber, .p-autocomplete, .p-dropdown, .p-calendar, .p-multiselect, .p-inputtext'
+    );
+  }
+
+
   @HostListener('document:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent): void {
-    if (this.scanning) {
-      const key = event.key;
-
-      // If the key is a valid alphanumeric character, add it to the barcode buffer
-      if (this.isAlphanumeric(key)) {
-        this.barcode += key;
-      }
-
-      // If the Enter key is pressed, process the barcode
-      if (key === 'Enter') {
-        this.processBarcode();
-      }
-
-      // Clear any existing timeout
-      if (this.scanTimeout) {
-        clearTimeout(this.scanTimeout);
-      }
-
-      // Set a timeout to process the barcode after 300ms of inactivity
-      this.scanTimeout = setTimeout(() => {
-        this.processBarcode();
-      }, 300);
+    if (!this.scanning || event.ctrlKey || event.altKey || event.metaKey || this.shouldIgnoreBarcodeKeyEvent(event)) {
+      this.resetBarcodeBuffer();
+      return;
     }
+
+    const key = event.key;
+
+    if (key === 'Enter') {
+      void this.processBarcode(true);
+      return;
+    }
+
+    if (!this.isAlphanumeric(key)) {
+      return;
+    }
+
+    const now = Date.now();
+    if (!this.barcode || (this.lastBarcodeKeyAt && now - this.lastBarcodeKeyAt > this.barcodeIdleMs)) {
+      this.barcode = '';
+    }
+
+    this.lastBarcodeKeyAt = now;
+    this.barcode += key;
+
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+    }
+
+    this.scanTimeout = setTimeout(() => {
+      void this.processBarcode();
+    }, this.barcodeIdleMs);
   }
 
   calculateTotalAmount(): number {

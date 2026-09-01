@@ -5,6 +5,7 @@ import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
 import { Product, AggregatedProduct, ProductsAggregatedResponse } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
+import { BarcodeService } from 'src/app/services/barcode.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { Category } from 'src/app/models/category';
@@ -270,6 +271,14 @@ export class ProductsComponent implements OnInit {
   private isInitialLoad: boolean = true;
   private lazyLoadCallCount: number = 0;
   lastGlobalFilter: string = '';
+  /**
+   * Monotonic id of the newest product request. Responses that are not the newest are dropped:
+   * filter/search/pagination changes can overlap, and a slower earlier request (a broad search
+   * term scans far more rows) used to land last and overwrite the results the user asked for.
+   */
+  private productsRequestSeq: number = 0;
+  /** Guards against a second scan being processed while the current one is still resolving. */
+  private barcodeLookupInProgress: boolean = false;
 
   /** When false, list/detail treat net sellable qty vs on-hand (approved write-offs). */
   salesStockIncludesApprovedWriteoffQty: boolean = false;
@@ -283,6 +292,7 @@ export class ProductsComponent implements OnInit {
 
   constructor(private messageService: MessageService,
     private productService: ProductService,
+    private barcodeService: BarcodeService,
     private categoryService: CategoryService,
     private warehouseService: WarehouseService,
     private supplierService: SupplierService,
@@ -751,6 +761,8 @@ export class ProductsComponent implements OnInit {
     if (hasNoFilters) {
       // Clear any previously selected expiration status so it no longer affects future loads
       this.expirationStatusFilter = undefined;
+      // ...and the search term, otherwise the next lazy load re-sends the stale one
+      this.globalFilter = '';
 
       // Reset table-level filtered products so it falls back to full backend list
       this.filteredProducts = [];
@@ -878,16 +890,44 @@ export class ProductsComponent implements OnInit {
     console.log("Filtered Nodes:", this.filteredNodes);
   }
 
-  searchProductByBarcode(barcode: string) {
-    console.log("Searching for product by barcode: ", barcode);
-    console.log("Products: ", this.products);
-    const product = this.products.find(product => product.reference == barcode.trim());
-    console.log("Product: ", product);
-    if (product) {
-      console.log("Product found: ", product);
-      return product;
-    } else {
-      console.log("Product not found");
+  /** Match a scanned code against the reference of a product already on the current page. */
+  searchProductByBarcode(barcode: string): Product | undefined {
+    const code = barcode.trim().toLowerCase();
+    return this.products.find(product => (product.reference || '').trim().toLowerCase() === code);
+  }
+
+  /**
+   * Resolve a scanned code server-side: the barcode table first (a product's barcode value is not
+   * its reference), then the catalog search, which is barcode- and reference-aware. Only the
+   * products of the current page are searched locally, so a scan must not rely on that alone.
+   */
+  private async resolveScannedProductId(code: string): Promise<number | undefined> {
+    try {
+      this.barcodeService.loadToken();
+      const scan = await firstValueFrom(this.barcodeService.scanBarcode(code));
+      if (scan?.found && scan.productId) {
+        return scan.productId;
+      }
+    } catch (err) {
+      console.warn('Barcode scan lookup failed, falling back to catalog search', err);
+    }
+
+    const local = this.searchProductByBarcode(code);
+    if (local?.productId) {
+      return local.productId;
+    }
+
+    try {
+      this.productService.loadToken();
+      const res: any = await firstValueFrom(
+        this.productService.getProductsPaginated(0, 5, code, 'name', 'ASC', {})
+      );
+      const matches: Product[] = res?.page?.content ?? [];
+      const exact = matches.find(p => (p.reference || '').trim().toLowerCase() === code.toLowerCase());
+      const target = exact ?? (matches.length === 1 ? matches[0] : undefined);
+      return target?.productId;
+    } catch (err) {
+      console.error('Catalog lookup for scanned code failed', err);
       return undefined;
     }
   }
@@ -899,18 +939,29 @@ export class ProductsComponent implements OnInit {
   }
 
   async processBarcode(): Promise<void> {
-    if (this.barcode && this.barcode.trim().length >= 3) {
-      const product = await this.searchProductByBarcode(this.barcode);
-      console.log("Product: ", product);
-      if (product) {
-        console.log("Product found");
-        this.showProductDetails(product);
+    const code = (this.barcode || '').trim();
+    this.barcode = ''; // Clear the barcode buffer before the async lookup
+    if (code.length < 3 || this.barcodeLookupInProgress) {
+      return;
+    }
+
+    this.barcodeLookupInProgress = true;
+    try {
+      const productId = await this.resolveScannedProductId(code);
+      if (productId) {
+        this.openProductDetailsById(productId);
       } else {
-        console.log(`Product does not exist in stock for barcode: ${this.barcode}`);
         this.openProductNotFound();
       }
-      this.barcode = ''; // Clear the barcode buffer after processing
+    } finally {
+      this.barcodeLookupInProgress = false;
     }
+  }
+
+  /** Open the details page of a scanned product (only its id is known at this point). */
+  private openProductDetailsById(productId: number): void {
+    this.router.navigate(['/inventory/products', productId]);
+    this.deactivateScanning();
   }
 
   private isProductsGlobalSearchInput(el: EventTarget | null | undefined): boolean {
@@ -2710,6 +2761,7 @@ export class ProductsComponent implements OnInit {
     const size = rows!;
     const direction = sortOrder === 1 ? 'ASC' : 'DESC';
     const processedFilters = this.processFilters(filters);
+    const requestId = ++this.productsRequestSeq;
 
     console.log('Loading products with parameters:', {
       page,
@@ -2729,6 +2781,9 @@ export class ProductsComponent implements OnInit {
       processedFilters
     ).subscribe({
       next: (res: any) => {
+        if (requestId !== this.productsRequestSeq) {
+          return; // a newer request superseded this one
+        }
         console.log('Paginated products response:', res);
         // Assign the paginated products
         this.products = res.page.content.map((p: any) => ({
@@ -2755,6 +2810,9 @@ export class ProductsComponent implements OnInit {
         this.isLoading = false;
       },
       error: (err: any) => {
+        if (requestId !== this.productsRequestSeq) {
+          return; // a newer request superseded this one
+        }
         console.error(err);
         this.isLoading = false;
         this.messageService.add({
@@ -2775,6 +2833,7 @@ export class ProductsComponent implements OnInit {
     const size = rows!;
     const direction = sortOrder === 1 ? 'ASC' : 'DESC';
     const processedFilters = this.processFilters(filters);
+    const requestId = ++this.productsRequestSeq;
 
     this.productService.getAggregatedProducts(
       page,
@@ -2785,6 +2844,9 @@ export class ProductsComponent implements OnInit {
       processedFilters
     ).subscribe({
       next: (res: ProductsAggregatedResponse) => {
+        if (requestId !== this.productsRequestSeq) {
+          return; // a newer request superseded this one
+        }
         console.log('Aggregated products response:', res);
         this.aggregatedProducts = res.products;
         
@@ -2827,6 +2889,9 @@ export class ProductsComponent implements OnInit {
         console.log('Products:', this.products);
       },
       error: (err: any) => {
+        if (requestId !== this.productsRequestSeq) {
+          return; // a newer request superseded this one
+        }
         console.error('Error loading aggregated products:', err);
         this.isLoading = false;
         this.messageService.add({
@@ -2991,7 +3056,11 @@ export class ProductsComponent implements OnInit {
 
   onGlobalFilter(event: { globalFilter: string }) {
     this.scanning = false;
-    this.globalFilter = event.globalFilter;
+    const nextFilter = event.globalFilter ?? '';
+    if (nextFilter === this.globalFilter) {
+      return; // already applied (e.g. the search box was emptied by "clear filters")
+    }
+    this.globalFilter = nextFilter;
 
     const lazyEvent: LazyLoadEventExt = {
       ...this.lastLazyLoadEvent,
