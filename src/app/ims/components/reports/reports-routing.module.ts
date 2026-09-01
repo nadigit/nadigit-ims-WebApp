@@ -13,6 +13,7 @@ import { ProductMovementReportComponent } from './product-movement-report/produc
 import { TopSellingProductsReportComponent } from './top-selling-products-report/top-selling-products-report.component';
 import { VatDeclarationReportComponent } from './vat-declaration-report/vat-declaration-report.component';
 import { BatchExpiryReportComponent } from './batch-expiry-report/batch-expiry-report.component';
+import { StaffPerformanceReportComponent } from './staff-performance-report/staff-performance-report.component';
 import { CreditReportsComponent } from '../finance/credit-management/credit-reports/credit-reports.component';
 
 const routes: Routes = [
@@ -23,6 +24,14 @@ const routes: Routes = [
     data: { roles: ['ADMIN', 'ACCOUNTANT', 'AUDITOR'] },
     children: [
       { path: '', pathMatch: 'full', component: ReportsDefaultRedirectComponent },
+      {
+        // ADMIN-only in v1; there is deliberately no employee self-view yet.
+        // See docs/STAFF_PERFORMANCE_KPI_DESIGN.md §0 and §6.2.
+        path: 'staff',
+        component: StaffPerformanceReportComponent,
+        canActivate: [AuthGuard, LicenseFeatureGuard],
+        data: { roles: ['ADMIN'], licenseFeature: 'REPORTS_AND_ANALYTICS' }
+      },
       {
         path: 'sales',
         component: SalesSummaryReportComponent,

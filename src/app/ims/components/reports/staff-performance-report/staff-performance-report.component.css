@@ -1,0 +1,21 @@
+/**
+ * Staff performance report.
+ *
+ * Layout, tiles, filter bar and table come from reports-common.css and the shared PrimeNG theme —
+ * this file only holds what is genuinely specific to this report.
+ */
+
+/* Period-over-period change shown under each figure. Colour is applied in the template via the
+   theme's text-green-600 / text-red-500 utilities, because "better" is not always "up": a fall in
+   cash variance or discount rate is an improvement. */
+.staff-kpi-delta {
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+/* Many metric columns per role group; keep the numbers on one line and let the table scroll
+   horizontally (p-table responsiveLayout="scroll") rather than wrapping figures mid-value. */
+:host ::ng-deep .p-datatable .p-datatable-tbody > tr > td,
+:host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
+  white-space: nowrap;
+}

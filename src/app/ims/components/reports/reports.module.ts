@@ -9,10 +9,12 @@ import { ChartModule } from 'primeng/chart';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
 import { ButtonModule } from 'primeng/button';
+import { RippleModule } from 'primeng/ripple';
 import { CalendarModule } from 'primeng/calendar';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
@@ -30,6 +32,7 @@ import { ProductMovementReportComponent } from './product-movement-report/produc
 import { TopSellingProductsReportComponent } from './top-selling-products-report/top-selling-products-report.component';
 import { VatDeclarationReportComponent } from './vat-declaration-report/vat-declaration-report.component';
 import { BatchExpiryReportComponent } from './batch-expiry-report/batch-expiry-report.component';
+import { StaffPerformanceReportComponent } from './staff-performance-report/staff-performance-report.component';
 import { InventoryStatusComponent } from 'src/app/shared/components/inventory-status/inventory-status.component';
 
 @NgModule({
@@ -44,7 +47,8 @@ import { InventoryStatusComponent } from 'src/app/shared/components/inventory-st
     ProductMovementReportComponent,
     TopSellingProductsReportComponent,
     VatDeclarationReportComponent,
-    BatchExpiryReportComponent
+    BatchExpiryReportComponent,
+    StaffPerformanceReportComponent
   ],
   imports: [
     CommonModule,
@@ -57,10 +61,12 @@ import { InventoryStatusComponent } from 'src/app/shared/components/inventory-st
     ProgressSpinnerModule,
     MessageModule,
     ButtonModule,
+    RippleModule,
     CalendarModule,
     InputNumberModule,
     InputSwitchModule,
     InputTextModule,
+    SelectButtonModule,
     TableModule,
     TagModule,
     TooltipModule,

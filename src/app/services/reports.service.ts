@@ -208,6 +208,45 @@ export interface InventorySnapshot {
   approvedTheftWriteOffCostLookback: number;
 }
 
+export type StaffKpiRoleContext = 'CASHIER' | 'VENDOR' | 'WAREHOUSEMAN' | 'GENERIC';
+
+export interface StaffPerformanceRow {
+  appUserId: number;
+  username: string;
+  displayName: string;
+  active: boolean;
+  shopId: number | null;
+  shopName: string | null;
+  activeDays: number;
+  /** Keyed by metric name; the keys to render come from StaffPerformance.metricKeys. */
+  metrics: { [key: string]: number };
+  previousMetrics: { [key: string]: number };
+  rank: number | null;
+}
+
+export interface StaffPerformance {
+  roleContext: StaffKpiRoleContext;
+  from: string;
+  to: string;
+  previousFrom: string;
+  previousTo: string;
+  /**
+   * False when this deployment cannot produce the group (POS off, feature unlicensed, not yet
+   * implemented). Render "not available" — never zeros, which read as "this person did nothing".
+   */
+  available: boolean;
+  availabilityReason: 'AVAILABLE' | 'FEATURE_NOT_LICENSED' | 'MODULE_DISABLED' | 'NOT_IMPLEMENTED';
+  metricKeys: string[];
+  rows: StaffPerformanceRow[];
+  teamTotals: { [key: string]: number };
+  teamMedians: { [key: string]: number };
+  leaderboardEnabled: boolean;
+  leaderboardSuppressedReason: 'DISABLED_BY_CONFIGURATION' | 'TOO_FEW_MEMBERS' | null;
+  rankedBy: string;
+  /** Fraction of the window's activity with no user attribution (pre-backfill history). */
+  unattributedShare: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -472,6 +511,76 @@ export class ReportsService {
     return this.http.get(
       `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/inventory/situation/delta/export`,
       { headers, params, responseType: 'blob' as 'blob', observe: 'response' }
+    );
+  }
+
+  async getStaffPerformance(
+    roleContext: StaffKpiRoleContext,
+    from: string,
+    to: string,
+    opts: { userId?: number; shopId?: number; warehouseId?: number; rankBy?: string } = {}
+  ): Promise<Observable<StaffPerformance>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams().set('roleContext', roleContext).set('from', from).set('to', to);
+    if (opts.userId != null) params = params.set('userId', opts.userId.toString());
+    if (opts.shopId != null) params = params.set('shopId', opts.shopId.toString());
+    if (opts.warehouseId != null) params = params.set('warehouseId', opts.warehouseId.toString());
+    if (opts.rankBy) params = params.set('rankBy', opts.rankBy);
+    return this.http.get<StaffPerformance>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/staff/performance`,
+      { headers, params }
+    );
+  }
+
+  async getStaffTrend(
+    userId: number,
+    roleContext: StaffKpiRoleContext,
+    from: string,
+    to: string
+  ): Promise<Observable<Array<{ [key: string]: any }>>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const params = new HttpParams().set('roleContext', roleContext).set('from', from).set('to', to);
+    return this.http.get<Array<{ [key: string]: any }>>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/staff/performance/${userId}/trend`,
+      { headers, params }
+    );
+  }
+
+  /** Downloads the staff report as csv or xlsx. */
+  async exportStaffPerformance(
+    roleContext: StaffKpiRoleContext,
+    from: string,
+    to: string,
+    format: 'csv' | 'xlsx' = 'csv',
+    opts: { shopId?: number; warehouseId?: number; rankBy?: string } = {}
+  ): Promise<Observable<Blob>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    let params = new HttpParams()
+      .set('roleContext', roleContext)
+      .set('from', from)
+      .set('to', to)
+      .set('format', format);
+    if (opts.shopId != null) params = params.set('shopId', opts.shopId.toString());
+    if (opts.warehouseId != null) params = params.set('warehouseId', opts.warehouseId.toString());
+    if (opts.rankBy) params = params.set('rankBy', opts.rankBy);
+    return this.http.get(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/staff/performance/export`,
+      { headers, params, responseType: 'blob' }
+    );
+  }
+
+  /** Rebuilds staff KPI facts for a date range (ADMIN). Used to load history after the backfill. */
+  async recomputeStaffSnapshots(from: string, to: string): Promise<Observable<any>> {
+    await this.ensureTokenLoaded();
+    const headers = new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.post<any>(
+      `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.basePath}/staff/snapshots/recompute`,
+      null,
+      { headers, params }
     );
   }
 }

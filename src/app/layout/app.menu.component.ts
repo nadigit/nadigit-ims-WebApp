@@ -376,6 +376,15 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         roles: ['ADMIN'],
         licenseFeature: 'BATCH_MANAGEMENT',
       },
+      {
+        // ADMIN-only in v1 — no employee self-view yet.
+        label: translations['staff_kpi_menu_title'],
+        icon: 'pi pi-fw pi-users',
+        routerLink: ['/reports/staff'],
+        routerLinkActiveOptions: { exact: false },
+        roles: ['ADMIN'],
+        licenseFeature: 'REPORTS_AND_ANALYTICS',
+      },
     ];
 
     const reportsFinancialLeaves = [

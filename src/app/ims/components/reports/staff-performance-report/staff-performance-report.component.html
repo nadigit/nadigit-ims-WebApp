@@ -1,0 +1,208 @@
+<div class="grid">
+  <div class="col-12">
+    <div class="card px-6 py-6">
+      <div class="mb-4">
+        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+          <div>
+            <h2 class="m-0 text-900">{{ 'staff_kpi_title' | translate }}</h2>
+            <p class="text-600 mt-2 mb-0">{{ 'staff_kpi_subtitle' | translate }}</p>
+          </div>
+          <div class="ims-export-actions flex align-items-center gap-2 flex-wrap"
+            *ngIf="data?.available && (data?.rows?.length || 0) > 0 && !loading">
+            <button pButton pRipple type="button"
+              [icon]="exporting ? 'pi pi-spin pi-spinner' : 'pi pi-file'"
+              class="p-button-secondary"
+              [pTooltip]="'staff_kpi_export_csv' | translate"
+              tooltipPosition="bottom"
+              [disabled]="exporting"
+              (click)="exportReport('csv')"></button>
+            <button pButton pRipple type="button"
+              [icon]="exporting ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"
+              class="p-button-success"
+              [pTooltip]="'staff_kpi_export_xlsx' | translate"
+              tooltipPosition="bottom"
+              [disabled]="exporting"
+              (click)="exportReport('xlsx')"></button>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-600 text-sm mb-4">{{ 'staff_kpi_scope_note' | translate }}</p>
+
+      <!-- Filters -->
+      <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">
+        <div class="flex flex-column">
+          <label class="reports-filter-label">
+            <i class="pi pi-users mr-2 text-primary"></i>
+            {{ 'staff_kpi_role_group' | translate }}
+          </label>
+          <!-- allowEmpty=false: a segmented control must always have a selection. Without it,
+               clicking the active role deselects it and the report queries with no group. -->
+          <p-selectButton
+            [options]="roleOptions"
+            [(ngModel)]="activeRole"
+            optionLabel="label"
+            optionValue="value"
+            [allowEmpty]="false"
+            (onChange)="onRoleChange()"></p-selectButton>
+        </div>
+
+        <div class="flex flex-column align-items-start" style="min-width: 9rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-calendar-plus mr-2 text-primary"></i>
+            {{ 'staff_kpi_custom_range' | translate }}
+          </label>
+          <p-inputSwitch [(ngModel)]="useCustomRange" (onChange)="onCustomRangeToggle()"></p-inputSwitch>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="!useCustomRange" style="min-width: 12rem; max-width: 22rem">
+          <label class="reports-filter-label">
+            <i class="pi pi-calendar mr-2 text-primary"></i>
+            {{ 'period' | translate }}
+          </label>
+          <p-dropdown
+            [options]="periodOptions"
+            [(ngModel)]="selectedDays"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="onFilterChange()"
+            appendTo="body"
+            styleClass="w-full"></p-dropdown>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="useCustomRange" style="min-width: 12rem; max-width: 18rem">
+          <label class="reports-filter-label">{{ 'staff_kpi_range_from' | translate }}</label>
+          <p-calendar [(ngModel)]="fromDate" dateFormat="yy-mm-dd" [showIcon]="true"
+            [maxDate]="toDate || undefined" appendTo="body"
+            (onSelect)="onFilterChange()" styleClass="w-full"></p-calendar>
+        </div>
+
+        <div class="flex flex-column flex-1" *ngIf="useCustomRange" style="min-width: 12rem; max-width: 18rem">
+          <label class="reports-filter-label">{{ 'staff_kpi_range_to' | translate }}</label>
+          <p-calendar [(ngModel)]="toDate" dateFormat="yy-mm-dd" [showIcon]="true"
+            [minDate]="fromDate || undefined" appendTo="body"
+            (onSelect)="onFilterChange()" styleClass="w-full"></p-calendar>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="ims-loading-panel ims-loading-panel--section reports-loading-panel" *ngIf="loading">
+        <div class="ims-loading-panel__inner">
+          <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+          <p class="ims-loading-label">{{ 'loading' | translate }}</p>
+        </div>
+      </div>
+
+      <p-message severity="error" *ngIf="error && !loading" [text]="error" styleClass="w-full mb-4"></p-message>
+
+      <ng-container *ngIf="!loading && !error && data">
+
+        <!--
+          A group this deployment cannot produce. Deliberately NOT an empty table of zeros: in a
+          performance report a zero reads as "this person did nothing".
+        -->
+        <p-message
+          severity="info"
+          *ngIf="!data.available"
+          styleClass="w-full mb-4"
+          [text]="('staff_kpi_unavailable_title' | translate) + ' — ' + (unavailableMessageKey | translate)">
+        </p-message>
+
+        <ng-container *ngIf="data.available">
+
+          <!-- Thin history: makes a pre-backfill period visible instead of silently skewing ranks -->
+          <p-message
+            severity="warn"
+            *ngIf="showUnattributedWarning"
+            styleClass="w-full mb-4"
+            [text]="('staff_kpi_unattributed_warning' | translate) + ' (' + unattributedPercent + '%)'">
+          </p-message>
+
+          <!-- Headline tiles -->
+          <div class="grid mb-4" *ngIf="headlineKeys.length && data.rows.length > 0">
+            <div class="col-12 md:col-6 lg:col-3" *ngFor="let key of headlineKeys; trackBy: trackByKey">
+              <div class="reports-stat-tile" [ngClass]="tileAccentClass(key)">
+                <span class="reports-stat-label">{{ metricLabel(key) }}</span>
+                <span class="reports-stat-value">{{ formatMetric(key, tileValue(key)) }}</span>
+                <span class="block text-500 text-sm mt-2">
+                  {{ 'staff_kpi_team_median' | translate }}: {{ formatMetric(key, teamMedian(key)) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-600 text-sm mb-3" *ngIf="leaderboardNoticeKey">
+            <i class="pi pi-info-circle mr-1"></i>{{ leaderboardNoticeKey | translate }}
+          </p>
+
+          <p-table
+            [value]="data.rows"
+            [paginator]="data.rows.length > 15"
+            [rows]="15"
+            styleClass="p-datatable-sm"
+            responsiveLayout="scroll">
+            <ng-template pTemplate="header">
+              <tr>
+                <th style="width: 4rem" *ngIf="data.leaderboardEnabled">#</th>
+                <th>{{ 'staff_kpi_employee' | translate }}</th>
+                <th class="text-right" style="width: 7rem">{{ 'staff_kpi_active_days' | translate }}</th>
+                <th class="text-right white-space-nowrap"
+                  *ngFor="let key of data.metricKeys; trackBy: trackByKey">
+                  {{ metricLabel(key) }}
+                </th>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-row>
+              <tr>
+                <td *ngIf="data.leaderboardEnabled">
+                  <p-tag [value]="row.rank?.toString() || '—'" severity="info"></p-tag>
+                </td>
+                <td>
+                  <div class="flex flex-column">
+                    <span class="font-medium text-900">{{ row.displayName || row.username }}</span>
+                    <span class="text-500 text-sm" *ngIf="row.shopName">{{ row.shopName }}</span>
+                    <span class="text-500 text-sm" *ngIf="!row.active">
+                      {{ 'staff_kpi_inactive_user' | translate }}
+                    </span>
+                  </div>
+                </td>
+                <td class="text-right">{{ row.activeDays }}</td>
+                <td class="text-right white-space-nowrap"
+                  *ngFor="let key of data.metricKeys; trackBy: trackByKey">
+                  <div class="flex flex-column align-items-end">
+                    <span class="font-medium">{{ formatMetric(key, row.metrics[key]) }}</span>
+                    <span class="staff-kpi-delta text-sm"
+                      *ngIf="deltaPercent(row, key) as delta"
+                      [class.text-green-600]="isImprovement(key, delta)"
+                      [class.text-red-500]="!isImprovement(key, delta)">
+                      {{ delta > 0 ? '+' : '' }}{{ delta | number: '1.0-1' }}%
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td [attr.colspan]="tableColumnCount" class="text-center text-500 py-5">
+                  <div class="flex flex-column align-items-center justify-content-center py-4">
+                    <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                      style="max-width: 140px; opacity: 0.6;">
+                    <p class="mt-2 text-gray-600 font-medium">{{ 'staff_kpi_no_activity' | translate }}</p>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+
+          <p class="text-600 text-sm mt-3" *ngIf="data.rows.length > 0">
+            {{ 'staff_kpi_comparison_note' | translate }}
+            {{ data.previousFrom }} &ndash; {{ data.previousTo }}
+          </p>
+
+        </ng-container>
+      </ng-container>
+    </div>
+  </div>
+</div>
