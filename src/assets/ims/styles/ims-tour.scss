@@ -26,6 +26,54 @@
   color: var(--text-color-secondary, #4b5563);
 }
 
+/* --- step illustrations ---------------------------------------------------
+   Inline SVG sits above the description. Line work inside the art uses
+   currentColor, so it inherits the popover's text colour and reads correctly on
+   both the light web surfaces and the dark product surfaces. */
+.driver-popover.ims-tour-popover .ims-tour-figure {
+  display: block;
+  margin: 0.15rem 0 0.85rem;
+  /* Slightly muted so the illustration frames the copy rather than competing
+     with it — the popover's job is still the sentence, not the picture. */
+  color: var(--text-color, #1f2937);
+}
+
+.driver-popover.ims-tour-popover .ims-tour-illustration {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  /* A hairline keeps the tinted field from bleeding into a white popover. */
+  box-shadow: inset 0 0 0 1px rgba(11, 31, 74, 0.06);
+}
+
+/* The navigation scene depicts the sidebar's position, and the sidebar itself
+   flips in RTL — so this one mirrors. Abstract scenes (clock, check mark) are
+   deliberately left alone: mirroring those reads as broken, not localised. */
+[dir="rtl"] .driver-popover.ims-tour-popover .ims-tour-figure--directional .ims-tour-illustration {
+  transform: scaleX(-1);
+}
+
+/* First-run experience: introduce the art gently, and not at all for users who
+   have asked the OS to reduce motion. */
+.driver-popover.ims-tour-popover .ims-tour-illustration {
+  animation: ims-tour-art-in 260ms ease-out both;
+}
+
+@keyframes ims-tour-art-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .driver-popover.ims-tour-popover .ims-tour-illustration {
+    animation: none;
+  }
+  [dir="rtl"] .driver-popover.ims-tour-popover .ims-tour-figure--directional .ims-tour-illustration {
+    transform: scaleX(-1);
+  }
+}
+
 .driver-popover.ims-tour-popover .driver-popover-progress-text {
   font-size: 0.78rem;
   color: var(--text-color-secondary, #6b7280);

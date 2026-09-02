@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" width="260" height="64" role="img" aria-label="NadiPilot">
+  <!--
+    NadiPilot horizontal lockup — DARK GROUND.
+    Identical geometry to nadipilot-logo-lockup.svg; only the "Nadi" half of the wordmark changes
+    from navy to white so it holds on the navy product surfaces (#0B1F4A / #102B63). The brand rule
+    is to always use the version adapted to the background, never to recolour a lockup ad hoc.
+  -->
+  <defs>
+    <linearGradient id="nadipilot-lockup-dark-ia" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E5EFF"/>
+      <stop offset="100%" stop-color="#18C5D8"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="rotate(-28 32 32)">
+    <ellipse cx="32" cy="32" rx="27" ry="12" fill="none" stroke="url(#nadipilot-lockup-dark-ia)" stroke-width="4.4"/>
+    <circle cx="53.3" cy="24.6" r="4.6" fill="#18C5D8"/>
+  </g>
+  <path d="M32 18c1 9 5 13 14 14-9 1-13 5-14 14-1-9-5-13-14-14 9-1 13-5 14-14z" fill="url(#nadipilot-lockup-dark-ia)"/>
+
+  <text x="80" y="41" font-family="Poppins, 'Segoe UI', system-ui, sans-serif" font-size="26" font-weight="600" letter-spacing="-0.2">
+    <tspan fill="#FFFFFF">Nadi</tspan><tspan fill="url(#nadipilot-lockup-dark-ia)">Pilot</tspan>
+  </text>
+</svg>

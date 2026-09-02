@@ -1281,6 +1281,14 @@ export class ProductsComponent implements OnInit {
     const categoryName = qp.get('category');
     const description = qp.get('description');
     const sellingPrice = qp.get('sellingPrice');
+    // Consume the trigger straight away (replacing history, not adding to it) so a refresh or a
+    // Back into this page doesn't silently reopen the dialog.
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { newProduct: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
     // Defer so permissions and reference data (categories) finish loading before opening the dialog.
     setTimeout(() => {
       try {

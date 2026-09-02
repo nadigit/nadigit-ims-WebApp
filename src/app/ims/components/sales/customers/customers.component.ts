@@ -1,5 +1,5 @@
 import { Component, OnInit, Pipe, PipeTransform, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Customer } from 'src/app/models/customer';
@@ -134,6 +134,7 @@ export class CustomersComponent implements OnInit {
     private pricingService: PricingService,
     private organizationService: OrganizationService,
     private datePipe: DatePipe,
+    private route: ActivatedRoute,
     public pageSizeService: TablePageSizeService) { }
 
   async ngOnInit() {
@@ -175,7 +176,37 @@ export class CustomersComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+
+
+    this.applyCreateFromQuery();
   }
+
+  /**
+   * Deep-link hand-off: ?newCustomer=1 opens the creation dialog straight away, so a "New" shortcut
+   * from the dashboard (or NadiPilot) lands the user in the form rather than on the list. Deferred
+   * so permissions and reference data finish loading first; openNew() enforces the permission.
+   */
+  private applyCreateFromQuery(): void {
+    if (!this.route?.snapshot?.queryParamMap?.get('newCustomer')) {
+      return;
+    }
+    // Consume the trigger straight away (replacing history, not adding to it) so a refresh or a
+    // Back into this page doesn't silently reopen the dialog.
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { newCustomer: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+    setTimeout(() => {
+      try {
+        this.openNew();
+      } catch {
+        // best-effort; the user is already on the customers screen
+      }
+    }, 600);
+  }
+
 
   onTablePage(event: any): void {
     this.pageSizeService.applyPageEvent(TablePageSizeKeys.customers, this.rowsPerPageOptions, event, this);

@@ -37,6 +37,7 @@ type AppConfigCategoryId =
   | 'returns'
   | 'payments'
   | 'notifications_audit'
+  | 'reports'
   | 'expenses'
   | 'system'
   | 'other';
@@ -143,6 +144,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     'warehouse.transfer.auto.apply',
     'ai.invoice.hybrid.confidence.threshold',
     'ai.invoice.max.context.chars',
+    // staff.kpi.* is deliberately NOT advanced: the four parameters configure one report and are
+    // only understandable together. Hiding two of them behind the advanced switch makes the
+    // Reports category look half-populated.
   ]);
 
   private readonly aiSecretConfigKeys = new Set<string>([
@@ -178,6 +182,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     'returns',
     'payments',
     'notifications_audit',
+    'reports',
     'expenses',
     'system',
     'other',
@@ -193,6 +198,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     returns: 'pi pi-replay',
     payments: 'pi pi-wallet',
     notifications_audit: 'pi pi-bell',
+    reports: 'pi pi-chart-bar',
     expenses: 'pi pi-money-bill',
     system: 'pi pi-shield',
     other: 'pi pi-ellipsis-h',
@@ -521,6 +527,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
       'autoOrderComplete',
       'lowStockThreshold',
       'restore.enabled',
+      // Branding is company identity, not a subsystem toggle — it belongs with the general setup.
+      'branding.topbar.logo.enabled',
     ]);
     if (generalKeys.has(k)) {
       return 'general';
@@ -555,6 +563,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
     if (k.startsWith('notification.') || k.startsWith('audit.log')) {
       return 'notifications_audit';
+    }
+    if (k.startsWith('staff.kpi.')) {
+      return 'reports';
     }
     if (k.startsWith('expense.')) {
       return 'expenses';
@@ -658,6 +669,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
     if (k === 'notification.retention.days' || k === 'audit.log.retention.days' || k === 'credit.default.terms.days' || k === 'outstanding.balance.overdue.threshold.days') {
       return `${v}${days()}`;
     }
+    if (k === 'staff.kpi.recompute.days' || k === 'staff.kpi.retention.days') {
+      return `${v}${days()}`;
+    }
+    if (k === 'staff.kpi.cash.tolerance') {
+      return `${v} ${this.appConfigCurrency?.value ?? ''}`.trim();
+    }
     if (k === 'sales.stock.soft.reservation.ttl.minutes') {
       return `${v} ${this.translate.instant('minutes')}`;
     }
@@ -687,8 +704,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
       k === 'credit.manual.issuance.enabled' ||
       k === 'credit.limit.enforcement.enabled' ||
       k === 'credit.limit.includes.outstanding' ||
+      k === 'staff.kpi.leaderboard.enabled' ||
       k === 'outstanding.balance.tracking.enabled' ||
-      k === 'outstanding.balance.aging.enabled'
+      k === 'outstanding.balance.aging.enabled' ||
+      k === 'branding.topbar.logo.enabled'
     ) {
       return yn(String(v) === 'true');
     }

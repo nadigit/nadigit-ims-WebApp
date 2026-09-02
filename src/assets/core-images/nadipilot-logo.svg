@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1.5 7.7 61 48.6" width="61" height="48.6" role="img" aria-label="NadiPilot">
+  <!--
+    NadiPilot mark — FULL COLOUR.
+    Uses the brand's IA / innovation gradient (#1E5EFF -> #18C5D8, Brand Guidelines V1.2), which is
+    the gradient reserved for AI and innovation surfaces. Reads on both the light web ground and the
+    navy product ground, so one file covers both.
+    Use for splash screens, marketing, documentation and about dialogs.
+    For the in-app icon use nadipilot.svg (silhouette, tinted by CSS mask).
+  -->
+  <defs>
+    <linearGradient id="nadipilot-ia" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E5EFF"/>
+      <stop offset="100%" stop-color="#18C5D8"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(-28 32 32)">
+    <ellipse cx="32" cy="32" rx="27" ry="12" fill="none" stroke="url(#nadipilot-ia)" stroke-width="4.4"/>
+    <circle cx="53.3" cy="24.6" r="4.6" fill="#18C5D8"/>
+  </g>
+  <path d="M32 18c1 9 5 13 14 14-9 1-13 5-14 14-1-9-5-13-14-14 9-1 13-5 14-14z" fill="url(#nadipilot-ia)"/>
+</svg>

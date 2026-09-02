@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { driver, Driver, DriveStep } from 'driver.js';
+import { withIllustration } from './tour-illustrations';
 
 /**
  * Identifiers for the guided tours available across the app.
@@ -130,14 +131,14 @@ export class TourService {
       {
         popover: {
           title: t('tour_welcome_title'),
-          description: t('tour_welcome_desc'),
+          description: withIllustration('welcome', t('tour_welcome_desc')),
         },
       },
       {
         element: '.layout-menu',
         popover: {
           title: t('tour_menu_title'),
-          description: t('tour_menu_desc'),
+          description: withIllustration('menu', t('tour_menu_desc')),
           side: 'right',
           align: 'start',
         },
@@ -146,7 +147,7 @@ export class TourService {
         element: '.getting-started-banner',
         popover: {
           title: t('tour_getting_started_title'),
-          description: t('tour_getting_started_desc'),
+          description: withIllustration('gettingStarted', t('tour_getting_started_desc')),
           side: 'bottom',
           align: 'center',
         },
@@ -155,7 +156,7 @@ export class TourService {
         element: '.notification-button',
         popover: {
           title: t('tour_notifications_title'),
-          description: t('tour_notifications_desc'),
+          description: withIllustration('notifications', t('tour_notifications_desc')),
           side: 'bottom',
           align: 'end',
         },
@@ -164,7 +165,7 @@ export class TourService {
         element: '.action-reminders-button',
         popover: {
           title: t('tour_reminders_title'),
-          description: t('tour_reminders_desc'),
+          description: withIllustration('reminders', t('tour_reminders_desc')),
           side: 'bottom',
           align: 'end',
         },
@@ -173,7 +174,7 @@ export class TourService {
         element: '.copilot-topbar-button',
         popover: {
           title: t('tour_copilot_title'),
-          description: t('tour_copilot_desc'),
+          description: withIllustration('copilot', t('tour_copilot_desc')),
           side: 'bottom',
           align: 'end',
         },
@@ -182,7 +183,7 @@ export class TourService {
         element: '[data-tour="settings-menu"]',
         popover: {
           title: t('tour_settings_title'),
-          description: t('tour_settings_desc'),
+          description: withIllustration('settings', t('tour_settings_desc')),
           side: 'bottom',
           align: 'end',
         },
@@ -190,7 +191,7 @@ export class TourService {
       {
         popover: {
           title: t('tour_finish_title'),
-          description: t('tour_finish_desc'),
+          description: withIllustration('finish', t('tour_finish_desc')),
         },
       },
     ];

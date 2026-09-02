@@ -36,7 +36,10 @@
                     </div>
                     <div class="getting-started-banner__copy flex-1 min-w-0">
                         <div class="flex align-items-start justify-content-between gap-2">
-                            <h3 class="getting-started-banner__title m-0">{{ 'getting_started_title' | translate }}</h3>
+                            <div class="min-w-0">
+                                <span class="getting-started-banner__kicker">{{ 'getting_started_kicker' | translate }}</span>
+                                <h3 class="getting-started-banner__title m-0">{{ 'getting_started_title' | translate }}</h3>
+                            </div>
                             <button pButton pRipple
                                 icon="pi pi-times"
                                 class="getting-started-dismiss p-button-text p-button-rounded p-button-sm"
@@ -86,12 +89,14 @@
                         </a>
                     </div>
                 </div>
+
+                <p class="getting-started-banner__signature m-0">{{ 'getting_started_signature' | translate }}</p>
             </div>
         </div>
     </div>
 
     <!-- Show Getting Started Button (if hidden) -->
-    <div class="col-12 mb-3" *ngIf="dataLoaded && !showGettingStartedCard && isSetupIncomplete">
+    <div class="col-12 mb-3" *ngIf="shouldOfferGettingStartedAgain()">
         <button pButton pRipple 
             icon="pi pi-info-circle" 
             [label]="'show_getting_started' | translate"
@@ -236,6 +241,7 @@
                         [label]="action.label" 
                         [icon]="action.icon"
                         [routerLink]="action.route"
+                        [queryParams]="action.queryParams || {}"
                         class="p-button-outlined w-full quick-action-btn"
                         [pTooltip]="action.tooltip || action.label" tooltipPosition="bottom">
                     </button>
@@ -259,6 +265,7 @@
                         [label]="action.label" 
                         [icon]="action.icon"
                         [routerLink]="action.route"
+                        [queryParams]="action.queryParams || {}"
                         class="p-button-outlined w-full quick-action-btn"
                         [pTooltip]="action.tooltip || action.label" tooltipPosition="bottom">
                     </button>
@@ -282,6 +289,7 @@
                         [label]="action.label" 
                         [icon]="action.icon"
                         [routerLink]="action.route"
+                        [queryParams]="action.queryParams || {}"
                         class="p-button-outlined w-full quick-action-btn"
                         [pTooltip]="action.tooltip || action.label" tooltipPosition="bottom">
                     </button>
@@ -306,18 +314,61 @@
             </div>
         </div>
 
-        <!-- Command-center headline: NadiPilot briefing + hero metric (the "first look" moment) -->
-        <div class="cc-stage" *ngIf="overview as ov">
-            <div class="cc-briefing" *ngIf="displayBriefingSegments.length">
-                <div class="cc-briefing__avatar" aria-hidden="true">
+        <!-- Command-center skeleton: holds the exact shape of the stage below so the real hero
+             fills in rather than popping the page down when the overview resolves. -->
+        <div class="cc-stage" *ngIf="commandCenterSkeleton" aria-hidden="true">
+            <div class="cc-briefing cc-briefing--skeleton">
+                <div class="cc-briefing__avatar cc-briefing__avatar--thinking">
                     <i class="pi nadipilot-mark"></i>
                 </div>
                 <div class="cc-briefing__body">
-                    <span class="cc-briefing__tag">
+                    <span class="cc-skel cc-skel--tag"></span>
+                    <span class="cc-skel cc-skel--line"></span>
+                    <span class="cc-skel cc-skel--line cc-skel--short"></span>
+                </div>
+            </div>
+            <div class="cc-hero-row">
+                <div class="cc-hero cc-hero--skeleton">
+                    <span class="cc-skel cc-skel--tag"></span>
+                    <span class="cc-skel cc-skel--hero"></span>
+                    <span class="cc-skel cc-skel--line cc-skel--short"></span>
+                </div>
+                <div class="cc-mini cc-mini--skeleton">
+                    <span class="cc-skel cc-skel--tag"></span>
+                    <span class="cc-skel cc-skel--value"></span>
+                </div>
+                <div class="cc-mini cc-mini--skeleton">
+                    <span class="cc-skel cc-skel--tag"></span>
+                    <span class="cc-skel cc-skel--value"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Command-center headline: NadiPilot briefing + hero metric (the "first look" moment) -->
+        <div class="cc-stage" *ngIf="overview as ov">
+            <div class="cc-briefing" *ngIf="displayBriefingSegments.length"
+                [class.cc-briefing--thinking]="aiBriefingLoading">
+                <div class="cc-briefing__avatar"
+                    [class.cc-briefing__avatar--thinking]="aiBriefingLoading" aria-hidden="true">
+                    <i class="pi nadipilot-mark"></i>
+                </div>
+                <div class="cc-briefing__body" [class.cc-briefing__body--settled]="aiBriefingSettled">
+                    <!-- While NadiPilot works, name what it is doing instead of showing an anonymous
+                         spinner; the rule-based clauses below stay readable throughout. -->
+                    <span class="cc-briefing__tag cc-briefing__tag--thinking" *ngIf="aiBriefingLoading"
+                        role="status" aria-live="polite">
+                        {{ 'nadipilot_is_thinking' | translate }}
+                        <span class="cc-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span class="cc-briefing__step">{{ thinkingStepLabel }}</span>
+                    </span>
+                    <span class="cc-briefing__tag" *ngIf="!aiBriefingLoading">
                         {{ 'dashboard_briefing' | translate }}
-                        <i class="pi pi-spin pi-spinner cc-briefing__spin" *ngIf="aiBriefingLoading"></i>
                     </span>
                     <p class="cc-briefing__headline m-0" *ngIf="briefingHeadline">{{ briefingHeadline }}</p>
+                    <!-- Holds the headline's line while NadiPilot writes it, so the arriving briefing
+                         doesn't shove the hero metric down under the user's eyes. -->
+                    <span class="cc-skel cc-skel--headline"
+                        *ngIf="aiBriefingLoading && !briefingHeadline" aria-hidden="true"></span>
                     <p class="cc-briefing__text m-0">
                         <span *ngFor="let seg of displayBriefingSegments"
                             class="cc-seg" [ngClass]="['cc-seg--' + seg.kind, seg.route ? 'cc-seg--link' : '']"

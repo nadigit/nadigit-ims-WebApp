@@ -1,5 +1,5 @@
 import { Component, EventEmitter, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService, PrimeNGConfig } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Supplier } from 'src/app/models/supplier';
@@ -133,6 +133,7 @@ export class SuppliersComponent implements OnInit {
     public keycloakService: KeycloakService,
     private router: Router,
     private organizationService: OrganizationService,
+    private route: ActivatedRoute,
     public pageSizeService: TablePageSizeService) {
     this.setUserRoles();
     // measureUnits and attributeTypes initialization removed - now handled by ProductFormComponent
@@ -169,7 +170,37 @@ export class SuppliersComponent implements OnInit {
     ];
 
     this.exportColumns = this.cols.map((col) => ({ title: col.header, dataKey: col.field }));
+
+
+    this.applyCreateFromQuery();
   }
+
+  /**
+   * Deep-link hand-off: ?newSupplier=1 opens the creation dialog straight away, so a "New" shortcut
+   * from the dashboard (or NadiPilot) lands the user in the form rather than on the list. Deferred
+   * so permissions and reference data finish loading first; openNew() enforces the permission.
+   */
+  private applyCreateFromQuery(): void {
+    if (!this.route?.snapshot?.queryParamMap?.get('newSupplier')) {
+      return;
+    }
+    // Consume the trigger straight away (replacing history, not adding to it) so a refresh or a
+    // Back into this page doesn't silently reopen the dialog.
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { newSupplier: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+    setTimeout(() => {
+      try {
+        this.openNew();
+      } catch {
+        // best-effort; the user is already on the suppliers screen
+      }
+    }, 600);
+  }
+
 
   onTablePage(event: any): void {
     this.pageSizeService.applyPageEvent(TablePageSizeKeys.suppliers, this.rowsPerPageOptions, event, this);

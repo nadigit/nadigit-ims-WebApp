@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MenuItem, ConfirmationService } from 'primeng/api';
 import { LayoutService } from "./service/app.layout.service";
 import { KeycloakService } from 'keycloak-angular';
@@ -18,6 +18,8 @@ import { TourService } from '../services/tour.service';
 import { BRAND_ASSETS } from '../utils/brand-assets';
 import { OrganizationContextService, OrganizationAccess } from '../services/organization-context.service';
 import { LicenseCapabilitiesService } from '../services/license-capabilities.service';
+import { BrandingService } from '../services/branding.service';
+import { Observable, Subscription } from 'rxjs';
 
 
 @Component({
@@ -26,8 +28,13 @@ import { LicenseCapabilitiesService } from '../services/license-capabilities.ser
   styleUrl: './app.topbar.component.css',
   providers: [ConfirmationService]
 })
-export class AppTopBarComponent implements OnInit {
+export class AppTopBarComponent implements OnInit, OnDestroy {
   readonly brandAssets = BRAND_ASSETS;
+
+  /** Customer logo shown in the centre of the bar; null when unset or unavailable. */
+  brandingLogoUrl: string | null = null;
+  brandingEnabled$!: Observable<boolean>;
+  private brandingSub?: Subscription;
 
   @ViewChild('notificationMenu') notificationMenu!: TieredMenu;
 
@@ -98,9 +105,16 @@ export class AppTopBarComponent implements OnInit {
     private sessionAuditService: SessionAuditService,
     private tourService: TourService,
     private organizationContext: OrganizationContextService,
-    private licenseCapabilities: LicenseCapabilitiesService) {
+    private licenseCapabilities: LicenseCapabilitiesService,
+    private brandingService: BrandingService,
+    private cdr: ChangeDetectorRef) {
 
   }
+
+  ngOnDestroy(): void {
+    this.brandingSub?.unsubscribe();
+  }
+
   async ngOnInit(): Promise<void> {
     this.translateService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang); // Use the translate service to update language
@@ -126,6 +140,14 @@ export class AppTopBarComponent implements OnInit {
     if (this.isAdminUser) {
       this.loadAdminActionRemindersCount();
     }
+
+    // Customer branding. The service owns the object-URL lifetime; the bar just renders it.
+    this.brandingEnabled$ = this.brandingService.topbarLogoEnabled$;
+    this.brandingSub = this.brandingService.logoUrl$.subscribe((url) => {
+      this.brandingLogoUrl = url;
+      this.cdr.markForCheck();
+    });
+    void this.brandingService.ensureLoaded();
     // this.items = [
     //     {
     //         label: 'Settings',

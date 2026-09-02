@@ -12,6 +12,15 @@
         <i class="pi pi-ellipsis-v"></i>
     </button>
 
+    <!-- Customer branding: absolutely centred so it stays put as the right-hand cluster changes
+         width (notification badges appearing, org switcher name length). Hidden on narrow screens
+         where the bar reflows and there is genuinely no room. -->
+    <img *ngIf="brandingLogoUrl && (brandingEnabled$ | async)"
+        class="layout-topbar-brand"
+        [src]="brandingLogoUrl"
+        [alt]="'organization_logo' | translate"
+        aria-hidden="true" />
+
     <div #topbarmenu class="layout-topbar-menu"
         [ngClass]="{'layout-topbar-menu-mobile-active': layoutService.state.profileSidebarVisible}">
 

@@ -47,6 +47,13 @@ function memoize<T extends (...args: any[]) => any>(fn: T): T {
   }) as T;
 }
 
+/**
+ * What a dashboard data source knows about its own records.
+ * 'absent' is a *confirmed* empty (the request succeeded and returned nothing); 'unknown' means the
+ * request failed, which must never be treated as "this tenant has no data".
+ */
+type OnboardingSignal = 'pending' | 'present' | 'absent' | 'unknown';
+
 @Component({
   styleUrls: ['./dashboard.component.css'],
   templateUrl: './dashboard.component.html',
@@ -110,10 +117,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Admin command-center overview (accurate, backend-aggregated)
   overview?: DashboardOverview;
   overviewLoading = false;
+  /** Flips true after the first overview attempt resolves (success OR failure) — the skeleton keys
+   *  off this so a failed load ends in an empty stage rather than a skeleton that shimmers forever. */
+  overviewAttempted = false;
 
   // NadiPilot AI briefing (replaces the rule-based summary once it arrives; falls back on failure)
   aiBriefing?: NadiPilotBriefingDTO;
   aiBriefingLoading = false;
+
+  /**
+   * "NadiPilot is thinking" state. The LLM briefing can take several seconds, so instead of an
+   * anonymous spinner we narrate what it is doing — a rotating step label. Saying *what* is
+   * happening measurably shortens the perceived wait, and the rule-based clauses stay on screen
+   * underneath so no real information is ever hidden behind the wait.
+   */
+  private static readonly THINKING_STEPS = [
+    'nadipilot_thinking_reading',
+    'nadipilot_thinking_stock',
+    'nadipilot_thinking_comparing',
+    'nadipilot_thinking_writing',
+  ];
+  /** Index into THINKING_STEPS; advances while the briefing is in flight, never wraps past the last. */
+  thinkingStepIndex = 0;
+  /** Set once the AI briefing has landed, so the template can cross-fade it in instead of jump-cutting. */
+  aiBriefingSettled = false;
+  private thinkingTimer: any = null;
   selectedPeriod: ProfitPeriod = ProfitPeriod.MONTH;
   readonly ProfitPeriod = ProfitPeriod;
   periodOptions: { label: string; value: ProfitPeriod }[] = [];
@@ -164,7 +192,36 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Getting Started onboarding card
   showGettingStartedCard: boolean = true;
   currentUsername: string = '';
-  dataLoaded: boolean = false; // Track if data has been loaded to prevent flickering
+  // Set once the analytics forkJoin resolves. NOT an onboarding gate — see onboardingSignals below;
+  // keying the banner off this flag is precisely what made it flicker.
+  dataLoaded: boolean = false;
+
+  /**
+   * Onboarding readiness, tracked per data source.
+   *
+   * The banner used to key off {@link dataLoaded}, which flips as soon as the *products* forkJoin
+   * resolves — while orders and customers are still in flight in a separate, later request. That
+   * left two visible defects:
+   *   1. Flicker — products landed first, orders/customers still read 0, the banner appeared, then
+   *      vanished a moment later when the second request resolved.
+   *   2. False positives — every source loader swallows its error into `of([])`, so a 403/timeout
+   *      is indistinguishable from an empty tenant and the banner nagged established customers.
+   *
+   * So each source now reports what it actually knows: 'present' / 'absent' (a real, successful
+   * empty) / 'unknown' (the request failed — we may not conclude anything). The banner renders only
+   * once every source the current role depends on has reported, and never while any is 'unknown'.
+   */
+  private onboardingSignals: {
+    products: OnboardingSignal;
+    orders: OnboardingSignal;
+    customers: OnboardingSignal;
+  } = { products: 'pending', orders: 'pending', customers: 'pending' };
+
+  /**
+   * Latches once setup is confirmed complete. A later cache miss or a failing refresh must never
+   * bring the onboarding banner back for a customer who is already up and running.
+   */
+  private setupConfirmedComplete = false;
 
   // Private properties for performance optimization
   private destroy$ = new Subject<void>();
@@ -301,6 +358,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+
+    this.stopThinkingSteps();
 
     if (this.heroAnimHandle) {
       cancelAnimationFrame(this.heroAnimHandle);
@@ -537,6 +596,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.error('Error loading dashboard overview:', error);
     } finally {
       this.overviewLoading = false;
+      this.overviewAttempted = true;
       this.cdr.markForCheck();
     }
   }
@@ -772,6 +832,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
     this.aiBriefingLoading = true;
+    this.aiBriefingSettled = false;
+    this.startThinkingSteps();
     this.cdr.markForCheck();
     try {
       const dto = await firstValueFrom(
@@ -788,8 +850,53 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.warn('NadiPilot briefing failed — using rule-based summary.', error);
     } finally {
       this.aiBriefingLoading = false;
+      this.stopThinkingSteps();
+      // Only animate an actual arrival — a silent fallback to the rule-based clauses should look
+      // like nothing happened, because for the user nothing did.
+      this.aiBriefingSettled = !!this.aiBriefing;
       this.cdr.markForCheck();
     }
+  }
+
+  /**
+   * Rotate the "thinking" step label roughly every 2.4s, holding on the last step rather than
+   * looping — a cycling list that restarts reads as "stuck", a label that settles reads as "nearly
+   * there". Skipped entirely when the user prefers reduced motion (the static first step is shown).
+   */
+  private startThinkingSteps(): void {
+    this.stopThinkingSteps();
+    this.thinkingStepIndex = 0;
+    if (this.prefersReducedMotion) {
+      return;
+    }
+    this.thinkingTimer = setInterval(() => {
+      if (this.thinkingStepIndex < DashboardComponent.THINKING_STEPS.length - 1) {
+        this.thinkingStepIndex++;
+        this.cdr.markForCheck();
+      }
+    }, 2400);
+  }
+
+  private stopThinkingSteps(): void {
+    if (this.thinkingTimer) {
+      clearInterval(this.thinkingTimer);
+      this.thinkingTimer = null;
+    }
+  }
+
+  /** Current "NadiPilot is thinking" step label. */
+  get thinkingStepLabel(): string {
+    const key = DashboardComponent.THINKING_STEPS[this.thinkingStepIndex]
+      ?? DashboardComponent.THINKING_STEPS[0];
+    return this.translate.instant(key);
+  }
+
+  /**
+   * True while the command centre has nothing to show yet — the skeleton stands in for the real
+   * stage at the same dimensions, so the hero arriving is a fill-in rather than a page jump.
+   */
+  get commandCenterSkeleton(): boolean {
+    return this.isAdmin && !this.overview && !this.overviewAttempted;
   }
 
   private severityToKind(severity: string): 'up' | 'down' | 'warn' | 'key' | 'plain' {
@@ -1053,7 +1160,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   getOrders() {
     const cacheKey = 'orders';
     const cached = this.getCachedData(cacheKey);
-    if (cached) return of(cached);
+    if (cached) {
+      this.markOnboardingSignal('orders', (this.totalOrders || 0) > 0);
+      return of(cached);
+    }
 
     return this.orderService.getOrdersPaginated(0, 20, '', 'orderDate', 'DESC').pipe(
       map((res: any) => {
@@ -1065,11 +1175,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
         } else if (res?.totalElements !== undefined) {
           this.totalOrders = res.totalElements;
         }
-        
+
+        const rows = res?.content ?? res?.page?.content ?? [];
+        // Trust the count when the backend sent one; otherwise fall back to the rows we got.
+        this.markOnboardingSignal('orders', (this.totalOrders || 0) > 0 || rows.length > 0);
+
         // Return orders array
-        return res?.content ?? res?.page?.content ?? [];
+        return rows;
       }),
-      catchError(() => of([]))
+      catchError(() => { this.onboardingSignals.orders = 'unknown'; return of([]); })
     );
   }
 
@@ -1146,14 +1260,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   getProducts() {
     const cacheKey = 'products';
     const cached = this.getCachedData(cacheKey);
-    if (cached) return of(cached);
+    if (cached) {
+      this.markOnboardingSignal('products', (this.totalProducts || 0) > 0);
+      return of(cached);
+    }
 
     return this.productService.getProductsPaginated(0, 20, '', 'creationDate', 'DESC').pipe(
       map((res: any) => {
         this.totalProducts = res?.totalProducts ?? 0;
+        this.markOnboardingSignal('products', this.totalProducts > 0);
         return res?.page?.content ?? [];
       }),
-      catchError(() => of([]))
+      // An empty list here is a *failure*, not an empty catalogue — say so, so onboarding stays quiet.
+      catchError(() => { this.onboardingSignals.products = 'unknown'; return of([]); })
     );
   }
 
@@ -1170,10 +1289,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   getCustomers() {
     const cacheKey = 'customers';
     const cached = this.getCachedData(cacheKey);
-    if (cached) return of(cached);
+    if (cached) {
+      this.markOnboardingSignal('customers', Array.isArray(cached) && cached.length > 0);
+      return of(cached);
+    }
 
     return this.customerService.getCustomers().pipe(
-      catchError(() => of([]))
+      map((rows: any) => {
+        this.markOnboardingSignal('customers', Array.isArray(rows) && rows.length > 0);
+        return rows;
+      }),
+      catchError(() => { this.onboardingSignals.customers = 'unknown'; return of([]); })
     );
   }
 
@@ -1770,40 +1896,77 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   shouldShowGettingStartedCard(): boolean {
-    // Only show card after data has been loaded to prevent flickering
-    if (!this.dataLoaded) {
+    if (!this.showGettingStartedCard || this.setupConfirmedComplete) {
       return false;
     }
-    return this.showGettingStartedCard && this.isSetupIncomplete;
+    return this.isSetupIncomplete;
+  }
+
+  /** The "bring the guide back" button — same certainty rules as the banner it restores. */
+  shouldOfferGettingStartedAgain(): boolean {
+    return !this.showGettingStartedCard && !this.setupConfirmedComplete && this.isSetupIncomplete;
+  }
+
+  /** Records what a source found, without ever downgrading a 'present' back to 'absent'. */
+  private markOnboardingSignal(source: 'products' | 'orders' | 'customers', present: boolean): void {
+    this.onboardingSignals[source] = present ? 'present' : 'absent';
+  }
+
+  /**
+   * The sources the current role's onboarding actually depends on. Warehouse-only roles can't read
+   * orders or customers (403), and their card only offers the "create product" step, so judging them
+   * on products alone is both correct and the only thing they can act on.
+   */
+  private get requiredOnboardingSignals(): OnboardingSignal[] {
+    const signals = this.onboardingSignals;
+    return (this.isAdmin || this.isVendor)
+      ? [signals.products, signals.orders, signals.customers]
+      : [signals.products];
   }
 
   /**
    * Whether the initial setup still looks incomplete, used to decide if onboarding should show.
-   * Role-aware: warehouse-only roles can't read orders/customers (403), so their onboarding — which
-   * only offers the "create product" step — is judged on products alone. Otherwise those endpoints
-   * would always read as empty and the card would never disappear.
+   *
+   * Deliberately conservative: it answers "do we *know* this tenant is still empty?", not "does it
+   * look empty right now". Anything less than a complete, successful picture keeps the banner
+   * hidden — a moment of silence costs nothing, whereas a banner that flashes during load or nags a
+   * live customer because one request 403'd undermines trust in the whole dashboard.
    */
   get isSetupIncomplete(): boolean {
-    const productsMissing = (this.totalProducts || 0) === 0;
-    if (!this.isAdmin && !this.isVendor) {
-      return productsMissing;
+    const required = this.requiredOnboardingSignals;
+
+    // Still loading, or a source failed and we cannot honestly judge — stay quiet either way.
+    if (required.some((signal) => signal === 'pending' || signal === 'unknown')) {
+      return false;
     }
-    const customersMissing = !this.customers || this.customers.length === 0;
-    const ordersMissing = (this.totalOrders || 0) === 0;
-    return productsMissing || customersMissing || ordersMissing;
+
+    if (required.every((signal) => signal === 'present')) {
+      // Fully set up: latch it so a later cache miss or failed refresh can't resurrect the banner.
+      this.setupConfirmedComplete = true;
+      return false;
+    }
+
+    return true;
   }
 
   // Quick Actions Navigation Methods
+  /**
+   * Quick actions are shortcuts to *doing the thing*, not to the screen it lives on. Each target
+   * list page opens its create dialog when handed the matching `new*` query param (the same
+   * convention NadiPilot uses to hand off a confirmed proposal), so these land the user in the
+   * form. The permission check stays on the target's openNew() — a user without the right can
+   * still reach the list, they just don't get the dialog.
+   */
   navigateToNewOrder() {
-    this.router.navigate(['/sales/orders']);
+    this.router.navigate(['/sales/orders'], { queryParams: { newOrder: 1 } });
   }
 
   navigateToNewProduct() {
-    this.router.navigate(['/inventory/products']);
+    this.router.navigate(['/inventory/products'], { queryParams: { newProduct: 1 } });
   }
 
   navigateToNewCustomer() {
-    this.router.navigate(['/sales/customers']);
+    this.router.navigate(['/sales/customers'], { queryParams: { newCustomer: 1 } });
   }
 
   openCustomerDetails(customerId?: number): void {
@@ -1815,19 +1978,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   navigateToNewSupplier() {
-    this.router.navigate(['/purchases/suppliers']);
+    this.router.navigate(['/purchases/suppliers'], { queryParams: { newSupplier: 1 } });
   }
 
   navigateToNewPurchase() {
-    this.router.navigate(['/purchases/purchases']);
+    this.router.navigate(['/purchases/purchases'], { queryParams: { newPurchase: 1 } });
   }
 
   navigateToCustomerPayment() {
-    this.router.navigate(['/finance/payments/sales']);
+    this.router.navigate(['/finance/payments/sales'], { queryParams: { newPayment: 1 } });
   }
 
   navigateToSupplierPayment() {
-    this.router.navigate(['/finance/payments/purchase']);
+    this.router.navigate(['/finance/payments/purchase'], { queryParams: { newPayment: 1 } });
   }
 
   navigateToReports() {
@@ -2277,11 +2440,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     };
 
     return [
-      { label: getLabel('add_new_order', 'New Order'), icon: 'pi pi-plus-circle', route: ['/sales/orders'], tooltip: 'Create new order' },
+      // A "New X" action opens the form; a bare section name goes to the list. queryParams carries
+      // the difference — see navigateToNewOrder() for the convention.
+      { label: getLabel('add_new_order', 'New Order'), icon: 'pi pi-plus-circle', route: ['/sales/orders'], queryParams: { newOrder: 1 }, tooltip: 'Create new order' },
       { label: getLabel('orders_menu_title', 'Orders'), icon: 'pi pi-shopping-cart', route: ['/sales/orders'], tooltip: 'View all orders' },
       { label: getLabel('customers_menu_title', 'Customers'), icon: 'pi pi-users', route: ['/sales/customers'], tooltip: 'Manage customers' },
       { label: getLabel('products_menu_title', 'Items'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View items' },
-      { label: getLabel('payments_menu_title', 'Payments'), icon: 'pi pi-credit-card', route: ['/finance/sales-payments'], tooltip: 'View payments' },
+      // Was '/finance/sales-payments', which matches no route and fell through to /notfound.
+      { label: getLabel('payments_menu_title', 'Payments'), icon: 'pi pi-credit-card', route: ['/finance/payments/sales'], tooltip: 'View payments' },
       { label: getLabel('returns_menu_title', 'Returns'), icon: 'pi pi-undo', route: ['/sales/returns'], tooltip: 'Manage returns' }
     ];
   }
@@ -2298,11 +2464,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const actions = [
       { label: getLabel('warehouse_transfers_menu_title', 'Transfers'), icon: 'pi pi-arrow-right-arrow-left', route: ['/inventory/warehouse-transfers'], tooltip: 'Manage transfers' },
-      { label: getLabel('new_transfer', 'New Transfer'), icon: 'pi pi-plus-circle', route: ['/inventory/warehouse-transfers'], tooltip: 'Create new transfer' },
+      { label: getLabel('new_transfer', 'New Transfer'), icon: 'pi pi-plus-circle', route: ['/inventory/warehouse-transfers'], queryParams: { newTransfer: 1 }, tooltip: 'Create new transfer' },
       { label: getLabel('products_menu_title', 'Items'), icon: 'pi pi-box', route: ['/inventory/products'], tooltip: 'View items' },
       { label: getLabel('stock_movements_menu_title', 'Stock Movements'), icon: 'pi pi-chart-line', route: ['/inventory/stock-movements'], tooltip: 'View stock movements' },
       { label: getLabel('warehouses_menu_title', 'Warehouses'), icon: 'pi pi-database', route: ['/inventory/warehouses'], tooltip: 'View warehouses' },
-      { label: getLabel('purchases_menu_title', 'Purchases'), icon: 'pi pi-shopping-bag', route: ['/finance/purchases'], tooltip: 'View purchases' }
+      // Was '/finance/purchases', which matches no route and fell through to /notfound.
+      { label: getLabel('purchases_menu_title', 'Purchases'), icon: 'pi pi-shopping-bag', route: ['/purchases/purchases'], tooltip: 'View purchases' }
     ];
     return this.isWarehouseTransfersFeatureEnabled
       ? actions

@@ -2053,6 +2053,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       return;
     }
     const customerName = qp.get('customer');
+    // Consume the trigger straight away (replacing history, not adding to it) so a refresh or a
+    // Back into this page doesn't silently reopen the dialog.
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { newOrder: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
     // Defer so permissions/data finish loading before opening the dialog.
     setTimeout(() => {
       try {

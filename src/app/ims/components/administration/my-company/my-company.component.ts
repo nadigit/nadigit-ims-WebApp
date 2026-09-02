@@ -6,6 +6,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { TreeNode } from 'primeng/api';
 import { OrganizationService } from 'src/app/services/organization.service';
+import { BrandingService } from 'src/app/services/branding.service';
 import { Organization } from 'src/app/models/organization';
 import { LocationService } from 'src/app/services/location.service';
 import { firstValueFrom, Subscription } from 'rxjs';
@@ -74,6 +75,7 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
     private licenseCapabilities: LicenseCapabilitiesService,
     private authenticationService: AuthenticationService,
     private organizationContext: OrganizationContextService,
+    private brandingService: BrandingService,
   ) { }
 
   ngOnDestroy(): void {
@@ -357,15 +359,31 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
             this.organization.logo = uploadResponse.logoUrl; // Set logo URL
             this.logoImageUrl = uploadResponse.logoUrl;
             this.imagePreviewUrl = uploadResponse.logoUrl;
+            // Push the new logo to everything else showing it (top bar) without a page reload.
+            void this.brandingService.refresh();
           } else {
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error uploading file:', error);
+          // The server rejects oversized / mistyped / scriptable images with a specific, already
+          // localized reason — show that rather than a generic failure the admin can't act on.
+          let detail = this.translate.instant('error_while_uploading_logo');
+          const serverMessage = error?.error?.message;
+          if (typeof serverMessage === 'string' && serverMessage.trim()) {
+            detail = serverMessage;
+          } else if (typeof error?.error === 'string' && error.error.trim()) {
+            // uploadLogo() requests responseType 'text', so an error body may arrive as a raw string.
+            try {
+              detail = JSON.parse(error.error)?.message || detail;
+            } catch {
+              detail = error.error;
+            }
+          }
           this.messageService.add({
             severity: 'error',
             summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_logo'),
-            life: 3000
+            detail,
+            life: 6000
           });
           return; // Exit if there's an error
         }

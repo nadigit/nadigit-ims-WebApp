@@ -89,6 +89,25 @@
         }
     }
 
+    /* Customer branding, optically centred in the bar.
+     *
+     * Absolute positioning rather than auto margins on purpose: auto margins centre within the
+     * space *left over* by the two clusters, so the image would visibly drift as the right side
+     * changes width — the notification badge appears/disappears and switches between "9" and
+     * "99+", and the ENTERPRISE org switcher renders a company name of arbitrary length.
+     * left:50% + translateX(-50%) is direction-agnostic, so RTL needs no separate rule. */
+    .layout-topbar-brand {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        max-height: 40px;                      /* bar is 5rem/80px — leaves optical breathing room */
+        max-width: clamp(120px, 18vw, 220px);
+        width: auto;
+        object-fit: contain;
+        pointer-events: none;                  /* never steal clicks from the bar */
+        user-select: none;
+    }
+
     .layout-topbar-menu {
         margin: 0 0 0 auto;
         padding: 0;
@@ -116,6 +135,12 @@
 @media (max-width: 1199px) {
     .layout-topbar {
         justify-content: space-between;
+
+        /* Below this width the bar reflows to space-between and reorders its children
+         * (hamburger first, logo second), so a centred image would land on top of the logo. */
+        .layout-topbar-brand {
+            display: none;
+        }
 
         .layout-topbar-logo {
             width: auto;

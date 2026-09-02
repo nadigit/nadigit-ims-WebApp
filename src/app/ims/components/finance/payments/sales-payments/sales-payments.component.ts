@@ -1,5 +1,5 @@
 import { Component, EventEmitter, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LazyLoadEvent, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Payment } from 'src/app/models/payment';
@@ -138,6 +138,7 @@ export class SalesPaymentsComponent implements OnInit {
     private financialDocService: FinancialDocumentsService,
     private bankAccountService: BankAccountService,
     private router: Router,
+    private route: ActivatedRoute,
     private reconciliationValidationService: ReconciliationValidationService,
     private organizationService: OrganizationService,
     private datePipe: DatePipe,
@@ -190,7 +191,37 @@ export class SalesPaymentsComponent implements OnInit {
     };
     this.lastLazyLoadEvent = initialEvent;
     this.loadPayments({ ...initialEvent, sortBy: 'paymentDate', direction: 'DESC' });
+
+
+    this.applyCreateFromQuery();
   }
+
+  /**
+   * Deep-link hand-off: ?newPayment=1 opens the payment dialog straight away, so a "New" shortcut from
+   * the dashboard lands the user in the form rather than on the list. Deferred so permissions,
+   * bank accounts and the unpaid-document list finish loading first; openNew() enforces permission.
+   */
+  private applyCreateFromQuery(): void {
+    if (!this.route?.snapshot?.queryParamMap?.get('newPayment')) {
+      return;
+    }
+    // Consume the trigger straight away (replacing history, not adding to it) so a refresh or a
+    // Back into this page doesn't silently reopen the dialog.
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { newPayment: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+    setTimeout(() => {
+      try {
+        this.openNew();
+      } catch {
+        // best-effort; the user is already on the sales payments screen
+      }
+    }, 600);
+  }
+
 
   async loadBankAccounts() {
     try {

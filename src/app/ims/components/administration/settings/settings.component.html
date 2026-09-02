@@ -265,13 +265,25 @@
 													<span class="value-unit">{{ 'days' | translate }}</span>
 												</span>
 
+												<!-- Staff KPI: cash over/short tolerance, in the shop currency -->
+												<span *ngIf="config.key === 'staff.kpi.cash.tolerance'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ appConfigCurrency?.value }}</span>
+												</span>
+
+												<!-- Staff KPI: recompute window and snapshot retention, both in days -->
+												<span *ngIf="config.key === 'staff.kpi.recompute.days' || config.key === 'staff.kpi.retention.days'" class="value-text">
+													<span class="value-number">{{ config.value }}</span>
+													<span class="value-unit">{{ 'days' | translate }}</span>
+												</span>
+
 												<span *ngIf="config.key === 'notification.retention.days' || config.key === 'audit.log.retention.days'" class="value-text">
 													<span class="value-number">{{ config.value }}</span>
 													<span class="value-unit">{{ 'days' | translate }}</span>
 												</span>
 
 												<!-- Boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'sales.margin.guard.strict' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled' || config.key === 'purchase.companion.value.enabled' || config.key === 'sales.portion.selection.enabled'" class="value-text">
+												<span *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'sales.margin.guard.strict' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled' || config.key === 'purchase.companion.value.enabled' || config.key === 'sales.portion.selection.enabled' || config.key === 'branding.topbar.logo.enabled' || config.key === 'staff.kpi.leaderboard.enabled'" class="value-text">
 													<p-tag [value]="config.value === 'true' ? ('enabled' | translate) : ('disabled' | translate)"
 														[severity]="config.value === 'true' ? 'success' : 'danger'"></p-tag>
 												</span>
@@ -440,7 +452,12 @@
 													config.key !== 'ai.google.api.key' &&
 													config.key !== 'ai.openrouter.api.key' &&
 													config.key !== 'purchase.companion.value.enabled' &&
-														config.key !== 'sales.portion.selection.enabled' && config.key !== 'app.rate-limit.enabled'" class="value-text">
+														config.key !== 'sales.portion.selection.enabled' && config.key !== 'app.rate-limit.enabled' &&
+													config.key !== 'branding.topbar.logo.enabled' &&
+													config.key !== 'staff.kpi.leaderboard.enabled' &&
+													config.key !== 'staff.kpi.cash.tolerance' &&
+													config.key !== 'staff.kpi.recompute.days' &&
+													config.key !== 'staff.kpi.retention.days'" class="value-text">
 													<span class="value-number">{{ config.value }}</span>
 												</span>
 
@@ -528,8 +545,23 @@
 													</p-dropdown>
 												</div>
 
+												<!-- Staff KPI numeric parameters -->
+												<div *ngIf="config.key === 'staff.kpi.cash.tolerance'" class="edit-field">
+													<p-inputNumber [(ngModel)]="config.value" mode="decimal" [min]="0"
+														[minFractionDigits]="0" [maxFractionDigits]="2"
+														styleClass="w-full"></p-inputNumber>
+												</div>
+												<div *ngIf="config.key === 'staff.kpi.recompute.days'" class="edit-field">
+													<p-inputNumber [(ngModel)]="config.value" [min]="1" [max]="30"
+														[showButtons]="true" styleClass="w-full"></p-inputNumber>
+												</div>
+												<div *ngIf="config.key === 'staff.kpi.retention.days'" class="edit-field">
+													<p-inputNumber [(ngModel)]="config.value" [min]="30" [max]="3650"
+														[showButtons]="true" styleClass="w-full"></p-inputNumber>
+												</div>
+
 												<!-- Edit mode for boolean settings (cash.register.auto.open.session, payment.bank.methods.require.account) -->
-												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'sales.margin.guard.strict' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled' || config.key === 'purchase.companion.value.enabled' || config.key === 'sales.portion.selection.enabled'" class="edit-field">
+												<div *ngIf="config.key === 'cash.register.auto.open.session' || config.key === 'payment.bank.methods.require.account' || config.key === 'restore.enabled' || config.key === 'pos.return.refund.immediate' || config.key === 'writeoff.auto.expired.batches' || config.key === 'writeoff.auto.approve' || config.key === 'expense.require.approval' || config.key === 'warehouse.transfer.auto.apply' || config.key === 'sales.stock.include.approved.writeoff.quantity' || config.key === 'sales.stock.soft.reservation.enabled' || config.key === 'sales.margin.guard.strict' || config.key === 'pricing.allow.custom.override' || config.key === 'pricing.tax.inclusive' || config.key === 'order.backoffice.auto.status.enabled' || config.key === 'cash.register.auto.schedule.enabled' || config.key === 'pos.credit.order.auto.delivered' || config.key === 'sales.pos.enabled' || config.key === 'ai.integration.enabled' || config.key === 'app.rate-limit.enabled' || config.key === 'purchase.companion.value.enabled' || config.key === 'sales.portion.selection.enabled' || config.key === 'branding.topbar.logo.enabled' || config.key === 'staff.kpi.leaderboard.enabled'" class="edit-field">
 													<p-dropdown [(ngModel)]="config.value"
 														[options]="booleanOptions"
 														optionLabel="label"

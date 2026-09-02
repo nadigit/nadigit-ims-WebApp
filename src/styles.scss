@@ -2599,7 +2599,11 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
    matching how the previous icon-font glyph was tinted. */
 .nadipilot-mark {
   display: inline-block;
-  width: 1em;
+  /* The mark is landscape (about 1.26:1), not square like a PrimeIcons glyph. In a 1em square box
+     it could only ink 73% of the height, so it read noticeably smaller than the icons beside it.
+     Matching the box to the artwork's aspect lets it fill both dimensions: the ink is now a full
+     1em tall while still occupying only 1em of vertical space, so nothing reflows. */
+  width: 1.26em;
   height: 1em;
   background-color: currentColor;
   -webkit-mask: url('assets/core-images/nadipilot.svg') center / contain no-repeat;

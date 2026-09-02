@@ -158,6 +158,34 @@ export class WarehouseTransfersComponent implements OnInit {
       { title: this.translateService.instant('batch_info'), dataKey: 'batchInfo' },
       { title: this.translateService.instant('created_by'), dataKey: 'createdBy' }
     ];
+
+    this.applyCreateFromQuery();
+  }
+
+  /**
+   * Deep-link hand-off: ?newTransfer=1 opens the creation dialog straight away, so the "New
+   * Transfer" quick action lands the user in the form rather than on the list. Deferred so
+   * warehouses and permissions finish loading; openNew() still guards the single-warehouse case.
+   */
+  private applyCreateFromQuery(): void {
+    if (!this.route?.snapshot?.queryParamMap?.get('newTransfer')) {
+      return;
+    }
+    // Consume the trigger straight away (replacing history, not adding to it) so a refresh or a
+    // Back into this page doesn't silently reopen the dialog.
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { newTransfer: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+    setTimeout(() => {
+      try {
+        this.openNew();
+      } catch {
+        // best-effort; the user is already on the transfers screen
+      }
+    }, 600);
   }
 
   async setUserRoles() {

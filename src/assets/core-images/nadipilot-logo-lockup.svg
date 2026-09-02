@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" width="260" height="64" role="img" aria-label="NadiPilot">
+  <!--
+    NadiPilot horizontal lockup — mark + wordmark.
+
+    Clear space: the mark's own half-width (16 units) on every side. Minimum width 120px; below
+    that use the mark alone (nadipilot-logo.svg).
+
+    NOTE ON THE WORDMARK: set in Poppins (brand primary face) as live <text>, so it renders
+    correctly anywhere Poppins is loaded — which is true throughout the app and the docs site.
+    For print or any context where the font may be absent, convert the text to outlines in a vector
+    editor first; a missing font would silently fall back and change the logo.
+  -->
+  <defs>
+    <linearGradient id="nadipilot-lockup-ia" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E5EFF"/>
+      <stop offset="100%" stop-color="#18C5D8"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="rotate(-28 32 32)">
+    <ellipse cx="32" cy="32" rx="27" ry="12" fill="none" stroke="url(#nadipilot-lockup-ia)" stroke-width="4.4"/>
+    <circle cx="53.3" cy="24.6" r="4.6" fill="#18C5D8"/>
+  </g>
+  <path d="M32 18c1 9 5 13 14 14-9 1-13 5-14 14-1-9-5-13-14-14 9-1 13-5 14-14z" fill="url(#nadipilot-lockup-ia)"/>
+
+  <!-- "Nadi" in navy, "Pilot" in the IA gradient: the same split the product name already implies. -->
+  <text x="80" y="41" font-family="Poppins, 'Segoe UI', system-ui, sans-serif" font-size="26" font-weight="600" letter-spacing="-0.2">
+    <tspan fill="#0B1F4A">Nadi</tspan><tspan fill="url(#nadipilot-lockup-ia)">Pilot</tspan>
+  </text>
+</svg>
