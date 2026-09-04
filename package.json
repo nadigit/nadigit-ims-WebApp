@@ -1,6 +1,6 @@
 {
     "name": "ims-webapp",
-    "version": "2027.0.2",
+    "version": "3.2.0",
     "scripts": {
         "ng": "ng",
         "start": "ng serve",

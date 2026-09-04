@@ -162,16 +162,18 @@ export class LayoutService {
                 },
                 error: (err) => {
                     console.error('Failed to load system info:', err);
-                    // fallback
+                    // Only the values that are true of any build, and none that are a claim about
+                    // THIS install. The previous fallback asserted a version and a named customer
+                    // licence ("ElectroMadrid", expiring 2026-12-31) whenever the backend was
+                    // unreachable — so a connectivity blip showed every customer someone else's
+                    // licence and a version number that drifted out of date on its own. Support
+                    // contacts are safe to keep; version and licence are left unset, and the UI
+                    // renders its loading/empty state rather than something false.
                     this.systemInfo = {
                         appName: 'Nadigit IMS',
-                        appVersion: '2027.0.2',
-                        supportWebsite: 'https://nadigit.com',
+                        supportWebsite: 'https://ims.nadigit.com',
                         supportEmail: 'support@nadigit.ma',
-                        supportPhone: '+212-536-336-166',
-                        licenseCustomer: 'ElectroMadrid',
-                        licenseProduct: 'Nadigit-IMS',
-                        licenseExpiresAt: '2026-12-31'
+                        supportPhone: '+212-536-336-166'
                     };
                     this.systemInfoLoaded$.next();
                 }
