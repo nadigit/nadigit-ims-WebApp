@@ -993,28 +993,6 @@
   min-width: 0;
 }
 
-.copilot-header-icon-wrap {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.75rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--surface-card) 82%, var(--primary-color) 18%),
-    color-mix(in srgb, var(--surface-card) 86%, var(--brand-cyan) 14%)
-  );
-  border: 1px solid color-mix(in srgb, var(--primary-color) 30%, transparent);
-  box-shadow: 0 10px 24px -16px color-mix(in srgb, var(--primary-color) 60%, transparent);
-}
-
-.copilot-header-icon {
-  font-size: 1.2rem;
-  line-height: 1;
-  color: var(--primary-color);
-}
-
 .copilot-header-meta {
   display: flex;
   flex-direction: column;
@@ -1026,6 +1004,56 @@
   color: var(--text-color);
   letter-spacing: 0.01em;
   line-height: 1.1;
+}
+
+/* --- NadiPilot lockup (panel header) ---------------------------------------
+   Composed from the masked mark plus real text so the wordmark can use the
+   page's Poppins, follow the light/dark theme, and stay selectable. The header
+   drops the rounded icon tile on purpose: that tile exists to give a bare icon
+   presence, which the wordmark now provides — a lockup inside a badge reads as
+   a logo stuffed into a button. The tile is kept on the message avatars. */
+.copilot-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.copilot-lockup-mark {
+  /* Larger than the old 1.2rem tile glyph: with the tile gone the mark carries
+     the left side of the lockup on its own. */
+  font-size: 1.45rem;
+  line-height: 1;
+  color: var(--primary-color);
+  flex: 0 0 auto;
+}
+
+.copilot-lockup-word {
+  font-family: Poppins, Inter, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  /* "Nadi" follows the theme; the file lockups need a separate dark variant. */
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.copilot-lockup-word-accent {
+  /* The brand's IA / innovation gradient, same as the mark. */
+  background: linear-gradient(135deg, #1E5EFF, #18C5D8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* background-clip:text has no meaning to a forced-colours palette and would
+   render the word invisible, so opt out there. */
+@media (forced-colors: active) {
+  .copilot-lockup-word-accent {
+    background: none;
+    color: LinkText;
+  }
 }
 
 .copilot-subtitle {

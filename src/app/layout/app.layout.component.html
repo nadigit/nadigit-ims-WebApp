@@ -94,11 +94,22 @@
 
   <div class="copilot-panel-header">
     <div class="copilot-header-left flex align-items-center gap-2">
-      <div class="copilot-header-icon-wrap">
-        <i class="pi copilot-header-icon" [ngClass]="brandAssets.nadiPilotPrimeIcon" aria-hidden="true"></i>
-      </div>
       <div class="copilot-header-meta">
-        <p class="copilot-title m-0">{{ 'ai_copilot_title' | translate }}</p>
+        <!--
+          The NadiPilot lockup, composed rather than pulled in as an <img>: the wordmark is set in
+          Poppins, and an SVG loaded through <img> renders in an isolated document that cannot reach
+          the page's webfonts, so the file version would silently fall back to a system face.
+          Composing it also lets "Nadi" follow the theme and keeps the name as real text.
+          The accessible name keeps the translated "Assistant NadiPilot" that the wordmark drops.
+        -->
+        <p class="copilot-title copilot-lockup m-0">
+          <i class="pi copilot-lockup-mark" [ngClass]="brandAssets.nadiPilotPrimeIcon" aria-hidden="true"></i>
+          <span class="copilot-lockup-word" aria-hidden="true">Nadi<span class="copilot-lockup-word-accent">Pilot</span></span>
+          <!-- The wordmark is decorative to a screen reader; this carries the translated name.
+               A p-sr-only span is used rather than aria-label because a <p> has no ARIA role, so
+               the label is not reliably announced. -->
+          <span class="p-sr-only">{{ 'ai_copilot_title' | translate }}</span>
+        </p>
         <div class="copilot-online-status">
           <span class="copilot-online-dot" aria-hidden="true"></span>
           <small>{{ 'active' | translate }}</small>
