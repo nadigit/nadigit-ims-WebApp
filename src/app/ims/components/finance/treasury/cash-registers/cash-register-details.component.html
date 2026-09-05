@@ -330,7 +330,10 @@
                   <td class="text-center">
                     <button pButton icon="pi pi-eye" class="p-button-sm p-button-rounded p-button-text p-button-primary"
                       [pTooltip]="'view_movements' | translate" (click)="viewSessionMovements(session)"></button>
+                    <!-- The Z report is the final record of a shift, so it exists only once the
+                         session is closed. While it is open, use the X report from the POS. -->
                     <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-rounded p-button-text p-button-primary"
+                      *ngIf="session.closed"
                       [pTooltip]="'pos_z_report_download' | translate" (click)="downloadZReport(session)"></button>
                   </td>
                 </tr>

@@ -124,7 +124,6 @@ export class PosComponent implements OnInit, OnDestroy {
   closingSessionNotes: string = '';
   reportDownloading: boolean = false;
   xReportFormatMenu: MenuItem[] = [];
-  zReportFormatMenu: MenuItem[] = [];
 
   // Search / scan
   barcodeInput: string = '';
@@ -4770,13 +4769,6 @@ export class PosComponent implements OnInit, OnDestroy {
         command: () => this.downloadXReport('thermal'),
       },
     ];
-    this.zReportFormatMenu = [
-      {
-        label: this.translate.instant('pos_report_thermal_pdf'),
-        icon: 'pi pi-print',
-        command: () => this.downloadZReport('thermal'),
-      },
-    ];
   }
 
   async downloadXReport(format: 'standard' | 'thermal' = 'standard'): Promise<void> {
@@ -4815,41 +4807,6 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
-  async downloadZReport(format: 'standard' | 'thermal' = 'standard'): Promise<void> {
-    const cashRegisterSessionId = this.getCashRegisterSessionId();
-    if (!cashRegisterSessionId) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('warning'),
-        detail: this.translate.instant('pos_report_no_cash_register_session'),
-        life: 4000,
-      });
-      return;
-    }
-
-    this.reportDownloading = true;
-    try {
-      const response$ = await this.cashRegisterService.downloadZReportPdf(cashRegisterSessionId, format);
-      const response: any = await firstValueFrom(response$);
-      this.triggerReportPdfDownload(response?.body, `z_report_session_${cashRegisterSessionId}.pdf`);
-      this.messageService.add({
-        severity: 'success',
-        summary: this.translate.instant('successful'),
-        detail: this.translate.instant('pos_z_report_download'),
-        life: 3000,
-      });
-    } catch (error) {
-      console.error('Failed to download Z report:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('pos_report_download_failed'),
-        life: 4000,
-      });
-    } finally {
-      this.reportDownloading = false;
-    }
-  }
 
   private triggerReportPdfDownload(blob: Blob | null | undefined, filename: string): void {
     if (!blob) {

@@ -325,17 +325,11 @@
             [disabled]="isLocked || loading || reportDownloading"
             [pTooltip]="'pos_x_report_download' | translate">
           </p-splitButton>
-          <p-splitButton
-            *ngIf="getCashRegisterSessionId()"
-            [label]="'pos_z_report_title' | translate"
-            icon="pi pi-file-pdf"
-            (onClick)="downloadZReport('standard')"
-            [model]="zReportFormatMenu"
-            [appendTo]="'body'"
-            styleClass="p-button-outlined p-button-sm"
-            [disabled]="isLocked || loading || reportDownloading"
-            [pTooltip]="'pos_z_report_download' | translate">
-          </p-splitButton>
+<!-- No Z report here on purpose: the POS only ever shows an OPEN session, and the Z is the
+               final record of a closed one. Offering it here produced a second document labelled
+               "Z report" with different totals from the one written at close. Use the X report for a
+               mid-shift reading; the Z is downloaded from Finance > Treasury > Cash registers once
+               the session is closed. -->
           <button
             pButton
             icon="pi pi-refresh"
