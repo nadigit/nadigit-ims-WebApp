@@ -3216,6 +3216,7 @@
   "alert_center": "Centre d'alertes",
   "alert_center_subtitle": "Problèmes critiques nécessitant une attention",
   "alert_out_of_stock_with_orders": "{{count}} Article(s) en rupture de stock ont des commandes en attente",
+  "alert_out_of_stock_products": "{{count}} Article(s) sont en rupture de stock",
   "alert_low_stock_products": "{{count}} Article(s) sont en stock faible",
   "alert_overdue_transfers": "{{count}} transfert(s) d'entrepôt sont en retard",
   "alert_high_unpaid_receivables": "Les créances impayées dépassent {{percentage}}% du chiffre d'affaires total",

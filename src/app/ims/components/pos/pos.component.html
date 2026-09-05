@@ -1504,7 +1504,17 @@
           <div class="grid">
             <div class="col-12 md:col-4">
               <div class="text-sm text-600">{{ 'credit_limit' | translate }}:</div>
-              <div class="font-semibold">{{ creditInfo.creditLimit | currency:currency:'symbol':'1.2-2' }}</div>
+              <!-- A zero limit means no ceiling, so say so. Printing "0.00" beside an available
+                   credit of "Unlimited" read as a contradiction, and every new customer starts at
+                   zero. -->
+              <div class="font-semibold">
+                <ng-container *ngIf="creditInfo.creditLimit; else noCreditCeilingTpl">
+                  {{ creditInfo.creditLimit | currency:currency:'symbol':'1.2-2' }}
+                </ng-container>
+                <ng-template #noCreditCeilingTpl>
+                  <span class="text-green-600">{{ 'unlimited' | translate }}</span>
+                </ng-template>
+              </div>
             </div>
             <div class="col-12 md:col-4">
               <div class="text-sm text-600">{{ 'outstanding_balance' | translate }}:</div>

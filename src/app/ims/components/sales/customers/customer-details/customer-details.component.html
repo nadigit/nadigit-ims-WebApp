@@ -407,8 +407,10 @@
                                         </div>
                                     </div>
 
-                                    <!-- Credit Limit Info -->
-                                    <div class="info-item" *ngIf="creditInfo.creditLimit">
+                                    <!-- Credit Limit Info. Shown even at zero: that is now the
+                                         starting state of every customer, and it means no ceiling
+                                         rather than nothing to show. -->
+                                    <div class="info-item">
                                         <div class="ims-icon-tile ims-icon-tile--sm"
                                             [ngClass]="(creditInfo.availableCreditLimit || 0) < 100 ? 'ims-icon-tile--amber' : 'ims-icon-tile--neutral'">
                                             <i class="pi pi-credit-card"></i>
@@ -416,9 +418,12 @@
                                         <div class="info-content">
                                             <span class="info-label">{{ 'credit_limit' | translate }}</span>
                                             <div class="flex flex-column gap-1">
-                                                <span class="info-value">
+                                                <span class="info-value" *ngIf="creditInfo.creditLimit; else noCeilingTpl">
                                                     {{ creditInfo.creditLimit | currency:currency:'symbol':'1.2-2' }}
                                                 </span>
+                                                <ng-template #noCeilingTpl>
+                                                    <span class="info-value text-green-600">{{ 'unlimited' | translate }}</span>
+                                                </ng-template>
                                                 <span class="text-sm"
                                                     *ngIf="creditInfo.availableCreditLimit !== undefined && creditInfo.availableCreditLimit !== null && isFinite(creditInfo.availableCreditLimit) && Math.abs(creditInfo.availableCreditLimit) <= 1e15"
                                                     [ngClass]="(creditInfo.availableCreditLimit || 0) < 100 ? 'text-orange-600 font-semibold' : 'text-500'">

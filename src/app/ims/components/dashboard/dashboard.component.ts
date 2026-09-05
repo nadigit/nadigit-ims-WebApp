@@ -591,6 +591,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // Hero headline = gross profit (the operating bottom line), not net. Net profit is shown as
         // a secondary line below, so a one-off spoilage dump can't swamp the command-center headline.
         this.animateHero(this.overview.profit?.grossProfit ?? 0);
+        // The priority panel is fed by this payload (stock counts, receivables), so rebuild it here
+        // too — otherwise it keeps whatever loadAdminMetrics() computed before the overview landed,
+        // and stays stale across a period change.
+        this.buildCriticalAlerts();
       }
     } catch (error) {
       console.error('Error loading dashboard overview:', error);
@@ -767,6 +771,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Low-stock SKU count — authoritative, whole-catalogue.
+   *
+   * Source of truth is the backend overview ({@code inventory.lowStockSkuCount}), which classifies
+   * every active non-service product live from its on-hand quantity with the canonical
+   * InventoryStatus rule — the very same figure the NadiPilot briefing reports. The client-side
+   * {@link lowStockProducts} array is only a filter over ONE 20-row page of products, so it can
+   * never exceed 20 and contradicted the briefing on real catalogues (card 0 vs briefing 719).
+   * It survives purely as the fallback for roles that cannot call the ADMIN-only overview endpoint.
+   */
+  get lowStockCount(): number {
+    const fromOverview = this.overview?.inventory?.lowStockSkuCount;
+    if (typeof fromOverview === 'number' && isFinite(fromOverview)) {
+      return fromOverview;
+    }
+    if (this.isWarehouseman) {
+      return this.warehouseLowStockCount || 0;
+    }
+    return this.lowStockProducts?.length || 0;
+  }
+
+  /** Out-of-stock SKU count — authoritative, whole-catalogue. See {@link lowStockCount}. */
+  get outOfStockCount(): number {
+    const fromOverview = this.overview?.inventory?.outOfStockSkuCount;
+    if (typeof fromOverview === 'number' && isFinite(fromOverview)) {
+      return fromOverview;
+    }
+    if (this.isWarehouseman) {
+      return this.warehouseOutOfStockCount || 0;
+    }
+    return this.outOfStockProducts?.length || 0;
+  }
+
+  /**
    * NadiPilot-style briefing: a few already-translated clauses, each tagged with a semantic kind so
    * the template can color it. Composed from data the dashboard already loads (overview deltas +
    * low/out-of-stock counts + receivables) — no extra request, and it reads like a human summary.
@@ -790,7 +827,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
     }
 
-    const lowCount = (this.lowStockProducts?.length || 0) + (this.outOfStockProducts?.length || 0);
+    const lowCount = this.lowStockCount + this.outOfStockCount;
     if (lowCount > 0) {
       segs.push({ text: this.translate.instant('brief_lowstock', { count: lowCount }), kind: 'warn' });
     }
@@ -2190,19 +2227,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private buildCriticalAlerts() {
     this.criticalAlerts = [];
 
-    // Out of stock products with pending orders
-    const outOfStockWithOrders = this.outOfStockProducts.filter(product => {
-      return this.orders.some(order => 
-        order.orderItems?.some(item => item.product?.productId === product.productId)
-      );
-    });
-    if (outOfStockWithOrders.length > 0) {
+    // Stock signals read the authoritative whole-catalogue counts (see lowStockCount /
+    // outOfStockCount). They used to be derived from the single 20-row page of products this
+    // component loads — which capped every count at 20, contradicted the NadiPilot briefing, and
+    // froze at whatever the sample happened to hold when this ran (the panel kept reading 18 while
+    // the KPI cards next to it read 0, because a later product fetch had emptied the array).
+    const outOfStock = this.outOfStockCount;
+    if (outOfStock > 0) {
       this.criticalAlerts.push({
         type: 'error',
         icon: 'pi-exclamation-triangle',
-        translationKey: 'alert_out_of_stock_with_orders',
+        translationKey: 'alert_out_of_stock_products',
         badgeKey: 'priority_badge_stockout',
-        count: outOfStockWithOrders.length,
+        count: outOfStock,
         action: '/inventory/products',
         severity: 'error',
         priority: 1
@@ -2210,13 +2247,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     // Low stock products
-    if (this.lowStockProducts.length > 5) {
+    const lowStock = this.lowStockCount;
+    if (lowStock > 5) {
       this.criticalAlerts.push({
         type: 'warning',
         icon: 'pi-exclamation-circle',
         translationKey: 'alert_low_stock_products',
         badgeKey: 'priority_badge_lowstock',
-        count: this.lowStockProducts.length,
+        count: lowStock,
         action: '/inventory/products',
         severity: 'warn',
         priority: 2
@@ -2339,7 +2377,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.ordersStatistics = data.ordersStatistics || [];
         this.expensesStatistics = data.expensesStatistics || [];
         this.purchasesStatistics = data.purchasesStatistics || [];
-        this.products = data.products || [];
+        // An empty list here is usually this forkJoin's catchError/timeout firing, not an empty
+        // catalogue — overwriting good rows with it silently zeroed the stock tiles mid-session.
+        if (Array.isArray(data.products) && data.products.length > 0) {
+          this.products = data.products;
+        }
         
         console.log('Chart data loaded:', {
           top5Products: this.top5Products.length,

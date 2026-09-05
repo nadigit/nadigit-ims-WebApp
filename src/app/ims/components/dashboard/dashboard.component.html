@@ -594,13 +594,13 @@
     <div class="col-12 lg:col-6 xl:col-3">
         <app-kpi-card [label]="'dashboard_products_lowstock_header' | translate" tone="orange"
             icon="pi pi-exclamation-triangle"
-            [value]="formatNumber(isWarehouseman ? (warehouseLowStockCount || 0) : (lowStockProducts?.length || 0))"></app-kpi-card>
+            [value]="formatNumber(lowStockCount)"></app-kpi-card>
     </div>
 
     <div class="col-12 lg:col-6 xl:col-3">
         <app-kpi-card [label]="'dashboard_products_outofstock_header' | translate" tone="danger"
             icon="pi pi-times-circle"
-            [value]="formatNumber(isWarehouseman ? (warehouseOutOfStockCount || 0) : (outOfStockProducts?.length || 0))"></app-kpi-card>
+            [value]="formatNumber(outOfStockCount)"></app-kpi-card>
     </div>
 
     <div class="col-12 lg:col-6 xl:col-3" *ngIf="isAdmin || isVendor">

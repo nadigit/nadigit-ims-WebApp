@@ -3212,6 +3212,7 @@
   "alert_center": "مركز التنبيهات",
   "alert_center_subtitle": "مشاكل حرجة تحتاج إلى انتباه",
   "alert_out_of_stock_with_orders": "{{count}} صنف(أصناف) غير متوفر(ة) لديها طلبات معلقة",
+  "alert_out_of_stock_products": "{{count}} صنف(أصناف) غير متوفر(ة) في المخزون",
   "alert_low_stock_products": "{{count}} صنف(أصناف) لديها مخزون منخفض",
   "alert_overdue_transfers": "{{count}} نقل(نقل) مستودع متأخر(ة)",
   "alert_high_unpaid_receivables": "الذمم المدينة غير المدفوعة تتجاوز {{percentage}}% من إجمالي الإيرادات",
