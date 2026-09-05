@@ -2627,19 +2627,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private loadWarehousemanMetrics() {
     forkJoin({
-      products: this.getProducts(),
       transfers: this.getPendingTransfers(),
       warehouse: this.getAssignedWarehouse()
     })
       .pipe(
+        // Stock counts are asked of the backend, scoped to the assigned warehouse, once we know which
+        // warehouse that is — they used to be a filter over the same 20-row product page the admin
+        // tiles used, so they were capped at 20 and disagreed with the products page.
+        switchMap((data: any) =>
+          this.getWarehouseStockStats(data.warehouse?.warehouseId).pipe(
+            map((stats: any) => ({ ...data, stats }))
+          )
+        ),
         timeout(15000),
         takeUntil(this.destroy$),
         catchError(error => {
           console.error('Error loading warehouseman metrics:', error);
           return of({
-            products: [],
             transfers: [],
-            warehouse: null
+            warehouse: null,
+            stats: null
           });
         })
       )
@@ -2651,6 +2658,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
           console.error('Error calculating warehouseman metrics:', error);
         }
       });
+  }
+
+  /**
+   * Warehouse-scoped stock KPIs from the backend (`/api/stock/products/stats?warehouseId=`), which
+   * classifies every active product in that warehouse live from its on-hand quantity — the same rule
+   * the admin overview and the NadiPilot briefing use.
+   */
+  private getWarehouseStockStats(warehouseId?: number) {
+    if (!warehouseId) {
+      return of(null);
+    }
+    this.productService.loadToken();
+    return this.productService.getProductStats(warehouseId).pipe(
+      catchError(error => {
+        console.warn('Could not load warehouse stock stats', error);
+        return of(null);
+      })
+    );
   }
 
   private getAssignedWarehouse() {
@@ -2673,27 +2698,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private calculateWarehousemanMetrics(data: any) {
-    const products = data.products || [];
-    
-    // Filter products by assigned warehouse if available
-    let warehouseProducts = products;
-    if (data.warehouse) {
-      warehouseProducts = products.filter((p: Product) => 
-        p.warehouse?.warehouseId === data.warehouse.warehouseId
-      );
-    }
-
     this.assignedWarehouse = data.warehouse;
-    this.warehouseTotalProducts = warehouseProducts.length;
-    
-    // Calculate stock status
-    this.warehouseLowStockCount = warehouseProducts.filter((p: Product) => 
-      p.inventoryStatus === 'LOWSTOCK'
-    ).length;
-    
-    this.warehouseOutOfStockCount = warehouseProducts.filter((p: Product) => 
-      p.inventoryStatus === 'OUTOFSTOCK'
-    ).length;
+
+    // Whole-warehouse figures, computed backend-side. A failed stats call leaves the previous values
+    // in place rather than reporting a confident zero.
+    const stats = data.stats;
+    if (stats) {
+      this.warehouseTotalProducts = stats.totalProducts ?? 0;
+      this.warehouseLowStockCount = stats.lowStockCount ?? 0;
+      this.warehouseOutOfStockCount = stats.outOfStockCount ?? 0;
+    }
 
     // Get pending transfers
     this.warehousePendingTransfers = (data.transfers || []).length;

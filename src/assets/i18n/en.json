@@ -3317,6 +3317,7 @@
   "alert_center_subtitle": "Critical issues requiring attention",
   "alert_out_of_stock_with_orders": "{{count}} out of stock item(s) have pending orders",
   "alert_out_of_stock_products": "{{count}} item(s) are out of stock",
+  "dashboard_stock_tracked_items": "stock-tracked items",
   "alert_low_stock_products": "{{count}} item(s) are running low on stock",
   "alert_overdue_transfers": "{{count}} warehouse transfer(s) are overdue",
   "alert_high_unpaid_receivables": "Unpaid receivables exceed {{percentage}}% of total revenue",

@@ -135,10 +135,17 @@ export class ProductService {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
     return this.http.get(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema, { headers: headers });
   }
-  /** Admin product KPIs: counts (in/low/out of stock) + inventory valuation (cost & retail). */
-  getProductStats() {
+  /**
+   * Product KPIs: counts (in/low/out of stock) + inventory valuation (cost & retail).
+   * Pass a warehouseId to scope every figure to that warehouse (the warehouseman dashboard).
+   */
+  getProductStats(warehouseId?: number | null) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })
-    return this.http.get<any>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'stats', { headers: headers });
+    let params = new HttpParams();
+    if (warehouseId !== undefined && warehouseId !== null) {
+      params = params.set('warehouseId', String(warehouseId));
+    }
+    return this.http.get<any>(this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'stats', { headers: headers, params });
   }
   getProduct(id: number) {
     let headers = new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt })

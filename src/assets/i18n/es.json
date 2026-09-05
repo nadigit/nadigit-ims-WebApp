@@ -3202,6 +3202,7 @@
   "alert_center_subtitle": "Problemas críticos que requieren atención",
   "alert_out_of_stock_with_orders": "{{count}} Artículo(s) agotado(s) tienen pedidos pendientes",
   "alert_out_of_stock_products": "{{count}} Artículo(s) están agotados",
+  "dashboard_stock_tracked_items": "artículos con seguimiento de stock",
   "alert_low_stock_products": "{{count}} Artículo(s) tienen bajo stock",
   "alert_overdue_transfers": "{{count}} transferencia(s) de almacén están vencidas",
   "alert_high_unpaid_receivables": "Las cuentas por cobrar impagadas superan el {{percentage}}% de los ingresos totales",
