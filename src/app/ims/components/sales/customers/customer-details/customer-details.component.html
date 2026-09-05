@@ -379,6 +379,34 @@
                                         </div>
                                     </div>
 
+                                    <!-- Credit account status, with the switch that suspends or
+                                         reinstates it. A suspended account blocks credit sales for
+                                         this customer, at the POS and in back-office orders alike. -->
+                                    <div class="info-item">
+                                        <div class="ims-icon-tile ims-icon-tile--sm"
+                                            [ngClass]="isCreditAccountActive() ? 'ims-icon-tile--success' : 'ims-icon-tile--danger'">
+                                            <i class="pi pi-shield"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <span class="info-label">{{ 'credit_account_status' | translate }}</span>
+                                            <div class="flex align-items-center gap-2 flex-wrap">
+                                                <p-tag
+                                                    [value]="(isCreditAccountActive() ? 'active' : 'suspended') | translate"
+                                                    [severity]="isCreditAccountActive() ? 'success' : 'danger'"></p-tag>
+                                                <button pButton type="button"
+                                                    class="p-button-sm p-button-outlined"
+                                                    [ngClass]="isCreditAccountActive() ? 'p-button-danger' : 'p-button-success'"
+                                                    [icon]="isCreditAccountActive() ? 'pi pi-ban' : 'pi pi-check'"
+                                                    [label]="(isCreditAccountActive() ? 'suspend_credit_account' : 'reactivate_credit_account') | translate"
+                                                    [disabled]="creditStatusUpdating"
+                                                    (click)="toggleCreditAccountStatus()"></button>
+                                            </div>
+                                            <small class="text-500" *ngIf="!isCreditAccountActive()">
+                                                {{ 'credit_account_suspended_hint' | translate }}
+                                            </small>
+                                        </div>
+                                    </div>
+
                                     <!-- Credit Limit Info -->
                                     <div class="info-item" *ngIf="creditInfo.creditLimit">
                                         <div class="ims-icon-tile ims-icon-tile--sm"

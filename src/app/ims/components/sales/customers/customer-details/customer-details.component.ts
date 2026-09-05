@@ -465,6 +465,51 @@ export class CustomerDetailsComponent implements OnInit {
     }
   }
 
+  creditStatusUpdating = false;
+
+  /**
+   * A credit account is usable only while ACTIVE; every other status blocks credit sales for this
+   * customer. Treated as active when the status is absent so a customer whose account predates
+   * this screen is not shown as suspended when it is not.
+   */
+  isCreditAccountActive(): boolean {
+    const status = this.creditInfo?.status;
+    return !status || status === 'ACTIVE';
+  }
+
+  async toggleCreditAccountStatus(): Promise<void> {
+    if (this.creditStatusUpdating || !this.customerId) {
+      return;
+    }
+    const suspending = this.isCreditAccountActive();
+    this.creditStatusUpdating = true;
+    try {
+      const update$ = await this.creditService.updateCreditStatus(
+        this.customerId, suspending ? 'SUSPENDED' : 'ACTIVE');
+      await firstValueFrom(update$);
+      // Re-read rather than patching locally: suspending changes what the backend reports as
+      // available, and the rest of this card is drawn from those figures.
+      await this.loadCreditInfo();
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant(
+          suspending ? 'credit_account_suspended' : 'credit_account_reactivated'),
+        life: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to update the credit account status:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('credit_account_status_update_failed'),
+        life: 4000,
+      });
+    } finally {
+      this.creditStatusUpdating = false;
+    }
+  }
+
   async loadCreditInfo() {
     try {
       this.creditService.loadToken();
