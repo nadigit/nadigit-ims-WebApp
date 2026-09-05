@@ -3935,6 +3935,7 @@
   "view_credit": "Ver Crédito",
   "credit_details": "Detalles del Crédito",
   "credit_information": "Información del Crédito",
+  "pos_credit_requires_customer": "El pago a crédito requiere un cliente identificado: selecciónelo en la parte superior de la pantalla. Un cliente sin cita no puede comprar a crédito.",
   "credit_summary": "Resumen del Crédito",
   "credit_timeline": "Línea de Tiempo del Crédito",
   "linked_purchase_return": "Devolución de Compra Vinculada",

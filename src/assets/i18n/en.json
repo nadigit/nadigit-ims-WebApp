@@ -4067,6 +4067,7 @@
   "view_credit": "View Credit",
   "credit_details": "Credit Details",
   "credit_information": "Credit Information",
+  "pos_credit_requires_customer": "Credit payment needs a named customer: select one at the top of the screen. A walk-in customer cannot buy on credit.",
   "credit_summary": "Credit Summary",
   "credit_timeline": "Credit Timeline",
   "linked_purchase_return": "Linked Purchase Return",

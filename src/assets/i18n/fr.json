@@ -3947,6 +3947,7 @@
   "view_credit": "Voir le Crédit",
   "credit_details": "Détails du Crédit",
   "credit_information": "Informations sur le Crédit",
+  "pos_credit_requires_customer": "Le paiement à crédit demande un client identifié : sélectionnez-le en haut de l'écran. Un client de passage ne peut pas acheter à crédit.",
   "credit_summary": "Résumé du Crédit",
   "credit_timeline": "Chronologie du Crédit",
   "linked_purchase_return": "Retour d'Achat Lié",

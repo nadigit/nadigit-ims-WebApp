@@ -1161,8 +1161,14 @@
                     </label>
                   </div>
                 </div>
+                <!-- Credit is filtered out of the list above while the customer is walk-in, and a
+                     missing option explains nothing on its own. Say why, and what to do about it. -->
+                <small class="block mt-2 text-500" *ngIf="!isCreditAvailable()">
+                  <i class="pi pi-info-circle mr-1"></i>
+                  {{ 'pos_credit_requires_customer' | translate }}
+                </small>
               </div>
-              
+
               <!-- Payment Amount -->
               <div class="mb-3">
                 <label class="block text-600 mb-1 text-sm">{{ 'amount_paid' | translate }}</label>
@@ -1485,8 +1491,12 @@
       <div class="mb-4">
         <h4 class="mb-3">{{ 'payment_details' | translate }}</h4>
         
-        <!-- Credit Information Panel (shown when Credit payment is selected) -->
-        <div class="p-3 mb-3 border-round surface-100" *ngIf="isCreditPayment() && creditInfo">
+        <!-- Credit standing, shown as soon as a real customer is selected rather than only after
+             Credit is picked, matching the back-office order form. Gating it on isCreditPayment()
+             was circular: the figures that tell a cashier whether credit is possible only appeared
+             once credit had already been chosen. creditInfo is null for walk-in, so this stays
+             hidden there. -->
+        <div class="p-3 mb-3 border-round surface-100" *ngIf="creditInfo">
           <div class="flex align-items-center gap-2 mb-2">
             <i class="pi pi-info-circle text-primary"></i>
             <span class="font-semibold">{{ 'credit_information' | translate }}</span>
@@ -1514,7 +1524,11 @@
               </div>
             </div>
           </div>
-          <div class="mt-2 p-2 border-round" [ngClass]="{'bg-green-50': isUnlimitedCreditLimit() || availableCreditLimit >= cartTotal, 'bg-red-50': !isUnlimitedCreditLimit() && availableCreditLimit < cartTotal}">
+          <!-- Only when the sale is actually going on credit: comparing the cart against the
+               available limit is meaningless for a cash sale, and the red "exceeds available
+               credit" banner would be alarming for a customer who is paying in full. -->
+          <div class="mt-2 p-2 border-round" *ngIf="isCreditPayment()"
+            [ngClass]="{'bg-green-50': isUnlimitedCreditLimit() || availableCreditLimit >= cartTotal, 'bg-red-50': !isUnlimitedCreditLimit() && availableCreditLimit < cartTotal}">
             <div class="text-sm">
               <strong>{{ 'order_amount' | translate }}:</strong> {{ cartTotal | currency:currency:'symbol':'1.2-2' }}
             </div>

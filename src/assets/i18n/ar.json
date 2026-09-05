@@ -3920,6 +3920,7 @@
   "view_credit": "عرض الائتمان",
   "credit_details": "تفاصيل الائتمان",
   "credit_information": "معلومات الائتمان",
+  "pos_credit_requires_customer": "يتطلب الدفع بالائتمان عميلًا محدَّدًا: اختره في أعلى الشاشة. أما العميل العابر فلا يمكنه الشراء بالائتمان.",
   "credit_summary": "ملخص الائتمان",
   "credit_timeline": "الجدول الزمني للائتمان",
   "linked_purchase_return": "إرجاع الشراء المرتبط",
