@@ -3645,6 +3645,7 @@
   "pos_x_report_download": "Descargar informe X (PDF intermedio)",
   "pos_x_report_title": "Informe X",
   "pos_z_report_download": "Descargar informe Z (PDF)",
+  "pos_z_report_available_in_cash_registers": "Sesión cerrada. El informe Z sigue disponible en Finanzas > Tesorería > Cajas.",
   "pos_z_report_title": "Informe Z",
   "pos_report_thermal_pdf": "PDF térmico (80 mm)",
   "pos_report_no_cash_register_session": "No hay sesión de caja vinculada a esta sesión POS. Abra la caja primero.",

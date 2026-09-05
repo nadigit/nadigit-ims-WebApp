@@ -4715,7 +4715,11 @@ export class PosComponent implements OnInit, OnDestroy {
     try {
       const sessionId = this.session.sessionId;
       await firstValueFrom(await this.posService.endSession(sessionId));
-      
+
+      // The Z report exists only now that the shift is closed, and this screen is about to drop
+      // the session, so this is the one moment the cashier can still get it in one click.
+      await this.downloadZReportForClosedSession(sessionId);
+
       // Close dialog first
       this.closeSessionDialog = false;
       this.closingSessionNotes = '';
@@ -4807,6 +4811,30 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
+
+  /**
+   * Hands the cashier the Z report for the shift they just closed.
+   *
+   * Deliberately never rethrows: the session is closed and the figures are stored either way, so a
+   * failed download must not make a successful close look like a failure. The report stays
+   * available from Finance > Treasury > Cash registers, and is emailed to the notification
+   * recipients as well.
+   */
+  private async downloadZReportForClosedSession(sessionId: number): Promise<void> {
+    try {
+      const response$ = await this.cashRegisterService.downloadZReportPdf(sessionId, 'standard');
+      const response: any = await firstValueFrom(response$);
+      this.triggerReportPdfDownload(response?.body, `z_report_session_${sessionId}.pdf`);
+    } catch (error) {
+      console.error('Could not download the Z report after closing the session:', error);
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('session_closed'),
+        detail: this.translate.instant('pos_z_report_available_in_cash_registers'),
+        life: 5000,
+      });
+    }
+  }
 
   private triggerReportPdfDownload(blob: Blob | null | undefined, filename: string): void {
     if (!blob) {

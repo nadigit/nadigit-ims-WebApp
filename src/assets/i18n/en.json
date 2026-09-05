@@ -3776,6 +3776,7 @@
   "pos_x_report_download": "Download X report (mid-shift PDF)",
   "pos_x_report_title": "X Report",
   "pos_z_report_download": "Download Z report (PDF)",
+  "pos_z_report_available_in_cash_registers": "Session closed. The Z report remains available under Finance > Treasury > Cash registers.",
   "pos_z_report_title": "Z Report",
   "pos_report_thermal_pdf": "Thermal PDF (80mm)",
   "pos_report_no_cash_register_session": "No cash register session is linked to this POS session. Open the cash register first.",

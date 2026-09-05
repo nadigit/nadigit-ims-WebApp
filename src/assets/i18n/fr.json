@@ -3657,6 +3657,7 @@
   "pos_x_report_download": "Télécharger le rapport X (PDF intermédiaire)",
   "pos_x_report_title": "Rapport X",
   "pos_z_report_download": "Télécharger le rapport Z (PDF)",
+  "pos_z_report_available_in_cash_registers": "Session clôturée. Le rapport Z reste disponible dans Finance > Trésorerie > Caisses.",
   "pos_z_report_title": "Rapport Z",
   "pos_report_thermal_pdf": "PDF thermique (80 mm)",
   "pos_report_no_cash_register_session": "Aucune session de caisse n'est liée à cette session POS. Ouvrez d'abord la caisse.",

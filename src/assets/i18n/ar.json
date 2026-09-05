@@ -3637,6 +3637,7 @@
   "pos_x_report_download": "تحميل تقرير X (PDF مؤقت)",
   "pos_x_report_title": "تقرير X",
   "pos_z_report_download": "تحميل تقرير Z (PDF)",
+  "pos_z_report_available_in_cash_registers": "أُغلِقت الجلسة. ويبقى تقرير Z متاحًا في المالية ← الخزينة ← الصناديق.",
   "pos_z_report_title": "تقرير Z",
   "pos_report_thermal_pdf": "PDF حراري (80 مم)",
   "pos_report_no_cash_register_session": "لا توجد جلسة صندوق مرتبطة بجلسة نقطة البيع هذه. افتح الصندوق أولاً.",
