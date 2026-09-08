@@ -1243,6 +1243,7 @@
   "user_shops": "المتجر المخصص",
   "select_user_shops": "اختر المتجر",
   "user_warehouses": "المستودع المخصص",
+  "user_scope_not_required_for_admin": "يملك المسؤولون حق الوصول إلى جميع المتاجر والمستودعات، لذا لا يلزم تحديد نطاق.",
   "select_user_warehouses": "اختر المستودع",
   "user_pos_pin": "رمز PIN لنقطة البيع",
   "user_pos_pin_placeholder": "أدخل رمز PIN مكون من 4 إلى 6 أرقام لنقطة البيع",

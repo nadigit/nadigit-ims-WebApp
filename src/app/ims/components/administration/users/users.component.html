@@ -345,33 +345,40 @@
                                     <i class="pi pi-map-marker"></i>
                                 </div>
                                 <h3 class="ims-form-section__title">{{ 'user_shops' | translate }} &amp; {{ 'user_warehouses' | translate }}</h3>
+                                <small class="block mb-2 text-color-secondary" *ngIf="!scopeRequired">
+                                    {{ 'user_scope_not_required_for_admin' | translate }}
+                                </small>
                             </header>
                             <div class="grid ims-form-section__body">
                                 <div class="field col-12 md:col-6 mb-0">
                                     <label for="shop" class="ims-form-label">
-                                        {{ 'user_shops' | translate }} <span class="required-asterisk">*</span>
+                                        {{ 'user_shops' | translate }}
+                                        <span class="required-asterisk" *ngIf="scopeRequired">*</span>
                                     </label>
                                     <p-dropdown id="shop" [options]="shops" appendTo="body" [filter]="true" filterBy="shopName"
                                         [(ngModel)]="selectedShop" optionLabel="shopName" name="shop" styleClass="w-full"
                                         placeholder="{{ 'select_user_shops' | translate }}" scrollHeight="250px"
-                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !selectedShop?.shopId}">
+                                        [disabled]="!scopeRequired"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && scopeRequired && !selectedShop?.shopId}">
                                     </p-dropdown>
-                                    <small class="p-error" *ngIf="submitted && !selectedShop?.shopId">
+                                    <small class="p-error" *ngIf="submitted && scopeRequired && !selectedShop?.shopId">
                                         {{ 'user_shops' | translate }} {{ 'is_required_label' | translate }}
                                     </small>
                                 </div>
 
                                 <div class="field col-12 md:col-6 mb-0">
                                     <label for="warehouses" class="ims-form-label">
-                                        {{ 'user_warehouses' | translate }} <span class="required-asterisk">*</span>
+                                        {{ 'user_warehouses' | translate }}
+                                        <span class="required-asterisk" *ngIf="scopeRequired">*</span>
                                     </label>
                                     <p-dropdown id="warehouses" appendTo="body" [options]="warehouses" [filter]="true"
                                         filterBy="name" [(ngModel)]="selectedWarehouse" optionLabel="name" name="warehouse"
                                         styleClass="w-full" placeholder="{{ 'select_user_warehouses' | translate }}"
                                         scrollHeight="250px"
-                                        [ngClass]="{'ng-invalid ng-dirty': submitted && !selectedWarehouse?.warehouseId}">
+                                        [disabled]="!scopeRequired"
+                                        [ngClass]="{'ng-invalid ng-dirty': submitted && scopeRequired && !selectedWarehouse?.warehouseId}">
                                     </p-dropdown>
-                                    <small class="p-error" *ngIf="submitted && !selectedWarehouse?.warehouseId">
+                                    <small class="p-error" *ngIf="submitted && scopeRequired && !selectedWarehouse?.warehouseId">
                                         {{ 'user_warehouses' | translate }} {{ 'is_required_label' | translate }}
                                     </small>
                                 </div>

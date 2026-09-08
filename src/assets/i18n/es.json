@@ -1236,6 +1236,7 @@
   "user_shops": "Tienda Asignada",
   "select_user_shops": "Seleccionar Tienda",
   "user_warehouses": "Almacén Asignado",
+  "user_scope_not_required_for_admin": "Los administradores tienen acceso a todas las tiendas y almacenes, por lo que no se requiere ámbito.",
   "select_user_warehouses": "Seleccionar Almacén",
   "user_pos_pin": "PIN POS",
   "user_pos_pin_placeholder": "Ingrese un PIN de 4 a 6 dígitos para POS",

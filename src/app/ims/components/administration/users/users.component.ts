@@ -635,8 +635,15 @@ export class UsersComponent implements OnInit {
     // Ensure shops and warehouses attributes are set as arrays of strings
     this.user.attributes = this.user.attributes || {}; // Ensure attributes object exists
 
-    this.user.attributes.shop = this.selectedShop ? this.selectedShop.shopId?.toString() : ''; // Set single shop as string
-    this.user.attributes.warehouse = this.selectedWarehouse ? this.selectedWarehouse.warehouseId?.toString() : ''; // Set single warehouse as string
+    // An administrator carries no scope: sending one would both contradict the domain rule and
+    // leave a stale shop/warehouse behind if a scoped user is later promoted to ADMIN.
+    if (this.scopeRequired) {
+      this.user.attributes.shop = this.selectedShop ? this.selectedShop.shopId?.toString() : '';
+      this.user.attributes.warehouse = this.selectedWarehouse ? this.selectedWarehouse.warehouseId?.toString() : '';
+    } else {
+      this.user.attributes.shop = '';
+      this.user.attributes.warehouse = '';
+    }
     this.user.attributes.posPin = this.posPin || ''; // Set POS PIN
 
     if (this.user.username?.trim() && this.isUserFormValid()) {
@@ -670,17 +677,30 @@ export class UsersComponent implements OnInit {
     this.cdr.detectChanges(); // Detect changes to update the UI
   }
 
+  /**
+   * An ADMIN reaches every shop and warehouse, so an administrator is deliberately unscoped and
+   * must not be asked for either. Every other role is scoped and requires both. The backend
+   * enforces the same rule when the roles are granted; this only keeps the form honest.
+   */
+  get scopeRequired(): boolean {
+    return !(this.targetRoles || []).some(
+      (role) => (role?.name || '').toUpperCase() === 'ADMIN'
+    );
+  }
+
   private isUserFormValid(): boolean {
     const passwordOk = this.user.id ? true : !!this.userCredential?.value;
     const rolesOk = this.isRoleManagementLocked || (this.targetRoles?.length > 0);
+    const scopeOk =
+      !this.scopeRequired ||
+      !!(this.selectedShop?.shopId && this.selectedWarehouse?.warehouseId);
     return !!(
       this.user &&
       this.user.username &&
       this.user.email &&
       this.user.lastName &&
       this.user.firstName &&
-      this.selectedShop?.shopId &&
-      this.selectedWarehouse?.warehouseId &&
+      scopeOk &&
       passwordOk &&
       rolesOk
     );
