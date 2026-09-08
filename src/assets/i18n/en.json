@@ -1281,7 +1281,7 @@
   "user_shops": "Assigned Shop",
   "select_user_shops": "Select Shop",
   "user_warehouses": "Assigned Warehouse",
-  "user_scope_not_required_for_admin": "Administrators have access to every shop and warehouse, so no scope is required.",
+  "user_scope_not_required_for_admin": "This role is not tied to a shop or warehouse.",
   "select_user_warehouses": "Select Warehouse",
   "user_pos_pin": "POS PIN",
   "user_pos_pin_placeholder": "Enter 4-6 digit PIN for POS",

@@ -678,14 +678,26 @@ export class UsersComponent implements OnInit {
   }
 
   /**
-   * An ADMIN reaches every shop and warehouse, so an administrator is deliberately unscoped and
-   * must not be asked for either. Every other role is scoped and requires both. The backend
-   * enforces the same rule when the roles are granted; this only keeps the form honest.
+   * Roles that are not tied to a shop or a warehouse.
+   *
+   * ADMIN reaches everything. ACCOUNTANT and AUDITOR answer to the whole company: their scope is
+   * the organization (organization_membership on the server), not premises, so asking them for a
+   * shop and a warehouse would attach places they are not limited to. VENDOR, CASHIER and
+   * WAREHOUSEMAN work somewhere specific and stay scoped.
+   *
+   * The server is authoritative and enforces the same rule when roles are granted — see
+   * ims.users.scope-exempt-roles. Keep the two in step; if they disagree the server answers 400
+   * and names the missing attribute, so a drift is visible rather than silent.
    */
+  private static readonly SCOPE_EXEMPT_ROLES = ['ADMIN', 'ACCOUNTANT', 'AUDITOR'];
+
   get scopeRequired(): boolean {
-    return !(this.targetRoles || []).some(
-      (role) => (role?.name || '').toUpperCase() === 'ADMIN'
-    );
+    const selected = (this.targetRoles || [])
+      .map((role) => (role?.name || '').toUpperCase());
+    if (!selected.length) {
+      return true;
+    }
+    return !selected.some((name) => UsersComponent.SCOPE_EXEMPT_ROLES.includes(name));
   }
 
   private isUserFormValid(): boolean {

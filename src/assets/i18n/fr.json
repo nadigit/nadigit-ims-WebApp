@@ -1236,7 +1236,7 @@
   "user_shops": "Magasin affecté",
   "select_user_shops": "Selectionner le magazin",
   "user_warehouses": "Entrepôt affecté",
-  "user_scope_not_required_for_admin": "Les administrateurs ont accès à tous les magasins et entrepôts ; aucune affectation n'est requise.",
+  "user_scope_not_required_for_admin": "Ce rôle n'est pas rattaché à un magasin ou à un entrepôt.",
   "select_user_warehouses": "Selectionner l'entrepôt",
   "user_pos_pin": "Code PIN POS",
   "user_pos_pin_placeholder": "Entrez un code PIN de 4 à 6 chiffres pour le POS",
