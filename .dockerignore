@@ -1,0 +1,21 @@
+# Keep the build context small and the image correct.
+#
+# Without this file `docker build` uploads node_modules/ and dist/ as build context — tens of
+# thousands of files, painfully slow from a Windows host — and, because the Dockerfile does
+# `COPY . /app/` before `npm install`, the host's node_modules is copied INTO the image. Native
+# modules built for the host platform then sit in a Linux image, which is a correctness problem
+# as well as a size one.
+node_modules
+dist
+tmp
+.angular
+.git
+.gitignore
+.vscode
+.idea
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+docs
+*.md
