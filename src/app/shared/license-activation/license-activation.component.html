@@ -1,0 +1,73 @@
+<div class="license-gate" role="dialog" aria-modal="true" aria-labelledby="licenseGateTitle">
+  <div class="license-gate__card">
+
+    <div class="license-gate__head">
+      <app-brand-logo mark="primary" [height]="42" imgClass="license-gate__logo"></app-brand-logo>
+      <span class="license-gate__pill">
+        <i class="pi pi-lock"></i>{{ 'license_activation_badge' | translate }}
+      </span>
+    </div>
+
+    <h1 id="licenseGateTitle" class="license-gate__title">{{ 'license_activation_title' | translate }}</h1>
+    <p class="license-gate__lead">{{ 'license_activation_lead' | translate }}</p>
+
+    <div *ngIf="serverId" class="license-gate__server">
+      <div class="license-gate__server-label">{{ 'license_activation_server_id' | translate }}</div>
+      <div class="license-gate__server-row">
+        <code class="license-gate__server-id">{{ serverId }}</code>
+        <button pButton type="button" class="p-button-sm p-button-text"
+          [icon]="serverIdCopied ? 'pi pi-check' : 'pi pi-copy'"
+          [label]="(serverIdCopied ? 'copied' : 'copy') | translate"
+          (click)="copyServerId()"></button>
+      </div>
+      <p class="license-gate__server-hint">{{ 'license_activation_server_id_hint' | translate }}</p>
+    </div>
+
+    <div *ngIf="!canActivate" class="license-gate__notice">
+      <i class="pi pi-info-circle"></i>
+      <span>{{ 'license_activation_admin_only' | translate }}</span>
+    </div>
+
+    <div *ngIf="canActivate" class="license-gate__panels">
+
+      <section class="license-gate__panel">
+        <h2 class="license-gate__panel-title">{{ 'license_activation_key_title' | translate }}</h2>
+        <p class="license-gate__panel-text">{{ 'license_activation_key_text' | translate }}</p>
+        <input pInputText type="text" class="license-gate__input"
+          [(ngModel)]="registrationKey" [disabled]="busy"
+          [placeholder]="'license_update_registration_placeholder' | translate"
+          (keyup.enter)="applyRegistrationKey()" />
+        <button pButton type="button" icon="pi pi-key" class="license-gate__action"
+          [label]="'license_activation_key_action' | translate"
+          [loading]="busy" (click)="applyRegistrationKey()"></button>
+      </section>
+
+      <div class="license-gate__or"><span>{{ 'or' | translate }}</span></div>
+
+      <section class="license-gate__panel">
+        <h2 class="license-gate__panel-title">{{ 'license_activation_file_title' | translate }}</h2>
+        <p class="license-gate__panel-text">{{ 'license_activation_file_text' | translate }}</p>
+        <input #offlineInput type="file" class="license-gate__file-input"
+          accept=".json,application/json" (change)="onOfflineFileSelected($event)" />
+        <button type="button" class="license-gate__file-zone" [disabled]="busy" (click)="offlineInput.click()">
+          <i class="pi" [ngClass]="offlineFile ? 'pi-file' : 'pi-cloud-upload'"></i>
+          <span>{{ offlineFile?.name || (('choose_file' | translate) + ' (.json)') }}</span>
+        </button>
+        <button pButton type="button" icon="pi pi-upload" class="license-gate__action"
+          [label]="'license_activation_file_action' | translate"
+          [disabled]="!offlineFile" [loading]="busy" (click)="uploadOfflineLicense()"></button>
+      </section>
+    </div>
+
+    <div *ngIf="errorMessage" class="license-gate__error" role="alert">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <div class="license-gate__foot">
+      <span class="license-gate__foot-note">{{ 'license_activation_no_restart' | translate }}</span>
+      <button pButton type="button" icon="pi pi-sign-out" class="p-button-text p-button-sm"
+        [label]="'logout' | translate" (click)="signOut()"></button>
+    </div>
+  </div>
+</div>

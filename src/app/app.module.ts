@@ -19,6 +19,8 @@ import { AcceptLanguageInterceptor } from './interceptors/accept-language.interc
 import { OrganizationScopeInterceptor } from './interceptors/organization-scope.interceptor';
 import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
 import { BrandLogoComponent } from './shared/brand-logo';
+import { LicenseActivationComponent } from './shared/license-activation';
+import { LicenseRequiredInterceptor } from './interceptors/license-required.interceptor';
 
 
 
@@ -76,10 +78,16 @@ function initializeKeycloak(keycloak: KeycloakService) {
         }),
         KeycloakAngularModule,
         BrandLogoComponent,
+        LicenseActivationComponent,
     ],
     providers: [
         MessageService,
         TranslateService,
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: LicenseRequiredInterceptor,
+            multi: true
+        },
         {
             provide: HTTP_INTERCEPTORS,
             useClass: MaintenanceInterceptor,

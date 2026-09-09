@@ -13,6 +13,7 @@ import { ActivityProfileService } from './services/activity-profile.service';
 import { Subscription } from 'rxjs';
 import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
 import { SessionAuditService } from './services/session-audit.service';
+import { LicenseActivationService } from './services/license-activation.service';
 
 @Component({
     selector: 'app-root',
@@ -23,6 +24,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
     public profile?: KeycloakProfile;
     backendUnavailable$!: Observable<boolean>;
+    /** Drives the blocking activation overlay; see LicenseActivationService. */
+    licenseActivationRequired$!: Observable<boolean>;
 
     /** Shown when API reports profileSelectionRequired (org profile not set). */
     showActivityProfileBanner = false;
@@ -40,6 +43,7 @@ export class AppComponent implements OnInit, OnDestroy {
         private processModeService: ProcessModeService,
         public activityProfileService: ActivityProfileService,
         private sessionAuditService: SessionAuditService,
+        private licenseActivationService: LicenseActivationService,
     ) { }
 
     async ngOnInit() {
@@ -47,6 +51,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
         // Track backend availability for global UX banner
         this.backendUnavailable$ = this.backendStatusService.backendUnavailable$;
+        this.licenseActivationRequired$ = this.licenseActivationService.activationRequired$;
         
         // Add/remove body class when backend status changes
         this.backendUnavailable$.subscribe(isUnavailable => {
@@ -140,6 +145,13 @@ export class AppComponent implements OnInit, OnDestroy {
             if (this.keycloakService.isTokenExpired()) {
                 this.logOut();
             } else {
+                // Ask before anything else does: on an unlicensed instance every call below is
+                // refused with 503, and without this the console rendered a dashboard whose every
+                // panel had quietly failed instead of saying a licence was needed.
+                await this.licenseActivationService.probe();
+                if (this.licenseActivationService.activationRequired) {
+                    return;
+                }
                 await this.processModeService.ensureLoaded();
                 try {
                     await this.activityProfileService.ensureLoaded();

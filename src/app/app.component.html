@@ -1,4 +1,7 @@
-<div *ngIf="backendUnavailable$ | async" class="backend-unavailable-banner">
+<app-license-activation *ngIf="licenseActivationRequired$ | async"></app-license-activation>
+
+<div *ngIf="(backendUnavailable$ | async) && (licenseActivationRequired$ | async) !== true"
+  class="backend-unavailable-banner">
   <i class="pi pi-exclamation-triangle"></i>
   <div class="banner-text">
     <div class="title">{{ 'backend_unavailable_title' | translate }}</div>
@@ -6,7 +9,8 @@
   </div>
 </div>
 
-<div *ngIf="showActivityProfileBanner && (backendUnavailable$ | async) !== true" class="activity-profile-banner">
+<div *ngIf="showActivityProfileBanner && (backendUnavailable$ | async) !== true
+  && (licenseActivationRequired$ | async) !== true" class="activity-profile-banner">
   <i class="pi pi-building"></i>
   <div class="banner-text">
     <div class="title">{{ 'activity_profile_banner_title' | translate }}</div>
