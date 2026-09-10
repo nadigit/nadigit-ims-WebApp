@@ -192,6 +192,26 @@ export class OrdersTableComponent implements OnChanges {
   }
 
   // Cost and Profit helper methods
+  /**
+   * Columns actually rendered by the main table, so the empty message and the expanded row span
+   * exactly the table and nothing is left hanging off the end.
+   *
+   * Always present: select, expander, reference, date, status, payment status, total/paid,
+   * customer, actions. Profit needs cost data AND admin; shop needs admin. The hardcoded numbers
+   * these replaced were wrong in every combination — the empty row stopped two columns short, so
+   * Shop and Actions sat outside it.
+   */
+  get renderedColumnCount(): number {
+    let count = 9;
+    if (this.hasCostInfo() && this.isAdmin) {
+      count++;
+    }
+    if (this.isAdmin) {
+      count++;
+    }
+    return count;
+  }
+
   hasCostInfo(): boolean {
     return this.orders.some(order => order.totalCost != null && order.totalCost !== undefined);
   }

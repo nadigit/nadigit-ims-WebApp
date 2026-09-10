@@ -785,6 +785,7 @@
 					<div class="settings-channel-grid" role="list">
 						<button *ngFor="let ch of channelTiles" type="button" class="settings-channel-tile"
 							pRipple role="listitem"
+							[class.settings-channel-tile--locked]="isChannelLocked(ch)"
 							(click)="navigateChannel(ch.id)">
 							<span class="ims-icon-tile ims-icon-tile--sm" aria-hidden="true" [ngClass]="{
 								'ims-icon-tile--teal': ch.id === 'email',
@@ -797,14 +798,14 @@
 							<span class="settings-channel-body">
 								<span class="settings-channel-name">
 									{{ ch.titleKey | translate }}
-									<!-- <p-tag *ngIf="ch.id === 'trends' && !trendsFeatureEnabled"
+									<p-tag *ngIf="isChannelLocked(ch) && channelRequiredTier(ch)"
 										severity="warning" [rounded]="true" styleClass="settings-channel-lock-tag"
-										[value]="'license_tier_enterprise' | translate"></p-tag> -->
+										[value]="channelRequiredTier(ch)"></p-tag>
 								</span>
 								<span class="settings-channel-hint">{{ ch.descKey | translate }}</span>
 							</span>
 							<i class="settings-channel-go" aria-hidden="true"
-								[ngClass]="ch.id === 'trends' && !trendsFeatureEnabled ? 'pi pi-lock' : 'pi pi-chevron-right'"></i>
+								[ngClass]="isChannelLocked(ch) ? 'pi pi-lock' : 'pi pi-chevron-right'"></i>
 						</button>
 					</div>
 				</div>

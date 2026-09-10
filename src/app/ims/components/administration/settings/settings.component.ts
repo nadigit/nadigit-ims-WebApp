@@ -224,20 +224,41 @@ export class SettingsComponent implements OnInit, OnDestroy {
   Ressource: string = 'BANKS';
 
   /** Unified tiles for email / messaging / notification destinations */
+  /**
+   * `licenseFeature` locks the tile when the plan does not include it — the treatment market trends
+   * already had, hardcoded as `ch.id === 'trends'`. Declaring it per tile means the next integration
+   * is locked by adding a field, not by extending a condition.
+   *
+   * Email and notification recipients carry none: they are core plumbing on every plan.
+   */
   readonly channelTiles: ReadonlyArray<{
     id: SettingsChannelId;
     icon: string;
     titleKey: string;
     descKey: string;
+    licenseFeature?: string;
   }> = [
     { id: 'email', icon: 'pi pi-envelope', titleKey: 'email_configuration', descKey: 'email_configuration_description' },
-    { id: 'telegram', icon: 'pi pi-send', titleKey: 'telegram_configuration', descKey: 'telegram_configuration_card_hint' },
-    { id: 'whatsapp', icon: 'pi pi-phone', titleKey: 'whatsapp_configuration', descKey: 'whatsapp_configuration_card_hint' },
-    { id: 'ai', icon: 'pi pi-bolt', titleKey: 'ai_integration_configuration', descKey: 'ai_integration_configuration_card_hint' },
-    { id: 'trends', icon: 'pi pi-chart-line', titleKey: 'trends_integration_title', descKey: 'trends_integration_card_hint' },
-    { id: 'ecommerce', icon: 'pi pi-shopping-cart', titleKey: 'ecommerce_integrations_title', descKey: 'ecommerce_integrations_card_hint' },
+    { id: 'telegram', icon: 'pi pi-send', titleKey: 'telegram_configuration', descKey: 'telegram_configuration_card_hint', licenseFeature: 'TELEGRAM_NOTIFICATIONS' },
+    { id: 'whatsapp', icon: 'pi pi-phone', titleKey: 'whatsapp_configuration', descKey: 'whatsapp_configuration_card_hint', licenseFeature: 'WHATSAPP_NOTIFICATIONS' },
+    { id: 'ai', icon: 'pi pi-bolt', titleKey: 'ai_integration_configuration', descKey: 'ai_integration_configuration_card_hint', licenseFeature: 'AI_COPILOT' },
+    { id: 'trends', icon: 'pi pi-chart-line', titleKey: 'trends_integration_title', descKey: 'trends_integration_card_hint', licenseFeature: 'MARKET_TRENDS_INTEGRATION' },
+    { id: 'ecommerce', icon: 'pi pi-shopping-cart', titleKey: 'ecommerce_integrations_title', descKey: 'ecommerce_integrations_card_hint', licenseFeature: 'ECOMMERCE_SYNC' },
     { id: 'notifications', icon: 'pi pi-bell', titleKey: 'notification_recipients', descKey: 'notification_recipients_description' },
   ];
+
+  /** True when the tile's feature is outside the plan. */
+  isChannelLocked(channel: { licenseFeature?: string }): boolean {
+    return !!channel.licenseFeature
+      && !this.licenseCapabilitiesService.isFeatureEnabled(channel.licenseFeature);
+  }
+
+  /** The plan a locked tile needs, straight from the backend's tier matrix. */
+  channelRequiredTier(channel: { licenseFeature?: string }): string | null {
+    return channel.licenseFeature
+      ? this.licenseCapabilitiesService.getRequiredTier(channel.licenseFeature)
+      : null;
+  }
 
   // Computed properties
   get isPharmacyProfileSelected(): boolean {
@@ -478,6 +499,20 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   navigateChannel(id: SettingsChannelId): void {
+    const channel = this.channelTiles.find(c => c.id === id);
+    if (channel && this.isChannelLocked(channel)) {
+      // Opening the page would only show a panel that refuses to load; say what it needs instead.
+      const tier = this.channelRequiredTier(channel);
+      this.messageService.add({
+        severity: 'info',
+        summary: this.translate.instant('feature_locked_title'),
+        detail: tier
+          ? this.translate.instant('feature_locked_message', { plan: tier })
+          : this.translate.instant('feature_locked_message_generic'),
+        life: 5000,
+      });
+      return;
+    }
     switch (id) {
       case 'email':
         this.navigateToEmailConfig();
@@ -1260,7 +1295,50 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Configuration keys that only mean something when their module is licensed.
+   *
+   * A STARTER instance was shown refund percentages, credit terms, write-off automation and
+   * pricing-rule modes it can never reach — settings for features the plan does not include, which
+   * is worse than noise: changing one looks like it should do something.
+   *
+   * Prefix match. Only keys whose module is demonstrably gated are listed; anything ambiguous is
+   * left visible on purpose, because wrongly hiding a setting a customer needs is the more
+   * expensive mistake.
+   */
+  private static readonly CONFIG_KEY_FEATURES: ReadonlyArray<[string, string]> = [
+    ['return.refund.', 'REFUNDS'],
+    ['pos.return.refund.', 'REFUNDS'],
+    ['credit.', 'CUSTOMER_CREDITS'],
+    ['pricing.', 'PRICING'],
+    ['sales.pricing.rules.', 'PRICING'],
+    ['sales.margin.', 'PRICING'],
+    ['tax.calculation.mode', 'TAX_RULE_ENGINE'],
+    ['sales.stock.soft.reservation.', 'STOCK_SOFT_RESERVATION'],
+    // Below PRO there is no bank account to require, and the backend now ignores this setting
+    // rather than blocking the payment — so showing it would promise a control that does nothing.
+    ['payment.bank.methods.', 'BANK_ACCOUNTS'],
+    ['writeoff.', 'WRITE_OFFS'],
+    ['sales.stock.include.approved.writeoff.', 'WRITE_OFFS'],
+    ['warehouse.transfer.', 'WAREHOUSE_TRANSFERS'],
+    ['restore.', 'SYSTEM_BACKUPS'],
+    ['staff.kpi.', 'REPORTS_AND_ANALYTICS'],
+    ['ai.', 'AI_COPILOT'],
+  ];
+
+  /** True when a configuration belongs to a module this plan does not include. */
+  private isConfigOutsidePlan(key: string | undefined): boolean {
+    if (!key) {
+      return false;
+    }
+    const match = SettingsComponent.CONFIG_KEY_FEATURES.find(([prefix]) => key.startsWith(prefix));
+    return !!match && !this.licenseCapabilitiesService.isFeatureEnabled(match[1]);
+  }
+
   async loadConfigs(): Promise<void> {
+    // isFeatureEnabled falls back to true on an unloaded snapshot — a deliberate "keep the UI
+    // usable" default — so without this the filter below would hide nothing.
+    await this.licenseCapabilitiesService.ensureLoaded();
     try {
       (await this.appConfigService.getAllConfigurations()).subscribe({
         next: (params: AppConfiguration[]) => {
@@ -1268,6 +1346,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
           const nonEditableConfigs = params.filter(config =>
             config.editable && !config.key?.startsWith('email.') && !config.key?.startsWith('telegram.')
               && !config.key?.startsWith('whatsapp.') && !config.key?.startsWith('trends.')
+              && !this.isConfigOutsidePlan(config.key)
           );
 
           this.configs = nonEditableConfigs.sort((a, b) => a.id - b.id);

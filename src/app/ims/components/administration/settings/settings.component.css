@@ -1141,3 +1141,13 @@
     font-size: 1.25rem;
   }
 }
+
+/* A tile whose feature the plan does not include. Still clickable — it explains what it needs
+   rather than doing nothing, which reads as a broken button. */
+.settings-channel-tile--locked {
+    opacity: .72;
+}
+
+.settings-channel-tile--locked .settings-channel-go {
+    color: var(--text-color-secondary, #94a3b8);
+}
