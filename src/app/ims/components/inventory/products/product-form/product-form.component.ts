@@ -1,4 +1,6 @@
 import { Component, ElementRef, EventEmitter, Input, OnInit, Output, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { CategoryService } from 'src/app/services/category.service';
+import { CategoryFormDialogConfig } from '../../categories/category-form-dialog/category-form-dialog.component';
 import { Product } from 'src/app/models/product';
 import { Category } from 'src/app/models/category';
 import { Supplier } from 'src/app/models/supplier';
@@ -52,6 +54,11 @@ export class ProductFormComponent implements OnInit, OnChanges {
   @Output() saveSuccess = new EventEmitter<Product>(); // Emitted when save is successful
   @Output() saveError = new EventEmitter<any>(); // Emitted when save fails
   @Output() cancel = new EventEmitter<void>();
+  /**
+   * Kept for callers that still want to know, but the form no longer depends on anyone acting on
+   * it: quick-add is handled here. Two of the ten callers had only a stub that said "not available
+   * in this form yet", and orders never even set canAddCategory, so the button was invisible there.
+   */
   @Output() categoryAdd = new EventEmitter<void>();
   @Output() supplierAdd = new EventEmitter<void>();
   @Output() warehouseAdd = new EventEmitter<void>();
@@ -114,6 +121,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
     private taxRuleService: TaxRuleService,
     private configService: AppConfigurationService,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
+    private categoryService: CategoryService,
   ) {
     this.initializeOptions();
   }
@@ -1813,8 +1821,72 @@ export class ProductFormComponent implements OnInit, OnChanges {
     }
   }
 
+  /** Quick-add a category without leaving the product form. */
+  categoryQuickAdd: CategoryFormDialogConfig = {
+    visible: false,
+    mode: 'create',
+    category: {},
+    isLoading: false,
+  };
+  categoryQuickAddSubmitted = false;
+
   openCategoryDialog(): void {
     this.categoryAdd.emit();
+    this.categoryQuickAdd = { visible: true, mode: 'create', category: {}, isLoading: false };
+    this.categoryQuickAddSubmitted = false;
+  }
+
+  onCategoryQuickAddConfigChange(config: CategoryFormDialogConfig): void {
+    this.categoryQuickAdd = config;
+  }
+
+  onCategoryQuickAddCancel(): void {
+    this.categoryQuickAdd = { ...this.categoryQuickAdd, visible: false };
+    this.categoryQuickAddSubmitted = false;
+  }
+
+  /**
+   * Saves the category, adds it to the list this form was given, and selects it — so the user lands
+   * back exactly where they were, with the thing they just created already chosen.
+   */
+  onCategoryQuickAddSave(data: { category: Category }): void {
+    this.categoryQuickAddSubmitted = true;
+    const category = data?.category;
+    if (!category?.categoryName) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('please_fill_required_fields'),
+        life: 3000,
+      });
+      return;
+    }
+
+    this.categoryQuickAdd = { ...this.categoryQuickAdd, isLoading: true };
+    this.categoryService.saveCategory(category).subscribe({
+      next: (saved: any) => {
+        const created: Category = saved && saved.categoryId ? saved : { ...category };
+        this.categories = [...(this.categories || []), created];
+        this.localProduct.category = created;
+        this.categoryQuickAdd = { visible: false, mode: 'create', category: {}, isLoading: false };
+        this.categoryQuickAddSubmitted = false;
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('category_added'),
+          life: 3000,
+        });
+      },
+      error: () => {
+        this.categoryQuickAdd = { ...this.categoryQuickAdd, isLoading: false };
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('error_while_adding_new_category'),
+          life: 3000,
+        });
+      },
+    });
   }
 
   openSupplierDialog(): void {

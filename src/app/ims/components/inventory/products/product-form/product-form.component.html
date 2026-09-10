@@ -634,7 +634,7 @@
 						</div>
 
 						<!-- Product Name -->
-						<div class="field col-12 md:col-6">
+						<div class="field col-12">
 							<label for="name" class="ims-form-label">
 								{{'product_name' | translate}} <span class="required-asterisk">*</span>
 							</label>
@@ -659,7 +659,7 @@
 						</div>
 
 						<!-- Product Reference -->
-						<div class="field col-12 md:col-6">
+						<div class="field col-12">
 							<label for="reference" class="ims-form-label">
 								{{'product_reference' | translate}} <span class="required-asterisk">*</span>
 							</label>
@@ -1042,3 +1042,14 @@
 		</div>
 	</ng-template>
 </p-dialog>
+
+<!-- Quick-add a category without leaving the product form. Hosted here rather than in each caller:
+     of the ten pages that open this form, two had a stub saying it was not available and one never
+     enabled the button at all. -->
+<app-category-form-dialog
+	[config]="categoryQuickAdd"
+	[submitted]="categoryQuickAddSubmitted"
+	(configChange)="onCategoryQuickAddConfigChange($event)"
+	(save)="onCategoryQuickAddSave($event)"
+	(cancel)="onCategoryQuickAddCancel()">
+</app-category-form-dialog>

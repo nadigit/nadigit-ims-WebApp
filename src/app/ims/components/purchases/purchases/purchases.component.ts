@@ -2753,14 +2753,6 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   }
 
   // Dialog methods for adding new entities (can be empty or show dialogs)
-  openCategoryDialog(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: this.translate.instant('info'),
-      detail: 'Category quick add is not available in this form yet.',
-      life: 3000,
-    });
-  }
 
   openSupplierDialog(): void {
     this.messageService.add({

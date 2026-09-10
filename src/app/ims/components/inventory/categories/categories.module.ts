@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { CategoriesRoutingModule } from './categories-routing.module';
 import { CategoriesComponent } from './categories.component';
 import { CategoryDetailsComponent } from './category-details/category-details.component';
-import { CategoryFormDialogComponent } from './category-form-dialog/category-form-dialog.component';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -73,8 +72,8 @@ import { ImageUploadComponent } from 'src/app/shared/components/image-upload/ima
         InventorySharedModule,
         ImageUploadComponent
     ],
-    declarations: [CategoriesComponent, CategoryDetailsComponent, CategoryFormDialogComponent],
+    declarations: [CategoriesComponent, CategoryDetailsComponent],
     providers: [ReportingService],
-    exports: [CategoryFormDialogComponent]
+    exports: [InventorySharedModule]
 })
 export class CategoriesModule { }

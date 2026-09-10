@@ -1,4 +1,6 @@
 import { NgModule } from '@angular/core';
+import { CategoryFormDialogComponent } from '../categories/category-form-dialog/category-form-dialog.component';
+import { ImageUploadComponent } from 'src/app/shared/components/image-upload/image-upload.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
@@ -35,6 +37,7 @@ import { MessageModule } from 'primeng/message';
 
 @NgModule({
   declarations: [
+    CategoryFormDialogComponent,
     WarehouseFormDialogComponent,
     ProductFormComponent,
     ProductDeleteDialogComponent,
@@ -46,6 +49,7 @@ import { MessageModule } from 'primeng/message';
   ],
   imports: [
     CommonModule,
+    ImageUploadComponent,
     FormsModule,
     TranslateModule,
     SharedModule,
@@ -67,6 +71,7 @@ import { MessageModule } from 'primeng/message';
     MessageModule,
   ],
   exports: [
+    CategoryFormDialogComponent,
     WarehouseFormDialogComponent,
     ProductFormComponent,
     ProductDeleteDialogComponent,

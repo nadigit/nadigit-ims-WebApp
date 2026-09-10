@@ -423,6 +423,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   selectedProduct: Product | null = null;
   categories: any[] = [];
   suppliers: any[] = [];
+  /** Was declared and never assigned, so the quick-add button never appeared when the product
+   *  form was opened from an order. */
   canAddCategory: boolean = false;
   canAddSupplier: boolean = false;
   canAddWarehouse: boolean = false;
@@ -1574,6 +1576,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.canAddWarehouse = this.permissionService.canCreate('WAREHOUSES');
     this.canAddPayment = this.permissionService.canCreate('PAYMENTS');
     this.canAddProduct = this.permissionService.canCreate('PRODUCTS');
+    this.canAddCategory = this.permissionService.canCreate('CATEGORIES');
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');
     this.canArchiveProduct = this.permissionService.canArchive('PRODUCTS');
