@@ -6194,5 +6194,6 @@
   "payment_attachment_failed": "تعذّر إرفاق الملف.",
   "payment_attachment_deleted": "تم حذف الإثبات",
   "payment_attachment_delete_failed": "تعذّر حذف الإثبات.",
-  "payment_attachment_download_failed": "تعذّر فتح الملف."
+  "payment_attachment_download_failed": "تعذّر فتح الملف.",
+  "export_generated_on": "أُنشئ في"
 }

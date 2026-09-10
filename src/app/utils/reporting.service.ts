@@ -13,11 +13,29 @@ export interface ExportColumn {
     dataKey: string;
 }
 
+/**
+ * The block that identifies an exported document: who produced it, what it is, and when.
+ *
+ * Every string arrives already translated. The service cannot translate them itself: callers
+ * switch to the organization's locale, export, and switch straight back, so anything this class
+ * resolved asynchronously would read the locale that had already been restored.
+ */
+export interface ExportDocumentHeader {
+    /** What the report is, in the organization's locale. */
+    title: string;
+    organizationName?: string;
+    /** e.g. the active filter or date range, so a saved file still explains itself. */
+    subtitle?: string;
+    /** Translated label for the generation timestamp, e.g. "Généré le". */
+    generatedLabel?: string;
+    generatedAt?: string;
+}
+
 export class ReportingService {
 
     private logoDataUrlPromise?: Promise<string | null>;
 
-    exportPdf(exportColumns, object, type, title?: string) {
+    exportPdf(exportColumns, object, type, title?: string, organizationName?: string) {
         Promise.all([
             import('jspdf'),
             import('jspdf-autotable'),
@@ -60,6 +78,18 @@ export class ReportingService {
               const xPosition = (pageWidth - textWidth) / 2;
               doc.text(title, xPosition, startY);
               startY += 16;
+            }
+
+            // Whose report this is. The band above carries Nadigit's mark because we made the
+            // software; the organization name says who the figures belong to, which is what
+            // matters to whoever opens the file.
+            if (organizationName) {
+              doc.setFontSize(9);
+              doc.setFont(undefined, 'normal');
+              doc.setTextColor(BRAND_COLORS.textSecondary);
+              const orgWidth = doc.getTextWidth(organizationName);
+              doc.text(organizationName, (pageWidth - orgWidth) / 2, startY);
+              startY += 14;
             }
 
             autoTable.default(doc, {
@@ -122,18 +152,75 @@ export class ReportingService {
         return {} as T;
       }
 
-    exportExcel(object, type) {
+    /**
+     * @param header identifies the document. Without it the sheet opens straight onto a grid of
+     *        numbers with nothing saying what it is or who produced it — which is what a saved and
+     *        emailed file looks like a week later.
+     */
+    exportExcel(object, type, header?: ExportDocumentHeader) {
         import('xlsx').then((xlsx) => {
-            console.log(object);
-            if (Array.isArray(object)) {
-                const elementType = typeof object[0];
-                console.log(object[0]);
-                console.log(elementType);
-              }
-            const worksheet = xlsx.utils.json_to_sheet(object);
+            const resolved = header ?? { title: this.prettifyType(type) };
+            const headerRows: string[][] = [];
+
+            if (resolved.organizationName) {
+                headerRows.push([resolved.organizationName]);
+            }
+            headerRows.push([resolved.title]);
+            if (resolved.subtitle) {
+                headerRows.push([resolved.subtitle]);
+            }
+            if (resolved.generatedAt) {
+                headerRows.push([
+                    resolved.generatedLabel ? `${resolved.generatedLabel} ${resolved.generatedAt}`
+                                            : resolved.generatedAt,
+                ]);
+            }
+            // A cell holding an empty string, not an empty array: aoa_to_sheet drops a trailing
+            // empty row entirely, which put the table header straight under the date line.
+            headerRows.push(['']);
+
+            const worksheet = xlsx.utils.aoa_to_sheet(headerRows);
+            // The table's own header row is written by json_to_sheet's key inspection; callers
+            // translate those keys before calling, so it lands in the organization's locale.
+            xlsx.utils.sheet_add_json(worksheet, object, { origin: -1 });
+
+            worksheet['!cols'] = this.columnWidths(object);
+            // Let the title breathe across the table rather than being clipped at column A.
+            const span = Math.max(1, this.columnCount(object));
+            worksheet['!merges'] = headerRows
+                .map((row, index) => (row.length === 1
+                    ? { s: { r: index, c: 0 }, e: { r: index, c: span - 1 } }
+                    : null))
+                .filter((merge): merge is any => merge !== null);
+
             const workbook = { Sheets: { data: worksheet }, SheetNames: ['data'] };
             const excelBuffer: any = xlsx.write(workbook, { bookType: 'xlsx', type: 'array' });
             this.saveAsExcelFile(excelBuffer, type);
+        });
+    }
+
+    /** Last-resort title when a caller has not been given one yet: "stock-movements" -> "Stock Movements". */
+    private prettifyType(type: string): string {
+        return (type || 'export')
+            .replace(/[-_]+/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    private columnCount(object: any): number {
+        return Array.isArray(object) && object.length > 0 ? Object.keys(object[0]).length : 1;
+    }
+
+    /** Roughly fit each column to its widest cell, capped so one long note cannot swallow the sheet. */
+    private columnWidths(object: any): { wch: number }[] {
+        if (!Array.isArray(object) || object.length === 0) {
+            return [];
+        }
+        return Object.keys(object[0]).map((key) => {
+            const widest = object.reduce((max: number, row: any) => {
+                const value = row?.[key];
+                return Math.max(max, value == null ? 0 : String(value).length);
+            }, String(key).length);
+            return { wch: Math.min(48, Math.max(10, widest + 2)) };
         });
     }
 

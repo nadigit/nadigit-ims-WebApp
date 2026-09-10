@@ -724,7 +724,8 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
       const pdfTitle = this.translate.instant('stock_movements_menu_title');
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'stock-movements', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'stock-movements', pdfTitle,
+        organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -922,8 +923,15 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
         return translated;
       });
       
-      // Export the translated array to Excel
-      this.reportingService.exportExcel(exportData, 'stock-movements');
+      // A saved spreadsheet has to explain itself a week later, so it carries the same header the
+      // PDF does: who produced it, what it is, and when. Built here rather than in the service
+      // because the organization's locale is only active inside this block.
+      this.reportingService.exportExcel(exportData, 'stock-movements', {
+        title: this.translate.instant('stock_movements_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: this.datePipe.transform(new Date(), 'short') || '',
+      });
       
       // Restore original language
       this.translate.use(currentLang);

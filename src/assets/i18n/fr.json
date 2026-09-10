@@ -6190,5 +6190,6 @@
   "payment_attachment_failed": "Le fichier n'a pas pu être joint.",
   "payment_attachment_deleted": "Justificatif supprimé",
   "payment_attachment_delete_failed": "Le justificatif n'a pas pu être supprimé.",
-  "payment_attachment_download_failed": "Le fichier n'a pas pu être ouvert."
+  "payment_attachment_download_failed": "Le fichier n'a pas pu être ouvert.",
+  "export_generated_on": "Généré le"
 }

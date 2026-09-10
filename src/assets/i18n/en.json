@@ -6200,5 +6200,6 @@
   "payment_attachment_failed": "The file could not be attached.",
   "payment_attachment_deleted": "Attachment removed",
   "payment_attachment_delete_failed": "The attachment could not be removed.",
-  "payment_attachment_download_failed": "The file could not be opened."
+  "payment_attachment_download_failed": "The file could not be opened.",
+  "export_generated_on": "Generated on"
 }

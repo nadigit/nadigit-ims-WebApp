@@ -6196,5 +6196,6 @@
   "payment_attachment_failed": "No se pudo adjuntar el archivo.",
   "payment_attachment_deleted": "Comprobante eliminado",
   "payment_attachment_delete_failed": "No se pudo eliminar el comprobante.",
-  "payment_attachment_download_failed": "No se pudo abrir el archivo."
+  "payment_attachment_download_failed": "No se pudo abrir el archivo.",
+  "export_generated_on": "Generado el"
 }
