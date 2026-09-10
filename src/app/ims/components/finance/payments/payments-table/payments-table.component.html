@@ -352,7 +352,7 @@
           </button>
 
           <!-- Generate Receipt -->
-          <button *ngIf="!payment.receiptNumber || payment.receiptStatus !== 'ISSUED'" pButton pRipple
+          <button *ngIf="canGenerateReceipt && (!payment.receiptNumber || payment.receiptStatus !== 'ISSUED')" pButton pRipple
             icon="pi pi-file-pdf" class="p-button-rounded p-button-text p-button-warning p-button-sm"
             pTooltip="{{ 'generate_receipt' | translate }}"
             (click)="generateReceiptEvent.emit(payment.paymentId); $event.stopPropagation()">

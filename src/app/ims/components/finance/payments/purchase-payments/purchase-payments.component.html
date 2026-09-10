@@ -20,6 +20,7 @@
                 [canAddPayment]="canAddPayment" [currency]="currency" 
                 [canConfirmPayment]="canConfirmPayment" (confirmPaymentEvent)="openConfirmPayment($event)" 
                 [paymentReconciliationStatuses]="paymentReconciliationCache"
+                [canGenerateReceipt]="false"
                 (deletePaymentEvent)="deletePayment($event)" (printReceiptEvent)="printReceipt($event)"
                 (generateReceiptEvent)="generateReceipt($event)" (addPaymentEvent)="openNew()"
                 (onGlobalFilter)="onGlobalFilter($event)" (viewPaymentDetailsEvent)="viewPaymentDetails($event)"

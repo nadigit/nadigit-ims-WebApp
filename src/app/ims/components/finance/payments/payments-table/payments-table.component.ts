@@ -54,6 +54,16 @@ export class PaymentsTableComponent implements OnInit, OnChanges {
   @Output() confirmPaymentEvent = new EventEmitter<Payment>();
   @Output() viewPaymentDetailsEvent = new EventEmitter<Payment>();
   @Output() printReceiptEvent = new EventEmitter<string>();
+  /**
+   * A receipt is issued by whoever *receives* the money, so it has no meaning on an outgoing
+   * payment to a supplier. The action was offered there anyway and threw: the receipt path builds
+   * its PDF from the order, and a purchase payment has none.
+   *
+   * The outgoing equivalent is a payment voucher plus the proof the supplier gave us; that is
+   * being built separately. Until it lands the action is simply absent rather than failing.
+   */
+  @Input() canGenerateReceipt = true;
+
   @Output() generateReceiptEvent = new EventEmitter<string>();
   @Output() lazyLoadEvent = new EventEmitter<LazyLoadEvent>();
   @Output() onGlobalFilter = new EventEmitter<{ globalFilter: string, context: 'incoming' | 'outgoing' }>();
