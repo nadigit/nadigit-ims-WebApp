@@ -14,13 +14,12 @@
       <p-toast></p-toast>
       <p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
 
-      <p *ngIf="!isAdmin" class="text-600 mb-3">{{ 'line_rules_readonly_hint' | translate }}</p>
+      <app-page-note *ngIf="!isAdmin">{{ 'line_rules_readonly_hint' | translate }}</app-page-note>
 
       <!-- Rules engine disabled: rules are inert until sales.pricing.rules.mode = RULES -->
-      <div *ngIf="!rulesModeActive" class="line-rules-banner mb-4 p-3 border-round flex align-items-start gap-2">
-        <i class="pi pi-info-circle mt-1"></i>
-        <span>{{ 'line_rules_mode_off_banner' | translate }}</span>
-      </div>
+      <app-page-note *ngIf="!rulesModeActive" tone="warning">
+        {{ 'line_rules_mode_off_banner' | translate }}
+      </app-page-note>
 
       <!-- Action buttons -->
       <div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="isAdmin">

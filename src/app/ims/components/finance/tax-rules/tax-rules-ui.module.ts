@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TaxRulesComponent } from './tax-rules.component';
@@ -24,6 +25,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 /** UI-only module so Tax Rules can be embedded (e.g. Settings) without registering lazy routes twice. */
 @NgModule({
     imports: [
+    PageNoteComponent,
         CommonModule,
         FormsModule,
         TableModule,

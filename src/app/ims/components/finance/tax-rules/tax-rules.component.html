@@ -7,13 +7,12 @@
     <h2 class="m-0 text-900">{{ 'tax_rules_page_title' | translate }}</h2>
     <p class="text-600 mt-2 mb-0">{{ 'tax_rules_intro' | translate }}</p>
   </div>
-  <p *ngIf="!isAdmin" class="text-600 mb-3" [class.text-sm]="embedded">{{ 'tax_rules_readonly_hint' | translate }}</p>
+  <app-page-note *ngIf="!isAdmin">{{ 'tax_rules_readonly_hint' | translate }}</app-page-note>
 
   <!-- Rules engine disabled: rules are inert until tax.calculation.mode = RULES -->
-  <div *ngIf="!rulesModeActive" class="tax-mode-banner mb-4 p-3 border-round flex align-items-start gap-2">
-    <i class="pi pi-info-circle mt-1"></i>
-    <span>{{ 'tax_rules_mode_global_banner' | translate }}</span>
-  </div>
+  <app-page-note *ngIf="!rulesModeActive" tone="warning">
+    {{ 'tax_rules_mode_global_banner' | translate }}
+  </app-page-note>
 
   <!-- Action Buttons -->
   <div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="isAdmin">

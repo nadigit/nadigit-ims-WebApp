@@ -14,7 +14,7 @@
       <p-toast></p-toast>
       <p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
 
-      <p *ngIf="!isAdmin" class="text-600 mb-3">{{ 'line_options_readonly_hint' | translate }}</p>
+      <app-page-note *ngIf="!isAdmin">{{ 'line_options_readonly_hint' | translate }}</app-page-note>
 
       <!-- Action buttons -->
       <div class="ims-page-actions flex justify-content-end align-items-center mb-4" *ngIf="isAdmin">

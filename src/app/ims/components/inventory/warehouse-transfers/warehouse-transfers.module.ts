@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WarehouseTransfersRoutingModule } from './warehouse-transfers-routing.module';
@@ -31,6 +32,7 @@ import { ReportingService } from 'src/app/utils/reporting.service';
 
 @NgModule({
     imports: [
+    PageNoteComponent,
         CommonModule,
         WarehouseTransfersRoutingModule,
         TableModule,

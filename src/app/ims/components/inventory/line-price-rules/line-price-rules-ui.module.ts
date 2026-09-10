@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LinePriceRulesComponent } from './line-price-rules.component';
@@ -23,6 +24,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 /** UI-only module so the component can be embedded elsewhere without registering lazy routes twice. */
 @NgModule({
   imports: [
+    PageNoteComponent,
     CommonModule,
     FormsModule,
     TableModule,

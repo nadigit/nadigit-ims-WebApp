@@ -5,14 +5,6 @@
     min-height: 400px;
 }
 
-.status-banner {
-    background: var(--surface-card);
-    border: 1px solid var(--orange-200, #fed7aa);
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-}
-
 .alert-card {
     border-left: 4px solid var(--orange-500, #f97316);
 }

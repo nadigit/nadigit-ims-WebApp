@@ -55,15 +55,12 @@
         </div>
 
         <!-- Status banner -->
-        <div class="status-banner mb-4" *ngIf="canReadCash && openRegistersCount > 0">
-            <div class="flex align-items-center gap-3 flex-wrap">
-                <i class="pi pi-info-circle text-xl"></i>
-                <span class="font-medium">
-                    {{ 'treasury_open_registers_banner' | translate:{ count: openRegistersCount } }}
-                </span>
+        <app-page-note *ngIf="canReadCash && openRegistersCount > 0">
+            <span class="flex align-items-center gap-2 flex-wrap">
+                {{ 'treasury_open_registers_banner' | translate:{ count: openRegistersCount } }}
                 <p-tag [value]="openRegistersCount.toString()" severity="warning" [rounded]="true"></p-tag>
-            </div>
-        </div>
+            </span>
+        </app-page-note>
 
         <!-- Alerts -->
         <div class="card mb-4 alert-card" *ngIf="canReadCash && pastClosingAlerts.length > 0">
@@ -172,12 +169,9 @@
                 </div>
             </div>
 
-            <div class="status-banner mb-3" *ngIf="canReadBank && unlinkedRegistersCount > 0">
-                <div class="flex align-items-center gap-2">
-                    <i class="pi pi-exclamation-circle text-orange-500"></i>
-                    <span>{{ 'treasury_unlinked_registers_warning' | translate:{ count: unlinkedRegistersCount } }}</span>
-                </div>
-            </div>
+            <app-page-note *ngIf="canReadBank && unlinkedRegistersCount > 0" tone="warning">
+                {{ 'treasury_unlinked_registers_warning' | translate:{ count: unlinkedRegistersCount } }}
+            </app-page-note>
 
             <p-table [value]="cashFlowRows" styleClass="p-datatable-sm p-datatable-gridlines"
                 *ngIf="cashFlowRows.length; else noCashFlow">
