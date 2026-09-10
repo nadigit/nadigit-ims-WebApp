@@ -6175,5 +6175,6 @@
   "feature_locked_message": "هذه الميزة متاحة ابتداءً من باقة {{plan}}.",
   "feature_locked_message_generic": "هذه الميزة غير مُضمَّنة في باقتك الحالية.",
   "feature_locked_action": "عرض تفاصيل الباقة",
-  "users_plan_cap_hint": "تتضمن باقتك {{count}} مستخدم. المستخدمون الإضافيون وإدارة الأدوار تتطلب باقة أعلى."
+  "users_plan_cap_hint": "تتضمن باقتك {{count}} مستخدم. المستخدمون الإضافيون وإدارة الأدوار تتطلب باقة أعلى.",
+  "getting_started_progress": "أُنجز {{done}} من {{total}}"
 }

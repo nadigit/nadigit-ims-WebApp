@@ -6171,5 +6171,6 @@
   "feature_locked_message": "Cette fonctionnalité est disponible à partir de l'offre {{plan}}.",
   "feature_locked_message_generic": "Cette fonctionnalité n'est pas incluse dans votre offre actuelle.",
   "feature_locked_action": "Voir le détail de l'offre",
-  "users_plan_cap_hint": "Votre offre comprend {{count}} utilisateur. Les utilisateurs supplémentaires et la gestion des rôles nécessitent une offre supérieure."
+  "users_plan_cap_hint": "Votre offre comprend {{count}} utilisateur. Les utilisateurs supplémentaires et la gestion des rôles nécessitent une offre supérieure.",
+  "getting_started_progress": "{{done}} sur {{total}} terminé"
 }

@@ -1841,7 +1841,21 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   onCategoryQuickAddCancel(): void {
-    this.categoryQuickAdd = { ...this.categoryQuickAdd, visible: false };
+    this.closeCategoryQuickAdd();
+  }
+
+  /**
+   * Closes by mutating the object the dialog already holds, not by replacing it.
+   *
+   * p-dialog binds [(visible)] straight through to config.visible, so it writes back into whatever
+   * object it was handed when it opened. Handing it a *new* object with visible:false left the
+   * dialog open after a successful save — the category was created, the toast appeared, and the
+   * form stayed up. Every other quick-add in the app (supplier, warehouse) mutates; so does this.
+   */
+  private closeCategoryQuickAdd(): void {
+    this.categoryQuickAdd.visible = false;
+    this.categoryQuickAdd.isLoading = false;
+    this.categoryQuickAdd.category = {};
     this.categoryQuickAddSubmitted = false;
   }
 
@@ -1862,14 +1876,13 @@ export class ProductFormComponent implements OnInit, OnChanges {
       return;
     }
 
-    this.categoryQuickAdd = { ...this.categoryQuickAdd, isLoading: true };
+    this.categoryQuickAdd.isLoading = true;
     this.categoryService.saveCategory(category).subscribe({
       next: (saved: any) => {
         const created: Category = saved && saved.categoryId ? saved : { ...category };
         this.categories = [...(this.categories || []), created];
         this.localProduct.category = created;
-        this.categoryQuickAdd = { visible: false, mode: 'create', category: {}, isLoading: false };
-        this.categoryQuickAddSubmitted = false;
+        this.closeCategoryQuickAdd();
         this.messageService.add({
           severity: 'success',
           summary: this.translate.instant('successful'),
@@ -1878,7 +1891,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
         });
       },
       error: () => {
-        this.categoryQuickAdd = { ...this.categoryQuickAdd, isLoading: false };
+        this.categoryQuickAdd.isLoading = false;
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),

@@ -1674,3 +1674,32 @@
 [dir="rtl"] .priority-item--warn { border-right-color: #F4B740; }
 [dir="rtl"] .priority-item--info { border-right-color: #18C5D8; }
 [dir="rtl"] .priority-arrow { transform: scaleX(-1); }
+/* A finished Getting Started step. Kept clickable and still legible rather than greyed out —
+   "add another customer" stays a reasonable thing to want — but visibly settled, so someone who
+   has done one of the three can see which. */
+.getting-started-step--done .getting-started-step__badge--done {
+  background: color-mix(in srgb, var(--green-500, #22a35b) 16%, var(--surface-card));
+  color: var(--green-600, #1a8449);
+}
+
+.getting-started-step--done .getting-started-step__label {
+  color: var(--text-color-secondary);
+}
+
+.getting-started-step--done .getting-started-step__arrow {
+  color: var(--green-600, #1a8449);
+}
+
+.getting-started-step--done:hover .getting-started-step__arrow {
+  color: var(--green-600, #1a8449);
+  transform: none;
+}
+
+.getting-started-banner__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--green-600, #1a8449);
+}

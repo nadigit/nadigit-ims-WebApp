@@ -1965,6 +1965,36 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return !this.showGettingStartedCard && !this.setupConfirmedComplete && this.isSetupIncomplete;
   }
 
+  /**
+   * Whether a Getting Started step is already done.
+   *
+   * The signals were already tracked for deciding whether to show the card at all; the card just
+   * never said which of the three had been dealt with, so someone who had added products still saw
+   * three identical open steps and no sign of progress.
+   *
+   * Only a confirmed 'present' counts. 'unknown' means the request failed, and marking a step done
+   * on a failed read would tell someone they had data they may not have.
+   */
+  isOnboardingStepDone(step: 'products' | 'customers' | 'orders'): boolean {
+    return this.onboardingSignals[step] === 'present';
+  }
+
+  /** Steps completed, for the "n of 3" progress line. */
+  get onboardingStepsDone(): number {
+    return this.onboardingStepKeys.filter(key => this.isOnboardingStepDone(key)).length;
+  }
+
+  get onboardingStepsTotal(): number {
+    return this.onboardingStepKeys.length;
+  }
+
+  /** Warehouse-only roles get the product step alone — the other two are not theirs to do. */
+  private get onboardingStepKeys(): Array<'products' | 'customers' | 'orders'> {
+    return (this.isAdmin || this.isVendor)
+      ? ['products', 'customers', 'orders']
+      : ['products'];
+  }
+
   /** Records what a source found, without ever downgrading a 'present' back to 'absent'. */
   private markOnboardingSignal(source: 'products' | 'orders' | 'customers', present: boolean): void {
     this.onboardingSignals[source] = present ? 'present' : 'absent';

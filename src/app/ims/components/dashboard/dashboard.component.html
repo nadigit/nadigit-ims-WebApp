@@ -48,44 +48,66 @@
                             </button>
                         </div>
                         <p class="getting-started-banner__description m-0">{{ 'getting_started_description' | translate }}</p>
+                        <p class="getting-started-banner__progress m-0 mt-2" *ngIf="onboardingStepsDone > 0">
+                            <i class="pi pi-check-circle" aria-hidden="true"></i>
+                            {{ 'getting_started_progress' | translate: { done: onboardingStepsDone, total: onboardingStepsTotal } }}
+                        </p>
                     </div>
                 </div>
 
                 <div class="grid getting-started-steps">
                     <div class="col-12 md:col-4">
                         <a class="getting-started-step"
+                            [class.getting-started-step--done]="isOnboardingStepDone('products')"
                             routerLink="/inventory/products" [queryParams]="{ newProduct: 1 }"
                             [pTooltip]="'getting_started_add_product_tooltip' | translate">
-                            <span class="getting-started-step__badge">1</span>
+                            <span class="getting-started-step__badge"
+                                [class.getting-started-step__badge--done]="isOnboardingStepDone('products')">
+                                <i class="pi pi-check" *ngIf="isOnboardingStepDone('products')" aria-hidden="true"></i>
+                                <ng-container *ngIf="!isOnboardingStepDone('products')">1</ng-container>
+                            </span>
                             <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--green getting-started-step__icon">
                                 <i class="pi pi-box"></i>
                             </div>
                             <span class="getting-started-step__label">{{ 'create_first_product' | translate }}</span>
-                            <i class="pi pi-arrow-right getting-started-step__arrow"></i>
+                            <i class="getting-started-step__arrow"
+                                [ngClass]="isOnboardingStepDone('products') ? 'pi pi-check-circle' : 'pi pi-arrow-right'"></i>
                         </a>
                     </div>
                     <div class="col-12 md:col-4" *ngIf="isAdmin || isVendor">
                         <a class="getting-started-step"
+                            [class.getting-started-step--done]="isOnboardingStepDone('customers')"
                             routerLink="/sales/customers" [queryParams]="{ newCustomer: 1 }"
                             [pTooltip]="'getting_started_add_customer_tooltip' | translate">
-                            <span class="getting-started-step__badge">2</span>
+                            <span class="getting-started-step__badge"
+                                [class.getting-started-step__badge--done]="isOnboardingStepDone('customers')">
+                                <i class="pi pi-check" *ngIf="isOnboardingStepDone('customers')" aria-hidden="true"></i>
+                                <ng-container *ngIf="!isOnboardingStepDone('customers')">2</ng-container>
+                            </span>
                             <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--primary getting-started-step__icon">
                                 <i class="pi pi-user-plus"></i>
                             </div>
                             <span class="getting-started-step__label">{{ 'add_customer' | translate }}</span>
-                            <i class="pi pi-arrow-right getting-started-step__arrow"></i>
+                            <i class="getting-started-step__arrow"
+                                [ngClass]="isOnboardingStepDone('customers') ? 'pi pi-check-circle' : 'pi pi-arrow-right'"></i>
                         </a>
                     </div>
                     <div class="col-12 md:col-4" *ngIf="isAdmin || isVendor">
                         <a class="getting-started-step"
+                            [class.getting-started-step--done]="isOnboardingStepDone('orders')"
                             routerLink="/sales/orders" [queryParams]="{ newOrder: 1 }"
                             [pTooltip]="'getting_started_create_order_tooltip' | translate">
-                            <span class="getting-started-step__badge">3</span>
+                            <span class="getting-started-step__badge"
+                                [class.getting-started-step__badge--done]="isOnboardingStepDone('orders')">
+                                <i class="pi pi-check" *ngIf="isOnboardingStepDone('orders')" aria-hidden="true"></i>
+                                <ng-container *ngIf="!isOnboardingStepDone('orders')">3</ng-container>
+                            </span>
                             <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--blue getting-started-step__icon">
                                 <i class="pi pi-shopping-cart"></i>
                             </div>
                             <span class="getting-started-step__label">{{ 'create_first_order' | translate }}</span>
-                            <i class="pi pi-arrow-right getting-started-step__arrow"></i>
+                            <i class="getting-started-step__arrow"
+                                [ngClass]="isOnboardingStepDone('orders') ? 'pi pi-check-circle' : 'pi pi-arrow-right'"></i>
                         </a>
                     </div>
                 </div>

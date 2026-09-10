@@ -6177,5 +6177,6 @@
   "feature_locked_message": "Esta función está disponible a partir del plan {{plan}}.",
   "feature_locked_message_generic": "Esta función no está incluida en su plan actual.",
   "feature_locked_action": "Ver detalles del plan",
-  "users_plan_cap_hint": "Su plan incluye {{count}} usuario. Los usuarios adicionales y la gestión de roles requieren un plan superior."
+  "users_plan_cap_hint": "Su plan incluye {{count}} usuario. Los usuarios adicionales y la gestión de roles requieren un plan superior.",
+  "getting_started_progress": "{{done}} de {{total}} completado"
 }
