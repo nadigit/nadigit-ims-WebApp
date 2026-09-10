@@ -6170,5 +6170,9 @@
   "ai_copilot_unavailable_disabled_admin": "تكامل الذكاء الاصطناعي معطّل. فعّله من الإعدادات ← التكاملات.",
   "ai_copilot_unavailable_disabled_user": "تكامل الذكاء الاصطناعي معطّل على هذا التثبيت. اطلب من المسؤول تفعيله.",
   "ai_copilot_unavailable_configure": "فتح الإعدادات",
-  "ai_copilot_unavailable_placeholder": "غير متاح حتى يتم إعداد مزوّد ذكاء اصطناعي"
+  "ai_copilot_unavailable_placeholder": "غير متاح حتى يتم إعداد مزوّد ذكاء اصطناعي",
+  "feature_locked_title": "غير مُضمَّن في باقتك",
+  "feature_locked_message": "هذه الميزة متاحة ابتداءً من باقة {{plan}}.",
+  "feature_locked_message_generic": "هذه الميزة غير مُضمَّنة في باقتك الحالية.",
+  "feature_locked_action": "عرض تفاصيل الباقة"
 }

@@ -6172,5 +6172,9 @@
   "ai_copilot_unavailable_disabled_admin": "La integración de IA está desactivada. Actívela en Ajustes → Integraciones.",
   "ai_copilot_unavailable_disabled_user": "La integración de IA está desactivada en esta instalación. Pida a su administrador que la active.",
   "ai_copilot_unavailable_configure": "Abrir ajustes",
-  "ai_copilot_unavailable_placeholder": "No disponible hasta que se configure un proveedor de IA"
+  "ai_copilot_unavailable_placeholder": "No disponible hasta que se configure un proveedor de IA",
+  "feature_locked_title": "No incluido en su plan",
+  "feature_locked_message": "Esta función está disponible a partir del plan {{plan}}.",
+  "feature_locked_message_generic": "Esta función no está incluida en su plan actual.",
+  "feature_locked_action": "Ver detalles del plan"
 }

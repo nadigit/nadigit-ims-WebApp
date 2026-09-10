@@ -6,7 +6,7 @@ import { LicenseFeatureGuard } from 'src/app/guards/license-feature.guard';
 @NgModule({
     imports: [RouterModule.forChild([
         { path: 'products', loadChildren: () => import('./products/products.module').then(m => m.ProductsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
-        { path: 'product-families', loadChildren: () => import('./product-families/product-families.module').then(m => m.ProductFamiliesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
+        { path: 'product-families', loadChildren: () => import('./product-families/product-families.module').then(m => m.ProductFamiliesModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','WAREHOUSEMAN'], licenseFeature: 'PRODUCT_FAMILIES'} },
         { path: 'categories', loadChildren: () => import('./categories/categories.module').then(m => m.CategoriesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
         { path: 'warehouses', loadChildren: () => import('./warehouses/warehouses.module').then(m => m.WarehousesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
         { path: 'shops', loadChildren: () => import('./shops/shops.module').then(m => m.ShopsModule), canActivate:[AuthGuard], data : { roles:['ADMIN']} },
@@ -14,8 +14,8 @@ import { LicenseFeatureGuard } from 'src/app/guards/license-feature.guard';
         { path: 'warehouse-transfers', loadChildren: () => import('./warehouse-transfers/warehouse-transfers.module').then(m => m.WarehouseTransfersModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','WAREHOUSEMAN'], licenseFeature: 'WAREHOUSE_TRANSFERS'} },
         { path: 'write-offs', loadChildren: () => import('./write-offs/write-offs.module').then(m => m.WriteOffsModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','WAREHOUSEMAN'], licenseFeature: 'WRITE_OFFS'} },
         { path: 'stock-movements', loadChildren: () => import('./stock-movements/stock-movements.module').then(m => m.StockMovementsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN']} },
-        { path: 'line-options', loadChildren: () => import('./line-option-sets/line-option-sets.module').then(m => m.LineOptionSetsModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR']} },
-        { path: 'line-price-rules', loadChildren: () => import('./line-price-rules/line-price-rules.module').then(m => m.LinePriceRulesModule), canActivate:[AuthGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR']} },
+        { path: 'line-options', loadChildren: () => import('./line-option-sets/line-option-sets.module').then(m => m.LineOptionSetsModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR'], licenseFeature: 'PRICING'} },
+        { path: 'line-price-rules', loadChildren: () => import('./line-price-rules/line-price-rules.module').then(m => m.LinePriceRulesModule), canActivate:[AuthGuard, LicenseFeatureGuard], data : { roles:['ADMIN','WAREHOUSEMAN','VENDOR','ACCOUNTANT','AUDITOR'], licenseFeature: 'PRICING'} },
         { path: '**', redirectTo: '/notfound' }
     ])],
     exports: [RouterModule]

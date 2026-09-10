@@ -98,7 +98,8 @@
       <button pButton pRipple *ngIf="canAddProduct" icon="pi pi-plus" [label]="'new_button' | translate"
         class="p-button-success" (click)="addProductEvent.emit()" pTooltip="{{'add_new_product'|translate}}">
       </button>
-      <button pButton pRipple *ngIf="canAddProduct" icon="pi pi-upload" [label]="'import_products' | translate"
+      <button pButton pRipple *ngIf="canAddProduct && canImportProducts" icon="pi pi-upload"
+        [label]="'import_products' | translate"
         class="p-button-info" (click)="importProductsEvent.emit()" pTooltip="{{'import_products_tooltip'|translate}}">
       </button>
       <button pButton pRipple *ngIf="isAdmin" icon="pi pi-folder" [label]="'archived_products' | translate"

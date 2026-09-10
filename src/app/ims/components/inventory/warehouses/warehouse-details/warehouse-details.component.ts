@@ -20,6 +20,7 @@ import { SupplierService } from 'src/app/services/supplier.service';
 import { Supplier } from 'src/app/models/supplier';
 import { InventoryWriteOff } from 'src/app/models/write-off';
 import { WriteOffService } from 'src/app/services/write-off.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { getWriteOffDisplayQuantity, getWriteOffQuantityDisplayLabel } from 'src/app/shared/product-utils';
 import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormDialogData } from '../warehouse-form-dialog/warehouse-form-dialog.component';
 import { Location } from '@angular/common';
@@ -90,6 +91,8 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
   // Write-Offs Management
   writeOffs: InventoryWriteOff[] = [];
   writeOffsLoading: boolean = false;
+  /** WRITE_OFFS is PRO+. Below it the tab shows the plan boundary, not a failure. */
+  writeOffsLicensed: boolean = true;
 
   constructor(
     private route: ActivatedRoute,
@@ -108,6 +111,7 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
     private supplierService: SupplierService,
     private reportingService: ReportingService,
     private writeOffService: WriteOffService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
     public pageSizeService: TablePageSizeService
   ) {
     this.costingMethods = [
@@ -740,6 +744,16 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
 
   async loadWriteOffs(): Promise<void> {
     if (!this.warehouseId) return;
+
+    // Asking anyway produced a 403 and a warning toast on every visit to a warehouse on a plan
+    // that has no write-offs — which reads as a broken page rather than a plan boundary.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.writeOffsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('WRITE_OFFS');
+    if (!this.writeOffsLicensed) {
+      this.writeOffs = [];
+      this.writeOffsLoading = false;
+      return;
+    }
 
     this.writeOffsLoading = true;
     try {

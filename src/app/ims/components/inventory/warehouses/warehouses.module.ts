@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { FeatureLockedComponent } from 'src/app/shared/feature-locked';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WarehousesRoutingModule } from './warehouses-routing.module';
@@ -37,6 +38,7 @@ import { ProductsModule } from '../products/products.module';
 
 @NgModule({
     imports: [
+    FeatureLockedComponent,
         CommonModule,
         WarehousesRoutingModule,
         TableModule,

@@ -459,13 +459,17 @@
                 </ng-template>
                 
                 <div class="mt-3">
+                    <!-- Outside the plan: say so instead of failing -->
+                    <app-feature-locked *ngIf="!writeOffsLicensed" feature="WRITE_OFFS"
+                        [title]="'write_offs' | translate"></app-feature-locked>
+
                     <!-- Loading State -->
-                    <div class="ims-section-loading" *ngIf="writeOffsLoading">
+                    <div class="ims-section-loading" *ngIf="writeOffsLicensed && writeOffsLoading">
                         <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
                     </div>
 
                     <!-- Write-Offs Table -->
-                    <div *ngIf="!writeOffsLoading && writeOffs.length > 0">
+                    <div *ngIf="writeOffsLicensed && !writeOffsLoading && writeOffs.length > 0">
                         <div class="detail-card">
                             <div class="card-header">
                                 <i class="pi pi-file-excel"></i>
@@ -592,7 +596,7 @@
                     </div>
 
                     <!-- Empty State -->
-                    <div *ngIf="!writeOffsLoading && writeOffs.length === 0">
+                    <div *ngIf="writeOffsLicensed && !writeOffsLoading && writeOffs.length === 0">
                         <div class="detail-card">
                             <div class="card-header">
                                 <i class="pi pi-file-excel"></i>

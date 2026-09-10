@@ -153,6 +153,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   profitTrendData: any = null;
   profitTrendOptions: any = null;
   profitTrendReady = false;
+  /** REPORTS_AND_ANALYTICS is PRO+; below it the panel states the plan boundary. */
+  profitTrendLicensed = true;
+  /** AI_COPILOT is PRO+; below it the rule-based briefing stands on its own. */
+  aiBriefingLicensed = true;
 
   // Admin-specific metrics
   totalStockValue = 0;
@@ -868,6 +872,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!this.isAdmin) {
       return;
     }
+    // Without AI_COPILOT the request is refused, so asking only produced a 403 and several seconds
+    // of "NadiPilot is thinking" before falling back. The rule-based briefing is a complete answer
+    // on its own, so it is simply left to stand — no spinner, no lock badge on the hero.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.aiBriefingLicensed = this.licenseCapabilitiesService.isFeatureEnabled('AI_COPILOT');
+    if (!this.aiBriefingLicensed) {
+      this.cdr.markForCheck();
+      return;
+    }
     this.aiBriefingLoading = true;
     this.aiBriefingSettled = false;
     this.startThinkingSteps();
@@ -1005,6 +1018,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   /** Fetch the 12-month profit trend → KPI sparklines + the profit & cash trend chart. */
   async loadTrends(): Promise<void> {
     if (!this.isAdmin) {
+      return;
+    }
+    // /api/analysis is gated on REPORTS_AND_ANALYTICS. Calling anyway logged a 403 on every
+    // dashboard load and left the panel simply absent, which tells the user nothing.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.profitTrendLicensed = this.licenseCapabilitiesService.isFeatureEnabled('REPORTS_AND_ANALYTICS');
+    if (!this.profitTrendLicensed) {
+      this.cdr.markForCheck();
       return;
     }
     try {

@@ -109,7 +109,7 @@ export class AppMenuComponent implements OnInit, OnDestroy {
         items: [
           { label: translations['categories_menu_title'], icon: 'pi pi-fw pi-tag', routerLink: ['/inventory/categories'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
           { label: translations['products_menu_title'], icon: 'pi pi-fw pi-list', routerLink: ['/inventory/products'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
-          { label: translations['product_families_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/product-families'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'] },
+          { label: translations['product_families_menu_title'], icon: 'pi pi-fw pi-sitemap', routerLink: ['/inventory/product-families'], routerLinkActiveOptions: { exact: false }, roles: ['WAREHOUSEMAN', 'ADMIN'], licenseFeature: 'PRODUCT_FAMILIES' },
         ],
         roles: ['WAREHOUSEMAN', 'ADMIN'],
       },
@@ -131,6 +131,7 @@ export class AppMenuComponent implements OnInit, OnDestroy {
             routerLink: ['/inventory/line-options'],
             routerLinkActiveOptions: { exact: false },
             roles: ['ADMIN', 'WAREHOUSEMAN'],
+            licenseFeature: 'PRICING',
           },
           {
             label: translations['line_rules_menu_title'] || translations['line_rules_page_title'] || 'Line Price Rules',
@@ -138,6 +139,7 @@ export class AppMenuComponent implements OnInit, OnDestroy {
             routerLink: ['/inventory/line-price-rules'],
             routerLinkActiveOptions: { exact: false },
             roles: ['ADMIN', 'WAREHOUSEMAN'],
+            licenseFeature: 'PRICING',
           },
         ],
         roles: ['ADMIN', 'WAREHOUSEMAN'],

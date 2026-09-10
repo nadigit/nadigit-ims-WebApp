@@ -5,6 +5,7 @@ import { Table } from 'primeng/table';
 import { DataView } from 'primeng/dataview';
 import { Product, AggregatedProduct, ProductsAggregatedResponse } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { BarcodeService } from 'src/app/services/barcode.service';
 import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
@@ -212,6 +213,8 @@ export class ProductsComponent implements OnInit {
   existingImageFile: any = null;
 
   canAddProduct: boolean = false;
+  /** PRODUCT_IMPORT is PRO+; the backend refuses /api/products/import below that. */
+  canImportProducts: boolean = false;
   canEditProduct: boolean = false;
   canDeleteProduct: boolean = false;
   canReadProduct: boolean = false;
@@ -307,7 +310,8 @@ export class ProductsComponent implements OnInit {
     private route: ActivatedRoute,
     private organizationService: OrganizationService,
     public activityProfileService: ActivityProfileService,
-    public pageSizeService: TablePageSizeService) {
+    public pageSizeService: TablePageSizeService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {
     this.setUserRoles();
     this.measureUnits = [
       { value: 'UNIT', label: this.translate.instant('UNIT') },
@@ -519,6 +523,8 @@ export class ProductsComponent implements OnInit {
 
     await this.permissionService.init(userId).toPromise(); // Initialize permissions
     this.canAddProduct = this.permissionService.canCreate(this.Ressource);
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.canImportProducts = this.licenseCapabilitiesService.isFeatureEnabled('PRODUCT_IMPORT');
     this.canEditProduct = this.permissionService.canUpdate(this.Ressource);
     this.canDeleteProduct = this.permissionService.canDelete(this.Ressource);
     this.canReadProduct = this.permissionService.canRead(this.Ressource);

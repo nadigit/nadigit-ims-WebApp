@@ -34,6 +34,7 @@
 				(editProductEvent)="editProduct($event)" [canDeleteProduct]="canDeleteProduct"
 				(deleteProductEvent)="deleteProduct($event)" [canReadProduct]="canReadProduct"
 				[canAddProduct]="canAddProduct" (addProductEvent)="openNew()"
+				[canImportProducts]="canImportProducts"
 				(importProductsEvent)="openImportDialog()"
 				(showProductDetailsEvent)="showProductDetails($event)"
 				[filteredProducts]="filteredProducts" [printOptions]="printOptions"

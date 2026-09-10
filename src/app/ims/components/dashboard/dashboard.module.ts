@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { FeatureLockedComponent } from 'src/app/shared/feature-locked';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DashboardComponent } from './dashboard.component';
@@ -23,6 +24,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 
 @NgModule({
     imports: [
+        FeatureLockedComponent,
         CommonModule,
         SharedModule,
         FormsModule,

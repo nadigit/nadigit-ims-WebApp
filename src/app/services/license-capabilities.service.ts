@@ -9,6 +9,8 @@ export interface LicenseCapabilitiesSnapshot {
   licenseValid: boolean;
   tier: string;
   features: Record<string, boolean>;
+  /** Feature name to the lowest tier that includes it, e.g. { PRODUCT_FAMILIES: 'PRO' }. */
+  featureTiers?: Record<string, string>;
   tierLimits: {
     maxUsers?: number;
     maxWarehouses?: number;
@@ -61,6 +63,18 @@ export class LicenseCapabilitiesService {
 
   getTier(): string {
     return (this.snapshot?.tier || 'STARTER').toUpperCase();
+  }
+
+  /**
+   * The lowest plan that includes a feature, straight from the backend's enum.
+   *
+   * The console must never hard-code this: the tier matrix is priced and repriced on the backend,
+   * and a plan name typed into a template is wrong the first time a feature moves.
+   *
+   * @returns the tier name, or null if the backend did not send one (older server)
+   */
+  getRequiredTier(featureName: string): string | null {
+    return this.snapshot?.featureTiers?.[featureName] ?? null;
   }
 
   /**
@@ -202,6 +216,7 @@ export class LicenseCapabilitiesService {
         licenseValid: false,
         tier: 'STARTER',
         features: {},
+        featureTiers: {},
         tierLimits: {},
       };
     } finally {

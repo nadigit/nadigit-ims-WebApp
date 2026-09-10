@@ -3,6 +3,7 @@ import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { MessageService, LazyLoadEvent, MenuItem } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { PurchaseService } from 'src/app/services/purchase.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -305,7 +306,8 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     private datePipe: DatePipe,
     private processModeService: ProcessModeService,
     public activityProfileService: ActivityProfileService,
-    private taxRuleService: TaxRuleService) {
+    private taxRuleService: TaxRuleService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {
     this.loadTaxRate();
   }
 
@@ -1110,7 +1112,11 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     this.canReadPurchase = this.permissionService.canRead(this.Ressource);
     this.canProcessPurchase = this.permissionService.canProcess(this.Ressource);
     this.canCancelPurchase = this.permissionService.canCancel(this.Ressource);
-    this.canImportPurchase = this.permissionService.canCreate(this.Ressource); // Use create permission for import
+    // PURCHASE_IMPORT is PRO+; /api/purchases/import is refused below it, so the button must
+    // not be offered. Permission alone is not enough — a STARTER admin has the permission.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.canImportPurchase = this.permissionService.canCreate(this.Ressource)
+      && this.licenseCapabilitiesService.isFeatureEnabled('PURCHASE_IMPORT');
     this.canAddProduct = this.permissionService.canCreate('PRODUCTS');
     this.canEditProduct = this.permissionService.canUpdate('PRODUCTS');
     this.canDeleteProduct = this.permissionService.canDelete('PRODUCTS');

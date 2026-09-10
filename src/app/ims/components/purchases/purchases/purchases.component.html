@@ -40,6 +40,7 @@
                     <button pButton type="button" class="p-button-sm p-button-outlined"
                         icon="pi pi-plus" [label]="'new_button' | translate" (click)="openNew()"></button>
                     <button pButton type="button" class="p-button-sm p-button-outlined"
+                        *ngIf="canImportPurchase"
                         icon="pi pi-upload" [label]="'import_purchases' | translate" (click)="openImportDialog()"></button>
                     <button pButton type="button" class="p-button-sm p-button-outlined"
                         icon="pi pi-cog" [label]="'open_global_settings' | translate" (click)="openProfileSettings()"></button>

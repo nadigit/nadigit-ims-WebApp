@@ -47,6 +47,9 @@ export class ProductsTableComponent implements OnInit, OnDestroy {
   @Input() canEditProduct = false;
   @Input() canDeleteProduct = false;
   @Input() canAddProduct = false;
+  /** PRODUCT_IMPORT is PRO+. Separate from canAddProduct so a STARTER admin can still
+   *  create products by hand while the bulk-import button stays hidden. */
+  @Input() canImportProducts = false;
   @Input() canReadProduct = false;
   @Input() canArchiveProduct = false;
   @Input() currency: string = 'USD';

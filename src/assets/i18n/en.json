@@ -6176,5 +6176,9 @@
   "ai_copilot_unavailable_disabled_admin": "AI integration is switched off. Turn it on in Settings → Integrations.",
   "ai_copilot_unavailable_disabled_user": "AI integration is switched off on this installation. Ask your administrator to turn it on.",
   "ai_copilot_unavailable_configure": "Open settings",
-  "ai_copilot_unavailable_placeholder": "Unavailable until an AI provider is set up"
+  "ai_copilot_unavailable_placeholder": "Unavailable until an AI provider is set up",
+  "feature_locked_title": "Not included in your plan",
+  "feature_locked_message": "This feature is available from the {{plan}} plan.",
+  "feature_locked_message_generic": "This feature is not included in your current plan.",
+  "feature_locked_action": "See plan details"
 }

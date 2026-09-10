@@ -463,7 +463,21 @@
         </div>
 
         <!-- Profit & Cash trend (last 12 months) -->
-        <div class="mt-2" *ngIf="profitTrendReady && profitTrendData">
+        <div class="mt-2" *ngIf="!profitTrendLicensed">
+            <p-card styleClass="shadow-2 border-round-lg">
+                <ng-template pTemplate="header">
+                    <div class="flex align-items-center gap-2 p-3">
+                        <i class="pi pi-chart-line text-primary text-xl"></i>
+                        <h5 class="m-0">{{ 'dashboard_profit_cash_trend' | translate }}</h5>
+                    </div>
+                </ng-template>
+                <div class="p-3">
+                    <app-feature-locked feature="REPORTS_AND_ANALYTICS"></app-feature-locked>
+                </div>
+            </p-card>
+        </div>
+
+        <div class="mt-2" *ngIf="profitTrendLicensed && profitTrendReady && profitTrendData">
             <p-card styleClass="shadow-2 border-round-lg">
                 <ng-template pTemplate="header">
                     <div class="flex align-items-center gap-2 p-3">
