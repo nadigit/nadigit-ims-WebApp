@@ -6178,5 +6178,8 @@
   "feature_locked_message_generic": "Esta función no está incluida en su plan actual.",
   "feature_locked_action": "Ver detalles del plan",
   "users_plan_cap_hint": "Su plan incluye {{count}} usuario. Los usuarios adicionales y la gestión de roles requieren un plan superior.",
-  "getting_started_progress": "{{done}} de {{total}} completado"
+  "getting_started_progress": "{{done}} de {{total}} completado",
+  "generate_payment_voucher": "Generar comprobante de pago",
+  "payment_voucher_generated": "Comprobante de pago generado",
+  "payment_voucher_failed": "No se pudo generar el comprobante de pago."
 }

@@ -235,6 +235,21 @@ export class FinancialDocumentsService {
     }
   }
 
+  /**
+   * Payment voucher for an outgoing payment — our record that we paid a supplier.
+   *
+   * The counterpart of a receipt, which is issued by whoever receives money. Origin is BACK_OFFICE
+   * because a supplier payment is never taken at a till.
+   */
+  generatePaymentVoucher(paymentId: any) {
+    let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated payment voucher');
+    return this.http.post(
+      this.apiProtocol + '://' + this.apiHost + ':' + this.apiPort + this.schema + 'voucher/payment/' + paymentId + '/create',
+      {},
+      { headers: headers, params: { origin: 'BACK_OFFICE' } }
+    );
+  }
+
   generateReceiptFromPOS(paymentId: any) {
     let headers = withAudit(new HttpHeaders({ 'authorization': 'Bearer ' + this.jwt }), 'Generated POS receipt');
     return this.http.post(

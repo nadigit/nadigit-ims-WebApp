@@ -64,7 +64,11 @@ export class PaymentsTableComponent implements OnInit, OnChanges {
    */
   @Input() canGenerateReceipt = true;
 
+  /** Outgoing payments issue a voucher instead of a receipt; see canGenerateReceipt. */
+  @Input() canGenerateVoucher = false;
+
   @Output() generateReceiptEvent = new EventEmitter<string>();
+  @Output() generateVoucherEvent = new EventEmitter<string>();
   @Output() lazyLoadEvent = new EventEmitter<LazyLoadEvent>();
   @Output() onGlobalFilter = new EventEmitter<{ globalFilter: string, context: 'incoming' | 'outgoing' }>();
   @Output() deleteSelectedEvent = new EventEmitter<LazyLoadEvent>();

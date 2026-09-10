@@ -1859,6 +1859,35 @@ export class PurchasePaymentsComponent implements OnInit {
     });
   }
 
+  /**
+   * Issues our payment voucher for an outgoing payment and opens it.
+   *
+   * Replaces "generate receipt", which was the wrong document here — a receipt is issued by
+   * whoever receives the money — and which threw, because the receipt PDF is built from an order
+   * and a purchase payment has none.
+   */
+  generateVoucher(paymentId: any): void {
+    this.financialDocService.generatePaymentVoucher(paymentId).subscribe({
+      next: (res: any) => {
+        this.financialDocService.printFinancialDoc(res.number);
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('payment_voucher_generated'),
+          detail: res.number,
+          life: 4000,
+        });
+      },
+      error: (err: any) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: err?.error?.message || this.translate.instant('payment_voucher_failed'),
+          life: 5000,
+        });
+      },
+    });
+  }
+
   printReceipt(docNumber: any): void {
     this.financialDocService.printFinancialDoc(docNumber);
   }

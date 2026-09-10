@@ -6176,5 +6176,8 @@
   "feature_locked_message_generic": "هذه الميزة غير مُضمَّنة في باقتك الحالية.",
   "feature_locked_action": "عرض تفاصيل الباقة",
   "users_plan_cap_hint": "تتضمن باقتك {{count}} مستخدم. المستخدمون الإضافيون وإدارة الأدوار تتطلب باقة أعلى.",
-  "getting_started_progress": "أُنجز {{done}} من {{total}}"
+  "getting_started_progress": "أُنجز {{done}} من {{total}}",
+  "generate_payment_voucher": "إنشاء سند صرف",
+  "payment_voucher_generated": "تم إنشاء سند الصرف",
+  "payment_voucher_failed": "تعذّر إنشاء سند الصرف."
 }

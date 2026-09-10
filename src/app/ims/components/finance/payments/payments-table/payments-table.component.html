@@ -351,6 +351,13 @@
             (click)="printReceiptEvent.emit(payment.receiptNumber); $event.stopPropagation()">
           </button>
 
+          <!-- Payment voucher (outgoing payments) -->
+          <button *ngIf="canGenerateVoucher" pButton pRipple
+            icon="pi pi-file-check" class="p-button-rounded p-button-text p-button-help p-button-sm"
+            pTooltip="{{ 'generate_payment_voucher' | translate }}"
+            (click)="generateVoucherEvent.emit(payment.paymentId); $event.stopPropagation()">
+          </button>
+
           <!-- Generate Receipt -->
           <button *ngIf="canGenerateReceipt && (!payment.receiptNumber || payment.receiptStatus !== 'ISSUED')" pButton pRipple
             icon="pi pi-file-pdf" class="p-button-rounded p-button-text p-button-warning p-button-sm"
