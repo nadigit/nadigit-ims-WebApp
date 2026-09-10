@@ -267,7 +267,12 @@ export class CashRegisterDetailsComponent implements OnInit {
       totalCollections,
       depositsCount: deposits.length,
       withdrawalsCount: withdrawals.length,
-      cashFlow: (totalDeposits + totalCollections) - (totalWithdrawals + totalExpenses),
+      // Outflows are summed as magnitudes because the two paths that create them disagree on
+      // sign: recordMovement() stores EXPENSE as -abs(amount), while withdrawMoney() stores
+      // WITHDRAWAL positive. Subtracting an already-negative expenses total added it instead —
+      // a drawer that had paid out 2 674 reported a net inflow of +2 674, in green.
+      cashFlow: (totalDeposits + totalCollections)
+        - (Math.abs(totalWithdrawals) + Math.abs(totalExpenses)),
     };
   }
 
