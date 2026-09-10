@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { LazyLoadEvent, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Payment } from 'src/app/models/payment';
-import { PaymentService } from 'src/app/services/payment.service';
+import { PaymentAttachment, PaymentService } from 'src/app/services/payment.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -1866,6 +1866,136 @@ export class PurchasePaymentsComponent implements OnInit {
    * whoever receives the money — and which threw, because the receipt PDF is built from an order
    * and a purchase payment has none.
    */
+  // --- Proof of payment ---------------------------------------------------------------------
+  attachmentsDialog = false;
+  attachmentsPayment: any = null;
+  attachments: PaymentAttachment[] = [];
+  attachmentsLoading = false;
+  attachmentUploading = false;
+  attachmentFile: File | null = null;
+  attachmentNotes = '';
+
+  openAttachments(payment: any): void {
+    this.attachmentsPayment = payment;
+    this.attachments = [];
+    this.attachmentFile = null;
+    this.attachmentNotes = '';
+    this.attachmentsDialog = true;
+    this.loadAttachments();
+  }
+
+  loadAttachments(): void {
+    const paymentId = this.attachmentsPayment?.paymentId;
+    if (!paymentId) {
+      return;
+    }
+    this.attachmentsLoading = true;
+    this.paymentService.listPaymentAttachments(paymentId).subscribe({
+      next: (rows) => {
+        this.attachments = rows || [];
+        this.attachmentsLoading = false;
+      },
+      error: () => {
+        this.attachments = [];
+        this.attachmentsLoading = false;
+      },
+    });
+  }
+
+  onAttachmentSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.attachmentFile = input?.files && input.files.length > 0 ? input.files[0] : null;
+  }
+
+  uploadAttachment(): void {
+    const paymentId = this.attachmentsPayment?.paymentId;
+    if (!paymentId || !this.attachmentFile) {
+      return;
+    }
+    this.attachmentUploading = true;
+    this.paymentService.uploadPaymentAttachment(paymentId, this.attachmentFile, this.attachmentNotes).subscribe({
+      next: () => {
+        this.attachmentUploading = false;
+        this.attachmentFile = null;
+        this.attachmentNotes = '';
+        this.loadAttachments();
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('payment_attachment_uploaded_msg'),
+          life: 3000,
+        });
+      },
+      error: (err: any) => {
+        this.attachmentUploading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          // The backend explains size and type refusals precisely; prefer its wording.
+          detail: err?.error?.message || this.translate.instant('payment_attachment_failed'),
+          life: 5000,
+        });
+      },
+    });
+  }
+
+  /** Fetched as a blob so the file stays behind the same authorization as the payment. */
+  downloadAttachment(attachment: PaymentAttachment): void {
+    const paymentId = this.attachmentsPayment?.paymentId;
+    if (!paymentId) {
+      return;
+    }
+    this.paymentService.downloadPaymentAttachment(paymentId, attachment.id).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('payment_attachment_download_failed'),
+          life: 4000,
+        });
+      },
+    });
+  }
+
+  deleteAttachment(attachment: PaymentAttachment): void {
+    const paymentId = this.attachmentsPayment?.paymentId;
+    if (!paymentId) {
+      return;
+    }
+    this.paymentService.deletePaymentAttachment(paymentId, attachment.id).subscribe({
+      next: () => {
+        this.loadAttachments();
+        this.messageService.add({
+          severity: 'success',
+          summary: this.translate.instant('successful'),
+          detail: this.translate.instant('payment_attachment_deleted'),
+          life: 3000,
+        });
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translate.instant('error'),
+          detail: this.translate.instant('payment_attachment_delete_failed'),
+          life: 4000,
+        });
+      },
+    });
+  }
+
+  formatAttachmentSize(bytes?: number): string {
+    if (!bytes) {
+      return '';
+    }
+    return bytes < 1024 * 1024
+      ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
+      : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
   generateVoucher(paymentId: any): void {
     this.financialDocService.generatePaymentVoucher(paymentId).subscribe({
       next: (res: any) => {

@@ -6179,5 +6179,20 @@
   "getting_started_progress": "أُنجز {{done}} من {{total}}",
   "generate_payment_voucher": "إنشاء سند صرف",
   "payment_voucher_generated": "تم إنشاء سند الصرف",
-  "payment_voucher_failed": "تعذّر إنشاء سند الصرف."
+  "payment_voucher_failed": "تعذّر إنشاء سند الصرف.",
+  "payment_attachments": "إثبات الدفع",
+  "payment_attachments_hint": "المستند الذي سُلّم إليك مقابل هذه الدفعة — إيصال المورّد، صورة الشيك، إشعار التحويل. صور وملفات PDF، بحد أقصى 5 ميغابايت للملف.",
+  "payment_attachments_empty": "لا توجد إثباتات مرفقة بهذه الدفعة بعد.",
+  "payment_attachment_no_file": "لم يتم اختيار ملف",
+  "payment_attachment_upload": "إرفاق",
+  "payment_attachment_notes_placeholder": "ملاحظة (اختياري) — مثال: شيك رقم 1841",
+  "payment_attachment_file": "الملف",
+  "payment_attachment_size": "الحجم",
+  "payment_attachment_uploaded": "أُرفق في",
+  "payment_attachment_open": "فتح",
+  "payment_attachment_uploaded_msg": "تم إرفاق الإثبات",
+  "payment_attachment_failed": "تعذّر إرفاق الملف.",
+  "payment_attachment_deleted": "تم حذف الإثبات",
+  "payment_attachment_delete_failed": "تعذّر حذف الإثبات.",
+  "payment_attachment_download_failed": "تعذّر فتح الملف."
 }

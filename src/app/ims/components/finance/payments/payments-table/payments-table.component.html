@@ -351,6 +351,13 @@
             (click)="printReceiptEvent.emit(payment.receiptNumber); $event.stopPropagation()">
           </button>
 
+          <!-- Proof of payment -->
+          <button *ngIf="canManageAttachments" pButton pRipple
+            icon="pi pi-paperclip" class="p-button-rounded p-button-text p-button-secondary p-button-sm"
+            pTooltip="{{ 'payment_attachments' | translate }}"
+            (click)="manageAttachmentsEvent.emit(payment); $event.stopPropagation()">
+          </button>
+
           <!-- Payment voucher (outgoing payments) -->
           <button *ngIf="canGenerateVoucher" pButton pRipple
             icon="pi pi-file-check" class="p-button-rounded p-button-text p-button-help p-button-sm"

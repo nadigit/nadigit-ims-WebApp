@@ -6185,5 +6185,20 @@
   "getting_started_progress": "{{done}} of {{total}} done",
   "generate_payment_voucher": "Generate payment voucher",
   "payment_voucher_generated": "Payment voucher generated",
-  "payment_voucher_failed": "The payment voucher could not be generated."
+  "payment_voucher_failed": "The payment voucher could not be generated.",
+  "payment_attachments": "Proof of payment",
+  "payment_attachments_hint": "The document you were given for this payment — the supplier's receipt, a cheque image, a bank transfer advice. Images and PDF, up to 5 MB each.",
+  "payment_attachments_empty": "No proof attached to this payment yet.",
+  "payment_attachment_no_file": "No file chosen",
+  "payment_attachment_upload": "Attach",
+  "payment_attachment_notes_placeholder": "Note (optional) — e.g. cheque no. 1841",
+  "payment_attachment_file": "File",
+  "payment_attachment_size": "Size",
+  "payment_attachment_uploaded": "Attached",
+  "payment_attachment_open": "Open",
+  "payment_attachment_uploaded_msg": "Proof attached",
+  "payment_attachment_failed": "The file could not be attached.",
+  "payment_attachment_deleted": "Attachment removed",
+  "payment_attachment_delete_failed": "The attachment could not be removed.",
+  "payment_attachment_download_failed": "The file could not be opened."
 }

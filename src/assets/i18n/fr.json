@@ -6175,5 +6175,20 @@
   "getting_started_progress": "{{done}} sur {{total}} terminé",
   "generate_payment_voucher": "Générer le bon de paiement",
   "payment_voucher_generated": "Bon de paiement généré",
-  "payment_voucher_failed": "Le bon de paiement n'a pas pu être généré."
+  "payment_voucher_failed": "Le bon de paiement n'a pas pu être généré.",
+  "payment_attachments": "Justificatif de paiement",
+  "payment_attachments_hint": "Le document qui vous a été remis pour ce paiement — reçu du fournisseur, image du chèque, avis de virement. Images et PDF, 5 Mo maximum par fichier.",
+  "payment_attachments_empty": "Aucun justificatif joint à ce paiement.",
+  "payment_attachment_no_file": "Aucun fichier sélectionné",
+  "payment_attachment_upload": "Joindre",
+  "payment_attachment_notes_placeholder": "Note (facultatif) — ex. chèque n° 1841",
+  "payment_attachment_file": "Fichier",
+  "payment_attachment_size": "Taille",
+  "payment_attachment_uploaded": "Joint le",
+  "payment_attachment_open": "Ouvrir",
+  "payment_attachment_uploaded_msg": "Justificatif joint",
+  "payment_attachment_failed": "Le fichier n'a pas pu être joint.",
+  "payment_attachment_deleted": "Justificatif supprimé",
+  "payment_attachment_delete_failed": "Le justificatif n'a pas pu être supprimé.",
+  "payment_attachment_download_failed": "Le fichier n'a pas pu être ouvert."
 }

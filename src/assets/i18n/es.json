@@ -6181,5 +6181,20 @@
   "getting_started_progress": "{{done}} de {{total}} completado",
   "generate_payment_voucher": "Generar comprobante de pago",
   "payment_voucher_generated": "Comprobante de pago generado",
-  "payment_voucher_failed": "No se pudo generar el comprobante de pago."
+  "payment_voucher_failed": "No se pudo generar el comprobante de pago.",
+  "payment_attachments": "Comprobante de pago",
+  "payment_attachments_hint": "El documento que le entregaron por este pago: recibo del proveedor, imagen del cheque, aviso de transferencia. Imágenes y PDF, hasta 5 MB cada uno.",
+  "payment_attachments_empty": "Aún no hay comprobantes adjuntos a este pago.",
+  "payment_attachment_no_file": "Ningún archivo seleccionado",
+  "payment_attachment_upload": "Adjuntar",
+  "payment_attachment_notes_placeholder": "Nota (opcional) — p. ej. cheque n.º 1841",
+  "payment_attachment_file": "Archivo",
+  "payment_attachment_size": "Tamaño",
+  "payment_attachment_uploaded": "Adjuntado",
+  "payment_attachment_open": "Abrir",
+  "payment_attachment_uploaded_msg": "Comprobante adjuntado",
+  "payment_attachment_failed": "No se pudo adjuntar el archivo.",
+  "payment_attachment_deleted": "Comprobante eliminado",
+  "payment_attachment_delete_failed": "No se pudo eliminar el comprobante.",
+  "payment_attachment_download_failed": "No se pudo abrir el archivo."
 }

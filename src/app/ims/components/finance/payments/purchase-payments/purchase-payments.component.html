@@ -21,7 +21,9 @@
                 [canConfirmPayment]="canConfirmPayment" (confirmPaymentEvent)="openConfirmPayment($event)" 
                 [paymentReconciliationStatuses]="paymentReconciliationCache"
                 [canGenerateReceipt]="false" [canGenerateVoucher]="true"
+                [canManageAttachments]="true"
                 (generateVoucherEvent)="generateVoucher($event)"
+                (manageAttachmentsEvent)="openAttachments($event)"
                 (deletePaymentEvent)="deletePayment($event)" (printReceiptEvent)="printReceipt($event)"
                 (generateReceiptEvent)="generateReceipt($event)" (addPaymentEvent)="openNew()"
                 (onGlobalFilter)="onGlobalFilter($event)" (viewPaymentDetailsEvent)="viewPaymentDetails($event)"
@@ -540,3 +542,77 @@
     </div>
 </div>
 
+<!-- Proof of payment: what the supplier gave us, as opposed to the voucher we issue. -->
+<p-dialog [(visible)]="attachmentsDialog" [modal]="true" [style]="{ width: 'min(94vw, 640px)' }"
+    [draggable]="false" [resizable]="false" [header]="'payment_attachments' | translate">
+
+    <div class="mb-3 text-600 text-sm">{{ 'payment_attachments_hint' | translate }}</div>
+
+    <div class="flex align-items-center gap-2 mb-3 flex-wrap">
+        <input #attachmentInput type="file" class="hidden"
+            accept="image/jpeg,image/png,image/heic,image/webp,image/tiff,application/pdf"
+            (change)="onAttachmentSelected($event)" />
+        <button pButton type="button" icon="pi pi-folder-open" class="p-button-outlined p-button-sm"
+            [label]="'choose_file' | translate" (click)="attachmentInput.click()"></button>
+        <span class="text-600 text-sm flex-1" style="min-width: 8rem;">
+            {{ attachmentFile?.name || ('payment_attachment_no_file' | translate) }}
+        </span>
+        <button pButton type="button" icon="pi pi-upload" class="p-button-sm"
+            [label]="'payment_attachment_upload' | translate"
+            [disabled]="!attachmentFile" [loading]="attachmentUploading"
+            (click)="uploadAttachment()"></button>
+    </div>
+
+    <input pInputText type="text" class="w-full mb-3" [(ngModel)]="attachmentNotes"
+        [placeholder]="'payment_attachment_notes_placeholder' | translate" />
+
+    <div class="ims-section-loading" *ngIf="attachmentsLoading">
+        <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
+    </div>
+
+    <div *ngIf="!attachmentsLoading && attachments.length === 0"
+        class="flex flex-column align-items-center justify-content-center py-4 text-600">
+        <i class="pi pi-paperclip text-3xl text-300 mb-2"></i>
+        <span>{{ 'payment_attachments_empty' | translate }}</span>
+    </div>
+
+    <p-table [value]="attachments" *ngIf="!attachmentsLoading && attachments.length > 0"
+        styleClass="p-datatable-sm p-datatable-gridlines" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+            <tr>
+                <th>{{ 'payment_attachment_file' | translate }}</th>
+                <th style="width: 7rem">{{ 'payment_attachment_size' | translate }}</th>
+                <th style="width: 10rem">{{ 'payment_attachment_uploaded' | translate }}</th>
+                <th style="width: 6rem"></th>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-attachment>
+            <tr>
+                <td>
+                    <div>{{ attachment.originalName }}</div>
+                    <small class="text-500" *ngIf="attachment.notes">{{ attachment.notes }}</small>
+                </td>
+                <td>{{ formatAttachmentSize(attachment.sizeBytes) }}</td>
+                <td>
+                    <div>{{ attachment.uploadedAt | date: 'dd/MM/yyyy' }}</div>
+                    <small class="text-500">{{ attachment.uploadedBy }}</small>
+                </td>
+                <td class="text-right">
+                    <button pButton type="button" icon="pi pi-eye"
+                        class="p-button-rounded p-button-text p-button-sm"
+                        [pTooltip]="'payment_attachment_open' | translate"
+                        (click)="downloadAttachment(attachment)"></button>
+                    <button pButton type="button" icon="pi pi-trash"
+                        class="p-button-rounded p-button-text p-button-danger p-button-sm"
+                        [pTooltip]="'delete_button' | translate"
+                        (click)="deleteAttachment(attachment)"></button>
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+
+    <ng-template pTemplate="footer">
+        <button pButton type="button" class="p-button-text" [label]="'close' | translate"
+            (click)="attachmentsDialog = false"></button>
+    </ng-template>
+</p-dialog>

@@ -69,6 +69,10 @@ export class PaymentsTableComponent implements OnInit, OnChanges {
 
   @Output() generateReceiptEvent = new EventEmitter<string>();
   @Output() generateVoucherEvent = new EventEmitter<string>();
+
+  /** Proof of payment — available on both directions; a cheque is worth filing either way. */
+  @Input() canManageAttachments = false;
+  @Output() manageAttachmentsEvent = new EventEmitter<any>();
   @Output() lazyLoadEvent = new EventEmitter<LazyLoadEvent>();
   @Output() onGlobalFilter = new EventEmitter<{ globalFilter: string, context: 'incoming' | 'outgoing' }>();
   @Output() deleteSelectedEvent = new EventEmitter<LazyLoadEvent>();

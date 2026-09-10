@@ -6,6 +6,18 @@ import { Payment } from 'src/app/models/payment';
 import { environment } from 'src/environments/environment';
 import { withAudit, auditSaveAction } from '../utils/audit-action';
 
+/** Mirrors the backend PaymentAttachmentDTO. */
+export interface PaymentAttachment {
+  id: number;
+  paymentId: number;
+  originalName: string;
+  contentType?: string;
+  sizeBytes?: number;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  notes?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -23,6 +35,48 @@ export class PaymentService {
 
   loadToken() {
     this.jwt = this.keycloakService.getToken();
+  }
+
+  // --- Proof of payment -------------------------------------------------------------------
+  // The document the other party gave us: their receipt, a cheque image, a transfer advice.
+  // Distinct from the payment voucher, which is the document we issue.
+
+  private attachmentsUrl(paymentId: number | string): string {
+    return `${this.apiProtocol}://${this.apiHost}:${this.apiPort}${this.schema}${paymentId}/attachments`;
+  }
+
+  private authHeaders(): HttpHeaders {
+    if (!this.jwt) {
+      this.loadToken();
+    }
+    return new HttpHeaders({ authorization: 'Bearer ' + this.jwt });
+  }
+
+  listPaymentAttachments(paymentId: number | string) {
+    return this.http.get<PaymentAttachment[]>(this.attachmentsUrl(paymentId), { headers: this.authHeaders() });
+  }
+
+  uploadPaymentAttachment(paymentId: number | string, file: File, notes?: string) {
+    const form = new FormData();
+    form.append('file', file);
+    if (notes) {
+      form.append('notes', notes);
+    }
+    // Content-Type is deliberately unset: the browser must add the multipart boundary itself.
+    return this.http.post<PaymentAttachment>(this.attachmentsUrl(paymentId), form, { headers: this.authHeaders() });
+  }
+
+  /**
+   * Fetched as a blob through the API rather than linked directly, so the file stays behind the
+   * same authorization as the payment.
+   */
+  downloadPaymentAttachment(paymentId: number | string, attachmentId: number) {
+    return this.http.get(`${this.attachmentsUrl(paymentId)}/${attachmentId}/content`,
+      { headers: this.authHeaders(), responseType: 'blob' });
+  }
+
+  deletePaymentAttachment(paymentId: number | string, attachmentId: number) {
+    return this.http.delete(`${this.attachmentsUrl(paymentId)}/${attachmentId}`, { headers: this.authHeaders() });
   }
 
   // savePayment(orderId: number, amount: number, paymentMethod: string, paymentDate: Date) {
