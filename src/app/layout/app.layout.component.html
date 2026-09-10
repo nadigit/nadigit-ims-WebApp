@@ -180,6 +180,7 @@
       <div class="copilot-suggestions">
         <button type="button" class="copilot-suggestion-card"
           *ngFor="let s of copilotSuggestedPrompts"
+          [disabled]="aiUnavailable"
           (click)="setCopilotPromptByKey(s.key); askAiCopilot()">
           <i class="pi" [ngClass]="s.icon" aria-hidden="true"></i>
           <span>{{ s.key | translate }}</span>
@@ -582,6 +583,18 @@
       </div>
     </div>
 
+    <div *ngIf="aiUnavailable" class="copilot-unavailable" role="status">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      <div class="copilot-unavailable__text">
+        <div class="copilot-unavailable__title">{{ 'ai_copilot_unavailable_title' | translate }}</div>
+        <div class="copilot-unavailable__message">{{ aiUnavailableMessageKey | translate }}</div>
+      </div>
+      <button *ngIf="aiAvailability?.configurable" pButton type="button"
+        class="p-button-sm p-button-text copilot-unavailable__action"
+        icon="pi pi-cog" [label]="'ai_copilot_unavailable_configure' | translate"
+        (click)="openAiSettings()"></button>
+    </div>
+
     <div class="copilot-composer">
       <input #copilotFileInput type="file" class="copilot-file-input"
         accept=".csv,.xlsx,.xls,.pdf,.png,.jpg,.jpeg"
@@ -595,7 +608,7 @@
         [attr.aria-label]="'ai_copilot_attach' | translate"
         [pTooltip]="'ai_copilot_attach' | translate"
         tooltipPosition="top"
-        [disabled]="copilotLoading || copilotAttachmentBusy"
+        [disabled]="aiUnavailable || copilotLoading || copilotAttachmentBusy"
         (click)="onCopilotAttachClick()"></button>
       <button
         *ngIf="copilotVoiceSupported"
@@ -608,7 +621,7 @@
         [attr.aria-pressed]="copilotListening"
         [pTooltip]="(copilotListening ? 'ai_copilot_voice_stop' : 'ai_copilot_voice_start') | translate"
         tooltipPosition="top"
-        [disabled]="copilotLoading"
+        [disabled]="aiUnavailable || copilotLoading"
         (click)="toggleCopilotDictation()"></button>
       <textarea
         #copilotInputField
@@ -617,7 +630,9 @@
         rows="1"
         class="w-full copilot-prompt-textarea"
         [(ngModel)]="copilotPrompt"
-        [placeholder]="(copilotListening ? 'ai_copilot_voice_listening' : 'ai_copilot_placeholder') | translate"
+        [disabled]="aiUnavailable"
+        [placeholder]="(aiUnavailable ? 'ai_copilot_unavailable_placeholder'
+          : (copilotListening ? 'ai_copilot_voice_listening' : 'ai_copilot_placeholder')) | translate"
         (keydown)="onCopilotComposerKeydown($event)"></textarea>
       <button
         pButton
@@ -625,7 +640,7 @@
         icon="pi pi-arrow-up"
         class="copilot-send-btn p-button-rounded"
         [attr.aria-label]="'ai_copilot_ask' | translate"
-        [disabled]="copilotLoading || !copilotPrompt?.trim()"
+        [disabled]="aiUnavailable || copilotLoading || !copilotPrompt?.trim()"
         [loading]="copilotLoading"
         (click)="askAiCopilot()"></button>
     </div>

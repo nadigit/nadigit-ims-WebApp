@@ -6167,5 +6167,14 @@
   "license_activation_key_required": "Enter a registration key first.",
   "license_activation_file_required": "Choose a licence file first.",
   "license_activation_failed": "The licence could not be applied. Check the key or file and try again.",
-  "license_activation_no_restart": "Activation takes effect immediately; no restart is needed."
+  "license_activation_no_restart": "Activation takes effect immediately; no restart is needed.",
+  "ai_copilot_unavailable_title": "NadiPilot is not ready yet",
+  "ai_copilot_unavailable_provider_admin": "No AI provider has been set up. Choose one in Settings → Integrations and add its API key.",
+  "ai_copilot_unavailable_provider_user": "No AI provider has been set up on this installation. Ask your administrator to configure one.",
+  "ai_copilot_unavailable_key_admin": "A provider is selected but its API key is missing. Add it in Settings → Integrations.",
+  "ai_copilot_unavailable_key_user": "The AI provider on this installation has no API key. Ask your administrator to add it.",
+  "ai_copilot_unavailable_disabled_admin": "AI integration is switched off. Turn it on in Settings → Integrations.",
+  "ai_copilot_unavailable_disabled_user": "AI integration is switched off on this installation. Ask your administrator to turn it on.",
+  "ai_copilot_unavailable_configure": "Open settings",
+  "ai_copilot_unavailable_placeholder": "Unavailable until an AI provider is set up"
 }

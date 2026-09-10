@@ -6161,5 +6161,14 @@
   "license_activation_key_required": "أدخل مفتاح التسجيل أولاً.",
   "license_activation_file_required": "اختر ملف الترخيص أولاً.",
   "license_activation_failed": "تعذّر تطبيق الترخيص. تحقق من المفتاح أو الملف ثم أعد المحاولة.",
-  "license_activation_no_restart": "يسري التفعيل فوراً؛ لا حاجة لإعادة التشغيل."
+  "license_activation_no_restart": "يسري التفعيل فوراً؛ لا حاجة لإعادة التشغيل.",
+  "ai_copilot_unavailable_title": "NadiPilot غير جاهز بعد",
+  "ai_copilot_unavailable_provider_admin": "لم يتم إعداد أي مزوّد ذكاء اصطناعي. اختر واحداً من الإعدادات ← التكاملات وأضف مفتاح الـ API الخاص به.",
+  "ai_copilot_unavailable_provider_user": "لم يتم إعداد أي مزوّد ذكاء اصطناعي على هذا التثبيت. اطلب من المسؤول إعداد واحد.",
+  "ai_copilot_unavailable_key_admin": "تم اختيار مزوّد لكن مفتاح الـ API مفقود. أضفه من الإعدادات ← التكاملات.",
+  "ai_copilot_unavailable_key_user": "مزوّد الذكاء الاصطناعي على هذا التثبيت بلا مفتاح API. اطلب من المسؤول إضافته.",
+  "ai_copilot_unavailable_disabled_admin": "تكامل الذكاء الاصطناعي معطّل. فعّله من الإعدادات ← التكاملات.",
+  "ai_copilot_unavailable_disabled_user": "تكامل الذكاء الاصطناعي معطّل على هذا التثبيت. اطلب من المسؤول تفعيله.",
+  "ai_copilot_unavailable_configure": "فتح الإعدادات",
+  "ai_copilot_unavailable_placeholder": "غير متاح حتى يتم إعداد مزوّد ذكاء اصطناعي"
 }

@@ -6163,5 +6163,14 @@
   "license_activation_key_required": "Introduzca primero una clave de registro.",
   "license_activation_file_required": "Elija primero un archivo de licencia.",
   "license_activation_failed": "No se pudo aplicar la licencia. Compruebe la clave o el archivo e inténtelo de nuevo.",
-  "license_activation_no_restart": "La activación surte efecto de inmediato; no hace falta reiniciar."
+  "license_activation_no_restart": "La activación surte efecto de inmediato; no hace falta reiniciar.",
+  "ai_copilot_unavailable_title": "NadiPilot aún no está listo",
+  "ai_copilot_unavailable_provider_admin": "No hay ningún proveedor de IA configurado. Elija uno en Ajustes → Integraciones y añada su clave de API.",
+  "ai_copilot_unavailable_provider_user": "No hay ningún proveedor de IA configurado en esta instalación. Pida a su administrador que configure uno.",
+  "ai_copilot_unavailable_key_admin": "Hay un proveedor seleccionado pero falta su clave de API. Añádala en Ajustes → Integraciones.",
+  "ai_copilot_unavailable_key_user": "El proveedor de IA de esta instalación no tiene clave de API. Pida a su administrador que la añada.",
+  "ai_copilot_unavailable_disabled_admin": "La integración de IA está desactivada. Actívela en Ajustes → Integraciones.",
+  "ai_copilot_unavailable_disabled_user": "La integración de IA está desactivada en esta instalación. Pida a su administrador que la active.",
+  "ai_copilot_unavailable_configure": "Abrir ajustes",
+  "ai_copilot_unavailable_placeholder": "No disponible hasta que se configure un proveedor de IA"
 }

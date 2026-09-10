@@ -1,10 +1,20 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KeycloakService } from 'keycloak-angular';
-import { Observable, from } from 'rxjs';
+import { Observable, from, firstValueFrom } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { withAudit } from 'src/app/utils/audit-action';
 import { TranslationService } from './translation.service';
+
+/** Mirrors the backend {@code AiAvailability} record. */
+export interface AiAvailability {
+  available: boolean;
+  /** null when available; otherwise INTEGRATION_DISABLED | NO_PROVIDER | MISSING_API_KEY. */
+  reason: string | null;
+  provider: string;
+  /** True when this user (ADMIN) can fix it themselves. */
+  configurable: boolean;
+}
 
 export interface AiLlmTestResult {
   success: boolean;
@@ -296,6 +306,17 @@ export class AiIntegrationService {
       'Content-Type': 'application/json',
       'Accept-Language': lang,
     });
+  }
+
+  /**
+   * Whether NadiPilot can reach a model. Asked before the conversation starts rather than
+   * discovered through it: on an installation with no AI provider configured the panel used to
+   * open, accept questions, and fail every one of them the same way.
+   */
+  async getAvailability(): Promise<AiAvailability> {
+    const headers = await this.getHeaders();
+    const url = `${this.apiProtocol}://${this.apiHost}:${this.apiPort}/api/ai/copilot/availability`;
+    return await firstValueFrom(this.http.get<AiAvailability>(url, { headers }));
   }
 
   /**

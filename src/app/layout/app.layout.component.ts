@@ -22,7 +22,7 @@ import { LicenseCapabilitiesService, LicenseDowngradeImpactResponse } from '../s
 import { buildKeycloakRedirectUri } from '../utils/keycloak-redirect.util';
 import { SessionAuditService } from '../services/session-audit.service';
 import { TourService } from '../services/tour.service';
-import { NadiPilotActionDTO, NadiPilotBriefingDTO, NadiPilotMessage, NadiPilotNavigationDTO, NadiPilotProposedActionDTO, NadiPilotResponseDTO, AiIntegrationService } from '../services/ai-integration.service';
+import { NadiPilotActionDTO, NadiPilotBriefingDTO, NadiPilotMessage, NadiPilotNavigationDTO, NadiPilotProposedActionDTO, NadiPilotResponseDTO, AiIntegrationService, AiAvailability } from '../services/ai-integration.service';
 import { buildCopilotPageContext } from '../utils/copilot-page-context';
 import { PurchaseImportService } from '../services/purchase-import.service';
 import { ProductImportService } from '../services/product-import.service';
@@ -162,6 +162,8 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
     copilotActionLoading = false;
     private copilotActionDoneKeys = new Set<string>();
     copilotStreaming = false;
+    /** null until asked; see loadCopilotAvailability(). */
+    aiAvailability: AiAvailability | null = null;
     copilotStreamingText = '';
     copilotStreamingStatus: string | null = null;
     copilotBriefing: NadiPilotBriefingDTO | null = null;
@@ -2489,9 +2491,53 @@ export class AppLayoutComponent implements OnDestroy, OnInit {
         this.copilotUnreadCount = 0;
         this.restoreCopilotPanelWidth();
         this.syncCopilotUiState();
+        void this.loadCopilotAvailability();
         this.loadCopilotBriefing();
         setTimeout(() => this.copilotInputField?.nativeElement?.focus(), 0);
         this.scrollCopilotThreadToBottom();
+    }
+
+    /**
+     * Asks once per session whether an AI provider is configured, so the panel can say so instead
+     * of accepting questions that cannot be answered.
+     *
+     * A failed request leaves the panel usable: a transport problem is not evidence that AI is
+     * unconfigured, and wrongly locking the composer is worse than the question failing.
+     */
+    private async loadCopilotAvailability(): Promise<void> {
+        if (this.aiAvailability) {
+            return;
+        }
+        try {
+            this.aiAvailability = await this.aiIntegrationService.getAvailability();
+        } catch {
+            this.aiAvailability = null;
+        }
+    }
+
+    /** True only on a definite "no provider" answer — never on a missing or failed one. */
+    get aiUnavailable(): boolean {
+        return this.aiAvailability?.available === false;
+    }
+
+    /** Translation key describing what is missing; the admin variant names the fix. */
+    get aiUnavailableMessageKey(): string {
+        const reason = this.aiAvailability?.reason;
+        const suffix = this.aiAvailability?.configurable ? 'admin' : 'user';
+        switch (reason) {
+            case 'INTEGRATION_DISABLED':
+                return `ai_copilot_unavailable_disabled_${suffix}`;
+            case 'MISSING_API_KEY':
+                return `ai_copilot_unavailable_key_${suffix}`;
+            default:
+                return `ai_copilot_unavailable_provider_${suffix}`;
+        }
+    }
+
+    /** Admins get a link straight to the AI section of Settings; everyone else gets the message. */
+    openAiSettings(): void {
+        this.closeCopilotPanel(false);
+        void this.router.navigate(['/administration/settings'], { queryParams: { tab: 'integrations' } });
     }
 
     closeCopilotPanel(restoreFocus = true): void {

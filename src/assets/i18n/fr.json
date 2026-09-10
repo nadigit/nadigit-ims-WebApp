@@ -6157,5 +6157,14 @@
   "license_activation_key_required": "Saisissez d'abord une clé d'enregistrement.",
   "license_activation_file_required": "Choisissez d'abord un fichier de licence.",
   "license_activation_failed": "La licence n'a pas pu être appliquée. Vérifiez la clé ou le fichier, puis réessayez.",
-  "license_activation_no_restart": "L'activation prend effet immédiatement ; aucun redémarrage n'est nécessaire."
+  "license_activation_no_restart": "L'activation prend effet immédiatement ; aucun redémarrage n'est nécessaire.",
+  "ai_copilot_unavailable_title": "NadiPilot n'est pas encore prêt",
+  "ai_copilot_unavailable_provider_admin": "Aucun fournisseur d'IA n'est configuré. Choisissez-en un dans Paramètres → Intégrations et ajoutez sa clé d'API.",
+  "ai_copilot_unavailable_provider_user": "Aucun fournisseur d'IA n'est configuré sur cette installation. Demandez à votre administrateur d'en configurer un.",
+  "ai_copilot_unavailable_key_admin": "Un fournisseur est sélectionné mais sa clé d'API est absente. Ajoutez-la dans Paramètres → Intégrations.",
+  "ai_copilot_unavailable_key_user": "Le fournisseur d'IA de cette installation n'a pas de clé d'API. Demandez à votre administrateur de l'ajouter.",
+  "ai_copilot_unavailable_disabled_admin": "L'intégration IA est désactivée. Activez-la dans Paramètres → Intégrations.",
+  "ai_copilot_unavailable_disabled_user": "L'intégration IA est désactivée sur cette installation. Demandez à votre administrateur de l'activer.",
+  "ai_copilot_unavailable_configure": "Ouvrir les paramètres",
+  "ai_copilot_unavailable_placeholder": "Indisponible tant qu'aucun fournisseur d'IA n'est configuré"
 }

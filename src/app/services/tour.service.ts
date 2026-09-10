@@ -3,6 +3,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { KeycloakService } from 'keycloak-angular';
 import { driver, Driver, DriveStep } from 'driver.js';
 import { withIllustration } from './tour-illustrations';
+import { LicenseActivationService } from './license-activation.service';
 
 /**
  * Identifiers for the guided tours available across the app.
@@ -26,6 +27,7 @@ export class TourService {
   constructor(
     private translate: TranslateService,
     private keycloakService: KeycloakService,
+    private licenseActivationService: LicenseActivationService,
   ) {}
 
   /** Resolve the current username for per-user persistence (cached). */
@@ -76,6 +78,9 @@ export class TourService {
       return;
     }
     // Give the dashboard a moment to render its anchors before highlighting.
+    // startWelcomeTour re-checks the activation gate: the 800ms wait is long enough for the gate
+    // to be raised in between, and a tour highlighting a dashboard nobody can reach is worse than
+    // no tour — it also burns the once-per-user flag on a screen the user never saw.
     setTimeout(() => this.startWelcomeTour(false), 800);
   }
 
@@ -85,6 +90,12 @@ export class TourService {
    */
   async startWelcomeTour(force = true): Promise<void> {
     if (this.activeDriver) {
+      return;
+    }
+    // An unlicensed instance shows the activation overlay instead of the application. The tour ran
+    // on top of it, pointing at a dashboard that was not there. Not marked as seen: the user still
+    // deserves the tour once they are actually looking at the app.
+    if (this.licenseActivationService.activationRequired) {
       return;
     }
     if (!force && (await this.hasSeen('welcome'))) {

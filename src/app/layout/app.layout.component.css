@@ -2504,3 +2504,47 @@ html:has(.pos-fullscreen) {
   font-size: 0.74rem;
   color: var(--orange-600, #ea580c);
 }
+
+/* NadiPilot: shown when no AI provider is configured, so the panel says what is missing
+   instead of accepting questions that cannot be answered. */
+.copilot-unavailable {
+    display: flex;
+    align-items: flex-start;
+    gap: .7rem;
+    margin: 0 1rem .75rem;
+    padding: .85rem 1rem;
+    border-radius: 10px;
+    background: var(--yellow-50, #fffaf0);
+    border: 1px solid var(--yellow-200, #fbe6b4);
+    color: var(--yellow-900, #7a4f00);
+    flex-wrap: wrap;
+}
+
+.copilot-unavailable > .pi {
+    margin-top: .15rem;
+    flex: 0 0 auto;
+}
+
+.copilot-unavailable__text {
+    flex: 1 1 14rem;
+    min-width: 0;
+}
+
+.copilot-unavailable__title {
+    font-weight: 600;
+    margin-bottom: .2rem;
+}
+
+.copilot-unavailable__message {
+    font-size: .85rem;
+    line-height: 1.5;
+}
+
+.copilot-unavailable__action {
+    flex: 0 0 auto;
+}
+
+.copilot-suggestion-card:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
