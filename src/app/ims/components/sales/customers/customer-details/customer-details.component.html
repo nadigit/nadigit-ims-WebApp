@@ -616,14 +616,17 @@
                                 <span>{{ 'credit_account' | translate }}</span>
                             </div>
                             <div class="card-body">
-                                <app-credit-balance-card *ngIf="creditAccount" [creditAccount]="creditAccount"
+                                <app-feature-locked *ngIf="!customerCreditsLicensed"
+                                    feature="CUSTOMER_CREDITS" [compact]="true"></app-feature-locked>
+                                <app-credit-balance-card *ngIf="customerCreditsLicensed && creditAccount"
+                                    [creditAccount]="creditAccount"
                                     [currency]="currency" [showActions]="true" [isAdmin]="canEditCustomer"
                                     (viewDetails)="navigateToCreditManagement()"
                                     (issueCredit)="navigateToCreditManagement()"
                                     (adjustCredit)="navigateToCreditManagement()"
                                     (setLimit)="navigateToCreditManagement()">
                                 </app-credit-balance-card>
-                                <div *ngIf="!creditAccount"
+                                <div *ngIf="customerCreditsLicensed && !creditAccount"
                                     class="flex flex-column align-items-center justify-content-center py-3">
                                     <i class="pi pi-credit-card text-3xl text-400 mb-2"></i>
                                     <p class="text-500 text-sm mb-2">{{ 'no_credit_account' | translate }}</p>

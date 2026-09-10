@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Customer } from 'src/app/models/customer';
 import { CustomerService } from 'src/app/services/customer.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
@@ -64,7 +65,10 @@ export class CustomerDetailsComponent implements OnInit {
   barChartOptions: any;
 
   canEditCustomer: boolean = false;
+  /** ADMIN *and* PRICING. Role alone let a STARTER admin call /api/pricing and collect a 403. */
   canManagePricingProfile: boolean = false;
+  /** CUSTOMER_CREDITS is PRO+; below it the card states the plan boundary. */
+  customerCreditsLicensed: boolean = true;
   Ressource: string = 'CUSTOMERS';
 
   customerDialog: boolean = false;
@@ -111,7 +115,8 @@ export class CustomerDetailsComponent implements OnInit {
     private pricingService: PricingService,
     private productService: ProductService,
     public pageSizeService: TablePageSizeService
-  ) { }
+  ,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
 
   async ngOnInit() {
     this.configService.currency$.subscribe(currency => {
@@ -144,7 +149,12 @@ export class CustomerDetailsComponent implements OnInit {
     await this.permissionService.init(userId).toPromise();
     this.canEditCustomer = this.permissionService.canUpdate(this.Ressource);
     const roles = await this.keycloakService.getUserRoles();
-    this.canManagePricingProfile = roles.includes('ADMIN');
+    await this.licenseCapabilitiesService.ensureLoaded();
+    // Special prices are the PRICING module; the tab is hidden by this flag, so folding the licence
+    // in here removes the tab and the /api/pricing calls behind it in one place.
+    this.canManagePricingProfile = roles.includes('ADMIN')
+      && this.licenseCapabilitiesService.isFeatureEnabled('PRICING');
+    this.customerCreditsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('CUSTOMER_CREDITS');
   }
 
   async loadCustomer() {
@@ -452,6 +462,12 @@ export class CustomerDetailsComponent implements OnInit {
   }
 
   async loadCreditAccount() {
+    // /api/customer-credits is PRO+. Asking anyway returned 403, and the catch below only forgives
+    // 404, so every STARTER visit to a customer raised an error toast.
+    if (!this.customerCreditsLicensed) {
+      this.creditAccount = null;
+      return;
+    }
     try {
       this.creditService.loadToken();
       const account$ = await this.creditService.getCreditAccount(this.customerId);

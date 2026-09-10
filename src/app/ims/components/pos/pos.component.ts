@@ -6,6 +6,7 @@ import { POSCartDTO, POSCheckoutDTO, POSProductDTO, POSReceiptDTO, PaymentInfo, 
 import { paymentMethodOptions, PaymentMethodOption, getPaymentMethodLabel as getSharedPaymentMethodLabel, getPaymentMethodIcon as getSharedPaymentMethodIcon } from 'src/app/shared/payment-utils';
 import { BRAND_ASSETS } from 'src/app/utils/brand-assets';
 import { PosService } from 'src/app/services/pos.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
 import { ShopService } from 'src/app/services/shop.service';
 import { CustomerService } from 'src/app/services/customer.service';
@@ -307,6 +308,11 @@ export class PosComponent implements OnInit, OnDestroy {
   
   // Check if Credit payment is allowed for the current customer
   private isCreditAllowedForCustomer(): boolean {
+    // Selling on credit is the CUSTOMER_CREDITS module. Offering it below that tier would take a
+    // sale the instance cannot then track, so the method is not offered at all.
+    if (!this.customerCreditsLicensed) {
+      return false;
+    }
     if (!this.selectedCustomer) {
       return false;
     }
@@ -321,6 +327,8 @@ export class PosComponent implements OnInit, OnDestroy {
   // Credit information
   creditInfo: CreditInfo | null = null;
   creditInfoLoading: boolean = false;
+  /** CUSTOMER_CREDITS is PRO+; below it POS makes no credit lookup and offers no credit sale. */
+  customerCreditsLicensed = true;
   // Sanitized credit fields for UI/validation (mirrors Orders behavior)
   outstandingBalance: number = 0;
   overdueBalance: number = 0;
@@ -398,7 +406,7 @@ export class PosComponent implements OnInit, OnDestroy {
     private productFamilyService: ProductFamilyService,
     private financialDocService: FinancialDocumentsService,
     private cashRegisterService: CashRegisterService,
-  ) { }
+    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
 
   openProfileSettings(): void {
     void this.router.navigate(['/administration/settings'], { queryParams: { businessProfile: 1 } });
@@ -406,6 +414,8 @@ export class PosComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     await this.activityProfileService.ensureLoaded();
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.customerCreditsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('CUSTOMER_CREDITS');
     this.translationService.currentLanguage$.subscribe(lang => {
       this.translate.use(lang);
       this.initReportFormatMenus();
@@ -5005,6 +5015,16 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // Load credit information for a customer
   async loadCreditInfo(customerId: number) {
+    // /api/customer-credits is PRO+. In POS this fires on every customer selection, so on STARTER
+    // it produced a 403 per sale.
+    if (!this.customerCreditsLicensed) {
+      this.creditInfo = null;
+      this.outstandingBalance = 0;
+      this.overdueBalance = 0;
+      this.netBalance = 0;
+      this.availableCreditLimit = 0;
+      return;
+    }
     if (!customerId) {
       this.creditInfo = null;
       this.outstandingBalance = 0;

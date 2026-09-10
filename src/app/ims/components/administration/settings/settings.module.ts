@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { FeatureLockedComponent } from 'src/app/shared/feature-locked';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SettingsRoutingModule } from './settings-routing.module';
@@ -45,6 +46,7 @@ import { TaxRulesUiModule } from '../../finance/tax-rules/tax-rules-ui.module';
 
 @NgModule({
     imports: [
+    FeatureLockedComponent,
         CommonModule,
         SettingsRoutingModule,
         TableModule,

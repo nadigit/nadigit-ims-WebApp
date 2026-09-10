@@ -100,6 +100,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   /** Updated after `/api/license/capabilities` loads (tax rules tab). */
   taxRulesFeatureEnabled = false;
+  /** BANK_ACCOUNTS is PRO+; the banks tab shows the plan boundary below it. */
+  bankAccountsFeatureEnabled = false;
   trendsFeatureEnabled = false;
 
   private licenseCapabilitiesSub?: Subscription;
@@ -359,6 +361,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private refreshTaxRulesFeatureFromLicense(): void {
     const previous = this.taxRulesFeatureEnabled;
     this.taxRulesFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('TAX_RULE_ENGINE');
+    this.bankAccountsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
     this.trendsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('MARKET_TRENDS_INTEGRATION');
     // Tax settings appear/disappear with the license — recompute the visible parameter list.
     if (previous !== this.taxRulesFeatureEnabled) {
@@ -1363,6 +1366,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   async loadBanks() {
+    // /api/bank-accounts is PRO+; this ran on settings load and 403'd on STARTER.
+    if (!this.bankAccountsFeatureEnabled) {
+      this.banks = [];
+      this.isLoadingBanks = false;
+      return;
+    }
     this.isLoadingBanks = true;
     try {
       const response = await firstValueFrom(await this.bankAccountService.getBanks(this.activeFilter));

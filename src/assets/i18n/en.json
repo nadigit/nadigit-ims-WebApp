@@ -6180,5 +6180,6 @@
   "feature_locked_title": "Not included in your plan",
   "feature_locked_message": "This feature is available from the {{plan}} plan.",
   "feature_locked_message_generic": "This feature is not included in your current plan.",
-  "feature_locked_action": "See plan details"
+  "feature_locked_action": "See plan details",
+  "users_plan_cap_hint": "Your plan includes {{count}} user. Additional users and role management come with a higher plan."
 }

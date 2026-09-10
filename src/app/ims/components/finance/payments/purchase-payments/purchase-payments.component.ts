@@ -222,6 +222,13 @@ export class PurchasePaymentsComponent implements OnInit {
 
 
   async loadBankAccounts() {
+    // /api/bank-accounts is PRO+; this ran on every visit and 403'd on STARTER.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.isBankAccountsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
+    if (!this.isBankAccountsFeatureEnabled) {
+      this.bankAccounts = [];
+      return;
+    }
     try {
       const accounts$ = await this.bankAccountService.getBankAccounts(true);
       this.bankAccounts = await firstValueFrom(accounts$);
@@ -508,16 +515,7 @@ export class PurchasePaymentsComponent implements OnInit {
 
     // 🔹 Validate bank account for Transfer, Check, or BOE
     const requiresBankAccount = ['Transfer', 'Check', 'BOE'].includes(this.payment.paymentMethod);
-    if (requiresBankAccount && !this.isBankAccountsFeatureEnabled) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Upgrade required',
-        detail: 'Bank transfer, check and BOE payment methods require a higher plan.',
-        life: 7000
-      });
-      return;
-    }
-    if (requiresBankAccount && !this.selectedBankAccount) {
+    if (requiresBankAccount && this.isBankAccountsFeatureEnabled && !this.selectedBankAccount) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -758,16 +756,7 @@ export class PurchasePaymentsComponent implements OnInit {
 
     // Validate bank account for Transfer, Check, or BOE
     const requiresBankAccount = ['Transfer', 'Check', 'BOE'].includes(this.payment.paymentMethod);
-    if (requiresBankAccount && !this.isBankAccountsFeatureEnabled) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Upgrade required',
-        detail: 'Bank transfer, check and BOE payment methods require a higher plan.',
-        life: 7000
-      });
-      return;
-    }
-    if (requiresBankAccount && !this.selectedBankAccount) {
+    if (requiresBankAccount && this.isBankAccountsFeatureEnabled && !this.selectedBankAccount) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),

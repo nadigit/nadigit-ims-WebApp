@@ -1,4 +1,5 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 
 // Models and Services
 import { Shop } from 'src/app/models/shop';
@@ -27,6 +28,9 @@ export interface ShopFormDialogConfig {
 })
 export class ShopFormDialogComponent implements OnInit, OnChanges {
 
+  /** BANK_ACCOUNTS is PRO+; the default-account section is hidden below it. */
+  bankAccountsLicensed = false;
+
   @Input() config!: ShopFormDialogConfig;
   @Input() countries: any[] = [];
   @Input() bankAccounts: BankAccount[] = [];
@@ -43,9 +47,12 @@ export class ShopFormDialogComponent implements OnInit, OnChanges {
   constructor(
     private locationService: LocationService,
     private translate: TranslateService
-  ) {}
+  ,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {}
 
-  ngOnInit() {
+  async ngOnInit() {
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.bankAccountsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
     if (!this.countries || this.countries.length === 0) {
       this.countries = this.locationService.getAllCountriesWithTranslation();
     }

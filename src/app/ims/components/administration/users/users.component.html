@@ -11,18 +11,10 @@
         </div>
 
         <div class="card px-6 py-6">
-            <div *ngIf="isStarterPlan" class="mb-3 p-3 border-round surface-100 border-1 border-yellow-400">
-                <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-3">
-                    <div>
-                        <div class="font-semibold text-900 mb-1">Starter plan limits</div>
-                        <div class="text-700">
-                            Only one admin user is allowed, and role management is locked.
-                            Upgrade to create more users and manage roles.
-                        </div>
-                    </div>
-                    <button pButton type="button" label="Upgrade plan" icon="pi pi-arrow-up-right"
-                        class="p-button-warning" (click)="goToUpgrade()"></button>
-                </div>
+            <div *ngIf="isStarterPlan" class="users-plan-hint flex align-items-center gap-2 mb-3">
+                <i class="pi pi-info-circle" aria-hidden="true"></i>
+                <span>{{ 'users_plan_cap_hint' | translate: { count: userCap } }}</span>
+                <a class="users-plan-hint__link" (click)="goToUpgrade()">{{ 'feature_locked_action' | translate }}</a>
             </div>
             <p-tabMenu [model]="menuItems" [activeItem]="activeItem" (activeItemChange)="onActiveItemChange($event)" />
             <br>

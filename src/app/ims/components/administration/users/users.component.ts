@@ -230,6 +230,11 @@ export class UsersComponent implements OnInit {
     }
   }
 
+  /** How many users this plan allows; drives the hint above the table. */
+  get userCap(): number | null {
+    return this.maxUsersCap;
+  }
+
   get isAtUserCapacity(): boolean {
     const cap = this.maxUsersCap;
     if (cap == null) {

@@ -324,8 +324,10 @@
                                         styleClass="w-full" placeholder="{{ 'expiration_date' | translate }}" appendTo="body">
                                     </p-calendar>
                                 </div>
+                                <!-- Bank accounts are PRO+. Below that a cheque is still recorded,
+                                     it simply has no account to be linked to. -->
                                 <div class="field col-12"
-                                    *ngIf="payment.paymentMethod === 'Transfer' || payment.paymentMethod === 'Check' || payment.paymentMethod === 'BOE'">
+                                    *ngIf="isBankAccountsFeatureEnabled && (payment.paymentMethod === 'Transfer' || payment.paymentMethod === 'Check' || payment.paymentMethod === 'BOE')">
                                     <label for="bankAccount" class="ims-form-label">
                                         {{ 'select_bank_account' | translate }} <span class="required-asterisk">*</span>
                                     </label>

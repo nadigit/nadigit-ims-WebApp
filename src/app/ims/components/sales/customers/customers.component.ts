@@ -5,6 +5,7 @@ import { Table } from 'primeng/table';
 import { Customer } from 'src/app/models/customer';
 import { Country, State } from 'country-state-city';
 import { CustomerService } from 'src/app/services/customer.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
@@ -96,7 +97,10 @@ export class CustomersComponent implements OnInit {
   canEditCustomer: boolean = false;
   canDeleteCustomer: boolean = false;
   canReadHistory: boolean = false;
+  /** ADMIN *and* PRICING. Role alone let a STARTER admin call /api/pricing and collect a 403. */
   canManagePricingProfile: boolean = false;
+  /** CUSTOMER_CREDITS is PRO+; below it no per-row credit lookup is made. */
+  customerCreditsLicensed: boolean = true;
   isLoading: boolean = true;
   isExporting: boolean = false;
   exportProgress: string = '';
@@ -135,7 +139,8 @@ export class CustomersComponent implements OnInit {
     private organizationService: OrganizationService,
     private datePipe: DatePipe,
     private route: ActivatedRoute,
-    public pageSizeService: TablePageSizeService) { }
+    public pageSizeService: TablePageSizeService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
 
   async ngOnInit() {
     this.isLoading = true;
@@ -430,7 +435,10 @@ export class CustomersComponent implements OnInit {
     this.canDeleteCustomer = this.permissionService.canDelete(this.Ressource);
     this.canReadHistory = this.permissionService.canHistoryRead(this.Ressource);
     const roles = await this.keycloakService.getUserRoles();
-    this.canManagePricingProfile = roles.includes('ADMIN');
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.canManagePricingProfile = roles.includes('ADMIN')
+      && this.licenseCapabilitiesService.isFeatureEnabled('PRICING');
+    this.customerCreditsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('CUSTOMER_CREDITS');
   }
 
   openNew() {
@@ -547,6 +555,11 @@ export class CustomersComponent implements OnInit {
 
   // ⚠️ NEW: Load credit info for a customer
   async loadCreditInfoForCustomer(customerId: number): Promise<void> {
+    // /api/customer-credits is PRO+. This runs per visible row, so on STARTER one page of the
+    // customers list produced a burst of 403s.
+    if (!this.customerCreditsLicensed) {
+      return;
+    }
     // If already cached, check if it has invalid netBalance and clear it
     if (this.customerCreditInfo.has(customerId)) {
       const cachedInfo = this.customerCreditInfo.get(customerId);

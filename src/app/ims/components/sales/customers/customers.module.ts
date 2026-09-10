@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { FeatureLockedComponent } from 'src/app/shared/feature-locked';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CustomersRoutingModule } from './customers-routing.module';
@@ -38,6 +39,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 
 @NgModule({
     imports: [
+    FeatureLockedComponent,
         CommonModule,
         CustomersRoutingModule,
         TableModule,

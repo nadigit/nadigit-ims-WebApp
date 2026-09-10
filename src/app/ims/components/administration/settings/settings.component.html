@@ -817,6 +817,12 @@
 				</ng-template>
 
 				<div class="settings-tab-panel-inner p-3 md:p-4">
+					<!-- BANK_ACCOUNTS is PRO+. The tab stays in place because tab indices are mirrored
+					     to ?tab= slugs positionally; removing one shifts every tab after it. -->
+					<app-feature-locked *ngIf="!bankAccountsFeatureEnabled"
+						feature="BANK_ACCOUNTS" [title]="'banks_management' | translate"></app-feature-locked>
+
+					<ng-container *ngIf="bankAccountsFeatureEnabled">
 					<p class="settings-workspace-lead text-600 m-0 mb-3 line-height-3">{{ 'manage_bank_information' | translate }}</p>
 
 					<!-- Action Buttons -->
@@ -927,6 +933,7 @@
 									</tr>
 								</ng-template>
 							</p-table>
+					</ng-container>
 				</div>
 			</p-tabPanel>
 

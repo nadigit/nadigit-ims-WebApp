@@ -124,7 +124,9 @@
                     </div>
                 </section>
 
-                <section class="ims-form-section">
+                <!-- BANK_ACCOUNTS is PRO+: below it there is no account to pick, so asking for a
+                     default one offers a choice that cannot be made. -->
+                <section class="ims-form-section" *ngIf="bankAccountsLicensed">
                     <header class="ims-form-section__header">
                         <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--green">
                             <i class="pi pi-wallet"></i>
