@@ -613,6 +613,13 @@ export class CashRegisterDetailsComponent implements OnInit {
   }
 
   private async loadBankAccounts(): Promise<void> {
+    // BANK_ACCOUNTS is PRO+; /api/bank-accounts is refused below it. Checked inside the
+    // loader so it cannot race whatever fires it.
+    await this.licenseCapabilities.ensureLoaded();
+    if (!this.licenseCapabilities.isFeatureEnabled('BANK_ACCOUNTS')) {
+      this.bankAccounts = [];
+      return;
+    }
     try {
       const obs = await this.bankAccountService.getBankAccounts(true);
       this.bankAccounts = (await firstValueFrom(obs)) || [];

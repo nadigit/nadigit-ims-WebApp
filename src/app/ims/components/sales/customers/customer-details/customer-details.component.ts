@@ -464,6 +464,8 @@ export class CustomerDetailsComponent implements OnInit {
   async loadCreditAccount() {
     // /api/customer-credits is PRO+. Asking anyway returned 403, and the catch below only forgives
     // 404, so every STARTER visit to a customer raised an error toast.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.customerCreditsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('CUSTOMER_CREDITS');
     if (!this.customerCreditsLicensed) {
       this.creditAccount = null;
       return;
@@ -527,6 +529,14 @@ export class CustomerDetailsComponent implements OnInit {
   }
 
   async loadCreditInfo() {
+    // Sits right beside loadCreditAccount and hits the same PRO-only /api/customer-credits.
+    // Gating one and not the other left the page still throwing on every visit.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.customerCreditsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('CUSTOMER_CREDITS');
+    if (!this.customerCreditsLicensed) {
+      this.creditInfo = null;
+      return;
+    }
     try {
       this.creditService.loadToken();
       const creditInfo$ = await this.creditService.getCreditInfo(this.customerId);

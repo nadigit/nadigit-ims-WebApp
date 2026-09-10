@@ -3,6 +3,7 @@ import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { MessageService, SelectItem, MenuItem, LazyLoadEvent } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { OrderService } from 'src/app/services/order.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { Product } from 'src/app/models/product';
 import { ProductService } from 'src/app/services/product.service';
 import { BarcodeService } from 'src/app/services/barcode.service';
@@ -498,7 +499,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     private locationService: LocationService,
     private taxRuleService: TaxRuleService,
     private lineOptionSetService: LineOptionSetService,
-  ) {
+  
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {
     this.loadTaxRate();
 
   }
@@ -1031,6 +1033,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   async loadCreditInfo() {
+    // CUSTOMER_CREDITS is PRO+. This fires on every customer selection while composing an order,
+    // so on STARTER it produced a 403 per order.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    if (!this.licenseCapabilitiesService.isFeatureEnabled('CUSTOMER_CREDITS')) {
+      this.creditInfo = null;
+      this.creditAmountUsed = 0;
+      return;
+    }
     if (!this.order.customer?.customerId) {
       this.creditInfo = null;
       this.creditAmountUsed = 0;
@@ -5575,6 +5585,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   async loadBankAccounts() {
+    // BANK_ACCOUNTS is PRO+; /api/bank-accounts is refused below it. Checked inside the
+    // loader so it cannot race whatever fires it.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    if (!this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS')) {
+      this.bankAccounts = [];
+      return;
+    }
     if (!this.canReadBankAccounts) {
       this.bankAccounts = [];
       return;

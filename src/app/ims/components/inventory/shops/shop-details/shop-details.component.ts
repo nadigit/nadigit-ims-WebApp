@@ -4,6 +4,7 @@ import { MessageService } from 'primeng/api';
 import { Shop } from 'src/app/models/shop';
 import { CashRegister } from 'src/app/models/cashRegister';
 import { ShopService } from 'src/app/services/shop.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
@@ -93,7 +94,8 @@ export class ShopDetailsComponent implements OnInit {
     private posService: PosService,
     private bankAccountService: BankAccountService,
     public pageSizeService: TablePageSizeService,
-  ) { }
+  
+    private licenseCapabilitiesService: LicenseCapabilitiesService) { }
 
   ngOnInit() {
     this.configService.currency$.subscribe(currency => {
@@ -366,6 +368,13 @@ export class ShopDetailsComponent implements OnInit {
   }
 
   private async loadBankAccounts(): Promise<void> {
+    // BANK_ACCOUNTS is PRO+; /api/bank-accounts is refused below it. Checked inside the
+    // loader so it cannot race whatever fires it.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    if (!this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS')) {
+      this.bankAccounts = [];
+      return;
+    }
     try {
       const accounts$ = await this.bankAccountService.getBankAccounts(true);
       this.bankAccounts = await firstValueFrom(accounts$) as BankAccount[];

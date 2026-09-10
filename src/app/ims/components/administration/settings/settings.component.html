@@ -947,11 +947,11 @@
 						<p class="settings-workspace-lead text-600 m-0 mb-3 line-height-3">{{ 'tax_rules_intro' | translate }}</p>
 						<app-tax-rules [embedded]="true"></app-tax-rules>
 					</ng-container>
-					<div *ngIf="!taxRulesFeatureEnabled" class="detail-card">
-						<div class="card-body p-4 md:p-5">
-							<p class="text-600 m-0 line-height-3">{{ 'tax_rules_feature_not_in_plan' | translate }}</p>
-						</div>
-					</div>
+					<!-- Same treatment as the Banks tab: name the plan the feature needs, from the
+					     backend's tier matrix, rather than a bare sentence. -->
+					<app-feature-locked *ngIf="!taxRulesFeatureEnabled"
+						feature="TAX_RULE_ENGINE"
+						[title]="'tax_rules_menu_title' | translate"></app-feature-locked>
 				</div>
 			</p-tabPanel>
 

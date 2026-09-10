@@ -3223,6 +3223,13 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async loadBankAccounts(): Promise<void> {
+    // BANK_ACCOUNTS is PRO+; /api/bank-accounts is refused below it. Checked inside the
+    // loader so it cannot race whatever fires it.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    if (!this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS')) {
+      this.bankAccounts = [];
+      return;
+    }
     if (!this.canReadBankAccounts) {
       this.bankAccounts = [];
       return;

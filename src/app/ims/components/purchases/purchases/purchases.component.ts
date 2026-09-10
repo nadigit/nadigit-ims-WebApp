@@ -3118,7 +3118,11 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   //       },
   //     })
   async loadBankAccounts() {
-    if (!this.canReadBankAccounts) {
+    // Permission is not enough: BANK_ACCOUNTS is PRO+, and a STARTER admin has the permission.
+    // Checked inside the loader because it is fired from a parallel init block that can run before
+    // permissions resolve, so guarding at the call site would still race.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    if (!this.canReadBankAccounts || !this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS')) {
       this.bankAccounts = [];
       return;
     }

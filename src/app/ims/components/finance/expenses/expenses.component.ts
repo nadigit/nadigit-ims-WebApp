@@ -1020,6 +1020,13 @@ export class ExpensesComponent implements OnInit {
   }
 
   async loadBankAccounts() {
+    // BANK_ACCOUNTS is PRO+. This ran on every visit to Expenses and 403'd on STARTER.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.isBankAccountsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
+    if (!this.isBankAccountsFeatureEnabled) {
+      this.bankAccounts = [];
+      return;
+    }
     try {
       const accounts$ = await this.bankAccountService.getBankAccounts(true);
       this.bankAccounts = await firstValueFrom(accounts$);
