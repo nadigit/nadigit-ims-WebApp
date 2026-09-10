@@ -119,13 +119,15 @@
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td [attr.colspan]="isAdmin ? 8 : 7" class="text-center p-4">
-              <div class="flex flex-column align-items-center justify-content-center py-4">
-                <img src="assets/core-images/no_data_found.png" alt="No Data Found" style="max-width: 140px; opacity: 0.6;">
-                <p class="mt-2 text-gray-600 font-medium">{{ 'line_rules_empty' | translate }}</p>
-                <button pButton type="button" icon="pi pi-plus" class="p-button-sm mt-2"
-                  label="{{ 'line_rules_add' | translate }}"
-                  *ngIf="isAdmin" (click)="openCreate()"></button>
+            <td [attr.colspan]="isAdmin ? 8 : 7">
+              <div class="flex flex-column align-items-center justify-content-center py-5">
+                <img src="assets/core-images/no_data_found.png" alt="No Data Found"
+                  style="max-width: 250px; opacity: 0.6;">
+                <p class="mt-3 text-gray-600 font-medium text-lg">
+                  {{ 'line_rules_empty' | translate }}
+                </p>
+                <button *ngIf="isAdmin" pButton pRipple [label]="'line_rules_add' | translate" icon="pi pi-plus"
+                  class="p-button-success mt-3" (click)="openCreate()"></button>
               </div>
             </td>
           </tr>
