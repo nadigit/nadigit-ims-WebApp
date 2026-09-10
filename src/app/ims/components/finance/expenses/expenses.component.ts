@@ -400,6 +400,15 @@ export class ExpensesComponent implements OnInit {
     this.deleteExpensesDialog = true;
   }
 
+  /** Calendar-safe Date, or null. Accepts a Date, an ISO string, or nothing. */
+  private toDateOrNull(value: Date | string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
   async editExpense(expense: Expense) {
     if (!this.canEditExpense || !expenseWorkflowAllowsEdit(expense)) {
       return;
@@ -436,6 +445,12 @@ export class ExpensesComponent implements OnInit {
     }
     
     this.expense = { ...expense };
+    // p-calendar renders nothing for a string, and the API sends these as ISO text. Left as text,
+    // the dialog opened with the dates blank — and saving from there wrote the blanks back, losing
+    // a date the user never touched.
+    this.expense.dateOfExpense = this.toDateOrNull(expense.dateOfExpense) ?? undefined;
+    this.expense.checkExpirationDate = this.toDateOrNull(expense.checkExpirationDate) ?? undefined;
+    this.expense.boeExpirationDate = this.toDateOrNull(expense.boeExpirationDate) ?? undefined;
     // Restore selected bank account if expense has bankAccountId
     if (expense.bankAccountId) {
       this.selectedBankAccount = this.bankAccounts.find(acc => acc.accountId === expense.bankAccountId) || null;
@@ -602,17 +617,6 @@ export class ExpensesComponent implements OnInit {
         severity: 'error',
         summary: this.translate.instant('error'),
         detail: this.translate.instant('please_fill_required_fields')
-      });
-      return;
-    }
-
-    const requiresBankFeature = ['Transfer', 'Check', 'BOE'].includes(this.expense.paymentMethod || '');
-    if (requiresBankFeature && !this.isBankAccountsFeatureEnabled) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Upgrade required',
-        detail: 'Bank transfer, check and BOE expense methods require a higher plan.',
-        life: 7000
       });
       return;
     }

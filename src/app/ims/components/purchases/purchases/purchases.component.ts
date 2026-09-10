@@ -1134,9 +1134,23 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     this.deletePurchasesDialog = true;
   }
 
+  /** Calendar-safe Date, or null. Accepts a Date, an ISO string, or nothing. */
+  private toDateOrNull(value: Date | string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
   editPurchase(purchase: Purchase) {
     if (!this.canEditPurchase) return;
     this.purchase = { ...purchase };
+    // p-calendar renders nothing for a string. The API sends dateOfPurchase as ISO text, and the
+    // spread above keeps it as text, so editing a purchase opened with the date field blank — and
+    // saving from there would have cleared a date the user never touched. The item expiry dates
+    // below were already converted; this one was missed.
+    this.purchase.dateOfPurchase = this.toDateOrNull(purchase.dateOfPurchase);
     this.discountType = purchase.discountType === 'Percentage' ? 'Percentage' : 'Amount';
     this.taxEnabled = !!purchase.taxEnabled;
     this.purchaseItems = this.purchase.purchaseItems.map(item => {

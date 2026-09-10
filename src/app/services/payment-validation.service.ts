@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { LicenseCapabilitiesService } from './license-capabilities.service';
 import { AppConfigurationService } from './app-configuration.service';
 import { firstValueFrom } from 'rxjs';
 
@@ -15,7 +16,10 @@ export class PaymentValidationService {
   private minimumAmountConfig: number | null = null;
   private configLoaded: boolean = false;
 
-  constructor(private configService: AppConfigurationService) {
+  constructor(
+    private configService: AppConfigurationService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
+  ) {
     this.configService.configurationSaved$.subscribe((key) => {
       if (key?.startsWith('payment.bank.methods.')) {
         this.invalidateBankPaymentConfig();
@@ -189,7 +193,13 @@ export class PaymentValidationService {
    * Check if bank account field should be shown
    */
   async shouldShowBankAccountField(method: string): Promise<boolean> {
-    return this.isBankMethod(method);
+    if (!this.isBankMethod(method)) {
+      return false;
+    }
+    // Nothing to choose from below PRO: BANK_ACCOUNTS gates /api/bank-accounts, so the list is
+    // empty by definition. The payment method itself stays available — a cheque is still a cheque.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    return this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
   }
 
   /**
@@ -197,6 +207,13 @@ export class PaymentValidationService {
    */
   async isBankAccountRequired(method: string): Promise<boolean> {
     if (!this.isBankMethod(method)) {
+      return false;
+    }
+    // payment.bank.methods.require.account only means something where accounts can exist. The
+    // backend stopped enforcing it below PRO for exactly that reason; if this still reported
+    // "required", the form would block on a field it is not even showing.
+    await this.licenseCapabilitiesService.ensureLoaded();
+    if (!this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS')) {
       return false;
     }
     return await this.getRequireAccount();

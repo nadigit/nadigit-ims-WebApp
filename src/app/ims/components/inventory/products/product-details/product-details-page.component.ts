@@ -192,6 +192,10 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     public pageSizeService: TablePageSizeService
   ,
     private licenseCapabilitiesService: LicenseCapabilitiesService) {
+    // Do NOT gate these on BARCODE_MANAGEMENT. Label printing degrades rather than stops: with
+    // the module it prints the generated barcode, without it one derived from the product
+    // reference. /api/products/{id}/label is deliberately outside LicenseTierApiInterceptor for
+    // that reason. Gating it here would take a working label away from every STARTER install.
     this.printOptions = [
       {
         label: this.translate.instant('standard_label'),

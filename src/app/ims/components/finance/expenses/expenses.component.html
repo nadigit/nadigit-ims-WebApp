@@ -361,8 +361,7 @@
                                         <div class="payment-method-option">
                                             <p-radioButton name="paymentMethod" value="Transfer" [(ngModel)]="expense.paymentMethod"
                                                 ngDefaultControl inputId="paymentMethod4"
-                                                (ngModelChange)="onPaymentMethodChange()"
-                                                [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
+                                                (ngModelChange)="onPaymentMethodChange()"></p-radioButton>
                                             <label for="paymentMethod4" class="payment-method-option__label">
                                                 {{ 'payment_method_transfer' | translate }}
                                             </label>
@@ -378,8 +377,7 @@
                                         <div class="payment-method-option">
                                             <p-radioButton name="paymentMethod" value="Check" [(ngModel)]="expense.paymentMethod"
                                                 ngDefaultControl inputId="paymentMethod3"
-                                                (ngModelChange)="onPaymentMethodChange()"
-                                                [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
+                                                (ngModelChange)="onPaymentMethodChange()"></p-radioButton>
                                             <label for="paymentMethod3" class="payment-method-option__label">
                                                 {{ 'payment_method_check' | translate }}
                                             </label>
@@ -387,8 +385,7 @@
                                         <div class="payment-method-option">
                                             <p-radioButton name="paymentMethod" value="BOE" [(ngModel)]="expense.paymentMethod"
                                                 ngDefaultControl inputId="paymentMethod5"
-                                                (ngModelChange)="onPaymentMethodChange()"
-                                                [disabled]="!isBankAccountsFeatureEnabled"></p-radioButton>
+                                                (ngModelChange)="onPaymentMethodChange()"></p-radioButton>
                                             <label for="paymentMethod5" class="payment-method-option__label">
                                                 {{ 'payment_method_boe' | translate }}
                                             </label>
