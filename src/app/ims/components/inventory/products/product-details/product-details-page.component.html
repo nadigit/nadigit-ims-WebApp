@@ -485,7 +485,7 @@
                 </div>
             </p-tabPanel>
             
-            <p-tabPanel>
+            <p-tabPanel *ngIf="barcodesLicensed">
                 <ng-template pTemplate="header">
                     <i class="pi pi-qrcode mr-2"></i>
                     <span>{{ 'barcode_management' | translate }}</span>
@@ -776,7 +776,7 @@
                 </div>
             </p-tabPanel>
 
-            <p-tabPanel *ngIf="isProduct(product)">
+            <p-tabPanel *ngIf="isProduct(product) && batchesLicensed">
                 <ng-template pTemplate="header">
                     <i class="pi pi-box mr-2"></i>
                     <span>{{ 'batches' | translate }}</span>
@@ -1098,7 +1098,7 @@
                 </div>
             </p-tabPanel>
 
-            <p-tabPanel *ngIf="isProduct(product)">
+            <p-tabPanel *ngIf="isProduct(product) && writeOffsLicensed">
                 <ng-template pTemplate="header">
                     <i class="pi pi-file-excel mr-2"></i>
                     <span>{{ 'write_offs' | translate }}</span>

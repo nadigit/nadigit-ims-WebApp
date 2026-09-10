@@ -6,6 +6,7 @@ import { MessageService, ConfirmationService } from 'primeng/api';
 import { Product, AggregatedProduct, WarehouseStockInfo } from 'src/app/models/product';
 import { ProductPriceHistory } from 'src/app/models/productPriceHistory';
 import { ProductService } from 'src/app/services/product.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { BarcodeService } from 'src/app/services/barcode.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
@@ -98,6 +99,15 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   printOptions: any[] = [];
   productPriceHistory: ProductPriceHistory[] = [];
 
+  /**
+   * Barcodes, batches and write-offs are each PRO+ and each refused at the API below that tier.
+   * Their tabs used to render and their loaders fired regardless, so opening any product on
+   * STARTER produced three 403s and three panels that could never fill.
+   */
+  barcodesLicensed = true;
+  batchesLicensed = true;
+  writeOffsLicensed = true;
+
   // Barcode Management
   barcodes: BarcodeResponseDTO[] = [];
   barcodesLoading: boolean = false;
@@ -180,7 +190,8 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     private supplierService: SupplierService,
     private writeOffService: WriteOffService,
     public pageSizeService: TablePageSizeService
-  ) {
+  ,
+    private licenseCapabilitiesService: LicenseCapabilitiesService) {
     this.printOptions = [
       {
         label: this.translate.instant('standard_label'),
@@ -532,6 +543,12 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   // ==================== BATCH MANAGEMENT ====================
 
   async loadBatches(): Promise<void> {
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.batchesLicensed = this.licenseCapabilitiesService.isFeatureEnabled('BATCH_MANAGEMENT');
+    if (!this.batchesLicensed) {
+      this.batches = [];
+      return;
+    }
     // Only load batches for products (not services)
     // Note: Batches can exist without expiration dates, so we don't check for product.expirationDate
     if (!this.product || this.product.productType === 'SERVICE') {
@@ -960,6 +977,12 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   // ==================== WRITE-OFFS MANAGEMENT ====================
 
   async loadWriteOffs(): Promise<void> {
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.writeOffsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('WRITE_OFFS');
+    if (!this.writeOffsLicensed) {
+      this.writeOffs = [];
+      return;
+    }
     // Only load write-offs for products (not services)
     if (!this.product || this.product.productType === 'SERVICE') {
       this.writeOffs = [];
@@ -1226,6 +1249,12 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
   }
 
   async loadBarcodes(): Promise<void> {
+    await this.licenseCapabilitiesService.ensureLoaded();
+    this.barcodesLicensed = this.licenseCapabilitiesService.isFeatureEnabled('BARCODE_MANAGEMENT');
+    if (!this.barcodesLicensed) {
+      this.barcodes = [];
+      return;
+    }
     const productIds = this.getAggregatedProductIdList();
     if (productIds.length === 0) return;
 
