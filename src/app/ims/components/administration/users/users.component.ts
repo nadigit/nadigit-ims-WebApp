@@ -3,6 +3,7 @@ import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { MenuItem, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { AuthenticationService } from 'src/app/services/authentication.service';
+import { ExportContextService } from 'src/app/services/export-context.service';
 import { User } from 'src/app/models/user';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
@@ -133,7 +134,8 @@ export class UsersComponent implements OnInit {
     private router: Router,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
     public pageSizeService: TablePageSizeService,
-    private layoutService: LayoutService) {  
+    private layoutService: LayoutService,
+    private exportContext: ExportContextService) {  
 
     }
 
@@ -1287,35 +1289,39 @@ export class UsersComponent implements OnInit {
   }
 
 
-  exportPdf() {
-    if (this.activeItem.icon == 'pi pi-fw pi-user')
-      this.reportingService.exportPdf(this.usersExportColumns, this.users, 'users')
-    else
-      this.reportingService.exportPdf(this.rolesExportColumns, this.appRoles, 'roles')
-
+  /** Which of the two tabs is on screen decides what is exported and what it is called. */
+  private get exportingUsers(): boolean {
+    return this.activeItem.icon == 'pi pi-fw pi-user';
   }
 
-  exportExcel() {
-    if (this.activeItem.icon == 'pi pi-fw pi-user') {
-      // Clone the users array to avoid modifying the original array
+  async exportPdf(): Promise<void> {
+    const titleKey = this.exportingUsers ? 'users_menu_title' : 'roles';
+    await this.exportContext.withOrganizationLocale(titleKey, (header) => {
+      if (this.exportingUsers) {
+        this.reportingService.exportPdf(this.usersExportColumns, this.users, 'users',
+          header.title, header.organizationName);
+      } else {
+        this.reportingService.exportPdf(this.rolesExportColumns, this.appRoles, 'roles',
+          header.title, header.organizationName);
+      }
+    });
+  }
+
+  async exportExcel(): Promise<void> {
+    const titleKey = this.exportingUsers ? 'users_menu_title' : 'roles';
+    await this.exportContext.withOrganizationLocale(titleKey, (header) => {
+      if (!this.exportingUsers) {
+        this.reportingService.exportExcel(this.appRoles, 'roles', header);
+        return;
+      }
+      // creationDate is dropped from the sheet; copy first so the on-screen list keeps it.
       const modifiedUsers = this.users.map(user => {
-        // Create a copy of the user object to modify
         const modifiedUser = { ...user };
-
-        // Remove the column you want to exclude
         delete modifiedUser.creationDate;
-
-        // Alternatively, if the columnToRemove is a property with a known name, you can use:
-        // delete modifiedSupplier['columnToRemove'];
-
         return modifiedUser;
       });
-
-      // Now, export the modified array to Excel
-      this.reportingService.exportExcel(modifiedUsers, 'users');
-    } else {
-      this.reportingService.exportExcel(this.appRoles, 'roles');
-    }
+      this.reportingService.exportExcel(modifiedUsers, 'users', header);
+    });
   }
 
 

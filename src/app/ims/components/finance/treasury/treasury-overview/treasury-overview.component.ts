@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
+import { ExportContextService } from 'src/app/services/export-context.service';
 import { TreasuryService } from 'src/app/services/treasury.service';
 import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
@@ -68,7 +69,8 @@ export class TreasuryOverviewComponent implements OnInit {
     private licenseCapabilitiesService: LicenseCapabilitiesService,
     private reportingService: ReportingService,
     private router: Router,
-  ) {}
+  
+    private exportContext: ExportContextService) {}
 
   async ngOnInit(): Promise<void> {
     this.configService.currency$.subscribe(c => {
@@ -211,6 +213,9 @@ export class TreasuryOverviewComponent implements OnInit {
     }
     this.isExporting = true;
     try {
+      // Everything below is translated, so it is built inside the callback where the
+      // organization's locale is the active one.
+      await this.exportContext.withOrganizationLocale('treasury_overview_title', (header) => {
       const t = this.translate;
       const exportColumns: ExportColumn[] = [
         { title: t.instant('shop_name'), dataKey: 'shopName' },
@@ -230,8 +235,10 @@ export class TreasuryOverviewComponent implements OnInit {
         collectionsInPeriod: row.collectionsInPeriod,
       }));
 
-      const title = `${t.instant('treasury_overview_title')} — ${new Date().toLocaleDateString()}`;
-      this.reportingService.exportPdf(exportColumns, exportData, 'treasury-overview', title);
+      const title = `${header.title} — ${header.generatedAt}`;
+      this.reportingService.exportPdf(exportColumns, exportData, 'treasury-overview', title,
+        header.organizationName);
+      });
     } catch (error) {
       console.error('Treasury PDF export failed:', error);
       this.messageService.add({

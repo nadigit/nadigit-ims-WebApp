@@ -7,6 +7,7 @@ import { Product } from 'src/app/models/product';
 import { Supplier } from 'src/app/models/supplier';
 import { Warehouse } from 'src/app/models/warehouse';
 import { CategoryService } from 'src/app/services/category.service';
+import { ExportContextService } from 'src/app/services/export-context.service';
 import { ProductService } from 'src/app/services/product.service';
 import { SupplierService } from 'src/app/services/supplier.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
@@ -100,7 +101,8 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     private translateService: TranslationService,
     private permissionService: PermissionService,
     public pageSizeService: TablePageSizeService,
-  ) { }
+  
+    private exportContext: ExportContextService) { }
 
   /** Display-ready URL for the category's stored (relative) hero image. */
   categoryImageUrl(): string {
@@ -401,22 +403,28 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     this.uniqueWarehouses = Array.from(warehouseMap.values());
   }
 
-  exportCategoryProducts(): void {
-    const exportData = this.filteredCategoryProducts.map(p => ({
-      name: p.name,
-      reference: p.reference,
-      warehouse: p.warehouse?.name || 'N/A',
-      quantity: p.quantityAvailable || 0,
-      buyingPrice: p.buyingPrice || 0,
-      sellingPrice: p.sellingPrice || 0,
-      value: (p.quantityAvailable || 0) * (p.buyingPrice || 0),
-      status: p.inventoryStatus || 'N/A'
-    }));
+  async exportCategoryProducts(): Promise<void> {
+    // Rows are built inside the callback because the column headings are translations, and they
+    // are only in the organization's locale in there. They used to ship as raw field names.
+    await this.exportContext.withOrganizationLocale('products_menu_title', (header) => {
+      const t = (key: string) => this.translate.instant(key);
+      const exportData = this.filteredCategoryProducts.map(p => ({
+        [t('product_name')]: p.name,
+        [t('product_reference')]: p.reference,
+        [t('warehouse')]: p.warehouse?.name || 'N/A',
+        [t('quantity')]: p.quantityAvailable || 0,
+        [t('buying_price')]: p.buyingPrice || 0,
+        [t('selling_price')]: p.sellingPrice || 0,
+        [t('stock_value')]: (p.quantityAvailable || 0) * (p.buyingPrice || 0),
+        [t('status')]: p.inventoryStatus || 'N/A'
+      }));
 
-    this.reportingService.exportExcel(
-      exportData,
-      `category_${this.category.categoryName}_products`
-    );
+      this.reportingService.exportExcel(
+        exportData,
+        `category_${this.category.categoryName}_products`,
+        { ...header, subtitle: this.category?.categoryName }
+      );
+    });
   }
 
   async checkPermissions() {

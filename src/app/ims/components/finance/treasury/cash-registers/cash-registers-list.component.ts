@@ -4,6 +4,7 @@ import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
+import { ExportContextService } from 'src/app/services/export-context.service';
 import { ShopService } from 'src/app/services/shop.service';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { PermissionService } from 'src/app/services/permission.service';
@@ -67,7 +68,8 @@ export class CashRegistersListComponent implements OnInit {
     private reportingService: ReportingService,
     private datePipe: DatePipe,
     private currencyPipe: CurrencyPipe
-  ) {}
+  ,
+    private exportContext: ExportContextService) {}
 
   async ngOnInit(): Promise<void> {
     this.pageSize = this.pageSizeService.initState(TablePageSizeKeys.treasuryCashRegisters, this.rowsPerPageOptions, {
@@ -197,29 +199,36 @@ export class CashRegistersListComponent implements OnInit {
     }));
   }
 
-  exportPdf(): void {
+  async exportPdf(): Promise<void> {
     if (this.isExporting) return;
     this.isExporting = true;
     try {
-      const exportColumns: ExportColumn[] = [
-        'shop_name', 'shop_city', 'cash_register_balance', 'status', 'opened_at', 'cashier'
-      ].map(key => ({ title: this.translate.instant(key), dataKey: this.translate.instant(key) }));
-      this.reportingService.exportPdf(
-        exportColumns,
-        this.buildExportRows(),
-        'cash_registers',
-        this.translate.instant('cash_registers_management')
-      );
+      // Columns and rows are built inside the callback: both are translations, and they are only
+      // in the organization's locale in there.
+      await this.exportContext.withOrganizationLocale('cash_registers_management', (header) => {
+        const exportColumns: ExportColumn[] = [
+          'shop_name', 'shop_city', 'cash_register_balance', 'status', 'opened_at', 'cashier'
+        ].map(key => ({ title: this.translate.instant(key), dataKey: this.translate.instant(key) }));
+        this.reportingService.exportPdf(
+          exportColumns,
+          this.buildExportRows(),
+          'cash_registers',
+          header.title,
+          header.organizationName
+        );
+      });
     } finally {
       this.isExporting = false;
     }
   }
 
-  exportExcel(): void {
+  async exportExcel(): Promise<void> {
     if (this.isExporting) return;
     this.isExporting = true;
     try {
-      this.reportingService.exportExcel(this.buildExportRows(), 'cash_registers');
+      await this.exportContext.withOrganizationLocale('cash_registers_management', (header) => {
+        this.reportingService.exportExcel(this.buildExportRows(), 'cash_registers', header);
+      });
     } finally {
       this.isExporting = false;
     }

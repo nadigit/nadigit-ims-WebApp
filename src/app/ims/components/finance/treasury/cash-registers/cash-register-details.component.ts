@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
+import { ExportContextService } from 'src/app/services/export-context.service';
 import { ShopService } from 'src/app/services/shop.service';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { PermissionService } from 'src/app/services/permission.service';
@@ -106,7 +107,8 @@ export class CashRegisterDetailsComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     public pageSizeService: TablePageSizeService
-  ) {}
+  ,
+    private exportContext: ExportContextService) {}
 
   async ngOnInit(): Promise<void> {
     this.today = new Date();
@@ -419,7 +421,8 @@ export class CashRegisterDetailsComponent implements OnInit {
     }
   }
 
-  exportCashRegisterData(): void {
+  async exportCashRegisterData(): Promise<void> {
+    await this.exportContext.withOrganizationLocale('cash_register_details', async (header) => {
     const exportData = {
       sessions: this.filteredSessions.map(s => ({
         cashier: s.username || 'N/A',
@@ -448,8 +451,10 @@ export class CashRegisterDetailsComponent implements OnInit {
 
     this.reportingService.exportExcel(
       exportData.sessions.concat(exportData.movements as any).concat(exportData.collections as any),
-      `cash_register_${this.shop?.shopName}_${new Date().toISOString().slice(0, 10)}`
+      `cash_register_${this.shop?.shopName}_${new Date().toISOString().slice(0, 10)}`,
+      { ...header, subtitle: this.shop?.shopName }
     );
+    });
   }
 
   /** Collection destinations; the BANK option is only offered on PRO. */

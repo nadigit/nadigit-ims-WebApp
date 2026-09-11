@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Warehouse } from 'src/app/models/warehouse';
 import { WarehouseService } from 'src/app/services/warehouse.service';
+import { ExportContextService } from 'src/app/services/export-context.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
@@ -113,7 +114,8 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
     private writeOffService: WriteOffService,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
     public pageSizeService: TablePageSizeService
-  ) {
+  ,
+    private exportContext: ExportContextService) {
     this.costingMethods = [
       { label: this.translate.instant('costing_method_fifo'), value: 'FIFO' },
       { label: this.translate.instant('costing_method_lifo'), value: 'LIFO' },
@@ -460,22 +462,26 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
     return this.uniqueCategories;
   }
 
-  exportWarehouseProducts(): void {
-    const exportData = this.filteredWarehouseProducts.map(p => ({
-      name: p.name,
-      reference: p.reference,
-      category: p.category?.categoryName || 'N/A',
-      quantity: p.quantityAvailable || 0,
-      status: p.inventoryStatus,
-      buyingPrice: p.buyingPrice || 0,
-      sellingPrice: p.sellingPrice || 0,
-      value: (p.quantityAvailable || 0) * (p.buyingPrice || 0)
-    }));
+  async exportWarehouseProducts(): Promise<void> {
+    await this.exportContext.withOrganizationLocale('products_menu_title', (header) => {
+      const t = (key: string) => this.translate.instant(key);
+      const exportData = this.filteredWarehouseProducts.map(p => ({
+        [t('product_name')]: p.name,
+        [t('product_reference')]: p.reference,
+        [t('category')]: p.category?.categoryName || 'N/A',
+        [t('quantity')]: p.quantityAvailable || 0,
+        [t('status')]: p.inventoryStatus,
+        [t('buying_price')]: p.buyingPrice || 0,
+        [t('selling_price')]: p.sellingPrice || 0,
+        [t('stock_value')]: (p.quantityAvailable || 0) * (p.buyingPrice || 0)
+      }));
 
-    this.reportingService.exportExcel(
-      exportData,
-      `warehouse_${this.warehouse?.name}_products`
-    );
+      this.reportingService.exportExcel(
+        exportData,
+        `warehouse_${this.warehouse?.name}_products`,
+        { ...header, subtitle: this.warehouse?.name }
+      );
+    });
   }
 
   getStatusCount(status: string): number {
