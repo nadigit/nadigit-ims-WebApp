@@ -1118,7 +1118,7 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
       });
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchase-returns', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchase-returns', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -1276,7 +1276,12 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
       });
 
       // Now, export the translated array to Excel
-      this.reportingService.exportExcel(translatedReturns, 'purchase-returns');
+      this.reportingService.exportExcel(translatedReturns, 'purchase-returns', {
+        title: this.translate.instant('purchase_returns_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

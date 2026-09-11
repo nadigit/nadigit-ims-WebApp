@@ -1287,7 +1287,7 @@ export class ExpensesComponent implements OnInit {
         return exportItem;
       });
 
-      this.reportingService.exportPdf(exportColumns, exportData, 'expenses', pdfTitle);
+      this.reportingService.exportPdf(exportColumns, exportData, 'expenses', pdfTitle, organization?.organizationName);
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
@@ -1392,7 +1392,12 @@ export class ExpensesComponent implements OnInit {
         return translated;
       });
 
-      this.reportingService.exportExcel(translatedExpenses, 'expenses');
+      this.reportingService.exportExcel(translatedExpenses, 'expenses', {
+        title: this.translate.instant('expenses_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',

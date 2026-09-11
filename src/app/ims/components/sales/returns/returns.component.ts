@@ -1417,7 +1417,7 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
       const pdfTitle = this.translate.instant('returns_menu_title') || this.translate.instant('returns');
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'returns', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'returns', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -1558,7 +1558,12 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
       });
 
       // Export the translated array to Excel
-      this.reportingService.exportExcel(translatedReturns, 'returns');
+      this.reportingService.exportExcel(translatedReturns, 'returns', {
+        title: this.translate.instant('returns_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

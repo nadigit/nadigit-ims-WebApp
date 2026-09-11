@@ -2304,7 +2304,7 @@ export class ProductsComponent implements OnInit {
       const pdfTitle = this.translate.instant('products_menu_title');
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, modifiedProducts, 'products', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, modifiedProducts, 'products', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -2522,7 +2522,12 @@ export class ProductsComponent implements OnInit {
       });
 
       // Now, export the translated array to Excel
-      this.reportingService.exportExcel(translatedProducts, 'products');
+      this.reportingService.exportExcel(translatedProducts, 'products', {
+        title: this.translate.instant('products_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

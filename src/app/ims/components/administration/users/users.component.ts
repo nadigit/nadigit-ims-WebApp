@@ -1,4 +1,5 @@
 import { ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { MenuItem, MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { AuthenticationService } from 'src/app/services/authentication.service';
@@ -131,7 +132,8 @@ export class UsersComponent implements OnInit {
     private permissionService: PermissionService,
     private router: Router,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
-    public pageSizeService: TablePageSizeService) {  
+    public pageSizeService: TablePageSizeService,
+    private layoutService: LayoutService) {  
 
     }
 
@@ -258,7 +260,9 @@ export class UsersComponent implements OnInit {
   }
 
   goToUpgrade(): void {
-    this.router.navigate(['/my-company']);
+    // System Info carries the plan, its features and the activation controls; My Company is the
+    // organization's own details and says nothing about the licence.
+    this.layoutService.triggerSystemInfoLoad();
   }
   
   

@@ -1,8 +1,8 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { LicenseCapabilitiesService } from '../../services/license-capabilities.service';
+import { LayoutService } from '../../layout/service/app.layout.service';
 
 /**
  * Shown in place of a panel the current plan does not include.
@@ -19,7 +19,7 @@ import { LicenseCapabilitiesService } from '../../services/license-capabilities.
 @Component({
   selector: 'app-feature-locked',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, TranslateModule],
   template: `
     <div class="feature-locked" [class.feature-locked--compact]="compact">
       <div class="feature-locked__icon"><i class="pi pi-lock"></i></div>
@@ -31,7 +31,7 @@ import { LicenseCapabilitiesService } from '../../services/license-capabilities.
           </ng-container>
           <ng-template #noTier>{{ 'feature_locked_message_generic' | translate }}</ng-template>
         </p>
-        <a *ngIf="showUpgradeLink" routerLink="/administration/my-company" class="feature-locked__link">
+        <a *ngIf="showUpgradeLink" class="feature-locked__link" (click)="openPlanDetails()">
           {{ 'feature_locked_action' | translate }}
         </a>
       </div>
@@ -63,6 +63,8 @@ import { LicenseCapabilitiesService } from '../../services/license-capabilities.
     .feature-locked__link {
       display: inline-block; margin-top: .6rem; font-size: .875rem; font-weight: 500;
       color: var(--primary-color, #4f46e5); text-decoration: none;
+      /* No longer an anchor — it opens System Info in place rather than navigating. */
+      cursor: pointer;
     }
     .feature-locked__link:hover { text-decoration: underline; }
   `],
@@ -78,7 +80,22 @@ export class FeatureLockedComponent implements OnInit {
 
   requiredTier: string | null = null;
 
-  constructor(private licenseCapabilitiesService: LicenseCapabilitiesService) {}
+  constructor(
+    private licenseCapabilitiesService: LicenseCapabilitiesService,
+    private layoutService: LayoutService,
+  ) {}
+
+  /**
+   * Opens System Info rather than navigating to My Company.
+   *
+   * System Info is where the plan, its features and the activation controls actually live, so it
+   * answers "what would I get" and "how do I get it" in one place. My Company is the organization's
+   * own details and says nothing about the licence — landing there after clicking a plan link left
+   * the user to go looking.
+   */
+  openPlanDetails(): void {
+    this.layoutService.triggerSystemInfoLoad();
+  }
 
   ngOnInit(): void {
     this.requiredTier = this.feature

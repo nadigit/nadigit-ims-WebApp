@@ -984,7 +984,7 @@ export class CustomersComponent implements OnInit {
       });
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'customers', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'customers', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -1090,7 +1090,12 @@ export class CustomersComponent implements OnInit {
       });
 
       // Now, export the translated array to Excel
-      this.reportingService.exportExcel(translatedCustomers, 'customers');
+      this.reportingService.exportExcel(translatedCustomers, 'customers', {
+        title: this.translate.instant('customers_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

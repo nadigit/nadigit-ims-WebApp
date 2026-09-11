@@ -2088,7 +2088,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       });
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchases', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchases', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -2275,7 +2275,12 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
       });
 
       // Now, export the translated array to Excel
-      this.reportingService.exportExcel(translatedPurchases, 'purchases');
+      this.reportingService.exportExcel(translatedPurchases, 'purchases', {
+        title: this.translate.instant('purchases_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

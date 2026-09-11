@@ -885,7 +885,7 @@ export class PurchaseCreditsComponent implements OnInit {
       const pdfTitle = this.translate.instant('purchase_credits_menu_title') || this.translate.instant('purchase_credits');
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchase-credits', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'purchase-credits', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -1022,7 +1022,12 @@ export class PurchaseCreditsComponent implements OnInit {
       });
 
       // Export the translated array to Excel
-      this.reportingService.exportExcel(translatedCredits, 'purchase-credits');
+      this.reportingService.exportExcel(translatedCredits, 'purchase-credits', {
+        title: this.translate.instant('purchase_credits_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

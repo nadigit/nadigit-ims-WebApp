@@ -1275,7 +1275,7 @@ export class WarehouseTransfersComponent implements OnInit {
       const pdfTitle = this.translate.instant('warehouse_transfers_menu_title');
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'warehouse-transfers', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'warehouse-transfers', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -1449,7 +1449,12 @@ export class WarehouseTransfersComponent implements OnInit {
       });
       
       // Export the translated array to Excel
-      this.reportingService.exportExcel(exportData, 'warehouse-transfers');
+      this.reportingService.exportExcel(exportData, 'warehouse-transfers', {
+        title: this.translate.instant('warehouse_transfers_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

@@ -1671,7 +1671,7 @@ export class PurchasePaymentsComponent implements OnInit {
         return exportItem;
       });
 
-      this.reportingService.exportPdf(exportColumns, exportData, 'purchase-payments', pdfTitle);
+      this.reportingService.exportPdf(exportColumns, exportData, 'purchase-payments', pdfTitle, organization?.organizationName);
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
@@ -1777,7 +1777,12 @@ export class PurchasePaymentsComponent implements OnInit {
         return translated;
       });
 
-      this.reportingService.exportExcel(translatedPayments, 'purchase-payments');
+      this.reportingService.exportExcel(translatedPayments, 'purchase-payments', {
+        title: this.translate.instant('purchase_payments'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',

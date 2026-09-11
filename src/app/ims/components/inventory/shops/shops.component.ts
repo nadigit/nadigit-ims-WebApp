@@ -407,7 +407,7 @@ export class ShopsComponent implements OnInit {
           title: this.translate.instant(translationKeyMap[col.field] || col.field),
           dataKey: col.field,
         }));
-      this.reportingService.exportPdf(translatedExportColumns, filteredShops, 'shops', this.translate.instant('shops_menu_title'));
+      this.reportingService.exportPdf(translatedExportColumns, filteredShops, 'shops', this.translate.instant('shops_menu_title'), organization?.organizationName);
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
@@ -453,7 +453,12 @@ export class ShopsComponent implements OnInit {
         });
         return translated;
       });
-      this.reportingService.exportExcel(translatedShops, 'shops');
+      this.reportingService.exportExcel(translatedShops, 'shops', {
+        title: this.translate.instant('shops_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',

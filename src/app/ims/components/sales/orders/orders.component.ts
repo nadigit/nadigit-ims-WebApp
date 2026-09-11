@@ -3681,7 +3681,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       });
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'orders', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'orders', pdfTitle, this.organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -3850,7 +3850,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       });
 
       // Now, export the translated array to Excel
-      this.reportingService.exportExcel(translatedOrders, 'orders');
+      this.reportingService.exportExcel(translatedOrders, 'orders', {
+        title: this.translate.instant('orders_menu_title'),
+        organizationName: this.organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

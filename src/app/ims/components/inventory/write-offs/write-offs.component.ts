@@ -869,7 +869,7 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
       const pdfTitle = this.translate.instant('write_offs_menu_title');
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, exportData, 'write-offs', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, exportData, 'write-offs', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -1045,7 +1045,12 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
       });
       
       // Export the translated array to Excel
-      this.reportingService.exportExcel(exportData, 'write-offs');
+      this.reportingService.exportExcel(exportData, 'write-offs', {
+        title: this.translate.instant('write_offs_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);

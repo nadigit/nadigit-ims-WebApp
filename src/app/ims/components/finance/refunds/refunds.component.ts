@@ -1168,7 +1168,7 @@ export class RefundsComponent implements OnInit {
         return exportItem;
       });
 
-      this.reportingService.exportPdf(exportColumns, exportData, 'refunds', pdfTitle);
+      this.reportingService.exportPdf(exportColumns, exportData, 'refunds', pdfTitle, organization?.organizationName);
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',
@@ -1289,7 +1289,12 @@ export class RefundsComponent implements OnInit {
         return translated;
       });
 
-      this.reportingService.exportExcel(translatedRefunds, 'refunds');
+      this.reportingService.exportExcel(translatedRefunds, 'refunds', {
+        title: this.translate.instant('refunds_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       this.translate.use(currentLang);
       this.messageService.add({
         severity: 'success',

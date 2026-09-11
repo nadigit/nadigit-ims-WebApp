@@ -736,7 +736,7 @@ export class SuppliersComponent implements OnInit {
       const pdfTitle = this.translate.instant('suppliers_menu_title') || this.translate.instant('suppliers');
       
       // Export with translated headers and title
-      this.reportingService.exportPdf(translatedExportColumns, filteredSuppliers, 'suppliers', pdfTitle);
+      this.reportingService.exportPdf(translatedExportColumns, filteredSuppliers, 'suppliers', pdfTitle, organization?.organizationName);
       
       // Restore original language
       this.translate.use(currentLang);
@@ -833,7 +833,12 @@ export class SuppliersComponent implements OnInit {
       });
 
       // Now, export the translated array to Excel
-      this.reportingService.exportExcel(translatedSuppliers, 'suppliers');
+      this.reportingService.exportExcel(translatedSuppliers, 'suppliers', {
+        title: this.translate.instant('suppliers_menu_title'),
+        organizationName: organization?.organizationName,
+        generatedLabel: this.translate.instant('export_generated_on'),
+        generatedAt: new Date().toLocaleString(defaultLocale),
+      });
       
       // Restore original language
       this.translate.use(currentLang);
