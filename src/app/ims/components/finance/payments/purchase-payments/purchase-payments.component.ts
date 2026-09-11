@@ -1577,6 +1577,7 @@ export class PurchasePaymentsComponent implements OnInit {
 
   async exportPdf() {
     if (this.isExporting) { return; }
+    const previousUiLang = this.translate.currentLang;
     try {
       this.isExporting = true;
       this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
@@ -1688,6 +1689,12 @@ export class PurchasePaymentsComponent implements OnInit {
         life: 5000
       });
     } finally {
+      // Restored here as well as on the happy path: an export that throws left the whole
+      // console in the organization language until the next reload.
+      if (previousUiLang && this.translate.currentLang !== previousUiLang) {
+        this.translate.use(previousUiLang);
+      }
+
       this.isExporting = false;
       this.exportProgress = '';
     }
@@ -1695,6 +1702,7 @@ export class PurchasePaymentsComponent implements OnInit {
 
   async exportExcel() {
     if (this.isExporting) { return; }
+    const previousUiLang = this.translate.currentLang;
     try {
       this.isExporting = true;
       this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
@@ -1799,6 +1807,12 @@ export class PurchasePaymentsComponent implements OnInit {
         life: 5000
       });
     } finally {
+      // Restored here as well as on the happy path: an export that throws left the whole
+      // console in the organization language until the next reload.
+      if (previousUiLang && this.translate.currentLang !== previousUiLang) {
+        this.translate.use(previousUiLang);
+      }
+
       this.isExporting = false;
       this.exportProgress = '';
     }

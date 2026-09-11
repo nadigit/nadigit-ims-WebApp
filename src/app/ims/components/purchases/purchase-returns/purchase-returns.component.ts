@@ -993,6 +993,7 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
       return; // Prevent multiple simultaneous exports
     }
 
+    const previousUiLang = this.translate.currentLang;
     try {
       this.isExporting = true;
       this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
@@ -1139,6 +1140,12 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
         life: 5000
       });
     } finally {
+      // Restored here as well as on the happy path: an export that throws left the whole
+      // console in the organization language until the next reload.
+      if (previousUiLang && this.translate.currentLang !== previousUiLang) {
+        this.translate.use(previousUiLang);
+      }
+
       this.isExporting = false;
       this.exportProgress = '';
     }
@@ -1149,6 +1156,7 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
       return; // Prevent multiple simultaneous exports
     }
 
+    const previousUiLang = this.translate.currentLang;
     try {
       this.isExporting = true;
       this.exportProgress = this.translate.instant('preparing_export') || 'Preparing export...';
@@ -1302,6 +1310,12 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
         life: 5000
       });
     } finally {
+      // Restored here as well as on the happy path: an export that throws left the whole
+      // console in the organization language until the next reload.
+      if (previousUiLang && this.translate.currentLang !== previousUiLang) {
+        this.translate.use(previousUiLang);
+      }
+
       this.isExporting = false;
       this.exportProgress = '';
     }
