@@ -26,6 +26,7 @@ import {
   persistTablePageSizeFromLazyEvent,
   TablePageSizeKeys,
 } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -567,6 +568,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     this.router.navigate(['/finance/financial-documents', financialDoc.financialDocId]);
   }
 
+  /** Closes only once the server has saved; a failure keeps the dialog open and shows the reason. */
   async saveFinancialDoc() {
     this.submitted = true;
 
@@ -579,49 +581,7 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       });
       return;
     }
-
-    if (this.financialDoc.docType) {
-      if (this.financialDoc.financialDocId) {
-        // UPDATE
-        try {
-          await this.updateFinancialDoc(this.financialDoc.financialDocId, this.financialDoc);
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('success'),
-            detail: this.translate.instant('document_updated_successfully'),
-            life: 3000
-          });
-        } catch (error) {
-          console.error('Error updating financial doc:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_updating_document'),
-            life: 3000
-          });
-        }
-      } else {
-        // ADD NEW
-        try {
-          await this.addFinancialDoc(this.financialDoc);
-        } catch (error) {
-          console.error('Error adding financial doc:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_creating_document'),
-            life: 3000
-          });
-        }
-      }
-
-      // Refresh list
-      this.financialDocs = [...this.financialDocs];
-      this.draftFinancialDocDialog = false;
-      this.financialDoc = {};
-      this.submitted = false;
-
-    } else {
+    if (!this.financialDoc.docType) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -630,6 +590,32 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
       });
       return;
     }
+    const editing = !!this.financialDoc.financialDocId;
+    try {
+      if (editing) {
+        await firstValueFrom(await this.financialDocService.updateFinancialDoc(this.financialDoc.financialDocId, this.financialDoc));
+      } else {
+        await firstValueFrom(await this.financialDocService.saveFinancialDoc(this.financialDoc));
+      }
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant(editing ? 'error_updating_financial_doc' : 'error_adding_financial_doc')),
+        life: 5000
+      });
+      return;
+    }
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant(editing ? 'financial_doc_updated' : 'financial_doc_created'),
+      life: 3000
+    });
+    this.draftFinancialDocDialog = false;
+    this.financialDoc = {};
+    this.submitted = false;
+    this.loadFinancialDocs();
   }
 
   @ViewChild('dt') dt!: Table;
@@ -901,75 +887,28 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
     });
   }
 
-  async updateFinancialDoc(id: any, financialDoc: any): Promise<any> {
-    await this.financialDocService.updateFinancialDoc(id, financialDoc)
-      .subscribe({
-        next: (response: any) => {
-          this.loadFinancialDocs();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('financial_doc_updated'),
-            life: 3000
-          });
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_updating_financial_doc'), life: 3000 })
-          return false;
-        },
-      })
-  }
-
-  async confirmCancelFinancialDoc(): Promise<any> {
-    await this.financialDocService.cancelFinancialDoc(this.financialDoc.financialDocId)
-      .subscribe({
-        next: (response: any) => {
-          this.loadFinancialDocs();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('financial_doc_cancelled'),
-            life: 3000
-          });
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_cancelling_financial_doc'), life: 3000 })
-          return false;
-        },
-      })
-
+  /** Closes only once the server has saved; a failure keeps the dialog open and shows the reason. */
+  async confirmCancelFinancialDoc(): Promise<void> {
+    try {
+      await firstValueFrom(await this.financialDocService.cancelFinancialDoc(this.financialDoc.financialDocId));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_cancelling_financial_doc')),
+        life: 5000
+      });
+      return;
+    }
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('financial_doc_cancelled'),
+      life: 3000
+    });
     this.cancelFinancialDocDialog = false;
     this.financialDoc = {};
-  }
-
-  async addFinancialDoc(data: any): Promise<any> {
-    await this.financialDocService.saveFinancialDoc(data)
-      .subscribe({
-        next: (response: any) => {
-          this.loadFinancialDocs();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('financial_doc_created'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          console.log(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_adding_financial_doc'),
-            life: 3000
-          });
-          return false;
-        },
-      });
+    this.loadFinancialDocs();
   }
 
   async exportPdf() {

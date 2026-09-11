@@ -33,6 +33,7 @@ import {
   persistTablePageSizeFromLazyEvent,
   TablePageSizeKeys,
 } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -899,31 +900,27 @@ export class RefundsComponent implements OnInit {
     });
   }
 
-  async updateRefund(id: any, refund: any): Promise<any> {
-    console.log(refund)
-    await this.refundService.updateRefund(id, refund)
-      .subscribe({
-        next: (response: any) => {
-          this.loadRefunds();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('refund_updated'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_refund'),
-            life: 3000
-          });
-          return false;
-        },
-      })
+  /** Resolves true once the server has saved; on failure the user is told why and it resolves false. */
+  async updateRefund(id: any, refund: any): Promise<boolean> {
+    try {
+      await firstValueFrom(await this.refundService.updateRefund(id, refund));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_updating_refund')),
+        life: 5000
+      });
+      return false;
+    }
+    this.loadRefunds();
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('refund_updated'),
+      life: 3000
+    });
+    return true;
   }
 
   addRefund(refund: any): Promise<boolean> {

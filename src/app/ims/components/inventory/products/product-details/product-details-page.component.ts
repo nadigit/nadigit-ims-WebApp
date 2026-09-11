@@ -2148,21 +2148,6 @@ export class ProductDetailsPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  openCategoryDialog(): void {
-    // Navigate to categories page or open category dialog
-    this.router.navigate(['/inventory/categories']);
-  }
-
-  openSupplierDialog(): void {
-    // Navigate to suppliers page or open supplier dialog
-    this.router.navigate(['/inventory/suppliers']);
-  }
-
-  openWarehouseDialog(): void {
-    // Navigate to warehouses page or open warehouse dialog
-    this.router.navigate(['/inventory/warehouses']);
-  }
-
   deleteProduct(): void {
     if (!this.productId || !this.canDelete) return;
     this.deleteProductDialog = true;

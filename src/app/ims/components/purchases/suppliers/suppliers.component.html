@@ -205,6 +205,8 @@
             (cancel)="onSupplierCancel()">
         </app-supplier-form-dialog>
 
+        <app-quick-create-dialogs #quickCreate [currency]="currency" (supplierCreated)="onGetAllSuppliers()"></app-quick-create-dialogs>
+
         <app-supplier-delete-dialog
             [(visible)]="deleteSupplierDialog"
             [supplierId]="supplier?.supplierId"
@@ -251,9 +253,6 @@
             (saveSuccess)="onProductFormSaveSuccess($event)"
             (saveError)="onProductFormSaveError($event)"
             (cancel)="hideProductDialog()"
-            (categoryAdd)="openCategoryDialog()"
-            (supplierAdd)="openSupplierDialog()"
-            (warehouseAdd)="openWarehouseDialog()"
             (visibleChange)="productDialog = $event">
         </app-product-form>
 

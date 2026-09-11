@@ -26,7 +26,8 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SharedModule } from 'src/app/shared/shared.module';
 
 // Shared components
-import { WarehouseFormDialogComponent } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
+import { WarehouseFormDialogModule } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.module';
+import { QuickCreateModule } from './quick-create/quick-create.module';
 import { ProductFormComponent } from '../products/product-form/product-form.component';
 import { ProductDeleteDialogComponent } from '../products/product-delete-dialog/product-delete-dialog.component';
 import { ProductArchiveDialogComponent } from '../products/product-archive-dialog/product-archive-dialog.component';
@@ -41,7 +42,6 @@ import { PageNoteComponent } from 'src/app/shared/page-note';
 @NgModule({
   declarations: [
     CategoryFormDialogComponent,
-    WarehouseFormDialogComponent,
     ProductFormComponent,
     ProductDeleteDialogComponent,
     ProductArchiveDialogComponent,
@@ -75,10 +75,13 @@ import { PageNoteComponent } from 'src/app/shared/page-note';
     AutoCompleteModule,
     MessageModule,
     PageNoteComponent,
+    WarehouseFormDialogModule,
+    QuickCreateModule,
   ],
   exports: [
     CategoryFormDialogComponent,
-    WarehouseFormDialogComponent,
+    WarehouseFormDialogModule,
+    QuickCreateModule,
     ProductFormComponent,
     ProductDeleteDialogComponent,
     ProductArchiveDialogComponent,

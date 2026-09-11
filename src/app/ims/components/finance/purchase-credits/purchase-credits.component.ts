@@ -28,6 +28,7 @@ import {
   persistTablePageSizeFromLazyEvent,
   TablePageSizeKeys,
 } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -695,29 +696,27 @@ export class PurchaseCreditsComponent implements OnInit {
     });
   }
 
-  async updateCredit(id: any, credit: any): Promise<any> {
-    await this.purchaseCreditService.updateCredit(id, credit).subscribe({
-      next: (response: any) => {
-        this.loadCredits();
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('credit_updated'),
-          life: 3000
-        });
-        return true;
-      },
-      error: (err: any) => {
-        console.error(err);
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_updating_credit'),
-          life: 3000
-        });
-        return false;
-      },
+  /** Resolves true once the server has saved; on failure the user is told why and it resolves false. */
+  async updateCredit(id: any, credit: any): Promise<boolean> {
+    try {
+      await firstValueFrom(await this.purchaseCreditService.updateCredit(id, credit));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_updating_credit')),
+        life: 5000
+      });
+      return false;
+    }
+    this.loadCredits();
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('credit_updated'),
+      life: 3000
     });
+    return true;
   }
 
   addCredit(credit: any): Promise<boolean> {

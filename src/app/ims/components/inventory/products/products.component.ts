@@ -29,9 +29,6 @@ import { BRAND_COLORS } from 'src/app/utils/brand-colors';
 import { calculateProfit, getAvailableQuantity, getMeasureUnit, getProfitClass, getQuantitySeverity, getWriteOffQuantity, hasWriteOffs } from 'src/app/shared/product-utils';
 import { getExpirationStatus, ExpirationStatus } from 'src/app/shared/product-expiration.utils';
 import { ProductImportComponent } from './product-import/product-import.component';
-import { WarehouseFormDialogConfig, WarehouseFormDialogData } from '../warehouses/warehouse-form-dialog/warehouse-form-dialog.component';
-import { CategoryFormDialogConfig, CategoryFormDialogData } from '../categories/category-form-dialog/category-form-dialog.component';
-import { SupplierFormDialogConfig, SupplierFormDialogData } from '../../purchases/suppliers/supplier-form-dialog/supplier-form-dialog.component';
 import { LocationService } from 'src/app/services/location.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
@@ -89,29 +86,6 @@ export class ProductsComponent implements OnInit {
   notFoundProductDialog: boolean = false;
 
   productDialog: boolean = false;
-
-  // Dialog configuration for reusable component
-  categoryDialogConfig: CategoryFormDialogConfig = {
-    visible: false,
-    mode: 'create',
-    category: {},
-    isLoading: false
-  };
-
-  // Dialog configuration for reusable component
-  supplierDialogConfig: SupplierFormDialogConfig = {
-    visible: false,
-    mode: 'create',
-    supplier: {},
-  };
-
-  warehouseDialogConfig: WarehouseFormDialogConfig = {
-    visible: false,
-    mode: 'create',
-    warehouse: {},
-    selectedCountry: {},
-    submitted: false
-  };
 
   deleteProductDialog: boolean = false;
 
@@ -1160,38 +1134,6 @@ export class ProductsComponent implements OnInit {
     this.notFoundProductDialog = true;
   }
 
-  openCategoryDialog() {
-    if (!this.canAddCategory) return;
-    this.categoryDialogConfig = {
-      visible: true,
-      mode: 'create',
-      category: {},
-      isLoading: false
-    };
-    this.category = {};
-  }
-
-  openWarehouseDialog() {
-    if (!this.canAddWarehouse) return;
-    this.warehouseDialogConfig = {
-      visible: true,
-      mode: 'create',
-      warehouse: {},
-      selectedCountry: {},
-      submitted: false
-    };
-  }
-
-  openSupplierDialog() {
-    if (!this.canAddSupplier) return;
-    this.supplierDialogConfig = {
-      visible: true,
-      mode: 'create',
-      supplier: {},
-    };
-    this.supplier = {};
-  }
-
   editProduct(product: Product) {
     if (!this.canEditProduct) return;
     if (this.viewMode === 'aggregated' && (product as any)?._aggregated) {
@@ -1226,47 +1168,6 @@ export class ProductsComponent implements OnInit {
     this.productDialog = false;
     this.scanning = true;
     this.submitted = false;
-  }
-
-  hideCategoryDialog() {
-    this.categoryDialogConfig.visible = false;
-  }
-
-  // Category Form Dialog Event Handlers
-  onCategoryDialogConfigChange(config: CategoryFormDialogConfig) {
-    this.categoryDialogConfig = config;
-  }
-
-  onCategorySave(dialogData: CategoryFormDialogData) {
-    this.category = dialogData.category;
-    this.saveCategory();
-  }
-
-  onCategoryCancel() {
-    this.hideCategoryDialog();
-  }
-
-  hideSupplierDialog() {
-    this.supplierDialogConfig.visible = false;
-  }
-
-  // Supplier Form Dialog Event Handlers
-  onSupplierDialogConfigChange(config: SupplierFormDialogConfig) {
-    this.supplierDialogConfig = config;
-  }
-
-  onSupplierSave(dialogData: SupplierFormDialogData) {
-    this.supplier = dialogData.supplier;
-    this.saveSupplier();
-  }
-
-  onSupplierCancel() {
-    this.hideSupplierDialog();
-  }
-
-  hideWarehouseDialog() {
-    this.warehouseDialogConfig.visible = false;
-    this.warehouseDialogConfig.submitted = false;
   }
 
   openNew() {
@@ -1379,125 +1280,6 @@ export class ProductsComponent implements OnInit {
     console.error('Product save error:', error);
   }
 
-  // Legacy saveProduct method - kept for backward compatibility if needed
-  async saveProduct() {
-    this.submitted = true;
-
-    if (
-      this.product.name &&
-      this.product.reference &&
-      this.product.buyingPrice &&
-      this.product.sellingPrice &&
-      this.product.category &&
-      this.product.supplier
-    ) {
-      if (this.isAdmin && !this.product.warehouse) {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('warehouse_required'),
-          life: 3000,
-        });
-        return;
-      }
-
-      // 🔍 Check for duplicate product with same reference in the same warehouse
-      const isDuplicate = this.products.some(p =>
-        p.reference === this.product.reference &&
-        p.warehouse?.warehouseId === this.product.warehouse?.warehouseId &&
-        p.productId !== this.product.productId // exclude current product if updating
-      );
-
-      if (isDuplicate) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.translate.instant('product_already_exists_in_warehouse'),
-          life: 4000,
-        });
-        return;
-      }
-
-      // 📦 Upload product image if any (only if it's a new file)
-      if (this.uploadedFile && this.uploadedFile !== this.existingImageFile) {
-        this.isSaving = true; // Show saving indicator
-
-        try {
-          this.uploadProgress = 30;
-          this.productService.loadToken();
-          const uploadResp = await lastValueFrom(this.productService.uploadProductImage(this.uploadedFile));
-          const url = uploadResp?.url;
-          if (!url) {
-            throw new Error('Invalid upload response: missing image URL');
-          }
-          this.uploadProgress = 100;
-          this.product.productImage = url;
-
-          // Add to recent images
-          this.addToRecentImages(url);
-
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_uploading_image'),
-            life: 3000,
-          });
-          this.isSaving = false;
-          return;
-        } finally {
-          this.uploadedFile = null;
-          this.uploadProgress = 0;
-        }
-      }
-
-      // Clean attributes before saving
-      if (this.product.attributes && this.product.attributes.length > 0) {
-        this.product.attributes.forEach(attr => {
-          // strip transient field if it still exists
-          delete attr.value;
-
-          // optionally normalize booleans (Angular checkboxes can send null)
-          if (attr.attributeType === 'BOOLEAN' && attr.booleanValue == null) {
-            attr.booleanValue = false;
-          }
-        });
-      }
-
-      // ✏️ Update or add product
-      if (this.product.productId) {
-        this.updateProduct(this.product.productId, this.product)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_updated'),
-            life: 3000,
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000,
-          });
-      } else {
-        this.addProduct(this.product);
-      }
-
-      // ✅ Reset and close dialog
-      this.productDialog = false;
-      this.product = {};
-    } else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3100,
-      });
-      return;
-    }
-  }
-
   // Convert attribute value for display
   displayAttributeValue(attr: any): string {
     if (!attr) return '';
@@ -1545,108 +1327,6 @@ export class ProductsComponent implements OnInit {
   }
 
 
-  saveCategory() {
-    if (this.category.categoryName) {
-      this.addCategory(this.category)
-        ? this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('category_added'),
-          life: 3000
-        })
-        : this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_adding_new_category'),
-          life: 3000
-        });
-    }
-    else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3000
-      });
-      return
-    }
-    this.categories = [...this.categories];
-    this.categoryDialogConfig.visible = false;
-    this.category = {};
-  }
-
-  onWarehouseSave(dialogData: WarehouseFormDialogData) {
-    this.warehouse = dialogData.warehouse;
-    this.selectedCountry = dialogData.selectedCountry;
-    this.saveWarehouse();
-  }
-
-  onWarehouseDialogConfigChange(config: WarehouseFormDialogConfig) {
-    this.warehouseDialogConfig = config;
-  }
-
-  onWarehouseCancel() {
-    this.hideWarehouseDialog();
-  }
-
-  saveWarehouse() {
-    this.warehouseDialogConfig.submitted = true;
-    if (this.warehouse.name) {
-      this.addWarehouse(this.warehouse)
-        ? this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('warehouse_added'),
-          life: 3000
-        })
-        : this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_adding_warehouse'),
-          life: 3000
-        });
-    } else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3000
-      });
-      return;
-    }
-    this.warehouses = [...this.warehouses];
-    this.warehouseDialogConfig.visible = false;
-    this.warehouse = {};
-  }
-
-  saveSupplier() {
-    if (this.supplier.name) {
-      this.addSupplier(this.supplier)
-        ? this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('supplier_added'),
-          life: 3000
-        })
-        : this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_adding_supplier'),
-          life: 3000
-        });
-    } else {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3000
-      });
-      return;
-    }
-    this.suppliers = [...this.suppliers];
-    this.supplierDialogConfig.visible = false;
-    this.supplier = {};
-  }
 
 
   // onGlobalFilter(table: Table, event: Event) {
@@ -1856,144 +1536,6 @@ export class ProductsComponent implements OnInit {
             life: 3000
           });
           console.log(err);
-        },
-      })
-  }
-
-  async updateProduct(id: any, product: any): Promise<boolean> {
-    console.log('Updating product ID:', id);
-    console.log('Product data being sent:', JSON.stringify(product, null, 2));
-    
-    return new Promise<boolean>((resolve) => {
-      this.productService.updateProduct(id, product)
-        .subscribe({
-          next: (response: any) => {
-            console.log('Product update API response:', response);
-            console.log('Response status:', response?.status || 'OK');
-            console.log('Response body:', response);
-            
-            // Check if response indicates success
-            if (response) {
-              // Reload products using lazy loading method to maintain table state
-              this.loadProducts();
-              resolve(true);
-            } else {
-              console.warn('Update response was empty or null');
-              resolve(false);
-            }
-          },
-          error: (err: any) => {
-            console.error('Error updating product:', err);
-            console.error('Error status:', err?.status);
-            console.error('Error statusText:', err?.statusText);
-            console.error('Error body:', err?.error);
-            console.error('Full error object:', err);
-            
-            const errorMessage = err?.error?.message || 
-                                err?.error?.error || 
-                                err?.message || 
-                                this.translate.instant('error_while_updating_product');
-            
-            this.messageService.add({
-              severity: 'error',
-              summary: this.translate.instant('error'),
-              detail: errorMessage,
-              life: 5000
-            });
-            resolve(false);
-          },
-        });
-    });
-  }
-
-  async addProduct(data: any): Promise<any> {
-    console.log(data);
-    await this.productService.saveProduct(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          // Reload products using lazy loading method to maintain table state
-          this.loadProducts();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('product_added'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async addCategory(data: any): Promise<any> {
-    await this.categoryService.saveCategory(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllCategories();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_new_category'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async addWarehouse(data: any): Promise<any> {
-    await this.warehouseService.saveWarehouse(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllWarehouses();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_warehouse'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async addSupplier(data: any): Promise<any> {
-    await this.supplierService.saveSupplier(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllSuppliers();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_supplier'),
-            life: 3000
-          });
-          console.error(err);
-          return false;
         },
       })
   }
@@ -2571,11 +2113,6 @@ export class ProductsComponent implements OnInit {
   // toggleEditMode() {
   //   this.isEditMode = !this.isEditMode;
   // }
-
-  onChangeCountry() {
-    this.supplier.city = undefined;
-  }
-
 
   // Method to reset scanning when the dialog is hidden
   resetScanning() {

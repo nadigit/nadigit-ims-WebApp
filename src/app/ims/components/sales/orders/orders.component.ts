@@ -24,6 +24,8 @@ import { KeycloakService } from 'keycloak-angular';
 import { Shop } from 'src/app/models/shop';
 import { ShopService } from 'src/app/services/shop.service';
 import { Warehouse } from 'src/app/models/warehouse';
+import { Supplier } from 'src/app/models/supplier';
+import { QuickCreateDialogsComponent } from '../../inventory/shared/quick-create/quick-create-dialogs.component';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { OrderReturn } from 'src/app/models/orderReturn';
@@ -70,7 +72,6 @@ import { ProcessModeService } from 'src/app/services/process-mode.service';
 import { StockReservationService } from 'src/app/services/stock-reservation.service';
 import { ActivityProfileService } from 'src/app/services/activity-profile.service';
 import { SupplierService } from 'src/app/services/supplier.service';
-import { ShopFormDialogConfig, ShopFormDialogData } from '../../inventory/shops/shop-form-dialog/shop-form-dialog.component';
 import {
   initTablePageSizeState,
   persistTablePageSizeFromLazyEvent,
@@ -103,6 +104,7 @@ interface LazyLoadEventExt extends LazyLoadEvent {
 }
 
 import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './orders.component.html',
@@ -117,6 +119,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   @ViewChild('pickList') pickList: ElementRef | undefined;
+  @ViewChild('quickCreate') quickCreate?: QuickCreateDialogsComponent;
 
   Ressource: string = 'ORDERS';
 
@@ -128,12 +131,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
 
   customerDialog: boolean = false;
-
-  shopDialogConfig: ShopFormDialogConfig = {
-    visible: false,
-    mode: 'create',
-    shop: {},
-  };
 
   orderReturnDialog: boolean = false;
 
@@ -152,8 +149,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   shops: Shop[] = [];
   warehouses: Warehouse[] = [];
   selectedOrderWarehouse: Warehouse | null = null;
-
-  shop: Shop = {};
 
   product: Product = {};
 
@@ -1774,41 +1769,40 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.customerDialog = true;
   }
 
-  async openShopDialog() {
+  openShopDialog(): void {
     if (!this.canAddShop) return;
-    await this.loadBankAccounts();
-    this.shop = {};
-    this.shopDialogConfig = {
-      visible: true,
-      mode: 'create',
-      shop: this.shop,
-    };
-    this.submitted = false;
-  }
-
-  onShopDialogConfigChange(config: ShopFormDialogConfig) {
-    this.shopDialogConfig = config;
-  }
-
-  onShopSave(dialogData: ShopFormDialogData) {
-    this.shop = dialogData.shop;
-    this.saveShop();
-  }
-
-  onShopCancel() {
-    this.shopDialogConfig = { ...this.shopDialogConfig, visible: false };
-    this.shop = {};
-    this.submitted = false;
+    void this.quickCreate?.openShop();
   }
 
   openWarehouseDialog(): void {
     if (!this.canAddWarehouse) return;
-    this.messageService.add({
-      severity: 'info',
-      summary: this.translate.instant('info'),
-      detail: 'Warehouse quick add is not available in this form yet.',
-      life: 3000,
-    });
+    void this.quickCreate?.openWarehouse();
+  }
+
+  /** Created from the order form's own +: add it to the list and select it. */
+  onQuickShopCreated(shop: Shop): void {
+    this.shops = [...(this.shops || []), shop];
+    if (this.order) {
+      this.order.shop = shop;
+    }
+  }
+
+  onQuickWarehouseCreated(warehouse: Warehouse): void {
+    this.warehouses = [...(this.warehouses || []), warehouse];
+    // Changing warehouse clears the order lines; only take the new one when nothing would be lost.
+    if (!this.selectedOrderWarehouse || !this.targetProducts?.length) {
+      this.selectedOrderWarehouse = warehouse;
+      this.onOrderWarehouseChange();
+    }
+  }
+
+  /** Created from inside the product form, which already selected it there; keep these lists current. */
+  onProductFormSupplierCreated(supplier: Supplier): void {
+    this.suppliers = [...(this.suppliers || []), supplier];
+  }
+
+  onProductFormWarehouseCreated(warehouse: Warehouse): void {
+    this.warehouses = [...(this.warehouses || []), warehouse];
   }
 
   openInvoiceDialog() {
@@ -2942,22 +2936,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.loadOrders();
   }
 
-  saveCustomer() {
-    if (this.customer.firstName && this.customer.lastName) {
-      this.addCustomer(this.customer)
-        ? this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('customer_added'),
-          life: 3000
-        })
-        : this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_adding_customer'),
-          life: 3000
-        });
-    } else {
+  /** Awaited: the dialog closes and the customer is selected only once the server has saved it. */
+  async saveCustomer(): Promise<void> {
+    if (!this.customer.firstName || !this.customer.lastName) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -2966,40 +2947,30 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       });
       return;
     }
-    this.customers = [...this.customers];
-    this.customerDialog = false;
-    this.customer = {};
-  }
-
-  saveShop() {
-    this.submitted = true;
-    if (this.shop.shopName) {
-      this.addShop(this.shop)
-        ? this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('shop_added'),
-          life: 3000
-        })
-        : this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_adding_shop'),
-          life: 3000
-        });
-    } else {
+    try {
+      const created = (await firstValueFrom(await this.customerService.saveCustomer(this.customer))) as Customer;
+      const saved: Customer = created && typeof created === 'object' ? created : { ...this.customer };
+      this.customers = [...(this.customers || []), saved];
+      if (this.order && !this.order.orderId) {
+        this.order.customer = saved;
+        this.loadCreditInfo();
+      }
+      this.customerDialog = false;
+      this.customer = {};
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('customer_added'),
+        life: 3000
+      });
+    } catch (err: any) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('please_fill_required_fields'),
-        life: 3000
+        detail: httpErrorMessage(err, this.translate.instant('error_while_adding_customer')),
+        life: 5000
       });
-      return;
     }
-    this.shops = [...this.shops];
-    this.shopDialogConfig = { ...this.shopDialogConfig, visible: false };
-    this.shop = {};
-    this.submitted = false;
   }
 
   // Filter properties
@@ -3483,49 +3454,6 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         }
       });
     });
-  }
-
-
-  async addCustomer(data: any): Promise<any> {
-    await this.customerService.saveCustomer(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllCustomers();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_customer'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async addShop(data: any): Promise<any> {
-    await this.shopService.saveShop(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllShops();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_shop'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
   }
 
   onSortChange(event: any) {

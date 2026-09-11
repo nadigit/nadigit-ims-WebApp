@@ -52,8 +52,7 @@ import { HintComponent } from 'src/app/shared/components/hint/hint.component';
 import { PageNoteComponent } from 'src/app/shared/page-note';
 import { InventorySharedModule } from '../shared/inventory-shared.module';
 import { CategoriesModule } from '../categories/categories.module';
-import { SuppliersModule } from '../../purchases/suppliers/suppliers.module';
-
+import { SupplierFormDialogModule } from '../../purchases/suppliers/supplier-form-dialog/supplier-form-dialog.module';
 
 @NgModule({
     imports: [
@@ -103,7 +102,7 @@ import { SuppliersModule } from '../../purchases/suppliers/suppliers.module';
         DividerModule,
         InventorySharedModule,
         CategoriesModule,
-        SuppliersModule,
+        SupplierFormDialogModule,
         HintComponent,
         PageNoteComponent,
     ],

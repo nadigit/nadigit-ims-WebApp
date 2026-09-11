@@ -5,6 +5,7 @@ import { Product } from 'src/app/models/product';
 import { Category } from 'src/app/models/category';
 import { Supplier } from 'src/app/models/supplier';
 import { Warehouse } from 'src/app/models/warehouse';
+import { QuickCreateDialogsComponent } from '../../shared/quick-create/quick-create-dialogs.component';
 import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
@@ -54,14 +55,11 @@ export class ProductFormComponent implements OnInit, OnChanges {
   @Output() saveSuccess = new EventEmitter<Product>(); // Emitted when save is successful
   @Output() saveError = new EventEmitter<any>(); // Emitted when save fails
   @Output() cancel = new EventEmitter<void>();
-  /**
-   * Kept for callers that still want to know, but the form no longer depends on anyone acting on
-   * it: quick-add is handled here. Two of the ten callers had only a stub that said "not available
-   * in this form yet", and orders never even set canAddCategory, so the button was invisible there.
-   */
-  @Output() categoryAdd = new EventEmitter<void>();
-  @Output() supplierAdd = new EventEmitter<void>();
-  @Output() warehouseAdd = new EventEmitter<void>();
+  /** A supplier or warehouse created from this form's + buttons; the form has already selected it. */
+  @Output() supplierCreated = new EventEmitter<Supplier>();
+  @Output() warehouseCreated = new EventEmitter<Warehouse>();
+
+  @ViewChild('quickCreate') quickCreate?: QuickCreateDialogsComponent;
 
   submitted: boolean = false;
   uploadedFile: File | null = null;
@@ -1868,7 +1866,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
   categoryQuickAddSubmitted = false;
 
   openCategoryDialog(): void {
-    this.categoryAdd.emit();
     this.categoryQuickAdd = { visible: true, mode: 'create', category: {}, isLoading: false };
     this.categoryQuickAddSubmitted = false;
   }
@@ -1940,11 +1937,27 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   openSupplierDialog(): void {
-    this.supplierAdd.emit();
+    this.quickCreate?.openSupplier();
   }
 
   openWarehouseDialog(): void {
-    this.warehouseAdd.emit();
+    void this.quickCreate?.openWarehouse();
+  }
+
+  /** Add the new supplier to this form's list and select it, as the category quick-add does. */
+  onQuickSupplierCreated(supplier: Supplier): void {
+    this.suppliers = [...(this.suppliers || []), supplier];
+    this.localProduct.supplier = supplier;
+    this.supplierCreated.emit(supplier);
+  }
+
+  onQuickWarehouseCreated(warehouse: Warehouse): void {
+    this.warehouses = [...(this.warehouses || []), warehouse];
+    if (this.isProduct() && !this.isAggregatedEditMode()) {
+      this.localProduct.warehouse = warehouse;
+      this.onWarehouseChange();
+    }
+    this.warehouseCreated.emit(warehouse);
   }
 
   onExpirationDateToggle(): void {

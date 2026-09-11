@@ -26,7 +26,7 @@
                     <ng-container *ngIf="activeItem?.icon == 'pi pi-fw pi-user'; else rolesTab">
                         <button pButton pRipple label="{{ 'new_button' | translate }}" icon="pi pi-plus"
                             class="p-button-success" (click)="openNew()" [disabled]="isAtUserCapacity"
-                            [pTooltip]="isAtUserCapacity ? 'User limit reached for current plan. Upgrade to add more users.' : ('add_new_user' | translate)"></button>
+                            [pTooltip]="isAtUserCapacity ? ('plan_limit_reached_users' | translate: { count: maxUsersCap }) : ('add_new_user' | translate)"></button>
                         <button pButton pRipple label="{{ 'delete_button' | translate }}" icon="pi pi-trash"
                             pTooltip="{{'delete_user'|translate}}" class="p-button-danger"
                             (click)="deleteSelected()"

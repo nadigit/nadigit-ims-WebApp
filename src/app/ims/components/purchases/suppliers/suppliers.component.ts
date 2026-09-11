@@ -12,6 +12,7 @@ import { PermissionService } from 'src/app/services/permission.service';
 import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
+import { QuickCreateDialogsComponent } from '../../inventory/shared/quick-create/quick-create-dialogs.component';
 import { takeUntil } from 'rxjs/operators';
 import { LocationService } from 'src/app/services/location.service';
 import { Product } from 'src/app/models/product';
@@ -29,6 +30,7 @@ import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './suppliers.component.html',
@@ -285,15 +287,10 @@ export class SuppliersComponent implements OnInit {
     this.hideDialog();
   }
 
+  /** New suppliers go through the shared quick-create flow (awaited save); the list refreshes on success. */
   openNew() {
     if (!this.canAddSupplier) return;
-    this.supplierDialogConfig = {
-      visible: true,
-      mode: 'create',
-      supplier: {},
-    };
-    this.supplier = {};
-    this.submitted = false;
+    this.quickCreate?.openSupplier();
   }
 
   async getLowStockThreshold(): Promise<number> {
@@ -408,23 +405,6 @@ export class SuppliersComponent implements OnInit {
     // Error message is already displayed by the form component
   }
 
-  openCategoryDialog(): void {
-    // Navigate to categories page or open category dialog
-    this.router.navigate(['/inventory/categories']);
-  }
-
-  openSupplierDialog(): void {
-    // Navigate to suppliers page or open supplier dialog
-    // Since we're already in suppliers, we could open the supplier form dialog
-    // For now, just navigate to suppliers page
-    this.router.navigate(['/inventory/suppliers']);
-  }
-
-  openWarehouseDialog(): void {
-    // Navigate to warehouses page or open warehouse dialog
-    this.router.navigate(['/inventory/warehouses']);
-  }
-
   getSupplierInitials(supplier: any): string {
     if (!supplier?.name) return '';
     const names = supplier.name.split(' ');
@@ -500,18 +480,10 @@ export class SuppliersComponent implements OnInit {
     // Implement Excel export
   }
 
-  saveSupplier() {
+  /** Edit only (creation goes through quick-create). Closes only once the server has saved. */
+  async saveSupplier(): Promise<void> {
     this.submitted = true;
-    if (this.supplier.name) {
-      if (this.supplier.supplierId) {
-        this.updateSupplier(this.supplier.supplierId, this.supplier);
-      } else {
-        this.addSupplier(this.supplier);
-      }
-      this.suppliers = [...this.suppliers];
-    this.supplierDialogConfig.visible = false;
-    this.supplier = {};
-    } else {
+    if (!this.supplier.name?.trim()) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -519,6 +491,28 @@ export class SuppliersComponent implements OnInit {
         life: 3000
       });
       return;
+    }
+    if (!this.supplier.supplierId) {
+      return;
+    }
+    try {
+      await firstValueFrom(await this.supplierService.updateSupplier(this.supplier.supplierId, this.supplier));
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('supplier_updated'),
+        life: 3000
+      });
+      this.hideDialog();
+      this.supplier = {};
+      this.onGetAllSuppliers();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_updating_supplier')),
+        life: 5000
+      });
     }
   }
 
@@ -550,6 +544,7 @@ export class SuppliersComponent implements OnInit {
   }
 
   @ViewChild('dt') dt!: Table;
+  @ViewChild('quickCreate') quickCreate?: QuickCreateDialogsComponent;
 
   onGlobalFilter(event: Event) {
     const value = (event.target as HTMLInputElement).value;
@@ -606,60 +601,6 @@ export class SuppliersComponent implements OnInit {
         });
       },
     });
-  }
-
-
-  async updateSupplier(id: any, supplier: any): Promise<any> {
-    console.log(supplier)
-    this.supplierService.updateSupplier(id, supplier)
-      .subscribe({
-        next: (response: any) => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('supplier_updated'),
-            life: 3000
-          });
-          this.onGetAllSuppliers();
-          return true;
-        },
-        error(err: any) {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_updating_supplier'),
-            life: 3000
-          });
-          return false;
-        },
-      })
-  }
-
-  async addSupplier(data: any): Promise<any> {
-    await this.supplierService.saveSupplier(data)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllSuppliers();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('supplier_added'),
-            life: 3000
-          });
-          return true;
-        },
-        error(err: any) {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_adding_supplier'),
-            life: 3000
-          });
-          return false;
-        },
-      })
   }
 
   onChangeCountry() {

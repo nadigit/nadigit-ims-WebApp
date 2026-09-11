@@ -19,6 +19,7 @@ import { Product } from 'src/app/models/product';
 import { PurchaseItem } from 'src/app/models/purchaseItem';
 import { Category } from 'src/app/models/category';
 import { Warehouse } from 'src/app/models/warehouse';
+import { QuickCreateDialogsComponent } from '../../inventory/shared/quick-create/quick-create-dialogs.component';
 import { CategoryService } from 'src/app/services/category.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
@@ -79,6 +80,7 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
 
   @ViewChild('pickList') pickList: ElementRef | undefined;
   @ViewChild('purchaseImport') purchaseImport: any;
+  @ViewChild('quickCreate') quickCreate?: QuickCreateDialogsComponent;
 
   Ressource: string = 'PURCHASES';
 
@@ -2788,30 +2790,52 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
   // Dialog methods for adding new entities (can be empty or show dialogs)
 
   openSupplierDialog(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: this.translate.instant('info'),
-      detail: 'Supplier quick add is not available in this form yet.',
-      life: 3000,
-    });
+    if (!this.canAddSupplier) return;
+    this.quickCreate?.openSupplier();
   }
 
   openWarehouseDialog(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: this.translate.instant('info'),
-      detail: 'Warehouse quick add is not available in this form yet.',
-      life: 3000,
-    });
+    if (!this.canAddWarehouse) return;
+    void this.quickCreate?.openWarehouse();
   }
 
   openShopDialog(): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: this.translate.instant('info'),
-      detail: 'Shop quick add is not available in this form yet.',
-      life: 3000,
-    });
+    if (!this.canAddShop) return;
+    void this.quickCreate?.openShop();
+  }
+
+  /** Created from the purchase form's own +: add it to the list and select it. */
+  onQuickSupplierCreated(supplier: Supplier): void {
+    this.suppliers = [...(this.suppliers || []), supplier];
+    if (this.purchase) {
+      this.purchase.supplier = supplier;
+      this.onPurchaseSupplierChange();
+    }
+  }
+
+  onQuickWarehouseCreated(warehouse: Warehouse): void {
+    this.warehouses = [...(this.warehouses || []), warehouse];
+    // Changing warehouse clears the purchase lines; only take the new one when nothing would be lost.
+    if (!this.selectedPurchaseWarehouse || !this.targetProducts?.length) {
+      this.selectedPurchaseWarehouse = warehouse;
+      this.onPurchaseWarehouseChange();
+    }
+  }
+
+  onQuickShopCreated(shop: Shop): void {
+    this.shops = [...(this.shops || []), shop];
+    if (this.purchase) {
+      this.purchase.shop = shop;
+    }
+  }
+
+  /** Created from inside the product form, which already selected it there; keep these lists current. */
+  onProductFormSupplierCreated(supplier: Supplier): void {
+    this.suppliers = [...(this.suppliers || []), supplier];
+  }
+
+  onProductFormWarehouseCreated(warehouse: Warehouse): void {
+    this.warehouses = [...(this.warehouses || []), warehouse];
   }
 
   async onDeleteProduct(id: any) {

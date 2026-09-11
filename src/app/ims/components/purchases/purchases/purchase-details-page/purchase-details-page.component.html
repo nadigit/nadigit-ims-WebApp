@@ -114,8 +114,8 @@
                     <i class="pi pi-truck"></i>
                 </div>
                 <div class="stat-content">
-                    <span class="stat-label">{{ 'shipping_cost' | translate }}</span>
-                    <div class="stat-value">{{ (purchase.shippingCost || 0) | currency:currency:'symbol':'1.2-2' }}</div>
+                    <span class="stat-label">{{ 'transport_amount' | translate }}</span>
+                    <div class="stat-value">{{ (purchase.transportAmount || 0) | currency:currency:'symbol':'1.2-2' }}</div>
                 </div>
             </div>
         </div>
@@ -475,9 +475,9 @@
                                         <td class="text-right font-bold">{{ getPurchaseLineTaxTotal() | currency:currency:'symbol':'1.2-2' }}</td>
                                         <td></td>
                                     </tr>
-                                    <tr class="summary-footer" *ngIf="purchase.shippingCost">
-                                        <td colspan="6" class="text-right font-semibold">{{ 'shipping_cost' | translate }}:</td>
-                                        <td class="text-right font-bold">+{{ purchase.shippingCost | currency:currency:'symbol':'1.2-2' }}</td>
+                                    <tr class="summary-footer" *ngIf="purchase.transportAmount">
+                                        <td colspan="6" class="text-right font-semibold">{{ 'transport_amount' | translate }}:</td>
+                                        <td class="text-right font-bold">+{{ purchase.transportAmount | currency:currency:'symbol':'1.2-2' }}</td>
                                         <td></td>
                                     </tr>
                                     <tr class="total-footer">

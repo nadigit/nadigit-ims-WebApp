@@ -76,9 +76,6 @@
 		(saveSuccess)="onProductFormSaveSuccess($event)"
 		(saveError)="onProductFormSaveError($event)"
 		(cancel)="hideProductDialog()"
-		(categoryAdd)="openCategoryDialog()"
-		(supplierAdd)="openSupplierDialog()"
-		(warehouseAdd)="openWarehouseDialog()"
 		(visibleChange)="productDialog = $event">
 	</app-product-form>
 
@@ -238,31 +235,6 @@
 				</div>
 			</ng-template>
 		</p-dialog>
-
-		<app-category-form-dialog
-			[config]="categoryDialogConfig"
-			[submitted]="submitted"
-			(configChange)="onCategoryDialogConfigChange($event)"
-			(save)="onCategorySave($event)"
-			(cancel)="onCategoryCancel()">
-		</app-category-form-dialog>
-
-		<app-warehouse-form-dialog
-			[config]="warehouseDialogConfig"
-			[countries]="countries"
-			(configChange)="onWarehouseDialogConfigChange($event)"
-			(save)="onWarehouseSave($event)"
-			(cancel)="onWarehouseCancel()">
-		</app-warehouse-form-dialog>
-
-		<app-supplier-form-dialog
-			[config]="supplierDialogConfig"
-			[countries]="countries"
-			[submitted]="submitted"
-			(configChange)="onSupplierDialogConfigChange($event)"
-			(save)="onSupplierSave($event)"
-			(cancel)="onSupplierCancel()">
-		</app-supplier-form-dialog>
 
 		<app-product-delete-dialog
 			[(visible)]="deleteProductDialog"

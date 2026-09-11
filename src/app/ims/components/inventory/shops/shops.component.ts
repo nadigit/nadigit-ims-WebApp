@@ -16,6 +16,7 @@ import { LocationService } from 'src/app/services/location.service';
 import { BankAccountService } from 'src/app/services/bank-account.service';
 import { BankAccount } from 'src/app/models/bank-account';
 import { ShopFormDialogConfig, ShopFormDialogData } from './shop-form-dialog/shop-form-dialog.component';
+import { QuickCreateDialogsComponent } from '../shared/quick-create/quick-create-dialogs.component';
 import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
@@ -33,6 +34,7 @@ import {
 })
 export class ShopsComponent implements OnInit {
   @ViewChild('dt') dt!: Table;
+  @ViewChild('quickCreate') quickCreate?: QuickCreateDialogsComponent;
 
   Ressource = 'SHOPS';
 
@@ -228,25 +230,10 @@ export class ShopsComponent implements OnInit {
     }
   }
 
-  async openNew(): Promise<void> {
-    if (this.isAtShopsCapacity) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('license_update_toast_title'),
-        detail: `Shop limit reached for current plan (${this.maxShopsCap}).`,
-        life: 4000,
-      });
-      return;
-    }
-    await this.loadBankAccounts();
-    this.shopDialogConfig = {
-      visible: true,
-      mode: 'create',
-      shop: {},
-    };
-    this.shop = {};
-    this.submitted = false;
-    this.pendingCashRegisterSchedule = null;
+  /** New shops go through the shared quick-create flow (plan cap, awaited save); the list refreshes on success. */
+  openNew(): void {
+    if (!this.canAddShop) return;
+    void this.quickCreate?.openShop();
   }
 
   async saveShop(): Promise<void> {
@@ -277,27 +264,18 @@ export class ShopsComponent implements OnInit {
     }
 
     try {
-      if (this.shop.shopId) {
-        await firstValueFrom(this.shopService.updateShop(this.shop.shopId, this.shop));
-        await this.persistCashRegisterSchedule(this.shop.shopId);
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('shop_updated'),
-          life: 3000,
-        });
-      } else {
-        const created = await firstValueFrom(await this.shopService.saveShop(this.shop)) as Shop;
-        if (created?.shopId && this.pendingCashRegisterSchedule) {
-          await this.persistCashRegisterSchedule(created.shopId);
-        }
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('shop_added'),
-          life: 3000,
-        });
+      // This dialog only edits; new shops are created through <app-quick-create-dialogs>.
+      if (!this.shop.shopId) {
+        return;
       }
+      await firstValueFrom(this.shopService.updateShop(this.shop.shopId, this.shop));
+      await this.persistCashRegisterSchedule(this.shop.shopId);
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('shop_updated'),
+        life: 3000,
+      });
       this.shops = [...this.shops];
       this.shopDialogConfig.visible = false;
       this.shop = {};

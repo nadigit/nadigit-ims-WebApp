@@ -19,7 +19,7 @@
 					<button pButton pRipple *ngIf="canAddWarehouse" label="{{'new_button' | translate}}"
 						icon="pi pi-plus" class="p-button-success" (click)="openNew()"
 						[disabled]="isAtWarehousesCapacity"
-						[pTooltip]="isAtWarehousesCapacity ? ('Limit reached: ' + maxWarehousesCap + ' warehouses allowed by current plan.') : ''"></button>
+						[pTooltip]="isAtWarehousesCapacity ? ('plan_limit_reached_warehouses' | translate: { count: maxWarehousesCap }) : ('add_new_warehouse' | translate)"></button>
 					<button pButton pRipple *ngIf="canDeleteWarehouse" label="{{'delete_button' | translate}}"
 						icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedWarehouses()"
 						pTooltip="{{'delete_warehouse'|translate}}"
@@ -160,6 +160,7 @@
 			(cancel)="onWarehouseCancel()">
 		</app-warehouse-form-dialog>
 
+		<app-quick-create-dialogs #quickCreate [currency]="currency" (warehouseCreated)="onGetAllWarehouses()"></app-quick-create-dialogs>
 
 		<app-warehouse-delete-dialog
 			[(visible)]="deleteWarehouseDialog"

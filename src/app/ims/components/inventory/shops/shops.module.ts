@@ -5,6 +5,7 @@ import { ShopsRoutingModule } from './shops-routing.module';
 import { ShopsComponent } from './shops.component';
 import { ShopDetailsComponent } from './shop-details/shop-details.component';
 import { ShopFormDialogModule } from './shop-form-dialog/shop-form-dialog.module';
+import { QuickCreateModule } from '../shared/quick-create/quick-create.module';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -63,7 +64,8 @@ import { PaginatorModule } from 'primeng/paginator';
         BadgeModule,
         DividerModule,
         PaginatorModule,
-        ShopFormDialogModule
+        ShopFormDialogModule,
+        QuickCreateModule
     ],
     declarations: [ShopsComponent, ShopDetailsComponent],
     providers: [ReportingService],

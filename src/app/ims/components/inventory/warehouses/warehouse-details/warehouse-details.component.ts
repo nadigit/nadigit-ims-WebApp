@@ -27,6 +27,7 @@ import { WarehouseFormDialogComponent, WarehouseFormDialogConfig, WarehouseFormD
 import { Location } from '@angular/common';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './warehouse-details.component.html',
@@ -340,27 +341,10 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
     this.hideDialog();
   }
 
-  saveWarehouse() {
+  /** Closes only once the server has saved; a failure keeps the dialog open with the server's message. */
+  async saveWarehouse(): Promise<void> {
     this.warehouseDialogConfig.submitted = true;
-    if (this.warehouse.name) {
-      if (this.warehouse.warehouseId) {
-        this.updateWarehouse(this.warehouse.warehouseId, this.warehouse)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('warehouse_updated'),
-            life: 3000
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_updating_warehouse'),
-            life: 3000
-          });
-      }
-      this.warehouseDialogConfig.visible = false;
-      this.loadWarehouseDetails(); // Reload warehouse details after update
-    } else {
+    if (!this.warehouse.name?.trim() || !this.warehouse.warehouseId) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -369,22 +353,25 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
       });
       return;
     }
-  }
-
-  async updateWarehouse(id: any, warehouse: any): Promise<any> {
-    console.log(warehouse)
-    await this.warehouseService.updateWarehouse(id, warehouse)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllWarehouses();
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          return false;
-        },
-      })
+    try {
+      await firstValueFrom(await this.warehouseService.updateWarehouse(this.warehouse.warehouseId, this.warehouse));
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('warehouse_updated'),
+        life: 3000
+      });
+      this.warehouseDialogConfig.visible = false;
+      this.onGetAllWarehouses();
+      this.loadWarehouseDetails();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_updating_warehouse')),
+        life: 5000
+      });
+    }
   }
 
   onChangeCountry() {
@@ -581,21 +568,6 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
   onProductFormSaveError(event: { product: Product, error: any }): void {
     console.error('Product form save error:', event.error);
     // Error message is already displayed by the form component
-  }
-
-  openCategoryDialog(): void {
-    // Navigate to categories page or open category dialog
-    this.router.navigate(['/inventory/categories']);
-  }
-
-  openSupplierDialog(): void {
-    // Navigate to suppliers page or open supplier dialog
-    this.router.navigate(['/inventory/suppliers']);
-  }
-
-  openWarehouseDialog(): void {
-    // Navigate to warehouses page or open warehouse dialog
-    this.router.navigate(['/inventory/warehouses']);
   }
 
   calculateProfit(product: Product): number {

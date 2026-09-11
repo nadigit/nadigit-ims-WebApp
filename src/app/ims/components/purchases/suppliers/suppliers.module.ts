@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SuppliersRoutingModule } from './suppliers-routing.module';
 import { SuppliersComponent } from './suppliers.component';
-import { SupplierFormDialogComponent } from './supplier-form-dialog/supplier-form-dialog.component';
+import { SupplierFormDialogModule } from './supplier-form-dialog/supplier-form-dialog.module';
 import { TableModule } from 'primeng/table';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ButtonModule } from 'primeng/button';
@@ -67,10 +67,11 @@ import { InventorySharedModule } from '../../inventory/shared/inventory-shared.m
         SharedModule,
         GalleriaModule,
         ImageModule,
-        InventorySharedModule
+        InventorySharedModule,
+        SupplierFormDialogModule
     ],
-    declarations: [SuppliersComponent, SupplierDetailsComponent, SupplierFormDialogComponent],
+    declarations: [SuppliersComponent, SupplierDetailsComponent],
     providers: [ReportingService],
-    exports: [SupplierFormDialogComponent],
+    exports: [SupplierFormDialogModule],
 })
 export class SuppliersModule { }

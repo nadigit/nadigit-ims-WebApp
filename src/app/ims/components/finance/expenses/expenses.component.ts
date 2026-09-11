@@ -32,6 +32,7 @@ import {
   persistTablePageSizeFromLazyEvent,
   TablePageSizeKeys,
 } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -713,6 +714,10 @@ export class ExpensesComponent implements OnInit {
       } else {
         savedExpense = await this.addExpense(payload);
       }
+      if (!savedExpense) {
+        // The reason has already been shown; keep the dialog open so nothing entered is lost.
+        return;
+      }
 
       // Bank posting on server runs after approval when workflow is on; avoid duplicate client-side bank tx until approved
       const approved =
@@ -1108,7 +1113,7 @@ export class ExpensesComponent implements OnInit {
             this.messageService.add({
               severity: 'error',
               summary: this.translateService.instant('error'),
-              detail: this.translateService.instant('error_updating_expense'),
+              detail: httpErrorMessage(err, this.translateService.instant('error_updating_expense')),
               life: 3000
             });
           }
@@ -1143,7 +1148,7 @@ export class ExpensesComponent implements OnInit {
             this.messageService.add({
               severity: 'error',
               summary: this.translateService.instant('error'),
-              detail: this.translateService.instant('error_adding_expense'),
+              detail: httpErrorMessage(err, this.translateService.instant('error_adding_expense')),
               life: 3000
             });
             resolve(null);

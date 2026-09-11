@@ -1009,3 +1009,9 @@
 	(save)="onCategoryQuickAddSave($event)"
 	(cancel)="onCategoryQuickAddCancel()">
 </app-category-form-dialog>
+
+<!-- New supplier / warehouse from this form's + buttons. Hosted here, like the category quick-add, so every page that opens the product form gets them. -->
+<app-quick-create-dialogs #quickCreate [currency]="currency"
+	(supplierCreated)="onQuickSupplierCreated($event)"
+	(warehouseCreated)="onQuickWarehouseCreated($event)">
+</app-quick-create-dialogs>

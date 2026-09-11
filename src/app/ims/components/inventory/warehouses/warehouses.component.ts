@@ -15,6 +15,7 @@ import { ProductService } from 'src/app/services/product.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { LocationService } from 'src/app/services/location.service';
 import { firstValueFrom, lastValueFrom, Subject } from 'rxjs';
+import { QuickCreateDialogsComponent } from '../shared/quick-create/quick-create-dialogs.component';
 import { takeUntil } from 'rxjs/operators';
 import { Supplier } from 'src/app/models/supplier';
 import { Category } from 'src/app/models/category';
@@ -26,6 +27,7 @@ import { Organization } from 'src/app/models/organization';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 
 
@@ -262,25 +264,10 @@ export class WarehousesComponent implements OnInit, OnDestroy {
     this.selectedCountry = {};
   }
 
+  /** New warehouses go through the shared quick-create flow (plan cap, awaited save); the list refreshes on success. */
   openNew() {
     if (!this.canAddWarehouse) return;
-    if (this.isAtWarehousesCapacity) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: this.translate.instant('license_update_toast_title'),
-        detail: `Warehouse limit reached for current plan (${this.maxWarehousesCap}).`,
-        life: 4000
-      });
-      return;
-    }
-    this.selectedCountry = {};
-    this.warehouseDialogConfig = {
-      visible: true,
-      mode: 'create',
-      warehouse: {},
-      selectedCountry: {},
-      submitted: false
-    };
+    void this.quickCreate?.openWarehouse();
   }
 
   openWarehouseDetails(warehouse: Warehouse) {
@@ -303,42 +290,10 @@ export class WarehousesComponent implements OnInit, OnDestroy {
     this.hideDialog();
   }
 
-  saveWarehouse() {
+  /** Edit only (creation goes through quick-create). Closes only once the server has saved. */
+  async saveWarehouse(): Promise<void> {
     this.warehouseDialogConfig.submitted = true;
-    if (this.warehouse.name) {
-      if (this.warehouse.warehouseId) {
-        this.updateWarehouse(this.warehouse.warehouseId, this.warehouse)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('warehouse_updated'),
-            life: 3000
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_updating_warehouse'),
-            life: 3000
-          });
-      } else {
-        this.addWarehouse(this.warehouse)
-          ? this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('warehouse_added'),
-            life: 3000
-          })
-          : this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_adding_warehouse'),
-            life: 3000
-          });
-      }
-      this.warehouses = [...this.warehouses];
-      this.warehouseDialogConfig.visible = false;
-      this.warehouse = {};
-    } else {
+    if (!this.warehouse.name?.trim()) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -347,9 +302,32 @@ export class WarehousesComponent implements OnInit, OnDestroy {
       });
       return;
     }
+    if (!this.warehouse.warehouseId) {
+      return;
+    }
+    try {
+      await firstValueFrom(await this.warehouseService.updateWarehouse(this.warehouse.warehouseId, this.warehouse));
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('warehouse_updated'),
+        life: 3000
+      });
+      this.hideDialog();
+      this.warehouse = {};
+      this.onGetAllWarehouses();
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_updating_warehouse')),
+        life: 5000
+      });
+    }
   }
 
   @ViewChild('dt') dt!: Table;
+  @ViewChild('quickCreate') quickCreate?: QuickCreateDialogsComponent;
 
   onGlobalFilter(event: Event) {
     const value = (event.target as HTMLInputElement).value;
@@ -408,38 +386,6 @@ export class WarehousesComponent implements OnInit, OnDestroy {
           });
         },
       });
-  }
-
-
-  async updateWarehouse(id: any, warehouse: any): Promise<any> {
-    console.log(warehouse)
-    await this.warehouseService.updateWarehouse(id, warehouse)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllWarehouses();
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
-  async addWarehouse(data: any): Promise<any> {
-    await this.warehouseService.saveWarehouse(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllWarehouses();
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          return false;
-        },
-      })
   }
 
   onChangeCountry() {

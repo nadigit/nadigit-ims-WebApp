@@ -1242,16 +1242,11 @@
 			</ng-template>
 		</p-dialog>
 
-		<app-shop-form-dialog
-			[config]="shopDialogConfig"
-			[countries]="countries"
-			[bankAccounts]="bankAccounts"
-			[currency]="currency"
-			[submitted]="submitted"
-			(configChange)="onShopDialogConfigChange($event)"
-			(save)="onShopSave($event)"
-			(cancel)="onShopCancel()">
-		</app-shop-form-dialog>
+		<!-- Quick create: shop / warehouse from the order form's + buttons -->
+		<app-quick-create-dialogs #quickCreate [currency]="currency"
+			(warehouseCreated)="onQuickWarehouseCreated($event)"
+			(shopCreated)="onQuickShopCreated($event)">
+		</app-quick-create-dialogs>
 
 		<p-dialog [(visible)]="orderReturnDialog"
 			[style]="{ width: 'min(92vw, 900px)', maxWidth: '900px', maxHeight: '95vh' }"
@@ -1411,6 +1406,8 @@
 			[existingProducts]="products"
 			(saveSuccess)="onProductFormSaveSuccess($event)"
 			(saveError)="onProductFormSaveError($event)"
+			(supplierCreated)="onProductFormSupplierCreated($event)"
+			(warehouseCreated)="onProductFormWarehouseCreated($event)"
 			(cancel)="hideProductDialog()"
 			(visibleChange)="onProductFormVisibleChange($event)">
 		</app-product-form>

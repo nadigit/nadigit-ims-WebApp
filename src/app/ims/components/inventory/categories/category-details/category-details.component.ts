@@ -25,6 +25,7 @@ import { Location } from '@angular/common';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 import { costingMethodTranslationKey } from 'src/app/utils/costing-method.util';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './category-details.component.html',
@@ -205,18 +206,10 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     };
   }
 
+  /** Closes only once the server has saved; a failure keeps the dialog open and shows the reason. */
   async saveCategory() {
     this.submitted = true;
-    if (this.category.categoryName) {
-      if (this.category.categoryId) {
-        try {
-          await this.updateCategory(this.category.categoryId, this.category);
-        } catch (error) {
-          console.error('Error updating category:', error);
-        }
-      }
-      this.categoryDialogConfig.visible = false;
-    } else {
+    if (!this.category?.categoryName || !this.category.categoryId) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -225,6 +218,27 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
       });
       return;
     }
+    try {
+      await firstValueFrom(await this.categoryService.updateCategory(this.category.categoryId, this.category));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_updating_category')),
+        life: 5000
+      });
+      return;
+    }
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('category_updated'),
+      life: 3000
+    });
+    this.categoryDialogConfig.visible = false;
+    this.submitted = false;
+    this.onGetAllCategories();
+    await this.loadCategory();
   }
 
   async onGetCategoryProducts(): Promise<void> {
@@ -249,27 +263,6 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
     });
   }
 
-
-  async updateCategory(id: any, category: any): Promise<any> {
-    await this.categoryService.updateCategory(id, category)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllCategories();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('category_updated'),
-            life: 3000
-          });
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_updating_category'), life: 3000 })
-          return false;
-        },
-      })
-  }
 
   hideDialog() {
     this.categoryDialogConfig.visible = false;
@@ -530,21 +523,6 @@ export class CategoryDetailsComponent implements OnInit, OnDestroy {
   onProductFormSaveError(event: { product: Product, error: any }): void {
     console.error('Product form save error:', event.error);
     // Error message is already displayed by the form component
-  }
-
-  openCategoryDialog(): void {
-    // Navigate to categories page or open category dialog
-    this.router.navigate(['/inventory/categories']);
-  }
-
-  openSupplierDialog(): void {
-    // Navigate to suppliers page or open supplier dialog
-    this.router.navigate(['/inventory/suppliers']);
-  }
-
-  openWarehouseDialog(): void {
-    // Navigate to warehouses page or open warehouse dialog
-    this.router.navigate(['/inventory/warehouses']);
   }
 
   deleteProduct(product: Product) {

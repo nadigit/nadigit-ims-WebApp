@@ -150,9 +150,9 @@ export class ProfileComponent implements OnInit {
     return newPassword === confirmPassword ? null : { passwordMismatch: true };
   }
 
-  toggleEditMode(field: any) {
+  async toggleEditMode(field: any) {
     if (field.isEditing) {
-      this.saveUser();
+      await this.saveUser();
     }
 
     field.isEditing = !field.isEditing; // Toggle edit mode for the clicked field
@@ -161,9 +161,22 @@ export class ProfileComponent implements OnInit {
   }
 
   async saveUser() {
-    const response = await this.updateUser(this.user);
-    console.log(response)
-    response ? this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'User Updated', life: 3000 }) : this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating user', life: 3000 })
+    const saved = await this.updateUser(this.user);
+    if (saved) {
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant('user_updated'),
+        life: 3000
+      });
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_updating_user'),
+        life: 3000
+      });
+    }
   }
 
   async updateUser(user: any): Promise<boolean> {

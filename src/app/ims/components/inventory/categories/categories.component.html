@@ -199,10 +199,7 @@
             [existingProducts]="products"
             (saveSuccess)="onProductSaveSuccess($event)"
             (saveError)="onProductSaveError($event)"
-            (cancel)="onProductCancel()"
-            (categoryAdd)="onCategoryAdd()"
-            (supplierAdd)="onSupplierAdd()"
-            (warehouseAdd)="onWarehouseAdd()">
+            (cancel)="onProductCancel()">
         </app-product-form>
 
         <app-product-delete-dialog

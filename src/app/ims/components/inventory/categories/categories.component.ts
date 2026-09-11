@@ -25,6 +25,7 @@ import { OrganizationService } from 'src/app/services/organization.service';
 import { Organization } from 'src/app/models/organization';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './categories.component.html',
@@ -269,26 +270,10 @@ export class CategoriesComponent implements OnInit {
     return resolvePublicAssetUrl(category?.categoryImage);
   }
 
+  /** Closes only once the server has saved; a failure keeps the dialog open and shows the reason. */
   async saveCategory() {
     this.submitted = true;
-    if (this.category.categoryName) {
-      if (this.category.categoryId) {
-        try {
-          await this.updateCategory(this.category.categoryId, this.category);
-        } catch (error) {
-          console.error('Error updating category:', error);
-        }
-      } else {
-        try {
-          await this.addCategory(this.category);
-        } catch (error) {
-          console.error('Error adding category:', error);
-        }
-      }
-      this.categories = [...this.categories];
-      this.categoryDialogConfig.visible = false;
-      this.category = {};
-    } else {
+    if (!this.category.categoryName) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -297,6 +282,32 @@ export class CategoriesComponent implements OnInit {
       });
       return;
     }
+    const editing = !!this.category.categoryId;
+    try {
+      if (editing) {
+        await firstValueFrom(await this.categoryService.updateCategory(this.category.categoryId, this.category));
+      } else {
+        await firstValueFrom(await this.categoryService.saveCategory(this.category));
+      }
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant(editing ? 'error_updating_category' : 'error_adding_category')),
+        life: 5000
+      });
+      return;
+    }
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant(editing ? 'category_updated' : 'category_created'),
+      life: 3000
+    });
+    this.categoryDialogConfig.visible = false;
+    this.category = {};
+    this.submitted = false;
+    this.onGetAllCategories();
   }
 
   @ViewChild('dt') dt!: Table;
@@ -390,53 +401,6 @@ export class CategoriesComponent implements OnInit {
           this.isLoading = false;
         }
       })
-  }
-
-  async updateCategory(id: any, category: any): Promise<any> {
-    await this.categoryService.updateCategory(id, category)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllCategories();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('category_updated'),
-            life: 3000
-          });
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_updating_category'), life: 3000 })
-          return false;
-        },
-      })
-  }
-
-  async addCategory(data: any): Promise<any> {
-    await this.categoryService.saveCategory(data)
-      .subscribe({
-        next: (response: any) => {
-          this.onGetAllCategories();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('category_created'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          console.log(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_adding_category'),
-            life: 3000
-          });
-          return false;
-        },
-      });
   }
 
   async exportPdf() {
@@ -754,28 +718,6 @@ export class CategoriesComponent implements OnInit {
       })
   }
 
-  async updateProduct(id: any, product: any): Promise<any> {
-    console.log(product)
-    await this.productService.saveProduct(product)
-      .subscribe({
-        next: async (response: any) => {
-          console.log(response);
-          await this.onGetCategoryProducts();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_product'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      })
-  }
-
   private async setUserRoles() {
     this.userRoles = await this.keycloakService.getUserRoles();
     this.isAdmin = this.userRoles.includes('ADMIN');
@@ -875,21 +817,6 @@ export class CategoriesComponent implements OnInit {
     console.log('Product form cancelled');
     this.productDialog = false;
     this.selectedProduct = {};
-  }
-
-  onCategoryAdd(): void {
-    // Handle category add dialog if needed
-    console.log('Category add requested');
-  }
-
-  onSupplierAdd(): void {
-    // Handle supplier add dialog if needed
-    console.log('Supplier add requested');
-  }
-
-  onWarehouseAdd(): void {
-    // Handle warehouse add dialog if needed
-    console.log('Warehouse add requested');
   }
 
 }

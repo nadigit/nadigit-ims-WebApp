@@ -22,6 +22,7 @@ import { BRAND_CHART_PALETTE_EXTENDED, BRAND_COLORS } from 'src/app/utils/brand-
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 import { ProductService } from 'src/app/services/product.service';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './supplier-details.component.html',
@@ -328,15 +329,10 @@ export class SupplierDetailsComponent implements OnInit {
   }
 
 
-  saveSupplier() {
+  /** The supplier always exists on its details page, so this only updates. Closes once the server has saved. */
+  async saveSupplier(): Promise<void> {
     this.submitted = true;
-    if (this.supplier && this.supplier.name) {
-      if (this.supplier.supplierId) {
-        this.updateSupplier(this.supplier.supplierId, this.supplier);
-      } else {
-        this.addSupplier(this.supplier);
-      }
-    } else {
+    if (!this.supplier?.name || !this.supplier.supplierId) {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
@@ -345,68 +341,29 @@ export class SupplierDetailsComponent implements OnInit {
       });
       return;
     }
-  }
-
-  async updateSupplier(id: any, supplier: any): Promise<any> {
-    this.supplierService.updateSupplier(id, supplier)
-      .subscribe({
-        next: async (response: any) => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('supplier_updated'),
-            life: 3000
-          });
-          this.supplierDialogConfig.visible = false;
-          this.submitted = false;
-          await this.loadSupplier();
-          await this.loadSupplierProducts();
-          await this.loadSupplierPurchases();
-          this.initChartOptions();
-          return true;
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_updating_supplier'),
-            life: 3000
-          });
-          return false;
-        },
+    try {
+      await firstValueFrom(await this.supplierService.updateSupplier(this.supplier.supplierId, this.supplier));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_updating_supplier')),
+        life: 5000
       });
-  }
-
-  async addSupplier(data: any): Promise<any> {
-    await this.supplierService.saveSupplier(data)
-      .subscribe({
-        next: async (response: any) => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('supplier_added'),
-            life: 3000
-          });
-          this.supplierDialogConfig.visible = false;
-          this.submitted = false;
-          await this.loadSupplier();
-          await this.loadSupplierProducts();
-          await this.loadSupplierPurchases();
-          this.initChartOptions();
-          return true;
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_adding_supplier'),
-            life: 3000
-          });
-          return false;
-        },
-      });
+      return;
+    }
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('supplier_updated'),
+      life: 3000
+    });
+    this.supplierDialogConfig.visible = false;
+    this.submitted = false;
+    await this.loadSupplier();
+    await this.loadSupplierProducts();
+    await this.loadSupplierPurchases();
+    this.initChartOptions();
   }
 
   contactSupplier(): void {
@@ -685,16 +642,5 @@ export class SupplierDetailsComponent implements OnInit {
     this.submitted = false;
   }
 
-  openCategoryDialog(): void {
-    this.router.navigate(['/inventory/categories']);
-  }
-
-  openWarehouseDialog(): void {
-    this.router.navigate(['/inventory/warehouses']);
-  }
-
-  openSupplierDialog(): void {
-    this.router.navigate(['/inventory/suppliers']);
-  }
 }
 

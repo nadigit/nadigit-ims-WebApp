@@ -48,7 +48,6 @@ import { OrderDeleteDialogComponent } from './order-delete-dialog/order-delete-d
 import { CheckboxModule } from 'primeng/checkbox';
 import { StepsModule } from 'primeng/steps';
 import { InventorySharedModule } from '../../inventory/shared/inventory-shared.module';
-import { ShopFormDialogModule } from '../../inventory/shops/shop-form-dialog/shop-form-dialog.module';
 import { FormAddButtonComponent } from 'src/app/shared/form-add-button';
 import { PageNoteComponent } from 'src/app/shared/page-note';
 @NgModule({
@@ -96,7 +95,6 @@ import { PageNoteComponent } from 'src/app/shared/page-note';
         CheckboxModule,
         StepsModule,
         InventorySharedModule,
-            ShopFormDialogModule,
                 FormAddButtonComponent,
                 PageNoteComponent
             ],

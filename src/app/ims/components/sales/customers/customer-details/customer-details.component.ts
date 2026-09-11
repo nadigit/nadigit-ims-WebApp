@@ -26,6 +26,7 @@ import { Location } from '@angular/common';
 import { BRAND_COLORS, BRAND_ORDER_STATUS_CHART } from 'src/app/utils/brand-colors';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './customer-details.component.html',
@@ -837,7 +838,7 @@ export class CustomerDetailsComponent implements OnInit {
     this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
   }
 
-  saveCustomer() {
+  async saveCustomer(): Promise<void> {
     this.submitted = true;
 
     if (!this.customer?.customerType) {
@@ -892,11 +893,35 @@ export class CustomerDetailsComponent implements OnInit {
       }
     }
 
-    if (this.customer && this.customer.customerId) {
-      this.updateCustomer(this.customer.customerId, this.customer);
-    } else {
-      this.addCustomer(this.customer);
+    // The customer always exists on its details page, so this only updates. Closes once the server has saved.
+    if (!this.customer?.customerId) {
+      return;
     }
+    const customerId = this.customer.customerId;
+    try {
+      await firstValueFrom(await this.customerService.updateCustomer(customerId, this.customer));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_updating_customer')),
+        life: 5000
+      });
+      return;
+    }
+    await this.applyCustomerPricingProfile(customerId);
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('customer_updated'),
+      life: 3000
+    });
+    this.customerDialogConfig.visible = false;
+    this.submitted = false;
+    this.selectedCountry = {};
+    await this.loadCustomer();
+    await this.loadCustomerData();
+    this.initChartOptions();
   }
 
   private async applyCustomerPricingProfile(customerId: number): Promise<void> {
@@ -918,78 +943,6 @@ export class CustomerDetailsComponent implements OnInit {
         life: 3000
       });
     }
-  }
-
-  async updateCustomer(id: any, customer: any): Promise<any> {
-    this.customerService.updateCustomer(id, customer)
-      .subscribe({
-        next: async (response: any) => {
-          // Apply pricing profile after successful customer update
-          await this.applyCustomerPricingProfile(id);
-
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('customer_updated'),
-            life: 3000
-          });
-          this.customerDialogConfig.visible = false;
-          this.submitted = false;
-          this.selectedCountry = {};
-          await this.loadCustomer();
-          await this.loadCustomerData();
-          this.initChartOptions();
-          return true;
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_updating_customer'),
-            life: 3000
-          });
-          return false;
-        },
-      });
-  }
-
-  async addCustomer(data: any): Promise<any> {
-    await this.customerService.saveCustomer(data)
-      .subscribe({
-        next: async (response: any) => {
-          const savedCustomerId = response?.customerId;
-
-          // Apply pricing profile after successful customer creation
-          if (savedCustomerId) {
-            await this.applyCustomerPricingProfile(savedCustomerId);
-          }
-
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('customer_added'),
-            life: 3000
-          });
-          this.customerDialogConfig.visible = false;
-          this.submitted = false;
-          this.selectedCountry = {};
-          await this.loadCustomer();
-          await this.loadCustomerData();
-          this.initChartOptions();
-          return true;
-        },
-        error: (err: any) => {
-          console.error(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_adding_customer'),
-            life: 3000
-          });
-          return false;
-        },
-      });
   }
 
   contactCustomer(): void {

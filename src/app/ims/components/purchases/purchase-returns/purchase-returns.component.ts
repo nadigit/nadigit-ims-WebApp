@@ -40,6 +40,7 @@ import {
   lineQuantityMin,
   lineQuantityStep,
 } from 'src/app/shared/product-utils';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 interface LazyLoadEventExt extends LazyLoadEvent {
   globalFilter?: string;
@@ -586,21 +587,12 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
       delete returnItem.product['returnItemCondition'];
       delete returnItem.product['returnItemReason'];
     });
-    try {
-      if (newPurchaseReturn.returnId) {
-        await this.updateReturn(newPurchaseReturn.returnId, newPurchaseReturn);
-        return;
-      } else {
-        await this.addReturn(newPurchaseReturn);
-      }
-    } catch (error) {
-      console.error('Return creation failed:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('failed_to_process_return') + (error.message ? `: ${error.message}` : ''),
-        life: 3000,
-      });
+    const saved = newPurchaseReturn.returnId
+      ? await this.updateReturn(newPurchaseReturn.returnId, newPurchaseReturn)
+      : await this.addReturn(newPurchaseReturn);
+    if (!saved) {
+      // The reason has already been shown; keep the dialog open so nothing entered is lost.
+      return;
     }
     this.returns = [...this.returns];
     this.returnDialog = false;
@@ -829,52 +821,50 @@ export class PurchaseReturnsComponent implements OnInit, OnDestroy {
     });
   }
 
-  async updateReturn(id: any, purchaseReturn: any): Promise<any> {
-    await this.purchaseReturnService.updateReturn(id, purchaseReturn).subscribe({
-      next: (response: any) => {
-        this.loadReturns();
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('return_updated_successfully'),
-          life: 3000
-        });
-        return true;
-      },
-      error: (err: any) => {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_updating_return'),
-          life: 3000
-        });
-        return false;
-      },
+  /** Resolves true once the server has saved; on failure the user is told why and it resolves false. */
+  async updateReturn(id: any, payload: any): Promise<boolean> {
+    try {
+      await firstValueFrom(await this.purchaseReturnService.updateReturn(id, payload));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_updating_return')),
+        life: 5000
+      });
+      return false;
+    }
+    this.loadReturns();
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('return_updated_successfully'),
+      life: 3000
     });
+    return true;
   }
 
-  async addReturn(purchaseReturn: any): Promise<any> {
-    await this.purchaseReturnService.saveReturn(purchaseReturn).subscribe({
-      next: (response: any) => {
-        this.loadReturns();
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('return_added_successfully'),
-          life: 3000
-        });
-        return true;
-      },
-      error: (err: any) => {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_adding_return'),
-          life: 3000
-        });
-        return false;
-      },
+  /** Resolves true once the server has saved; on failure the user is told why and it resolves false. */
+  async addReturn(payload: any): Promise<boolean> {
+    try {
+      await firstValueFrom(await this.purchaseReturnService.saveReturn(payload));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_adding_return')),
+        life: 5000
+      });
+      return false;
+    }
+    this.loadReturns();
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('return_added_successfully'),
+      life: 3000
     });
+    return true;
   }
 
   async onGetAllPurchases() {

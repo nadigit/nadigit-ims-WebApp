@@ -14,6 +14,7 @@ import { ActivityProfileService } from 'src/app/services/activity-profile.servic
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { AuthenticationService } from 'src/app/services/authentication.service';
 import { OrganizationContextService, OrganizationAccess } from 'src/app/services/organization-context.service';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './my-company.component.html',
@@ -403,18 +404,20 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
         // A newly created company won't be the active one yet; refresh the list and keep showing
         // the current org. The admin can switch to the new company from here or the topbar.
         await this.reloadOrganizationsList();
-        this.messageService.add({
-          severity: 'success', summary: this.translate.instant('successful'),
-          detail: this.translate.instant('organization_added'), life: 3000
-        });
       }
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('successful'),
+        detail: this.translate.instant(wasNew ? 'organization_added' : 'organization_updated'),
+        life: 3000
+      });
       this.loadOrganization();
     } catch (error) {
       console.error('Error while saving organization:', error);
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_while_saving_organization'),
+        detail: httpErrorMessage(error, this.translate.instant('error_while_saving_organization')),
         life: 3000
       });
     }
@@ -492,61 +495,6 @@ export class MyCompanyComponent implements OnInit, OnDestroy {
   
     this.states =
       this.locationService.getStatesByCountryCode(country.isoCode);
-  }
-
-  async updateOrganization(id: any, organization: any): Promise<any> {
-    console.log(organization);
-    await this.organizationService.updateOrganization(id, organization)
-      .subscribe({
-        next: (response: any) => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('organization_updated'),
-            life: 3000
-          });
-          console.log(response);
-          this.loadOrganization();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_organization'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      });
-  }
-
-  async addOrganization(data: any): Promise<any> {
-    await this.organizationService.saveOrganization(data)
-      .subscribe({
-        next: (response: any) => {
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('organization_added'),
-            life: 3000
-          });
-          console.log(response);
-          this.loadOrganization();
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_adding_organization'),
-            life: 3000
-          });
-          console.log(err);
-          return false;
-        },
-      });
   }
 
   async onFileUpload(event: any): Promise<void> {

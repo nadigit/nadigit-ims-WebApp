@@ -28,6 +28,7 @@ import { BRAND_COLORS, BRAND_ORDER_STATUS_CHART } from 'src/app/utils/brand-colo
 import { Organization } from 'src/app/models/organization';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Pipe({ name: 'absolute' })
 export class AbsolutePipe implements PipeTransform {
@@ -534,12 +535,7 @@ export class CustomersComponent implements OnInit {
       this.customerDialogConfig.visible = false;
       this.customer = {};
     } catch (error) {
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('unexpected_error_occurred'),
-        life: 3000
-      });
+      // updateCustomer / addCustomer have already shown the reason; the dialog stays open.
       console.error('Error saving customer:', error);
     }
   }
@@ -747,7 +743,7 @@ export class CustomersComponent implements OnInit {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_while_updating_customer'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_updating_customer')),
         life: 3000
       });
       console.log(err);
@@ -770,7 +766,7 @@ export class CustomersComponent implements OnInit {
       this.messageService.add({
         severity: 'error',
         summary: this.translate.instant('error'),
-        detail: this.translate.instant('error_while_adding_customer'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_adding_customer')),
         life: 3000
       });
       console.log(err);

@@ -19,7 +19,7 @@
                     <button pButton pRipple *ngIf="canAddShop" label="{{'new_button' | translate}}"
                         icon="pi pi-plus" class="p-button-success" (click)="openNew()"
                         [disabled]="isAtShopsCapacity"
-                        [pTooltip]="isAtShopsCapacity ? ('Limit reached: ' + maxShopsCap + ' shops allowed by current plan.') : ('add_new_shop'|translate)"></button>
+                        [pTooltip]="isAtShopsCapacity ? ('plan_limit_reached_shops' | translate: { count: maxShopsCap }) : ('add_new_shop' | translate)"></button>
                     <button pButton pRipple *ngIf="canDeleteShop" label="{{'delete_button' | translate}}"
                         icon="pi pi-trash" class="p-button-danger" (click)="deleteSelectedShops()"
                         pTooltip="{{'delete_shop'|translate}}"
@@ -156,6 +156,8 @@
             (save)="onShopSave($event)"
             (cancel)="onShopCancel()">
         </app-shop-form-dialog>
+
+        <app-quick-create-dialogs #quickCreate [currency]="currency" (shopCreated)="onGetAllShops()"></app-quick-create-dialogs>
 
         <p-dialog [(visible)]="deleteShopDialog" header="{{ 'confirm_label' | translate }}" [modal]="true"
             [style]="{width:'450px'}">

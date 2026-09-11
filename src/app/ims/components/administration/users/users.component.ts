@@ -10,7 +10,7 @@ import { TranslationService } from 'src/app/services/translation.service';
 import { ExportColumn, ReportingService } from 'src/app/utils/reporting.service';
 import { Role } from 'src/app/models/role';
 import { Credential } from 'src/app/models/credential';
-import { forkJoin, Observable } from 'rxjs';
+import { firstValueFrom, forkJoin, Observable } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { ShopService } from 'src/app/services/shop.service';
 import { WarehouseService } from 'src/app/services/warehouse.service';
@@ -21,6 +21,7 @@ import { Router } from '@angular/router';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 
 @Component({
@@ -255,7 +256,7 @@ export class UsersComponent implements OnInit {
   private showUpgradeCta(detail: string): void {
     this.messageService.add({
       severity: 'warn',
-      summary: 'Upgrade required',
+      summary: this.translate.instant('plan_limit_reached_title'),
       detail,
       life: 7000
     });
@@ -531,7 +532,7 @@ export class UsersComponent implements OnInit {
 
   openNew() {
     if (this.activeItem?.icon == 'pi pi-fw pi-user' && this.isAtUserCapacity) {
-      this.showUpgradeCta('User limit reached for the current plan. Upgrade to create more users.');
+      this.showUpgradeCta(this.translate.instant('plan_limit_reached_users', { count: this.maxUsersCap ?? 1 }));
       return;
     }
     this.user = {};
@@ -795,27 +796,46 @@ export class UsersComponent implements OnInit {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
-  saveRole() {
+  /** Closes only once the server has saved; a failure keeps the dialog open and shows the reason. */
+  async saveRole(): Promise<void> {
     this.submitted = true;
-
-    if (this.appRole.name.trim()) {
-      if (this.isSystemRole(this.appRole.name)) {
-        this.showSystemRoleImmutableMessage(this.appRole.id
-          ? 'System roles cannot be updated or deleted.'
-          : 'System role names are reserved and cannot be created manually.');
-        return;
-      }
-      if (this.appRole.id) {
-        console.log(this.appRole)
-        this.updateRole(this.appRole.name, this.appRole)
-      } else {
-        this.addRole(this.appRole)
-      }
-      this.appRoles = [...this.appRoles];
-
-      this.roleDialog = false;
-      this.appRole = {};
+    if (!this.appRole.name?.trim()) {
+      return;
     }
+    if (this.isRoleManagementLocked) {
+      this.showUpgradeCta(this.translate.instant('plan_role_management_locked'));
+      return;
+    }
+    const editing = !!this.appRole.id;
+    if (this.isSystemRole(this.appRole.name)) {
+      this.showSystemRoleImmutableMessage(editing ? 'system_role_immutable' : 'system_role_name_reserved');
+      return;
+    }
+    try {
+      if (editing) {
+        await firstValueFrom(await this.authService.updateRole(this.appRole.name, this.appRole));
+      } else {
+        await firstValueFrom(await this.authService.saveRole(this.appRole));
+      }
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant(editing ? 'error_while_updating_role' : 'error_while_creating_role')),
+        life: 5000
+      });
+      return;
+    }
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant(editing ? 'role_updated' : 'role_created'),
+      life: 3000
+    });
+    this.roleDialog = false;
+    this.appRole = {};
+    this.submitted = false;
+    this.onGetAllRoles();
   }
 
   findIndexById(id: string): number {
@@ -1085,7 +1105,7 @@ export class UsersComponent implements OnInit {
     } catch (error) {
       console.log(error);
       if (this.isLicenseUpgradeError(error)) {
-        this.showUpgradeCta('Starter plan allows one admin user only. Upgrade to create more users.');
+        this.showUpgradeCta(this.translate.instant('plan_limit_reached_users', { count: this.maxUsersCap ?? 1 }));
       }
       this.messageService.add({
         severity: 'error',
@@ -1116,7 +1136,7 @@ export class UsersComponent implements OnInit {
 
   async updateUserRoleMapping(id: any, role: any): Promise<boolean> {
     if (this.isRoleManagementLocked) {
-      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      this.showUpgradeCta(this.translate.instant('plan_role_management_locked'));
       return false;
     }
     try {
@@ -1143,7 +1163,7 @@ export class UsersComponent implements OnInit {
 
   async deleteUserRoleMapping(id: any, role: any): Promise<boolean> {
     if (this.isRoleManagementLocked) {
-      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      this.showUpgradeCta(this.translate.instant('plan_role_management_locked'));
       return false;
     }
     try {
@@ -1169,75 +1189,9 @@ export class UsersComponent implements OnInit {
   }
 
 
-  async updateRole(id: any, user: any): Promise<any> {
-    if (this.isRoleManagementLocked) {
-      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
-      return;
-    }
-    if (this.isSystemRole(id)) {
-      this.showSystemRoleImmutableMessage();
-      return;
-    }
-    console.log(user)
-    await this.authService.updateRole(id, user)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllRoles();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('role_updated'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          console.log(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_role'),
-            life: 3000
-          });
-          return false;
-        },
-      })
-  }
-  async addRole(data: any): Promise<any> {
-    if (this.isRoleManagementLocked) {
-      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
-      return;
-    }
-    await this.authService.saveRole(data)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.onGetAllRoles();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('role_created'),
-            life: 3000
-          });
-          return true;
-        },
-        error(err: any) {
-          console.log(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_creating_role'),
-            life: 3000
-          });
-          return false;
-        },
-      })
-  }
-
   async onDeleteRole(id: any) {
     if (this.isRoleManagementLocked) {
-      this.showUpgradeCta('Role management is available on Pro and Enterprise plans. Upgrade to manage roles.');
+      this.showUpgradeCta(this.translate.instant('plan_role_management_locked'));
       return;
     }
     if (this.isSystemRole(id)) {
@@ -1279,11 +1233,11 @@ export class UsersComponent implements OnInit {
     return this.systemRoleNames.includes(roleName.toUpperCase());
   }
 
-  private showSystemRoleImmutableMessage(detail = 'System roles cannot be updated or deleted.'): void {
+  private showSystemRoleImmutableMessage(detailKey = 'system_role_immutable'): void {
     this.messageService.add({
       severity: 'warn',
       summary: this.translate.instant('warning'),
-      detail,
+      detail: this.translate.instant(detailKey),
       life: 3500
     });
   }

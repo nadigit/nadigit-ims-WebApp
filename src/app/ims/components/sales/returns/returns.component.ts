@@ -44,6 +44,7 @@ import {
   lineQuantityMin as lineQtyMin,
   lineQuantityStep,
 } from 'src/app/shared/product-utils';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 
 @Pipe({
@@ -749,23 +750,13 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
       delete orderItem.product['returnItemReason'];
     });
 
-    try {
-      if (newOrderReturn.returnId) {
-        await this.updateReturn(newOrderReturn.returnId, newOrderReturn);
-        return;
-      } else {
-        await this.addReturn(newOrderReturn);
-      }
-    } catch (error) {
-      console.error('Return creation failed:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: this.translate.instant('error'),
-        detail: this.translate.instant('failed_to_process_return') + (error.message ? `: ${error.message}` : ''),
-        life: 3000,
-      });
+    const saved = newOrderReturn.returnId
+      ? await this.updateReturn(newOrderReturn.returnId, newOrderReturn)
+      : await this.addReturn(newOrderReturn);
+    if (!saved) {
+      // The reason has already been shown; keep the dialog open so nothing entered is lost.
+      return;
     }
-
     this.returns = [...this.returns];
     this.returnDialog = false;
     this.scanning = false;
@@ -1151,59 +1142,50 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
   }
 
 
-  async updateReturn(id: any, orderReturn: any): Promise<any> {
-    console.log(orderReturn);
-    await this.returnService.updateReturn(id, orderReturn)
-      .subscribe({
-        next: (response: any) => {
-          console.log(response);
-          this.loadReturns();
-          this.messageService.add({
-            severity: 'success',
-            summary: this.translate.instant('successful'),
-            detail: this.translate.instant('return_updated_successfully'),
-            life: 3000
-          });
-          return true;
-        },
-        error: (err: any) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_updating_return'),
-            life: 3000
-          });
-          return false;
-        },
+  /** Resolves true once the server has saved; on failure the user is told why and it resolves false. */
+  async updateReturn(id: any, payload: any): Promise<boolean> {
+    try {
+      await firstValueFrom(await this.returnService.updateReturn(id, payload));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_updating_return')),
+        life: 5000
       });
+      return false;
+    }
+    this.loadReturns();
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('return_updated_successfully'),
+      life: 3000
+    });
+    return true;
   }
 
-  async addReturn(orderReturn: any): Promise<any> {
-    console.log(orderReturn);
-
-    await this.returnService.saveReturn(orderReturn).subscribe({
-      next: (response: any) => {
-        console.log(response);
-        this.loadReturns();
-        this.messageService.add({
-          severity: 'success',
-          summary: this.translate.instant('successful'),
-          detail: this.translate.instant('return_added_successfully'),
-          life: 3000
-        });
-        return true;
-      },
-      error: (err: any) => {
-        this.messageService.add({
-          severity: 'error',
-          summary: this.translate.instant('error'),
-          detail: this.translate.instant('error_while_adding_return'),
-          life: 3000
-        });
-        console.log(err);
-        return false;
-      },
+  /** Resolves true once the server has saved; on failure the user is told why and it resolves false. */
+  async addReturn(payload: any): Promise<boolean> {
+    try {
+      await firstValueFrom(await this.returnService.saveReturn(payload));
+    } catch (err: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(err, this.translate.instant('error_while_adding_return')),
+        life: 5000
+      });
+      return false;
+    }
+    this.loadReturns();
+    this.messageService.add({
+      severity: 'success',
+      summary: this.translate.instant('successful'),
+      detail: this.translate.instant('return_added_successfully'),
+      life: 3000
     });
+    return true;
   }
 
 
